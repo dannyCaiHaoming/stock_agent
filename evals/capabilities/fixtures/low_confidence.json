@@ -1,0 +1,23 @@
+{
+  "scenario_type": "low_confidence",
+  "cases": [
+    {
+      "case_id": "company-conflicting-segments",
+      "agent": "runtime_company_analyst",
+      "input_context": {"material_source_conflict": true, "conflict_resolved": false},
+      "expected": {"status": "LOW_CONFIDENCE", "required_nonempty": ["uncertainties", "data_gaps", "confidence"], "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "skeptic-weak-disconfirmation",
+      "agent": "runtime_skeptic",
+      "input_context": {"material_challenge_has_primary_support": false},
+      "expected": {"status": "LOW_CONFIDENCE", "required_nonempty": ["uncertainties", "data_gaps", "confidence"], "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "catalyst-uncertain-window",
+      "agent": "runtime_market_catalyst",
+      "input_context": {"event_window_uncertain": true, "market_data_fresh": true},
+      "expected": {"status": "LOW_CONFIDENCE", "required_nonempty": ["uncertainties", "data_gaps", "confidence"], "unsupported_claims_allowed": false}
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/version-manifest/1.0.0",
+  "title": "Portfolio Council Version Manifest",
+  "type": "object",
+  "required": ["manifest_version", "model", "skills", "agents", "schemas", "mcp_adapters", "risk_policy", "data_snapshot"],
+  "properties": {
+    "manifest_version": {"type": "string", "minLength": 1},
+    "model": {"type": "string", "minLength": 1},
+    "skills": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+    "agents": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+    "schemas": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+    "mcp_adapters": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+    "risk_policy": {"type": "string", "minLength": 1},
+    "data_snapshot": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

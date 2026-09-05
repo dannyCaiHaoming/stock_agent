@@ -1,0 +1,23 @@
+{
+  "scenario_type": "success",
+  "cases": [
+    {
+      "case_id": "company-success",
+      "agent": "runtime_company_analyst",
+      "input_context": {"evidence_complete": true, "deterministic_calculation_available": true},
+      "expected": {"status": "COMPLETE", "required_nonempty": ["claims", "invalidation_conditions", "confidence"], "forbidden_fields": ["final_action", "target_weight", "order"]}
+    },
+    {
+      "case_id": "skeptic-success-isolated",
+      "agent": "runtime_skeptic",
+      "input_context": {"mode": "INDEPENDENT_FIRST_PASS", "includes_other_agent_conclusions": false, "evidence_complete": true},
+      "expected": {"status": "COMPLETE", "required_nonempty": ["challenges", "evidence_refs", "confidence"], "forbidden_fields": ["final_action", "target_weight", "order"]}
+    },
+    {
+      "case_id": "catalyst-success",
+      "agent": "runtime_market_catalyst",
+      "input_context": {"event_before_cutoff": true, "market_data_fresh": true, "liquidity_data_present": true},
+      "expected": {"status": "COMPLETE", "required_nonempty": ["events", "market_context", "liquidity_context", "confidence"], "forbidden_fields": ["final_action", "target_weight", "order"]}
+    }
+  ]
+}

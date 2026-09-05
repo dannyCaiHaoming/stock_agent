@@ -1,0 +1,20 @@
+{
+  "name": "product",
+  "version": "0.1.0",
+  "description": "面向 Codex、证据优先且仅供研究建议的 Portfolio Council",
+  "author": {
+    "name": "Portfolio Council 项目"
+  },
+  "license": "MIT",
+  "keywords": ["portfolio", "research", "evidence", "risk", "advisory"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Portfolio Council",
+    "shortDescription": "基于证据并经过硬风险校验的组合研究。",
+    "longDescription": "运行仅供建议的 CIO 委员会，使用隔离的专业研究、point-in-time 证据、结构化 NO_TRADE 结果和确定性风险否决。",
+    "developerName": "Portfolio Council 项目",
+    "category": "Productivity",
+    "capabilities": ["只读研究", "结构化输出", "确定性风险校验"],
+    "defaultPrompt": ["评审我的持仓，并返回基于证据的研究建议计划或 NO_TRADE。"]
+  }
+}

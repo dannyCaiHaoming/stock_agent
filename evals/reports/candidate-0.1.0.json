@@ -1,0 +1,44 @@
+{
+  "report_version": "1.0.0",
+  "candidate_version": "0.1.0",
+  "generated_at": "2026-09-05T00:00:00+08:00",
+  "version_manifest": "product/version-manifest.json",
+  "results": {
+    "unit_contract_and_integration_tests": {
+      "passed": true,
+      "test_count": 92,
+      "failed": 0
+    },
+    "end_to_end_scenarios": {
+      "passed": true,
+      "scenario_count": 5,
+      "scenarios": [
+        "normal-advisory-plan",
+        "stale-data-no-trade",
+        "material-source-conflict-no-trade",
+        "risk-revision-approved",
+        "second-risk-failure-vetoed"
+      ]
+    },
+    "deterministic_gates": {
+      "passed": true,
+      "areas": ["schema", "portfolio-math", "risk", "freshness", "conflict-detection", "evidence-closure"]
+    },
+    "reasoning_eval_contract": {
+      "passed": true,
+      "areas": ["citation-support", "thesis", "counter-thesis", "conflict-handling", "invalidation", "confidence-calibration"]
+    },
+    "runtime_permission_audit": {
+      "passed": true,
+      "runtime_agents": 3,
+      "write_capabilities": 0,
+      "broker_or_order_capabilities": 0
+    }
+  },
+  "promotion_status": "HUMAN_APPROVED_CANDIDATE_NOT_ACTIVATED",
+  "known_limitations": [
+    "当前仅启用确定性 fixture/reference 数据。",
+    "首发生产市场、数据供应商和部署 Mandate 仍由独立 OpenSpec Change 处理。",
+    "系统不存在券商接入、账户修改、订单路由或真实交易能力。"
+  ]
+}

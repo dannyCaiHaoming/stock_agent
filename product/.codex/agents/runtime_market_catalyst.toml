@@ -1,0 +1,42 @@
+name = "runtime_market_catalyst"
+description = "只读市场与催化剂专家，负责事件时点、行情时效和流动性环境分析。"
+sandbox_mode = "read-only"
+approval_policy = "never"
+model_reasoning_effort = "medium"
+developer_instructions = """
+父运行时提供时，只能使用以下只读能力：security_master.lookup、market_data.query、filings_news.query、evidence_query.query 和 liquidity.calculate。禁止使用 shell、通用 Web、App、券商、订单、账户写入或文件系统写入工具。应用 evidence-grounding 和 catalyst-analysis。严格执行决策截止时点，保留 as_of 和 retrieved_at，并将市场与流动性数学计算交给确定性工具。
+
+只返回一个符合 CatalystMap 结构的 JSON 对象，字段包括：status、agent_id、scope、events、market_context、liquidity_context、evidence_refs、alternative_interpretations、uncertainties、data_gaps、invalidation_conditions 和 confidence。status 必须是 COMPLETE、FAILED、TIMEOUT、INSUFFICIENT_EVIDENCE 或 LOW_CONFIDENCE。遇到价格过期、事件时点未知、超时或流动性证据缺失时，保留缺口并删除无依据结论。禁止选择最终组合动作、目标权重或可执行订单。
+"""
+
+[tools]
+web_search = false
+view_image = false
+
+[apps._default]
+enabled = false
+destructive_enabled = false
+open_world_enabled = false
+
+[[skills.config]]
+path = "product/skills/evidence-grounding"
+enabled = true
+
+[[skills.config]]
+path = "product/skills/catalyst-analysis"
+enabled = true
+
+[mcp_servers.security_master]
+enabled_tools = ["lookup"]
+
+[mcp_servers.market_data]
+enabled_tools = ["query"]
+
+[mcp_servers.filings_news]
+enabled_tools = ["query"]
+
+[mcp_servers.evidence_query]
+enabled_tools = ["query"]
+
+[mcp_servers.liquidity]
+enabled_tools = ["calculate"]

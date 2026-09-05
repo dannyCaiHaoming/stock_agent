@@ -1,0 +1,23 @@
+{
+  "scenario_type": "failure",
+  "cases": [
+    {
+      "case_id": "company-calculator-failure",
+      "agent": "runtime_company_analyst",
+      "injected_condition": "valuation.calculate returns an error",
+      "expected": {"status": "FAILED", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "skeptic-isolation-failure",
+      "agent": "runtime_skeptic",
+      "input_context": {"mode": "INDEPENDENT_FIRST_PASS", "includes_other_agent_conclusions": true},
+      "expected": {"status": "FAILED", "required_gap_code": "CONTEXT_ISOLATION_VIOLATION", "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "catalyst-tool-failure",
+      "agent": "runtime_market_catalyst",
+      "injected_condition": "market_data.query returns an error",
+      "expected": {"status": "FAILED", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    }
+  ]
+}

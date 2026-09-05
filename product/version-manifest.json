@@ -1,0 +1,33 @@
+{
+  "manifest_version": "1.0.0",
+  "model": "fixture-model-snapshot/1.0.0",
+  "skills": {
+    "portfolio-council": "1.0.0",
+    "evidence-grounding": "1.0.0",
+    "company-research": "1.0.0",
+    "valuation": "1.0.0",
+    "counter-thesis": "1.0.0",
+    "catalyst-analysis": "1.0.0"
+  },
+  "agents": {
+    "cio-main-thread": "1.0.0",
+    "runtime-company-analyst": "1.0.0",
+    "runtime-market-catalyst": "1.0.0",
+    "runtime-skeptic": "1.0.0"
+  },
+  "schemas": {
+    "artifact-envelope": "1.0.0",
+    "evidence": "1.0.0",
+    "portfolio": "1.0.0",
+    "research": "1.0.0",
+    "decision-risk": "1.0.0",
+    "decision-trace": "1.0.0",
+    "learning": "1.0.0"
+  },
+  "mcp_adapters": {
+    "provider-neutral-contracts": "1.0.0",
+    "fixture-reference": "1.0.0"
+  },
+  "risk_policy": "risk/reference/1.0.0",
+  "data_snapshot": "fixture/reference/1.0.0"
+}

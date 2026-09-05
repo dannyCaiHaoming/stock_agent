@@ -1,0 +1,23 @@
+{
+  "scenario_type": "timeout",
+  "cases": [
+    {
+      "case_id": "company-timeout",
+      "agent": "runtime_company_analyst",
+      "injected_condition": "research budget expires before filings query completes",
+      "expected": {"status": "TIMEOUT", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "skeptic-timeout",
+      "agent": "runtime_skeptic",
+      "injected_condition": "research budget expires before independent search completes",
+      "expected": {"status": "TIMEOUT", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "catalyst-timeout",
+      "agent": "runtime_market_catalyst",
+      "injected_condition": "research budget expires before event query completes",
+      "expected": {"status": "TIMEOUT", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    }
+  ]
+}

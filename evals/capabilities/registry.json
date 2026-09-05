@@ -1,0 +1,183 @@
+{
+  "registry_version": "1.0.0",
+  "production_registration_policy": {
+    "required_contract_sections": [
+      "input",
+      "tool_data",
+      "skill_reasoning",
+      "structured_output",
+      "eval"
+    ],
+    "eval_required": true,
+    "unsupported_claims_forbidden": true
+  },
+  "runtime_agents": [
+    {
+      "agent_id": "runtime_company_analyst",
+      "capabilities": ["evidence-grounding", "company-research", "valuation"],
+      "ablation_baseline": "cio-only"
+    },
+    {
+      "agent_id": "runtime_market_catalyst",
+      "capabilities": ["evidence-grounding", "catalyst-analysis"],
+      "ablation_baseline": "cio-plus-company-analyst"
+    },
+    {
+      "agent_id": "runtime_skeptic",
+      "capabilities": ["evidence-grounding", "counter-thesis"],
+      "ablation_baseline": "cio-plus-company-analyst"
+    }
+  ],
+  "capabilities": [
+    {
+      "capability_id": "portfolio-council",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["portfolio", "mandate", "decision_cutoff", "user_objective"]
+        },
+        "tool_data": {
+          "read_only_tools": ["security_master.lookup", "evidence_query.query"],
+          "deterministic_calculations": ["portfolio_normalization", "risk_preflight", "risk_final_check"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/portfolio-council",
+          "responsibilities": ["capability_selection", "conflict_synthesis", "decision_synthesis"]
+        },
+        "structured_output": {
+          "artifact": "FinalDecisionPlan",
+          "required": ["decisions", "risk_report", "advisory_only"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/council_scenarios.json"],
+          "acceptance": ["dynamic_delegation", "one_revision_maximum", "risk_veto_non_bypassable", "complete_trace"]
+        }
+      }
+    },
+    {
+      "capability_id": "evidence-grounding",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["research_scope", "decision_cutoff", "evidence_bundle"]
+        },
+        "tool_data": {
+          "read_only_tools": ["evidence_query.query"],
+          "required_fact_fields": ["source_id", "as_of", "retrieved_at"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/evidence-grounding",
+          "responsibilities": ["classify_statements", "preserve_conflicts", "identify_freshness_and_gaps"]
+        },
+        "structured_output": {
+          "artifact": "EvidenceGroundingContribution",
+          "required": ["claims", "assumptions", "uncertainties", "data_gaps", "confidence"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/success.json", "fixtures/missing_evidence.json", "fixtures/low_confidence.json"],
+          "acceptance": ["all_facts_have_provenance", "unsupported_claims_are_omitted_or_assumptions"]
+        }
+      }
+    },
+    {
+      "capability_id": "company-research",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["security_id", "research_scope", "decision_cutoff", "evidence_bundle"]
+        },
+        "tool_data": {
+          "read_only_tools": ["security_master.lookup", "fundamentals.query", "filings_news.query", "evidence_query.query"],
+          "deterministic_calculations": ["financial_ratios", "trend_reconciliation"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/company-research",
+          "responsibilities": ["business_quality", "competitive_position", "thesis_and_disconfirmation"]
+        },
+        "structured_output": {
+          "artifact": "AgentResearchReport",
+          "required": ["status", "scope", "claims", "counter_evidence_refs", "uncertainties", "data_gaps", "invalidation_conditions", "confidence"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/success.json", "fixtures/failure.json", "fixtures/timeout.json", "fixtures/missing_evidence.json", "fixtures/low_confidence.json"],
+          "acceptance": ["report_is_structured", "no_portfolio_action", "gaps_replace_fabrication"]
+        }
+      }
+    },
+    {
+      "capability_id": "valuation",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["security_id", "valuation_date", "decision_cutoff", "financial_facts", "market_price_facts", "scenario_assumptions"]
+        },
+        "tool_data": {
+          "read_only_tools": ["valuation.calculate"],
+          "deterministic_calculations": ["scenario_values", "sensitivities"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/valuation",
+          "responsibilities": ["method_selection", "assumption_interpretation", "uncertainty_analysis"]
+        },
+        "structured_output": {
+          "artifact": "ValuationAssessment",
+          "required": ["status", "methods", "assumptions", "calculation_artifact_refs", "scenarios", "sensitivities", "data_gaps", "confidence"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/success.json", "fixtures/failure.json", "fixtures/missing_evidence.json", "fixtures/valuation_golden.json"],
+          "acceptance": ["all_numeric_outputs_reference_calculation_artifacts", "no_trade_action", "golden_case_values_are_not_recomputed_by_llm"]
+        }
+      }
+    },
+    {
+      "capability_id": "counter-thesis",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["mode", "security_id", "research_scope", "decision_cutoff", "evidence_bundle"],
+          "first_pass_forbidden": ["cio_conclusion", "peer_agent_conclusion"]
+        },
+        "tool_data": {
+          "read_only_tools": ["security_master.lookup", "fundamentals.query", "filings_news.query", "evidence_query.query"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/counter-thesis",
+          "responsibilities": ["independent_disconfirmation", "alternative_explanations", "targeted_pressure_test"]
+        },
+        "structured_output": {
+          "artifact": "CounterThesisReport",
+          "required": ["status", "mode", "challenges", "evidence_refs", "uncertainties", "data_gaps", "invalidation_conditions", "confidence"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/success.json", "fixtures/failure.json", "fixtures/timeout.json", "fixtures/missing_evidence.json", "fixtures/low_confidence.json"],
+          "acceptance": ["first_pass_context_is_isolated", "challenges_are_evidence_grounded", "no_portfolio_action"]
+        }
+      }
+    },
+    {
+      "capability_id": "catalyst-analysis",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["security_id", "decision_cutoff", "analysis_horizon", "event_facts", "market_facts", "liquidity_facts"]
+        },
+        "tool_data": {
+          "read_only_tools": ["security_master.lookup", "market_data.query", "filings_news.query", "evidence_query.query", "liquidity.calculate"],
+          "deterministic_calculations": ["returns", "volatility", "volume", "spreads", "liquidity"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/catalyst-analysis",
+          "responsibilities": ["event_map", "transmission_paths", "alternative_interpretations"]
+        },
+        "structured_output": {
+          "artifact": "CatalystMap",
+          "required": ["status", "events", "market_context", "liquidity_context", "evidence_refs", "uncertainties", "data_gaps", "confidence"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/success.json", "fixtures/failure.json", "fixtures/timeout.json", "fixtures/missing_evidence.json", "fixtures/low_confidence.json"],
+          "acceptance": ["events_respect_decision_cutoff", "freshness_is_explicit", "liquidity_gaps_are_not_inferred"]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "scenario_type": "valuation_golden",
+  "owner": "deterministic_valuation_tool",
+  "cases": [
+    {
+      "case_id": "single-period-present-value",
+      "calculation": "present_value",
+      "inputs": {"cash_flow": "110.00", "discount_rate": "0.10", "periods": 1},
+      "expected": {"present_value": "100.00", "calculation_artifact_ref": "calc:present-value:001"}
+    },
+    {
+      "case_id": "enterprise-to-equity-per-share",
+      "calculation": "equity_value_per_share",
+      "inputs": {"enterprise_value": "1200.00", "cash": "200.00", "debt": "400.00", "shares": "100.00"},
+      "expected": {"equity_value": "1000.00", "value_per_share": "10.00", "calculation_artifact_ref": "calc:equity-value:001"}
+    }
+  ],
+  "agent_expectation": {
+    "must_reference_calculation_artifact": true,
+    "must_not_recompute": true,
+    "forbidden_fields": ["final_action", "target_weight", "order"]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "fixture_version": "1.0.0",
+  "capability": "portfolio-council",
+  "scenarios": [
+    {"id": "normal", "expected_actionability": "ADVISORY_PLAN", "expected_risk_status": "APPROVED"},
+    {"id": "stale", "expected_actionability": "NO_TRADE", "expected_reason": "STALE_DATA"},
+    {"id": "conflict", "expected_actionability": "NO_TRADE", "expected_reason": "MATERIAL_SOURCE_CONFLICT"},
+    {"id": "risk-revision", "expected_checks": 2, "expected_risk_status": "APPROVED"},
+    {"id": "risk-veto", "expected_checks": 2, "expected_actionability": "NO_TRADE", "expected_reason": "RISK_VETO"}
+  ]
+}

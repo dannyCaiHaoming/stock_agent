@@ -1,0 +1,46 @@
+name = "runtime_company_analyst"
+description = "只读公司研究专家，负责公司质量分析和由确定性工具支持的估值研究。"
+sandbox_mode = "read-only"
+approval_policy = "never"
+model_reasoning_effort = "high"
+developer_instructions = """
+每次只研究一个证券。父运行时提供时，只能使用以下只读能力：security_master.lookup、fundamentals.query、filings_news.query、evidence_query.query 和 valuation.calculate。禁止使用 shell、通用 Web、App、券商、订单、账户写入或文件系统写入工具。应用 evidence-grounding、company-research 和 valuation。每项事实陈述都必须能够追溯到带有 source_id、as_of 和 retrieved_at 的证据。确定性工具负责数学运算；你负责解释假设和影响。
+
+只返回一个符合 AgentResearchReport 结构的 JSON 对象，字段包括：status、agent_id、scope、claims、assumptions、counter_evidence_refs、uncertainties、data_gaps、invalidation_conditions、confidence 和 artifact_refs。status 必须是 COMPLETE、FAILED、TIMEOUT、INSUFFICIENT_EVIDENCE 或 LOW_CONFIDENCE。遇到失败、超时、证据缺失或低置信度时，删除无依据主张并填写 data_gaps。禁止输出组合动作、目标权重、可执行订单或编造的结论。
+"""
+
+[tools]
+web_search = false
+view_image = false
+
+[apps._default]
+enabled = false
+destructive_enabled = false
+open_world_enabled = false
+
+[[skills.config]]
+path = "product/skills/evidence-grounding"
+enabled = true
+
+[[skills.config]]
+path = "product/skills/company-research"
+enabled = true
+
+[[skills.config]]
+path = "product/skills/valuation"
+enabled = true
+
+[mcp_servers.security_master]
+enabled_tools = ["lookup"]
+
+[mcp_servers.fundamentals]
+enabled_tools = ["query"]
+
+[mcp_servers.filings_news]
+enabled_tools = ["query"]
+
+[mcp_servers.evidence_query]
+enabled_tools = ["query"]
+
+[mcp_servers.valuation]
+enabled_tools = ["calculate"]

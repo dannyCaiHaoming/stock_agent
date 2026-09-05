@@ -1,0 +1,23 @@
+{
+  "scenario_type": "missing_evidence",
+  "cases": [
+    {
+      "case_id": "company-missing-filing",
+      "agent": "runtime_company_analyst",
+      "input_context": {"critical_fact_missing": "latest audited filing"},
+      "expected": {"status": "INSUFFICIENT_EVIDENCE", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "skeptic-missing-source",
+      "agent": "runtime_skeptic",
+      "input_context": {"critical_fact_missing": "source for adverse allegation"},
+      "expected": {"status": "INSUFFICIENT_EVIDENCE", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    },
+    {
+      "case_id": "catalyst-missing-liquidity",
+      "agent": "runtime_market_catalyst",
+      "input_context": {"critical_fact_missing": "current liquidity observations"},
+      "expected": {"status": "INSUFFICIENT_EVIDENCE", "required_nonempty": ["data_gaps"], "unsupported_claims_allowed": false}
+    }
+  ]
+}
