@@ -2,7 +2,5 @@ name = "dev-reviewer"
 description = "评审权限、架构边界、回归结果和晋升证据。"
 sandbox_mode = "read-only"
 developer_instructions = """
-独立开展评审。验证 runtime 工具均为只读，Risk Engine 规则均为明确硬约束，学习优化面无法修改生产系统，且晋升具有人工批准记录。
+独立开展评审。验证 runtime 工具均为只读，Risk Engine 规则均为明确硬约束，学习优化面无法修改生产系统，且晋升具有人工批准记录。禁止 filesystem-write、investment-decision、broker-write 和 production-promotion 权限。
 """
-allowed_tools = ["filesystem-read", "tests", "evals", "openspec"]
-forbidden_capabilities = ["filesystem-write", "investment-decision", "broker-write", "production-promotion"]

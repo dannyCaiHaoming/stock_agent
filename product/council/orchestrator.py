@@ -1,7 +1,10 @@
-"""State management around LLM research and CIO synthesis.
+"""Test-only reference state machine for deterministic contract coverage.
 
-This module intentionally contains no security selection or thesis rules. The CIO
-supplies capability choices, synthesis, and optional revision callbacks.
+This module is retained to exercise risk and output boundaries with fake callbacks.
+It is not a product runtime entrypoint and must never be used to claim Codex Skill,
+Subagent, or LLM participation.  The Codex-native entrypoint lives in the
+``portfolio-council`` Skill; Python remains limited to deterministic tools,
+validation, risk, replay, and persistence.
 """
 
 from __future__ import annotations
@@ -13,6 +16,9 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from .output import force_no_trade, validate_final_plan
+
+
+REFERENCE_ONLY = True
 
 
 class RuntimeAgent(Protocol):

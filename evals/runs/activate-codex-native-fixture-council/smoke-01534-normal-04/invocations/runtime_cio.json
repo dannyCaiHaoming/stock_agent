@@ -1,0 +1,46 @@
+{
+  "agent": {
+    "name": "runtime_cio",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_cio.toml",
+    "sha256": "27e5a7474d1fd5f351458c2124aa6c24f951c022a965f0379b125870e5607b38",
+    "version": "2.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "input_artifact": "inputs/runtime_cio.json",
+  "input_hash": "9dd0f7d07da16d37b9d87f3a4de0422159464cc742ba22d73581dc16af686660",
+  "instruction_bundle_hash": "75c73a5505a7a1f2cc149b1c5e7749184e3e9ecb95882ee6abe182cd4bd2abcd",
+  "invocation_id": "inv_9dc6f64546caea3647766f1b",
+  "manifest_hash": "326e5dd50bc3f44bc0ddc721bcde31f6909f225463d20079b896b41a606b7934",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/product/schemas/runtime/cio-decision-draft.schema.json",
+  "output_schema_hash": "a55d1bcb3c0a546142a371d9426b7b98a6877e7d6264425cd3cf7975a3c24109",
+  "run_id": "smoke-01534-normal-04",
+  "schema_version": "invocation-manifest/2.0.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "e3e63ce0a66334099325da4fa6ac5daf8b9daa6ead507c335b64c544b7949e12",
+      "skill_name": "portfolio-council",
+      "version": "2.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "portfolio-council",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+      "sha256": "5a2d0f87771dbfacfa7b656498ecce920d544db2612df88baed31558571bf169",
+      "version": "2.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_cio.txt",
+  "task_prompt_hash": "f6394d0cae88f75c9b9ac8762586477d5e6e70ecc3152f590706e906af4aebe4",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

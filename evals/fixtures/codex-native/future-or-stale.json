@@ -1,0 +1,61 @@
+{
+  "fixture_version": "2.0.0",
+  "fixture_id": "future-or-stale-v1",
+  "scenario_type": "future_or_stale",
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "freshness_policy": {
+    "version": "freshness/fixture/2.0.0",
+    "default_max_age_days": 30,
+    "field_max_age_days": {"close_price": 7, "revenue_ttm": 400, "company_update": 30}
+  },
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "portfolio": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "positions": [{"security_id": "SEC-AAA", "quantity": 500, "price": 100, "industry": "Synthetic Technology", "average_daily_value": 10000000}],
+    "mandate": {"long_only": true, "max_position_weight": 0.6, "minimum_cash_weight": 0.1}
+  },
+  "evidence": [
+    {
+      "evidence_id": "ev-future-asof",
+      "security_id": "SEC-AAA",
+      "semantic_field": "close_price",
+      "value": 110,
+      "unit": "USD_per_share",
+      "currency": "USD",
+      "source_id": "fixture-market-future",
+      "source_type": "fixture",
+      "source_locator": "fixture://future/asof/1",
+      "source_version": "1",
+      "as_of": "2026-02-01T21:00:00Z",
+      "retrieved_at": "2026-02-01T21:05:00Z"
+    },
+    {
+      "evidence_id": "ev-future-retrieval",
+      "security_id": "SEC-AAA",
+      "semantic_field": "revenue_ttm",
+      "value": 1250000,
+      "unit": "USD",
+      "currency": "USD",
+      "source_id": "fixture-restatement-future",
+      "source_type": "fixture",
+      "source_locator": "fixture://future/retrieval/2",
+      "source_version": "2",
+      "as_of": "2025-12-31T00:00:00Z",
+      "retrieved_at": "2026-02-02T13:00:00Z"
+    },
+    {
+      "evidence_id": "ev-stale-update",
+      "security_id": "SEC-AAA",
+      "semantic_field": "company_update",
+      "value": "An old operating plan was published.",
+      "unit": "text",
+      "source_id": "fixture-company-old",
+      "source_type": "fixture",
+      "source_locator": "fixture://stale/update/1",
+      "source_version": "1",
+      "as_of": "2025-01-01T14:00:00Z",
+      "retrieved_at": "2025-01-01T14:01:00Z"
+    }
+  ]
+}

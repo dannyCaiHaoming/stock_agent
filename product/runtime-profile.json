@@ -1,0 +1,39 @@
+{
+  "profile_id": "fixture-council/2.0.0",
+  "entry_skill": "portfolio-council",
+  "working_directory": "product",
+  "max_threads": 3,
+  "agents": {
+    "runtime_company_analyst": {
+      "version": "2.0.0",
+      "config_file": ".codex/agents/runtime_company_analyst.toml",
+      "skills": ["evidence-grounding", "company-research", "valuation"],
+      "tool_permissions": ["fixture_evidence.query", "fixture_math.calculate"],
+      "sandbox_mode": "read-only"
+    },
+    "runtime_skeptic": {
+      "version": "2.0.0",
+      "config_file": ".codex/agents/runtime_skeptic.toml",
+      "skills": ["evidence-grounding", "counter-thesis"],
+      "tool_permissions": ["fixture_evidence.query"],
+      "sandbox_mode": "read-only"
+    },
+    "runtime_cio": {
+      "version": "2.0.0",
+      "config_file": ".codex/agents/runtime_cio.toml",
+      "skills": ["portfolio-council"],
+      "tool_permissions": ["fixture_evidence.query"],
+      "sandbox_mode": "workspace-write"
+    }
+  },
+  "parallel_first_pass": ["runtime_company_analyst", "runtime_skeptic"],
+  "excluded_agents": ["runtime_market_catalyst"],
+  "disabled_capabilities": [
+    "web_search",
+    "apps",
+    "external_provider",
+    "broker",
+    "account_mutation",
+    "order_execution"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "risk-boundary-draft/2.0.0",
+  "fixture_id": "risk-boundary-draft-v1",
+  "producer": "fixture",
+  "not_llm_output": true,
+  "action": "ADD",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.9,
+  "target_weight_range": [0.94, 0.98],
+  "maximum_notional": 8000,
+  "evidence_refs": ["ev-risk-price", "ev-risk-revenue"]
+}

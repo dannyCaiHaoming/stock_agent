@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/invocation-manifest/2.0.0",
+  "type": "object",
+  "required": ["schema_version", "run_id", "invocation_id", "agent", "skills", "task_prompt_hash", "task_prompt_artifact", "instruction_bundle_hash", "model", "codex_runtime", "evidence_ids", "tool_permissions", "input_artifact", "input_hash", "output_schema", "output_schema_hash", "manifest_hash"],
+  "additionalProperties": false
+}

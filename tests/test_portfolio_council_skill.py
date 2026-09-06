@@ -32,10 +32,10 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
         path = ROOT / "product" / ".codex-plugin" / "plugin.json"
         manifest = json.loads(path.read_text())
         self.assertEqual(path.parents[1].name, manifest["name"])
-        self.assertEqual("0.1.0", manifest["version"])
+        self.assertRegex(manifest["version"], r"^0\.2\.4\+codex\.[A-Za-z0-9.-]+$")
         self.assertEqual("./skills/", manifest["skills"])
         self.assertNotIn("apps", manifest)
-        self.assertNotIn("mcpServers", manifest)
+        self.assertEqual("./.mcp.json", manifest["mcpServers"])
         self.assertIn("Portfolio Council", manifest["interface"]["displayName"])
         self.assertIsInstance(manifest["interface"]["defaultPrompt"], list)
         self.assertLessEqual(len(manifest["interface"]["defaultPrompt"]), 3)

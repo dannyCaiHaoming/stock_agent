@@ -1,0 +1,56 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.22,
+      "confidence_rationale": "Confidence is high that the conflict and key data gaps are real because both validated reports independently identify them and the mechanical conflict record confirms incompatible allowed observations. Confidence in any action is low because the conflict remains unresolved and valuation-relevant evidence is absent.",
+      "counter_thesis": "The core TTM revenue measure is materially conflicted between two allowed sources for the same as-of date, and the evidence set lacks a reconciled income-statement bridge, capital-structure, cash-flow, and valuation context.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "A source-authoritative reconciliation identifies and explains the correct TTM revenue measure with matching entity scope and period.",
+        "A consistent income-statement bridge verifies the operating-margin calculation against reconciled revenue.",
+        "Additional point-in-time financial-capacity and valuation evidence materially changes the evidence insufficiency."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "No portfolio action is supported while same-date TTM revenue remains unresolved and the permitted evidence lacks the reconciled financial and valuation context needed to assess the existing position. This is advisory only.",
+      "no_trade_reason": "UNRESOLVED_EVIDENCE_CONFLICT_AND_INSUFFICIENT_VALUATION_CONTEXT",
+      "reevaluation_conditions": [
+        "Obtain an authorized reconciliation of the two revenue observations.",
+        "Obtain authorized, point-in-time operating-income, revenue, cash-flow, capital-structure, and valuation-context evidence."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The allowed evidence establishes a 2025-12-31 operating-margin observation of 18% and a 2026-01-30 close price of USD 100 for SEC-AAA, but it does not support a reliable operating-trend or valuation conclusion.",
+      "time_horizon": "Reassess only when the stated evidence gaps are resolved.",
+      "unresolved_questions": [
+        "Which revenue source reflects the authoritative reporting entity, accounting scope, period definition, and restatement status?",
+        "Can operating income and revenue be reconciled on a consistent basis to interpret the reported operating margin?",
+        "What point-in-time share count, net debt, cash-flow, and historical or peer context establish valuation and downside resilience?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "smoke-01534-conflict-01",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

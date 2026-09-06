@@ -1,12 +1,30 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "portfolio-council/version-manifest/1.0.0",
+  "$id": "portfolio-council/version-manifest/2.0.0",
   "title": "Portfolio Council Version Manifest",
   "type": "object",
-  "required": ["manifest_version", "model", "skills", "agents", "schemas", "mcp_adapters", "risk_policy", "data_snapshot"],
+  "required": ["manifest_version", "candidate_version", "codex_runtime", "model", "runtime_profile", "resource_hashes", "skills", "agents", "schemas", "mcp_adapters", "risk_policy", "data_snapshot"],
   "properties": {
     "manifest_version": {"type": "string", "minLength": 1},
-    "model": {"type": "string", "minLength": 1},
+    "candidate_version": {"type": "string", "minLength": 1},
+    "codex_runtime": {"type": "string", "pattern": "^codex-cli/"},
+    "model": {"type": "string", "minLength": 1, "not": {"pattern": "(fixture-model|Fixture-Model|placeholder|Placeholder|unknown|Unknown|mock|Mock)"}},
+    "runtime_profile": {"type": "string", "minLength": 1},
+    "resource_hashes": {
+      "type": "object",
+      "required": ["plugin", "plugin_mcp", "runtime_config", "runtime_profile", "council_skill", "cio_agent", "company_agent", "skeptic_agent"],
+      "additionalProperties": false,
+      "properties": {
+        "plugin": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "plugin_mcp": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "runtime_config": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "runtime_profile": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "council_skill": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "cio_agent": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "company_agent": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "skeptic_agent": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
     "skills": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
     "agents": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
     "schemas": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},

@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "advisory_only": "PASSED",
+    "artifact_matrix": "PASSED",
+    "artifact_replay": "PASSED",
+    "future_stale_exact_filtering": "PASSED",
+    "no_fixed_investment_outcome": "PASSED",
+    "trace_lineage": "PASSED"
+  },
+  "eval_hash": "a1cec2354117f11ebbf5aabb3b0936ebe9b03dcbf4a670e401e534ba6d0a0595",
+  "fixture_id": "future-or-stale-v1",
+  "run_id": "smoke-01534-stale-01",
+  "schema_version": "native-council-eval/2.0.0",
+  "scope": "仅验证结构化正确性、证据血缘、Skeptic 独立非重复贡献、CIO 显式消费与硬风控；不评价市场收益、Alpha 或统计预测能力。",
+  "source_hashes": {
+    "decision": "98bdd55a43b2da364d4ccb892451b604febd05075c7870e30ab85f9a60036326",
+    "matrix": "94c5e0fbe6936c01ea51f60c0d583effac8140ee8ddb89f503d0635d8850767f",
+    "replay": "92017d4fcaeaf101830286ebd76d82bf66ac2bf068490deca0449fd2c3a8ba03",
+    "trace": "005f3ad574d8176ac89ee70cd6ebfe18e7bd6278e4d2da0f89509702320659ab"
+  },
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE"
+}

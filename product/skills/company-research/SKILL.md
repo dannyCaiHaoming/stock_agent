@@ -1,6 +1,8 @@
 ---
 name: company-research
 description: 使用 point-in-time 证据分析公司的商业质量、经济特征、竞争地位和 Thesis，但不作出组合层决策。
+metadata:
+  version: "2.0.0"
 ---
 
 # 公司研究

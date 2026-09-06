@@ -19,24 +19,9 @@ destructive_enabled = false
 open_world_enabled = false
 
 [[skills.config]]
-path = "product/skills/evidence-grounding"
+path = "skills/evidence-grounding"
 enabled = true
 
 [[skills.config]]
-path = "product/skills/catalyst-analysis"
+path = "skills/catalyst-analysis"
 enabled = true
-
-[mcp_servers.security_master]
-enabled_tools = ["lookup"]
-
-[mcp_servers.market_data]
-enabled_tools = ["query"]
-
-[mcp_servers.filings_news]
-enabled_tools = ["query"]
-
-[mcp_servers.evidence_query]
-enabled_tools = ["query"]
-
-[mcp_servers.liquidity]
-enabled_tools = ["calculate"]

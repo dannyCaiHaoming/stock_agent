@@ -1,6 +1,8 @@
 ---
 name: catalyst-analysis
 description: 分析 point-in-time 公司事件、市场环境、数据时效和流动性，并区分事件事实与不确定的投资影响。
+metadata:
+  version: "1.0.0"
 ---
 
 # 催化剂分析

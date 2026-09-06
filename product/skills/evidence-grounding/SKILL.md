@@ -1,6 +1,8 @@
 ---
 name: evidence-grounding
 description: 使用 point-in-time 证据约束投资研究，在综合报告前区分事实、假设、冲突和数据缺口。
+metadata:
+  version: "2.0.0"
 ---
 
 # 证据约束

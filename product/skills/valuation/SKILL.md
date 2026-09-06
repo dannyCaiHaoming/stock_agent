@@ -1,6 +1,8 @@
 ---
 name: valuation
 description: 构建估值假设与情景，将全部数值计算交给确定性工具，并解释不确定性，但不输出交易动作。
+metadata:
+  version: "2.0.0"
 ---
 
 # 估值分析

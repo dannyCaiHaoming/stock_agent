@@ -1,0 +1,66 @@
+{
+  "agent": {
+    "name": "runtime_company_analyst",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_company_analyst.toml",
+    "sha256": "7cb03f4dbec4a742b2ce0cf9e84f6ee81c836bd3fba2b6110a2aad4d3b4c7bc8",
+    "version": "2.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "input_artifact": "inputs/runtime_company_analyst.json",
+  "input_hash": "b16cc9d446944897ead7f8a38f3042b08f9cf14ed0da0ca358d510ed8c9efd3d",
+  "instruction_bundle_hash": "e2356218a38b0503036bdfd63a5e570b8898e0de8bfef272eef0f2e0effd447e",
+  "invocation_id": "inv_4109b089fc6e878076d25c63",
+  "manifest_hash": "c547e9cceb6faf28005e341c9280c13c7c440e90cd562267fa175c6a531c9728",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/product/schemas/runtime/agent-research-report.schema.json",
+  "output_schema_hash": "fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6",
+  "run_id": "smoke-01534-risk-01",
+  "schema_version": "invocation-manifest/2.0.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "5d9799746d39336c22ff1d3388607f52f2a3e17c4860fd57de4ba7cb798daeda",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "6057e292d323cb5c254b6cad229333b5c18bf03cf9a3a5669870958d90564fa9",
+      "skill_name": "company-research",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "be10b16185de301e6c9acdecf0c3fb67e3b54d16337303ce04363453c38fe888",
+      "skill_name": "valuation",
+      "version": "2.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "evidence-grounding",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+      "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+      "version": "2.0.0"
+    },
+    {
+      "name": "company-research",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/company-research/SKILL.md",
+      "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+      "version": "2.0.0"
+    },
+    {
+      "name": "valuation",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/valuation/SKILL.md",
+      "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+      "version": "2.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_company_analyst.txt",
+  "task_prompt_hash": "a63502606ec341cc4fc6fffcaabe4fe073dfc753e90dd54a7bc77c9ed5b28147",
+  "tool_permissions": [
+    "fixture_evidence.query",
+    "fixture_math.calculate"
+  ]
+}

@@ -2,7 +2,5 @@ name = "dev-contracts"
 description = "构建并评审版本化的数据、证据、决策和追踪契约。"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-保持契约确定性和版本化。事实必须包含 source_id、as_of 和 retrieved_at。禁止在校验器中引入建议评分或投资判断。
+保持契约确定性和版本化。事实必须包含 source_id、as_of 和 retrieved_at。禁止在校验器中引入建议评分或投资判断。禁止 investment-decision、broker-write 和 production-promotion 权限。
 """
-allowed_tools = ["filesystem-read", "filesystem-write", "tests"]
-forbidden_capabilities = ["investment-decision", "broker-write", "production-promotion"]

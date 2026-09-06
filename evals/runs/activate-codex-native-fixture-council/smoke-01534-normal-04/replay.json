@@ -1,0 +1,22 @@
+{
+  "checks": {
+    "artifact_matrix": "89491fbd988f75d97c9971fc1b49109050e0e6677cd0b99071f7837936e214e5",
+    "cio_draft_hash": "f092e94b94493cc9e331741f626638a7d306d396475c874bbedd3e09de5259cf",
+    "evidence_gate_hash": "364201fe302dac4032cf726c242bfe8fed48995c044b1082081ea4564e973ddb",
+    "report_render": "PASSED",
+    "risk_result_hash": "fe902024ede4b620371c5dd6e0f5522ac1764a044d5ba074d473cdf5d702a6cd",
+    "specialist_outputs": {
+      "runtime_company_analyst": "89dd934f3b364793d614060ec4f4021ace6af872275372f21535f74afd59daa2",
+      "runtime_skeptic": "464085a0e13ac4ba94051096d03aef0af7c934182350ae46af9465430d3dbc87"
+    },
+    "trace_lineage": "PASSED"
+  },
+  "decision_hash": "cabb85ed576ae349867a42d7575138f04045afb0e928f9b5ede282da747cd718",
+  "replay_hash": "09bfc355e582e615b7e2ac0a681a787658bfc6cfa16bac5874772ffa09e47cb4",
+  "report_hash": "84ff61769b02d19e8145c6d8726bc0a9335e6a1bee8e4b5c47b6b4de426bf84a",
+  "schema_version": "native-artifact-replay/2.0.0",
+  "source_run_id": "smoke-01534-normal-04",
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "e518117c2c841d06b633d1e4a8b117d7e67c434314e1034a647f6a97ed011a41"
+}

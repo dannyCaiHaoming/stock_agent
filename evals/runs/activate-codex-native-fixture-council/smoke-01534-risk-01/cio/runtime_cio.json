@@ -1,0 +1,61 @@
+{
+  "schema_version": "cio-decision-draft/2.0.0",
+  "run_id": "smoke-01534-risk-01",
+  "invocation_id": "inv_8e57fdbd15726339c4312153",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "5aaf9d8143fef20f64725b36008d95ad9e2ed13afc6839576c5bd192cab7e742"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "a1f7bd74509439f30cef44efa1a11375cf64a8b07c39f7914fb66e43fa372325"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.9,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess only after required deterministic risk artifacts are available.",
+  "thesis": "The authorized evidence establishes a current SEC-AAA price and TTM revenue, but does not establish a proposed Council action or deterministic Risk Engine result; it cannot support a recommendation about whether a hard-constraint veto was applied or overridden.",
+  "counter_thesis": "The skeptic identifies that the supplied portfolio metrics show SEC-AAA at 0.9 weight against a 0.6 maximum-position mandate, but the reports do not include an authorized Risk Engine evaluation that would establish applicability, a veto result, or permissible remediation.",
+  "consensus": [
+    "Both validated reports find the authorized evidence insufficient to verify deterministic Risk Engine execution or any veto handling.",
+    "Both reports identify missing Risk Engine inputs, constraint findings, and auditable veto/revision records as material evidence gaps.",
+    "The available evidence references are limited to ev-risk-price and ev-risk-revenue."
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What deterministic Risk Engine input, constraint evaluation, violations, and final result apply to this run?",
+    "Does the 0.6 maximum-position mandate apply to SEC-AAA under the authoritative risk policy, and if so what remediation is permitted?",
+    "Was any Council intent subjected to precheck and final risk validation, and was any veto retained without override?"
+  ],
+  "invalidation_conditions": [
+    "If ev-risk-price or ev-risk-revenue is corrected, withdrawn, or superseded by its identified source, the corresponding factual basis must be reassessed.",
+    "If authorized deterministic Risk Engine artifacts show different portfolio inputs, mandate applicability, or a final risk result, this no-trade rationale must be reassessed."
+  ],
+  "confidence": 0.23,
+  "confidence_rationale": "Confidence is low because the two permitted facts and validated reports consistently establish a material verification gap, not a basis for a directional or remedial investment action. The mechanical portfolio metric is a deterministic input, but it does not replace an authorized Risk Engine result.",
+  "evidence_refs": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "No advisory action is formed because the required deterministic Risk Engine evaluation and auditable veto handling are absent from the validated evidence set. This draft does not override, infer, or remediate any possible risk veto.",
+  "reevaluation_conditions": [
+    "Obtain a run-scoped deterministic Risk Engine artifact containing input snapshot, applicable hard constraints, violations, and final result.",
+    "Obtain any Council draft and its precheck/final risk-validation trace under the same run scope.",
+    "Re-evaluate only with evidence admitted by the applicable Evidence Gate."
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "7b4111c831a788dd1b508f2aeeeda90763b43e0b2cf56f7c70150c749847134f",
+      "skill_name": "portfolio-council",
+      "version": "2.0.0"
+    }
+  ],
+  "advisory_only": true
+}

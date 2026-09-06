@@ -20,10 +20,17 @@ SKILL_NAMES = {
     "catalyst-analysis",
 }
 AGENT_NAMES = {
+    "runtime_cio",
     "runtime_company_analyst",
     "runtime_skeptic",
     "runtime_market_catalyst",
 }
+FIXTURE_COUNCIL_AGENTS = {
+    "runtime_cio",
+    "runtime_company_analyst",
+    "runtime_skeptic",
+}
+LEGACY_SPECIALIST_AGENTS = AGENT_NAMES - {"runtime_cio"}
 CONTRACT_SECTIONS = {
     "input",
     "tool_data",
@@ -62,6 +69,14 @@ class SkillConfigTests(unittest.TestCase):
                 for key, value in [line.split(":", 1)]
             }
             self.assertEqual(fields.get("name"), skill_name)
+            expected_version = (
+                "1.0.0" if skill_name == "catalyst-analysis" else "2.0.0"
+            )
+            self.assertNotRegex(frontmatter, r"(?m)^version:")
+            self.assertRegex(
+                frontmatter,
+                rf"(?m)^metadata:\n  version: [\"']?{re.escape(expected_version)}[\"']?$",
+            )
             self.assertTrue(fields.get("description", "").strip())
             self.assertTrue(body.strip())
             self.assertNotRegex(text, r"(?i)TODO|replace with|placeholder")
@@ -84,14 +99,16 @@ class RuntimeAgentConfigTests(unittest.TestCase):
         for path in AGENTS_ROOT.glob("*.toml"):
             with path.open("rb") as handle:
                 self.configs[path.stem] = tomllib.load(handle)
+        self.profile = load_json(ROOT / "product" / "runtime-profile.json")
 
-    def test_expected_agents_are_valid_read_only_codex_configs(self):
+    def test_expected_agents_are_valid_least_privilege_codex_configs(self):
         self.assertEqual(set(self.configs), AGENT_NAMES)
         for filename, config in self.configs.items():
             self.assertEqual(config["name"], filename)
             self.assertTrue(config["description"])
             self.assertTrue(config["developer_instructions"])
-            self.assertEqual(config["sandbox_mode"], "read-only")
+            expected_sandbox = "workspace-write" if filename == "runtime_cio" else "read-only"
+            self.assertEqual(config["sandbox_mode"], expected_sandbox)
             self.assertEqual(config["approval_policy"], "never")
             self.assertFalse(config["tools"]["web_search"])
             self.assertFalse(config["tools"]["view_image"])
@@ -101,6 +118,7 @@ class RuntimeAgentConfigTests(unittest.TestCase):
 
     def test_agents_enable_only_declared_product_skills(self):
         expected = {
+            "runtime_cio": {"portfolio-council"},
             "runtime_company_analyst": {
                 "evidence-grounding",
                 "company-research",
@@ -118,43 +136,58 @@ class RuntimeAgentConfigTests(unittest.TestCase):
             configured = {Path(item["path"]).name for item in skill_entries}
             self.assertEqual(configured, expected[agent])
             for item in skill_entries:
-                self.assertTrue((ROOT / item["path"] / "SKILL.md").is_file())
+                self.assertTrue((ROOT / "product" / item["path"] / "SKILL.md").is_file())
 
     def test_agent_tool_allowlists_are_read_only_and_outputs_are_structured(self):
-        for config in self.configs.values():
+        for name, config in self.configs.items():
             instructions = config["developer_instructions"]
-            match = re.search(
-                r"只能使用以下只读能力：(.*?)。禁止使用",
-                instructions,
-                flags=re.DOTALL,
-            )
-            self.assertIsNotNone(match)
-            tools = re.findall(r"[a-z_]+\.(?:lookup|query|calculate)", match.group(1))
-            self.assertTrue(tools)
+            tools = re.findall(r"[a-z_]+\.(?:lookup|query|calculate|check)", instructions)
+            self.assertTrue(tools, name)
             self.assertTrue(
-                all(tool.rsplit(".", 1)[1] in READ_ONLY_TOOL_VERBS for tool in tools)
+                all(tool.rsplit(".", 1)[1] in READ_ONLY_TOOL_VERBS | {"check"} for tool in tools)
             )
-            configured_tools = [
-                tool
-                for server in config["mcp_servers"].values()
-                for tool in server["enabled_tools"]
-            ]
-            self.assertTrue(configured_tools)
-            self.assertTrue(
-                all(tool in READ_ONLY_TOOL_VERBS for tool in configured_tools)
-            )
-            self.assertIn("只返回一个", instructions)
-            self.assertIn("data_gaps", instructions)
-            self.assertIn("TIMEOUT", instructions)
+            if name in FIXTURE_COUNCIL_AGENTS:
+                configured_tools = self.profile["agents"][name]["tool_permissions"]
+                self.assertTrue(configured_tools)
+                self.assertTrue(
+                    all(
+                        tool.rsplit(".", 1)[1] in READ_ONLY_TOOL_VERBS | {"check"}
+                        for tool in configured_tools
+                    )
+                )
+            if name != "runtime_cio":
+                self.assertIn("只返回一个", instructions)
+                self.assertIn("data_gaps", instructions)
+                self.assertIn("TIMEOUT", instructions)
+
+    def test_fixture_profile_has_three_distinct_versioned_identities(self):
+        profile = {name: self.configs[name] for name in FIXTURE_COUNCIL_AGENTS}
+        self.assertEqual(
+            {self.profile["agents"][name]["version"] for name in profile},
+            {"2.0.0"},
+        )
+        self.assertEqual({config["name"] for config in profile.values()}, FIXTURE_COUNCIL_AGENTS)
+        self.assertEqual(
+            len({config["developer_instructions"] for config in profile.values()}),
+            len(FIXTURE_COUNCIL_AGENTS),
+        )
+        self.assertNotIn("runtime_market_catalyst", FIXTURE_COUNCIL_AGENTS)
+        self.assertEqual(self.profile["parallel_first_pass"], [
+            "runtime_company_analyst",
+            "runtime_skeptic",
+        ])
 
     def test_specialist_boundaries_are_explicit(self):
         company = self.configs["runtime_company_analyst"]["developer_instructions"]
         skeptic = self.configs["runtime_skeptic"]["developer_instructions"]
         catalyst = self.configs["runtime_market_catalyst"]["developer_instructions"]
+        cio = self.configs["runtime_cio"]["developer_instructions"]
         self.assertIn("禁止输出组合动作", company)
         self.assertIn("CONTEXT_ISOLATION_VIOLATION", skeptic)
         self.assertIn("禁止选择最终组合动作", skeptic)
         self.assertIn("禁止选择最终组合动作", catalyst)
+        self.assertIn("deterministic Risk Engine", cio)
+        self.assertIn("不得覆盖 REJECTED", cio)
 
 
 class CapabilityRegistryTests(unittest.TestCase):
@@ -195,11 +228,33 @@ class CapabilityRegistryTests(unittest.TestCase):
             self.assertTrue(set(agent["capabilities"]) <= registered)
             self.assertTrue(agent["ablation_baseline"])
 
+    def test_fixture_council_roles_have_complete_execution_contracts(self):
+        profile = self.registry["fixture_council_profile"]
+        self.assertEqual(set(profile["agents"]), FIXTURE_COUNCIL_AGENTS)
+        self.assertEqual(profile["parallel_first_pass"], [
+            "runtime_company_analyst",
+            "runtime_skeptic",
+        ])
+        self.assertNotIn("runtime_market_catalyst", profile["agents"])
+
+        contracts = self.registry["council_role_contracts"]
+        self.assertEqual({item["agent_id"] for item in contracts}, FIXTURE_COUNCIL_AGENTS)
+        for role in contracts:
+            self.assertEqual(set(role["contract"]), CONTRACT_SECTIONS)
+            self.assertTrue(role["contract"]["input"]["required"])
+            self.assertTrue(role["contract"]["tool_data"]["read_only_tools"])
+            self.assertTrue(role["contract"]["skill_reasoning"]["skills"])
+            self.assertTrue(role["contract"]["structured_output"]["required"])
+            self.assertTrue(role["contract"]["eval"]["acceptance"])
+
     def test_fixture_matrix_covers_every_agent_and_failure_mode(self):
         for scenario, expected_status in EXPECTED_STATUS.items():
             fixture = load_json(EVALS_ROOT / "fixtures" / f"{scenario}.json")
             self.assertEqual(fixture["scenario_type"], scenario)
-            self.assertEqual({case["agent"] for case in fixture["cases"]}, AGENT_NAMES)
+            self.assertEqual(
+                {case["agent"] for case in fixture["cases"]},
+                LEGACY_SPECIALIST_AGENTS,
+            )
             for case in fixture["cases"]:
                 expected = case["expected"]
                 self.assertEqual(expected["status"], expected_status)

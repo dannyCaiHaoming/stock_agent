@@ -1,0 +1,1 @@
+综合两份已验证结构化报告，输出 CIODecisionDraft 2.0.0 JSON；consumed_reports 必须逐字复制输入中的 validated_report_hashes，不得自行计算文件字节哈希。

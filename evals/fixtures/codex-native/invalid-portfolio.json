@@ -1,0 +1,34 @@
+{
+  "fixture_version": "2.0.0",
+  "fixture_id": "invalid-portfolio-negative-v1",
+  "scenario_type": "normal",
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "freshness_policy": {
+    "version": "freshness/fixture/2.0.0",
+    "default_max_age_days": 400,
+    "field_max_age_days": {"close_price": 7}
+  },
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "portfolio": {
+    "base_currency": "USD",
+    "cash": -1,
+    "positions": [{"security_id": "SEC-AAA", "quantity": 500, "price": 100}],
+    "mandate": {"long_only": true, "max_position_weight": 0.6, "minimum_cash_weight": 0.1}
+  },
+  "evidence": [
+    {
+      "evidence_id": "ev-invalid-input-price",
+      "security_id": "SEC-AAA",
+      "semantic_field": "close_price",
+      "value": 100,
+      "unit": "USD_per_share",
+      "currency": "USD",
+      "source_id": "fixture-market-primary",
+      "source_type": "fixture",
+      "source_locator": "fixture://invalid/price/1",
+      "source_version": "1",
+      "as_of": "2026-01-30T21:00:00Z",
+      "retrieved_at": "2026-01-30T21:05:00Z"
+    }
+  ]
+}

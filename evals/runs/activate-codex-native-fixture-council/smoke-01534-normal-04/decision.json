@@ -1,0 +1,59 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.28,
+      "confidence_rationale": "证据点时有效且两份独立报告对其限制一致，但均为INSUFFICIENT_EVIDENCE：缺少多期经营趋势、现金流与完整债务信息、产能经济性和估值输入。不存在需要裁决的机械证据冲突；低置信度来自关键决策证据缺口而非对现有事实的否定。",
+      "counter_thesis": "单期利润率、总债务和管理层计划不能证明盈利可持续性、流动性、产能回报或当前100 USD/股价格的估值支撑；缺失现金流、债务条款、股份数、增长趋势与估值数据可能使现有持仓的基本面和风险回报判断失真。",
+      "current_weight": null,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "后续披露显示经营利润率显著低于截至2025-12-31的18%，或多期趋势显示该水平不可持续。",
+        "后续披露显示债务明显上升、流动性恶化、利息覆盖不足或存在重大近期再融资需求。",
+        "产能计划发生延迟、取消，或订单、利用率和项目回报证据显示该计划缺乏经济性。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "仅凭单期收入、经营利润率、总债务、单一收盘价和简短管理层更新，无法以证据支持现有持仓的估值、流动性风险、产能回报或风险回报结论；因此不提出仓位或交易建议。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "取得截至决策截止日的多期财务报表、现金流、债务到期表、利率与契约信息。",
+        "取得截至决策截止日的稀释后股数、企业价值、估值、盈利与自由现金流预期及可比数据。",
+        "取得截至决策截止日的订单、需求、利用率、产能资本开支、项目里程碑和预期回报证据。"
+      ],
+      "security_id": null,
+      "target_weight_range": null,
+      "thesis": "已验证的单期证据显示SEC-AAA截至2025-12-31的TTM收入为1,000,000 USD、经营利润率为18%、总债务为150,000 USD，且2026-01-20管理层维持既定产能计划；这些事实支持有限的经营观察，但不足以形成估值或风险回报判断。",
+      "time_horizon": "在获得下列截至决策截止日的缺失证据后重新评估。",
+      "unresolved_questions": [
+        "截至决策截止日的多期收入、经营利润率、一次性项目及成本结构是否支持盈利持续性？",
+        "截至决策截止日的现金、自由现金流、利息、债务到期日、契约和流动性安排是否支持资本结构韧性？",
+        "产能计划是否有订单、需求、利用率、资本开支、投产里程碑和资本回报的点时证据支持？",
+        "稀释后股份数、企业价值、估值倍数、盈利和现金流预期是否支持100 USD/股的风险回报？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "smoke-01534-normal-04",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,6 +1,8 @@
 ---
 name: counter-thesis
 description: 开展独立或针对特定 Thesis 的反证研究，保留证据冲突，并避免在第一轮研究中接触其他 Agent 的结论。
+metadata:
+  version: "2.0.0"
 ---
 
 # 反方论证
@@ -10,7 +12,7 @@ description: 开展独立或针对特定 Thesis 的反证研究，保留证据�
 ## 运行模式
 
 - `INDEPENDENT_FIRST_PASS`：只接受证券、研究范围、截止时点和原始 Evidence Bundle。如果输入包含 CIO、Company Analyst 或其他 Agent 的结论，返回 `FAILED` 和 `CONTEXT_ISOLATION_VIOLATION`。
-- `TARGETED_PRESSURE_TEST`：第一轮完成后，可接收明确命名的 Draft Thesis，并检验其假设、因果链和失败路径。
+- `TARGETED_PRESSURE_TEST`：为未来 Profile 保留，本 Change 的固定 fixture Smoke 禁止启用。
 
 ## 方法
 

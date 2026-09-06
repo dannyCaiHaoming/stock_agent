@@ -1,0 +1,28 @@
+{
+  "agent": "runtime_company_analyst",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 10000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 900,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "验证真实 Codex Council 草案必须经过 deterministic Risk Engine，任何硬约束否决不得被覆盖。",
+  "run_id": "smoke-01534-risk-01",
+  "security_id": "SEC-AAA"
+}

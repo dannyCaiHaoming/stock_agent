@@ -1,0 +1,242 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "mechanical_conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_ids": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "observations": [
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "source_id": "fixture-filing-source-a",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "source_id": "fixture-filing-source-b",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+      "source_ids": [
+        "fixture-filing-source-a",
+        "fixture-filing-source-b"
+      ]
+    }
+  ],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "验证 Analyst 与 Independent Skeptic 独立研究同一组冲突证据，并由 CIO 显式保留冲突、影响和未解决状态。",
+  "run_id": "smoke-01534-conflict-01",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "26989074519bc272bfb574c7facb6d4a688063a0a78086b10188409bd8f4c8ed",
+    "runtime_skeptic": "e4c5335656d25b985d44c4a12cbe033c6ea26f12c893e3f888df24a2fa3cca87"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "fixture-query-result:038bbd90baf0e0f4c2d4569b558bf0977a1d9be82bdfe6a2a32e4443a76b256d",
+        "fixture-calculation-result:5e13a878c05b22ede1c49f6bbda6e08fb1edf57077cfff673e3a1d035cd2afe0"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-margin",
+          "evidence_refs": [
+            "ev-conflict-margin"
+          ],
+          "kind": "FACT",
+          "statement": "截至2025-12-31，来源fixture-filing-source-a报告SEC-AAA的TTM经营利润率为18%；该证据于2026-01-15T13:00:00Z获取。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-price",
+          "evidence_refs": [
+            "ev-conflict-price"
+          ],
+          "kind": "FACT",
+          "statement": "截至2026-01-30T21:00:00Z，来源fixture-market-primary报告SEC-AAA收盘价为每股100美元；该证据于2026-01-30T21:05:00Z获取。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-revenue-conflict",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "两项同为截至2025-12-31的TTM收入证据存在未解决冲突：fixture-filing-source-a报告1,000,000美元（2026-01-15T13:00:00Z获取），fixture-filing-source-b报告1,250,000美元（2026-01-16T13:00:00Z获取）；确定性计算显示后者较前者高25%。该冲突使基于收入的经营趋势或估值解释不可靠。"
+        }
+      ],
+      "confidence": 0.38,
+      "confidence_rationale": "价格与经营利润率事实具有新鲜、可追溯的授权证据，但核心TTM收入在相同截至日期存在25%未解决差异，且缺少支持估值或业务趋势判断的关键输入。",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-b"
+      ],
+      "data_gaps": [
+        "需要可追溯的收入定义、来源优先级或已核对的权威收入数据以解决25%的差异。",
+        "需要历史期间、现金流、债务、股本和业务分部数据以评估商业质量及估值。"
+      ],
+      "invalidation_conditions": [
+        "若经核对的权威来源显示TTM收入并非1,000,000美元或1,250,000美元，收入冲突及其研究影响需要重新评估。",
+        "若后续权威财务披露显示经营利润率不是18%，关于当前盈利能力的事实主张失效。"
+      ],
+      "invocation_id": "inv_4d353a3b6a5566269eebfced",
+      "run_id": "smoke-01534-conflict-01",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA：评估授权证据中的经营表现、价格事实及收入数据冲突的研究影响。",
+      "skill_execution": [
+        {
+          "invocation_hash": "5bf610c497403cf0aee912e53139b32a15a8dad75cc6130b0b6c29633fd33699",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "aa46eee4b48b5645a404dbdfc47aef2b8fcfa7598ab1eb7256b81c96215d3db9",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "f578ff98d8437a1c25ec7f2b80c3af416e1c814714d0e0027ec301f868803a95",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "收入冲突的口径、合并范围、修订状态及哪一来源更具权威性均未获授权证据解释。",
+        "现有证据未提供收入增长、成本结构、现金流、股本或可比估值输入，无法形成可靠估值结论。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-revenue-ttm-reconciled"
+          ],
+          "challenge_id": "revenue-source-conflict",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "resolution_evidence_needed": [
+            "Source-level reconciliation establishing the authoritative reporting entity, accounting scope, period definition, and restatement status for revenue TTM."
+          ],
+          "statement": "Revenue TTM is materially inconsistent across two allowed filing sources for the same as-of date; any conclusion relying on a single revenue figure is not presently supportable."
+        },
+        {
+          "assumption_ids": [
+            "assumption-margin-comparability"
+          ],
+          "challenge_id": "margin-context-gap",
+          "evidence_refs": [
+            "ev-conflict-margin",
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "resolution_evidence_needed": [
+            "Operating-income and revenue components from a reconciled source, with consistent reporting scope and period definition."
+          ],
+          "statement": "The reported operating margin lacks a supporting income-statement bridge and cannot be meaningfully interpreted while the revenue denominator remains unresolved."
+        },
+        {
+          "assumption_ids": [
+            "assumption-price-implies-adequate-valuation"
+          ],
+          "challenge_id": "valuation-evidence-gap",
+          "evidence_refs": [
+            "ev-conflict-price"
+          ],
+          "resolution_evidence_needed": [
+            "Point-in-time share count, net debt, cash-flow data, and valuation-relevant historical or peer context."
+          ],
+          "statement": "A single close-price observation does not establish valuation or downside resilience without share count, capital structure, cash flow, and comparable historical context."
+        }
+      ],
+      "confidence": 0.87,
+      "confidence_rationale": "High confidence that the revenue conflict is material because two allowed sources report different values for the same semantic field and as-of date. Confidence is limited to identifying evidentiary risk; the permitted evidence cannot determine which source is authoritative or support a broader fundamental conclusion.",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "data_gaps": [
+        "Authoritative reconciliation of conflicting revenue TTM evidence.",
+        "Consistent income-statement detail supporting operating margin.",
+        "Share count, capital structure, cash flow, and valuation context."
+      ],
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "A source-authoritative reconciliation confirms one revenue TTM value and explains the discrepancy with matching entity scope and period.",
+        "A consistent income-statement bridge verifies the operating-margin calculation.",
+        "Additional point-in-time valuation and financial-capacity evidence materially reduces the identified downside uncertainty."
+      ],
+      "invocation_id": "inv_9d65b2bff8812e92669cee8b",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "smoke-01534-conflict-01",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA: independently assess counter-evidence and unresolved evidentiary limitations through the decision cutoff.",
+      "skill_execution": [
+        {
+          "invocation_hash": "f0c16a5bbd1a7eb6a447d05327d686ad2e37180a38f5f58da71c334de403905b",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "a8ebefdd17cbe6c61ce2a1d06fd81e64cfd90ad724c505ef1363f3f970b0a11a",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "It is unresolved whether the revenue discrepancy reflects entity scope, accounting treatment, a restatement, or a source error.",
+        "The relationship between the operating-margin observation and either revenue figure is unverified.",
+        "No permitted evidence establishes valuation, balance-sheet capacity, demand durability, or downside scenarios."
+      ]
+    }
+  }
+}

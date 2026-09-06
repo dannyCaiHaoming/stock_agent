@@ -1,0 +1,43 @@
+{
+  "agent": {
+    "name": "runtime_cio",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_cio.toml",
+    "sha256": "27e5a7474d1fd5f351458c2124aa6c24f951c022a965f0379b125870e5607b38",
+    "version": "2.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "input_artifact": "inputs/runtime_cio.json",
+  "input_hash": "f9077440bbb0f67614307846aa9c4298e8451d23cea9f112e9ecb6e4d6a494b8",
+  "instruction_bundle_hash": "75c73a5505a7a1f2cc149b1c5e7749184e3e9ecb95882ee6abe182cd4bd2abcd",
+  "invocation_id": "inv_8e57fdbd15726339c4312153",
+  "manifest_hash": "7a4379b87ebc3e965a917823d12e0182b784b72c7bf9c61dfedaa17648384646",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/product/schemas/runtime/cio-decision-draft.schema.json",
+  "output_schema_hash": "a55d1bcb3c0a546142a371d9426b7b98a6877e7d6264425cd3cf7975a3c24109",
+  "run_id": "smoke-01534-risk-01",
+  "schema_version": "invocation-manifest/2.0.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "7b4111c831a788dd1b508f2aeeeda90763b43e0b2cf56f7c70150c749847134f",
+      "skill_name": "portfolio-council",
+      "version": "2.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "portfolio-council",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+      "sha256": "5a2d0f87771dbfacfa7b656498ecce920d544db2612df88baed31558571bf169",
+      "version": "2.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_cio.txt",
+  "task_prompt_hash": "f6394d0cae88f75c9b9ac8762586477d5e6e70ecc3152f590706e906af4aebe4",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

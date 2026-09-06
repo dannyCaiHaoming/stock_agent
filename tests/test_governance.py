@@ -27,8 +27,8 @@ class GovernanceTests(unittest.TestCase):
         for path in paths:
             config = tomllib.loads(path.read_text())
             self.assertTrue(config["name"].startswith("dev-"))
-            self.assertIn("investment-decision", config["forbidden_capabilities"])
-            self.assertIn("broker-write", config["forbidden_capabilities"])
+            self.assertIn("investment-decision", config["developer_instructions"])
+            self.assertIn("broker-write", config["developer_instructions"])
         reviewer = tomllib.loads((ROOT / ".codex" / "agents" / "dev_reviewer.toml").read_text())
         self.assertEqual("read-only", reviewer["sandbox_mode"])
 
@@ -41,7 +41,20 @@ class GovernanceTests(unittest.TestCase):
 
     def test_version_manifest_is_complete(self):
         manifest = json.loads((ROOT / "product" / "version-manifest.json").read_text())
-        required = {"manifest_version", "model", "skills", "agents", "schemas", "mcp_adapters", "risk_policy", "data_snapshot"}
+        required = {
+            "manifest_version",
+            "candidate_version",
+            "codex_runtime",
+            "model",
+            "runtime_profile",
+            "resource_hashes",
+            "skills",
+            "agents",
+            "schemas",
+            "mcp_adapters",
+            "risk_policy",
+            "data_snapshot",
+        }
         self.assertEqual(required, set(manifest))
         for key in required:
             self.assertTrue(manifest[key])

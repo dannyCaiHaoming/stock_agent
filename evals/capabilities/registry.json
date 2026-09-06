@@ -1,5 +1,5 @@
 {
-  "registry_version": "1.0.0",
+  "registry_version": "2.0.0",
   "production_registration_policy": {
     "required_contract_sections": [
       "input",
@@ -11,7 +11,101 @@
     "eval_required": true,
     "unsupported_claims_forbidden": true
   },
+  "fixture_council_profile": {
+    "profile_id": "fixture-council/2.0.0",
+    "entry_skill": "portfolio-council",
+    "agents": [
+      "runtime_cio",
+      "runtime_company_analyst",
+      "runtime_skeptic"
+    ],
+    "parallel_first_pass": [
+      "runtime_company_analyst",
+      "runtime_skeptic"
+    ],
+    "excluded_agents": ["runtime_market_catalyst"]
+  },
+  "council_role_contracts": [
+    {
+      "agent_id": "runtime_company_analyst",
+      "contract": {
+        "input": {
+          "required": ["run_id", "invocation_id", "security_id", "research_scope", "decision_cutoff", "allowed_evidence_ids"]
+        },
+        "tool_data": {
+          "read_only_tools": ["fixture_evidence.query", "fixture_math.calculate"],
+          "forbidden": ["raw_fixture", "web", "external_provider", "broker", "account_write"]
+        },
+        "skill_reasoning": {
+          "skills": ["evidence-grounding", "company-research", "valuation"],
+          "responsibilities": ["company_thesis", "counter_evidence", "uncertainty", "invalidation_conditions"]
+        },
+        "structured_output": {
+          "artifact": "AgentResearchReport/2.0.0",
+          "required": ["status", "agent", "claims", "counter_evidence_refs", "data_gaps", "invalidation_conditions", "confidence_rationale", "skill_execution"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/success.json", "fixtures/missing_evidence.json", "fixtures/low_confidence.json"],
+          "acceptance": ["real_agent_event", "skill_execution_proof", "evidence_closure", "no_portfolio_action"]
+        }
+      }
+    },
+    {
+      "agent_id": "runtime_skeptic",
+      "contract": {
+        "input": {
+          "required": ["run_id", "invocation_id", "mode", "security_id", "research_scope", "decision_cutoff", "allowed_evidence_ids"],
+          "forbidden": ["analyst_output", "analyst_summary", "analyst_hash", "cio_draft"]
+        },
+        "tool_data": {
+          "read_only_tools": ["fixture_evidence.query"],
+          "forbidden": ["raw_fixture", "web", "external_provider", "broker", "account_write"]
+        },
+        "skill_reasoning": {
+          "skills": ["evidence-grounding", "counter-thesis"],
+          "responsibilities": ["independent_disconfirmation", "alternative_explanations", "failure_paths", "evidence_gaps"]
+        },
+        "structured_output": {
+          "artifact": "CounterThesisReport/2.0.0",
+          "required": ["status", "agent", "mode", "challenges", "evidence_refs", "data_gaps", "invalidation_conditions", "confidence_rationale", "skill_execution"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/success.json", "fixtures/failure.json", "fixtures/missing_evidence.json"],
+          "acceptance": ["independent_session", "first_pass_context_isolation", "non_duplicate_challenge_or_gap", "evidence_closure", "no_portfolio_action"]
+        }
+      }
+    },
+    {
+      "agent_id": "runtime_cio",
+      "contract": {
+        "input": {
+          "required": ["run_id", "invocation_id", "validated_analyst_report", "validated_skeptic_report", "portfolio_metrics", "evidence_references"]
+        },
+        "tool_data": {
+          "read_only_tools": ["fixture_evidence.query", "fixture_risk.check"],
+          "forbidden": ["raw_fixture", "excluded_evidence", "hidden_agent_reasoning", "web", "broker", "account_write"]
+        },
+        "skill_reasoning": {
+          "skills": ["portfolio-council"],
+          "responsibilities": ["consensus_synthesis", "conflict_synthesis", "decision_synthesis", "invalidation_conditions", "no_trade_judgment"]
+        },
+        "structured_output": {
+          "artifact": "CIODecisionDraft/2.0.0",
+          "required": ["action", "thesis", "counter_thesis", "consensus", "conflicts", "unresolved_questions", "invalidation_conditions", "confidence_rationale", "evidence_refs"]
+        },
+        "eval": {
+          "fixtures": ["fixtures/council_scenarios.json"],
+          "acceptance": ["real_cio_event", "both_validated_reports_consumed", "conflict_impact_explicit", "risk_engine_non_bypassable", "one_revision_maximum"]
+        }
+      }
+    }
+  ],
   "runtime_agents": [
+    {
+      "agent_id": "runtime_cio",
+      "capabilities": ["portfolio-council"],
+      "ablation_baseline": "no-council"
+    },
     {
       "agent_id": "runtime_company_analyst",
       "capabilities": ["evidence-grounding", "company-research", "valuation"],

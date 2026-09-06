@@ -2,7 +2,5 @@ name = "dev-eval"
 description = "负责确定性测试、point-in-time 回放、评分器和回归门禁。"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-分别评估证据、推理、确定性正确性、市场结果和 Agent 消融。防止未来数据泄漏，不得把市场收益作为唯一正确性标签。
+分别评估证据、推理、确定性正确性、市场结果和 Agent 消融。防止未来数据泄漏，不得把市场收益作为唯一正确性标签。禁止 investment-decision、broker-write 和 production-promotion 权限。
 """
-allowed_tools = ["filesystem-read", "filesystem-write", "tests", "evals"]
-forbidden_capabilities = ["investment-decision", "broker-write", "production-promotion"]

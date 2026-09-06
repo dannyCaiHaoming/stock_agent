@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "artifact_matrix": "94c5e0fbe6936c01ea51f60c0d583effac8140ee8ddb89f503d0635d8850767f",
+    "evidence_gate_hash": "caf2874f3d835d42cf35374cb84812da69b1f4aa14f9031f28dcbde5af19ac41",
+    "report_render": "PASSED",
+    "trace_lineage": "PASSED"
+  },
+  "decision_hash": "98bdd55a43b2da364d4ccb892451b604febd05075c7870e30ab85f9a60036326",
+  "replay_hash": "92017d4fcaeaf101830286ebd76d82bf66ac2bf068490deca0449fd2c3a8ba03",
+  "report_hash": "d83db4d9837cddf0651879f263def83808bc27e8ea4a2d43a616fc744d23021c",
+  "schema_version": "native-artifact-replay/2.0.0",
+  "source_run_id": "smoke-01534-stale-01",
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "005f3ad574d8176ac89ee70cd6ebfe18e7bd6278e4d2da0f89509702320659ab"
+}
