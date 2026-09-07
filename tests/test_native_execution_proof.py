@@ -15,7 +15,11 @@ from product.runtime.execution_proof import (
     verify_specialist_execution_proof,
 )
 from product.runtime.hashing import canonical_hash
-from product.runtime.invocation import create_invocation_manifest
+from product.runtime.invocation import (
+    OUTPUT_SCHEMAS,
+    build_specialist_output_schema,
+    create_invocation_manifest,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,13 +43,39 @@ def message(role: str, text: str):
 
 class NativeExecutionProofTests(unittest.TestCase):
     def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        schema_dir = Path(self.temp_dir.name) / "schemas"
+        schema_dir.mkdir(parents=True)
         self.run_id = "proof-run"
         self.prompts = {
             agent: f"RUN {self.run_id} AGENT {agent}" for agent in AGENTS
         }
         self.inputs = {
-            agent: {"run_id": self.run_id, "agent": agent} for agent in AGENTS
+            agent: {
+                "run_id": self.run_id,
+                "agent": agent,
+                "allowed_evidence_ids": ["ev-1"],
+            }
+            for agent in AGENTS
         }
+        self.schema_paths = {}
+        for agent in AGENTS:
+            path = schema_dir / Path(OUTPUT_SCHEMAS[agent]).name
+            path.write_text(
+                json.dumps(
+                    build_specialist_output_schema(
+                        ROOT,
+                        agent_name=agent,
+                        allowed_evidence_ids=["ev-1"],
+                    ),
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            self.schema_paths[agent] = path
         self.manifests = {
             agent: create_invocation_manifest(
                 ROOT,
@@ -55,9 +85,13 @@ class NativeExecutionProofTests(unittest.TestCase):
                 task_prompt=self.prompts[agent],
                 model="gpt-5.6-terra",
                 evidence_ids=["ev-1"],
+                output_schema_path=self.schema_paths[agent],
             )
             for agent in AGENTS
         }
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def _report(self, agent):
         return {

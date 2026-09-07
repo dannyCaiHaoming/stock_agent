@@ -1,0 +1,579 @@
+{
+  "agents": [
+    {
+      "agent_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "87d0bf9f651b35bf13e2aeffdf1ceeac4de9899e23696d8f736415b878aebdf7",
+      "instruction_bundle_hash": "85a1e58e868c362e2d3a8f59646fb55e739c4d04b495a208645b5a06b26a7210",
+      "invocation_id": "inv_003ae5bfc52b4a6ff3053924",
+      "manifest_hash": "f467d226cbd02da4b5cf85087b8ecd1bc5b66cfb8f7adc721230297bbbb855b1",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_company_analyst",
+      "output_hash": "2ba476ba41d2accb51614a6c5faa41de8ac4e4676b12f94fe3d7ee31af8e52a3",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "company-research",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/company-research/SKILL.md",
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "name": "valuation",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/valuation/SKILL.md",
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "a63502606ec341cc4fc6fffcaabe4fe073dfc753e90dd54a7bc77c9ed5b28147",
+      "tool_permissions": [
+        "fixture_evidence.query",
+        "fixture_math.calculate"
+      ],
+      "version": "2.1.0"
+    },
+    {
+      "agent_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "0f473c33527c3da7758ba704737bc4fd83268f7e42df0b59839729a861ad694d",
+      "instruction_bundle_hash": "fe782ea9dfac4fd5b39704c055b58c904c28b2ff34b471a4580d1b1fbaf4e942",
+      "invocation_id": "inv_00db68ac425e713246ad337d",
+      "manifest_hash": "668ca66ae59c064acabae420bcd6dad814d0a2b5f0994bcec74d94c0a58c42bd",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_skeptic",
+      "output_hash": "d955d994a784e7e3dc74b26ed4415768bcaafb4549b399f4bfafe4f059a071a8",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "counter-thesis",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/counter-thesis/SKILL.md",
+          "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "a63502606ec341cc4fc6fffcaabe4fe073dfc753e90dd54a7bc77c9ed5b28147",
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
+      "version": "2.0.0"
+    },
+    {
+      "agent_sha256": "156946f965cdbc769e81239fe2ecc6bea08439520762ce7cb5e63bcf6d69ecf7",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "494ce4414464b0f814866126fc575d7b7f645ea16905dc7160af793d32999e47",
+      "instruction_bundle_hash": "14d4ba8fc04b1557dbb2b83038fa858c7ebd11a783959929888bd0ddd615da5d",
+      "invocation_id": "inv_bf7a1b434e3f67035f5e3325",
+      "manifest_hash": "e74e88510cca707af6add0dda037a07c23116c2b237f5242d827e1c1367f7941",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_cio",
+      "output_hash": "28042adf4997ad6e8cf73d6861475caf8dedf349b0d2d924cf9492f1eed18739",
+      "skills": [
+        {
+          "name": "portfolio-council",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+          "sha256": "2b84c0c85a7b96c55292bf92b147a9fac8ce990d40ac838859388553038030ae",
+          "version": "2.1.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "84f3e5bfc6651da3cf642fa079512e982af632d995939945ce7cfd01ed8faa7a",
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
+      "version": "2.1.0"
+    }
+  ],
+  "artifacts": {
+    "agents/runtime_company_analyst.json": "89f2779e2dcfacf6588cbb586f67ec50eb90fa8b8d3e8b3bcddf76679c9fa379",
+    "agents/runtime_skeptic.json": "071a3cb5a660faa2499d8c89134325233b54bd60eca76ef8c65347953c2561fc",
+    "audit/fixture_snapshot.json": "fa07b4e1c1cee08f1048c01602652615e8a18514cf49166db06d765d9bfa5d81",
+    "cio/runtime_cio.json": "da140119f0fe632e075f60b5f01260dd9b947782f2fda80a3d5092b3b68d5541",
+    "decision.json": "a02e32ef4d1dd14a8343c28f47a1da54092fe625ab574c5b898f38fa137741b9",
+    "eval/result.json": "f599e1962380ca32454236df0ab66825a147727734a3a02b93dad4da12524c37",
+    "events/codex/specialist-execution-proof.json": "96943efb5b49a9ac3648e494fd0101a7e99620173079314c50e17004b7e6fc37",
+    "events/mcp/events.jsonl": "9d8c1c14f0e81de8f93b84f502c4f6bd8924b809db6688c9a9011305c0f2b8ef",
+    "evidence/gate.json": "5d6b29044ce243012d1dbc2c8c489f2ace0ac3c77bcac2ab593c82a4748f42dc",
+    "inputs/runtime_cio.json": "703f3b6308cfb1526786bf504b3d34439f08c76f03223fc283df56009793228e",
+    "inputs/runtime_company_analyst.json": "f4df8df192c75e187f83c83a629fd5fef20e49dc42df7fc5dd5c917b137f514b",
+    "inputs/runtime_skeptic.json": "18e33bf56ecb92c156513d640ee9842286fc5f9ee13226253ecf8741ea5aa237",
+    "invocations/runtime_cio.json": "12509a720f611738824812d3e870de63597b5d8fb1037ef7418740dfe3e851c9",
+    "invocations/runtime_company_analyst.json": "899b002ddec768af5e50c662433dccf8b146811ae9fbaeb10afe56e7c4e78854",
+    "invocations/runtime_skeptic.json": "3def441a1794d6eb3e18851865890ee44e48f72847ba8f6cd66cb0078358b1f4",
+    "prompts/runtime_cio.txt": "d0b21e51518fc978f570ba39b7aa1f8598f3715b52b06c8e89f9eaf032c991e5",
+    "prompts/runtime_company_analyst.txt": "d1d6ca547d44b0c4208a93ed9c2b77ea854f5eb9bf3927c1495fbfc9ce9e8a67",
+    "prompts/runtime_skeptic.txt": "d1d6ca547d44b0c4208a93ed9c2b77ea854f5eb9bf3927c1495fbfc9ce9e8a67",
+    "report.md": "d64392baabfbe7790302f552d054a34d1ac9abe4b6e5cee701fbf7f57eebfa18",
+    "risk/check-1.json": "fca0a4ad287a82f106dd3c87ba5748b4c8144f1ad417b60ab2d1d99ba105c6f1",
+    "run_manifest.json": "e695b178b9945591ce98bd9111f83121de78728ad662d3e8be41097d14f7eefb"
+  },
+  "codex_execution": {
+    "children": {
+      "runtime_company_analyst": {
+        "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "agent_role": "runtime_company_analyst",
+        "assistant_output_hash": "1a6ca77d6e8eaf8a9b6a33c58e4952445fb8a0fcd2d0a426cf1c0594fa5e7834",
+        "codex_runtime": "codex-cli/0.153.4",
+        "configured_skills": [
+          {
+            "configured": true,
+            "name": "evidence-grounding",
+            "protocol_bound": true,
+            "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "company-research",
+            "protocol_bound": true,
+            "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "valuation",
+            "protocol_bound": true,
+            "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+            "version": "2.0.0"
+          }
+        ],
+        "final_structured_output_hash": "2ba476ba41d2accb51614a6c5faa41de8ac4e4676b12f94fe3d7ee31af8e52a3",
+        "model": "gpt-5.6-terra",
+        "multi_agent_version": "v2",
+        "observed_tool_calls": [
+          {
+            "arguments_hash": "32ecfdc55e9919683924820b8dc0ce62f1d1ff0c11ade48f373f698b77a8f0cd",
+            "call_id": "call_SdknuMcPSf0ZZhe7QJL9YkjR",
+            "ordinal": 18,
+            "tool": "fixture_evidence.query"
+          },
+          {
+            "arguments_hash": "f12a50a8e8cb1fafc4fff20de9de6163900fe7404d10d88387d664c92daed026",
+            "call_id": "call_VaQvVAeRXyTpfigCkkB6GGOs",
+            "ordinal": 25,
+            "tool": "fixture_math.calculate"
+          }
+        ],
+        "parent_session_id": "01a079ff-e147-7300-8c05-52ac560a8cb9",
+        "raw_fixture_access_attempts": 0,
+        "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+        "role_instructions_loaded": true,
+        "rollout_sha256": "cea5d618cc3c32f10a1a22737ad0e2509decdb2fe23dd8c0b0fb110192a7c3e5",
+        "session_id": "01a07a00-e29b-7752-8131-ef8c25d2b8b3",
+        "task_binding": {
+          "agent_matches": true,
+          "binding_method": "protected_dispatch_plus_structured_output",
+          "invocation_id_matches": true,
+          "invocation_id_present": false,
+          "run_id_matches": true,
+          "run_id_present": true,
+          "task_prompt_hash": "a63502606ec341cc4fc6fffcaabe4fe073dfc753e90dd54a7bc77c9ed5b28147",
+          "task_prompt_present": false,
+          "verified": true
+        },
+        "thread_source": "subagent",
+        "unapproved_tool_calls": 0
+      },
+      "runtime_skeptic": {
+        "agent_resource_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+        "agent_role": "runtime_skeptic",
+        "assistant_output_hash": "5b7e9dadc538a86ef28586493383e5800528df187657dc3002d7d55aa7d34a47",
+        "codex_runtime": "codex-cli/0.153.4",
+        "configured_skills": [
+          {
+            "configured": true,
+            "name": "evidence-grounding",
+            "protocol_bound": true,
+            "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "counter-thesis",
+            "protocol_bound": true,
+            "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+            "version": "2.0.0"
+          }
+        ],
+        "final_structured_output_hash": "d955d994a784e7e3dc74b26ed4415768bcaafb4549b399f4bfafe4f059a071a8",
+        "model": "gpt-5.6-terra",
+        "multi_agent_version": "v2",
+        "observed_tool_calls": [
+          {
+            "arguments_hash": "56ea71a0b96f97b2c3385a03870c563558a34b606a7632c026f254dc6e1b6efa",
+            "call_id": "call_yJCg19vO5xplMYN3m4mYbbBb",
+            "ordinal": 12,
+            "tool": "fixture_evidence.query"
+          }
+        ],
+        "parent_session_id": "01a079ff-e147-7300-8c05-52ac560a8cb9",
+        "raw_fixture_access_attempts": 0,
+        "role_instruction_sha256": "742317a72c7d0fafb6008b6dd761a19f8999ce20c35ee522b18f434486f4c240",
+        "role_instructions_loaded": true,
+        "rollout_sha256": "5332c8a03a6dd6bd9e70421dbcab61e6ef741b84abe91d5ad76f0533f957d3f7",
+        "session_id": "01a07a01-48f7-7e90-a7a8-2149c58ede61",
+        "task_binding": {
+          "agent_matches": true,
+          "binding_method": "protected_dispatch_plus_structured_output",
+          "invocation_id_matches": true,
+          "invocation_id_present": false,
+          "run_id_matches": true,
+          "run_id_present": true,
+          "task_prompt_hash": "a63502606ec341cc4fc6fffcaabe4fe073dfc753e90dd54a7bc77c9ed5b28147",
+          "task_prompt_present": false,
+          "verified": true
+        },
+        "thread_source": "subagent",
+        "unapproved_tool_calls": 0
+      }
+    },
+    "dispatches": [
+      {
+        "agent": "runtime_company_analyst",
+        "call_id": "call_2fZUgMkknKk3oyWkEdezaZmH",
+        "child_session_id": "01a07a00-e29b-7752-8131-ef8c25d2b8b3",
+        "completion_ordinal": 47,
+        "dispatch_ordinal": 31,
+        "request": {
+          "agent_type": "runtime_company_analyst",
+          "fork_turns": "none",
+          "message_sha256": "edd32784544f26aa2465c513b3a4fa7d578106d47a0597d5d2fe04304e10d7d1",
+          "protected_message_present": true,
+          "task_name": "company_research"
+        },
+        "request_hash": "7f424dfa95229fd8121e61ca73f20cc09e5ca5ff170919a155087223845e0abb",
+        "start_ordinal": 33
+      },
+      {
+        "agent": "runtime_skeptic",
+        "call_id": "call_zCk0apWd1g9W9LZ0YWGT6i1D",
+        "child_session_id": "01a07a01-48f7-7e90-a7a8-2149c58ede61",
+        "completion_ordinal": 57,
+        "dispatch_ordinal": 37,
+        "request": {
+          "agent_type": "runtime_skeptic",
+          "fork_turns": "none",
+          "message_sha256": "a26f38f5af723aa04b0ac0425b064ce361675183f0284ea9fe397b841cee27b7",
+          "protected_message_present": true,
+          "task_name": "independent_skeptic"
+        },
+        "request_hash": "07059ab3e89b5c2da2546d0b96dc7cc83b6bf132eedf8dd766efbf14b344a51a",
+        "start_ordinal": 39
+      }
+    ],
+    "independent_sessions_proven": true,
+    "parallel_dispatch_proven": true,
+    "parent": {
+      "codex_runtime": "codex-cli/0.153.4",
+      "model": "gpt-5.6-terra",
+      "rollout_sha256": "0e9ed96e6fed0d86ebea4e2f695c6a007fa2e0439effaffe5be121fbb760502f",
+      "session_id": "01a079ff-e147-7300-8c05-52ac560a8cb9"
+    },
+    "proof_hash": "910a81ec8b811abf7eee60d29d36bfe5e4aae3a6b64cfcfc680c26afa2e0b5c9",
+    "schema_version": "codex-execution-proof/2.0.0"
+  },
+  "events": [
+    {
+      "stage": "DISCOVERY_PREFLIGHT",
+      "status": "PASSED"
+    },
+    {
+      "allowed_evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "bundle_hash": "193fba47e13888ab57e0494286fccccb35bfebe5c36194dec20cefca3292de5b",
+      "excluded_evidence_ids": [],
+      "stage": "EVIDENCE_GATE",
+      "status": "PASSED"
+    },
+    {
+      "agents": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_INVOCATIONS_PREPARED"
+    },
+    {
+      "evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "reports": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_REPORTS_VALIDATED"
+    },
+    {
+      "attempt": 1,
+      "input_hash": "28042adf4997ad6e8cf73d6861475caf8dedf349b0d2d924cf9492f1eed18739",
+      "policy_version": "risk/reference/1.0.0",
+      "stage": "RISK_ENGINE_STARTED"
+    },
+    {
+      "risk_status": "APPROVED",
+      "stage": "TERMINAL_DECISION_VALIDATED",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    {
+      "eval_hash": "53d23ecf7417a4ac342f2fe690a9f7f286043055b5a8c28097a4bebdad6d70cd",
+      "stage": "ACTUAL_ARTIFACT_EVAL",
+      "status": "PASSED"
+    }
+  ],
+  "evidence_lineage": {
+    "allowed_evidence_ids": [
+      "ev-conflict-margin",
+      "ev-conflict-price",
+      "ev-conflict-revenue-a",
+      "ev-conflict-revenue-b"
+    ],
+    "bundle_hash": "193fba47e13888ab57e0494286fccccb35bfebe5c36194dec20cefca3292de5b",
+    "conflict_policy_version": "conflict-key/2.0.0",
+    "decision_cutoff": "2026-01-31T23:59:59Z",
+    "excluded_evidence_ids": [],
+    "freshness_policy_version": "freshness/fixture/2.0.0"
+  },
+  "failed_stage": null,
+  "mcp_events": [
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.0",
+      "agent": "runtime_company_analyst",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "1ea13cfbafbdf8ecd050684aa9ad4512dfe38a60f93efe266c63ef95dd631f30",
+      "invocation_id": "inv_003ae5bfc52b4a6ff3053924",
+      "output_hash": "f0acf9f6553168501339a6e8bbbd604886c6884e045920b859df449fe140d610",
+      "run_id": "rg2-conflict-2-20260907",
+      "tool": "fixture_evidence.query"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.0",
+      "agent": "runtime_company_analyst",
+      "calculation_id": "revenue_source_b_to_a_ratio_20260907",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-conflict-revenue-b",
+        "ev-conflict-revenue-a"
+      ],
+      "input_hash": "ab71778be76c6cf9e095db6e4e3237d40d55b9186d9d3eb691a026d37d57872d",
+      "invocation_id": "inv_003ae5bfc52b4a6ff3053924",
+      "output_hash": "eb147a06bb32d2d72f4d4831382aeaeff8bb3af30fd61f8f7835dcb8d8eb798c",
+      "run_id": "rg2-conflict-2-20260907",
+      "tool": "fixture_math.calculate"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.0",
+      "agent": "runtime_skeptic",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "59a81be5587f8454614a3c5901b99d57c0741cb1eb342da1db19b345542e1db3",
+      "invocation_id": "inv_00db68ac425e713246ad337d",
+      "output_hash": "f0acf9f6553168501339a6e8bbbd604886c6884e045920b859df449fe140d610",
+      "run_id": "rg2-conflict-2-20260907",
+      "tool": "fixture_evidence.query"
+    }
+  ],
+  "risk_lineage": [
+    {
+      "attempt": 1,
+      "error": null,
+      "input_hash": "28042adf4997ad6e8cf73d6861475caf8dedf349b0d2d924cf9492f1eed18739",
+      "policy_version": "risk/reference/1.0.0",
+      "result": {
+        "check": {
+          "feasible_bounds": {
+            "SEC-AAA": {
+              "maximum": 0.6,
+              "minimum": 0.0
+            }
+          },
+          "mandate_version": "mandate/fixture/2.0.0",
+          "metric_definition_version": "portfolio-metrics/1.0.0",
+          "policy_version": "risk/reference/1.0.0",
+          "post_trade_metrics": {
+            "average_daily_value": {
+              "SEC-AAA": 10000000.0
+            },
+            "cash": 50000.0,
+            "cash_weight": 0.5,
+            "concentration_hhi": 0.25,
+            "cost_bps": 10.0,
+            "definition_version": "portfolio-metrics/1.0.0",
+            "liquidity_participation": {
+              "SEC-AAA": 0.0
+            },
+            "max_position_weight": 0.5,
+            "position_weights": {
+              "SEC-AAA": 0.5
+            },
+            "sector_exposure": {
+              "Synthetic Technology": 0.5
+            },
+            "simulated_cost": 0.0,
+            "total_value": 100000.0,
+            "trade_notionals": {
+              "SEC-AAA": 0.0
+            },
+            "turnover": 0.0
+          },
+          "pre_trade_metrics": {
+            "average_daily_value": {
+              "SEC-AAA": 10000000.0
+            },
+            "cash": 50000.0,
+            "cash_weight": 0.5,
+            "concentration_hhi": 0.25,
+            "definition_version": "portfolio-metrics/1.0.0",
+            "max_position_weight": 0.5,
+            "position_weights": {
+              "SEC-AAA": 0.5
+            },
+            "sector_exposure": {
+              "Synthetic Technology": 0.5
+            },
+            "total_value": 100000.0
+          },
+          "stage": "FINAL",
+          "status": "APPROVED",
+          "veto_codes": [],
+          "violations": []
+        },
+        "draft_hash": "28042adf4997ad6e8cf73d6861475caf8dedf349b0d2d924cf9492f1eed18739",
+        "final_action": "NO_TRADE",
+        "modifications": [],
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "producer": "deterministic_risk_engine",
+        "run_id": "rg2-conflict-2-20260907",
+        "schema_version": "native-risk-result/2.0.0",
+        "veto_reason": null
+      },
+      "result_hash": "24a03783853a9daade6ff4e72583d234962ae1d394faf858cb91f96a96ece0d3",
+      "run_id": "rg2-conflict-2-20260907",
+      "schema_version": "risk-lineage/2.1.0",
+      "status": "COMPLETED"
+    }
+  ],
+  "run_id": "rg2-conflict-2-20260907",
+  "runtime": {
+    "candidate_version": "0.2.1-candidate.1",
+    "codex_runtime": "codex-cli/0.153.4",
+    "discovery_hash": "d1c0486109d90592ee0f32945505ae142c2d917d2941d518a344c095afe4f5d8",
+    "model": "gpt-5.6-terra",
+    "version_lock": {
+      "agents": {
+        "runtime-cio": "2.1.0",
+        "runtime-company-analyst": "2.1.0",
+        "runtime-market-catalyst": "1.0.0",
+        "runtime-skeptic": "2.0.0"
+      },
+      "candidate_version": "0.2.1-candidate.1",
+      "codex_runtime": "codex-cli/0.153.4",
+      "data_snapshot": "fixture/codex-native/2.0.0",
+      "decision_contract": "council-decision-contract/1.0.0",
+      "manifest_version": "2.0.0",
+      "mcp_adapters": {
+        "fixture-gate-scoped": "2.1.0",
+        "fixture-reference": "1.0.0",
+        "provider-neutral-contracts": "1.0.0"
+      },
+      "model": "gpt-5.6-terra",
+      "resource_hashes": {
+        "cio_agent": "156946f965cdbc769e81239fe2ecc6bea08439520762ce7cb5e63bcf6d69ecf7",
+        "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "council_skill": "2b84c0c85a7b96c55292bf92b147a9fac8ce990d40ac838859388553038030ae",
+        "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+        "plugin": "f75aee1c19b3046b66b94788b1479ff2930fe702420578074e049fbf115812a3",
+        "plugin_mcp": "22a55d24f1a2a9dd2e1f94604f583d9ecb9d891e53e9132f5f90b60dd9c0064a",
+        "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+        "runtime_profile": "8f36661023acd80bd954dd07766bd0dac74ca3c079498c83b050e18946078f6f",
+        "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+      },
+      "risk_policy": "risk/reference/1.0.0",
+      "runtime_profile": "fixture-council/2.1.0",
+      "schemas": {
+        "artifact-envelope": "1.0.0",
+        "decision-risk": "1.0.0",
+        "decision-trace": "2.1.0",
+        "evidence": "1.0.0",
+        "learning": "1.0.0",
+        "portfolio": "1.0.0",
+        "research": "1.0.0",
+        "runtime-artifacts": "2.1.0"
+      },
+      "skills": {
+        "catalyst-analysis": "1.0.0",
+        "company-research": "2.0.0",
+        "counter-thesis": "2.0.0",
+        "evidence-grounding": "2.0.0",
+        "portfolio-council": "2.1.0",
+        "valuation": "2.0.0"
+      }
+    }
+  },
+  "schema_version": "decision-trace/2.1.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

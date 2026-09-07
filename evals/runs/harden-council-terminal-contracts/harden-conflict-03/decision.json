@@ -1,0 +1,55 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.1,
+      "confidence_rationale": "对存在未消解收入冲突及数据缺口的判断具有高可信度，但对任何商业质量、估值或组合方向判断没有足够可信度；NO_TRADE直接反映这一证据边界。",
+      "counter_thesis": "两份同一as_of、同一语义字段的TTM收入证据分别为1,000,000与1,250,000美元；在缺少口径、合并范围和来源优先级的情况下，不能裁决收入基础，进而不能可靠解释利润率或估值。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "获得截至决策截止日的可追溯权威收入对账、口径说明和来源优先级，足以裁决ev-conflict-revenue-a与ev-conflict-revenue-b。",
+        "获得同报告范围、期间和会计口径下的独立权威收入证据，并补足盈利、现金流、资本结构和估值证据后重新研究。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键收入事实冲突未解决，且缺少裁决冲突及完成商业质量与估值研究所需的授权事实；因此不形成组合变动建议。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得可核验的收入冲突调节与来源优先级。",
+        "获得现金流、资本结构、连续期经营表现和估值输入的截至截止日证据后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已验证报告共同确认：授权证据包含18% TTM经营利润率和100美元收盘价，但不足以建立可验证的商业质量或估值判断。",
+      "time_horizon": "在获得可核验的冲突调节证据前不采取建议性组合变动。",
+      "unresolved_questions": [
+        "两份收入证据是否覆盖相同合并范围、报告期间和会计口径？",
+        "截至决策截止日，哪一来源具有可验证的权威性或能提供收入对账？",
+        "现金流、债务、股份数、连续期经营数据及估值输入为何缺失？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "harden-conflict-03",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

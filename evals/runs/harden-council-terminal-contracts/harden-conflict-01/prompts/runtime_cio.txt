@@ -1,0 +1,7 @@
+综合两份已验证结构化报告，输出 CIODecisionDraft 2.1.0 JSON；consumed_reports 必须逐字复制输入中的 validated_report_hashes，不得自行计算文件字节哈希。
+必须遵守 canonical decision contract `council-decision-contract/1.0.0`。
+当 action == NO_TRADE 时，target_weight_range 和 maximum_notional 必须都是 JSON null；数值 0 不等于 JSON null。
+以下示例由 canonical contract 生成：
+- 合法 `valid-no-trade`: {"action": "NO_TRADE", "maximum_notional": null, "no_trade_explanation": "关键证据冲突尚未解决。", "no_trade_reason": "EVIDENCE_CONFLICT", "reevaluation_conditions": ["获得可核验的新证据后重新评估。"], "target_weight_range": null}
+- 非法（NO_TRADE_EXECUTION_FIELDS_FORBIDDEN） `invalid-no-trade-zero-notional`: {"action": "NO_TRADE", "maximum_notional": 0, "target_weight_range": null}
+- 非法（NO_TRADE_EXECUTION_FIELDS_FORBIDDEN） `invalid-no-trade-target-range`: {"action": "NO_TRADE", "maximum_notional": null, "target_weight_range": [0, 0]}

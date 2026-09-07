@@ -1,0 +1,55 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.18,
+      "confidence_rationale": "对未解决收入冲突和关键资料缺失的识别具有充分的已验证报告支持；但不足以归因冲突或判断基本面与估值，因此不对持仓方向形成置信结论。",
+      "counter_thesis": "收入记录的差异可能由口径、合并范围或重述造成，但现有获授权证据不能辨别原因，亦不能确认18%营业利润率是否与任一收入基数一致。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "若截至决策截止日的权威披露与可追溯调节表证明两项收入可完全对账，本草案关于收入冲突阻断估值的判断失效。",
+        "若提供同口径财务报表、资本结构、现金流和可复核估值输入，本草案关于证据不足的判断应重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "核心TTM收入存在未解决的同期间冲突，且缺少使价格与利润率可审计地转化为商业质量或估值判断的必要证据。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得截至决策截止日可核验的权威收入披露及两来源调节说明。",
+        "获得同口径的利润、现金流、资本结构、股本和估值输入后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "可验证证据仅支持价格和单一营业利润率事实；由于核心收入基数存在未调节的同期间冲突，无法建立可审计的商业质量或估值前提。",
+      "time_horizon": "在截至决策截止日可核验的同口径财务与资本结构证据补齐前",
+      "unresolved_questions": [
+        "哪一份TTM收入记录具有经确认的权威口径，两个来源能否对账？",
+        "18%营业利润率是否与经确认的收入、报告范围和会计口径一致？",
+        "截至决策截止日的股本、现金、债务、现金流、增长及业务质量证据为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rg3-conflict-3-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

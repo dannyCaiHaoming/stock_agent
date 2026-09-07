@@ -1,0 +1,1 @@
+读取 Invocation Manifest，使用授权只读工具，并只返回对应 2.0.0 Schema JSON。

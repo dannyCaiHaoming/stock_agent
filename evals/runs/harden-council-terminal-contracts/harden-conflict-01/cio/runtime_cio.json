@@ -1,0 +1,74 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "harden-conflict-01",
+  "invocation_id": "inv_a9a735aa765105fe2c77d0e9",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "030e1dda5f4f3d0214f236e90baac3049fe50eea6ce53a8b3d1f46e2de08db7e"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "e74402fd41640a203d50f6f31eb400702bd7cecee32ea7b2890eb439a3da6ea9"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得可核验的冲突消解证据前",
+  "thesis": "已验证报告确认的单点经营利润率和价格不足以在核心收入口径冲突未解时建立可审计的商业质量或估值 Thesis。",
+  "counter_thesis": "两项同一期间、同一语义字段的收入证据给出不兼容值，且缺少解释差异、盈利质量与资本结构的证据；任何方向性组合判断均不可验证。",
+  "consensus": [
+    "两份已验证报告均将同一截至日期的收入证据冲突视为未解决的实质问题。",
+    "两份已验证报告均认为现有证据不足以支持可审计的估值或盈利质量判断。",
+    "在补充权威口径或更正证据前，不形成方向性组合建议。"
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "summary": "两个获授权来源对同一截至日期的 TTM 收入分别报告 USD 1,000,000 与 USD 1,250,000，现有证据不能判定正确来源或口径差异。",
+      "unresolved": true,
+      "decision_impact": "核心收入基数不能可靠采纳，收入规模、增长、盈利质量和估值解释均不具备可审计基础。",
+      "confidence_impact": "冲突降低了对任何方向性行动的置信度，并要求在冲突消解前维持 NO_TRADE。"
+    }
+  ],
+  "unresolved_questions": [
+    "两个收入数值是否使用不同会计口径、合并范围或修订状态？",
+    "哪一项收入披露具有可核验的权威性，或是否有更正资料？",
+    "统一口径下的历史利润率、现金流、股本与资本结构为何？"
+  ],
+  "invalidation_conditions": [
+    "若截至决策截止日的权威披露说明两项收入采用不同口径，或更正、撤回其中一项，则收入冲突对本结论的影响必须重新评估。",
+    "若补充一致口径的连续财务、现金流和资本结构证据，当前证据不足结论必须重新评估。"
+  ],
+  "confidence": 0.88,
+  "confidence_rationale": "机械冲突及两份独立已验证报告一致支持“不能形成方向性建议”；对这一保守结论具有较高置信度。置信度不代表对公司基本面方向的判断，因为获授权证据范围不足且冲突未解。",
+  "evidence_refs": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "no_trade_reason": "EVIDENCE_CONFLICT",
+  "no_trade_explanation": "核心收入证据存在未解决的同期间冲突，且缺少可审计的盈利质量、现金流、资本结构和估值基础；因此不发布方向性组合建议。",
+  "reevaluation_conditions": [
+    "获得可核验的权威收入对账、更正或口径说明后重新评估。",
+    "获得统一口径的连续财务、现金流、资本结构及估值输入后重新评估。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "86a2ccbd75eb54960b01d2047492ec7471059f6f9c4ae11048a0b4811c78f42d",
+      "skill_name": "portfolio-council",
+      "version": "2.1.0"
+    }
+  ],
+  "advisory_only": true
+}

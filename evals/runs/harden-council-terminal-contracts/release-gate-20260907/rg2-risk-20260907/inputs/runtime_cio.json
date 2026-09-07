@@ -1,0 +1,188 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "10000.0",
+    "cash_weight": "0.1",
+    "concentration_hhi": "0.81",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.9",
+    "position_weights": {
+      "SEC-AAA": "0.9"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.9"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于截至决策截止日的证据，对现有持仓给出仅供研究参考的组合建议；证据不足或冲突无法消解时必须NO_TRADE。",
+  "run_id": "rg2-risk-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "f6c9e35ad4e87a94e4d92d46a65a2024830f6356775904f16f19d76b7bf81fcc",
+    "runtime_skeptic": "060d70a6be6e25f759ce69a06d70ae769193c847e375bc62a9f23e30c8e22cc5"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "fact-close-price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA收盘价为100 USD/股；evidence_id=ev-risk-price，source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "fact-revenue-ttm",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA TTM收入为1,000,000 USD；evidence_id=ev-risk-revenue，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        }
+      ],
+      "confidence": 0.15,
+      "confidence_rationale": "两条新鲜且来源可追溯的证据仅支持价格和TTM收入事实，覆盖范围不足以形成可验证的公司Thesis或估值解释。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少经授权的财务报表、经营指标及历史趋势。",
+        "缺少资本结构、股份数、盈利与现金流数据。",
+        "缺少公司竞争、客户集中度、行业环境及风险披露证据。"
+      ],
+      "invalidation_conditions": [
+        "在补充具备source_id、as_of和retrieved_at的授权基本面与估值证据前，任何关于SEC-AAA商业质量、估值或研究方向的Thesis均不成立。"
+      ],
+      "invocation_id": "inv_656143e6bfd0bb0b8c8763e7",
+      "run_id": "rg2-risk-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA：基于截至2026-01-31T23:59:59Z的获授权证据评估公司研究可行性。",
+      "skill_execution": [
+        {
+          "invocation_hash": "efd2902401c943a375f11fbeb10a87b7c8fb33b059c51feb48bc665622b36483",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "5ec68db5d0c7a884007dce81a82902f5db894663d1d6bb7c896be98bde8ee280",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "58a14fdbfa3873a2dbc336497dab1e99053f52da9d113fc8f8394fdfdd92aa95",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "现有证据未披露业务模式、收入增长、利润率、现金流、资产负债表、竞争地位或管理层信息。",
+        "缺少股份数、市值、估值倍数及可比公司数据，无法进行估值判断。",
+        "两项证据不存在可消解的公司基本面反证信息。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至决策截止日的估值依据、历史价格表现与流动性证据",
+            "可验证的业务与盈利驱动证据"
+          ],
+          "statement": "单一时点收盘价不能证明当前估值合理、风险回报有利或持仓逻辑仍成立；价格可能同时兼容基本面改善、估值扩张或流动性驱动等相互竞争的解释。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "CH-002",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "收入增长、毛利率、经营利润、自由现金流和资产负债表的点时证据",
+            "业务分部、客户集中度及竞争变化的证据"
+          ],
+          "statement": "TTM收入规模本身不能验证增长质量、盈利能力、现金生成、客户集中度或负债压力，因此不能单独支持现有持仓的基本面持续性。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "CH-003",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "至少一个可比期间的收入及经营指标证据",
+            "可审计的每股或估值分母证据"
+          ],
+          "statement": "允许证据未提供跨期对照，无法判断收入趋势是否改善、恶化或暂时性波动；收入水平与当前价格之间也缺少可审计的联结。"
+        }
+      ],
+      "confidence": 0.23,
+      "confidence_rationale": "两项允许证据均新鲜且在决策截止日前，但仅覆盖单一价格观察值和单期TTM收入，足以识别关键不可验证性，不能高置信度判断基本面方向或持仓逻辑。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "盈利能力、现金流、资产负债表和债务到期信息。",
+        "收入增长率、分部表现、客户集中度与竞争信息。",
+        "估值分母、可比估值、历史价格表现和交易流动性信息。",
+        "公司特定催化剂、风险事件和管理层指引的点时证据。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若新增截至决策截止日的完整财务、估值和业务证据一致显示收入质量、盈利能力及现金生成稳健，且当前估值具有可审计支持，则上述证据不足型反证应被重新评估。",
+        "若新增证据显示收入趋势持续恶化、盈利或现金流承压、或估值缺乏支撑，则对现有持仓逻辑的担忧将增强。"
+      ],
+      "invocation_id": "inv_4cdb023aa19c14da2b13da63",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rg2-risk-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA：基于决策截止日允许的市场价格与TTM收入证据，独立识别现有持仓研究建议可能忽略的替代解释、失败路径和证据缺口。",
+      "skill_execution": [
+        {
+          "invocation_hash": "28ef74938909228723bf61b2ee2a8be549946792ec34e08d13c77f28346344d9",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "21684bc171977e733dedcf75f2ee894d10c03ed30eadf1fb9be48064a88958e3",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "现有价格所反映的基本面、估值和流动性驱动因素不可区分。",
+        "TTM收入的趋势、质量和可持续性未知。",
+        "无法在授权证据范围内验证现有持仓研究建议的关键假设。"
+      ]
+    }
+  }
+}

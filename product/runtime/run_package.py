@@ -9,6 +9,7 @@ from typing import Any, Mapping, Sequence
 
 from product.deterministic.metrics import calculate_portfolio_metrics
 
+from .decision_contract import load_decision_contract, render_cio_action_prompt
 from .discovery import discover_product_resources
 from .evidence_gate import FixtureValidationError, load_fixture, run_evidence_gate
 from .execution_proof import ExecutionProofError, verify_specialist_execution_proof
@@ -19,12 +20,22 @@ from .format_repair import (
 )
 from .hashing import canonical_hash, file_hash
 from .invocation import (
+    OUTPUT_SCHEMAS,
+    build_specialist_output_schema,
+    build_specialist_task_prompt,
     build_specialist_inputs,
     create_invocation_manifest,
     validate_skeptic_first_pass_input,
     verify_invocation_manifest,
 )
 from .risk_runtime import build_risk_snapshot, check_cio_draft
+from .terminal_contract import (
+    FailureStage,
+    RISK_LINEAGE_VERSION,
+    RUN_ERROR_VERSION,
+    TRACE_VERSION,
+    normalize_failure_stage,
+)
 from .validation import (
     ArtifactValidationError,
     collect_evidence_refs,
@@ -35,7 +46,7 @@ from .validation import (
 )
 
 
-RUN_PACKAGE_VERSION = "native-run-package/2.0.0"
+RUN_PACKAGE_VERSION = "native-run-package/2.1.0"
 
 
 class TerminalState(StrEnum):
@@ -79,6 +90,7 @@ def _protected_files(repository_root: Path) -> list[Path]:
         repository_root / "product" / ".codex" / "agents",
         repository_root / "product" / "skills",
         repository_root / "product" / "schemas",
+        repository_root / "product" / "contracts",
         repository_root / "product" / "deterministic",
         repository_root / "product" / "runtime",
     )
@@ -113,9 +125,10 @@ def verify_integrity(repository_root: Path, expected: Mapping[str, Any]) -> None
 
 def _base_trace(run_id: str, run_manifest: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "schema_version": "decision-trace/2.0.0",
+        "schema_version": TRACE_VERSION,
         "run_id": run_id,
         "terminal_state": None,
+        "failed_stage": None,
         "runtime": {
             "model": run_manifest["model"],
             "codex_runtime": run_manifest["codex_runtime"],
@@ -176,6 +189,7 @@ def _enrich_trace_from_run(trace: dict[str, Any], run_dir: Path) -> None:
                 "evidence_ids": manifest["evidence_ids"],
                 "skills": manifest["skills"],
                 "tool_permissions": manifest["tool_permissions"],
+                "decision_contract": manifest["decision_contract"],
             }
         )
         output_root = "cio" if agent_name == "runtime_cio" else "agents"
@@ -288,6 +302,7 @@ def _publish_terminal(
     _write_json(decision_path, decision)
     report_path.write_text(_render_report(decision), encoding="utf-8")
     trace["terminal_state"] = decision["terminal_state"]
+    trace["failed_stage"] = None
     _enrich_trace_from_run(trace, run_dir)
     _record_all_artifacts(trace, run_dir)
     _write_json(trace_path, trace, replace=True)
@@ -299,29 +314,40 @@ def fail_run(
     run_id: str,
     code: str,
     message: str,
+    failed_stage: FailureStage | str,
     trace: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if (run_dir / "decision.json").exists() or (run_dir / "report.md").exists():
         raise RunPackageError("FAILED_VALIDATION cannot coexist with final advice")
+    stage = normalize_failure_stage(failed_stage)
     error = {
-        "schema_version": "run-error/2.0.0",
+        "schema_version": RUN_ERROR_VERSION,
         "run_id": run_id,
         "terminal_state": TerminalState.FAILED_VALIDATION.value,
+        "failed_stage": stage,
         "code": code,
         "message": message,
     }
     _write_json(run_dir / "run_error.json", error)
     current_trace = trace or {
-        "schema_version": "decision-trace/2.0.0",
+        "schema_version": TRACE_VERSION,
         "run_id": run_id,
+        "terminal_state": None,
+        "failed_stage": None,
         "runtime": {},
         "agents": [],
         "events": [],
         "risk_lineage": [],
         "artifacts": {},
+        "codex_execution": None,
+        "mcp_events": [],
+        "evidence_lineage": None,
     }
     current_trace["terminal_state"] = TerminalState.FAILED_VALIDATION.value
-    current_trace["events"].append({"stage": "VALIDATION_FAILED", "code": code})
+    current_trace["failed_stage"] = stage
+    current_trace["events"].append(
+        {"stage": "VALIDATION_FAILED", "failed_stage": stage, "code": code}
+    )
     _enrich_trace_from_run(current_trace, run_dir)
     _record_all_artifacts(current_trace, run_dir)
     _write_json(run_dir / "decision_trace.json", current_trace, replace=True)
@@ -357,6 +383,7 @@ def prepare_run(
             run_id=run_id,
             code="PREFLIGHT_VALIDATION_FAILED",
             message=str(exc),
+            failed_stage=FailureStage.PREFLIGHT,
         )
 
     try:
@@ -368,6 +395,7 @@ def prepare_run(
                 run_id=run_id,
                 code="PREFLIGHT_VALIDATION_FAILED",
                 message=str(exc),
+                failed_stage=FailureStage.PREFLIGHT,
             )
         try:
             fixture = _read_json(fixture_path)
@@ -377,6 +405,7 @@ def prepare_run(
                 run_id=run_id,
                 code="PREFLIGHT_VALIDATION_FAILED",
                 message=str(read_error),
+                failed_stage=FailureStage.PREFLIGHT,
             )
         integrity = integrity_snapshot(root)
         run_manifest = {
@@ -419,6 +448,7 @@ def prepare_run(
             run_id=run_id,
             code="PREFLIGHT_VALIDATION_FAILED",
             message=str(exc),
+            failed_stage=FailureStage.PREFLIGHT,
         )
 
     integrity = integrity_snapshot(root)
@@ -440,7 +470,16 @@ def prepare_run(
     }
     _write_json(run_dir / "run_manifest.json", run_manifest)
     _write_json(run_dir / "audit" / "fixture_snapshot.json", fixture)
-    gate = run_evidence_gate(fixture, run_id=run_id).artifact
+    try:
+        gate = run_evidence_gate(fixture, run_id=run_id).artifact
+    except (OSError, ValueError, FixtureValidationError) as exc:
+        return fail_run(
+            run_dir,
+            run_id=run_id,
+            code="EVIDENCE_GATE_FAILED",
+            message=str(exc),
+            failed_stage=FailureStage.EVIDENCE_GATE,
+        )
     _write_json(run_dir / "evidence" / "gate.json", gate)
     trace = _base_trace(run_id, run_manifest)
     trace["events"].extend(
@@ -478,10 +517,27 @@ def prepare_run(
         research_question=research_question,
     )
     validate_skeptic_first_pass_input(inputs["runtime_skeptic"])
+    specialist_schema_paths: dict[str, Path] = {}
+    for agent_name in ("runtime_company_analyst", "runtime_skeptic"):
+        schema_path = run_dir / "schemas" / Path(
+            OUTPUT_SCHEMAS[agent_name]
+        ).name
+        _write_json(
+            schema_path,
+            build_specialist_output_schema(
+                root,
+                agent_name=agent_name,
+                allowed_evidence_ids=gate["allowed_evidence_ids"],
+            ),
+        )
+        specialist_schema_paths[agent_name] = schema_path
     for agent_name, agent_input in inputs.items():
         input_path = run_dir / "inputs" / f"{agent_name}.json"
         _write_json(input_path, agent_input)
-        task_prompt = "读取 Invocation Manifest，使用授权只读工具，并只返回对应 2.0.0 Schema JSON。"
+        task_prompt = build_specialist_task_prompt(
+            agent_name=agent_name,
+            allowed_evidence_ids=gate["allowed_evidence_ids"],
+        )
         _write_text(run_dir / "prompts" / f"{agent_name}.txt", task_prompt)
         manifest = create_invocation_manifest(
             root,
@@ -491,6 +547,7 @@ def prepare_run(
             task_prompt=task_prompt,
             model=model,
             evidence_ids=gate["allowed_evidence_ids"],
+            output_schema_path=specialist_schema_paths[agent_name],
         )
         _write_json(run_dir / "invocations" / f"{agent_name}.json", manifest)
         trace["agents"].append(
@@ -639,6 +696,7 @@ def prepare_cio(
             run_id=run_id,
             code="SPECIALIST_REPORT_VALIDATION_FAILED",
             message=str(exc),
+            failed_stage=FailureStage.SPECIALIST_VALIDATION,
             trace=trace,
         )
 
@@ -662,10 +720,12 @@ def prepare_cio(
         "evidence_access": "fixture_evidence.query",
     }
     _write_json(run_dir / "inputs" / "runtime_cio.json", cio_input)
+    contract_prompt = render_cio_action_prompt(load_decision_contract(root / "product"))
     task_prompt = (
-        "综合两份已验证结构化报告，输出 CIODecisionDraft 2.0.0 JSON；"
+        "综合两份已验证结构化报告，输出 CIODecisionDraft 2.1.0 JSON；"
         "consumed_reports 必须逐字复制输入中的 validated_report_hashes，"
-        "不得自行计算文件字节哈希。"
+        "不得自行计算文件字节哈希。\n"
+        f"{contract_prompt}"
     )
     _write_text(run_dir / "prompts" / "runtime_cio.txt", task_prompt)
     manifest = create_invocation_manifest(
@@ -713,8 +773,8 @@ def finalize_cio(
     draft_name = "runtime_cio_revision.json" if revision else "runtime_cio.json"
     draft_path = run_dir / "cio" / draft_name
     trace = _read_json(run_dir / "decision_trace.json")
-    try:
-        if run_manifest.get("authenticity_required") is not False:
+    if run_manifest.get("authenticity_required") is not False:
+        try:
             proof = _read_json(
                 run_dir / "events" / "codex" / "specialist-execution-proof.json"
             )
@@ -740,6 +800,16 @@ def finalize_cio(
                 reports=specialist_reports,
                 mcp_events=mcp_events,
             )
+        except (OSError, ValueError, ExecutionProofError, json.JSONDecodeError) as exc:
+            return fail_run(
+                run_dir,
+                run_id=run_id,
+                code="NATIVE_EXECUTION_PROOF_FAILED",
+                message=str(exc),
+                failed_stage=FailureStage.EXECUTION_PROOF,
+                trace=trace,
+            )
+    try:
         verify_invocation_manifest(root, manifest, agent_input=cio_input)
         draft = _read_json(draft_path)
         report_hashes = {
@@ -759,19 +829,57 @@ def finalize_cio(
             original_refs = set(original["evidence_refs"])
             if not set(draft["evidence_refs"]) <= original_refs:
                 raise ArtifactValidationError("REVISION_EXPANDED_EVIDENCE_SET")
-        risk = check_cio_draft(fixture, draft, run_id=run_id)
-    except (OSError, ValueError, ArtifactValidationError, ExecutionProofError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, ArtifactValidationError, json.JSONDecodeError) as exc:
         return fail_run(
             run_dir,
             run_id=run_id,
-            code="CIO_OR_RISK_VALIDATION_FAILED",
+            code="CIO_VALIDATION_FAILED",
             message=str(exc),
+            failed_stage=FailureStage.CIO_VALIDATION,
             trace=trace,
         )
 
+    risk_entry = {
+        "schema_version": RISK_LINEAGE_VERSION,
+        "run_id": run_id,
+        "attempt": len(trace["risk_lineage"]) + 1,
+        "status": "STARTED",
+        "policy_version": run_manifest["discovery"]["version_manifest"]["risk_policy"],
+        "input_hash": canonical_hash(draft),
+        "result_hash": None,
+        "result": None,
+        "error": None,
+    }
+    trace["risk_lineage"].append(risk_entry)
+    trace["events"].append(
+        {
+            "stage": "RISK_ENGINE_STARTED",
+            "attempt": risk_entry["attempt"],
+            "input_hash": risk_entry["input_hash"],
+            "policy_version": risk_entry["policy_version"],
+        }
+    )
+    _write_json(run_dir / "decision_trace.json", trace, replace=True)
+    try:
+        risk = check_cio_draft(fixture, draft, run_id=run_id)
+    except (OSError, ValueError, ArithmeticError, KeyError, TypeError) as exc:
+        risk_entry["status"] = "FAILED"
+        risk_entry["error"] = str(exc)
+        _write_json(run_dir / "decision_trace.json", trace, replace=True)
+        return fail_run(
+            run_dir,
+            run_id=run_id,
+            code="RISK_ENGINE_FAILED",
+            message=str(exc),
+            failed_stage=FailureStage.RISK_ENGINE,
+            trace=trace,
+        )
+    risk_entry["status"] = "COMPLETED"
+    risk_entry["result_hash"] = canonical_hash(risk)
+    risk_entry["result"] = risk
+
     risk_path = run_dir / "risk" / ("check-2.json" if revision else "check-1.json")
     _write_json(risk_path, risk)
-    trace["risk_lineage"].append(risk)
     status = risk["check"]["status"]
     if status == "REVISE_REQUIRED" and not revision:
         request = {
@@ -852,12 +960,13 @@ def finalize_cio(
             risk, allowed_evidence_ids=gate["allowed_evidence_ids"]
         )
         verify_integrity(root, run_manifest["integrity_before"])
-    except RunPackageError as exc:
+    except (RunPackageError, ArtifactValidationError, OSError, ValueError) as exc:
         return fail_run(
             run_dir,
             run_id=run_id,
             code="RUNTIME_INTEGRITY_FAILED",
             message=str(exc),
+            failed_stage=FailureStage.PUBLICATION_VALIDATION,
             trace=trace,
         )
     trace["events"].append(

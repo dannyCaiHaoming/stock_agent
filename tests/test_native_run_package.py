@@ -98,7 +98,7 @@ def cio_output(run_dir: Path, *, target=(0.5, 0.5)):
         read_json(run_dir / "agents" / "runtime_skeptic.json"),
     ]
     return {
-        "schema_version": "cio-decision-draft/2.0.0",
+        "schema_version": "cio-decision-draft/2.1.0",
         "run_id": manifest["run_id"],
         "invocation_id": manifest["invocation_id"],
         "status": "COMPLETE",
@@ -130,6 +130,60 @@ def cio_output(run_dir: Path, *, target=(0.5, 0.5)):
 
 
 class NativeRunPackageTests(unittest.TestCase):
+    def test_prepare_emits_gate_scoped_specialist_schemas_and_prompts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "gate-scoped-schema-run"
+            prepared = prepare_run(
+                ROOT,
+                fixture_path=FIXTURES / "evidence-conflict.json",
+                run_dir=run_dir,
+                run_id="gate-scoped-schema-run",
+                model="gpt-5.6-terra",
+                research_question="研究冲突证据。",
+                authenticity_required=False,
+            )
+            self.assertEqual(prepared["next_state"], "DISPATCH_REQUIRED")
+            allowed = read_json(run_dir / "evidence" / "gate.json")[
+                "allowed_evidence_ids"
+            ]
+            analyst_schema = read_json(
+                run_dir / "schemas" / "agent-research-report.schema.json"
+            )
+            skeptic_schema = read_json(
+                run_dir / "schemas" / "counter-thesis-report.schema.json"
+            )
+            enum_paths = (
+                analyst_schema["$defs"]["claim"]["properties"]["evidence_refs"][
+                    "items"
+                ]["enum"],
+                analyst_schema["properties"]["counter_evidence_refs"]["items"][
+                    "enum"
+                ],
+                skeptic_schema["properties"]["evidence_refs"]["items"]["enum"],
+                skeptic_schema["properties"]["counter_evidence_refs"]["items"][
+                    "enum"
+                ],
+                skeptic_schema["properties"]["challenges"]["items"]["properties"][
+                    "evidence_refs"
+                ]["items"]["enum"],
+            )
+            for enum_values in enum_paths:
+                self.assertEqual(enum_values, allowed)
+            for agent in ("runtime_company_analyst", "runtime_skeptic"):
+                agent_input = read_json(run_dir / "inputs" / f"{agent}.json")
+                invocation = read_json(run_dir / "invocations" / f"{agent}.json")
+                prompt = (run_dir / "prompts" / f"{agent}.txt").read_text(
+                    encoding="utf-8"
+                )
+                self.assertEqual(agent_input["allowed_evidence_ids"], allowed)
+                self.assertEqual(
+                    Path(invocation["output_schema"]).parent.resolve(),
+                    (run_dir / "schemas").resolve(),
+                )
+                self.assertIn("原始 evidence_id", prompt)
+                self.assertIn("禁止在 evidence_id 后拼接 source_id、as_of、retrieved_at", prompt)
+                self.assertIn("不得自行截断", prompt)
+
     def test_integrity_snapshot_detects_protected_file_changes(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -275,6 +329,7 @@ class NativeRunPackageTests(unittest.TestCase):
                     run_id="cio-boundary",
                     agent="runtime_cio",
                     invocation_id=invocation["invocation_id"],
+                    calculation_id="calc-cio-forbidden",
                     operation="ratio",
                     evidence_ids=["ev-normal-debt", "ev-normal-revenue"],
                 )

@@ -1,0 +1,55 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "价格与经营利润率的单点事实可核验，但两份高相关收入证据在同一截至日存在实质冲突，且缺少来源优先级、口径调节、历史财务和估值所需数据；两份独立报告一致判定证据不足。",
+      "counter_thesis": "同一截至日、同一语义字段的两项TTM收入记录存在未消解的25%差异；其口径、范围、重述状态与来源优先级未知，因此不能依赖以收入为基础的推论。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "若取得并核验截至决策截止日的权威资料，证明其中一份TTM收入为适用口径并解释另一记录的差异，则本NO_TRADE结论应重新评估。",
+        "若后续复核显示18%经营利润率与确认收入的口径不一致，任何基于该利润率的解释均失效。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "核心TTM收入证据存在未消解冲突，且缺少形成可复核商业质量、估值和组合建议所需的关键资料；因此不形成仓位调整建议。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得截至2025-12-31的权威收入调节、口径与来源优先级证明。",
+        "获得与确认收入同口径的经营利润、历史财务、现金流、资本结构及估值证据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已验证报告确认唯一可用的经营利润率和收盘价证据，但不足以建立可复核的商业质量或估值判断。",
+      "time_horizon": "在取得并核验足以消解收入冲突的截至截止日证据前不形成仓位调整建议。",
+      "unresolved_questions": [
+        "哪一份TTM收入记录符合截至2025-12-31的适用报告范围与会计口径？",
+        "两份收入记录之间的差异是否由重述、合并范围、TTM窗口、币种或数据提取错误造成？",
+        "与确认收入同口径的经营利润、历史财务、现金流、资本结构和估值输入为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rg3-conflict-2-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

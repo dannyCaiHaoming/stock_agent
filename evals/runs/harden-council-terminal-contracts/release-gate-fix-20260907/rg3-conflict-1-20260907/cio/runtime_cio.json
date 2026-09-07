@@ -1,0 +1,75 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rg3-conflict-1-20260907",
+  "invocation_id": "inv_f1ae53d08030ef6c65165df7",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "e6ea0e88299d298063daf33fcb06acaf3e8e39feaf8eb086b419e09c8c2ae54f"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "a6ba7e416eb7a140edd492a1691ab037d07e548b7e6d752950c39c12610a143c"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在取得可核验的冲突消解证据前重新评估",
+  "thesis": "两份已验证报告共同确认，截至决策截止日可观察到价格和单期经营利润率，但不足以形成可追溯的商业质量或估值判断。",
+  "counter_thesis": "同一截至日的 TTM 收入存在未消解的 25% 冲突，且缺少口径对账、多期经营数据与估值背景；任何依赖收入、利润率或单点价格的组合动作均不稳健。",
+  "consensus": [
+    "两份已验证报告均识别出 ev-conflict-revenue-a 与 ev-conflict-revenue-b 对同一 TTM 收入字段的实质冲突。",
+    "两份已验证报告均认为缺少消解收入冲突及开展估值所需的关键证据。",
+    "在冲突未消解前，不应从单点价格或单期经营利润率推导组合动作。"
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "summary": "同一截至日、同一标准化 TTM 收入字段分别为 USD 1,000,000 与 USD 1,250,000；授权证据未提供来源优先级、口径说明或对账信息。",
+      "unresolved": true,
+      "decision_impact": "收入规模及所有依赖收入的增长、利润率解释和估值基础均无法可靠确定，因此不形成组合动作。",
+      "confidence_impact": "该未消解冲突与估值、趋势及资本结构数据缺口共同使可行动结论的置信度不足。"
+    }
+  ],
+  "unresolved_questions": [
+    "哪一项收入证据具有权威来源优先级，或两者是否能以相同口径和合并范围完成对账？",
+    "18% 的单期经营利润率是否可由多期财务和成本明细证实为可持续？",
+    "在取得股本、净债务、现金流、历史价格和流动性资料后，市场价格相对可核验基本面的含义为何？"
+  ],
+  "invalidation_conditions": [
+    "获得权威、可追溯的同口径披露或对账资料，消解两项 TTM 收入证据的差异。",
+    "获得截至决策截止日的多期财务、资本结构、股本、现金流和估值背景证据，使商业质量和估值可被独立核验。",
+    "若新增经核验资料与当前营业利润率或价格观察存在实质矛盾，应重新开展研究。"
+  ],
+  "confidence": 0.15,
+  "confidence_rationale": "对收入冲突和证据缺口的存在具有较高确定性，但授权证据不足以判定正确收入数值、利润率可持续性或估值，因此不具备支持任何动作建议的置信度。",
+  "evidence_refs": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "no_trade_reason": "EVIDENCE_CONFLICT",
+  "no_trade_explanation": "关键收入证据冲突尚未解决，且缺少完成商业质量与估值判断所需的资料；因此不形成组合动作建议。",
+  "reevaluation_conditions": [
+    "取得可核验且可追溯的收入对账与来源优先级资料。",
+    "取得多期财务、现金流、资本结构、股本及估值和市场背景资料。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "9b601c252eb513dbee6fb7434c8b00c9e60357f98e6d7ba679a00e42d702cc33",
+      "skill_name": "portfolio-council",
+      "version": "2.1.0"
+    }
+  ],
+  "advisory_only": true
+}

@@ -16,12 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 class VersionManifestTests(unittest.TestCase):
     def test_candidate_manifest_locks_native_runtime_versions(self):
         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
-        self.assertEqual("0.2.0-candidate.1", manifest["candidate_version"])
+        self.assertEqual("0.2.1-candidate.1", manifest["candidate_version"])
         self.assertEqual("codex-cli/0.153.4", manifest["codex_runtime"])
         self.assertEqual("gpt-5.6-terra", manifest["model"])
         self.assertIn("fixture-gate-scoped", manifest["mcp_adapters"])
         self.assertIn("runtime-cio", manifest["agents"])
-        self.assertEqual(len(manifest["resource_hashes"]), 8)
+        self.assertEqual(len(manifest["resource_hashes"]), 9)
 
     def test_manifest_fails_closed_for_missing_or_fixture_model(self):
         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
@@ -45,6 +45,7 @@ class ProductDiscoveryTests(unittest.TestCase):
             result.plugin_mcp,
             result.runtime_config,
             result.runtime_profile,
+            result.decision_contract,
             result.council_skill,
             result.cio_agent,
             result.company_agent,
@@ -74,6 +75,8 @@ class ProductDiscoveryTests(unittest.TestCase):
                 ".mcp.json",
                 ".codex/config.toml",
                 "runtime-profile.json",
+                "contracts/council-decision-contract.json",
+                "schemas/runtime/cio-decision-draft.schema.json",
                 "skills/portfolio-council/SKILL.md",
                 ".codex/agents/runtime_cio.toml",
                 ".codex/agents/runtime_company_analyst.toml",

@@ -13,6 +13,7 @@ REQUIRED_SCALAR_FIELDS = (
     "codex_runtime",
     "model",
     "runtime_profile",
+    "decision_contract",
     "risk_policy",
     "data_snapshot",
 )
@@ -44,6 +45,7 @@ def validate_version_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
         "plugin_mcp",
         "runtime_config",
         "runtime_profile",
+        "decision_contract",
         "council_skill",
         "cio_agent",
         "company_agent",

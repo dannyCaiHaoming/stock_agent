@@ -1,0 +1,27 @@
+{
+  "checks": {
+    "actual_council_risk_passage": "PASSED",
+    "advisory_only": "PASSED",
+    "artifact_matrix": "PASSED",
+    "artifact_replay": "PASSED",
+    "deterministic_risk_boundary": "PASSED",
+    "native_agent_skill_mcp_authenticity": "PASSED",
+    "no_fixed_investment_outcome": "PASSED",
+    "risk_boundary_result_hash": "ed2e2b1cfff4abfe2995b0c1e0be7ad0cfd24e4f867739f67460a67dc8d09197",
+    "skeptic_independent_contribution": "PASSED",
+    "trace_lineage": "PASSED"
+  },
+  "eval_hash": "78e3df4e8002b9dded0645c0237508e5fac5a1b56e000bae21de314bcac52329",
+  "fixture_id": "risk-veto-v1",
+  "run_id": "rg2-risk-20260907",
+  "schema_version": "native-council-eval/2.0.0",
+  "scope": "仅验证结构化正确性、证据血缘、Skeptic 独立非重复贡献、CIO 显式消费与硬风控；不评价市场收益、Alpha 或统计预测能力。",
+  "source_hashes": {
+    "decision": "8997991d2beb5c02a058ce384cf2a5b382a82766dd5be96437e0ba79f440ff4b",
+    "matrix": "b1f5b9d1defb96e07cfc54b1127fb60c18731adb1b8eb653ba2c2e857cd405a7",
+    "replay": "35011f2d0a901ccb6d41b9d8077a9bcf9be822f7ce4fc91840fde2987e9e69e2",
+    "trace": "4aef26a4cba0f9ee21c71def9e78fc63db783fe3b8541a8f4069e735ef3ec765"
+  },
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE"
+}

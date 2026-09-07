@@ -1,0 +1,56 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rg3-conflict-3-20260907",
+  "invocation_id": "inv_6f7c6007b74f3915a78af776",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {"agent": "runtime_company_analyst", "output_hash": "0edd19d3aed71451e16036102df8837e18928dd0efca5bb33f72ee27f5d40c93"},
+    {"agent": "runtime_skeptic", "output_hash": "44c4570e92633e0f7062e3f9f72bdfe4bbd9e4c45f93956a54badfc19c85db07"}
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在截至决策截止日可核验的同口径财务与资本结构证据补齐前",
+  "thesis": "可验证证据仅支持价格和单一营业利润率事实；由于核心收入基数存在未调节的同期间冲突，无法建立可审计的商业质量或估值前提。",
+  "counter_thesis": "收入记录的差异可能由口径、合并范围或重述造成，但现有获授权证据不能辨别原因，亦不能确认18%营业利润率是否与任一收入基数一致。",
+  "consensus": [
+    "两份已验证报告均将研究状态定为 INSUFFICIENT_EVIDENCE。",
+    "两条同一报告期的收入证据存在未解释的25%差异，阻断以收入为基础的利润额和估值推导。",
+    "缺少资本结构、现金流、股本、增长和业务质量资料，单一价格与利润率不足以支持可审计的风险回报结论。"
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_refs": ["ev-conflict-revenue-a", "ev-conflict-revenue-b"],
+      "summary": "两个来源对同一TTM收入、同一截至日给出1,000,000 USD与1,250,000 USD，且没有获授权的口径、重述或优先级调节信息。",
+      "unresolved": true,
+      "decision_impact": "不能可靠推导营业利润额、收入倍数或以收入为起点的估值情景，因此不形成持仓动作建议。",
+      "confidence_impact": "该冲突对数据充分性判断具有实质影响，限制了对任何方向性Thesis的置信度。"
+    }
+  ],
+  "unresolved_questions": [
+    "哪一份TTM收入记录具有经确认的权威口径，两个来源能否对账？",
+    "18%营业利润率是否与经确认的收入、报告范围和会计口径一致？",
+    "截至决策截止日的股本、现金、债务、现金流、增长及业务质量证据为何？"
+  ],
+  "invalidation_conditions": [
+    "若截至决策截止日的权威披露与可追溯调节表证明两项收入可完全对账，本草案关于收入冲突阻断估值的判断失效。",
+    "若提供同口径财务报表、资本结构、现金流和可复核估值输入，本草案关于证据不足的判断应重新评估。"
+  ],
+  "confidence": 0.18,
+  "confidence_rationale": "对未解决收入冲突和关键资料缺失的识别具有充分的已验证报告支持；但不足以归因冲突或判断基本面与估值，因此不对持仓方向形成置信结论。",
+  "evidence_refs": ["ev-conflict-margin", "ev-conflict-price", "ev-conflict-revenue-a", "ev-conflict-revenue-b"],
+  "no_trade_reason": "EVIDENCE_CONFLICT",
+  "no_trade_explanation": "核心TTM收入存在未解决的同期间冲突，且缺少使价格与利润率可审计地转化为商业质量或估值判断的必要证据。",
+  "reevaluation_conditions": [
+    "获得截至决策截止日可核验的权威收入披露及两来源调节说明。",
+    "获得同口径的利润、现金流、资本结构、股本和估值输入后重新评估。"
+  ],
+  "skill_execution": [
+    {"invocation_hash": "2b8bf993291e4ebbded8d9d2ce48ff5e44f2c0e32c230377b9d6b89ef94dc0ec", "skill_name": "portfolio-council", "version": "2.1.0"}
+  ],
+  "advisory_only": true
+}

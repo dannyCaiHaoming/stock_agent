@@ -1,0 +1,56 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.15,
+      "confidence_rationale": "对收入冲突和证据缺口的存在具有较高确定性，但授权证据不足以判定正确收入数值、利润率可持续性或估值，因此不具备支持任何动作建议的置信度。",
+      "counter_thesis": "同一截至日的 TTM 收入存在未消解的 25% 冲突，且缺少口径对账、多期经营数据与估值背景；任何依赖收入、利润率或单点价格的组合动作均不稳健。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "获得权威、可追溯的同口径披露或对账资料，消解两项 TTM 收入证据的差异。",
+        "获得截至决策截止日的多期财务、资本结构、股本、现金流和估值背景证据，使商业质量和估值可被独立核验。",
+        "若新增经核验资料与当前营业利润率或价格观察存在实质矛盾，应重新开展研究。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键收入证据冲突尚未解决，且缺少完成商业质量与估值判断所需的资料；因此不形成组合动作建议。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "取得可核验且可追溯的收入对账与来源优先级资料。",
+        "取得多期财务、现金流、资本结构、股本及估值和市场背景资料。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "两份已验证报告共同确认，截至决策截止日可观察到价格和单期经营利润率，但不足以形成可追溯的商业质量或估值判断。",
+      "time_horizon": "在取得可核验的冲突消解证据前重新评估",
+      "unresolved_questions": [
+        "哪一项收入证据具有权威来源优先级，或两者是否能以相同口径和合并范围完成对账？",
+        "18% 的单期经营利润率是否可由多期财务和成本明细证实为可持续？",
+        "在取得股本、净债务、现金流、历史价格和流动性资料后，市场价格相对可核验基本面的含义为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rg3-conflict-1-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,178 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "10000.0",
+    "cash_weight": "0.1",
+    "concentration_hhi": "0.81",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.9",
+    "position_weights": {
+      "SEC-AAA": "0.9"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.9"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于截至决策截止日的证据，对现有持仓给出仅供研究参考的组合建议；证据不足或冲突无法消解时必须NO_TRADE。",
+  "run_id": "harden-risk-01",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "2cfd465168d0c36e0fbbe9c6671daea8d704146fb9713d46a5f78db986e211e0",
+    "runtime_skeptic": "3c8bb04ff15fc1a4b3a290834d3b6526d8d4dbbd07f86dce8ca5d643456ae2bd"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "fact_price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA收盘价为100 USD/share；evidence_id=ev-risk-price，source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "fact_revenue",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA的TTM收入为1,000,000 USD；evidence_id=ev-risk-revenue，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        }
+      ],
+      "confidence": 0.2,
+      "confidence_rationale": "两项获准且新鲜的证据仅支持价格与TTM收入事实；其来源、as_of与retrieved_at已保留，但不足以支持商业质量、竞争或估值解释。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入增长及分部/客户集中度信息。",
+        "缺少利润、自由现金流、净债务和流动性信息。",
+        "缺少流通股数、市场资本化、企业价值及可比估值输入。",
+        "缺少管理层指引、竞争证据和风险披露，无法形成有依据的商业Thesis或反证。"
+      ],
+      "invalidation_conditions": [
+        "若后续证据修正收盘价或TTM收入，上述事实主张失效。",
+        "在补齐商业质量、财务健康和估值证据前，任何基于本报告的公司层面结论均不成立。"
+      ],
+      "invocation_id": "inv_adb44754cf9fedd6da15851a",
+      "run_id": "harden-risk-01",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA：基于截至2026-01-31T23:59:59Z获准证据评估商业研究与估值信息充分性。",
+      "skill_execution": [
+        {
+          "invocation_hash": "415d189954f14fd6ae8dbf07699b926d696195217532a992bf142a90dfaf5cf9",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "895af072130f2b7ba9f72a18344932591e55c4d1c4d98a9c586bfe72e8ee4f61",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "097f74ea52123bf50e1c5b05195ee139186d9ddf21f781a918c38c40f68658c3",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "获准证据不包含盈利能力、现金流、资产负债表、增长历史、竞争地位或估值所需的股本与企业价值数据。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "CT-001",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "截至截止日的盈利、自由现金流及资产负债表证据",
+            "经验证的估值分母及可比估值证据"
+          ],
+          "statement": "收盘价100美元和TTM营收100万美元不足以证明估值合理、盈利能力或现金流可持续性；任何依赖经营质量支持该持仓的主张均未获证据支持。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "CT-002",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "收入增长、分部构成及客户集中度的历史证据",
+            "竞争地位、需求变化及后续经营指引的截至截止日证据"
+          ],
+          "statement": "单一时点价格无法区分短期价格状态与基本面驱动，单一TTM收入数据也无法揭示增长、客户集中度或竞争恶化路径。"
+        }
+      ],
+      "confidence": 0.82,
+      "confidence_rationale": "对证据不足的判断具有较高信心：仅有一项价格和一项TTM收入证据，无法支持或反驳经营质量、估值与风险路径的实质判断。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "盈利能力、自由现金流、债务和流动性数据缺失。",
+        "股本、企业价值、估值倍数及可比公司数据缺失。",
+        "历史价格、收入趋势、业务分部、客户集中度及催化剂数据缺失。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若截至截止日的授权证据显示持续盈利和自由现金流、稳健资产负债表，并以可验证估值数据支持该价格，则CT-001的证据不足担忧将被削弱。",
+        "若授权的多期经营及市场证据显示收入趋势稳定、集中度风险可控且价格变动存在可验证的基本面支撑，则CT-002将被削弱。"
+      ],
+      "invocation_id": "inv_b88d006d9b7cd8e88da53c29",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "harden-risk-01",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "对SEC-AAA截至2026-01-31T23:59:59Z的授权证据进行独立反证审查，不形成组合动作或目标权重。",
+      "skill_execution": [
+        {
+          "invocation_hash": "57dddcff8cc896f757817db85ecf4d981bb29196a5e023625a8038a0cd7f60d6",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "2f9fd364e85426e471cfb53fca4588e869d6b7f5cde769e1d27554bcbbd80f70",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "独立首轮模式未接触任何Analyst或CIO结论，因此不存在可直接检验的正向Thesis。",
+        "授权证据均为新鲜数据，但覆盖范围不足以评估SEC-AAA的经营质量、估值或风险回报。"
+      ]
+    }
+  }
+}

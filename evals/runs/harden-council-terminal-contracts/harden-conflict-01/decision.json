@@ -1,0 +1,55 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.88,
+      "confidence_rationale": "机械冲突及两份独立已验证报告一致支持“不能形成方向性建议”；对这一保守结论具有较高置信度。置信度不代表对公司基本面方向的判断，因为获授权证据范围不足且冲突未解。",
+      "counter_thesis": "两项同一期间、同一语义字段的收入证据给出不兼容值，且缺少解释差异、盈利质量与资本结构的证据；任何方向性组合判断均不可验证。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "若截至决策截止日的权威披露说明两项收入采用不同口径，或更正、撤回其中一项，则收入冲突对本结论的影响必须重新评估。",
+        "若补充一致口径的连续财务、现金流和资本结构证据，当前证据不足结论必须重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "核心收入证据存在未解决的同期间冲突，且缺少可审计的盈利质量、现金流、资本结构和估值基础；因此不发布方向性组合建议。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得可核验的权威收入对账、更正或口径说明后重新评估。",
+        "获得统一口径的连续财务、现金流、资本结构及估值输入后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已验证报告确认的单点经营利润率和价格不足以在核心收入口径冲突未解时建立可审计的商业质量或估值 Thesis。",
+      "time_horizon": "在获得可核验的冲突消解证据前",
+      "unresolved_questions": [
+        "两个收入数值是否使用不同会计口径、合并范围或修订状态？",
+        "哪一项收入披露具有可核验的权威性，或是否有更正资料？",
+        "统一口径下的历史利润率、现金流、股本与资本结构为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "harden-conflict-01",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,26 @@
+{
+  "checks": {
+    "actual_council_risk_passage": "PASSED",
+    "advisory_only": "PASSED",
+    "artifact_matrix": "PASSED",
+    "artifact_replay": "PASSED",
+    "conflict_preserved_and_consumed": "PASSED",
+    "native_agent_skill_mcp_authenticity": "PASSED",
+    "no_fixed_investment_outcome": "PASSED",
+    "skeptic_independent_contribution": "PASSED",
+    "trace_lineage": "PASSED"
+  },
+  "eval_hash": "87be20bdb98a48d4d9089c2a6f7cfdf38658b7add1910783d6677d08ebdc912e",
+  "fixture_id": "evidence-conflict-v1",
+  "run_id": "harden-conflict-02",
+  "schema_version": "native-council-eval/2.0.0",
+  "scope": "仅验证结构化正确性、证据血缘、Skeptic 独立非重复贡献、CIO 显式消费与硬风控；不评价市场收益、Alpha 或统计预测能力。",
+  "source_hashes": {
+    "decision": "0c37c3d02c3ae100dbe980c1bc69c01d582dc75a754e4d2aa5c49ca552d97533",
+    "matrix": "e09d234f9cb01d353bf270a08ef0a2b5d27a7cfe1f8451a8614367e5b15e3407",
+    "replay": "1a9b3ac085fb6a0d7fa5f6693c03260dfca3f5311b7865ae523a87aedf8b8bb0",
+    "trace": "c32c09f8f330f2a9917cb5e933df12a30917717c86142dcff6ff740b896dd606"
+  },
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,112 @@
+{
+  "agents": [],
+  "artifacts": {
+    "audit/fixture_snapshot.json": "8323d891813f8feb12920a6541842864e2551d5fb8932e2b2e7cbceae12af0c1",
+    "decision.json": "be885e8d30f8a0811f37b33830733e76fa80d28aef92775a62862230f76d3dbd",
+    "eval/result.json": "8e908cfe8a9e7e2f0891d4c40f8590dcb136102143f7b55cd299147d325389fe",
+    "evidence/gate.json": "b176f468a16aa51e49d233ceb25c82852d786185f7d7cade033f98300bda762b",
+    "report.md": "aba2bc4225a8f286e5789031a41d0a72e51965b2bb14c5ce90cb3c29294d14d4",
+    "run_manifest.json": "f529bfd38f1596644c9a656789ce41b58f42fe30bd9d9cec7680255115e73fd3"
+  },
+  "codex_execution": null,
+  "events": [
+    {
+      "stage": "DISCOVERY_PREFLIGHT",
+      "status": "PASSED"
+    },
+    {
+      "allowed_evidence_ids": [],
+      "bundle_hash": "9be65e4a7ddba304d6725df54a941dac25744fe93c8cd1ffbf0903ac6013ab9b",
+      "excluded_evidence_ids": [
+        "ev-future-asof",
+        "ev-future-retrieval",
+        "ev-stale-update"
+      ],
+      "stage": "EVIDENCE_GATE",
+      "status": "PASSED"
+    },
+    {
+      "agent_calls": 0,
+      "stage": "PRE_AGENT_SAFE_TERMINATION"
+    },
+    {
+      "eval_hash": "526a856c5ce451c642912f7938a9db1a84ce1be22835dc29671af4b5f8590fe7",
+      "stage": "ACTUAL_ARTIFACT_EVAL",
+      "status": "PASSED"
+    }
+  ],
+  "evidence_lineage": {
+    "allowed_evidence_ids": [],
+    "bundle_hash": "9be65e4a7ddba304d6725df54a941dac25744fe93c8cd1ffbf0903ac6013ab9b",
+    "conflict_policy_version": "conflict-key/2.0.0",
+    "decision_cutoff": "2026-01-31T23:59:59Z",
+    "excluded_evidence_ids": [
+      "ev-future-asof",
+      "ev-future-retrieval",
+      "ev-stale-update"
+    ],
+    "freshness_policy_version": "freshness/fixture/2.0.0"
+  },
+  "failed_stage": null,
+  "mcp_events": [],
+  "risk_lineage": [],
+  "run_id": "harden-stale-01",
+  "runtime": {
+    "candidate_version": "0.2.1-candidate.1",
+    "codex_runtime": "codex-cli/0.153.4",
+    "discovery_hash": "d1c0486109d90592ee0f32945505ae142c2d917d2941d518a344c095afe4f5d8",
+    "model": "gpt-5.6-terra",
+    "version_lock": {
+      "agents": {
+        "runtime-cio": "2.1.0",
+        "runtime-company-analyst": "2.1.0",
+        "runtime-market-catalyst": "1.0.0",
+        "runtime-skeptic": "2.0.0"
+      },
+      "candidate_version": "0.2.1-candidate.1",
+      "codex_runtime": "codex-cli/0.153.4",
+      "data_snapshot": "fixture/codex-native/2.0.0",
+      "decision_contract": "council-decision-contract/1.0.0",
+      "manifest_version": "2.0.0",
+      "mcp_adapters": {
+        "fixture-gate-scoped": "2.1.0",
+        "fixture-reference": "1.0.0",
+        "provider-neutral-contracts": "1.0.0"
+      },
+      "model": "gpt-5.6-terra",
+      "resource_hashes": {
+        "cio_agent": "156946f965cdbc769e81239fe2ecc6bea08439520762ce7cb5e63bcf6d69ecf7",
+        "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "council_skill": "2b84c0c85a7b96c55292bf92b147a9fac8ce990d40ac838859388553038030ae",
+        "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+        "plugin": "f75aee1c19b3046b66b94788b1479ff2930fe702420578074e049fbf115812a3",
+        "plugin_mcp": "22a55d24f1a2a9dd2e1f94604f583d9ecb9d891e53e9132f5f90b60dd9c0064a",
+        "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+        "runtime_profile": "8f36661023acd80bd954dd07766bd0dac74ca3c079498c83b050e18946078f6f",
+        "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+      },
+      "risk_policy": "risk/reference/1.0.0",
+      "runtime_profile": "fixture-council/2.1.0",
+      "schemas": {
+        "artifact-envelope": "1.0.0",
+        "decision-risk": "1.0.0",
+        "decision-trace": "2.1.0",
+        "evidence": "1.0.0",
+        "learning": "1.0.0",
+        "portfolio": "1.0.0",
+        "research": "1.0.0",
+        "runtime-artifacts": "2.1.0"
+      },
+      "skills": {
+        "catalyst-analysis": "1.0.0",
+        "company-research": "2.0.0",
+        "counter-thesis": "2.0.0",
+        "evidence-grounding": "2.0.0",
+        "portfolio-council": "2.1.0",
+        "valuation": "2.0.0"
+      }
+    }
+  },
+  "schema_version": "decision-trace/2.1.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

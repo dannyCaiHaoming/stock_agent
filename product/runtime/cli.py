@@ -16,7 +16,9 @@ from .run_package import fail_run, finalize_cio, prepare_cio, prepare_run
 from .replay import replay_run, write_replay_result
 from .native_eval import evaluate_run, persist_eval_result
 from .native_rerun import prepare_native_rerun
+from .release_gate import check_run
 from .smoke_prompt import build_smoke_prompt
+from .terminal_contract import FailureStage
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -61,6 +63,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     evaluation = subparsers.add_parser("eval")
     evaluation.add_argument("--repo", type=Path, required=True)
     evaluation.add_argument("--run-dir", type=Path, required=True)
+
+    check = subparsers.add_parser("check-run")
+    check.add_argument("--repo", type=Path, required=True)
+    check.add_argument("--run-dir", type=Path, required=True)
 
     rerun = subparsers.add_parser("prepare-rerun")
     rerun.add_argument("--repo", type=Path, required=True)
@@ -131,6 +137,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 run_id=str(manifest["run_id"]),
                 code="NATIVE_EXECUTION_PROOF_FAILED",
                 message=str(exc),
+                failed_stage=FailureStage.EXECUTION_PROOF,
                 trace=trace,
             )
     elif args.command == "replay":
@@ -139,6 +146,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "eval":
         result = evaluate_run(args.repo, run_dir=args.run_dir)
         persist_eval_result(result, run_dir=args.run_dir)
+    elif args.command == "check-run":
+        result, exit_code = check_run(args.repo, run_dir=args.run_dir)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
     else:
         result = prepare_native_rerun(
             args.repo,

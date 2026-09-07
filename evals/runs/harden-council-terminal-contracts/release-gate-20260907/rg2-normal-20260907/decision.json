@@ -1,0 +1,60 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "置信度受限：两份独立且已验证的专业报告一致识别到关键数据缺口，且没有可用证据解决现金流、偿债、产能执行或估值问题；因此仅对暂停形成交易性建议具有信心，不对证券方向或目标权重形成判断。",
+      "counter_thesis": "缺少现金流、债务到期与融资、利润率趋势、需求和产能经济性、估值与可比数据，因而无法排除盈利质量、偿债、执行和估值风险。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "未来核验数据表明营业利润率不可持续或现金流恶化。",
+        "未来核验数据表明债务、融资或再融资压力使现有债务/收入有限口径失去代表性。",
+        "未来核验数据表明产能计划延迟、超支、需求不足或回报不达标。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "现有截止日前授权事实不存在机械冲突，但缺少判断盈利质量、债务服务、产能回报和估值所需的关键证据；在这些实质性不确定性消解前，不形成任何仓位变更建议。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得经核验的多期经营指标、经营现金流、自由现金流与资本开支数据。",
+        "获得经核验的现金、债务到期、利率、契约、利息覆盖及融资安排数据。",
+        "获得经核验的订单、利用率、产能进度、资本开支和项目回报数据。",
+        "获得经核验的估值、盈利预测、可比公司及市场风险数据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "截至截止日，授权证据仅支持SEC-AAA单期18% TTM营业利润率、150,000美元总债务、1,000,000美元TTM收入、100美元单点收盘价以及管理层维持产能计划的有限事实；这些事实不足以形成可执行的经营质量或估值Thesis。",
+      "time_horizon": "在获得可核验的财务、现金流、产能执行与估值证据前重新评估。",
+      "unresolved_questions": [
+        "多期收入和利润率趋势、经营现金流、自由现金流及一次性项目如何影响盈利质量？",
+        "现金、债务到期、利率、契约、利息覆盖和融资安排是否足以覆盖偿债与资本需求？",
+        "产能计划的订单、利用率、投产进度、资本开支和项目回报是否得到可核验证实？",
+        "经验证的估值倍数、盈利预测、可比公司和市场风险数据如何解释100美元单点价格？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rg2-normal-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -125,7 +125,7 @@ def scenario_cio_output(run_dir: Path, *, include_conflict: bool = True):
         }]
     current_weight = 0.9 if is_risk else 0.5
     return {
-        "schema_version": "cio-decision-draft/2.0.0",
+        "schema_version": "cio-decision-draft/2.1.0",
         "run_id": manifest["run_id"],
         "invocation_id": manifest["invocation_id"],
         "status": "COMPLETE",

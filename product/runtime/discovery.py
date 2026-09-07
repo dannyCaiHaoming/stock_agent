@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from .decision_contract import load_decision_contract, verify_cio_schema
 from .hashing import canonical_hash, file_hash
 from .versioning import load_version_manifest
 
@@ -25,6 +26,7 @@ class ProductDiscovery:
     plugin_mcp: ResourceRecord
     runtime_config: ResourceRecord
     runtime_profile: ResourceRecord
+    decision_contract: ResourceRecord
     council_skill: ResourceRecord
     cio_agent: ResourceRecord
     company_agent: ResourceRecord
@@ -42,6 +44,7 @@ RESOURCE_PATHS = {
     "plugin_mcp": ".mcp.json",
     "runtime_config": ".codex/config.toml",
     "runtime_profile": "runtime-profile.json",
+    "decision_contract": "contracts/council-decision-contract.json",
     "council_skill": "skills/portfolio-council/SKILL.md",
     "cio_agent": ".codex/agents/runtime_cio.toml",
     "company_agent": ".codex/agents/runtime_company_analyst.toml",
@@ -77,6 +80,10 @@ def discover_product_resources(repository_root: Path) -> ProductDiscovery:
         for name, relative_path in RESOURCE_PATHS.items()
     }
     version_manifest = load_version_manifest(product_root / "version-manifest.json")
+    decision_contract = load_decision_contract(product_root)
+    if decision_contract["schema_version"] != version_manifest["decision_contract"]:
+        raise ValueError("decision contract version differs from candidate manifest")
+    verify_cio_schema(product_root, decision_contract)
     actual_hashes = {name: record.sha256 for name, record in records.items()}
     if actual_hashes != version_manifest["resource_hashes"]:
         mismatches = sorted(
@@ -96,6 +103,7 @@ def discover_product_resources(repository_root: Path) -> ProductDiscovery:
         plugin_mcp=records["plugin_mcp"],
         runtime_config=records["runtime_config"],
         runtime_profile=records["runtime_profile"],
+        decision_contract=records["decision_contract"],
         council_skill=records["council_skill"],
         cio_agent=records["cio_agent"],
         company_agent=records["company_agent"],

@@ -1,0 +1,268 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于截至决策截止日的证据，对现有持仓给出仅供研究参考的组合建议；证据不足或冲突无法消解时必须NO_TRADE。",
+  "run_id": "rg2-normal-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "fecf7f67941406d69d78279ad6274f10cea671dd57f3ed045978e040e97ac198",
+    "runtime_skeptic": "ee3e30bdf19766dda09231251bac0357a214b62de767fc32a68bcf3a1f755ddf"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "fixture://normal/debt/1",
+        "fixture://normal/margin/1",
+        "fixture://normal/price/1",
+        "fixture://normal/revenue/1",
+        "fixture://normal/update/1",
+        "calculation:company_debt_to_revenue_01:6f9395d7b5309d6033ba1c228a8e795544888fd674ad7524d17f0c8b7eb24ccf"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "c1",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "FACT",
+          "statement": "截至2025-12-31，SEC-AAA报告TTM营业利润率为18%；evidence_id=ev-normal-margin，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c2",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "截至2025-12-31，SEC-AAA报告总债务150,000美元、TTM收入1,000,000美元；evidence_id=ev-normal-debt/ev-normal-revenue，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c3",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "确定性计算显示总债务/TTM收入为0.15，表明在该有限口径下债务相对收入规模不高；该比率并不衡量偿债能力，因为缺少现金、利息费用、到期结构与现金流证据。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c4",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "FACT",
+          "statement": "截至2026-01-20，管理层维持此前披露的产能计划；evidence_id=ev-normal-update，source_id=fixture-company-release，as_of=2026-01-20T14:00:00Z，retrieved_at=2026-01-20T14:01:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c5",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "kind": "FACT",
+          "statement": "截至2026-01-30收盘，SEC-AAA价格为每股100美元；evidence_id=ev-normal-price，source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。该单一价格点不足以推断估值。"
+        }
+      ],
+      "confidence": 0.34,
+      "confidence_rationale": "已核验的授权证据在截止日前且标记为FRESH，支持对单期利润率、债务、收入、价格和管理层更新的有限事实陈述；但缺少趋势、现金流、资本结构细节与估值输入，无法形成充分的公司Thesis或估值结论。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入与利润增长趋势、分部信息、客户集中度及竞争数据。",
+        "缺少现金、净债务、利息费用、债务到期日、经营现金流与资本开支数据。",
+        "缺少流通股数、市值、自由现金流、远期预期及可比估值数据。",
+        "缺少产能计划的规模、时间表、资本需求、需求承诺及执行进度数据。"
+      ],
+      "invalidation_conditions": [
+        "未来证据显示营业利润率实质低于18%或利润率不可持续。",
+        "未来证据显示债务增加、现金流恶化或融资需求使0.15债务/收入比率不再代表财务负担。",
+        "产能计划延迟、超支、需求不足或未实现预期回报。"
+      ],
+      "invocation_id": "inv_108afe299da3058d87d6eeac",
+      "run_id": "rg2-normal-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA：基于截至2026-01-31T23:59:59Z的授权证据，评估商业质量、财务特征与估值证据充分性；不输出组合动作。",
+      "skill_execution": [
+        {
+          "invocation_hash": "e4fdb7ebe8fa578a92fb11332b7fefaf6d1a6354bfa953c1564b01c028c28dc7",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "9979798d327f7d5c1e56d8584941c61ef3ca225faf3aef2c67e42213689992a3",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "b6e8a48eb7e92992f5f114057901d5f3b510c822fbd0ad11ec90737d8645e459",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "维持产能计划不等同于需求、融资、建设进度或回报达成。",
+        "单期利润率与债务/收入比率无法证明盈利质量、现金转换或长期竞争优势。",
+        "没有股本价值、估值倍数、自由现金流、盈利预测或可比公司证据，无法形成有依据的估值判断。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "ASM-001"
+          ],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "resolution_evidence_needed": [
+            "多期经营利润率及其驱动",
+            "经营现金流和自由现金流",
+            "一次性项目与会计调整明细",
+            "竞争与定价证据"
+          ],
+          "statement": "18%的TTM经营利润率不能单独证明盈利质量或可持续性；缺少利润率趋势、现金流、一次性项目和竞争证据，利润率可能未转化为可持续自由现金流。"
+        },
+        {
+          "assumption_ids": [
+            "ASM-002"
+          ],
+          "challenge_id": "CH-002",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "现金及流动性余额",
+            "债务到期结构、利率和契约",
+            "利息覆盖率与经营现金流",
+            "融资安排及再融资条件"
+          ],
+          "statement": "15万美元总债务相对于100万美元TTM收入并不能独立刻画偿债风险；缺少现金、债务到期、利率、契约和现金流信息，融资或再融资压力无法排除。"
+        },
+        {
+          "assumption_ids": [
+            "ASM-003"
+          ],
+          "challenge_id": "CH-003",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "resolution_evidence_needed": [
+            "订单、积压和需求指标",
+            "产能利用率与投产进度",
+            "资本开支计划及项目回报",
+            "管理层指引兑现记录"
+          ],
+          "statement": "管理层维持既定产能计划可有替代解释：计划本身可能仍面临需求不足、投产延误或回报不足；该表述未提供订单、利用率、资本开支或项目经济性证据。"
+        },
+        {
+          "assumption_ids": [
+            "ASM-004"
+          ],
+          "challenge_id": "CH-004",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "resolution_evidence_needed": [
+            "估值倍数及其历史区间",
+            "盈利预测和预期修正",
+            "可比公司估值",
+            "价格波动、流动性和市场风险数据"
+          ],
+          "statement": "截至截止日前的100美元收盘价仅为单点市场数据，缺少估值、盈利预测和可比信息，无法判断该价格是否已经反映经营、负债或产能计划风险。"
+        }
+      ],
+      "confidence": 0.34,
+      "confidence_rationale": "已获得截止日前新鲜的债务、收入、经营利润率、价格和公司更新证据，但这些字段不足以验证现金流、偿债能力、产能经济性或估值；因此可识别实质性失败路径和证据缺口，但无法高置信度量化其严重性。",
+      "counter_evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "缺少现金、债务期限、利率、契约及利息覆盖数据。",
+        "缺少现金流、资本开支、利润率趋势及一次性项目数据。",
+        "缺少需求、订单、利用率、产能投产和项目回报数据。",
+        "缺少估值、预测、可比公司及市场风险数据。"
+      ],
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "若多期利润率稳定且经营现金流、自由现金流持续覆盖经营与资本需求，则CH-001的现金转换反证减弱。",
+        "若现金、经营现金流和已确认融资安排充分覆盖债务到期及契约要求，则CH-002的偿债反证减弱。",
+        "若订单、利用率和项目经济性证实产能计划具有可验证需求与可接受回报，且投产按计划进行，则CH-003的执行反证减弱。",
+        "若经验证的估值、预测及可比数据表明价格未高估且风险已被充分计入，则CH-004的估值不确定性减弱。"
+      ],
+      "invocation_id": "inv_66c7a64141bd5e378541cd50",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rg2-normal-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；独立检验现有持仓研究范围内的替代解释、失败路径及关键证据缺口，截至2026-01-31T23:59:59Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "df36ecbb282f657bbf2fafc6a41b2446f05c3ed49c7358537e4e4a2099f6142e",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "f4be17b7ce5e817cb657001901dfb2a54f3389326750b0f28b5882652a21292f",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "经营利润率的持续性及现金转换能力未知。",
+        "债务服务与再融资能力未知。",
+        "产能计划对应的需求、执行和资本回报未知。",
+        "市场价格所隐含的估值与预期未知。"
+      ]
+    }
+  }
+}

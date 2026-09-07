@@ -1,0 +1,251 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "mechanical_conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_ids": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "observations": [
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "source_id": "fixture-filing-source-a",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "source_id": "fixture-filing-source-b",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+      "source_ids": [
+        "fixture-filing-source-a",
+        "fixture-filing-source-b"
+      ]
+    }
+  ],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于截至决策截止日的证据，对现有持仓给出仅供研究参考的组合建议；证据不足或冲突无法消解时必须NO_TRADE。",
+  "run_id": "rg3-conflict-1-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "e6ea0e88299d298063daf33fcb06acaf3e8e39feaf8eb086b419e09c8c2ae54f",
+    "runtime_skeptic": "a6ba7e416eb7a140edd492a1691ab037d07e548b7e6d752950c39c12610a143c"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "fixture_evidence.query:038bbd90baf0e0f4c2d4569b558bf0977a1d9be82bdfe6a2a32e4443a76b256d",
+        "fixture_math.calculate:rev_source_discrepancy_pct_c14d0fa6:5e13a878c05b22ede1c49f6bbda6e08fb1edf57077cfff673e3a1d035cd2afe0"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-revenue-source-conflict",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2025-12-31T00:00:00Z，来源 fixture-filing-source-a 于 2026-01-15T13:00:00Z 检索的 TTM 收入为 USD 1,000,000；来源 fixture-filing-source-b 于 2026-01-16T13:00:00Z 检索的同一字段为 USD 1,250,000。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-revenue-conflict-material",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "两项同口径、同截至日的 TTM 收入证据相差 25%，且已授权证据未提供可判定哪一来源正确的优先级或调节信息，因此收入规模及任何依赖收入的估值解释均不可可靠确定。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-margin-price-observed",
+          "evidence_refs": [
+            "ev-conflict-margin",
+            "ev-conflict-price"
+          ],
+          "kind": "FACT",
+          "statement": "来源 fixture-filing-source-a 于 2026-01-15T13:00:00Z 检索的截至 2025-12-31T00:00:00Z TTM 营业利润率为 18%；来源 fixture-market-primary 于 2026-01-30T21:05:00Z 检索的截至 2026-01-30T21:00:00Z 收盘价为每股 USD 100。"
+        }
+      ],
+      "confidence": 0.25,
+      "confidence_rationale": "价格和营业利润率证据均新鲜，但核心收入字段在相同截至日出现 25% 未消解冲突，且缺少完成商业质量和估值分析所需的关键数据；因此仅对冲突事实具有限置信度，不能支持更广泛结论。",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-b"
+      ],
+      "data_gaps": [
+        "需要具有来源优先级和调节说明的经核验收入数据，以消解 USD 1,000,000 与 USD 1,250,000 的冲突。",
+        "需要收入增长、盈利/现金流、资本结构和股本数据，才能开展可追溯的估值分析。",
+        "需要业务分部、竞争地位和风险因素证据，才能形成可检验的公司 Thesis。"
+      ],
+      "invalidation_conditions": [
+        "若经权威、可追溯的披露证明其中一个收入数值错误或说明两者口径差异并提供可比调节，则当前关于收入不可确定的结论失效。",
+        "若新增经核验的财务和业务证据与现有利润率或收入证据存在实质矛盾，则本报告中的有限事实汇总须重新评估。"
+      ],
+      "invocation_id": "inv_c14d0fa65c6bb18b9b397150",
+      "run_id": "rg3-conflict-1-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 截至 2026-01-31T23:59:59Z 的公司基本面与估值研究；不包含组合或交易动作。",
+      "skill_execution": [
+        {
+          "invocation_hash": "bf30bb86c6e7d49a14e0f7638af8e984ee234a3a65cf02f7ef9ba40a88894a88",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "a2059c1843152049d0cef93c31b3448d253d20d1b5345196e759d99a4345c1b9",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "fd4cce28bb332862c0ea794a2cf99e0b571812b9c11d91ecffeb32090dad1f05",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "收入冲突可能源于合并范围、报告口径、修订版本或来源错误；授权证据未说明原因。",
+        "已授权证据缺少股本、净债务、现金流、增长率、成本结构、竞争信息及可比估值数据，不能从营业利润率与价格单点推导商业质量或内在价值。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-revenue-reliability",
+            "assumption-valuation-base"
+          ],
+          "challenge_id": "revenue-source-conflict",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "resolution_evidence_needed": [
+            "同一报告期收入的权威申报文件及口径说明",
+            "两个来源的合并范围、修订状态与对账记录"
+          ],
+          "statement": "两份截至2025-12-31的TTM收入证据来自不同fixture来源，分别为1,000,000美元与1,250,000美元，差异25%；在未取得口径、合并范围、修订状态及权威来源优先级前，任何依赖收入规模、增长或收入倍数的解释均不稳健。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-margin-sustainability"
+          ],
+          "challenge_id": "margin-sustainability-gap",
+          "evidence_refs": [
+            "ev-conflict-margin",
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "resolution_evidence_needed": [
+            "多期经营利润率、收入与费用明细",
+            "管理层对一次性项目、成本趋势和盈利指引的披露"
+          ],
+          "statement": "18%的TTM经营利润率仅反映截至2025-12-31的单一观测，不能区分一次性项目、成本递延、周期性高点或持续经营能力；收入冲突亦使相应利润率的分母可靠性无法独立确认。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-price-interpretation",
+            "assumption-valuation-base"
+          ],
+          "challenge_id": "price-without-valuation-context",
+          "evidence_refs": [
+            "ev-conflict-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至截止日的股本、净债务、企业价值与估值倍数",
+            "历史价格、成交量及相关催化剂时间线"
+          ],
+          "statement": "截至2026-01-30的100美元收盘价是单点市场观测，缺少股本、企业价值、估值倍数、历史价格区间及流动性数据，无法检验价格是否已经反映乐观收入或利润率假设。"
+        }
+      ],
+      "confidence": 0.86,
+      "confidence_rationale": "对收入证据存在实质冲突及关键估值、趋势数据缺失的判断置信度较高；但无法仅凭授权证据判定哪一收入来源正确或其经济原因，因此不能形成可消解的反证结论。",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "data_gaps": [
+        "缺少经确认的权威收入数据及来源对账。",
+        "缺少多期财务趋势、现金流、资产负债表和股本数据。",
+        "缺少公司经营指引、竞争信息、风险披露及事件催化剂。",
+        "缺少历史市场数据、估值基准和流动性信息。"
+      ],
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "权威且可追溯的同口径披露证明两份收入数值可完全对账，并消除25%差异。",
+        "多期已验证财务数据证明18%经营利润率并非一次性或周期性现象。",
+        "补充截至决策截止日的股本、企业价值与市场历史数据后，价格解释不再依赖未经验证的收入或利润率前提。"
+      ],
+      "invocation_id": "inv_812b772bf391269091eef436",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rg3-conflict-1-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；仅基于截至2026-01-31T23:59:59Z可用的授权证据，检验现有持仓研究前提的替代解释、失败路径与证据缺口。",
+      "skill_execution": [
+        {
+          "invocation_hash": "8ee5f3b13885ca12e40ec7dfa3bea53302fa63ee2a6fe48873011809a648c0ec",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "f77407824f2f0d05b4739383202c917865e46eedc394efb2c19271fa08218898",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "收入冲突是否由口径、合并范围、修订或来源错误造成尚未确定。",
+        "单期经营利润率无法确认其可持续性或与冲突收入数据的一致性。",
+        "价格观测缺乏估值和市场微观结构背景。"
+      ]
+    }
+  }
+}

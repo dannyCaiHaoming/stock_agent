@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import copy
+import inspect
+import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from product.runtime.evidence_gate import (
     FixtureValidationError,
@@ -16,6 +19,7 @@ from product.runtime.fixture_mcp import (
     GateScopedFixtureTools,
     StatelessFixtureTools,
     ToolAccessError,
+    serve_stdio,
 )
 from product.runtime.run_package import prepare_run
 
@@ -160,11 +164,44 @@ class GateScopedFixtureToolTests(unittest.TestCase):
             run_id="run-tools",
             agent="runtime_company_analyst",
             invocation_id="inv-tools",
+            calculation_id="calc-debt-revenue-ratio",
             operation="ratio",
             evidence_ids=["ev-normal-debt", "ev-normal-revenue"],
         )
         self.assertEqual(result["value"], "0.15")
+        self.assertEqual(result["calculation_id"], "calc-debt-revenue-ratio")
         self.assertEqual(self.tools.events[-1]["tool"], "fixture_math.calculate")
+        self.assertEqual(
+            self.tools.events[-1]["calculation_id"], "calc-debt-revenue-ratio"
+        )
+
+    def test_calculation_manifest_matches_bound_callable_parameters(self):
+        calculate = next(
+            item for item in GateScopedFixtureTools.tool_manifest() if item["name"] == "calculate"
+        )
+        schema = calculate["inputSchema"]
+        self.assertIn("calculation_id", schema["required"])
+        self.assertEqual(schema["properties"]["calculation_id"]["minLength"], 1)
+        self.assertEqual(
+            schema["properties"]["operation"]["enum"],
+            ["ratio", "percent_change"],
+        )
+        self.assertIn("Do not send operands or expression", calculate["description"])
+        parameters = set(inspect.signature(GateScopedFixtureTools.calculate).parameters)
+        parameters.remove("self")
+        self.assertEqual(parameters, set(schema["properties"]))
+        self.assertFalse(schema["additionalProperties"])
+
+    def test_calculation_rejects_invalid_id_before_accessing_facts(self):
+        with self.assertRaisesRegex(ToolAccessError, "INVALID_CALCULATION_ID"):
+            self.tools.calculate(
+                run_id="run-tools",
+                agent="runtime_company_analyst",
+                invocation_id="inv-tools",
+                calculation_id="",
+                operation="ratio",
+                evidence_ids=["does-not-exist", "also-missing"],
+            )
 
     def test_tool_manifest_has_no_write_or_broker_surface(self):
         manifest = GateScopedFixtureTools.tool_manifest()
@@ -187,6 +224,7 @@ class GateScopedFixtureToolTests(unittest.TestCase):
                 run_id="run-tools",
                 agent="runtime_skeptic",
                 invocation_id="inv-skeptic",
+                calculation_id="calc-forbidden",
                 operation="ratio",
                 evidence_ids=["ev-normal-debt", "ev-normal-revenue"],
             )
@@ -223,6 +261,54 @@ class GateScopedFixtureToolTests(unittest.TestCase):
                     invocation_id="wrong",
                     evidence_ids=["ev-normal-revenue"],
                 )
+
+    def test_mcp_rejects_undeclared_parameter_and_records_redacted_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            prepare_run(
+                ROOT,
+                fixture_path=FIXTURES / "normal-research.json",
+                run_dir=run_dir,
+                run_id="stateless-error",
+                model="gpt-5.6-terra",
+                research_question="验证 MCP 参数错误。",
+            )
+            invocation = json.loads(
+                (run_dir / "invocations" / "runtime_company_analyst.json").read_text()
+            )
+            request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "calculate",
+                    "arguments": {
+                        "run_dir": str(run_dir),
+                        "run_id": "stateless-error",
+                        "agent": "runtime_company_analyst",
+                        "invocation_id": invocation["invocation_id"],
+                        "calculation_id": "calc-extra-param",
+                        "operation": "ratio",
+                        "evidence_ids": ["ev-normal-debt", "ev-normal-revenue"],
+                        "undeclared": "must-fail",
+                    },
+                },
+            }
+            stdin = io.StringIO(json.dumps(request) + "\n")
+            stdout = io.StringIO()
+            with mock.patch("sys.stdin", stdin), mock.patch(
+                "sys.stdout", stdout
+            ):
+                serve_stdio(stateless=True)
+            response = json.loads(stdout.getvalue())
+            self.assertIn("error", response)
+            event = json.loads(
+                (run_dir / "events" / "mcp" / "events.jsonl").read_text().strip()
+            )
+            self.assertEqual(event["event_type"], "mcp_tool_error")
+            serialized = json.dumps(event)
+            self.assertNotIn("ev-normal-debt", serialized)
+            self.assertNotIn("must-fail", serialized)
 
 
 if __name__ == "__main__":

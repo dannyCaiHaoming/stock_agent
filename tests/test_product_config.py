@@ -70,7 +70,11 @@ class SkillConfigTests(unittest.TestCase):
             }
             self.assertEqual(fields.get("name"), skill_name)
             expected_version = (
-                "1.0.0" if skill_name == "catalyst-analysis" else "2.0.0"
+                "1.0.0"
+                if skill_name == "catalyst-analysis"
+                else "2.1.0"
+                if skill_name == "portfolio-council"
+                else "2.0.0"
             )
             self.assertNotRegex(frontmatter, r"(?m)^version:")
             self.assertRegex(
@@ -163,8 +167,15 @@ class RuntimeAgentConfigTests(unittest.TestCase):
     def test_fixture_profile_has_three_distinct_versioned_identities(self):
         profile = {name: self.configs[name] for name in FIXTURE_COUNCIL_AGENTS}
         self.assertEqual(
-            {self.profile["agents"][name]["version"] for name in profile},
-            {"2.0.0"},
+            {
+                name: self.profile["agents"][name]["version"]
+                for name in profile
+            },
+            {
+                "runtime_cio": "2.1.0",
+                "runtime_company_analyst": "2.1.0",
+                "runtime_skeptic": "2.0.0",
+            },
         )
         self.assertEqual({config["name"] for config in profile.values()}, FIXTURE_COUNCIL_AGENTS)
         self.assertEqual(

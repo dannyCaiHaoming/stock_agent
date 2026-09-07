@@ -1,0 +1,55 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "对机械标记的收入冲突及现有证据范围的置信度较高；但无法确定冲突原因或基本面与价格之间的关系，因此不能对非NO_TRADE动作形成足够置信度。",
+      "counter_thesis": "同一截至2025-12-31的TTM收入在两个来源间为1,000,000美元与1,250,000美元，且没有口径、修订或权威性调节；单期利润率与单点价格也不能消除该不确定性。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "若可验证的权威来源确认其中一项收入错误或明确两项收入采用不同口径，本次收入冲突作为NO_TRADE依据的结论应重新评估。",
+        "若补充截至决策截止日的同口径财务、资本结构、现金流和估值证据，本次证据不足结论应重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键TTM收入证据存在未解决冲突，且缺少用于消解冲突、评估利润率持续性和检验价格基本面含义的授权证据；因此不形成任何仓位或交易建议。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得同口径TTM收入的可追溯权威调节或确认。",
+        "获得截至决策截止日的多期利润率、现金流、资本结构与估值证据，并完成一致性核验。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "授权证据确认截至截止日前存在单期18%经营利润率和100美元收盘价，但不足以建立可执行的基本面或估值Thesis。",
+      "time_horizon": "在取得可验证的冲突调节和关键基本面证据前",
+      "unresolved_questions": [
+        "两项收入观测是否代表不同报告边界、会计口径、修订版本或数据错误？",
+        "哪个可追溯的权威来源能够确认同口径TTM收入？",
+        "在收入冲突解决后，多个可比期间的利润率、现金流、资本结构和估值证据是否支持当前价格的基本面解释？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rg2-conflict-3-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import copy
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
 from product.runtime.evidence_gate import load_fixture, run_evidence_gate
 from product.runtime.invocation import (
+    OUTPUT_SCHEMAS,
     build_specialist_inputs,
+    build_specialist_output_schema,
+    build_specialist_task_prompt,
     create_invocation_manifest,
     validate_skeptic_first_pass_input,
     verify_invocation_manifest,
@@ -22,8 +27,30 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "evals" / "fixtures" / "codex-native" / "normal-research.json"
 
 
+def write_specialist_schema(directory: Path, agent: str, allowed_ids) -> Path:
+    path = directory / Path(OUTPUT_SCHEMAS[agent]).name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            build_specialist_output_schema(
+                ROOT,
+                agent_name=agent,
+                allowed_evidence_ids=allowed_ids,
+            ),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 class InvocationManifestTests(unittest.TestCase):
     def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.schema_dir = Path(self.temp_dir.name) / "schemas"
         self.fixture = load_fixture(FIXTURE)
         gate = run_evidence_gate(self.fixture, run_id="run-invocation")
         self.inputs = build_specialist_inputs(
@@ -32,6 +59,17 @@ class InvocationManifestTests(unittest.TestCase):
             allowed_evidence_ids=gate.allowed_ids,
             research_question="分析公司基本面并寻找反证。",
         )
+        self.schema_paths = {
+            agent: write_specialist_schema(
+                self.schema_dir,
+                agent,
+                self.inputs[agent]["allowed_evidence_ids"],
+            )
+            for agent in ("runtime_company_analyst", "runtime_skeptic")
+        }
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def _manifest(self, agent: str):
         return create_invocation_manifest(
@@ -42,6 +80,7 @@ class InvocationManifestTests(unittest.TestCase):
             task_prompt="只返回指定 Schema JSON。",
             model="gpt-5.6-terra",
             evidence_ids=self.inputs[agent]["allowed_evidence_ids"],
+            output_schema_path=self.schema_paths[agent],
         )
 
     def test_manifests_lock_agent_skill_prompt_model_tools_input_and_schema(self):
@@ -52,7 +91,14 @@ class InvocationManifestTests(unittest.TestCase):
             (skeptic, "runtime_skeptic"),
         ):
             self.assertEqual(manifest["agent"]["name"], agent)
-            self.assertEqual(manifest["agent"]["version"], "2.0.0")
+            expected_version = (
+                "2.1.0" if agent == "runtime_company_analyst" else "2.0.0"
+            )
+            self.assertEqual(manifest["agent"]["version"], expected_version)
+            self.assertEqual(
+                manifest["decision_contract"]["version"],
+                "council-decision-contract/1.0.0",
+            )
             self.assertEqual(manifest["model"], "gpt-5.6-terra")
             self.assertTrue(manifest["skills"])
             self.assertTrue(manifest["tool_permissions"])
@@ -93,9 +139,39 @@ class InvocationManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "CONTEXT_ISOLATION_VIOLATION"):
             validate_skeptic_first_pass_input(broken)
 
+    def test_run_scoped_schema_and_prompt_bind_raw_gate_evidence_ids(self):
+        allowed = self.inputs["runtime_company_analyst"]["allowed_evidence_ids"]
+        schema = json.loads(
+            self.schema_paths["runtime_company_analyst"].read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            schema["$defs"]["claim"]["properties"]["evidence_refs"]["items"][
+                "enum"
+            ],
+            allowed,
+        )
+        self.assertEqual(
+            schema["properties"]["counter_evidence_refs"]["items"]["enum"],
+            allowed,
+        )
+        prompt = build_specialist_task_prompt(
+            agent_name="runtime_company_analyst",
+            allowed_evidence_ids=allowed,
+        )
+        for expected in (
+            "allowed_evidence_ids",
+            "原始 evidence_id",
+            "禁止在 evidence_id 后拼接 source_id、as_of、retrieved_at",
+            "不得污染 evidence_refs",
+            "不得自行截断",
+        ):
+            self.assertIn(expected, prompt)
+
 
 class StructuredArtifactValidationTests(unittest.TestCase):
     def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        schema_dir = Path(self.temp_dir.name) / "schemas"
         fixture = load_fixture(FIXTURE)
         gate = run_evidence_gate(fixture, run_id="run-validation")
         inputs = build_specialist_inputs(
@@ -104,6 +180,10 @@ class StructuredArtifactValidationTests(unittest.TestCase):
             allowed_evidence_ids=gate.allowed_ids,
             research_question="研究公司并独立反证。",
         )
+        schema_paths = {
+            agent: write_specialist_schema(schema_dir, agent, gate.allowed_ids)
+            for agent in ("runtime_company_analyst", "runtime_skeptic")
+        }
         self.analyst_manifest = create_invocation_manifest(
             ROOT,
             run_id="run-validation",
@@ -112,6 +192,7 @@ class StructuredArtifactValidationTests(unittest.TestCase):
             task_prompt="只返回 JSON。",
             model="gpt-5.6-terra",
             evidence_ids=gate.allowed_ids,
+            output_schema_path=schema_paths["runtime_company_analyst"],
         )
         self.skeptic_manifest = create_invocation_manifest(
             ROOT,
@@ -121,7 +202,11 @@ class StructuredArtifactValidationTests(unittest.TestCase):
             task_prompt="只返回 JSON。",
             model="gpt-5.6-terra",
             evidence_ids=gate.allowed_ids,
+            output_schema_path=schema_paths["runtime_skeptic"],
         )
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def valid_company(self):
         return {
@@ -193,6 +278,41 @@ class StructuredArtifactValidationTests(unittest.TestCase):
             ),
             {"ev-normal-debt", "ev-normal-margin"},
         )
+
+    def test_specialist_evidence_id_contract_matrix(self):
+        correct = self.valid_company()
+        correct["counter_evidence_refs"] = []
+        validate_company_report(
+            correct, run_id="run-validation", manifest=self.analyst_manifest
+        )
+
+        multiple = self.valid_company()
+        multiple["claims"][0]["evidence_refs"] = [
+            "ev-normal-revenue",
+            "ev-normal-debt",
+        ]
+        multiple["counter_evidence_refs"] = []
+        validate_company_report(
+            multiple, run_id="run-validation", manifest=self.analyst_manifest
+        )
+
+        invalid_refs = (
+            "ev-normal-revenue|fixture-filing",
+            "ev-normal-revenue|as_of=2025-12-31T00:00:00Z",
+            "ev-does-not-exist",
+        )
+        for invalid_ref in invalid_refs:
+            with self.subTest(invalid_ref=invalid_ref):
+                report = self.valid_company()
+                report["claims"][0]["evidence_refs"] = [invalid_ref]
+                with self.assertRaisesRegex(
+                    ArtifactValidationError, "EVIDENCE_CLOSURE_FAILED"
+                ):
+                    validate_company_report(
+                        report,
+                        run_id="run-validation",
+                        manifest=self.analyst_manifest,
+                    )
 
     def test_missing_field_unknown_filtered_and_cross_run_references_fail(self):
         missing = self.valid_company()

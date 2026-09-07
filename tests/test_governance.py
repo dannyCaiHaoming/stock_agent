@@ -47,6 +47,7 @@ class GovernanceTests(unittest.TestCase):
             "codex_runtime",
             "model",
             "runtime_profile",
+            "decision_contract",
             "resource_hashes",
             "skills",
             "agents",

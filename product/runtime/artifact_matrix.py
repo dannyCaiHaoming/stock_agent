@@ -7,9 +7,16 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .hashing import canonical_hash, file_hash
+from .terminal_contract import (
+    FailureStage,
+    RUN_ERROR_VERSION,
+    failure_stage_required_files,
+    normalize_failure_stage,
+    stage_at_or_after,
+)
 
 
-ARTIFACT_MATRIX_VERSION = "native-artifact-matrix/2.0.0"
+ARTIFACT_MATRIX_VERSION = "native-artifact-matrix/2.1.0"
 PUBLISHED_STATES = {"COMPLETED", "SAFE_NO_TRADE"}
 
 
@@ -79,6 +86,25 @@ def validate_artifact_matrix(
     if terminal_state == "FAILED_VALIDATION":
         required.add("run_error.json")
         forbidden.update({"decision.json", "report.md"})
+        error = _read_object(run_dir / "run_error.json")
+        try:
+            failed_stage = normalize_failure_stage(str(trace.get("failed_stage")))
+        except ValueError as exc:
+            raise ArtifactMatrixError("FAILED_STAGE_INVALID") from exc
+        if (
+            error.get("schema_version") != RUN_ERROR_VERSION
+            or error.get("run_id") != trace.get("run_id")
+            or error.get("terminal_state") != terminal_state
+            or error.get("failed_stage") != failed_stage
+        ):
+            raise ArtifactMatrixError("RUN_ERROR_TRACE_MISMATCH")
+        required.update(failure_stage_required_files(failed_stage))
+        if (
+            manifest is not None
+            and manifest.get("authenticity_required") is not False
+            and stage_at_or_after(failed_stage, FailureStage.CIO_VALIDATION)
+        ):
+            required.add("events/codex/specialist-execution-proof.json")
     else:
         required.update({"decision.json", "report.md", "run_manifest.json"})
         if require_eval:

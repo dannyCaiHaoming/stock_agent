@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Mapping, Sequence
+
+from .decision_contract import (
+    DecisionContractError,
+    load_decision_contract,
+    validate_decision_action,
+)
 
 
 DOMAIN_STATUSES = {"COMPLETE", "TIMEOUT", "INSUFFICIENT_EVIDENCE", "LOW_CONFIDENCE"}
-DECISION_ACTIONS = {"BUY", "ADD", "HOLD", "TRIM", "EXIT", "NO_TRADE"}
+PRODUCT_ROOT = Path(__file__).resolve().parents[1]
 RESEARCH_REQUIRED = {
     "schema_version", "run_id", "invocation_id", "status", "agent", "scope",
     "claims", "assumptions", "counter_evidence_refs", "uncertainties", "data_gaps",
@@ -139,13 +146,11 @@ def validate_cio_draft(
     report_hashes: Mapping[str, str] | None = None,
 ) -> set[str]:
     _require_exact_keys(value, CIO_REQUIRED, "CIODecisionDraft")
-    if value.get("schema_version") != "cio-decision-draft/2.0.0":
+    if value.get("schema_version") != "cio-decision-draft/2.1.0":
         raise ArtifactValidationError("SCHEMA_VERSION_MISMATCH")
     _validate_common(value, run_id=run_id, manifest=manifest, agent="runtime_cio")
     if value.get("status") not in {"COMPLETE", "INSUFFICIENT_EVIDENCE", "LOW_CONFIDENCE"}:
         raise ArtifactValidationError("ILLEGAL_CIO_STATUS")
-    if value.get("action") not in DECISION_ACTIONS:
-        raise ArtifactValidationError("INVALID_ACTION")
     if value.get("advisory_only") is not True:
         raise ArtifactValidationError("ADVISORY_ONLY_REQUIRED")
     consumed = value.get("consumed_reports", [])
@@ -179,16 +184,8 @@ def validate_cio_draft(
         ):
             if not isinstance(conflict.get(field), str) or not conflict[field].strip():
                 raise ArtifactValidationError(f"CIO_CONFLICT_FIELD_REQUIRED:{field}")
-    if value["action"] == "NO_TRADE":
-        if not value.get("no_trade_reason") or not value.get("no_trade_explanation") or not value.get("reevaluation_conditions"):
-            raise ArtifactValidationError("NO_TRADE_FIELDS_REQUIRED")
-        if value.get("target_weight_range") is not None or value.get("maximum_notional") is not None:
-            raise ArtifactValidationError("NO_TRADE_EXECUTION_FIELDS_FORBIDDEN")
-    else:
-        if value.get("security_id") is None or value.get("current_weight") is None or value.get("target_weight_range") is None:
-            raise ArtifactValidationError("ACTION_WEIGHT_FIELDS_REQUIRED")
-        if not value.get("thesis") or not value.get("evidence_refs") or not value.get("invalidation_conditions"):
-            raise ArtifactValidationError("ACTION_RATIONALE_FIELDS_REQUIRED")
-        if value.get("no_trade_reason") is not None or value.get("no_trade_explanation") is not None:
-            raise ArtifactValidationError("ACTION_NO_TRADE_FIELDS_FORBIDDEN")
+    try:
+        validate_decision_action(value, load_decision_contract(PRODUCT_ROOT))
+    except DecisionContractError as exc:
+        raise ArtifactValidationError(str(exc)) from exc
     return validate_evidence_closure(value, allowed_evidence_ids=manifest["evidence_ids"])

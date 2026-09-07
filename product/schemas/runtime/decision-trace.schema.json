@@ -1,11 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "portfolio-council/decision-trace/2.0.0",
+  "$id": "portfolio-council/decision-trace/2.1.0",
   "type": "object",
   "required": [
     "schema_version",
     "run_id",
     "terminal_state",
+    "failed_stage",
     "runtime",
     "agents",
     "events",
@@ -16,9 +17,13 @@
     "evidence_lineage"
   ],
   "properties": {
-    "schema_version": {"const": "decision-trace/2.0.0"},
+    "schema_version": {"const": "decision-trace/2.1.0"},
     "run_id": {"type": "string", "minLength": 1},
     "terminal_state": {"enum": ["COMPLETED", "SAFE_NO_TRADE", "FAILED_VALIDATION"]},
+    "failed_stage": {
+      "type": ["string", "null"],
+      "enum": [null, "PREFLIGHT", "EVIDENCE_GATE", "SPECIALIST_EXECUTION", "SPECIALIST_VALIDATION", "CIO_SYNTHESIS", "EXECUTION_PROOF", "CIO_VALIDATION", "RISK_ENGINE", "PUBLICATION_VALIDATION"]
+    },
     "runtime": {"type": "object"},
     "agents": {"type": "array"},
     "events": {"type": "array"},
@@ -31,5 +36,12 @@
     "mcp_events": {"type": "array"},
     "evidence_lineage": {"type": ["object", "null"]}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"terminal_state": {"const": "FAILED_VALIDATION"}}},
+      "then": {"properties": {"failed_stage": {"type": "string"}}},
+      "else": {"properties": {"failed_stage": {"const": null}}}
+    }
+  ],
   "additionalProperties": false
 }

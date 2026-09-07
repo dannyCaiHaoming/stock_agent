@@ -12,7 +12,7 @@ from typing import Any, Mapping, Sequence
 from product.mcp.provenance import canonical_json, content_hash
 
 
-MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.0.0"
+MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.1.0"
 SUPPORTED_TOOLS = {"fixture_evidence.query", "fixture_math.calculate"}
 
 
@@ -57,7 +57,13 @@ def _tool_manifest(*, stateless: bool = False) -> tuple[dict[str, Any], ...]:
         },
         {
             "name": "calculate",
-            "description": "Calculate a ratio or percent change from Gate-allowed numeric facts.",
+            "description": (
+                "Calculate from exactly two Gate-allowed numeric Evidence IDs. Required "
+                "arguments are run_dir (stateless mode), run_id, agent, invocation_id, "
+                "calculation_id, operation ('ratio' or 'percent_change'), and evidence_ids. "
+                "For ratio, evidence_ids are in numerator-then-denominator sequence; for "
+                "percent_change, earlier then later. Do not send operands or expression."
+            ),
             "annotations": {
                 "readOnlyHint": True,
                 "destructiveHint": False,
@@ -65,9 +71,15 @@ def _tool_manifest(*, stateless: bool = False) -> tuple[dict[str, Any], ...]:
             },
             "inputSchema": {
                 "type": "object",
-                "required": [*common_required[:-1], "operation", "evidence_ids"],
+                "required": [
+                    *common_required[:-1],
+                    "calculation_id",
+                    "operation",
+                    "evidence_ids",
+                ],
                 "properties": {
                     **common_properties,
+                    "calculation_id": {"type": "string", "minLength": 1},
                     "operation": {"enum": ["ratio", "percent_change"]},
                     "evidence_ids": {
                         "type": "array",
@@ -156,8 +168,7 @@ class GateScopedFixtureTools:
     def _record(
         self, tool: str, inputs: Mapping[str, Any], output: Mapping[str, Any]
     ) -> None:
-        self.events.append(
-            {
+        event = {
                 "event_type": "mcp_tool_result",
                 "adapter_version": MCP_ADAPTER_VERSION,
                 "run_id": self.run_id,
@@ -169,7 +180,9 @@ class GateScopedFixtureTools:
                 "evidence_ids": list(inputs.get("evidence_ids", [])),
                 "access_mode": "read",
             }
-        )
+        if "calculation_id" in inputs:
+            event["calculation_id"] = inputs["calculation_id"]
+        self.events.append(event)
 
     def query(
         self,
@@ -204,16 +217,20 @@ class GateScopedFixtureTools:
         run_id: str,
         agent: str,
         invocation_id: str,
+        calculation_id: str,
         operation: str,
         evidence_ids: Sequence[str],
     ) -> dict[str, Any]:
         self._authorize_identity(agent=agent, invocation_id=invocation_id)
         if "fixture_math.calculate" not in self.allowed_tools:
             raise ToolAccessError("TOOL_NOT_AUTHORIZED:fixture_math.calculate")
+        if not isinstance(calculation_id, str) or not calculation_id.strip():
+            raise ToolAccessError("INVALID_CALCULATION_ID")
         inputs = {
             "run_id": run_id,
             "agent": agent,
             "invocation_id": invocation_id,
+            "calculation_id": calculation_id,
             "operation": operation,
             "evidence_ids": list(evidence_ids),
         }
@@ -233,6 +250,7 @@ class GateScopedFixtureTools:
         output = {
             "adapter_version": MCP_ADAPTER_VERSION,
             "run_id": self.run_id,
+            "calculation_id": calculation_id,
             "operation": operation,
             "evidence_ids": list(evidence_ids),
             "value": format(result, "f"),
@@ -369,6 +387,8 @@ def serve_stdio(
         method = request.get("method")
         if method == "notifications/initialized":
             continue
+        called_tool: str | None = None
+        called_arguments: Mapping[str, Any] = {}
         try:
             if method == "initialize":
                 result: dict[str, Any] = {
@@ -385,6 +405,8 @@ def serve_stdio(
                 params = request.get("params", {})
                 name = params.get("name")
                 arguments = params.get("arguments", {})
+                called_tool = str(name)
+                called_arguments = arguments if isinstance(arguments, Mapping) else {}
                 if name == "query":
                     value = tools.query(**arguments)
                 elif name == "calculate":
@@ -404,6 +426,18 @@ def serve_stdio(
                 raise ToolAccessError(f"UNKNOWN_METHOD:{method}")
             response = {"jsonrpc": "2.0", "id": request_id, "result": result}
         except (TypeError, ValueError, ToolAccessError) as exc:
+            if called_tool is not None:
+                _write_event(
+                    event_log or tools.dynamic_event_log,
+                    {
+                        "event_type": "mcp_tool_error",
+                        "adapter_version": MCP_ADAPTER_VERSION,
+                        "tool": called_tool,
+                        "input_hash": content_hash(called_arguments),
+                        "error": str(exc),
+                        "access_mode": "read",
+                    },
+                )
             response = {
                 "jsonrpc": "2.0",
                 "id": request_id,

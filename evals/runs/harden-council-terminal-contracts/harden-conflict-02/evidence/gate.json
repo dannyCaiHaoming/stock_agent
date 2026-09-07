@@ -1,0 +1,119 @@
+{
+  "allowed_evidence": [
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "evidence_id": "ev-conflict-margin",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "freshness_status": "FRESH",
+      "retrieved_at": "2026-01-15T13:00:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "operating_margin_ttm",
+      "source_id": "fixture-filing-source-a",
+      "source_locator": "fixture://conflict/margin/a",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "ratio",
+      "value": 0.18
+    },
+    {
+      "as_of": "2026-01-30T21:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-conflict-price",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "freshness_status": "FRESH",
+      "retrieved_at": "2026-01-30T21:05:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "close_price",
+      "source_id": "fixture-market-primary",
+      "source_locator": "fixture://conflict/price/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD_per_share",
+      "value": 100
+    },
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-conflict-revenue-a",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "freshness_status": "FRESH",
+      "retrieved_at": "2026-01-15T13:00:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "revenue_ttm",
+      "source_id": "fixture-filing-source-a",
+      "source_locator": "fixture://conflict/revenue/a",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD",
+      "value": 1000000
+    },
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-conflict-revenue-b",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "freshness_status": "FRESH",
+      "retrieved_at": "2026-01-16T13:00:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "revenue_ttm",
+      "source_id": "fixture-filing-source-b",
+      "source_locator": "fixture://conflict/revenue/b",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD",
+      "value": 1250000
+    }
+  ],
+  "allowed_evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "bundle_hash": "2fa3389ac38cffda2f2a77f739e6b59de1cf77fb56554416a0dcdae3602d4ee6",
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_ids": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "observations": [
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "source_id": "fixture-filing-source-a",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "source_id": "fixture-filing-source-b",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+      "source_ids": [
+        "fixture-filing-source-a",
+        "fixture-filing-source-b"
+      ]
+    }
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "excluded": [],
+  "excluded_evidence_ids": [],
+  "fixture_id": "evidence-conflict-v1",
+  "freshness_policy_version": "freshness/fixture/2.0.0",
+  "input_evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "input_hash": "8eb2492efc16796982d1c1857889ba382bd629eae3475d156749c51d8bc05890",
+  "run_id": "harden-conflict-02",
+  "schema_version": "evidence-gate/2.0.0"
+}
