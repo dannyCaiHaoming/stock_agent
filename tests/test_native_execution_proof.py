@@ -13,10 +13,12 @@ from product.runtime.execution_proof import (
     build_run_specialist_execution_proof,
     build_specialist_execution_proof,
     discover_run_rollouts,
+    _verify_isolated_resource_load,
     verify_specialist_execution_proof,
 )
 from product.runtime.codex_hook_recorder import minimize_hook_event
 from product.runtime.hashing import canonical_hash
+from tests.test_agents_instruction_proof import bind_instruction_fixture
 from product.runtime.invocation import (
     OUTPUT_SCHEMAS,
     build_specialist_output_schema,
@@ -92,6 +94,30 @@ class NativeExecutionProofTests(unittest.TestCase):
             for agent in AGENTS
         }
 
+    def test_skill_load_requires_exact_successful_runtime_event(self):
+        skill_path = ROOT / "product" / "skills" / "portfolio-council" / "SKILL.md"
+        skill_text = skill_path.read_text(encoding="utf-8")
+        event = {
+            "type": "item.completed",
+            "item": {
+                "type": "command_execution",
+                "command": f"sed -n '1,999p' {skill_path}",
+                "exit_code": 0,
+                "aggregated_output": skill_text,
+            },
+        }
+        result = _verify_isolated_resource_load([event], resource_path=skill_path)
+        self.assertEqual(result["status"], "LOAD_VERIFIED")
+        for records in (
+            [],
+            [{**event, "item": {**event["item"], "exit_code": 1}}],
+            [{**event, "item": {**event["item"], "aggregated_output": skill_text + "drift"}}],
+            [event, event],
+        ):
+            with self.assertRaisesRegex(
+                ExecutionProofError, "PORTFOLIO_COUNCIL_SKILL_LOAD_NOT_PROVEN"
+            ):
+                _verify_isolated_resource_load(records, resource_path=skill_path)
     def tearDown(self):
         self.temp_dir.cleanup()
 
@@ -559,6 +585,15 @@ class NativeExecutionProofTests(unittest.TestCase):
                     {"type": "thread.started", "thread_id": "parent-session"},
                     {"type": "turn.started"},
                     {
+                        "type": "item.completed",
+                        "item": {
+                            "type": "command_execution",
+                            "command": f"sed -n '1,999p' {ROOT / 'product' / 'skills' / 'portfolio-council' / 'SKILL.md'}",
+                            "exit_code": 0,
+                            "aggregated_output": (ROOT / "product" / "skills" / "portfolio-council" / "SKILL.md").read_text(encoding="utf-8"),
+                        },
+                    },
+                    {
                         "type": "turn.completed",
                         "usage": {
                             "input_tokens": 120,
@@ -568,6 +603,7 @@ class NativeExecutionProofTests(unittest.TestCase):
                     },
                 ],
             )
+            bind_instruction_fixture(ROOT, run_dir)
             hook_records = []
             for index, agent in enumerate(AGENTS, 1):
                 hook_records.append(

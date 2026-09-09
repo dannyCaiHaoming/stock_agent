@@ -662,6 +662,92 @@ def _public_codex_telemetry(
     }
 
 
+def _verify_isolated_resource_load(
+    records: Sequence[Mapping[str, Any]], *, resource_path: Path,
+    failure_code: str = "PORTFOLIO_COUNCIL_SKILL_LOAD_NOT_PROVEN",
+) -> dict[str, Any]:
+    """Require one successful command whose complete output is the exact resource."""
+    resource_text = resource_path.read_text(encoding="utf-8")
+    matches = [
+        (ordinal, record)
+        for ordinal, record in enumerate(records)
+        if record.get("type") == "item.completed"
+        and isinstance(record.get("item"), Mapping)
+        and record["item"].get("type") == "command_execution"
+        and record["item"].get("exit_code") == 0
+        and str(resource_path) in str(record["item"].get("command", ""))
+        and record["item"].get("aggregated_output") == resource_text
+    ]
+    if len(matches) != 1:
+        raise ExecutionProofError(failure_code)
+    return {
+        "status": "LOAD_VERIFIED",
+        "path": str(resource_path),
+        "sha256": file_hash(resource_path),
+        "method": "isolated_completed_command_output",
+        "event_ordinal": matches[0][0],
+        "event_hash": canonical_hash(matches[0][1]),
+    }
+
+
+def verify_agents_instruction_load(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
+    """将真实指令读取事件绑定到本次启动；不接受文件存在或自报加载。"""
+    repository_root, run_dir = repository_root.resolve(), run_dir.resolve()
+    invocation_dir = run_dir / "invocation"
+    manifest = _read_object(run_dir / "run_manifest.json")
+    invocation = _read_object(invocation_dir / "invocation-manifest.json")
+    environment_path = invocation_dir / "environment-manifest.json"
+    environment = _read_object(environment_path)
+    prompt_path = invocation_dir / "prompt.txt"
+    body = dict(invocation)
+    invocation_hash = body.pop("invocation_hash", None)
+    if (
+        invocation_hash != canonical_hash(body)
+        or invocation.get("environment_manifest_sha256") != file_hash(environment_path)
+        or invocation.get("run_id") != manifest.get("run_id")
+        or environment.get("run_id") != manifest.get("run_id")
+        or manifest.get("output_dir") != str(run_dir)
+        or environment.get("run_dir") != str(run_dir)
+        or environment.get("repo_root") != str(repository_root)
+        or invocation.get("cwd") != str(repository_root / "product")
+        or environment.get("cwd") != invocation.get("cwd")
+        or environment.get("command") != invocation.get("command")
+        or invocation.get("prompt_path") != str(prompt_path)
+        or invocation.get("prompt_sha256") != file_hash(prompt_path)
+    ):
+        raise ExecutionProofError("AGENTS_LOAD_INVOCATION_BINDING_INVALID")
+    paths = ["AGENTS.md", "product/AGENTS.md"]
+    if not (repository_root / paths[0]).is_file() and manifest.get("execution_replay"):
+        paths = paths[1:]  # 冻结包只读取自身指令，绝不借用宿主当前根指令。
+    expected = {name: file_hash(repository_root / name) for name in paths}
+    resources = environment.get("resource_hashes", {})
+    if resources.get("agents_md") != expected or resources.get("prompt") != file_hash(prompt_path):
+        raise ExecutionProofError("AGENTS_LOAD_VERSION_MISMATCH")
+    events_path = invocation_dir / "codex-events.jsonl"
+    records = _load_jsonl(events_path)
+    threads = [record.get("thread_id") for record in records if record.get("type") == "thread.started"]
+    if len(threads) != 1 or not threads[0]:
+        raise ExecutionProofError("AGENTS_LOAD_SESSION_MISSING")
+    loads = {
+        name: _verify_isolated_resource_load(
+            records, resource_path=repository_root / name,
+            failure_code=f"AGENTS_LOAD_NOT_PROVEN:{name}",
+        ) for name in paths
+    }
+    skill = _verify_isolated_resource_load(
+        records, resource_path=repository_root / "product/skills/portfolio-council/SKILL.md"
+    )
+    ordinals = [load["event_ordinal"] for load in loads.values()] + [skill["event_ordinal"]]
+    if ordinals != sorted(set(ordinals)):
+        raise ExecutionProofError("AGENTS_LOAD_ORDER_INVALID")
+    return {
+        "status": "LOAD_VERIFIED", "run_id": manifest["run_id"],
+        "session_id": threads[0], "invocation_hash": invocation_hash,
+        "prompt_sha256": file_hash(prompt_path), "codex_events_sha256": file_hash(events_path),
+        "resources": loads,
+    }
+
+
 def build_ephemeral_run_specialist_execution_proof(
     repository_root: Path,
     *,
@@ -707,6 +793,9 @@ def build_ephemeral_run_specialist_execution_proof(
         raise ExecutionProofError("CROSS_RUN_INVOCATION_MANIFEST")
 
     codex_records = _load_jsonl(codex_events_path)
+    skill_path = repository_root / "product" / "skills" / "portfolio-council" / "SKILL.md"
+    skill_load = _verify_isolated_resource_load(codex_records, resource_path=skill_path)
+    agents_md_load = verify_agents_instruction_load(repository_root, run_dir=run_dir)
     thread_starts = [
         record for record in codex_records if record.get("type") == "thread.started"
     ]
@@ -901,6 +990,23 @@ def build_ephemeral_run_specialist_execution_proof(
         "independent_sessions_proven": True,
         "specialist_topology": list(specialists),
         "portfolio_council_skill_bound": "$product:portfolio-council" in prompt_text,
+        "resource_loads": {
+            "agents_md": agents_md_load,
+            "portfolio_council_skill": skill_load,
+            "agents": {
+                name: {
+                    "status": "LOAD_VERIFIED",
+                    "sha256": children[name]["agent_resource_sha256"],
+                    "method": "subagent_hook_agent_type_plus_locked_config",
+                }
+                for name in specialists
+            },
+            "mcp": {
+                "status": "LOAD_VERIFIED",
+                "event_count": sum(len(child["observed_tool_calls"]) for child in children.values()),
+                "method": "run_scoped_mcp_lineage",
+            },
+        },
         "children": children,
         "raw_prompt_or_reasoning_retained": False,
         "telemetry": {

@@ -29,10 +29,11 @@ from .eval_execution_proof import (
     persist_eval_execution_proof,
 )
 from .trace_validation import trace_integrity_report
-from .nested_codex import launch_nested_codex
+from .nested_codex import launch_nested_codex, run_nested_codex_connectivity_probe
+from .environment_preflight import run_environment_preflight, run_permission_probe_with_child
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Portfolio Council deterministic runtime tools")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -60,6 +61,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     prompt = subparsers.add_parser("smoke-prompt")
     prompt.add_argument("--repo", type=Path, required=True)
     prompt.add_argument("--run-dir", type=Path, required=True)
+    prompt.add_argument("--sessions-root", type=Path)
 
     proof = subparsers.add_parser("execution-proof")
     proof.add_argument("--repo", type=Path, required=True)
@@ -122,6 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     eval_prompt = subparsers.add_parser("eval-smoke-prompt")
     eval_prompt.add_argument("--repo", type=Path, required=True)
     eval_prompt.add_argument("--eval-dir", type=Path, required=True)
+    eval_prompt.add_argument("--sessions-root", type=Path)
 
     eval_proof = subparsers.add_parser("eval-execution-proof")
     eval_proof.add_argument("--repo", type=Path, required=True)
@@ -181,7 +184,39 @@ def main(argv: Sequence[str] | None = None) -> int:
     nested.add_argument("--run-dir", type=Path, required=True)
     nested.add_argument("--codex-binary", default="codex")
     nested.add_argument("--timeout-seconds", type=int, default=1800)
+    nested.add_argument("--preflight-report", type=Path)
 
+    preflight = subparsers.add_parser("environment-preflight")
+    preflight.add_argument("--repo", type=Path, required=True)
+    preflight.add_argument("--run-dir", type=Path, required=True)
+    preflight.add_argument("--output-dir", type=Path, required=True)
+    preflight.add_argument("--mode", choices=("development", "review", "runtime"), required=True)
+    preflight.add_argument("--requested-model")
+    preflight.add_argument("--permission-evidence", type=Path)
+    preflight.add_argument("--codex-binary", default="codex")
+
+    permission_probe = subparsers.add_parser("permission-probe")
+    permission_probe.add_argument("--source-canary", type=Path, required=True)
+    permission_probe.add_argument("--output-dir", type=Path, required=True)
+    permission_probe.add_argument("--tmpdir", type=Path, required=True)
+    permission_probe.add_argument("--outside-canary", type=Path, required=True)
+    permission_probe.add_argument("--output", type=Path, required=True)
+    permission_probe.add_argument("--child", action="store_true")
+    permission_probe.add_argument("--codex-binary", default="codex")
+
+    nested_probe = subparsers.add_parser("nested-codex-probe")
+    nested_probe.add_argument("--repo", type=Path, required=True)
+    nested_probe.add_argument("--output-dir", type=Path, required=True)
+    nested_probe.add_argument("--model", required=True)
+    nested_probe.add_argument("--command-network-status", required=True)
+    nested_probe.add_argument("--codex-binary", default="codex")
+    nested_probe.add_argument("--timeout-seconds", type=int, default=180)
+
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "prepare":
         result = prepare_run(
@@ -200,7 +235,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "finalize-cio":
         result = finalize_cio(args.repo, run_dir=args.run_dir, revision=args.revision)
     elif args.command == "smoke-prompt":
-        print(build_smoke_prompt(args.run_dir, repository_root=args.repo))
+        print(build_smoke_prompt(args.run_dir, repository_root=args.repo, sessions_root=args.sessions_root))
         return 0
     elif args.command == "execution-proof":
         try:
@@ -302,6 +337,42 @@ def main(argv: Sequence[str] | None = None) -> int:
             run_dir=args.run_dir,
             codex_binary=args.codex_binary,
             timeout_seconds=args.timeout_seconds,
+            preflight_report=args.preflight_report,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "environment-preflight":
+        result, exit_code = run_environment_preflight(
+            args.repo,
+            run_dir=args.run_dir,
+            output_dir=args.output_dir,
+            mode=args.mode,
+            requested_model=args.requested_model,
+            permission_evidence=args.permission_evidence,
+            codex_binary=args.codex_binary,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "permission-probe":
+        result, exit_code = run_permission_probe_with_child(
+            source_canary=args.source_canary,
+            output_dir=args.output_dir,
+            tmpdir=args.tmpdir,
+            outside_canary=args.outside_canary,
+            output_path=args.output,
+            child=args.child,
+            codex_binary=args.codex_binary,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "nested-codex-probe":
+        result, exit_code = run_nested_codex_connectivity_probe(
+            args.repo,
+            output_dir=args.output_dir,
+            model=args.model,
+            command_network_status=args.command_network_status,
+            codex_binary=args.codex_binary,
+            timeout_seconds=args.timeout_seconds,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return exit_code
@@ -342,7 +413,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     semantic_result_path=args.semantic_result,
                 )
             elif args.command == "eval-smoke-prompt":
-                print(build_eval_smoke_prompt(args.repo, eval_dir=args.eval_dir))
+                print(build_eval_smoke_prompt(args.repo, eval_dir=args.eval_dir, sessions_root=args.sessions_root))
                 return 0
             elif args.command == "eval-execution-proof":
                 parent, child = discover_eval_rollouts(

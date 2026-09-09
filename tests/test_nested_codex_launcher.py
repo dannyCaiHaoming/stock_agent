@@ -14,6 +14,8 @@ from product.runtime.nested_codex import (
 )
 from product.runtime.codex_hook_recorder import handle_hook_event, record_hook_event
 from product.runtime.run_package import _record_all_artifacts, prepare_run
+from product.runtime.execution_proof import verify_agents_instruction_load
+from tests.test_agents_instruction_proof import bind_instruction_fixture
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +50,23 @@ class NestedCodexLauncherTests(unittest.TestCase):
         self.assertTrue(any("collaborationspawn_agent" in item for item in command))
         self.assertTrue(any(item.startswith("hooks.SubagentStart=") for item in command))
         self.assertTrue(any(item.startswith("hooks.SubagentStop=") for item in command))
+
+    def test_external_profile_mode_does_not_attempt_nested_seatbelt(self):
+        run_dir = Path("/tmp/run")
+        command = build_nested_codex_command(
+            codex_binary="codex",
+            product_root=ROOT / "product",
+            run_dir=run_dir,
+            model="gpt-5.6-terra",
+            sqlite_home=run_dir / ".codex-runtime" / "sqlite",
+            log_dir=run_dir / ".codex-runtime" / "logs",
+            final_message_path=run_dir / ".codex-runtime" / "tmp" / "final.txt",
+            hook_recorder_path=ROOT / "product" / "runtime" / "codex_hook_recorder.py",
+            externally_sandboxed=True,
+        )
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", command)
+        self.assertNotIn("--sandbox", command)
+        self.assertNotIn("workspace-write", command)
 
     def test_hook_recorder_minimizes_output_and_scopes_log_to_run(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -288,6 +307,14 @@ class NestedCodexLauncherTests(unittest.TestCase):
                 json.dumps(
                     {
                         "portfolio_council_skill_bound": True,
+                        "resource_loads": {
+                            "portfolio_council_skill": {"status": "LOAD_VERIFIED"},
+                            "agents": {
+                                "runtime_company_analyst": {"status": "LOAD_VERIFIED"},
+                                "runtime_skeptic": {"status": "LOAD_VERIFIED"},
+                            },
+                            "mcp": {"status": "LOAD_VERIFIED", "event_count": 2},
+                        },
                         "dispatches": [
                             {"agent": "runtime_company_analyst"},
                             {"agent": "runtime_skeptic"},
@@ -322,10 +349,42 @@ class NestedCodexLauncherTests(unittest.TestCase):
                 run_dir / "eval" / "result.json",
             ):
                 path.write_text("{}", encoding="utf-8")
+            (run_dir / "run_manifest.json").write_text(json.dumps({"run_id": "completion-test", "output_dir": str(run_dir.resolve())}))
+            (run_dir / "invocation/prompt.txt").write_text("synthetic prompt")
+            skill = ROOT / "product/skills/portfolio-council/SKILL.md"
+            (run_dir / "invocation/codex-events.jsonl").write_text("\n".join(json.dumps(item) for item in [
+                {"type": "thread.started", "thread_id": "session-1"},
+                {"type": "item.completed", "item": {"type": "command_execution", "exit_code": 0,
+                 "command": f"cat '{skill}'", "aggregated_output": skill.read_text()}},
+            ]))
+            bind_instruction_fixture(ROOT, run_dir)
+            proof_path = run_dir / "events/codex/specialist-execution-proof.json"
+            proof = json.loads(proof_path.read_text())
+            proof["resource_loads"]["agents_md"] = verify_agents_instruction_load(ROOT, run_dir=run_dir)
+            proof_path.write_text(json.dumps(proof))
             checks, failure = _completion_checks(run_dir)
             self.assertIsNone(failure)
+            self.assertTrue(checks["agents_md_loaded"])
             self.assertTrue(checks["dispatch_guard_active"])
             self.assertTrue(checks["cio_executed"])
+            (run_dir / "invocation/codex-events.jsonl").write_text('{}\n')
+            checks, failure = _completion_checks(run_dir)
+            self.assertEqual(failure, "AGENTS_LOAD_PROOF_MISSING")
+            self.assertFalse(checks["agents_md_loaded"])
+
+    def test_pre_agent_safe_termination_does_not_fabricate_instruction_reads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            (run_dir / "eval").mkdir()
+            for path in (run_dir / "decision.json", run_dir / "report.md", run_dir / "eval/result.json"):
+                path.write_text("{}")
+            (run_dir / "decision_trace.json").write_text(json.dumps({
+                "terminal_state": "SAFE_NO_TRADE", "agents": [], "risk_lineage": [],
+                "events": [{"stage": "PRE_AGENT_SAFE_TERMINATION"}],
+            }))
+            checks, failure = _completion_checks(run_dir)
+            self.assertIsNone(failure)
+            self.assertEqual(checks["agents_md_status"], "NOT_APPLICABLE_PRE_AGENT_SAFE_TERMINATION")
 
     def test_zero_codex_exit_cannot_mask_incomplete_council(self):
         with tempfile.TemporaryDirectory() as directory:

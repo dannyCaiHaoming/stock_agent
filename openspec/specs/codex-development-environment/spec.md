@@ -1,0 +1,95 @@
+# codex-development-environment Specification
+
+## Purpose
+
+为本仓库开发、测试和独立复核提供可重复且权限明确的 Codex 执行环境，复用现有运行能力，以可验证路径、加载事件和最小诊断结果减少环境故障及不必要的模型消耗，同时保留产品安全边界。
+
+## Requirements
+
+### Requirement: 执行入口必须复用统一启动契约
+系统 SHALL 让 Smoke、Execution Replay、Regression 中需要新 Council LLM 执行的路径复用已有统一 launcher、run-scoped 状态目录、Hook 和完成判定，不建立第二套编排框架。确定性验证和已验证证据复用 MUST 保持零 LLM。
+
+#### Scenario: 三类入口启动新运行
+- **WHEN** 任一入口需要新的 Council 执行
+- **THEN** 系统使用同一启动契约并保存相同格式的 invocation、原始执行事件与完成判定，不通过临时脚本绕过
+
+#### Scenario: 无需模型的操作
+- **WHEN** 执行 Artifact Replay、确定性 Regression 案例或有效缓存复核
+- **THEN** 系统不启动 Codex LLM，不强迫历史合法包具备新 launcher 字段，也不将旧包伪装为当前加载证明
+
+### Requirement: 宿主代理适配不得猜测或修改网络设置
+宿主 Product Smoke 薄入口 SHALL 只读检测生效系统代理，将已启用的 HTTP/HTTPS 或 SOCKS 地址传入现有 launcher；不得使用禁用服务中的旧端口、进程名推测或固定本机端口。仅 SOCKS 时 MUST 先通过现有 Codex transport 检查，失败停止且不得猜测 HTTP 端口。系统查询与判定 SHALL 保存到外置本地证据，不提交代理地址或修改 Shadowrocket、network proxy、域名和产品配置。
+
+#### Scenario: 系统代理与禁用旧值不同
+- **WHEN** 生效系统 HTTP/HTTPS 代理与 Wi-Fi 禁用配置中的端口不同
+- **THEN** 使用生效设置，并分别导出大小写 HTTP/HTTPS 代理变量，不采用禁用旧值
+
+#### Scenario: 宿主隧道与手动执行
+- **WHEN** 存在已连接 VPN 或隧道路由且无显式代理端点
+- **THEN** 输出 TUN_OR_VPN 和 LOCAL_PROXY_PORT=NONE，不生成代理变量；用户从宿主 Terminal 经原有 launcher 启动产品，不要求外层嵌套成功，也不将宿主运行冒充全进程只读复核证明；无法确定模式则输出 UNKNOWN 并停止启动
+
+### Requirement: 执行路径必须明确且可移植
+系统 MUST 记录 repo_root、product_root、run_dir、state_dir 的解析来源、规范路径和实际子进程 cwd。根目录冲突、manifest 身份不符或路径逃逸 SHALL 在模型调用前失败。产品子进程 MUST 在所选产品根运行，禁止个人绝对路径、偶然 cwd、凭据复制和临时源码复制绕路；内容寻址且校验密封的 Replay 物化不属于禁止的复制。
+
+#### Scenario: 不同调用目录
+- **WHEN** 用户从仓库根、product 或仓库外指定同一 repo 和新 run 目录调用
+- **THEN** 三种调用解析到同一产品配置，子进程 cwd 均为对应 product_root，带空格路径也不改变参数边界
+
+#### Scenario: 重放根与显式根冲突
+- **WHEN** Execution Replay 冻结 workspace 与调用者提供的 repo_root 不一致
+- **THEN** 系统拒绝启动并给出冲突来源，不回退到当前工作树或改写历史 hash
+
+#### Scenario: 密封重放目录不包含 Git 元数据
+- **WHEN** 宿主启动通过来源 Capsule、manifest 身份、密封内容和 cwd 校验的 Execution Replay
+- **THEN** 宿主 transport 适配仅补充 --skip-git-repo-check，保存实际命令和 adapter hash，保留原生权限；冻结 launcher 与历史版本锁不变。缺绑定或校验失败时在模型前拒绝，普通 Smoke 不采用此例外
+
+### Requirement: 执行模式必须分离且不隐式启动
+系统 MUST 将开发自检、宿主产品执行、独立证据复核与全进程隔离验收分开。开发自检 SHALL 在当前 Codex 环境执行确定性检查，不自动启动 Council、模型、网络探针或项目沙箱。产品 Smoke 与 Execution Replay SHALL 复用宿主 launcher 和已有代理适配，保留原生权限，不额外创建项目沙箱。
+
+#### Scenario: 自检与旧入口
+- **WHEN** 调用自检或旧 --review / review-run / review-probe / nested-codex-probe
+- **THEN** 自检仅允许声明的确定性检查；旧项目沙箱入口在子进程启动前明确非零拒绝，不静默降级为普通产品运行
+
+#### Scenario: 独立 Reviewer
+- **WHEN** 独立复核当前 Change
+- **THEN** Reviewer 默认只读差异、规格与既有证据；补跑仅提出缺口，不自行创建沙箱或调用模型
+
+### Requirement: 全进程隔离必须保留未验证状态
+系统 MUST 将全进程源码强制只读标为 UNVERIFIED，并明确排除在本 Change 完成保证之外。此范围调整依据人工批准，MUST 保留风险与历史证据，不删除隔离要求、不关闭原生保护、不将功能通过视为隔离或 Promotion PASS。
+
+#### Scenario: 复用宿主 normal
+- **WHEN** 复用已成功宿主 normal 及源码前后 hash
+- **THEN** 仅复用其功能与运行产物证据；仍报告 launcher/Hook/MCP 全进程禁止源码写入尚未证明，错误调用可能修改允许写入的文件，hash 不能替代预防性保护
+
+### Requirement: 资源发现与实际加载必须分别验证
+系统 MUST 区分 AGENTS、Skill、Agent、MCP、Hook 的文件发现/hash、配置解析和实际加载/执行证据。新运行成功 MUST 关联真实事件与所选版本；缺少必要证明不得只凭配置存在或 shell exit code 为零返回成功，合法前置终止按既有终态契约标记阶段不适用而非伪造加载。
+
+#### Scenario: 配置存在但未执行
+- **WHEN** 文件和配置可读，但必要 Skill、Agent、MCP 或 Hook 运行证明缺失或与选定 hash 不一致
+- **THEN** 新运行完成判定返回非零及具体 failure_code，保留原始事件，不把 preflight 的静态检查称为加载成功
+
+#### Scenario: 完整正常 Smoke
+- **WHEN** 新运行通过前置检查并完成正常 Council
+- **THEN** 证明关联实际 AGENTS 读取链、Skill、独立 Specialist、CIO、MCP、Hook、Risk、终态和场景要求产物，复用既有严格 Evidence 与完成校验
+
+### Requirement: 版本与模型配置必须以可验证能力为准
+系统 SHALL 在使用参数和配置键之前记录本机 CLI 版本、帮助或配置解析依据，保留 Sol 开发、Astra 疑难分析、Terra Runtime 测试偏好。模型 MUST 由受支持配置或显式参数选择，并记录请求值和实际值；Prompt 不得被当作模型切换机制。
+
+#### Scenario: 参数或模型不可确认
+- **WHEN** 所需配置不被当前 CLI 支持，或所选模型无法确认可用
+- **THEN** 系统报告不支持或待确认，不静默替换模型，不启动付费试错循环；帮助中存在 model 参数不等于某模型已获账户授权
+
+#### Scenario: Hook 信任受限
+- **WHEN** 当前 launcher 依赖 Hook 信任豁免但本机政策不允许或来源未核验
+- **THEN** 系统报告所需的精确信任范围并停止，不自动增大信任范围或关闭权限控制
+
+### Requirement: 开发诊断必须最小化且不自带修复权限
+系统 SHALL 复用既有路径/可写性检查及本机 doctor，提供开发专用诊断 Skill，保留 preflight 作为非默认历史专项检查。输出 MUST 包含检查项、实际依据、状态、failure_code、首处分歧、下一步最小操作和模型调用数；日常自检模型调用数 MUST 为零，不得以缺少权限探针或尚未准备 run 阻塞普通源码检查。
+
+#### Scenario: 诊断 prepare 后提前退出
+- **WHEN** 用户提供完整但未完成的运行包
+- **THEN** 诊断读取 invocation、事件、stderr 和终态产物，报告 FIRST_DIVERGENCE、ROOT_CAUSE 或证据不足，不自动重跑、修复或重做全量 Gate
+
+#### Scenario: 私密状态与可共享证据
+- **WHEN** 诊断保存或输出检查结果
+- **THEN** 仅保存白名单字段与必要 hash，不复制 auth.json、全局会话数据库、用户消息或完整环境变量；发现敏感文件只报告，不自动删除或上传

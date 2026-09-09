@@ -21,6 +21,35 @@ class GovernanceTests(unittest.TestCase):
         self.assertIn("禁止创建、路由、修改或取消订单", text)
         self.assertIn("禁止在运行时任务中编辑产品 Skill", text)
 
+    def test_development_documents_are_conditional_and_roles_do_not_leak(self):
+        root = (ROOT / "AGENTS.md").read_text()
+        product = (ROOT / "product" / "AGENTS.md").read_text()
+        for relative in (
+            "docs/development/workflow.md",
+            "docs/development/environment.md",
+            "reviews/runtime/runtime-replay-eval-runbook.md",
+        ):
+            self.assertIn(relative, root)
+            self.assertTrue((ROOT / relative).is_file())
+        self.assertIn("无关专项文档不必全部加载", root)
+        self.assertIn("默认用中文", root)
+        self.assertIn("不执行 OpenSpec 归档、Git 提交或推送", product)
+        workflow = (ROOT / "docs/development/workflow.md").read_text()
+        self.assertIn("NOT_PROMOTABLE", workflow)
+        self.assertIn("不默认重复 Calibration、Ablation、Promotion", workflow)
+        self.assertIn("疑似敏感信息未处理时停止发布", workflow)
+
+    def test_runbook_uses_existing_launcher_without_claiming_static_loading(self):
+        text = (ROOT / "reviews/runtime/runtime-replay-eval-runbook.md").read_text()
+        self.assertIn("bash <repository-root>/scripts/run-product-smoke.sh", text)
+        self.assertIn("--prepared-run <run-dir> <new-invocation-output-dir>", text)
+        self.assertIn("python3 <repository-root>/scripts/council-dev.py prepare-execution-replay", text)
+        self.assertNotIn("python3 -m product.runtime.cli prepare-execution-replay", text)
+        self.assertIn("host-replay-source.json", text)
+        self.assertNotIn("--run-dir <run-dir> |", text)
+        self.assertIn("不能只看 shell exit code", text)
+        self.assertIn("按 manifest 选择冻结 workspace", text)
+
     def test_dev_agents_are_least_privilege(self):
         paths = sorted((ROOT / ".codex" / "agents").glob("dev_*.toml"))
         self.assertEqual(4, len(paths))

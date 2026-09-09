@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -14,6 +15,7 @@ from .schema_validation import validate_schema_instance
 from .trace_validation import trace_integrity_report
 from .validation import collect_evidence_refs
 from .eval_execution_proof import verify_eval_execution_proof
+from .smoke_prompt import sessions_root_argument
 
 
 EVAL_JOB_VERSION = "runtime-eval-job/1.0.0"
@@ -413,7 +415,9 @@ def validate_semantic_result(
     return dict(value)
 
 
-def build_eval_smoke_prompt(repository_root: Path, *, eval_dir: Path) -> str:
+def build_eval_smoke_prompt(
+    repository_root: Path, *, eval_dir: Path, sessions_root: Path | None = None
+) -> str:
     repository_root = repository_root.resolve()
     eval_dir = eval_dir.resolve()
     manifest = _read_object(eval_dir / "input-manifest.json")
@@ -434,10 +438,10 @@ def build_eval_smoke_prompt(repository_root: Path, *, eval_dir: Path) -> str:
 `input-manifest.json` 中的 source_hashes 是 Runtime 按 canonical JSON/契约算法生成并已确定性验证的 lineage 值，不等同于文件字节 `sha256sum`。只核对上述值与 manifest 完全相同；禁止将其按文件字节哈希重新解释后误报完整性失败。
 
 收到结果后原样保存为 `{eval_dir / 'semantic-result.json'}`，然后运行：
-`python3 -m product.runtime.cli eval-execution-proof --repo {repository_root} --eval-dir {eval_dir} --semantic-result {eval_dir / 'semantic-result.json'} --sessions-root /Users/caihaoming/.codex/sessions`
+`python3 -m product.runtime.cli eval-execution-proof --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))} --sessions-root {sessions_root_argument(sessions_root)}`
 
 证明通过后运行：
-`python3 -m product.runtime.cli eval-finalize --repo {repository_root} --eval-dir {eval_dir} --semantic-result {eval_dir / 'semantic-result.json'}`
+`python3 -m product.runtime.cli eval-finalize --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))}`
 
 最终只报告 eval_id、Eval 状态、`eval/result.json` 与 `eval/report.md`；不得改写评分以追求 PASS。
 """

@@ -2,6 +2,8 @@
 
 本文描述开发控制面的离线验证流程。所有输出仅用于研究建议验证；不得连接券商、修改账户或真实下单。
 
+按当前任务读取所需章节，不要求每次执行完整手册。验收范围与证据复用见 [开发流程](../../docs/development/workflow.md)，权限及路径见 [开发环境](../../docs/development/environment.md)。以下模块命令从仓库根执行；产品子进程的工作目录由既有 launcher 固定，不能以 cwd 或配置存在宣称资源已经加载。
+
 ## 1. 运行与持久化
 
 使用 `portfolio-council` Skill 创建全新的 Run 目录。Runtime 在 Agent 调用前完成 portfolio 校验和 PIT Evidence Gate，并生成 `replay_capsule/manifest.json` 与内容寻址对象。已有目录不会被覆盖。
@@ -10,13 +12,14 @@ Capsule 同时锁定研究问题、截止时点、模型、Codex/Python runtime�
 
 普通产品运行固定使用 Company Analyst、Independent Skeptic 与 CIO；`EVAL_ABLATION` 只能用于开发评估，不能作为产品建议发布。
 
-准备完成后应从产品包目录运行 Codex-native smoke；这样 Codex 会加载产品 Plugin、Skill、独立 runtime Agent 与包内 MCP：
+按当前已批准范围，真实产品执行仅由宿主 Terminal 使用现有代理适配与统一 launcher，不额外创建项目沙箱。准备好的运行使用：
 
 ```text
-python3 -m product.runtime.cli smoke-prompt --repo <repository-root> --run-dir <run-dir> |
-  codex exec -C <repository-root>/product --add-dir <run-dir> \
-  --strict-config --json -m <locked-model> -
+bash <repository-root>/scripts/run-product-smoke.sh \
+  --prepared-run <run-dir> <new-invocation-output-dir>
 ```
+
+模型来自 prepare 写入的锁定 manifest。launcher 保存固定 prompt 文件、JSONL、stderr、环境和进程结果，调用现有 Hook 与完成判定；必须核对真实 Skill、Agent、MCP、Hook 事件与终态产物，不能只看 shell exit code。禁止恢复旧 `smoke-prompt | codex exec` 管道作为验收入口。
 
 ## 2. Artifact Replay
 
@@ -39,16 +42,16 @@ python3 -m product.runtime.cli trace-check \
 
 ## 3. Execution Replay
 
-先准备隔离工作区和新的 Run：
+先通过安装仓库的薄入口物化密封工作区并准备新的 Run（不是额外创建项目沙箱）：
 
 ```text
-python3 -m product.runtime.cli prepare-execution-replay \
+python3 <repository-root>/scripts/council-dev.py prepare-execution-replay \
   --source-run-dir <source-run-dir> \
   --run-dir <new-run-dir> \
   --run-id <new-run-id>
 ```
 
-随后从返回的冻结 workspace 通过 `portfolio-council` Skill 和独立 Agent 上下文执行 Council。完成后运行：
+该薄入口在新 Run 保存 `host-replay-source.json`，供宿主 transport 校验来源 Capsule；直接使用底层 prepare 命令不会创建此绑定，不能用于随后宿主执行，也不得手工向旧 Run 补写。随后在宿主 Terminal 使用上述 --prepared-run 入口，既有转发器按 manifest 选择冻结 workspace，通过同一 nested-codex-smoke launcher 执行；不要手动传当前仓库的 --repo，不要使用当前工作树替换冻结资源或临时复制缺失文件。独立 Reviewer 只提出补跑缺口，不自动执行。完成后运行：
 
 ```text
 python3 -m product.runtime.cli finalize-execution-replay \
