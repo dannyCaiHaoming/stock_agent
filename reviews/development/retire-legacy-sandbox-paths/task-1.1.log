@@ -1,0 +1,8 @@
+test_command_is_ephemeral_isolated_and_keeps_user_config (tests.test_nested_codex_launcher.NestedCodexLauncherTests.test_command_is_ephemeral_isolated_and_keeps_user_config) ... ok
+test_command_default_and_explicit_false_preserve_native_sandbox (tests.test_nested_codex_launcher.NestedCodexLauncherTests.test_command_default_and_explicit_false_preserve_native_sandbox) ... ok
+test_preflight_is_rejected_before_run_or_report_is_read (tests.test_nested_codex_launcher.NestedCodexLauncherTests.test_preflight_is_rejected_before_run_or_report_is_read) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK

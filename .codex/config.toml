@@ -21,7 +21,3 @@ config_file = "agents/dev_reviewer.toml"
 
 [sandbox_workspace_write]
 network_access = true
-
-[permissions.project-edit.network.domains]
-"chatgpt.com" = "allow"
-"**.chatgpt.com" = "allow"

@@ -31,8 +31,6 @@ from .environment_preflight import resolve_run_paths
 
 
 LAUNCHER_VERSION = "nested-codex-launcher/1.2.0"
-CONNECTIVITY_PROBE_VERSION = "nested-codex-connectivity-probe/1.0.0"
-CONNECTIVITY_PROBE_MARKER = "NESTED_CODEX_PROBE_OK"
 VALID_TERMINAL_STATES = {"COMPLETED", "SAFE_NO_TRADE"}
 
 
@@ -286,6 +284,9 @@ def build_nested_codex_command(
 ) -> list[str]:
     """Return the canonical nested Codex command without shell interpolation."""
 
+    if externally_sandboxed:
+        raise ValueError("LEGACY_SANDBOX_MODE_RETIRED")
+
     hook_command = " ".join(
         (shlex.quote(sys.executable), shlex.quote(str(hook_recorder_path)))
     )
@@ -306,10 +307,7 @@ def build_nested_codex_command(
         "--ephemeral",
         "--json",
     ]
-    if externally_sandboxed:
-        command.append("--dangerously-bypass-approvals-and-sandbox")
-    else:
-        command.extend(("--sandbox", "workspace-write"))
+    command.extend(("--sandbox", "workspace-write"))
     command.extend([
         "--add-dir",
         str(run_dir),
@@ -346,138 +344,8 @@ def run_nested_codex_connectivity_probe(
     codex_binary: str = "codex",
     timeout_seconds: int = 180,
 ) -> tuple[dict[str, Any], int]:
-    """用真实 Codex exec 验证模型通道，不启动 Council 或任何工具。"""
-
-    repository_root = repository_root.resolve(strict=True)
-    product_root = (repository_root / "product").resolve(strict=True)
-    output_dir = output_dir.resolve()
-    if output_dir.exists():
-        raise ValueError("NESTED_CODEX_PROBE_OUTPUT_EXISTS")
-    invocation_dir = output_dir / "invocation"
-    runtime_root = output_dir / ".codex-runtime"
-    sqlite_home = runtime_root / "sqlite"
-    log_dir = runtime_root / "logs"
-    tmp_dir = runtime_root / "tmp"
-    for path in (invocation_dir, sqlite_home, log_dir, tmp_dir):
-        path.mkdir(parents=True, exist_ok=False)
-
-    prompt_path = invocation_dir / "prompt.txt"
-    prompt_path.write_text(
-        "这是开发控制面的 Codex 模型连通性探针。禁止调用工具、禁止读取或修改项目、"
-        f"禁止启动 portfolio-council。最终只输出：{CONNECTIVITY_PROBE_MARKER}\n",
-        encoding="utf-8",
-    )
-    events_path = invocation_dir / "codex-events.jsonl"
-    stderr_path = invocation_dir / "codex-stderr.log"
-    raw_final_path = tmp_dir / "final-message.txt"
-    command = build_nested_codex_command(
-        codex_binary=codex_binary,
-        product_root=product_root,
-        run_dir=output_dir,
-        model=model,
-        sqlite_home=sqlite_home,
-        log_dir=log_dir,
-        final_message_path=raw_final_path,
-        hook_recorder_path=product_root / "runtime" / "codex_hook_recorder.py",
-        externally_sandboxed=True,
-    )
-    invocation = {
-        "schema_version": CONNECTIVITY_PROBE_VERSION,
-        "cwd": str(product_root),
-        "repo_root": str(repository_root),
-        "output_dir": str(output_dir),
-        "model": model,
-        "command": command,
-        "prompt_sha256": file_hash(prompt_path),
-        "permission_profile_hash": os.environ.get("STOCK_AGENT_PERMISSION_PROFILE_HASH"),
-        "COMMAND_NETWORK_STATUS": command_network_status,
-        "started_at": _utc_now(),
-    }
-    invocation["invocation_hash"] = canonical_hash(invocation)
-    _write_json(invocation_dir / "invocation-manifest.json", invocation)
-
-    environment = dict(os.environ)
-    environment["TMPDIR"] = str(tmp_dir)
-    environment["PYTHONDONTWRITEBYTECODE"] = "1"
-    timed_out = False
-    started = time.monotonic()
-    with prompt_path.open("r", encoding="utf-8") as prompt_stream, events_path.open(
-        "w", encoding="utf-8"
-    ) as stdout_stream, stderr_path.open("w", encoding="utf-8") as stderr_stream:
-        try:
-            completed = subprocess.run(
-                command,
-                cwd=product_root,
-                stdin=prompt_stream,
-                stdout=stdout_stream,
-                stderr=stderr_stream,
-                text=True,
-                env=environment,
-                timeout=timeout_seconds,
-                check=False,
-            )
-            exit_code = completed.returncode
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            exit_code = 124
-
-    records, event_error = _parse_jsonl(events_path)
-    stderr_text = stderr_path.read_text(encoding="utf-8")
-    event_text = events_path.read_text(encoding="utf-8")
-    final_text = raw_final_path.read_text(encoding="utf-8").strip() if raw_final_path.is_file() else ""
-    proxy_rejected = "403" in f"{stderr_text}\n{event_text}" and any(
-        marker in f"{stderr_text}\n{event_text}".lower()
-        for marker in ("blocked-by-allowlist", "proxy", "tunnel")
-    )
-    failure_code: str | None = None
-    first_divergence: str | None = None
-    if proxy_rejected:
-        failure_code = "NESTED_CODEX_PROXY_CONNECT_REJECTED"
-        first_divergence = "NESTED_CODEX_MODEL_TRANSPORT"
-    elif timed_out:
-        failure_code = "NESTED_CODEX_PROBE_TIMEOUT"
-        first_divergence = "NESTED_CODEX_MODEL_TRANSPORT"
-    elif exit_code != 0:
-        failure_code = "NESTED_CODEX_PROBE_PROCESS_FAILED"
-        first_divergence = "NESTED_CODEX_EXEC"
-    elif event_error is not None:
-        failure_code = event_error
-        first_divergence = "NESTED_CODEX_EVENT_STREAM"
-    elif final_text != CONNECTIVITY_PROBE_MARKER:
-        failure_code = "NESTED_CODEX_PROBE_MARKER_MISSING"
-        first_divergence = "NESTED_CODEX_FINAL_MESSAGE"
-
-    final_message = {
-        "schema_version": CONNECTIVITY_PROBE_VERSION,
-        "present": bool(final_text),
-        "marker_matched": final_text == CONNECTIVITY_PROBE_MARKER,
-        "message": final_text,
-        "message_sha256": canonical_hash({"message": final_text}),
-    }
-    _write_json(invocation_dir / "final-message.json", final_message)
-    result = {
-        "schema_version": CONNECTIVITY_PROBE_VERSION,
-        "status": "PASS" if failure_code is None else "BLOCKED",
-        "failure_code": failure_code,
-        "COMMAND_NETWORK_STATUS": command_network_status,
-        "NESTED_CODEX_STATUS": "PASS" if failure_code is None else "BLOCKED",
-        "FIRST_DIVERGENCE": first_divergence,
-        "blocks_change": failure_code is not None,
-        "model": model,
-        "codex_exit_code": exit_code,
-        "timed_out": timed_out,
-        "llm_calls": 1,
-        "event_count": len(records),
-        "event_error": event_error,
-        "stderr_first_exception": _first_stderr_error(stderr_text),
-        "invocation_hash": invocation["invocation_hash"],
-        "prompt_sha256": invocation["prompt_sha256"],
-        "elapsed_seconds": round(time.monotonic() - started, 3),
-        "finished_at": _utc_now(),
-    }
-    result["process_result_hash"] = canonical_hash(result)
-    _write_json(invocation_dir / "process-result.json", result)
-    return result, 0 if failure_code is None else 9
+    """旧模型探针已退役；保留直接调用的明确失败语义。"""
+    raise ValueError("PROJECT_SANDBOX_ENTRY_RETIRED")
 
 
 def launch_nested_codex(
@@ -490,6 +358,9 @@ def launch_nested_codex(
 ) -> tuple[dict[str, Any], int]:
     """Launch one prepared run and return an artifact-derived verdict."""
 
+    if preflight_report is not None:
+        raise ValueError("LEGACY_SANDBOX_MODE_RETIRED")
+
     paths = resolve_run_paths(repository_root, run_dir=run_dir)
     repository_root = Path(paths["repo_root"])
     product_root = Path(paths["product_root"])
@@ -497,46 +368,6 @@ def launch_nested_codex(
     manifest = _read_object(run_dir / "run_manifest.json")
     if Path(str(manifest.get("output_dir", ""))).resolve() != run_dir:
         raise ValueError("RUN_DIRECTORY_IDENTITY_MISMATCH")
-    preflight_binding: dict[str, Any] | None = None
-    if preflight_report is not None:
-        preflight_path = preflight_report.resolve(strict=True)
-        preflight = _read_object(preflight_path)
-        preflight_body = dict(preflight)
-        observed_report_hash = preflight_body.pop("report_hash", None)
-        expected_paths = preflight.get("paths", {})
-        resources = preflight.get("resources", {})
-        resource_hashes_valid = all(
-            isinstance(item, Mapping)
-            and Path(str(item.get("path", ""))).is_file()
-            and file_hash(Path(str(item["path"]))) == item.get("sha256")
-            for item in resources.values()
-        )
-        permission = preflight.get("permission", {})
-        permission_path = Path(str(permission.get("path", "")))
-        permission_hash_valid = (
-            permission_path.is_file()
-            and file_hash(permission_path) == permission.get("sha256")
-        )
-        if (
-            preflight.get("status") != "READY"
-            or observed_report_hash != canonical_hash(preflight_body)
-            or expected_paths.get("repo_root") != str(repository_root)
-            or expected_paths.get("product_root") != str(product_root)
-            or expected_paths.get("run_dir") != str(run_dir)
-            or not resource_hashes_valid
-            or not permission_hash_valid
-            or resources.get("root_agents", {}).get("load_status") != "LOAD_VERIFIED"
-            or resources.get("product_agents", {}).get("load_status") != "LOAD_VERIFIED"
-            or resources.get("portfolio_council_skill", {}).get("load_status") != "CONFIG_VALIDATED"
-        ):
-            raise ValueError("PREFLIGHT_BINDING_INVALID")
-        preflight_binding = {
-            "path": str(preflight_path),
-            "sha256": file_hash(preflight_path),
-            "report_hash": preflight.get("report_hash"),
-            "status": "CONFIG_VALIDATED",
-        }
-
     invocation_dir = run_dir / "invocation"
     if invocation_dir.exists():
         raise ValueError("INVOCATION_DIRECTORY_ALREADY_EXISTS")
@@ -571,7 +402,6 @@ def launch_nested_codex(
         log_dir=log_dir,
         final_message_path=raw_final_path,
         hook_recorder_path=product_root / "runtime" / "codex_hook_recorder.py",
-        externally_sandboxed=preflight_binding is not None,
     )
     environment = dict(os.environ)
     environment["TMPDIR"] = str(tmp_dir)
@@ -603,11 +433,7 @@ def launch_nested_codex(
         "run_dir": str(run_dir),
         "command": command,
         "model": manifest["model"],
-        "sandbox": (
-            "external_permission_profile_inherited"
-            if preflight_binding is not None
-            else "workspace-write"
-        ),
+        "sandbox": "workspace-write",
         "approval_policy": "never",
         "ephemeral": True,
         "hook_trust_bypass": True,
@@ -618,7 +444,7 @@ def launch_nested_codex(
         "log_dir": str(log_dir),
         "tmpdir": str(tmp_dir),
         "resource_hashes": resources,
-        "preflight_binding": preflight_binding,
+        "preflight_binding": None,
         "writable_paths": writable_paths,
         "source_integrity_before": before,
         "created_at": _utc_now(),

@@ -14,214 +14,16 @@ INSTALLATION_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(INSTALLATION_ROOT))
 
 from product.runtime.cli import build_parser  # noqa: E402
-from product.runtime.environment_preflight import build_restricted_command, permission_profile_overrides  # noqa: E402
-from product.runtime.hashing import canonical_hash  # noqa: E402
-
-
-def _review_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="受限测试/复核入口")
-    parser.add_argument(
-        "command", choices=("review-probe", "nested-codex-probe", "review-run")
-    )
-    parser.add_argument("--repo", type=Path, default=INSTALLATION_ROOT)
-    parser.add_argument("--run-dir", type=Path, required=True)
-    parser.add_argument("--evidence-dir", type=Path, required=True)
-    parser.add_argument("--tmpdir", type=Path, required=True)
-    parser.add_argument("--outside-canary", type=Path)
-    parser.add_argument("--codex-binary", default="codex")
-    parser.add_argument("--timeout-seconds", type=int, default=1800)
-    return parser
-
-
-def _absolute(path: Path, cwd: Path) -> Path:
-    return (cwd / path.expanduser()).resolve()
-
-
-def _permission_bindings(repo: Path, run: Path, evidence: Path, tmpdir: Path) -> dict[str, str]:
-    codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).resolve()
-    return {
-        "repo_root": str(repo),
-        "run_dir": str(run),
-        "output_dir": str(evidence),
-        "tmpdir": str(tmpdir),
-        "codex_home_tmp": str(codex_home / "tmp"),
-        "codex_installation_id": str(codex_home / "installation_id"),
-    }
-
-
-def _validated_permission_proof(
-    proof_path: Path, *, expected_hash: str, bindings: dict[str, str]
-) -> dict:
-    proof = json.loads(proof_path.read_text(encoding="utf-8"))
-    observed_hash = proof.get("profile_hash") or proof.get("parent", {}).get("profile_hash")
-    observed_bindings = proof.get("path_bindings") or proof.get("parent", {}).get("path_bindings")
-    if proof.get("status") != "PASS" or proof.get("child_inheritance") is not True:
-        raise ValueError("PERMISSION_PROBE_NOT_PASSED")
-    if observed_hash != expected_hash or observed_bindings != bindings:
-        raise ValueError("PERMISSION_PROBE_BINDING_MISMATCH")
-    return proof
+from product.runtime.environment_preflight import reject_legacy_entry  # noqa: E402
 
 
 def restricted_main(argv: list[str], *, calling_cwd: Path) -> int:
-    args = _review_parser().parse_args(argv)
-    repo = _absolute(args.repo, calling_cwd)
-    run = _absolute(args.run_dir, calling_cwd)
-    evidence = _absolute(args.evidence_dir, calling_cwd)
-    tmpdir = _absolute(args.tmpdir, calling_cwd)
-    if evidence == repo or evidence.is_relative_to(repo) or tmpdir == repo or tmpdir.is_relative_to(repo):
-        raise ValueError("REVIEW_OUTPUT_MUST_BE_OUTSIDE_SOURCE")
-    evidence.mkdir(parents=True, exist_ok=True)
-    tmpdir.mkdir(parents=True, exist_ok=True)
-    profile_overrides = permission_profile_overrides(
-        repository_root=repo, run_dir=run, output_dir=evidence, tmpdir=tmpdir
-    )
-    bindings = _permission_bindings(repo, run, evidence, tmpdir)
-    environment = dict(os.environ)
-    environment["TMPDIR"] = str(tmpdir)
-    environment["PYTHONDONTWRITEBYTECODE"] = "1"
-    existing_pythonpath = environment.get("PYTHONPATH")
-    environment["PYTHONPATH"] = str(repo) + (
-        os.pathsep + existing_pythonpath if existing_pythonpath else ""
-    )
-    environment["STOCK_AGENT_PERMISSION_PROFILE_HASH"] = canonical_hash(
-        {"overrides": list(profile_overrides)}
-    )
-    environment["STOCK_AGENT_PERMISSION_PATH_BINDINGS"] = json.dumps(bindings, sort_keys=True)
-    if args.command == "review-probe":
-        if args.outside_canary is None:
-            raise ValueError("OUTSIDE_CANARY_REQUIRED")
-        outside = _absolute(args.outside_canary, calling_cwd)
-        inner = [
-            sys.executable, str(Path(__file__).resolve()), "permission-probe",
-            "--source-canary", str(repo / "AGENTS.md"), "--output-dir", str(evidence),
-            "--tmpdir", str(tmpdir), "--outside-canary", str(outside),
-            "--output", str(evidence / "permission-probe.json"),
-            "--codex-binary", args.codex_binary,
-        ]
-    elif args.command == "nested-codex-probe":
-        proof_path = evidence / "permission-probe.json"
-        proof = _validated_permission_proof(
-            proof_path,
-            expected_hash=environment["STOCK_AGENT_PERMISSION_PROFILE_HASH"],
-            bindings=bindings,
-        )
-        inner = [
-            sys.executable,
-            "-m",
-            "product.runtime.cli",
-            "nested-codex-probe",
-            "--repo",
-            str(repo),
-            "--output-dir",
-            str(evidence / "nested-codex-probe"),
-            "--model",
-            "gpt-5.6-terra",
-            "--command-network-status",
-            str(proof.get("COMMAND_NETWORK_STATUS", "UNKNOWN")),
-            "--codex-binary",
-            args.codex_binary,
-            "--timeout-seconds",
-            str(args.timeout_seconds),
-        ]
-    else:
-        proof_path = evidence / "permission-probe.json"
-        if not proof_path.exists():
-            # 复用既有权限检查作为启动准备；不要求操作者另跑检查命令。
-            probe_code = restricted_main(
-                [
-                    "review-probe", "--repo", str(repo), "--run-dir", str(run),
-                    "--evidence-dir", str(evidence), "--tmpdir", str(tmpdir),
-                    "--outside-canary", str(Path(environment.get(
-                        "CODEX_HOME", str(Path.home() / ".codex")
-                    )) / "config.toml"),
-                    "--codex-binary", args.codex_binary,
-                ],
-                calling_cwd=calling_cwd,
-            )
-            if probe_code != 0:
-                return probe_code
-        _validated_permission_proof(
-            proof_path,
-            expected_hash=environment["STOCK_AGENT_PERMISSION_PROFILE_HASH"],
-            bindings=bindings,
-        )
-        preflight_dir = evidence / "preflight"
-        if not (preflight_dir / "preflight.json").is_file():
-            preflight_cmd = [
-                sys.executable, str(Path(__file__).resolve()), "environment-preflight", "--repo", str(repo),
-                "--run-dir", str(run), "--output-dir", str(preflight_dir), "--mode", "runtime",
-                "--permission-evidence", str(proof_path), "--requested-model", "gpt-5.6-terra",
-                "--codex-binary", args.codex_binary,
-            ]
-            preflight = subprocess.run(preflight_cmd, cwd=repo, env=environment, check=False)
-            if preflight.returncode != 0:
-                return preflight.returncode
-        inner = [
-            sys.executable, str(Path(__file__).resolve()), "nested-codex-smoke", "--repo", str(repo),
-            "--run-dir", str(run), "--codex-binary", args.codex_binary,
-            "--timeout-seconds", str(args.timeout_seconds),
-            "--preflight-report", str(preflight_dir / "preflight.json"),
-        ]
-    command = build_restricted_command(
-        inner, repository_root=repo, run_dir=run, output_dir=evidence,
-        tmpdir=tmpdir, codex_binary=args.codex_binary, log_denials=True,
-    )
-    completed = subprocess.run(command, cwd=evidence, env=environment, text=True, capture_output=True, check=False)
-    stem = {
-        "review-probe": "permission-probe",
-        "nested-codex-probe": "nested-codex-probe",
-        "review-run": "runtime",
-    }[args.command]
-    (evidence / f"{stem}-stdout.log").write_text(completed.stdout, encoding="utf-8")
-    (evidence / f"{stem}-stderr.log").write_text(completed.stderr, encoding="utf-8")
-    nested_result = None
-    nested_result_path = evidence / "nested-codex-probe" / "invocation" / "process-result.json"
-    if args.command == "nested-codex-probe" and nested_result_path.is_file():
-        nested_result = json.loads(nested_result_path.read_text(encoding="utf-8"))
-    permission_result = None
-    permission_result_path = evidence / "permission-probe.json"
-    if permission_result_path.is_file():
-        permission_result = json.loads(permission_result_path.read_text(encoding="utf-8"))
-    status_source = nested_result or permission_result or {}
-    result = {
-        "status": "PASS" if completed.returncode == 0 else "BLOCKED",
-        "failure_code": (
-            None
-            if completed.returncode == 0
-            else (nested_result or {}).get("failure_code", "RESTRICTED_PROCESS_FAILED")
-        ),
-        "process_exit_code": completed.returncode,
-        "profile_hash": environment["STOCK_AGENT_PERMISSION_PROFILE_HASH"],
-        "path_bindings": bindings,
-        "command": command,
-        "COMMAND_NETWORK_STATUS": (
-            status_source.get("COMMAND_NETWORK_STATUS")
-        ),
-        "NESTED_CODEX_STATUS": (
-            (nested_result or {}).get("NESTED_CODEX_STATUS")
-            if nested_result is not None
-            else ("NOT_REACHED" if args.command == "nested-codex-probe" else "NOT_EXECUTED")
-        ),
-        "FIRST_DIVERGENCE": (
-            status_source.get("FIRST_DIVERGENCE")
-            or (
-                "RESTRICTED_CHILD_ENTRY"
-                if args.command == "nested-codex-probe" and nested_result is None
-                else None
-            )
-        ),
-        "blocks_change": completed.returncode != 0,
-        "llm_calls": 0 if args.command == "review-probe" else (1 if args.command == "nested-codex-probe" else None),
-    }
-    (evidence / f"{stem}-process.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return completed.returncode
+    """旧项目沙箱入口已退役，不读取路径、不创建产物。"""
+    raise ValueError("PROJECT_SANDBOX_ENTRY_RETIRED")
 
 
 def forwarded_command(argv: list[str], *, calling_cwd: Path) -> tuple[list[str], Path]:
+    reject_legacy_entry(argv)
     parser = build_parser()
     subparsers = next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction))
     # 从权威 CLI 读取参数契约，不维护另一份子命令或路径参数清单。
@@ -273,8 +75,7 @@ def forwarded_command(argv: list[str], *, calling_cwd: Path) -> tuple[list[str],
 def main(argv: list[str] | None = None) -> int:
     try:
         arguments = list(sys.argv[1:] if argv is None else argv)
-        if arguments and arguments[0] in {"review-probe", "nested-codex-probe", "review-run"}:
-            raise ValueError("PROJECT_SANDBOX_ENTRY_RETIRED:独立复核只读取已有证据；隔离验收为UNVERIFIED")
+        reject_legacy_entry(arguments)
         if arguments and arguments[0] == "self-check":
             # 明确白名单，不允许自检参数转发为任意运行/沙箱命令。
             allowed = {"check-run", "trace-check"}

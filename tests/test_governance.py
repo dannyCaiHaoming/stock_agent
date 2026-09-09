@@ -8,6 +8,39 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class GovernanceTests(unittest.TestCase):
+    def test_root_instructions_separate_checks_host_execution_and_review(self):
+        text = (ROOT / "AGENTS.md").read_text()
+        for expected in (
+            "开发自检在当前 Codex 环境", "scripts/council-dev.py self-check",
+            "不自动启动产品、模型、网络探针或项目沙箱",
+            "真实 Smoke 与 Execution Replay 仅从宿主 Terminal",
+            "scripts/run-product-smoke.sh", "--prepared-run",
+            "独立复核默认读取差异、规格与已有证据",
+            "不绕过宿主入口直接启动模型", "旧 review/probe/preflight 启动入口已退役",
+        ):
+            self.assertIn(expected, text)
+        self.assertNotIn("运行工具入口为", text)
+        environment = (ROOT / "docs/development/environment.md").read_text()
+        self.assertIn("全进程源码强制只读为 **UNVERIFIED**", environment)
+        self.assertIn("environment-preflight、permission-probe 和 --preflight-report", environment)
+        self.assertIn("历史产物仅供读取", environment)
+
+    def test_project_config_retains_native_settings_without_unused_profile(self):
+        config = tomllib.loads((ROOT / ".codex/config.toml").read_text())
+        # 本 Change 基线的有效配置；只移除没有消费者的 project-edit 域名表。
+        expected_agents = {"max_threads": 4}
+        for name, description in (
+            ("dev_architect", "OpenSpec 一致性、能力边界和架构决策。"),
+            ("dev_contracts", "版本化数据、证据、决策和追踪契约。"),
+            ("dev_eval", "真实 Runtime 产物的独立语义评分、回归和消融验证。"),
+            ("dev_reviewer", "权限、架构边界、回归结果和晋升证据的只读评审。"),
+        ):
+            expected_agents[name] = {"description": description, "config_file": f"agents/{name}.toml"}
+        self.assertEqual(config, {
+            "model": "gpt-5.6-sol", "sandbox_mode": "workspace-write",
+            "agents": expected_agents, "sandbox_workspace_write": {"network_access": True},
+        })
+
     def test_development_control_plane_has_no_runtime_authority(self):
         text = (ROOT / "AGENTS.md").read_text()
         self.assertIn("不继承产品运行时 CIO 权限", text)

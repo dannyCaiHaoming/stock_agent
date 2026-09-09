@@ -128,6 +128,8 @@ class EntrySeparationTests(unittest.TestCase):
     def test_self_check_and_retired_entries_never_start_process(self):
         main = runpy.run_path(str(ROOT / 'scripts/council-dev.py'))['main']
         commands = [['review-run'], ['review-probe'], ['nested-codex-probe'],
+                    ['environment-preflight'], ['permission-probe'],
+                    ['nested-codex-smoke', '--preflight-report=missing.json'],
                     ['self-check'], ['self-check', 'nested-codex-smoke'],
                     ['self-check', 'environment-preflight'], ['self-check', 'regression']]
         for args in commands:
@@ -137,13 +139,20 @@ class EntrySeparationTests(unittest.TestCase):
 
     def test_self_check_only_forwards_deterministic_command_and_exit(self):
         main = runpy.run_path(str(ROOT / 'scripts/council-dev.py'))['main']
-        for status in (0, 7):
-            with patch('subprocess.run', return_value=subprocess.CompletedProcess([], status)) as run:
-                self.assertEqual(main(['self-check', 'trace-check', '--run-dir', '/tmp/example', '--output', '/tmp/trace-result.json']), status)
-                command = run.call_args.args[0]
-                self.assertEqual(command[3], 'trace-check')
-                self.assertNotIn('sandbox', command)
-                self.assertNotIn('nested-codex-smoke', command)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            (base / 'run_manifest.json').write_text('{}')
+            for name in ('trace-check', 'check-run'):
+                for status in (0, 7):
+                    arguments = ['self-check', name, '--run-dir', directory]
+                    if name == 'trace-check':
+                        arguments.extend(['--output', str(base / 'trace-result.json')])
+                    with patch('subprocess.run', return_value=subprocess.CompletedProcess([], status)) as run:
+                        self.assertEqual(main(arguments), status)
+                        command = run.call_args.args[0]
+                        self.assertEqual(command[3], name)
+                        self.assertNotIn('sandbox', command)
+                        self.assertNotIn('nested-codex-smoke', command)
 
     def test_prepared_replay_and_check_use_frozen_root(self):
         import json

@@ -1,0 +1,11 @@
+test_root_instructions_separate_checks_host_execution_and_review (tests.test_governance.GovernanceTests.test_root_instructions_separate_checks_host_execution_and_review) ... ok
+test_project_config_retains_native_settings_without_unused_profile (tests.test_governance.GovernanceTests.test_project_config_retains_native_settings_without_unused_profile) ... ok
+test_development_control_plane_has_no_runtime_authority (tests.test_governance.GovernanceTests.test_development_control_plane_has_no_runtime_authority) ... ok
+test_development_documents_are_conditional_and_roles_do_not_leak (tests.test_governance.GovernanceTests.test_development_documents_are_conditional_and_roles_do_not_leak) ... ok
+test_development_agents_are_registered_for_codex_native_delegation (tests.test_governance.GovernanceTests.test_development_agents_are_registered_for_codex_native_delegation) ... ok
+test_effective_development_defaults_match_canonical_policy (tests.test_development_environment.ModelConfigurationTests.test_effective_development_defaults_match_canonical_policy) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK

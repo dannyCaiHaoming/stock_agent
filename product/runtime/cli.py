@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -29,8 +30,8 @@ from .eval_execution_proof import (
     persist_eval_execution_proof,
 )
 from .trace_validation import trace_integrity_report
-from .nested_codex import launch_nested_codex, run_nested_codex_connectivity_probe
-from .environment_preflight import run_environment_preflight, run_permission_probe_with_child
+from .nested_codex import launch_nested_codex
+from .environment_preflight import reject_legacy_entry
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -184,40 +185,18 @@ def build_parser() -> argparse.ArgumentParser:
     nested.add_argument("--run-dir", type=Path, required=True)
     nested.add_argument("--codex-binary", default="codex")
     nested.add_argument("--timeout-seconds", type=int, default=1800)
-    nested.add_argument("--preflight-report", type=Path)
-
-    preflight = subparsers.add_parser("environment-preflight")
-    preflight.add_argument("--repo", type=Path, required=True)
-    preflight.add_argument("--run-dir", type=Path, required=True)
-    preflight.add_argument("--output-dir", type=Path, required=True)
-    preflight.add_argument("--mode", choices=("development", "review", "runtime"), required=True)
-    preflight.add_argument("--requested-model")
-    preflight.add_argument("--permission-evidence", type=Path)
-    preflight.add_argument("--codex-binary", default="codex")
-
-    permission_probe = subparsers.add_parser("permission-probe")
-    permission_probe.add_argument("--source-canary", type=Path, required=True)
-    permission_probe.add_argument("--output-dir", type=Path, required=True)
-    permission_probe.add_argument("--tmpdir", type=Path, required=True)
-    permission_probe.add_argument("--outside-canary", type=Path, required=True)
-    permission_probe.add_argument("--output", type=Path, required=True)
-    permission_probe.add_argument("--child", action="store_true")
-    permission_probe.add_argument("--codex-binary", default="codex")
-
-    nested_probe = subparsers.add_parser("nested-codex-probe")
-    nested_probe.add_argument("--repo", type=Path, required=True)
-    nested_probe.add_argument("--output-dir", type=Path, required=True)
-    nested_probe.add_argument("--model", required=True)
-    nested_probe.add_argument("--command-network-status", required=True)
-    nested_probe.add_argument("--codex-binary", default="codex")
-    nested_probe.add_argument("--timeout-seconds", type=int, default=180)
-
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    try:
+        reject_legacy_entry(arguments)
+    except ValueError as exc:
+        print(json.dumps({"status": "BLOCKED", "failure_code": str(exc), "llm_calls": 0}))
+        return 2
+    args = parser.parse_args(arguments)
     if args.command == "prepare":
         result = prepare_run(
             args.repo,
@@ -337,42 +316,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             run_dir=args.run_dir,
             codex_binary=args.codex_binary,
             timeout_seconds=args.timeout_seconds,
-            preflight_report=args.preflight_report,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
-    elif args.command == "environment-preflight":
-        result, exit_code = run_environment_preflight(
-            args.repo,
-            run_dir=args.run_dir,
-            output_dir=args.output_dir,
-            mode=args.mode,
-            requested_model=args.requested_model,
-            permission_evidence=args.permission_evidence,
-            codex_binary=args.codex_binary,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
-    elif args.command == "permission-probe":
-        result, exit_code = run_permission_probe_with_child(
-            source_canary=args.source_canary,
-            output_dir=args.output_dir,
-            tmpdir=args.tmpdir,
-            outside_canary=args.outside_canary,
-            output_path=args.output,
-            child=args.child,
-            codex_binary=args.codex_binary,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
-    elif args.command == "nested-codex-probe":
-        result, exit_code = run_nested_codex_connectivity_probe(
-            args.repo,
-            output_dir=args.output_dir,
-            model=args.model,
-            command_network_status=args.command_network_status,
-            codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds,
+            preflight_report=None,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return exit_code

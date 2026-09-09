@@ -1,0 +1,39 @@
+test_development_environment (unittest.loader._FailedTest.test_development_environment) ... ERROR
+test_development_environment (unittest.loader._FailedTest.test_development_environment) ... ERROR
+test_prepared_replay_and_check_use_frozen_root (tests.test_host_proxy_scripts.EntrySeparationTests.test_prepared_replay_and_check_use_frozen_root) ... ok
+test_review_rejected_before_any_external_call (tests.test_host_proxy_scripts.EntrySeparationTests.test_review_rejected_before_any_external_call) ... ok
+test_self_check_and_retired_entries_never_start_process (tests.test_host_proxy_scripts.EntrySeparationTests.test_self_check_and_retired_entries_never_start_process) ... ok
+test_self_check_only_forwards_deterministic_command_and_exit (tests.test_host_proxy_scripts.EntrySeparationTests.test_self_check_only_forwards_deterministic_command_and_exit) ... ok
+
+======================================================================
+ERROR: test_development_environment (unittest.loader._FailedTest.test_development_environment)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_development_environment
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/loader.py", line 137, in loadTestsFromName
+    module = __import__(module_name)
+  File "/Users/caihaoming/Documents/stock_agent/tests/test_development_environment.py", line 22, in <module>
+    from product.runtime.environment_preflight import (
+    ...<9 lines>...
+    )
+ImportError: cannot import name 'network_access_probe' from 'product.runtime.environment_preflight' (/Users/caihaoming/Documents/stock_agent/product/runtime/environment_preflight.py)
+
+
+======================================================================
+ERROR: test_development_environment (unittest.loader._FailedTest.test_development_environment)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_development_environment
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/loader.py", line 137, in loadTestsFromName
+    module = __import__(module_name)
+  File "/Users/caihaoming/Documents/stock_agent/tests/test_development_environment.py", line 22, in <module>
+    from product.runtime.environment_preflight import (
+    ...<9 lines>...
+    )
+ImportError: cannot import name 'network_access_probe' from 'product.runtime.environment_preflight' (/Users/caihaoming/Documents/stock_agent/product/runtime/environment_preflight.py)
+
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.016s
+
+FAILED (errors=2)

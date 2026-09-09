@@ -51,22 +51,49 @@ class NestedCodexLauncherTests(unittest.TestCase):
         self.assertTrue(any(item.startswith("hooks.SubagentStart=") for item in command))
         self.assertTrue(any(item.startswith("hooks.SubagentStop=") for item in command))
 
-    def test_external_profile_mode_does_not_attempt_nested_seatbelt(self):
+    def test_command_default_and_explicit_false_preserve_native_sandbox(self):
         run_dir = Path("/tmp/run")
-        command = build_nested_codex_command(
+        arguments = dict(
             codex_binary="codex",
             product_root=ROOT / "product",
             run_dir=run_dir,
             model="gpt-5.6-terra",
-            sqlite_home=run_dir / ".codex-runtime" / "sqlite",
-            log_dir=run_dir / ".codex-runtime" / "logs",
-            final_message_path=run_dir / ".codex-runtime" / "tmp" / "final.txt",
-            hook_recorder_path=ROOT / "product" / "runtime" / "codex_hook_recorder.py",
-            externally_sandboxed=True,
+            sqlite_home=run_dir / ".codex-runtime/sqlite",
+            log_dir=run_dir / ".codex-runtime/logs",
+            final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
+            hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
         )
-        self.assertIn("--dangerously-bypass-approvals-and-sandbox", command)
-        self.assertNotIn("--sandbox", command)
-        self.assertNotIn("workspace-write", command)
+        command = build_nested_codex_command(**arguments)
+        self.assertEqual(command, build_nested_codex_command(**arguments, externally_sandboxed=False))
+        self.assertEqual(command[command.index("--sandbox") + 1], "workspace-write")
+        self.assertEqual(command[command.index("--ask-for-approval") + 1], "never")
+        for forbidden in ("--dangerously-bypass-approvals-and-sandbox", "--yolo", "danger-full-access"):
+            self.assertNotIn(forbidden, command)
+        with patch("subprocess.run") as run, patch.object(Path, "mkdir") as mkdir, patch.object(Path, "read_text") as read:
+            with self.assertRaisesRegex(ValueError, "^LEGACY_SANDBOX_MODE_RETIRED$"):
+                build_nested_codex_command(**arguments, externally_sandboxed=True)
+            run.assert_not_called()
+            mkdir.assert_not_called()
+            read.assert_not_called()
+
+    def test_preflight_is_rejected_before_run_or_report_is_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report = base / "preflight.json"
+            report.write_text('{"status":"READY","report_hash":"historical"}')
+            for path in (report, base / "missing.json"):
+                with self.subTest(path=path), patch(
+                    "product.runtime.nested_codex.resolve_run_paths"
+                ) as resolve, patch("subprocess.run") as run, patch.object(
+                    Path, "read_text"
+                ) as read, patch.object(Path, "mkdir") as mkdir:
+                    with self.assertRaisesRegex(ValueError, "^LEGACY_SANDBOX_MODE_RETIRED$"):
+                        launch_nested_codex(ROOT, run_dir=base / "unprepared", preflight_report=path)
+                    resolve.assert_not_called()
+                    read.assert_not_called()
+                    mkdir.assert_not_called()
+                    run.assert_not_called()
+            self.assertEqual(sorted(p.name for p in base.iterdir()), ["preflight.json"])
 
     def test_hook_recorder_minimizes_output_and_scopes_log_to_run(self):
         with tempfile.TemporaryDirectory() as directory:

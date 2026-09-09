@@ -5,7 +5,10 @@
 ## 适用范围与入口
 
 - 开发任务不充当 CIO；产品分析仅在有效组合输入与 `portfolio-council` 调用下应用 [product/AGENTS.md](product/AGENTS.md)，不执行开发归档、Git 提交或推送。
-- 行为变更使用 OpenSpec：先 propose/update，再显式 apply；实施前阅读当前 Proposal、Specs、Design、Tasks。运行工具入口为 `python3 -m product.runtime.cli`，新 LLM 运行复用 `nested-codex-smoke`，不另造编排后端。
+- 行为变更使用 OpenSpec：先 propose/update，再显式 apply；实施前阅读当前 Proposal、Specs、Design、Tasks。
+- 开发自检在当前 Codex 环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。
+- 真实 Smoke 与 Execution Replay 仅从宿主 Terminal 使用 [宿主 launcher](scripts/run-product-smoke.sh)；重放使用 `--prepared-run`，准备及收尾见运行手册。底层 `python3 -m product.runtime.cli` 仅为内部实现及确定性工具入口，不另造编排后端、不绕过宿主入口直接启动模型。
+- 独立复核默认读取差异、规格与已有证据；缺证据只提出具体宿主补跑需求，不自行启动产品或额外沙箱。旧 review/probe/preflight 启动入口已退役。
 - 实施、验收或归档时读取 [开发流程](docs/development/workflow.md)；配置、路径、权限或启动排障时读取 [开发环境](docs/development/environment.md)；实际运行/重放/Eval 时读取 [运行手册](reviews/runtime/runtime-replay-eval-runbook.md) 的对应章节。无关专项文档不必全部加载。
 
 ## 职责边界

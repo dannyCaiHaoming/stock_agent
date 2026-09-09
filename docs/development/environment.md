@@ -2,7 +2,7 @@
 
 ## 入口和路径
 
-现有底层入口为 `python3 -m product.runtime.cli`（模块调用从仓库根），`nested-codex-smoke` 是已有统一 LLM launcher。不要复制旧管道命令或创建第二套 Python LLM 编排。路径无关薄入口及 preflight 的实施状态以当前 Change Tasks 为准，未完成时不得宣称已可用。
+现有底层入口为 `python3 -m product.runtime.cli`（模块调用从仓库根），`nested-codex-smoke` 是宿主脚本消费的统一 LLM launcher，不是开发自检的直接模型入口。真实运行使用下文宿主方式，不复制旧管道命令或创建第二套 Python LLM 编排。旧 preflight 执行入口已退役，历史产物仅供读取。
 
 路径无关转发入口为 `python3 <仓库路径>/scripts/council-dev.py <既有子命令> ...`。它复用底层 CLI 参数；普通命令省略 `--repo` 时从脚本位置定位，其他相对路径按调用时目录解析。`prepare-execution-replay` 仍由原实现物化密封快照，之后 `nested-codex-smoke --run-dir ...` 自动选择该运行 manifest 的冻结 workspace，最后调用原 `finalize-execution-replay`。Regression 仍显式消费 run-index，缺案例不会自动启动模型；已获授权的新案例先经 prepare 和同一 nested-codex-smoke 执行。
 
@@ -24,10 +24,10 @@
 - 开发只修改授权源码；保留当前 Codex 原生权限，不自动提权或修改系统配置。
 - 独立 Reviewer 默认读取代码差异、规格和已有运行包。补跑只报告具体缺口，由用户授权宿主入口执行；不把独立性实现为新建沙箱。
 - 全进程源码强制只读为 **UNVERIFIED**，经人工批准排除在当前 Change 完成保证之外。launcher、Hook、MCP 等进程可能写入原生权限允许的文件；hash 检查不能阻止写入。
-- 历史隔离实现与探针保留，但不在开发自检或产品执行链中调用；原生权限、Hook、run-scoped 状态、Evidence/PIT/Risk 和 fail-closed 校验不变。
+- 历史隔离与 preflight 产物保留供审计，不授权当前启动；旧启动函数明确拒绝，不再根据外部沙箱声明关闭原生沙箱。原生权限、Hook、run-scoped 状态、Evidence/PIT/Risk 和 fail-closed 校验不变。
 - 不重新排查代理、不修改 Shadowrocket 或域名、不关闭 network_proxy、不开放整个 CODEX_HOME、不复制认证或会话。
-- 旧 --review 与 review-run/review-probe/nested-codex-probe 开发入口明确非零拒绝，不回退、不创建产物或调用模型。
-- preflight/doctor 是历史专项诊断，不作为日常源码检查、证据读取的必需前置。缺少预备 run 或权限探针不是普通开发的阻断条件。
+- 旧 --review、review-run/review-probe/nested-codex-probe、environment-preflight、permission-probe 和 --preflight-report 在薄入口及底层入口明确非零拒绝，不回退、不读取运行包、不创建产物或调用模型；直接旧启动 API 同样拒绝。
+- preflight 不再执行；本机 doctor 仅按既有授权用途使用，不作为日常源码检查、证据读取的必需前置。缺少预备 run 或权限探针不是普通开发的阻断条件。
 
 ## 宿主代理与手动 Product Smoke
 

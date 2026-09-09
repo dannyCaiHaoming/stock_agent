@@ -31,7 +31,6 @@ from product.runtime.environment_preflight import (
     run_environment_preflight,
 )
 from product.runtime.nested_codex import (
-    CONNECTIVITY_PROBE_MARKER,
     run_nested_codex_connectivity_probe,
 )
 
@@ -250,71 +249,6 @@ class PermissionContractTests(unittest.TestCase):
         self.assertEqual(result["failure_code"], "NETWORK_PROXY_CONNECT_REJECTED")
         self.assertEqual(result["error_classification"], "HTTP_CONNECT_403")
 
-    def test_command_network_block_does_not_fail_permission_probe(self):
-        parent = {
-            "status": "PASS",
-            "profile_hash": "profile-hash",
-            "path_bindings": {},
-        }
-        child = subprocess.CompletedProcess(
-            ["child"], 0, json.dumps(parent) + "\n", ""
-        )
-        records = [
-            {
-                "role": "developer",
-                "content": [
-                    {
-                        "text": "\n".join(
-                            (
-                                (ROOT / "AGENTS.md").read_text(encoding="utf-8"),
-                                (ROOT / "product" / "AGENTS.md").read_text(encoding="utf-8"),
-                                "product:portfolio-council",
-                            )
-                        )
-                    }
-                ],
-            }
-        ]
-        config = subprocess.CompletedProcess(["codex"], 0, json.dumps(records), "")
-        blocked = {
-            "scope": "SANDBOXED_COMMAND",
-            "gating": False,
-            "status": "BLOCKED",
-            "failure_code": "NETWORK_PROXY_CONNECT_REJECTED",
-        }
-        with tempfile.TemporaryDirectory() as directory, patch.dict(
-            os.environ,
-            {
-                "STOCK_AGENT_PERMISSION_PROFILE_HASH": "profile-hash",
-                "STOCK_AGENT_PERMISSION_PATH_BINDINGS": "{}",
-            },
-        ):
-            base = Path(directory)
-            output = base / "permission.json"
-            with patch(
-                "product.runtime.environment_preflight.permission_probe",
-                return_value=parent,
-            ), patch(
-                "product.runtime.environment_preflight._command_output",
-                side_effect=(child, config),
-            ), patch(
-                "product.runtime.environment_preflight.command_network_probe",
-                return_value=blocked,
-            ):
-                result, code = run_permission_probe_with_child(
-                    source_canary=ROOT / "AGENTS.md",
-                    output_dir=base,
-                    tmpdir=base,
-                    outside_canary=base / "outside",
-                    output_path=output,
-                )
-        self.assertEqual(code, 0)
-        self.assertEqual(result["status"], "PASS")
-        self.assertEqual(result["COMMAND_NETWORK_STATUS"], "BLOCKED")
-        self.assertEqual(result["NESTED_CODEX_STATUS"], "NOT_EXECUTED")
-        self.assertIsNone(result["FIRST_DIVERGENCE"])
-        self.assertFalse(result["blocks_change"])
-
     def test_probe_never_writes_source_or_outside_canary(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
@@ -345,204 +279,94 @@ class PermissionContractTests(unittest.TestCase):
             self.assertEqual(result["outside_bytes_written"], 0)
 
 
-class NestedCodexConnectivityProbeTests(unittest.TestCase):
-    def _fake_run(self, *, blocked: bool):
-        def run(command, **kwargs):
-            kwargs["stdout"].write(json.dumps({"type": "thread.started"}) + "\n")
-            if blocked:
-                kwargs["stderr"].write(
-                    "HTTP CONNECT 403: blocked-by-allowlist\n"
-                )
-                return subprocess.CompletedProcess(command, 1)
-            final_path = Path(command[command.index("--output-last-message") + 1])
-            final_path.write_text(CONNECTIVITY_PROBE_MARKER, encoding="utf-8")
-            return subprocess.CompletedProcess(command, 0)
-
-        return run
-
-    def test_nested_codex_probe_passes_only_with_event_and_marker(self):
-        with tempfile.TemporaryDirectory() as directory, patch(
-            "product.runtime.nested_codex.subprocess.run",
-            side_effect=self._fake_run(blocked=False),
-        ):
-            result, code = run_nested_codex_connectivity_probe(
-                ROOT,
-                output_dir=Path(directory) / "probe",
-                model="gpt-5.6-terra",
-                command_network_status="BLOCKED",
-            )
-        self.assertEqual(code, 0)
-        self.assertEqual(result["NESTED_CODEX_STATUS"], "PASS")
-        self.assertEqual(result["COMMAND_NETWORK_STATUS"], "BLOCKED")
-        self.assertIsNone(result["FIRST_DIVERGENCE"])
-        self.assertFalse(result["blocks_change"])
-
-    def test_nested_codex_probe_403_is_the_network_blocker(self):
-        with tempfile.TemporaryDirectory() as directory, patch(
-            "product.runtime.nested_codex.subprocess.run",
-            side_effect=self._fake_run(blocked=True),
-        ):
-            result, code = run_nested_codex_connectivity_probe(
-                ROOT,
-                output_dir=Path(directory) / "probe",
-                model="gpt-5.6-terra",
-                command_network_status="BLOCKED",
-            )
-        self.assertEqual(code, 9)
-        self.assertEqual(result["NESTED_CODEX_STATUS"], "BLOCKED")
-        self.assertEqual(
-            result["failure_code"], "NESTED_CODEX_PROXY_CONNECT_REJECTED"
-        )
-        self.assertEqual(result["FIRST_DIVERGENCE"], "NESTED_CODEX_MODEL_TRANSPORT")
-        self.assertTrue(result["blocks_change"])
-
-    def test_nested_codex_probe_preserves_403_as_first_cause_after_timeout(self):
-        def timed_out_after_403(command, **kwargs):
-            kwargs["stdout"].write(json.dumps({"type": "thread.started"}) + "\n")
-            kwargs["stderr"].write(
-                "Proxy connection failed: HTTP CONNECT failed with status 403; "
-                "blocked-by-allowlist\n"
-            )
-            raise subprocess.TimeoutExpired(command, 180)
-
-        with tempfile.TemporaryDirectory() as directory, patch(
-            "product.runtime.nested_codex.subprocess.run",
-            side_effect=timed_out_after_403,
-        ):
-            result, code = run_nested_codex_connectivity_probe(
-                ROOT,
-                output_dir=Path(directory) / "probe",
-                model="gpt-5.6-terra",
-                command_network_status="BLOCKED",
-            )
-        self.assertEqual(code, 9)
-        self.assertTrue(result["timed_out"])
-        self.assertEqual(
-            result["failure_code"], "NESTED_CODEX_PROXY_CONNECT_REJECTED"
-        )
-
-
-class EnvironmentPreflightTests(unittest.TestCase):
+class RetiredSandboxEntryTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix="environment preflight ")
+        self.entry = runpy.run_path(str(ROOT / "scripts/council-dev.py"))
+        self.temporary = tempfile.TemporaryDirectory(prefix="retired entry ")
         self.addCleanup(self.temporary.cleanup)
-        self.base = Path(self.temporary.name).resolve()
-        self.run = self.base / "run"
-        self.run.mkdir()
-        (self.run / "run_manifest.json").write_text(
-            json.dumps(
-                {
-                    "run_id": "preflight-run",
-                    "output_dir": str(self.run),
-                    "run_mode": "PRODUCT_COUNCIL",
-                    "model": "gpt-5.6-terra",
-                }
+        self.base = Path(self.temporary.name)
+
+    def assert_no_effect(self, callback, *, exception=False, code="PROJECT_SANDBOX_ENTRY_RETIRED"):
+        output = io.StringIO()
+        with patch("subprocess.run") as run, patch("subprocess.Popen") as popen, patch(
+            "urllib.request.urlopen"
+        ) as network, patch.object(Path, "read_text") as read, patch.object(
+            Path, "mkdir"
+        ) as mkdir, contextlib.redirect_stdout(output):
+            if exception:
+                with self.assertRaisesRegex(ValueError, "^" + code + "$"):
+                    callback()
+            else:
+                self.assertEqual(callback(), 2)
+                result = json.loads(output.getvalue())
+                self.assertEqual(result["status"], "BLOCKED")
+                self.assertEqual(result["failure_code"], code)
+                self.assertEqual(result["llm_calls"], 0)
+            for operation in (run, popen, network, read, mkdir):
+                operation.assert_not_called()
+        self.assertEqual(list(self.base.iterdir()), [])
+
+    def test_all_retired_commands_fail_at_both_cli_layers(self):
+        for command in ("review-run", "review-probe", "environment-preflight",
+                        "permission-probe", "nested-codex-probe"):
+            for tail in ([], ["--repo", str(ROOT), "--run-dir", str(self.base / "run"),
+                              "--output-dir", str(self.base / "output")]):
+                for entry in (main, self.entry["main"]):
+                    with self.subTest(command=command, tail=tail, entry=entry):
+                        self.assert_no_effect(lambda: entry([command, *tail]))
+                with self.subTest(command=command, direct_forward=True):
+                    self.assert_no_effect(
+                        lambda: self.entry["forwarded_command"]([command, *tail], calling_cwd=ROOT),
+                        exception=True,
+                    )
+
+    def test_legacy_options_fail_before_missing_manifest_or_report(self):
+        for flag in ("--preflight-report", "--preflight-report=missing.json",
+                     "--review", "--review=true"):
+            code = "LEGACY_SANDBOX_MODE_RETIRED" if flag.startswith("--preflight-report") else "PROJECT_SANDBOX_ENTRY_RETIRED"
+            arguments = ["nested-codex-smoke", "--run-dir", str(self.base / "run"), flag]
+            if flag == "--preflight-report":
+                arguments.append(str(self.base / "missing.json"))
+            for entry in (main, self.entry["main"]):
+                with self.subTest(flag=flag, entry=entry):
+                    self.assert_no_effect(lambda: entry(arguments), code=code)
+            self.assert_no_effect(
+                lambda: self.entry["forwarded_command"](arguments, calling_cwd=ROOT),
+                exception=True, code=code,
+            )
+
+    def test_sys_argv_path_also_rejects_retired_entry(self):
+        for entry in (main, self.entry["main"]):
+            with patch.object(sys, "argv", ["entry", "environment-preflight"]):
+                self.assert_no_effect(entry)
+
+    def test_direct_retired_functions_never_start_legacy_work(self):
+        callbacks = [
+            lambda: self.entry["restricted_main"](["review-run"], calling_cwd=ROOT),
+            lambda: run_nested_codex_connectivity_probe(
+                ROOT, output_dir=self.base / "probe", model="gpt-5.6-terra",
+                command_network_status="PASS",
             ),
-            encoding="utf-8",
-        )
-        self.permission = self.base / "permission.json"
-        self.permission.write_text(
-            json.dumps(
-                {
-                    "status": "PASS",
-                    "child_inheritance": True,
-                    "profile_hash": "profile-hash",
-                    "path_bindings": {
-                        "repo_root": str(ROOT),
-                        "run_dir": str(self.run),
-                    },
-                }
+            lambda: run_environment_preflight(
+                ROOT, run_dir=self.base / "run", output_dir=self.base / "preflight",
+                mode="runtime", permission_evidence=self.base / "missing.json",
             ),
-            encoding="utf-8",
-        )
+        ]
+        for child in (False, True):
+            callbacks.append(lambda child=child: run_permission_probe_with_child(
+                source_canary=ROOT / "AGENTS.md", output_dir=self.base / "probe",
+                tmpdir=self.base / "tmp", outside_canary=self.base / "outside",
+                output_path=self.base / "permission.json", child=child,
+            ))
+        for callback in callbacks:
+            with self.subTest(callback=callback):
+                self.assert_no_effect(callback, exception=True)
 
-    def command_result(self, command, *, cwd):
-        if command[-2:] == ["doctor", "--json"]:
-            stdout = json.dumps(
-                {
-                    "codexVersion": "0.153.4",
-                    "checks": {
-                        "config.load": {
-                            "status": "pass",
-                            "summary": "loaded",
-                            "details": {"model": "gpt-5.6-sol"},
-                        }
-                    },
-                }
-            )
-            return subprocess.CompletedProcess(command, 1, stdout, "")
-        if "prompt-input" in command:
-            developer = "\n".join(
-                (
-                    (ROOT / "AGENTS.md").read_text(encoding="utf-8"),
-                    (ROOT / "product" / "AGENTS.md").read_text(encoding="utf-8"),
-                    "product:portfolio-council",
-                )
-            )
-            stdout = json.dumps(
-                [
-                    {"role": "developer", "content": [{"text": "product:portfolio-council"}]},
-                    {"role": "user", "content": [{"text": developer}]},
-                ]
-            )
-            return subprocess.CompletedProcess(command, 0, stdout, "")
-        if command[-2:] == ["exec", "--help"]:
-            return subprocess.CompletedProcess(command, 0, " ".join(("--ephemeral", "--json", "--sandbox", "--add-dir", "--strict-config")), "")
-        if command[-2:] == ["sandbox", "--help"]:
-            return subprocess.CompletedProcess(command, 0, "--permission-profile --sandbox-state-json --cd", "")
-        return subprocess.CompletedProcess(command, 0, "codex-cli 0.153.4", "")
-
-    def run_preflight(self, name="preflight", **overrides):
-        arguments = {
-            "run_dir": self.run,
-            "output_dir": self.base / name,
-            "mode": "runtime",
-            "requested_model": "gpt-5.6-terra",
-            "permission_evidence": self.permission,
-        }
-        arguments.update(overrides)
-        with patch(
-            "product.runtime.environment_preflight._command_output",
-            side_effect=self.command_result,
-        ):
-            return run_environment_preflight(ROOT, **arguments)
-
-    def test_ready_report_is_zero_llm_and_does_not_claim_runtime_load(self):
-        report, exit_code = self.run_preflight()
-        self.assertEqual(exit_code, 0)
-        self.assertEqual(report["status"], "READY")
-        self.assertEqual(report["llm_calls"], 0)
-        self.assertEqual(report["run_stage"], "PREPARE_ONLY")
-        self.assertEqual(report["runtime_load_status"], "UNKNOWN")
-        self.assertEqual(report["models"]["actual_model"], None)
-        self.assertEqual(report["models"]["availability"], "PENDING_RUNTIME_CONFIRMATION")
-        self.assertEqual(report["resources"]["root_agents"]["load_status"], "LOAD_VERIFIED")
-        self.assertEqual(report["resources"]["portfolio_council_skill"]["load_status"], "CONFIG_VALIDATED")
-
-    def test_permission_model_cli_and_missing_run_are_classified(self):
-        report, code = self.run_preflight("permission", permission_evidence=None)
-        self.assertEqual((code, report["failure_code"]), (8, "PERMISSION_EVIDENCE_MISSING_OR_FAILED"))
-        report, code = self.run_preflight("model", requested_model="gpt-unknown")
-        self.assertEqual((code, report["failure_code"]), (8, "MODEL_CONFIGURATION_MISMATCH"))
-        with patch(
-            "product.runtime.environment_preflight._command_output",
-            side_effect=lambda command, cwd: subprocess.CompletedProcess(
-                command,
-                0,
-                "missing required options" if command[-2:] == ["sandbox", "--help"] else self.command_result(command, cwd=cwd).stdout,
-                "",
-            ),
-        ):
-            report, code = run_environment_preflight(
-                ROOT,
-                run_dir=self.run,
-                output_dir=self.base / "unsupported",
-                mode="development",
-            )
-        self.assertEqual((code, report["failure_code"]), (8, "CODEX_CLI_CONTRACT_UNSUPPORTED"))
-        report, code = self.run_preflight("missing", run_dir=self.base / "missing")
-        self.assertEqual(code, 8)
-        self.assertEqual(report["first_divergence"], "PATH_RESOLUTION")
+    def test_retired_routes_are_not_advertised_as_active_commands(self):
+        from product.runtime.cli import build_parser
+        help_text = build_parser().format_help()
+        for name in ("environment-preflight", "permission-probe", "nested-codex-probe"):
+            self.assertNotIn(name, help_text)
 
 
 class ModelConfigurationTests(unittest.TestCase):

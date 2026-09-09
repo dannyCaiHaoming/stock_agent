@@ -25,6 +25,22 @@ REQUIRED_SANDBOX_OPTIONS = ("--permission-profile", "--sandbox-state-json", "--c
 COMMAND_NETWORK_PROBE_URL = "https://chatgpt.com/backend-api/codex/responses"
 
 
+def reject_legacy_entry(arguments: Sequence[str]) -> None:
+    """薄入口和底层入口共用退役检查；不读取文件或启动进程。"""
+    retired = {
+        "review-run", "review-probe", "nested-codex-probe",
+        "environment-preflight", "permission-probe",
+    }
+    if arguments and arguments[0] in retired:
+        raise ValueError("PROJECT_SANDBOX_ENTRY_RETIRED")
+    for token in arguments:
+        flag = token.partition("=")[0]
+        if flag == "--review":
+            raise ValueError("PROJECT_SANDBOX_ENTRY_RETIRED")
+        if flag == "--preflight-report":
+            raise ValueError("LEGACY_SANDBOX_MODE_RETIRED")
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -309,101 +325,8 @@ def run_permission_probe_with_child(
     child: bool = False,
     codex_binary: str = "codex",
 ) -> tuple[dict[str, Any], int]:
-    own = permission_probe(
-        source_canary=source_canary,
-        output_dir=output_dir,
-        tmpdir=tmpdir,
-        outside_canary=outside_canary,
-    )
-    if child:
-        return own, 0 if own["status"] == "PASS" else 9
-    command = [
-        sys.executable,
-        "-m",
-        "product.runtime.cli",
-        "permission-probe",
-        "--source-canary",
-        str(source_canary),
-        "--output-dir",
-        str(output_dir),
-        "--tmpdir",
-        str(tmpdir),
-        "--outside-canary",
-        str(outside_canary),
-        "--output",
-        str(output_path),
-        "--child",
-    ]
-    completed = _command_output(command, cwd=source_canary.resolve().parents[0])
-    try:
-        child_result = json.loads(completed.stdout.strip().splitlines()[-1])
-    except (IndexError, json.JSONDecodeError):
-        child_result = {"status": "ENVIRONMENT_ERROR", "failure_code": "CHILD_PROBE_OUTPUT_INVALID"}
-    child_inheritance = (
-        own["status"] == "PASS"
-        and completed.returncode == 0
-        and child_result.get("status") == "PASS"
-        and child_result.get("profile_hash") == own.get("profile_hash")
-    )
-    repo = source_canary.resolve().parent
-    probe_state = output_dir / ".codex-preflight-runtime"
-    probe_sqlite = probe_state / "sqlite"
-    probe_logs = probe_state / "logs"
-    for path in (probe_sqlite, probe_logs):
-        path.mkdir(parents=True, exist_ok=True)
-    configuration_load = _prompt_input_summary(
-        _command_output(
-            [
-                codex_binary,
-                "-c",
-                f'sqlite_home="{probe_sqlite}"',
-                "-c",
-                f'log_dir="{probe_logs}"',
-                "-c",
-                'history.persistence="none"',
-                "debug",
-                "prompt-input",
-                "$product:portfolio-council fixture preflight only",
-            ],
-            cwd=repo / "product",
-        ),
-        repo=repo,
-    )
-    configuration_load["state_dir"] = str(probe_state)
-    configuration_valid = (
-        configuration_load.get("status") == "LOAD_VERIFIED"
-        and configuration_load.get("root_agents_loaded") is True
-        and configuration_load.get("product_agents_loaded") is True
-        and configuration_load.get("portfolio_council_advertised") is True
-    )
-    command_network = command_network_probe()
-    overall_valid = child_inheritance and configuration_valid
-    first_divergence = None
-    if not child_inheritance:
-        first_divergence = "PERMISSION_INHERITANCE"
-    elif not configuration_valid:
-        first_divergence = "CONFIGURATION_LOAD"
-    result = {
-        "schema_version": PERMISSION_PROBE_VERSION,
-        "status": "PASS" if overall_valid else "FAIL",
-        "parent": own,
-        "child": child_result,
-        "child_process_exit_code": completed.returncode,
-        "child_inheritance": child_inheritance,
-        "configuration_load": configuration_load,
-        "command_network": command_network,
-        "COMMAND_NETWORK_STATUS": command_network["status"],
-        "NESTED_CODEX_STATUS": "NOT_EXECUTED",
-        "FIRST_DIVERGENCE": first_divergence,
-        "blocks_change": not overall_valid,
-        "child_command": command,
-        "llm_calls": 0,
-    }
-    if output_path.exists():
-        raise ValueError("PERMISSION_PROBE_OUTPUT_EXISTS")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
-    return result, 0 if overall_valid else 9
+    """旧权限子进程探针已退役，不能再创建或继承项目沙箱。"""
+    raise ValueError("PROJECT_SANDBOX_ENTRY_RETIRED")
 
 
 # 兼容现有调用方；名称保留，但语义明确限定为沙箱命令网络。
@@ -511,159 +434,5 @@ def run_environment_preflight(
     permission_evidence: Path | None = None,
     codex_binary: str = "codex",
 ) -> tuple[dict[str, Any], int]:
-    """生成可共享白名单报告；不调用 LLM，不自动修复环境。"""
-    output = output_dir.resolve()
-    if output.exists():
-        raise ValueError("PREFLIGHT_OUTPUT_EXISTS")
-    output.mkdir(parents=True)
-    failure_code: str | None = None
-    first_divergence: str | None = None
-    root_cause: str | None = None
-    try:
-        paths = resolve_run_paths(repository_root, run_dir=run_dir)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
-        paths = None
-        failure_code = str(exc)
-        first_divergence = "PATH_RESOLUTION"
-        root_cause = "运行路径或身份契约不满足"
-    repo = repository_root.resolve()
-    version = _command_output([codex_binary, "--version"], cwd=repo)
-    exec_help = _command_output([codex_binary, "exec", "--help"], cwd=repo)
-    sandbox_help = _command_output([codex_binary, "sandbox", "--help"], cwd=repo)
-    doctor = _doctor_summary(_command_output([codex_binary, "doctor", "--json"], cwd=repo))
-    prompt_input = _prompt_input_summary(
-        _command_output(
-            [codex_binary, "debug", "prompt-input", "$product:portfolio-council fixture preflight only"],
-            cwd=repo / "product",
-        ),
-        repo=repo,
-    )
-    supported = (
-        version.returncode == 0
-        and exec_help.returncode == 0
-        and sandbox_help.returncode == 0
-        and all(item in exec_help.stdout for item in REQUIRED_EXEC_OPTIONS)
-        and all(item in sandbox_help.stdout for item in REQUIRED_SANDBOX_OPTIONS)
-    )
-    if failure_code is None and not supported:
-        failure_code = "CODEX_CLI_CONTRACT_UNSUPPORTED"
-        first_divergence = "CLI_COMPATIBILITY"
-        root_cause = "本机 Codex CLI 缺少当前 launcher 或权限探针所需参数"
-    resources = _resource_inventory(repo)
-    if prompt_input.get("root_agents_loaded") is True:
-        resources["root_agents"]["load_status"] = "LOAD_VERIFIED"
-    if prompt_input.get("product_agents_loaded") is True:
-        resources["product_agents"]["load_status"] = "LOAD_VERIFIED"
-    if prompt_input.get("portfolio_council_advertised") is True:
-        resources["portfolio_council_skill"]["load_status"] = "CONFIG_VALIDATED"
-    if failure_code is None and any(item["status"] == "MISSING" for item in resources.values()):
-        failure_code = "REQUIRED_RESOURCE_MISSING"
-        first_divergence = "RESOURCE_DISCOVERY"
-        root_cause = "运行必需资源不完整"
-    if failure_code is None and prompt_input.get("status") != "LOAD_VERIFIED":
-        failure_code = "PROMPT_INPUT_LOAD_PROOF_UNAVAILABLE"
-        first_divergence = "CONFIGURATION_LOAD"
-        root_cause = "无法取得同一产品 cwd 下的 AGENTS 与 Skill 广告加载证明"
-    if failure_code is None and not all(
-        prompt_input.get(name) is True
-        for name in ("root_agents_loaded", "product_agents_loaded", "portfolio_council_advertised")
-    ):
-        failure_code = "PROMPT_INPUT_RESOURCE_MISSING"
-        first_divergence = "CONFIGURATION_LOAD"
-        root_cause = "模型可见输入缺少预期 AGENTS 链或 portfolio-council Skill 广告"
-    try:
-        policy = load_model_routing(repo / "product")
-        root_config = tomllib.loads((repo / ".codex" / "config.toml").read_text())
-        eval_config = tomllib.loads((repo / ".codex" / "agents" / "dev_eval.toml").read_text())
-        model_config_valid = (
-            root_config.get("model") == policy["development_default"]
-            and eval_config.get("model") == policy["runtime_repeated"]
-        )
-    except (OSError, ValueError, tomllib.TOMLDecodeError):
-        policy = {}
-        model_config_valid = False
-    manifest_model = None
-    if paths is not None:
-        manifest_model = _read_object(Path(paths["run_dir"]) / "run_manifest.json").get("model")
-    requested = requested_model or manifest_model
-    model_valid = model_config_valid and (
-        requested is None or requested in {policy.get("development_default"), policy.get("runtime_repeated")}
-    )
-    if failure_code is None and not model_valid:
-        failure_code = "MODEL_CONFIGURATION_MISMATCH"
-        first_divergence = "MODEL_CONFIGURATION"
-        root_cause = "请求模型与 canonical model-routing 或显式配置不一致"
-    permission = {"status": "MISSING", "path": None}
-    if permission_evidence is not None:
-        try:
-            evidence = _read_object(permission_evidence.resolve())
-            permission = {
-                "status": evidence.get("status"),
-                "path": str(permission_evidence.resolve()),
-                "sha256": file_hash(permission_evidence.resolve()),
-                "child_inheritance": evidence.get("child_inheritance"),
-                "profile_hash": evidence.get("profile_hash") or evidence.get("parent", {}).get("profile_hash"),
-                "path_bindings": evidence.get("path_bindings") or evidence.get("parent", {}).get("path_bindings"),
-            }
-        except (OSError, ValueError, json.JSONDecodeError):
-            permission = {"status": "INVALID", "path": str(permission_evidence)}
-    permission_binding_valid = (
-        paths is not None
-        and permission.get("path_bindings", {}).get("repo_root") == paths["repo_root"]
-        and permission.get("path_bindings", {}).get("run_dir") == paths["run_dir"]
-        and permission.get("child_inheritance") is True
-    )
-    if mode in {"review", "runtime"} and failure_code is None and (
-        permission.get("status") != "PASS" or not permission_binding_valid
-    ):
-        failure_code = "PERMISSION_EVIDENCE_MISSING_OR_FAILED"
-        first_divergence = "EFFECTIVE_PERMISSION"
-        root_cause = "尚无当前路径组合的实际权限证明"
-    report: dict[str, Any] = {
-        "schema_version": PREFLIGHT_VERSION,
-        "status": "READY" if failure_code is None else "BLOCKED",
-        "mode": mode,
-        "generated_at": _utc_now(),
-        "paths": paths,
-        "cli": {
-            "version_output": version.stdout.strip(),
-            "supported": supported,
-            "help_contract": {"exec": list(REQUIRED_EXEC_OPTIONS), "sandbox": list(REQUIRED_SANDBOX_OPTIONS)},
-        },
-        "doctor": doctor,
-        "prompt_input": prompt_input,
-        "models": {
-            "policy_version": policy.get("schema_version"),
-            "requested_model": requested,
-            "manifest_model": manifest_model,
-            "configured_development_model": policy.get("development_default"),
-            "configured_runtime_model": policy.get("runtime_repeated"),
-            "actual_model": None,
-            "availability": "PENDING_RUNTIME_CONFIRMATION",
-            "status": "CONFIG_VALIDATED" if model_valid else "INVALID",
-        },
-        "resources": resources,
-        "permission": permission,
-        "runtime_load_status": "UNKNOWN",
-        "run_stage": "PREPARE_ONLY" if paths is not None else "UNKNOWN",
-        "failure_code": failure_code,
-        "first_divergence": first_divergence,
-        "root_cause": root_cause,
-        "minimal_authorization": (
-            "允许 codex sandbox 对当前 repo 只读、当前 run/output/TMPDIR 写入，并保持其他路径拒绝"
-            if failure_code == "PERMISSION_EVIDENCE_MISSING_OR_FAILED" else None
-        ),
-        "llm_calls": 0,
-    }
-    report["report_hash"] = canonical_hash(report)
-    (output / "preflight.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    markdown = [
-        "# Codex 开发环境预检", "", f"- 状态：{report['status']}", f"- 模式：{mode}",
-        f"- failure_code：{failure_code or 'null'}", f"- FIRST_DIVERGENCE：{first_divergence or 'null'}",
-        f"- ROOT_CAUSE：{root_cause or 'null'}", "- Runtime load：UNKNOWN（静态预检不宣称已加载）", "- LLM calls：0",
-    ]
-    (output / "preflight.md").write_text("\n".join(markdown) + "\n", encoding="utf-8")
-    return report, 0 if failure_code is None else 8
+    """历史 preflight 仅供读取；拒绝重新执行旧启动检查。"""
+    raise ValueError("PROJECT_SANDBOX_ENTRY_RETIRED")
