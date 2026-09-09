@@ -1,0 +1,52 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.12,
+      "confidence_rationale": "Confidence is high that the authorized evidence set is materially incomplete for an investment recommendation, but low in any specific company or valuation inference because it contains only one price observation. The independent skeptic's challenges remain unresolved rather than contradicted.",
+      "counter_thesis": "A single price observation may reflect conditions that cannot be distinguished without fundamental, valuation, historical market, liquidity, and event evidence.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "The limited price fact must be revalidated if authorized evidence conflicts with its security mapping, timestamp, source, or value.",
+        "This NO_TRADE conclusion should be revisited if decision-cutoff-compliant evidence establishes business fundamentals, valuation context, price and liquidity history, and material risks or catalysts."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "The Council has only one authorized close-price fact and lacks the independent financial, valuation, market-context, liquidity, and risk evidence needed to form an evidence-grounded recommendation.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain authorized, decision-cutoff-compliant fundamental financial and business-quality evidence.",
+        "Obtain authorized valuation, historical price, liquidity, catalyst, and risk evidence that can resolve the identified uncertainties."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The only verified evidence is a fresh SEC-AAA closing price of USD 100 at the stated point in time; it cannot support a business-quality, valuation, or expected-return thesis.",
+      "time_horizon": "Reassess only when relevant point-in-time evidence becomes available.",
+      "unresolved_questions": [
+        "What were SEC-AAA's decision-cutoff financial performance, balance-sheet condition, cash-flow profile, and operating trajectory?",
+        "What valuation inputs, comparable context, and historical price and liquidity evidence support an assessment of expected return and implementation risk?",
+        "Were there decision-cutoff company, competitive, regulatory, governance, or catalyst facts that materially change the interpretation of the single price observation?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-llm-overconfidence-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

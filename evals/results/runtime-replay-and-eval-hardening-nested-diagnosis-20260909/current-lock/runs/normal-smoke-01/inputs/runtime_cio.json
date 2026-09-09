@@ -1,0 +1,246 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "对该组合执行正常研究场景的 Codex-native Investment Council，只输出研究建议，不进行真实交易。",
+  "run_id": "rrh-current-lock-normal-smoke-01-20260909",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "d23351d5036e862be2a9f7fe6562edf3729034ff903406d24b57e89852a9a4e7",
+    "runtime_skeptic": "524614960b5215d66da98f4ac0bc4b06162d738190c16be14c3c6992e4e9cb35"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "calculation:company_debt_to_revenue_001:6f9395d7b5309d6033ba1c228a8e795544888fd674ad7524d17f0c8b7eb24ccf"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "c1",
+          "evidence_refs": [
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA reported TTM revenue of USD 1,000,000 as of 2025-12-31T00:00:00Z, retrieved 2026-01-15T13:00:00Z from fixture-filing-primary (ev-normal-revenue)."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c2",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA reported total debt of USD 150,000 as of 2025-12-31T00:00:00Z, retrieved 2026-01-15T13:00:00Z from fixture-filing-primary (ev-normal-debt). Deterministic debt-to-revenue calculation is 0.15 using ev-normal-debt divided by ev-normal-revenue."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c3",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA reported a TTM operating margin of 0.18 as of 2025-12-31T00:00:00Z, retrieved 2026-01-15T13:00:00Z from fixture-filing-primary (ev-normal-margin)."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c4",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "Management maintained its previously stated capacity plan as of 2026-01-20T14:00:00Z, retrieved 2026-01-20T14:01:00Z from fixture-company-release (ev-normal-update). This supports continuity of the stated plan, but does not establish its economics, execution, or demand support."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c5",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-margin",
+            "ev-normal-revenue",
+            "ev-normal-price"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "The available evidence establishes reported profitability and a 0.15 debt-to-revenue ratio, but is insufficient to assess durable earnings power or valuation because it omits cash flow, growth, share count, capital intensity, and competitive context."
+        }
+      ],
+      "confidence": 0.42,
+      "confidence_rationale": "Fresh, internally consistent filing, market-price, and company-update evidence supports a narrow factual assessment, but the missing cash-flow, growth, capitalization, and capacity-economics data prevents a high-confidence company-quality or valuation thesis.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "Cash balance, net debt, debt maturities, interest expense, and liquidity.",
+        "Revenue growth history, segment mix, customer concentration, and competitive position.",
+        "Operating cash flow, free cash flow, capex, working-capital needs, and capacity-plan economics.",
+        "Share count, market capitalization, enterprise value, and valuation comparables.",
+        "Management guidance and post-update evidence on capacity-plan execution."
+      ],
+      "invalidation_conditions": [
+        "A material revision, delay, cancellation, or financing change to the capacity plan.",
+        "Evidence that operating margin is non-recurring or deteriorates materially.",
+        "New liquidity, leverage, or cash-flow information that materially changes the debt-service assessment."
+      ],
+      "invocation_id": "inv_2767ea155c993764897aa982",
+      "run_id": "rrh-current-lock-normal-smoke-01-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA normal research scenario through the 2026-01-31T23:59:59Z decision cutoff; sources and timing are stated per claim.",
+      "skill_execution": [
+        {
+          "invocation_hash": "bd053dde60af4bde3817c47881df3db649517a7c5f0706301bdc32c2765ba725",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "5b06fc667ceb05ea4b560a8b872606b601acaa2e85ad0a7f0a4d133c3f0532ed",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "a9c9c23e80eac4e33621307eff8d526b74f426193c3a57598f0ef04e83e0159c",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "The capacity-plan update gives no cost, timing, utilization, financing, or demand details.",
+        "Debt-to-revenue is not a solvency measure without cash, debt maturity, interest expense, and cash-flow evidence.",
+        "The USD 100 close price as of 2026-01-30T21:00:00Z, retrieved 2026-01-30T21:05:00Z from fixture-market-primary (ev-normal-price), cannot support valuation without share count or an enterprise-value bridge."
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "capacity-plan-execution-risk",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "resolution_evidence_needed": [
+            "产能项目的阶段性进度、已签约需求、资本开支预算、融资安排及预期回报数据。"
+          ],
+          "statement": "管理层维持既有产能计划仅确认计划未变，并不证明需求、建设进度、资本开支、融资条件或投产回报可实现；计划执行不及预期仍是独立的下行情景。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "debt-cashflow-resilience-gap",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "现金余额、自由现金流、债务到期表、利率、担保与债务契约，以及扩产资本开支预测。"
+          ],
+          "statement": "截至2025-12-31，总债务为150,000美元而TTM收入为1,000,000美元；在缺少现金、自由现金流、债务期限、利率及契约信息时，无法排除扩产期间流动性或再融资压力。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "margin-durability-not-established",
+          "evidence_refs": [
+            "ev-normal-margin",
+            "ev-normal-update"
+          ],
+          "resolution_evidence_needed": [
+            "多期利润率与收入拆分、成本结构、产能利用率、定价条款及管理层指引兑现记录。"
+          ],
+          "statement": "18%的TTM经营利润率是单期指标，无法证明其可持续性；价格、成本、利用率或新增产能爬坡变化均可能压缩利润率。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "market-price-does-not-resolve-valuation-risk",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "resolution_evidence_needed": [
+            "稀释后股本、估值倍数、盈利与现金流预测、可比公司估值及价格历史。"
+          ],
+          "statement": "2026-01-30的100美元收盘价只提供单一时点市场价格，缺少股本、估值倍数、盈利预测和可比公司信息，不能验证市场是否已计入产能计划的潜在收益。"
+        }
+      ],
+      "confidence": 0.67,
+      "confidence_rationale": "反证基于五项授权且新鲜的点时证据，能识别计划执行、现金流覆盖、利润率持续性和估值信息不足等非重复失败路径；但缺少现金流、债务结构、运营执行和估值数据，限制了反证的量化强度。",
+      "counter_evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "现金、自由现金流、营运资本与资本开支数据缺失。",
+        "债务期限、利率、抵押、契约和再融资安排缺失。",
+        "需求、订单、产能利用率、项目进度和竞争信息缺失。",
+        "股本、估值基础、盈利预测和可比公司数据缺失。"
+      ],
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "若后续证据显示扩产有可验证的项目进度、已覆盖需求和受约束的资本开支，产能执行风险将被削弱。",
+        "若后续证据显示充足流动性、可持续自由现金流和可管理的债务到期结构，融资压力反证将被削弱。",
+        "若后续多期数据证实利润率在不同经营条件下保持稳定或改善，利润率脆弱性反证将被削弱。",
+        "若获得完整估值与股本信息并显示市场价格未反映可验证的经济收益，估值不确定性将被削弱。"
+      ],
+      "invocation_id": "inv_540e6ebff642944482a9ac7b",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-current-lock-normal-smoke-01-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；仅基于授权证据，截至决策截止时间2026-01-31T23:59:59Z开展独立反证研究。",
+      "skill_execution": [
+        {
+          "invocation_hash": "20b9192a6dde362509af0d17ff8c9948cbd26261e875f39ae2e1ce67c34ed1d3",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7a5a3de51842af041a8cf1182ea73753d84d1e3e9d724481a8d1b75259ef7a9b",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "授权证据均在决策截止日前取得且标记为FRESH，但公司更新未提供产能计划的执行细节。",
+        "没有历史序列，无法判断收入、利润率或市场价格的趋势和波动。",
+        "债务绝对值无法单独刻画偿债能力或扩产融资承受力。"
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/analyst-skeptic-strong-conflict/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict"
+  },
+  "case_id": "analyst-skeptic-strong-conflict",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "c7406832ab0f39f197f18ceae8ec289b2b1d2b3c2af9c77bbe00b03cc621db74",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "grader_execution_proof": "361edf13de63067122eb496a3a33857ba92185ff715dc45650ee78c72dbac3c1",
+    "runtime_eval": "ef8d1b52e7639b0b2a959b94b312d27b663b80d3fb6900804d07514ad489371e",
+    "trace": "e09481e0c855581ac41fc1a0fbce1bd2a2627899e16c1d5332846675dd0222cf",
+    "trace_report": "97c84d7fa0882711bccb740010b19dfa6dfd8c1fcd2615679391b4a61232adc9"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "e649fe3c978589c12f11154d7afa20c731984100d4b93587b03c1e2bc4d49efb",
+  "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict --strict-config --json -m gpt-5.6-terra -",
+  "status": "PASS"
+}

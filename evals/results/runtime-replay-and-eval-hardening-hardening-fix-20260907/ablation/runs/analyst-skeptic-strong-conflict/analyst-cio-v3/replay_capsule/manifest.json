@@ -1,0 +1,753 @@
+{
+  "created_at": "2026-09-08T03:24:54.277606+00:00",
+  "locked_context": {
+    "ablation_profile": null,
+    "candidate_version": "0.3.0-candidate.1",
+    "codex_runtime": "codex-cli/0.153.4",
+    "decision_cutoff": "2026-01-31T23:59:59Z",
+    "fixture_hash": "fa07b4e1c1cee08f1048c01602652615e8a18514cf49166db06d765d9bfa5d81",
+    "gate_hash": "f2cf22ccf466582f63d9cc63c19fa091fd4917852a444ea49c4b974f40d40d88",
+    "model": "gpt-5.6-terra",
+    "product_integrity_hash": "18fed22931da1e606d4753c1d7db3acd897b82d32cdfb09dcbef593fda794928",
+    "python_runtime": "python/3.13.10",
+    "research_question": "仅使用 Gate 授权证据评估同一 as_of 下收入事实冲突。Company Analyst 必须通过 fixture_runtime 查询 Gate 证据，引用原始 evidence_id，说明冲突对 Thesis 和置信度的影响；未解决时允许 NO_TRADE。",
+    "run_mode": "PRODUCT_COUNCIL",
+    "runtime_profile": "fixture-council/3.0.0",
+    "trigger_reason": "product_council",
+    "version_manifest_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+  },
+  "manifest_hash": "c12b56e91f751ac41ad1d5f5b8b97d11944e6716241144b88e4aa91fe2c80b04",
+  "objects": [
+    {
+      "bytes": 2547,
+      "executable": false,
+      "logical_path": "frozen/audit/fixture_snapshot.json",
+      "media_type": "application/json",
+      "role": "portfolio-and-evidence-input",
+      "sha256": "fa07b4e1c1cee08f1048c01602652615e8a18514cf49166db06d765d9bfa5d81"
+    },
+    {
+      "bytes": 3780,
+      "executable": false,
+      "logical_path": "frozen/evidence/gate.json",
+      "media_type": "application/json",
+      "role": "pit-gate",
+      "sha256": "f2cf22ccf466582f63d9cc63c19fa091fd4917852a444ea49c4b974f40d40d88"
+    },
+    {
+      "bytes": 1347,
+      "executable": false,
+      "logical_path": "product/.codex-plugin/plugin.json",
+      "media_type": "application/json",
+      "role": "runtime-config",
+      "sha256": "0623fa0d1cd4f64493cf33df20bf54f68f94819a700f5d264c681ca97eb3b5e1"
+    },
+    {
+      "bytes": 1801,
+      "executable": false,
+      "logical_path": "product/.codex/agents/runtime_cio.toml",
+      "media_type": "application/octet-stream",
+      "role": "agent",
+      "sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2"
+    },
+    {
+      "bytes": 2221,
+      "executable": false,
+      "logical_path": "product/.codex/agents/runtime_company_analyst.toml",
+      "media_type": "application/octet-stream",
+      "role": "agent",
+      "sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f"
+    },
+    {
+      "bytes": 1518,
+      "executable": false,
+      "logical_path": "product/.codex/agents/runtime_market_catalyst.toml",
+      "media_type": "application/octet-stream",
+      "role": "agent",
+      "sha256": "90bd3698881a1cb58c0f663932c20e15b8433f09a87bca622c9421147003baa8"
+    },
+    {
+      "bytes": 1739,
+      "executable": false,
+      "logical_path": "product/.codex/agents/runtime_skeptic.toml",
+      "media_type": "application/octet-stream",
+      "role": "agent",
+      "sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+    },
+    {
+      "bytes": 443,
+      "executable": false,
+      "logical_path": "product/.codex/config.toml",
+      "media_type": "application/octet-stream",
+      "role": "runtime-config",
+      "sha256": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140"
+    },
+    {
+      "bytes": 345,
+      "executable": false,
+      "logical_path": "product/.mcp.json",
+      "media_type": "application/json",
+      "role": "mcp-adapter",
+      "sha256": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86"
+    },
+    {
+      "bytes": 1353,
+      "executable": false,
+      "logical_path": "product/AGENTS.md",
+      "media_type": "text/markdown",
+      "role": "runtime-config",
+      "sha256": "70d0f3985229e5f43fd49f8b204af9fdef0beec207357ede5df5530ec980b5fa"
+    },
+    {
+      "bytes": 2253,
+      "executable": false,
+      "logical_path": "product/contracts/__init__.py",
+      "media_type": "text/x-python",
+      "role": "schema-or-contract",
+      "sha256": "ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a"
+    },
+    {
+      "bytes": 7772,
+      "executable": false,
+      "logical_path": "product/contracts/base.py",
+      "media_type": "text/x-python",
+      "role": "schema-or-contract",
+      "sha256": "b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0"
+    },
+    {
+      "bytes": 3341,
+      "executable": false,
+      "logical_path": "product/contracts/council-decision-contract.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2"
+    },
+    {
+      "bytes": 13864,
+      "executable": false,
+      "logical_path": "product/contracts/decision.py",
+      "media_type": "text/x-python",
+      "role": "schema-or-contract",
+      "sha256": "cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a"
+    },
+    {
+      "bytes": 5257,
+      "executable": false,
+      "logical_path": "product/contracts/evidence.py",
+      "media_type": "text/x-python",
+      "role": "schema-or-contract",
+      "sha256": "f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f"
+    },
+    {
+      "bytes": 10244,
+      "executable": false,
+      "logical_path": "product/contracts/learning.py",
+      "media_type": "text/x-python",
+      "role": "schema-or-contract",
+      "sha256": "734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9"
+    },
+    {
+      "bytes": 7713,
+      "executable": false,
+      "logical_path": "product/contracts/portfolio.py",
+      "media_type": "text/x-python",
+      "role": "schema-or-contract",
+      "sha256": "5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99"
+    },
+    {
+      "bytes": 7462,
+      "executable": false,
+      "logical_path": "product/contracts/research.py",
+      "media_type": "text/x-python",
+      "role": "schema-or-contract",
+      "sha256": "e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418"
+    },
+    {
+      "bytes": 957,
+      "executable": false,
+      "logical_path": "product/deterministic/__init__.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "6ba2499fdeb544daf7a0566d5a78f13232d2de81aab1b288686808804e41d445"
+    },
+    {
+      "bytes": 3370,
+      "executable": false,
+      "logical_path": "product/deterministic/metrics.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb"
+    },
+    {
+      "bytes": 5091,
+      "executable": false,
+      "logical_path": "product/deterministic/policy.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4"
+    },
+    {
+      "bytes": 8059,
+      "executable": false,
+      "logical_path": "product/deterministic/portfolio.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f"
+    },
+    {
+      "bytes": 14641,
+      "executable": false,
+      "logical_path": "product/deterministic/risk.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6"
+    },
+    {
+      "bytes": 2930,
+      "executable": false,
+      "logical_path": "product/deterministic/valuation.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "58d2bf5abfff1fbb263a6db18f29553a8fdaaf71d81857951b08288cc3736abf"
+    },
+    {
+      "bytes": 549,
+      "executable": false,
+      "logical_path": "product/evidence_store/__init__.py",
+      "media_type": "text/x-python",
+      "role": "runtime-config",
+      "sha256": "d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34"
+    },
+    {
+      "bytes": 1729,
+      "executable": false,
+      "logical_path": "product/evidence_store/closure.py",
+      "media_type": "text/x-python",
+      "role": "runtime-config",
+      "sha256": "5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23"
+    },
+    {
+      "bytes": 3344,
+      "executable": false,
+      "logical_path": "product/evidence_store/quality.py",
+      "media_type": "text/x-python",
+      "role": "runtime-config",
+      "sha256": "9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2"
+    },
+    {
+      "bytes": 3889,
+      "executable": false,
+      "logical_path": "product/evidence_store/store.py",
+      "media_type": "text/x-python",
+      "role": "runtime-config",
+      "sha256": "b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33"
+    },
+    {
+      "bytes": 427,
+      "executable": false,
+      "logical_path": "product/mcp/__init__.py",
+      "media_type": "text/x-python",
+      "role": "mcp-adapter",
+      "sha256": "1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6"
+    },
+    {
+      "bytes": 4363,
+      "executable": false,
+      "logical_path": "product/mcp/contracts.py",
+      "media_type": "text/x-python",
+      "role": "mcp-adapter",
+      "sha256": "8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041"
+    },
+    {
+      "bytes": 4811,
+      "executable": false,
+      "logical_path": "product/mcp/provenance.py",
+      "media_type": "text/x-python",
+      "role": "mcp-adapter",
+      "sha256": "74b301f1e3c5c792e0603c01d1ebcbe6944e799ba6a34ec5567e831dedccd1b2"
+    },
+    {
+      "bytes": 3974,
+      "executable": false,
+      "logical_path": "product/mcp/reference_adapter.py",
+      "media_type": "text/x-python",
+      "role": "mcp-adapter",
+      "sha256": "0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6"
+    },
+    {
+      "bytes": 363,
+      "executable": false,
+      "logical_path": "product/model-routing.json",
+      "media_type": "application/json",
+      "role": "runtime-config",
+      "sha256": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5"
+    },
+    {
+      "bytes": 1461,
+      "executable": false,
+      "logical_path": "product/runtime-profile.json",
+      "media_type": "application/json",
+      "role": "runtime-config",
+      "sha256": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+    },
+    {
+      "bytes": 580,
+      "executable": false,
+      "logical_path": "product/runtime/__init__.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281"
+    },
+    {
+      "bytes": 4326,
+      "executable": false,
+      "logical_path": "product/runtime/architecture_guard.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394"
+    },
+    {
+      "bytes": 6226,
+      "executable": false,
+      "logical_path": "product/runtime/artifact_matrix.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "1604fc69eeb6b206af21e4ff311b5fd1e74f5a2974d127bad46b73c2bb52337a"
+    },
+    {
+      "bytes": 19379,
+      "executable": false,
+      "logical_path": "product/runtime/cli.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "99b38c3ba22fbded075e3c52679953f92c3272501a2a5d7f69942e3ac706d238"
+    },
+    {
+      "bytes": 11527,
+      "executable": false,
+      "logical_path": "product/runtime/decision_contract.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e"
+    },
+    {
+      "bytes": 4229,
+      "executable": false,
+      "logical_path": "product/runtime/discovery.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "cccb1cd61d9aa6e92150ea08b8765c06491fe4c91acb2be6f908b1bda245a469"
+    },
+    {
+      "bytes": 9435,
+      "executable": false,
+      "logical_path": "product/runtime/eval_execution_proof.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "fa7561454bd8f9071ca032a7ed68803980431b452ab3088cc1e21dbd2d4982e4"
+    },
+    {
+      "bytes": 8897,
+      "executable": false,
+      "logical_path": "product/runtime/evidence_gate.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "1bcb9c1270962d5337b58ccfa9ca27969f83f5935321eb7fc6ca29f4c77fae23"
+    },
+    {
+      "bytes": 33372,
+      "executable": false,
+      "logical_path": "product/runtime/execution_proof.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "b6608e2f63a8fa41ee0fdbfeae3615eb02b2f355b56fe548e8f45f9b4071ff9e"
+    },
+    {
+      "bytes": 19130,
+      "executable": false,
+      "logical_path": "product/runtime/execution_replay.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "1d0dc9334a17baa9e33346d36d879893c1c08903415c1d480d91bcc88a1c970a"
+    },
+    {
+      "bytes": 18968,
+      "executable": false,
+      "logical_path": "product/runtime/fixture_mcp.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "183d0136767aa0e0f68d3ca0ea1746c23e0459254348de09dd2f578822236919"
+    },
+    {
+      "bytes": 4438,
+      "executable": false,
+      "logical_path": "product/runtime/format_repair.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d"
+    },
+    {
+      "bytes": 720,
+      "executable": false,
+      "logical_path": "product/runtime/hashing.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "ebe7564c61babecab657e56f415975b13a8fa64eb2f91ef8fbaf71e2802ada7d"
+    },
+    {
+      "bytes": 18936,
+      "executable": false,
+      "logical_path": "product/runtime/invocation.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "59f10b1adf922b40c9e9a948d025c54eeaba8229e50a3d0365aec3e8bf864b30"
+    },
+    {
+      "bytes": 1749,
+      "executable": false,
+      "logical_path": "product/runtime/model_routing.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "81ea2863f7ce94a7a977c3b9e1c90c9508b9bad30fc37ba603504c607a1d7571"
+    },
+    {
+      "bytes": 13148,
+      "executable": false,
+      "logical_path": "product/runtime/native_eval.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "7efd49bf3860e68592a398b5d8b516c2b7f7331140fd42dd9f4b1d6349f30057"
+    },
+    {
+      "bytes": 3647,
+      "executable": false,
+      "logical_path": "product/runtime/native_rerun.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3"
+    },
+    {
+      "bytes": 1843,
+      "executable": false,
+      "logical_path": "product/runtime/reason_codes.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "eb03e4a97b00088e92ab9c142aea2d2eef161da66d785d6201b582ffdfe933af"
+    },
+    {
+      "bytes": 4985,
+      "executable": false,
+      "logical_path": "product/runtime/release_gate.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "4642a316043937151ce3c9ef8c7d565ab39b280608e9f31f2503b19561f9dabd"
+    },
+    {
+      "bytes": 17332,
+      "executable": false,
+      "logical_path": "product/runtime/replay.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "55c45fba48013051a92c6720ba0d29115f3e96cb83da44254f9f04fc30e1303e"
+    },
+    {
+      "bytes": 16316,
+      "executable": false,
+      "logical_path": "product/runtime/replay_capsule.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "8a09fd7f3cfc62659cd476d4bd84aaffb2c6f4f7f26bc19023dba1f0719141a9"
+    },
+    {
+      "bytes": 4914,
+      "executable": false,
+      "logical_path": "product/runtime/risk_runtime.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "f78c8af076c72e6f312fceb57d6147055541e8895be047e5118bb39ed4c1ea28"
+    },
+    {
+      "bytes": 42598,
+      "executable": false,
+      "logical_path": "product/runtime/run_package.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "d0030ac9de7e528c45b1b2fe16bfed7233f044441cd64800abd5a78b8b404429"
+    },
+    {
+      "bytes": 25875,
+      "executable": false,
+      "logical_path": "product/runtime/runtime_eval.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "2c054a388fafa06391e0ad4487e68297e3c549b9d612b4bfd0a1de349fcd279e"
+    },
+    {
+      "bytes": 1981,
+      "executable": false,
+      "logical_path": "product/runtime/runtime_profiles.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "3a1dce65a02b6255b2c23928d0f2b08b031875ac641177f873cfdd575f08e8cb"
+    },
+    {
+      "bytes": 3764,
+      "executable": false,
+      "logical_path": "product/runtime/schema_validation.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "39bbdcd385ad41e566831ab3ba89159cb486ad92b6f2ed9da877ff43893b48f9"
+    },
+    {
+      "bytes": 13185,
+      "executable": false,
+      "logical_path": "product/runtime/smoke_prompt.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "9dd8a684fd27a879bc192b4ca6bd37e2b30f6f83fee088bcd2339b677354f139"
+    },
+    {
+      "bytes": 5572,
+      "executable": false,
+      "logical_path": "product/runtime/terminal_contract.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75"
+    },
+    {
+      "bytes": 18592,
+      "executable": false,
+      "logical_path": "product/runtime/trace_validation.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "32852584de1e7d9e69f5a1b34cab0a06f6d8f58f5709e421e17b45d7c1d67014"
+    },
+    {
+      "bytes": 8824,
+      "executable": false,
+      "logical_path": "product/runtime/validation.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "30833b995994a21670ee497df217283875bf427abb4fa2d891056c19fc384b1d"
+    },
+    {
+      "bytes": 3471,
+      "executable": false,
+      "logical_path": "product/runtime/versioning.py",
+      "media_type": "text/x-python",
+      "role": "deterministic-runtime",
+      "sha256": "14c0c5283712fe492b4fdc0a82785d5aae12980ad68a9b813ca0712aaedc9b2a"
+    },
+    {
+      "bytes": 996,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/ablation-report.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe"
+    },
+    {
+      "bytes": 2720,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/agent-research-report.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6"
+    },
+    {
+      "bytes": 5064,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/cio-decision-draft.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1"
+    },
+    {
+      "bytes": 2228,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/counter-thesis-report.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453"
+    },
+    {
+      "bytes": 1537,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/decision-trace.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434"
+    },
+    {
+      "bytes": 1215,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/execution-replay.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5"
+    },
+    {
+      "bytes": 1268,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/fixture.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f"
+    },
+    {
+      "bytes": 2952,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/invocation-manifest.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae"
+    },
+    {
+      "bytes": 1355,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/native-eval.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b"
+    },
+    {
+      "bytes": 906,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263"
+    },
+    {
+      "bytes": 1792,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7"
+    },
+    {
+      "bytes": 1173,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/regression-case.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "d13d24ac3332f77ca969dfbbd27c276dfed3f1a21e58ef843aeff9ba5394538d"
+    },
+    {
+      "bytes": 849,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/regression-suite.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7"
+    },
+    {
+      "bytes": 2593,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/replay-capsule.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0"
+    },
+    {
+      "bytes": 755,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/run-error.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae"
+    },
+    {
+      "bytes": 977,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/runtime-eval-job.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f"
+    },
+    {
+      "bytes": 1724,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/semantic-calibration-result.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "65c7b85ad11de41c4c500eb31de98ca1e995a021238a9e8a3a6945bd134cbc77"
+    },
+    {
+      "bytes": 3794,
+      "executable": false,
+      "logical_path": "product/schemas/runtime/semantic-rubric-result.schema.json",
+      "media_type": "application/json",
+      "role": "schema-or-contract",
+      "sha256": "c72feab25a26362d747f241d2be8fe4e6c0f73617674e7c743462846203971ca"
+    },
+    {
+      "bytes": 1425,
+      "executable": false,
+      "logical_path": "product/skills/catalyst-analysis/SKILL.md",
+      "media_type": "text/markdown",
+      "role": "skill",
+      "sha256": "fef80469d84211c95123e8e288724622b4c4097af7eb4915e7884e4038d7d191"
+    },
+    {
+      "bytes": 1482,
+      "executable": false,
+      "logical_path": "product/skills/company-research/SKILL.md",
+      "media_type": "text/markdown",
+      "role": "skill",
+      "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245"
+    },
+    {
+      "bytes": 1436,
+      "executable": false,
+      "logical_path": "product/skills/counter-thesis/SKILL.md",
+      "media_type": "text/markdown",
+      "role": "skill",
+      "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845"
+    },
+    {
+      "bytes": 1592,
+      "executable": false,
+      "logical_path": "product/skills/evidence-grounding/SKILL.md",
+      "media_type": "text/markdown",
+      "role": "skill",
+      "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee"
+    },
+    {
+      "bytes": 6763,
+      "executable": false,
+      "logical_path": "product/skills/portfolio-council/SKILL.md",
+      "media_type": "text/markdown",
+      "role": "skill",
+      "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c"
+    },
+    {
+      "bytes": 292,
+      "executable": false,
+      "logical_path": "product/skills/portfolio-council/agents/openai.yaml",
+      "media_type": "application/octet-stream",
+      "role": "skill",
+      "sha256": "f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9"
+    },
+    {
+      "bytes": 1406,
+      "executable": false,
+      "logical_path": "product/skills/valuation/SKILL.md",
+      "media_type": "text/markdown",
+      "role": "skill",
+      "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581"
+    },
+    {
+      "bytes": 3369,
+      "executable": false,
+      "logical_path": "product/version-manifest.json",
+      "media_type": "application/json",
+      "role": "runtime-config",
+      "sha256": "c4a1b647615c9b77834dff1d6fad52d4f1597c6e6cc7c122425a2c9e7b674943"
+    }
+  ],
+  "root_hash": "c11dbc0ad1a20845130d2dfb55f280ff79ca410f4ea7d105217908ed3767ad39",
+  "run_id": "rreh-hardening-ablation-conflict-analyst-cio-v3-20260908",
+  "schema_version": "replay-capsule/1.0.0"
+}

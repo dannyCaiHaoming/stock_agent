@@ -1,0 +1,28 @@
+{
+  "capsule_manifest_hash": "99276379200280a71035785ae350b5eb94ad87e2bdc719de6660d99c57848571",
+  "checks": {
+    "artifact_matrix": "bff21f19a0b44043bd45698729e88bd2deb84e5ba7321149db43f7c5a5df3b35",
+    "cio_draft_hash": "12630ad5ad36b827219fe6cab8c0eba6e8590bf7f4fd533b1c51ec8630455ac9",
+    "evidence_gate_hash": "680f21a94d7dbfb834a92d07781ccab8ee9f536788be97ba39bf69c0dc47ed4b",
+    "report_render": "PASSED",
+    "risk_result_hash": "0d68059ac97be4c96b7cff24450879c8ed3cb3f82af906d1b16c5bfa1df4b064",
+    "specialist_outputs": {
+      "runtime_company_analyst": "6325c3702f187cf351c662403bc610c9e3b43ec72fac06c886536ea2cc2df21e",
+      "runtime_skeptic": "7f102dba6a79590e29e9990e43cf18d1a56d65b7af7280dd6ebed4ade4ae8bdb"
+    },
+    "trace_lineage": "PASSED"
+  },
+  "decision_hash": "7dc46950a2d2f12012e0845d22de807271a6cfb028045b0ed6c1d0ee856925b7",
+  "execution_replay_ready": true,
+  "llm_calls": 0,
+  "mode": "ARTIFACT_REPLAY",
+  "replay_hash": "92819ad5ff09228517d84dd96273616d195c2ee314a0ad69f0c32fd285bc6d35",
+  "report_hash": "4cb8e1b345deba4b1449b3d6b6a5528d656431d008ec313e67f7aa872928bece",
+  "schema_version": "native-artifact-replay/2.1.0",
+  "source_run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-risk-veto-current",
+  "source_run_id": "rreh-candidate-risk-veto-current-20260907",
+  "source_tree_hash": "143e8381c542cd0d0b5a87caceede93fec85f45db53f87431dc1bca2987c3a22",
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "120e61e96d1fe53b7e61dded0655fc87a9cba4098b84e280a75f22786c572f39"
+}

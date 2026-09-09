@@ -1,0 +1,1 @@
+{"eval_id": "rreh-hardening-regression-eval-execution-replay-risk-veto-20260908", "hard_gate_status": "PASS", "next_state": "SEMANTIC_GRADING_REQUIRED", "run_id": "rreh-hardening-execution-replay-risk-veto-20260907", "semantic_required": true}

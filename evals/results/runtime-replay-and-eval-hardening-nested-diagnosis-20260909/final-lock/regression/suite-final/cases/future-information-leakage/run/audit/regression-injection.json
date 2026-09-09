@@ -1,0 +1,29 @@
+{
+  "baseline_fixture_hash": "540515997273f22a32ae0402680d9028b1c8449d823ec58e4f9ed76f75c1d154",
+  "case_id": "future-information-leakage",
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "deterministic_plan_hash": "522a7c84e040f11b95e4a5e04d6682b32dfa61a7390bd7ee2d2dbb822bfd7186",
+  "injected_evidence": [
+    {
+      "evidence_id": "ev-future-asof",
+      "original_as_of": "2026-02-01T21:00:00Z",
+      "original_published_at": "2026-02-01T21:00:00Z",
+      "original_retrieved_at": "2026-02-01T21:05:00Z"
+    },
+    {
+      "evidence_id": "ev-future-retrieval",
+      "original_as_of": "2025-12-31T00:00:00Z",
+      "original_published_at": "2026-02-02T12:55:00Z",
+      "original_retrieved_at": "2026-02-02T13:00:00Z"
+    }
+  ],
+  "injected_fixture_hash": "293beb7a78a6727fb17caa0484e623a90c8596922fd8d87354d04eaf1796e7da",
+  "injection_mechanism": "append_declared_evidence_before_pit_gate",
+  "injection_type": "FUTURE_EVIDENCE",
+  "injection_version": "future-evidence-injection/1.0.0",
+  "llm_calls": 0,
+  "producer": "regression-fixture-injector",
+  "record_hash": "44ab9912b90d31a2c3a76eca01d073128c7dc82296f11f67dffbe1ec863ff135",
+  "schema_version": "regression-injection/1.1.0",
+  "source_fixture_hash": "ba2f89d6593b4e4facdc3a4acf0ee130269d52bcf67d8ddef9958f54d4ddeb83"
+}

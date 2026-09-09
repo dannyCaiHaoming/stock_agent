@@ -1,0 +1,87 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 579584,
+  "eval_hash": "243187caa07c55c7831b2578745a9b07e62e809f9880277afdb06d01b7735556",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 664423,
+  "latency_ms": 263152,
+  "llm_calls": 20,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 12225,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rreh-candidate-conflict-current-20260907",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "fact_margin",
+        "fact_price",
+        "fact_revenue_conflict",
+        "interpretation_research_conclusion",
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 明确区分 FACT 与 INTERPRETATION；各事实引用允许 Evidence，且将未解决收入冲突和必要数据缺口作为不形成公司或估值 Thesis 的限制。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录 Specialist 共识、同日收入的未解决冲突、三个未决问题及其对 NO_TRADE 的影响，并与 decision.json 的 APPROVED 风险结果一致。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 0.25、Skeptic 0.28 与 CIO 0.20 的有限置信度均明确对应收入冲突、未验证的利润率和价格解释，以及缺失的财务与估值证据。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "CIO 的 EVIDENCE_CONFLICT、NO_TRADE 解释和三项重评条件均对应 gate 中同日收入冲突及已记录的财务和估值证据缺口；decision.json 风险报告为 APPROVED SAFE_NO_TRADE。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "CH-REVENUE-RECONCILIATION",
+        "CH-MARGIN-QUALITY",
+        "CH-PRICE-INTERPRETATION",
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "INDEPENDENT_FIRST_PASS Skeptic 提出收入可比性、利润率质量和单点价格解释三项具体可证伪挑战，并为每项列出所需核验证据与失效条件。",
+      "status": "PASS"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "7cd825443cd09c2cbe05cd57f990efea536d802e678aee30a1480756a984e1b9"
+}

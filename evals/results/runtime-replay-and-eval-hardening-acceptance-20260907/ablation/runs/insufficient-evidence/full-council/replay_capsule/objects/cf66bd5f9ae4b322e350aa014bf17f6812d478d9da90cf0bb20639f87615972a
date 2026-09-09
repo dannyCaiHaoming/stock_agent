@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/semantic-rubric-result/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "eval_id", "grader", "dimensions", "output_hash"],
+  "properties": {
+    "schema_version": {"const": "semantic-rubric-result/1.0.0"},
+    "eval_id": {"type": "string", "minLength": 1},
+    "grader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent", "model", "prompt_hash", "rubric_hash", "input_hash"],
+      "properties": {
+        "agent": {"const": "dev_eval"},
+        "model": {"type": "string", "minLength": 1},
+        "prompt_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "rubric_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "input_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["no_trade_reasoning", "analyst_thesis_grounding", "skeptic_counter_evidence", "cio_conflict_handling", "confidence_calibration"],
+      "properties": {
+        "no_trade_reasoning": {"type": "object"},
+        "analyst_thesis_grounding": {"type": "object"},
+        "skeptic_counter_evidence": {"type": "object"},
+        "cio_conflict_handling": {"type": "object"},
+        "confidence_calibration": {"type": "object"}
+      }
+    },
+    "output_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

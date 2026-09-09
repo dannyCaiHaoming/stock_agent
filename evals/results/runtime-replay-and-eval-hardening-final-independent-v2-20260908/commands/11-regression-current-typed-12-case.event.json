@@ -1,0 +1,29 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "11-regression-current-typed-12-case",
+  "command": [
+    "python3",
+    "-m",
+    "product.runtime.cli",
+    "regression",
+    "--repo",
+    "/Users/caihaoming/Documents/stock_agent",
+    "--output-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite",
+    "--suite-id",
+    "rrh-final-independent-v2-current-lock-20260908",
+    "--candidate-hash",
+    "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "--run-index",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/run-index.json"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T12:53:33.258126+00:00",
+  "ended_at": "2026-09-08T12:53:33.321830+00:00",
+  "exit_code": 6,
+  "stdout_sha256": "4098132ac9f691081eeb0bde48de03f8fcab6a0aaeb170a113764f355b614490",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

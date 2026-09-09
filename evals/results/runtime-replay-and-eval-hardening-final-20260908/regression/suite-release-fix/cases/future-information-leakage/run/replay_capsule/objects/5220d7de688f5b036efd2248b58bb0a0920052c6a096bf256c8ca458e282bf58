@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/deterministic-test-report/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "event", "event_id", "command", "cwd", "tmpdir", "started_at", "completed_at", "exit_code", "tests_run", "assertion_failures", "test_errors", "environment_errors", "result_hash"],
+  "properties": {
+    "schema_version": {"const": "deterministic-test-report/1.0.0"},
+    "status": {"enum": ["PASS", "FAIL"]},
+    "event": {"$ref": "#/$defs/artifact"},
+    "event_id": {"type": "string", "minLength": 1},
+    "command": {"type": "array", "minItems": 4, "items": {"type": "string"}},
+    "cwd": {"type": "string", "minLength": 1},
+    "tmpdir": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "minLength": 1},
+    "completed_at": {"type": "string", "minLength": 1},
+    "exit_code": {"type": "integer"},
+    "tests_run": {"type": "integer", "minimum": 0},
+    "assertion_failures": {"type": "integer", "minimum": 0},
+    "test_errors": {"type": "integer", "minimum": 0},
+    "environment_errors": {"type": "integer", "minimum": 0},
+    "result_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

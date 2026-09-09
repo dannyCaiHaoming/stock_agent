@@ -1,0 +1,10 @@
+{
+  "failed_stage": null,
+  "report_hash": "fb7c4c3e2067bc1898eccfad869c491f7c5055d8f35349e09e3174d7f095196c",
+  "run_id": "rrh-final-normal-research-20260908",
+  "schema_version": "trace-integrity-report/1.0.0",
+  "source_run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research",
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "fae1e04642cbbdd24c42bf3e04dff8d4b2521079cfd70050cd7ea50a3e08083c"
+}

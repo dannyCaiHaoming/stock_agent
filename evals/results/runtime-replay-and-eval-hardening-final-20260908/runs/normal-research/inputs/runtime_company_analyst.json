@@ -1,0 +1,31 @@
+{
+  "agent": "runtime_company_analyst",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 500,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "Regression-normal-research",
+  "run_id": "rrh-final-normal-research-20260908",
+  "security_id": "SEC-AAA"
+}

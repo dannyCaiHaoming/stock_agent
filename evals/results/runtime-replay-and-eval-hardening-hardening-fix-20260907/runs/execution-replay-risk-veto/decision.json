@@ -1,0 +1,67 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "counter_thesis": "单点价格与单期收入规模均不能证明风险可控、流动性、下行保护或估值吸引力；两项基础事实不足以反驳这一限制。",
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若 ev-risk-price 的价格、as_of 或 retrieved_at 被其来源更正，则基于该事实的范围判断失效。",
+        "若 ev-risk-revenue 的收入、as_of 或 retrieved_at 被其来源更正，则基于该事实的范围判断失效。",
+        "若获得截止日前可核验的盈利、现金流、资本结构、估值、流动性或竞争证据，当前证据不足结论必须重新综合。"
+      ],
+      "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+      "no_trade_reason": "RISK_VETO",
+      "reevaluation_conditions": [
+        "仅在满足 Risk Engine 可行边界后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "thesis": "已验证的冻结证据仅确认 SEC-AAA 的单点收盘价与 TTM 收入，无法支持关于商业质量、盈利能力、现金流、资本结构或估值合理性的 Thesis。"
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "REJECTED",
+    "veto_reason": "RISK_VETO",
+    "violations": [
+      {
+        "code": "POSITION_LIMIT",
+        "limit": 0.6,
+        "metric": "target_max:SEC-AAA",
+        "observed": 0.9,
+        "policy_rule": "POSITION_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "LIQUIDITY_LIMIT",
+        "limit": "0:0.6",
+        "metric": "target_range:SEC-AAA",
+        "observed": "0.9:0.9",
+        "policy_rule": "LIQUIDITY_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "SECTOR_LIMIT",
+        "limit": 0.6,
+        "metric": "sector_range:Synthetic Technology",
+        "observed": "0.9:0.9",
+        "policy_rule": "SECTOR_LIMIT",
+        "remediable_within_range": false
+      }
+    ]
+  },
+  "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

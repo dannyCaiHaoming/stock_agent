@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/_bottom_up_audit.py", line 169, in <module>
+    "runner_status": ablation["status"],
+                     ~~~~~~~~^^^^^^^^^^
+KeyError: 'status'

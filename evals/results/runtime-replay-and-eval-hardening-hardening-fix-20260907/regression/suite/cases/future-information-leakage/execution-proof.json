@@ -1,0 +1,18 @@
+{
+  "artifacts": {},
+  "case_id": "future-information-leakage",
+  "executed_operations": [
+    "deterministic_injection",
+    "invariant_evaluation"
+  ],
+  "hashes": {
+    "outcome": "949eaea43d9bb34ff1e9771711452e86f7629219264c96e4a03b078edb479031"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "33a08993388e6d9a6080d83bb9fca0fca094b7ab5c4066901b5048b6b151a47b",
+  "run_id": "regression-rreh-hardening-regression-20260907-future-information-leakage-63d42921f73d",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:future-information-leakage",
+  "status": "PASS"
+}

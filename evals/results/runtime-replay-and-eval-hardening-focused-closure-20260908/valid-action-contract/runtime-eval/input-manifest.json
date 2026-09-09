@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-focused-closure-20260908-valid-action-contract",
+  "expected_terminal_states": [
+    "COMPLETED"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run",
+  "run_id": "regression-focused-closure-20260908-valid-action-contract-acd3c70a183b",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "b55b49ca1aabd9125c0f2416762255b569ae72af9cfdea3749f208d909334dbe",
+    "artifact_replay": "e4de920f946da407a5bf6386ad9ea286c0681aaed1c6e623071fd106bddb7126",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "f5fb60775ed82168973fd68607eb5ad51f1af1dd37f7f156bc55bd77ae21156f",
+    "semantic_input": "8addf6fa6b9530727af05ebcecf10e8241b183ec37b3ecaa9a4059ce3ce455b1",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "d0d52bd81ae9ffd6ad3e39cc9a5366ccb1450acf0fc9d164dadd968765c0b466"
+  }
+}

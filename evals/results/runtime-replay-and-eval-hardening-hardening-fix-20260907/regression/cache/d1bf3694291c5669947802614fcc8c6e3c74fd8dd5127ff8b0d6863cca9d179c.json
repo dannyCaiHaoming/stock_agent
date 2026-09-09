@@ -1,0 +1,85 @@
+{
+  "cache_key": "d1bf3694291c5669947802614fcc8c6e3c74fd8dd5127ff8b0d6863cca9d179c",
+  "case_hash": "40fbaae014744a3876e391644bc8289a00c54236f820702e7ff93717f55ab46a",
+  "case_id": "llm-overconfidence",
+  "inputs": {
+    "candidate_hash": "61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404",
+    "codex_runtime": "codex-cli/0.153.4",
+    "gate_context_hash": "958e8edd4ed0bff0ef2a62910932220cf75a5a8484adc49208800d698c34bd01",
+    "grader_hash": "83bb70fe0546df98783b46fac36e749d0b2028fbee94b7f7dc58e3c226ca6aa1",
+    "model": "gpt-5.6-terra",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "runtime_profile_hash": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+  },
+  "outcome": {
+    "action": "NO_TRADE",
+    "agents_run": [
+      "runtime_company_analyst",
+      "runtime_cio"
+    ],
+    "cached_tokens": 491776,
+    "eval_hash": "ff7a8fdc3dc9a2cb112dc2d385b3eccc3b4f1fc754d2a291e7ee27c40be7405c",
+    "eval_status": "PASS",
+    "failed_stage": null,
+    "future_leak_count": 0,
+    "input_tokens": 556296,
+    "latency_ms": 204387,
+    "llm_calls": 15,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 7651,
+    "risk_bypassed": false,
+    "risk_status": "APPROVED",
+    "run_id": "rreh-ablation-v3-insufficient-analyst-cio-rerun-20260907",
+    "semantic_dimensions": {
+      "analyst_thesis_grounding": {
+        "evidence_refs": [
+          "claim-1",
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，同时明确不以该证据支持公司研究或估值 Thesis，且列出数据缺口与失效条件。",
+        "status": "PASS"
+      },
+      "cio_conflict_handling": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 2,
+        "rationale": "CIO 记录已验证 Analyst 的 INSUFFICIENT_EVIDENCE 共识、空冲突、两项未决问题及其对 NO_TRADE 的影响；该拓扑未提供独立 Skeptic 报告。",
+        "status": "PASS"
+      },
+      "confidence_calibration": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 2,
+        "rationale": "Analyst 与 CIO 均以 0.1 的低置信度，并将其限定为单一新鲜价格事实及缺失的基本面、竞争和估值证据，方向上与证据不足一致。",
+        "status": "PASS"
+      },
+      "no_trade_reasoning": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "CIO 将 NO_TRADE 明确归因于 Gate 允许证据仅覆盖单一收盘价，列出缺失的基本面、竞争和估值证据，并要求获得 decision_cutoff 前可核验证据后重评；这与 SAFE_NO_TRADE 和风险报告一致。",
+        "status": "PASS"
+      },
+      "skeptic_counter_evidence": {
+        "evidence_refs": [],
+        "grade": null,
+        "rationale": "冻结输入未包含 Skeptic 运行产物；该 analyst-cio-rerun 拓扑中无法评估独立反证质量。",
+        "status": "NOT_APPLICABLE"
+      }
+    },
+    "terminal_state": "SAFE_NO_TRADE",
+    "trace_hash": "6533e772cae4fe2871b3041dcb5271742a3d80595e0e53cb4c7860d248ffc140"
+  },
+  "record_hash": "079af8492aa87db8c54617a3484614bf92ebe2c59002e7a11e4d95688db4d7b0",
+  "schema_version": "regression-cache/1.0.0",
+  "source": {
+    "eval_artifact_hash": "8accf91fd47277b108d18bac44f4ca1bafb3680257787a9e4bca8981e47be754",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/insufficient-evidence/analyst-cio-rerun/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/analyst-cio-rerun",
+    "run_tree_hash": "47f13c1586a0fd8dee5ca8effcd9a2abebc46b911a265d165601b0f2fb704cba"
+  }
+}

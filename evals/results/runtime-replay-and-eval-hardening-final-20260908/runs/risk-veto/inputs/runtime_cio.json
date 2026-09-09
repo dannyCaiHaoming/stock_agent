@@ -1,0 +1,185 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "10000.0",
+    "cash_weight": "0.1",
+    "concentration_hhi": "0.81",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.9",
+    "position_weights": {
+      "SEC-AAA": "0.9"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.9"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "Regression-risk-veto",
+  "run_id": "rrh-final-risk-veto-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "316b7b13ffb30377550839f84838cb1f7a8089e1876cf1f62164c1f61bdae81a",
+    "runtime_skeptic": "8634fd3773e5db1932c0c5d90460826ddd3cecf4a3f5e6d9f1bea519ea876b28"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_close_price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: SEC-AAA close price was USD 100 per share, sourced from fixture-market-primary, as of 2026-01-30T21:00:00Z and retrieved at 2026-01-30T21:05:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_ttm_revenue",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: SEC-AAA TTM revenue was USD 1,000,000, sourced from fixture-filing-primary, as of 2025-12-31T00:00:00Z and retrieved at 2026-01-15T13:00:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_research_limit",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "INTERPRETATION: The authorized price and revenue observations alone do not support a company-quality thesis or a valuation conclusion because no profitability, cash-flow, share-count, balance-sheet, growth, competitive-position, or guidance evidence is available."
+        }
+      ],
+      "confidence": 0.25,
+      "confidence_rationale": "Confidence is limited to the two fresh source observations. Evidence is insufficient for an evidence-grounded assessment of business quality, valuation, or downside risks.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "Shares outstanding and market capitalization are unavailable, preventing price-to-sales or equity-value valuation analysis.",
+        "Profitability, free cash flow, debt, liquidity, historical growth, guidance, and competitive evidence are unavailable.",
+        "No counter-thesis evidence is authorized beyond the limited evidence set."
+      ],
+      "invalidation_conditions": [
+        "The price fact is invalidated if fixture-market-primary corrects or supersedes the USD 100 close-price observation as of 2026-01-30T21:00:00Z.",
+        "The revenue fact is invalidated if fixture-filing-primary corrects or supersedes the USD 1,000,000 TTM revenue observation as of 2025-12-31T00:00:00Z.",
+        "Any company thesis requires new authorized evidence covering the identified data gaps."
+      ],
+      "invocation_id": "inv_b4068fdea55d62994bb8df7f",
+      "run_id": "rrh-final-risk-veto-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA; Regression-risk-veto. Authorized evidence establishes a USD 100 close price from fixture-market-primary as of 2026-01-30T21:00:00Z, retrieved 2026-01-30T21:05:00Z, and USD 1,000,000 TTM revenue from fixture-filing-primary as of 2025-12-31T00:00:00Z, retrieved 2026-01-15T13:00:00Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "561d6d7a9c360900d8b58d20c84034d591881ca6eefb4b5412e4fb4a0da0c1d8",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "b5edc402d8f9ccc650ecde3952399d3c01236def713d90626510e1ccb929f5ce",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "5b23dc2ea1c91dd419286b5ff2d2415cc8778d844f40bb772140065dd87a9183",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "The price observation and revenue observation have different as-of dates.",
+        "No evidence explains revenue drivers, durability, margins, or capital intensity."
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "CT-001",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至截止时间的估值指标及其计算口径",
+            "成交量、买卖价差与历史波动率",
+            "可比公司或历史估值区间"
+          ],
+          "statement": "截至截止时间，最新收盘价为100美元，但单一价格观测不能证明估值合理性、流动性、波动风险或价格可持续性。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "CT-002",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "收入增长率及分部或客户集中度",
+            "毛利率、经营利润率和自由现金流",
+            "收入确认政策及后续期间经营数据"
+          ],
+          "statement": "TTM收入为1,000,000美元，但收入规模本身不能区分增长、一次性确认、利润质量、现金转化或客户集中度等替代解释。"
+        }
+      ],
+      "confidence": 0.82,
+      "confidence_rationale": "对证据缺口及其限制的判断具有较高置信度；对任何更具体的业务或估值结论不具备足够授权证据。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "缺少盈利能力、现金流、资产负债表、估值、流动性和价格波动数据。",
+        "缺少竞争环境、管理层、客户集中度及后续经营表现的证据。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若取得截至决策截止时间的可复核盈利、现金流、估值和流动性证据，且其一致支持相反解释，则上述反证挑战失效。",
+        "若后续证据表明TTM收入具有稳定增长、健康利润率和现金转化，收入质量疑虑将被削弱。"
+      ],
+      "invocation_id": "inv_0610a82f170d58f13df4144a",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-risk-veto-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；Regression-risk-veto；决策截止时间为2026-01-31T23:59:59Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "559cdee1a6307c0b2a471d4ba12cf1df0f9fd1c9ba47f0868ae494266050e3a2",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "c2f717d5e9d6ebccb6769ebb757530e19c97f29be65d1e747f5fe4bd450a1032",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "两项授权证据均标记为FRESH，但覆盖范围仅限收盘价和TTM收入。",
+        "没有足够证据判断价格与基本面之间的关系。"
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "agent": "dev_eval",
+  "agent_hash": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
+  "child_rollout_hash": "524ce068852160e5db23b51a7df82e536dd4b94d6eb86658b52c7ccd2f97fcfe",
+  "child_session_id": "01a07fc4-2ee4-7e60-b363-ac71318bc1e9",
+  "eval_id": "rrh-final-eval-high-concentration-portfolio-20260908",
+  "input_hash": "60fa28bb14e61cb6d5889e6bbd9cadb8e14c59d1e56d623d6c24a9d6164f8aae",
+  "model": "gpt-5.6-terra",
+  "output_hash": "9751ea9eff297607da531bc27c35ddb3313f645067f17d2f8c2c5a7448c5b58d",
+  "parent_rollout_hash": "38caff5d18e96847283e5ac95806ab6a2fd86ad438e7a63d0b89a042ac509230",
+  "parent_session_id": "01a07fc3-c591-79e2-bbd6-bb294e80e7dd",
+  "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+  "proof_hash": "d54631f4b5037e8bca0ce3d351f1598fd47ed0a34eec1c47a4c90b19172702e0",
+  "raw_prompt_or_reasoning_retained": false,
+  "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+  "schema_hash": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+  "schema_version": "eval-grader-execution-proof/1.0.0",
+  "skill_hash": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+  "task_binding_method": "protected_dispatch_plus_structured_output",
+  "telemetry": {
+    "cached_tokens": 235008,
+    "input_tokens": 285751,
+    "latency_ms": 173680,
+    "llm_calls": 10,
+    "output_tokens": 6968
+  }
+}

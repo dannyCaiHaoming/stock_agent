@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/regression-case/1.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "case_id", "fixture", "data_version", "llm_required", "topologies", "injection", "injection_evidence_ids", "expected_invariants"],
+  "properties": {
+    "schema_version": {"const": "regression-case/1.1.0"},
+    "case_id": {"type": "string", "minLength": 1},
+    "fixture": {"type": "string", "minLength": 1},
+    "data_version": {"type": "string", "minLength": 1},
+    "llm_required": {"type": "boolean"},
+    "topologies": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "enum": ["product-council", "cio-only", "analyst-cio", "full-council"]}},
+    "injection": {"type": ["string", "null"], "enum": [null, "all-evidence-stale", "future-information-leakage", "dangling-evidence-reference", "valid-action-contract", "invalid-specialist-output"]},
+    "injection_evidence_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "expected_invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"TERMINAL_STATE_IN"},"value":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","enum":["COMPLETED","SAFE_NO_TRADE","FAILED_VALIDATION"]}},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"AGENTS_INCLUDE"},"value":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","enum":["runtime_company_analyst","runtime_skeptic","runtime_cio"]}},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"AGENTS_EXCLUDE"},"value":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","enum":["runtime_company_analyst","runtime_skeptic","runtime_cio"]}},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"RISK_NOT_BYPASSED"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"EXPECT_RISK_PASS"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"EXPECT_RISK_VETO"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"EXPECT_NO_TRADE"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"NO_FUTURE_EVIDENCE"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"EVIDENCE_CLOSURE"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"TRACE_COMPLETE"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"SPECIALIST_OUTPUT_VALID"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"CIO_CONFLICT_HANDLED"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"EXPECT_FAILED_STAGE"},"value":{"type":"string","enum":["PREFLIGHT","EVIDENCE_GATE","SPECIALIST_EXECUTION","SPECIALIST_VALIDATION","CIO_SYNTHESIS","EXECUTION_PROOF","CIO_VALIDATION","RISK_ENGINE","PUBLICATION_VALIDATION"]},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"EVIDENCE_SUBSET_OF_GATE"},"value":{"const":true},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"SEMANTIC_DIMENSIONS_APPLICABLE"},"value":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","enum":["no_trade_reasoning","analyst_thesis_grounding","skeptic_counter_evidence","cio_conflict_handling","confidence_calibration"]}},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"EXPECT_VALIDATION_REJECTION"},"value":{"type":"string","enum":["EVIDENCE_CLOSURE_FAILED","SCHEMA_INVALID"]},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"LLM_CALLS_EQUAL"},"value":{"type":"integer","minimum":0},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"VALID_ACTION_SET"},"value":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","enum":["BUY","ADD","HOLD","TRIM","EXIT","NO_TRADE"]}},"hard":{"type":"boolean"}}},
+          {"type":"object","additionalProperties":false,"required":["type","value","hard"],"properties":{"type":{"const":"FORBIDDEN_ACTION"},"value":{"type":"string","enum":["REDUCE"]},"hard":{"type":"boolean"}}}
+        ]
+      }
+    }
+  }
+}

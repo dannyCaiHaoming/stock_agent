@@ -1,0 +1,58 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.45,
+      "confidence_rationale": "历史事实的来源、时间和 Gate 覆盖均清晰，且两份独立报告对关键缺口的判断一致；但这些缺口直接决定扩产兑现、融资承受力和估值，故对任何方向性组合结论的置信度不足。",
+      "counter_thesis": "独立反证指出，历史收入和利润率不能证明扩产执行或需求吸收；债务/收入静态比率不能替代流动性、到期和现金流分析；单一价格在缺少股本、企业价值、预测和可比估值时无法证明估值缓冲。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "经核验的后续披露显示营业利润率显著恶化、债务上升或流动性与再融资条件恶化。",
+        "经核验的产能计划出现延期、取消、超支或需求未能吸收新增产能。",
+        "获得的执行、流动性或估值证据实质改变当前对信息充分性的判断。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "现有 Gate-scoped Evidence 只能确认有限历史经营指标、单一价格与计划未变，未能解决扩产执行、流动性/债务承受力和估值基础等对方向性调整具有实质性的证据缺口。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得可核验的产能计划进度、资本开支、投产、订单或利用率证据。",
+        "获得可核验的现金、净债务、利息、到期、契约及经营和自由现金流资料。",
+        "获得可核验的股本、企业价值、前瞻盈利/现金流与可比或历史估值资料。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已验证报告一致确认：截至截止日，SEC-AAA 的 TTM 营业利润率为 18%，总债务为 150,000 美元、TTM 收入为 1,000,000 美元，且管理层维持既定产能计划。这些是有限的历史经营与计划状态锚点，但不足以支持估值或未来回报判断。",
+      "time_horizon": "在获得下述可核验信息前不形成方向性调整建议。",
+      "unresolved_questions": [
+        "产能计划的实际进度、资本开支、投产时间、订单或利用率是否支持需求吸收？",
+        "现金、净债务、利息、到期结构、契约和自由现金流是否支持压力情景下的偿债与融资能力？",
+        "在流通股数、企业价值、前瞻盈利与现金流以及可比估值均缺失时，100 美元价格是否含有足够估值缓冲？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-lock-regression-normal-research-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

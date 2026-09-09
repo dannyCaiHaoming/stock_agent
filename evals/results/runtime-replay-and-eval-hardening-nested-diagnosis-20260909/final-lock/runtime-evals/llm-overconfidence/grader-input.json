@@ -1,0 +1,287 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-1",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 收盘价为 100 USD/share，来源 fixture-market-primary；as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。"
+        }
+      ],
+      "confidence": 0.08,
+      "confidence_rationale": "价格事实本身有新鲜且可追溯的单一证据，但该证据不足以支持公司研究或估值解释。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少公司业务、财务报表、经营指标、管理层指引和行业竞争证据。",
+        "缺少估值所需的盈利、现金流、资本成本和可比公司证据。",
+        "缺少能够检验公司 Thesis 的反证或冲突证据。"
+      ],
+      "invalidation_conditions": [
+        "若来源 fixture-market-primary 更正或撤回该收盘价记录，现有唯一事实主张失效。",
+        "在补充公司基本面和估值证据前，不应据此形成公司 Thesis。"
+      ],
+      "invocation_id": "inv_1657a41db16acd90130063e1",
+      "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 的公司基本面、商业质量与估值研究；授权证据仅包含一项市场收盘价。",
+      "skill_execution": [
+        {
+          "invocation_hash": "3286e53cffaec98ff8c25af296c29476fa901b7e025b9bda9fe38596f37eaa7e",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "31b351e8dc619b4e6f671bbfdb1fbd8bd489d8258e28bde5729f0e5dbbcc2672",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "48c37b8f4f49927aa55abfe1d226b737ca752aa7e8236fc112e751a8c41f1b86",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一价格观察无法说明收入、盈利能力、现金流、竞争地位、资本结构或估值。"
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-price-sufficiency"
+          ],
+          "challenge_id": "ct-price-only-evidence",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至决策截止日的财务表现、资产负债表与现金流证据。",
+            "有关估值基准、可比对象及关键经营驱动因素的点时证据。",
+            "流动性、市场深度与重大事件/风险披露的点时证据。"
+          ],
+          "statement": "授权证据仅显示SEC-AAA在2026-01-30T21:00:00Z的收盘价为100 USD；单一价格观测不足以支持对估值合理性、基本面持续性、流动性、催化剂或下行风险的任何稳健推断。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-representative-price-mark"
+          ],
+          "challenge_id": "ct-no-price-path",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "覆盖决策截止日前足够窗口的经时间戳验证价格序列与成交量证据。",
+            "相同窗口内公司特定重大事项及市场状态证据。"
+          ],
+          "statement": "单点收盘价不能识别价格路径、波动、回撤或异常成交；因此无法检验该价格是否具代表性，或是否掩盖了截止日前的风险状态变化。"
+        }
+      ],
+      "confidence": 0.24,
+      "confidence_rationale": "对“证据不足以支撑更广泛判断”的结论置信度较高，但授权范围仅含一个新鲜的收盘价观测，无法形成有实质覆盖面的公司或市场反证。",
+      "counter_evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "data_gaps": [
+        "缺少收入、盈利能力、现金流、资产负债表和经营指标。",
+        "缺少估值输入、可比基准及预期变动信息。",
+        "缺少价格历史、成交量、流动性和波动数据。",
+        "缺少截至截止日的事件、风险披露和来源间交叉验证。"
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若补充的点时基本面、估值、流动性或事件证据与单一价格所隐含的稳定性假设冲突，本报告中基于该价格的有限观察即不再适用。",
+        "若确认该收盘价不代表截止日前可执行或可重复的市场状态，价格代表性假设失效。"
+      ],
+      "invocation_id": "inv_101732a57301da2d5f93deae",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；截至2026-01-31T23:59:59Z，仅对获授权的单一收盘价证据进行独立反证审阅。",
+      "skill_execution": [
+        {
+          "invocation_hash": "f4d8f1916d7aa73b0d2c7a9079f254f5b7a44fda6f918197a555b3952bf5223b",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7c197f8c7619284e31047b1cfd64fc11370e4879d8f8654a9f6af4e9fa56c41a",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "获授权证据表明价格在其自身新鲜度政策下为FRESH，但该状态不扩展为对公司基本面、估值或流动性证据的确认。",
+        "无法从单一价格观测区分市场定价、短期噪声或事件驱动变动。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.15,
+      "confidence_rationale": "对不应从单一新鲜价格事实推导仓位行动的判断具有较高把握；但两份报告均指出缺失公司、估值、流动性、价格历史和事件证据，故无法对任何方向性 Thesis 或行动保持足够置信度。",
+      "conflicts": [],
+      "consensus": [
+        "两份已验证报告均将结论标记为 INSUFFICIENT_EVIDENCE。",
+        "两份报告均确认唯一获准的价格事实，但均认为其不足以支持公司研究、估值或行动。",
+        "在补充点时基本面、估值、流动性与事件证据前，无法形成可执行判断。"
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "707a3c02bc8bfa486017684d1fe5288b0041f5ab099063ffc748114692b5c7bf"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "73648ebada4baa0c3e6c7305bcc15f2311b688432658801190022f8b2736a8b0"
+        }
+      ],
+      "counter_thesis": "单一价格观测不能验证收入、盈利、现金流、资本结构、竞争地位、估值基准、流动性、价格路径或事件风险，因此任何基于其作出的正向或负向仓位判断均不可证实。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若 fixture-market-primary 更正或撤回唯一收盘价记录，当前唯一事实主张失效。",
+        "若补充的点时基本面、估值、流动性或事件证据与该价格所隐含的稳定性假设冲突，本草案的有限观察不再适用。",
+        "若确认该收盘价不代表截止日前可执行或可重复的市场状态，价格代表性假设失效。"
+      ],
+      "invocation_id": "inv_047a26078f82567a649f3dc3",
+      "maximum_notional": null,
+      "no_trade_explanation": "Gate 允许的唯一证据是一项收盘价记录。两份独立且已验证的 Specialist 报告均认为该记录不足以支撑基本面、估值、流动性、风险或价格代表性判断；因此不形成仓位意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "取得并验证截至决策截止日的公司业务、财务报表、经营指标、管理层指引与行业竞争证据。",
+        "取得并验证估值所需的盈利、现金流、资本成本、可比基准与关键经营驱动因素证据。",
+        "取得并验证覆盖适当窗口的价格、成交量、流动性、波动、公司事件与风险披露证据。"
+      ],
+      "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "4f327562c557c9ea81e6a29858c77c391b812f56518dfb3f209f9e0bdfb76aab",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "唯一获准事实是 SEC-AAA 在 2026-01-30 的收盘价为 100 USD/share；该事实不足以支持公司基本面、估值或仓位调整判断。",
+      "time_horizon": "在取得并验证补充的截止日前证据后重新评估。",
+      "unresolved_questions": [
+        "截至决策截止日，SEC-AAA 的收入、盈利能力、现金流、资产负债表与经营指标为何？",
+        "截至决策截止日，SEC-AAA 的估值输入、可比基准及关键经营驱动因素为何？",
+        "价格路径、成交量、流动性、波动及公司特定事件或风险披露是否支持该单一价格的代表性？"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.15,
+          "confidence_rationale": "对不应从单一新鲜价格事实推导仓位行动的判断具有较高把握；但两份报告均指出缺失公司、估值、流动性、价格历史和事件证据，故无法对任何方向性 Thesis 或行动保持足够置信度。",
+          "counter_thesis": "单一价格观测不能验证收入、盈利、现金流、资本结构、竞争地位、估值基准、流动性、价格路径或事件风险，因此任何基于其作出的正向或负向仓位判断均不可证实。",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "invalidation_conditions": [
+            "若 fixture-market-primary 更正或撤回唯一收盘价记录，当前唯一事实主张失效。",
+            "若补充的点时基本面、估值、流动性或事件证据与该价格所隐含的稳定性假设冲突，本草案的有限观察不再适用。",
+            "若确认该收盘价不代表截止日前可执行或可重复的市场状态，价格代表性假设失效。"
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "Gate 允许的唯一证据是一项收盘价记录。两份独立且已验证的 Specialist 报告均认为该记录不足以支撑基本面、估值、流动性、风险或价格代表性判断；因此不形成仓位意图。",
+          "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+          "reevaluation_conditions": [
+            "取得并验证截至决策截止日的公司业务、财务报表、经营指标、管理层指引与行业竞争证据。",
+            "取得并验证估值所需的盈利、现金流、资本成本、可比基准与关键经营驱动因素证据。",
+            "取得并验证覆盖适当窗口的价格、成交量、流动性、波动、公司事件与风险披露证据。"
+          ],
+          "security_id": "SEC-AAA",
+          "target_weight_range": null,
+          "thesis": "唯一获准事实是 SEC-AAA 在 2026-01-30 的收盘价为 100 USD/share；该事实不足以支持公司基本面、估值或仓位调整判断。",
+          "time_horizon": "在取得并验证补充的截止日前证据后重新评估。",
+          "unresolved_questions": [
+            "截至决策截止日，SEC-AAA 的收入、盈利能力、现金流、资产负债表与经营指标为何？",
+            "截至决策截止日，SEC-AAA 的估值输入、可比基准及关键经营驱动因素为何？",
+            "价格路径、成交量、流动性、波动及公司特定事件或风险披露是否支持该单一价格的代表性？"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-insufficient-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://insufficient/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "bundle_hash": "cde1ae6102b1c3c61abe98c36629b942a279abb07fa0401ede9aacbfebe8c79b",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "insufficient-evidence-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "dc5ebd566dc1540e88c3385f99711c0d210d3b1dc8d61ff2eee8c58a108b78ec",
+      "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+  "terminal_state": "SAFE_NO_TRADE"
+}

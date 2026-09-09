@@ -192,6 +192,16 @@ class GateScopedFixtureToolTests(unittest.TestCase):
         self.assertEqual(parameters, set(schema["properties"]))
         self.assertFalse(schema["additionalProperties"])
 
+    def test_query_manifest_spells_out_exact_stateless_parameters(self):
+        query = next(
+            item for item in StatelessFixtureTools.tool_manifest() if item["name"] == "query"
+        )
+        self.assertEqual(
+            query["inputSchema"]["required"],
+            ["run_dir", "run_id", "agent", "invocation_id", "evidence_ids"],
+        )
+        self.assertIn("Never pass singular evidence_id", query["description"])
+
     def test_calculation_rejects_invalid_id_before_accessing_facts(self):
         with self.assertRaisesRegex(ToolAccessError, "INVALID_CALCULATION_ID"):
             self.tools.calculate(
@@ -309,6 +319,59 @@ class GateScopedFixtureToolTests(unittest.TestCase):
             serialized = json.dumps(event)
             self.assertNotIn("ev-normal-debt", serialized)
             self.assertNotIn("must-fail", serialized)
+
+    def test_mcp_missing_required_argument_returns_error_without_closing_transport(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            prepare_run(
+                ROOT,
+                fixture_path=FIXTURES / "normal-research.json",
+                run_dir=run_dir,
+                run_id="stateless-missing-argument",
+                model="gpt-5.6-terra",
+                research_question="验证 MCP 缺参不关闭传输。",
+            )
+            invocation = json.loads(
+                (run_dir / "invocations" / "runtime_skeptic.json").read_text()
+            )
+            invalid = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "query",
+                    "arguments": {"evidence_id": "ev-normal-price"},
+                },
+            }
+            valid = {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "query",
+                    "arguments": {
+                        "run_dir": str(run_dir),
+                        "run_id": "stateless-missing-argument",
+                        "agent": "runtime_skeptic",
+                        "invocation_id": invocation["invocation_id"],
+                        "evidence_ids": ["ev-normal-price"],
+                    },
+                },
+            }
+            stdin = io.StringIO(json.dumps(invalid) + "\n" + json.dumps(valid) + "\n")
+            stdout = io.StringIO()
+            with mock.patch("sys.stdin", stdin), mock.patch("sys.stdout", stdout):
+                serve_stdio(stateless=True)
+            responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
+            self.assertEqual(
+                responses[0]["error"]["message"],
+                "MISSING_TOOL_ARGUMENT:run_dir",
+            )
+            self.assertFalse(responses[1]["result"]["isError"])
+            self.assertEqual(
+                responses[1]["result"]["structuredContent"]["evidence"][0]["evidence_id"],
+                "ev-normal-price",
+            )
 
 
 if __name__ == "__main__":

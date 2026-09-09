@@ -1,0 +1,146 @@
+{
+  "eval_hash": "7a0ca36299680409541e1a78702c4fba0d1aadb4e1c52984257ee065e7f9d3a5",
+  "eval_id": "rreh-ablation-v3-eval-normal-full-council-20260907",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "a82096681cb55a9e49164e878939d70020530da9a9bf7f8b9179ac917bb3470e",
+    "input_hash": "4cf60382a1e404f7edfb04a0dd82db5137459e320f490062815e449600e468a3",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 270592,
+      "input_tokens": 333992,
+      "latency_ms": 161644,
+      "llm_calls": 11,
+      "output_tokens": 5790
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "a134f8565b949b832d27f144fe87ce64661f132e1110ec426e80337edfd85c1c",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 5,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 5
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "967a5abc727c4bedc230b4bfe71024ea4e1c1eaf2996ad9a1362bbd0da4d9f1f",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "486cecf712fe4251057d164f127458953e99f2b9830d56d99c592de5e6d7f39d",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rreh-ablation-v3-normal-full-council-20260907",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "runtime_company_analyst 明确区分 FACT 与 INTERPRETATION；各事实和有限解释均引用允许 Evidence，并对偿债能力、执行与估值所需的数据缺口作出限制说明。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "runtime_cio 明确记录两份报告的共识、无机械冲突、四项未决问题及其对 NO_TRADE 的影响；decision.json 风险报告确认 APPROVED 且 final_action 为 NO_TRADE。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 0.68、Skeptic 0.38 和 CIO 0.35 的置信度理由均明确限定在允许 Evidence 的覆盖范围，并以关键数据缺口和不确定性约束对方向性结论的置信度。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "runtime_cio 的 INSUFFICIENT_EVIDENCE、NO_TRADE 解释及四项重评条件与 gate.json 的允许证据范围和 decision.json 的 APPROVED SAFE_NO_TRADE 一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "debt-service-coverage-unknown",
+        "margin-quality-and-durability-unknown",
+        "capacity-plan-not-demand-validation",
+        "price-is-not-valuation-evidence",
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "runtime_skeptic 标记为 INDEPENDENT_FIRST_PASS，对债务服务、利润率质量、产能需求验证和价格解释提出具体可证伪挑战，并列出所需核验材料和失效条件。",
+      "status": "PASS"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "967a5abc727c4bedc230b4bfe71024ea4e1c1eaf2996ad9a1362bbd0da4d9f1f",
+    "artifact_replay": "a134f8565b949b832d27f144fe87ce64661f132e1110ec426e80337edfd85c1c",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "35b8bef61bbe248237d9a306d8be991fdf4279eb5d585b5d3c97e6dcd046b5eb",
+    "semantic_input": "4cf60382a1e404f7edfb04a0dd82db5137459e320f490062815e449600e468a3",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "ff223bdc066ceea006d2f563e273fa50a9a07142c77ffa30cf41173ef956030c"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

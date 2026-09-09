@@ -1,0 +1,37 @@
+{
+  "allowed_evidence": [
+    {
+      "as_of": "2026-01-30T21:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-insufficient-price",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "freshness_status": "FRESH",
+      "retrieved_at": "2026-01-30T21:05:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "close_price",
+      "source_id": "fixture-market-primary",
+      "source_locator": "fixture://insufficient/price/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD_per_share",
+      "value": 100
+    }
+  ],
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "bundle_hash": "bd029668fb2c9d74b0ace981ecd7260f04129253ff4e79e31e204d6ab99e8a32",
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "conflicts": [],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "excluded": [],
+  "excluded_evidence_ids": [],
+  "fixture_id": "insufficient-evidence-v1",
+  "freshness_policy_version": "freshness/fixture/2.0.0",
+  "input_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "input_hash": "dc5ebd566dc1540e88c3385f99711c0d210d3b1dc8d61ff2eee8c58a108b78ec",
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v7-20260908",
+  "schema_version": "evidence-gate/2.0.0"
+}

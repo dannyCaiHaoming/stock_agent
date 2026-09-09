@@ -1,0 +1,625 @@
+{
+  "ablation_id": "rreh-hardening-ablation-final-20260908",
+  "cases": [
+    {
+      "case_id": "normal-research",
+      "comparability": {
+        "lock": {
+          "case_id": "normal-research",
+          "gate_context_hash": "88c5a36b03e45ff9b73f29d98a1a0904a610910deace4092d0164e3bc3c0860b",
+          "model": "gpt-5.6-terra",
+          "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+          "risk_policy": "risk/reference/1.0.0",
+          "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+          "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+        },
+        "status": "PASS"
+      },
+      "conclusion": "NO_MEASURABLE_GAIN",
+      "profiles": [
+        {
+          "comparison_lock": {
+            "case_id": "normal-research",
+            "gate_context_hash": "88c5a36b03e45ff9b73f29d98a1a0904a610910deace4092d0164e3bc3c0860b",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+          },
+          "eval_artifact_hash": "4562480fb3fba291bd9ca14af4590089848dcb45b319762b38beaa3ae0ff20b6",
+          "eval_hash": "4c75c91f0255d0123b030e54436a3e00e690220328ed7c49142a45b1f5bf4455",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals-regraded/normal-research/cio-only/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": null,
+            "evidence_grounding": null,
+            "input_tokens": 492906,
+            "latency_ms": 117418,
+            "no_trade_quality": 3,
+            "output_tokens": 3198,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "cio-only",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/normal-research/cio-only",
+          "run_id": "rreh-ablation-v3-normal-cio-only-20260907",
+          "trace_hash": "d696461ad33e9df8040455159d8f61ff76a23bf8a8517761aac4397ba696de08"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "normal-research",
+            "gate_context_hash": "88c5a36b03e45ff9b73f29d98a1a0904a610910deace4092d0164e3bc3c0860b",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+          },
+          "eval_artifact_hash": "57873be3d02861c5171ed16a66d4a6015a8f284bbfcfea4fbe96035aca17b58f",
+          "eval_hash": "07a466bb928556076ec49f4584dc5ae3396a03314d4f7fbdf2e4b2e08883853d",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals-regraded/normal-research/analyst-cio/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": null,
+            "evidence_grounding": 3,
+            "input_tokens": 768077,
+            "latency_ms": 251630,
+            "no_trade_quality": 3,
+            "output_tokens": 9481,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "analyst-cio",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/normal-research/analyst-cio",
+          "run_id": "rreh-ablation-v3-normal-analyst-cio-20260907",
+          "trace_hash": "c3bec72ebdc5900254110bae8be58e83bc681d38afa44d82faad113e260fef4a"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "normal-research",
+            "gate_context_hash": "88c5a36b03e45ff9b73f29d98a1a0904a610910deace4092d0164e3bc3c0860b",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+          },
+          "eval_artifact_hash": "65da5a94982ce4eeac59dbfcb1f4e9ef5f98380b243167e7b74551c600c07e5b",
+          "eval_hash": "141ccc91ab2ab36d7ee87febb4657592fb442c7a00c9e99c8d163adab0be90fc",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals-regraded/normal-research/full-council/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": 3,
+            "evidence_grounding": 3,
+            "input_tokens": 790413,
+            "latency_ms": 272331,
+            "no_trade_quality": 3,
+            "output_tokens": 13001,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "full-council",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/normal-research/full-council",
+          "run_id": "rreh-ablation-v3-normal-full-council-20260907",
+          "trace_hash": "ff223bdc066ceea006d2f563e273fa50a9a07142c77ffa30cf41173ef956030c"
+        }
+      ],
+      "reason_codes": [
+        "NO_MEASURABLE_GAIN"
+      ]
+    },
+    {
+      "case_id": "insufficient-evidence",
+      "comparability": {
+        "lock": {
+          "case_id": "insufficient-evidence",
+          "gate_context_hash": "958e8edd4ed0bff0ef2a62910932220cf75a5a8484adc49208800d698c34bd01",
+          "model": "gpt-5.6-terra",
+          "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+          "risk_policy": "risk/reference/1.0.0",
+          "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+          "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+        },
+        "status": "PASS"
+      },
+      "conclusion": "NO_MEASURABLE_GAIN",
+      "profiles": [
+        {
+          "comparison_lock": {
+            "case_id": "insufficient-evidence",
+            "gate_context_hash": "958e8edd4ed0bff0ef2a62910932220cf75a5a8484adc49208800d698c34bd01",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+          },
+          "eval_artifact_hash": "713d861706c8ac27c3f83df208336e53abb2d819fc860bd20e8c4717d452b566",
+          "eval_hash": "c7bc89d727c33df1cf38090f40304321b44dd1edad746126de3f3ce239861afa",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/insufficient-evidence/cio-only-v3/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": null,
+            "evidence_grounding": null,
+            "input_tokens": 289980,
+            "latency_ms": 88904,
+            "no_trade_quality": 3,
+            "output_tokens": 2838,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "cio-only",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/insufficient-evidence/cio-only-v2",
+          "run_id": "rreh-hardening-ablation-insufficient-cio-only-v2-20260908",
+          "trace_hash": "bb23e800ebee9590db95ea8fbc1966b48decfbb951b6df4840be077004ad7eb2"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "insufficient-evidence",
+            "gate_context_hash": "958e8edd4ed0bff0ef2a62910932220cf75a5a8484adc49208800d698c34bd01",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+          },
+          "eval_artifact_hash": "f113cb3e52648641f8683204eb02745d983954c008df00407b445bcdd10beec1",
+          "eval_hash": "162c1601e5c4e2173ae2bb786d727e8ecfcdd4151a88c3a40cc5ce331c437df9",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/insufficient-evidence/analyst-cio-v4/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": null,
+            "evidence_grounding": 3,
+            "input_tokens": 595823,
+            "latency_ms": 207523,
+            "no_trade_quality": 3,
+            "output_tokens": 8140,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "analyst-cio",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/insufficient-evidence/analyst-cio-v3",
+          "run_id": "rreh-hardening-ablation-insufficient-analyst-cio-v3-20260908",
+          "trace_hash": "29ba3371b41607a5251214e34cbbf3dd1cada25ba363585e8f409b638f3bbafb"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "insufficient-evidence",
+            "gate_context_hash": "958e8edd4ed0bff0ef2a62910932220cf75a5a8484adc49208800d698c34bd01",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+          },
+          "eval_artifact_hash": "8a52e679f843ef48f53b9b7d7f1171fd0e08a722d677a9ba602d19269a246bf7",
+          "eval_hash": "d4749929947f19a7d9c575c7cec6cd7f274e5effad5c3eacc8e5ae61f81a7410",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/insufficient-evidence/full-council-v8/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": 3,
+            "evidence_grounding": 3,
+            "input_tokens": 807412,
+            "latency_ms": 256052,
+            "no_trade_quality": 3,
+            "output_tokens": 12135,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "full-council",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/insufficient-evidence/full-council-v8",
+          "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+          "trace_hash": "9b5c91b27fc99409b0554a5d3703ec0bc045bbd644f840e382f9c3e9ac3db991"
+        }
+      ],
+      "reason_codes": [
+        "NO_MEASURABLE_GAIN"
+      ]
+    },
+    {
+      "case_id": "analyst-skeptic-strong-conflict",
+      "comparability": {
+        "lock": {
+          "case_id": "analyst-skeptic-strong-conflict",
+          "gate_context_hash": "733df70cab6a7e9b1d57616f706c7b3e2af8ff4c36f96be554dc9a0c48d8eca3",
+          "model": "gpt-5.6-terra",
+          "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+          "risk_policy": "risk/reference/1.0.0",
+          "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+          "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+        },
+        "status": "PASS"
+      },
+      "conclusion": "NO_MEASURABLE_GAIN",
+      "profiles": [
+        {
+          "comparison_lock": {
+            "case_id": "analyst-skeptic-strong-conflict",
+            "gate_context_hash": "733df70cab6a7e9b1d57616f706c7b3e2af8ff4c36f96be554dc9a0c48d8eca3",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+          },
+          "eval_artifact_hash": "f54d76c39c7b83e0e5d681c74c21c16a7d444271dd8fa6cfdd47b45cd2f14b00",
+          "eval_hash": "83990b73ff303b97ad24a140c2393d378b4267ed6d296d23a15e33203c9ca874",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/analyst-skeptic-strong-conflict/cio-only-v5/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": null,
+            "evidence_grounding": null,
+            "input_tokens": 331461,
+            "latency_ms": 111440,
+            "no_trade_quality": 3,
+            "output_tokens": 3867,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "cio-only",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/cio-only-v5",
+          "run_id": "rreh-hardening-ablation-conflict-cio-only-v5-20260908",
+          "trace_hash": "518fd37058740b7f1498de1d0bd5327e54a7636c3d93bfbdca23588f7fcabe7a"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "analyst-skeptic-strong-conflict",
+            "gate_context_hash": "733df70cab6a7e9b1d57616f706c7b3e2af8ff4c36f96be554dc9a0c48d8eca3",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+          },
+          "eval_artifact_hash": "61147b18ef2df8fe67958fefaafc5cd95f22a1148e018b88d763c33e8aee4d94",
+          "eval_hash": "6264e037fbe756fcc27c8574b91a4e16335274680d1516140116ac2bfcfede3a",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/analyst-skeptic-strong-conflict/analyst-cio-v4/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": null,
+            "evidence_grounding": 3,
+            "input_tokens": 543653,
+            "latency_ms": 243659,
+            "no_trade_quality": 3,
+            "output_tokens": 9107,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "analyst-cio",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/analyst-cio-v4",
+          "run_id": "rreh-hardening-ablation-conflict-analyst-cio-v4-20260908",
+          "trace_hash": "3c4da519fc51e2f7897e2ca76beb4254d6154c5451dabd30b84af94645fb8056"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "analyst-skeptic-strong-conflict",
+            "gate_context_hash": "733df70cab6a7e9b1d57616f706c7b3e2af8ff4c36f96be554dc9a0c48d8eca3",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48"
+          },
+          "eval_artifact_hash": "1131e15ca6f041e890dfbd9f7e7afa6e5ad49f62cc915c363be7f23dc91e6e00",
+          "eval_hash": "8b903c023879faf9f22b0376bc875b29b8b3438aee519fb2ffcea39ce68aa0e3",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/analyst-skeptic-strong-conflict/full-council-v3-strict/eval/result.json",
+          "metrics": {
+            "conflict_handling": 3,
+            "counter_evidence": 3,
+            "evidence_grounding": 3,
+            "input_tokens": 1006714,
+            "latency_ms": 263880,
+            "no_trade_quality": 3,
+            "output_tokens": 13840,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": 1.0,
+            "telemetry_status": "AVAILABLE"
+          },
+          "profile": "full-council",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/full-council-v3",
+          "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+          "trace_hash": "89e12f44792b5565c3058023df971ed5b3ce7abc3aeae6d78df9254480249898"
+        }
+      ],
+      "reason_codes": [
+        "NO_MEASURABLE_GAIN"
+      ]
+    },
+    {
+      "case_id": "mandatory-no-trade",
+      "comparability": {
+        "lock": {
+          "case_id": "mandatory-no-trade",
+          "gate_context_hash": "3922f7128e1efb3b1a0132ded4a943762f3e847bee396ab624fbcf45ef4b0479",
+          "model": "gpt-5.6-terra",
+          "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+          "risk_policy": "risk/reference/1.0.0",
+          "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+          "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+        },
+        "status": "PASS"
+      },
+      "conclusion": "NO_MEASURABLE_GAIN",
+      "profiles": [
+        {
+          "comparison_lock": {
+            "case_id": "mandatory-no-trade",
+            "gate_context_hash": "3922f7128e1efb3b1a0132ded4a943762f3e847bee396ab624fbcf45ef4b0479",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+          },
+          "eval_artifact_hash": "555c17959675d30e6a5d7291933cb8864bb38176ca3457b9595fbe3ee9c516b8",
+          "eval_hash": "8fd752b67b49a71788644ecee3715a7b8e5e5a57dcd8c64589ae07663ae7091c",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals-regraded/mandatory-no-trade/cio-only/eval/result.json",
+          "metrics": {
+            "conflict_handling": null,
+            "counter_evidence": null,
+            "evidence_grounding": null,
+            "input_tokens": null,
+            "latency_ms": null,
+            "no_trade_quality": null,
+            "output_tokens": null,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": null,
+            "telemetry_status": "MISSING_TELEMETRY"
+          },
+          "profile": "cio-only",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/cio-only",
+          "run_id": "rreh-ablation-v3-mandatory-cio-only-20260907",
+          "trace_hash": "ce7a7ba697c597e16d39d1edaf8535827b9258166c2dbb2c1e9695f7a1c0570b"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "mandatory-no-trade",
+            "gate_context_hash": "3922f7128e1efb3b1a0132ded4a943762f3e847bee396ab624fbcf45ef4b0479",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+          },
+          "eval_artifact_hash": "8845b793ce17f62da66d668faabcfba33e0e6c3be4663eb4ad041541324a9ee4",
+          "eval_hash": "870c4c119efa3644d9610fdcd3b81e0c4672b96c4752cc474c26c4fca908f414",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals-regraded/mandatory-no-trade/analyst-cio/eval/result.json",
+          "metrics": {
+            "conflict_handling": null,
+            "counter_evidence": null,
+            "evidence_grounding": null,
+            "input_tokens": null,
+            "latency_ms": null,
+            "no_trade_quality": null,
+            "output_tokens": null,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": null,
+            "telemetry_status": "MISSING_TELEMETRY"
+          },
+          "profile": "analyst-cio",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/analyst-cio",
+          "run_id": "rreh-ablation-v3-mandatory-analyst-cio-20260907",
+          "trace_hash": "96b21651486731d2415eec8ae29f0905eb447e183645d6e42915f3bf1f09862f"
+        },
+        {
+          "comparison_lock": {
+            "case_id": "mandatory-no-trade",
+            "gate_context_hash": "3922f7128e1efb3b1a0132ded4a943762f3e847bee396ab624fbcf45ef4b0479",
+            "model": "gpt-5.6-terra",
+            "portfolio_hash": "88bd33a212720c28085e5e2028de0d35cfb1f5f772d2491a4bd1d1ada1ca3b2d",
+            "risk_policy": "risk/reference/1.0.0",
+            "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+            "version_lock_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+          },
+          "eval_artifact_hash": "6be533f8c17834451de403a98735236a118df066636fc4d92ea369f56c36b60a",
+          "eval_hash": "9a6de28c48756467f7e1a5704f702093854d20bc6e7ec6375ff61d7faf3e7111",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals-regraded/mandatory-no-trade/full-council/eval/result.json",
+          "metrics": {
+            "conflict_handling": null,
+            "counter_evidence": null,
+            "evidence_grounding": null,
+            "input_tokens": null,
+            "latency_ms": null,
+            "no_trade_quality": null,
+            "output_tokens": null,
+            "risk_violations": 0,
+            "schema_failures": 0,
+            "semantic_quality": null,
+            "telemetry_status": "MISSING_TELEMETRY"
+          },
+          "profile": "full-council",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/full-council",
+          "run_id": "rreh-ablation-v3-mandatory-full-council-20260907",
+          "trace_hash": "584c5f2ddf9a49c8ab12b88fc72c12a961566f31af0048e91fb9e4c15a022638"
+        }
+      ],
+      "reason_codes": [
+        "NO_SEMANTIC_DIMENSIONS_APPLICABLE"
+      ]
+    }
+  ],
+  "comparability": {
+    "case_count": 4,
+    "status": "PASS"
+  },
+  "conclusion": "NO_MEASURABLE_GAIN",
+  "configuration": {
+    "profiles_hash": "7e69d2623791ffb6a2a319e68d33c4978ec9b7b8773c2c7db13fbb9c92293d70",
+    "representative_cases": [
+      "normal-research",
+      "insufficient-evidence",
+      "analyst-skeptic-strong-conflict",
+      "mandatory-no-trade"
+    ]
+  },
+  "metrics": {
+    "analyst-cio": {
+      "conflict_handling": 3.0,
+      "counter_evidence": null,
+      "evidence_grounding": 3.0,
+      "input_tokens": null,
+      "latency_ms": null,
+      "no_trade_quality": 3.0,
+      "output_tokens": null,
+      "risk_violations": 0,
+      "schema_failures": 0,
+      "semantic_quality": 1.0,
+      "telemetry_status": "MISSING_TELEMETRY"
+    },
+    "cio-only": {
+      "conflict_handling": 3.0,
+      "counter_evidence": null,
+      "evidence_grounding": null,
+      "input_tokens": null,
+      "latency_ms": null,
+      "no_trade_quality": 3.0,
+      "output_tokens": null,
+      "risk_violations": 0,
+      "schema_failures": 0,
+      "semantic_quality": 1.0,
+      "telemetry_status": "MISSING_TELEMETRY"
+    },
+    "full-council": {
+      "conflict_handling": 3.0,
+      "counter_evidence": 3.0,
+      "evidence_grounding": 3.0,
+      "input_tokens": null,
+      "latency_ms": null,
+      "no_trade_quality": 3.0,
+      "output_tokens": null,
+      "risk_violations": 0,
+      "schema_failures": 0,
+      "semantic_quality": 1.0,
+      "telemetry_status": "MISSING_TELEMETRY"
+    }
+  },
+  "profiles": [
+    {
+      "eval_hashes": [
+        "4c75c91f0255d0123b030e54436a3e00e690220328ed7c49142a45b1f5bf4455",
+        "c7bc89d727c33df1cf38090f40304321b44dd1edad746126de3f3ce239861afa",
+        "83990b73ff303b97ad24a140c2393d378b4267ed6d296d23a15e33203c9ca874",
+        "8fd752b67b49a71788644ecee3715a7b8e5e5a57dcd8c64589ae07663ae7091c"
+      ],
+      "metrics": {
+        "conflict_handling": 3.0,
+        "counter_evidence": null,
+        "evidence_grounding": null,
+        "input_tokens": null,
+        "latency_ms": null,
+        "no_trade_quality": 3.0,
+        "output_tokens": null,
+        "risk_violations": 0,
+        "schema_failures": 0,
+        "semantic_quality": 1.0,
+        "telemetry_status": "MISSING_TELEMETRY"
+      },
+      "profile": "cio-only",
+      "run_ids": [
+        "rreh-ablation-v3-normal-cio-only-20260907",
+        "rreh-hardening-ablation-insufficient-cio-only-v2-20260908",
+        "rreh-hardening-ablation-conflict-cio-only-v5-20260908",
+        "rreh-ablation-v3-mandatory-cio-only-20260907"
+      ],
+      "trace_hashes": [
+        "d696461ad33e9df8040455159d8f61ff76a23bf8a8517761aac4397ba696de08",
+        "bb23e800ebee9590db95ea8fbc1966b48decfbb951b6df4840be077004ad7eb2",
+        "518fd37058740b7f1498de1d0bd5327e54a7636c3d93bfbdca23588f7fcabe7a",
+        "ce7a7ba697c597e16d39d1edaf8535827b9258166c2dbb2c1e9695f7a1c0570b"
+      ]
+    },
+    {
+      "eval_hashes": [
+        "07a466bb928556076ec49f4584dc5ae3396a03314d4f7fbdf2e4b2e08883853d",
+        "162c1601e5c4e2173ae2bb786d727e8ecfcdd4151a88c3a40cc5ce331c437df9",
+        "6264e037fbe756fcc27c8574b91a4e16335274680d1516140116ac2bfcfede3a",
+        "870c4c119efa3644d9610fdcd3b81e0c4672b96c4752cc474c26c4fca908f414"
+      ],
+      "metrics": {
+        "conflict_handling": 3.0,
+        "counter_evidence": null,
+        "evidence_grounding": 3.0,
+        "input_tokens": null,
+        "latency_ms": null,
+        "no_trade_quality": 3.0,
+        "output_tokens": null,
+        "risk_violations": 0,
+        "schema_failures": 0,
+        "semantic_quality": 1.0,
+        "telemetry_status": "MISSING_TELEMETRY"
+      },
+      "profile": "analyst-cio",
+      "run_ids": [
+        "rreh-ablation-v3-normal-analyst-cio-20260907",
+        "rreh-hardening-ablation-insufficient-analyst-cio-v3-20260908",
+        "rreh-hardening-ablation-conflict-analyst-cio-v4-20260908",
+        "rreh-ablation-v3-mandatory-analyst-cio-20260907"
+      ],
+      "trace_hashes": [
+        "c3bec72ebdc5900254110bae8be58e83bc681d38afa44d82faad113e260fef4a",
+        "29ba3371b41607a5251214e34cbbf3dd1cada25ba363585e8f409b638f3bbafb",
+        "3c4da519fc51e2f7897e2ca76beb4254d6154c5451dabd30b84af94645fb8056",
+        "96b21651486731d2415eec8ae29f0905eb447e183645d6e42915f3bf1f09862f"
+      ]
+    },
+    {
+      "eval_hashes": [
+        "141ccc91ab2ab36d7ee87febb4657592fb442c7a00c9e99c8d163adab0be90fc",
+        "d4749929947f19a7d9c575c7cec6cd7f274e5effad5c3eacc8e5ae61f81a7410",
+        "8b903c023879faf9f22b0376bc875b29b8b3438aee519fb2ffcea39ce68aa0e3",
+        "9a6de28c48756467f7e1a5704f702093854d20bc6e7ec6375ff61d7faf3e7111"
+      ],
+      "metrics": {
+        "conflict_handling": 3.0,
+        "counter_evidence": 3.0,
+        "evidence_grounding": 3.0,
+        "input_tokens": null,
+        "latency_ms": null,
+        "no_trade_quality": 3.0,
+        "output_tokens": null,
+        "risk_violations": 0,
+        "schema_failures": 0,
+        "semantic_quality": 1.0,
+        "telemetry_status": "MISSING_TELEMETRY"
+      },
+      "profile": "full-council",
+      "run_ids": [
+        "rreh-ablation-v3-normal-full-council-20260907",
+        "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+        "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+        "rreh-ablation-v3-mandatory-full-council-20260907"
+      ],
+      "trace_hashes": [
+        "ff223bdc066ceea006d2f563e273fa50a9a07142c77ffa30cf41173ef956030c",
+        "9b5c91b27fc99409b0554a5d3703ec0bc045bbd644f840e382f9c3e9ac3db991",
+        "89e12f44792b5565c3058023df971ed5b3ce7abc3aeae6d78df9254480249898",
+        "584c5f2ddf9a49c8ab12b88fc72c12a961566f31af0048e91fb9e4c15a022638"
+      ]
+    }
+  ],
+  "reason_codes": [
+    "NO_MEASURABLE_GAIN"
+  ],
+  "report_hash": "2ceb98504ef84662042c0d91d7d3424181c92aebd74c81e79dba6744ca8f1cf0",
+  "schema_version": "ablation-report/1.0.0"
+}

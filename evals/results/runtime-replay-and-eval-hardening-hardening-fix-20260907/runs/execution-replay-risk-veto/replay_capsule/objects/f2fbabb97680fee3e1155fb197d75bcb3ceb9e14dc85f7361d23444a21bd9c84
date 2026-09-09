@@ -1,0 +1,63 @@
+{
+  "boundary_draft_fixture": "risk-boundary-draft.json",
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence": [
+    {
+      "as_of": "2026-01-30T21:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-risk-price",
+      "retrieved_at": "2026-01-30T21:05:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "close_price",
+      "source_id": "fixture-market-primary",
+      "source_locator": "fixture://risk/price/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD_per_share",
+      "value": 100
+    },
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-risk-revenue",
+      "retrieved_at": "2026-01-15T13:00:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "revenue_ttm",
+      "source_id": "fixture-filing-primary",
+      "source_locator": "fixture://risk/revenue/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD",
+      "value": 1000000
+    }
+  ],
+  "fixture_id": "risk-veto-v1",
+  "fixture_version": "2.0.0",
+  "freshness_policy": {
+    "default_max_age_days": 400,
+    "field_max_age_days": {
+      "close_price": 7
+    },
+    "version": "freshness/fixture/2.0.0"
+  },
+  "portfolio": {
+    "base_currency": "USD",
+    "cash": 10000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "average_daily_value": 10000000,
+        "industry": "Synthetic Technology",
+        "price": 100,
+        "quantity": 900,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "scenario_type": "risk_veto"
+}

@@ -1,0 +1,56 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "一致的收入冲突由两份独立、已验证报告和机械冲突记录共同支持；但无法从授权证据确定冲突原因、构建一致的经营基数或评估价格，因此只对暂停形成交易意图具有有限而审慎的置信度。",
+      "counter_thesis": "两项同一截至日期的TTM收入证据分别为1,000,000美元和1,250,000美元，存在未解决的25%冲突；缺失收入定义、调节、多期经营与估值数据，使任何依赖收入规模、利润持续性或价格含义的判断不可验证。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "若可追溯的原始公司披露确认一项收入为不适用、错误或被重述，并提供统一的TTM收入调节，当前收入冲突的决策影响应重新评估。",
+        "若同一收入口径的多期经营利润、现金流与资本结构证据支持或否定18%利润率的持续性，当前关于经营质量的数据缺口应重新评估。",
+        "若点时有效的股本和估值证据建立100美元价格与可验证基本面的联系，当前价格缺乏估值含义的判断应重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键TTM收入证据在同一报告期存在未解决冲突，且缺少将经营利润率和价格观察转化为可验证基本面或估值判断所需的数据。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "取得具有原始披露标识、期间映射及口径调节的统一TTM收入证据。",
+        "取得与统一收入口径匹配的多期利润率、现金流、债务、股本和估值证据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "截至决策截止时间，SEC-AAA 的授权证据确认18%的TTM经营利润率和每股100美元的收盘价，但不足以形成可执行的基本面或估值判断。",
+      "time_horizon": "在获得可核验的收入口径与估值上下文前不形成交易意图。",
+      "unresolved_questions": [
+        "两项TTM收入观察之间的差异是否来自会计口径、合并范围、重述或来源错误？",
+        "哪一项收入值（如有）与18%的TTM经营利润率具有相同定义和期间？",
+        "截至决策截止时间的股本、企业价值、现金流、债务和多期经营表现如何支持或反驳估值判断？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-lock-regression-analyst-skeptic-strong-conflict-20260909",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

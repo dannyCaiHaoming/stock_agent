@@ -1,0 +1,8 @@
+run_id: `rreh-hardening-execution-replay-risk-veto-20260907`  
+next_state: `SAFE_NO_TRADE`  
+Council Gate: `FAILED_VALIDATION` — Eval 未通过：缺少 `risk-boundary-draft.json`。未运行 `check-run`。
+
+生成文件：
+- `agents/runtime_company_analyst.json`
+- `agents/runtime_skeptic.json`
+- `cio/runtime_cio.json`

@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/insufficient-evidence/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/insufficient-evidence/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/insufficient-evidence"
+  },
+  "case_id": "insufficient-evidence",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "70401bf5426ad917279407f8e1621b86b80fab692944ed7fbe9b90b80b839fd4",
+    "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "grader_execution_proof": "0af94c40142142441276e60d6ce27f191a94d53f3ac0e534fe24f4f056e05c24",
+    "runtime_eval": "db64387946c22340ddb346f1954c5f405e257fdae724a49167190489f44e11c1",
+    "trace": "da9e2095a82255279a13fe57d14bbf732ff3cceaf42947134f136d522a7f1ad3",
+    "trace_report": "129d31bea970e70a348c8f0657e2b10e397010f9d180740978ee8866fe4309f1"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "13da654ec67659f5d1000cb99586902006d28a0a0f4d58b49189bf9935f9d4f8",
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli nested-codex-smoke --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/insufficient-evidence",
+  "status": "PASS"
+}

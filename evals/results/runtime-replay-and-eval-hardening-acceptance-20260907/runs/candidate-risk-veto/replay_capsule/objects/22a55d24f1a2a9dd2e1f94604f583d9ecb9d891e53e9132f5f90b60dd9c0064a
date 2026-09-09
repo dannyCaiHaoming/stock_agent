@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "fixture_runtime": {
+      "command": "/bin/sh",
+      "args": [
+        "-c",
+        "cd .. && exec python3 -m product.runtime.fixture_mcp --stateless"
+      ],
+      "enabled": true,
+      "enabled_tools": ["query", "calculate"],
+      "default_tools_approval_mode": "approve",
+      "startup_timeout_sec": 10
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.42,
+      "confidence_rationale": "基础财务数据、价格和管理层更新均为授权且时间一致的证据，但它们只构成少数单期观测；两份独立报告一致指出关键现金流、资本结构、趋势、产能执行与估值信息缺失，且这些缺口直接限制任何仓位判断。",
+      "counter_thesis": "单期营业利润率和债务/收入不能替代现金流、债务期限、利率、契约、现金余额或估值锚；维持产能计划也未证明需求、融资、执行或回报。因此不能排除盈利质量、流动性、产能扩张或价格已反映乐观假设的关键失败路径。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "后续披露显示截至2025-12-31的债务、收入或营业利润率存在重大修订。",
+        "后续证据显示营业利润率显著下降，或现金流不能支持经营与资本开支。",
+        "后续证据显示债务临近到期、存在严格契约或现金流不足以覆盖偿债需求。",
+        "后续证据显示产能计划缺乏需求支持、延迟、超支或未实现合理回报。",
+        "后续估值证据显示市场价格隐含的增长或利润率显著高于可验证基本面。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "现有授权证据不足以解决偿债能力、盈利持续性、产能计划经济性与估值锚等关键问题，因此不形成仓位或交易意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得可核验的现金、净债务、债务到期、利率、契约及经营和自由现金流数据。",
+        "获得多期收入、利润率、现金转换、资本开支及一次性项目资料。",
+        "获得产能计划的规模、时间表、融资、需求、执行进度、利用率和回报证据。",
+        "获得股本、企业价值、历史及前瞻盈利、增长预期和可比估值数据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "截至2025-12-31，授权证据显示SEC-AAA TTM收入为USD 1,000,000、营业利润率为18%且总债务为USD 150,000；2026-01-20的公司更新称管理层维持此前披露的产能计划。该有限证据支持正经营盈利能力和相对披露收入不高的债务规模这一初步解释，但不足以判断偿债安全性、产能计划经济性或内在价值。",
+      "time_horizon": "在取得可核验的补充基本面与估值证据后重新评估。",
+      "unresolved_questions": [
+        "现金、净债务、债务到期、利率、契约以及经营和自由现金流是否足以支持偿债与资本开支？",
+        "收入和营业利润率在多个期间的趋势、现金转换及一次性项目影响如何？",
+        "产能计划的规模、时间表、资本开支、融资来源、需求支持、利用率及预期回报为何？",
+        "股本、企业价值、历史及前瞻盈利、增长预期和可比估值如何界定当前价格的估值锚？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-nested-current-lock-normal-03-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

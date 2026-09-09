@@ -162,6 +162,9 @@ class InvocationManifestTests(unittest.TestCase):
             "allowed_evidence_ids",
             "原始 evidence_id",
             "禁止在 evidence_id 后拼接 source_id、as_of、retrieved_at",
+            "run_dir、run_id、agent、invocation_id",
+            "evidence_ids 必须是数组",
+            "禁止使用单数 evidence_id",
             "不得污染 evidence_refs",
             "不得自行截断",
         ):

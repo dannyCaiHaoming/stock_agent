@@ -1,0 +1,56 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "The underlying data conflict is explicit and both specialist reports independently conclude that the narrow authorized evidence set cannot resolve it or support a company-level thesis. The individual price and margin observations do not cure the absence of reconciled financial and valuation context.",
+      "counter_thesis": "The independent review finds the same-period revenue observations materially inconsistent and finds that the isolated margin and price observations lack historical, valuation, liquidity, cash-flow, balance-sheet, and competitive context.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "An authoritative eligible reconciliation establishes that one revenue observation is inapplicable or reconciles both definitions.",
+        "Eligible historical and primary-source disclosures establish materially different recurring profitability or financial condition.",
+        "Eligible valuation and liquidity evidence supplies context that materially changes the investment interpretation."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "A material same-period revenue conflict remains unresolved, and the remaining authorized observations do not provide the financial, valuation, or liquidity context needed for an action-oriented recommendation.",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "Obtain eligible reconciled primary-source revenue evidence for the 2025-12-31 reporting period.",
+        "Obtain eligible historical profitability, cash-flow, balance-sheet, capital-structure, valuation, and liquidity evidence before reassessment."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The authorized record establishes an 18% TTM operating-margin observation and a USD 100 close-price observation, but it does not establish a reliable company or valuation thesis because the core TTM revenue input is unresolved.",
+      "time_horizon": "Reassess only after eligible evidence resolves the conflict.",
+      "unresolved_questions": [
+        "Which authorized revenue observation, if either, uses the applicable reporting definition, perimeter, and restatement status?",
+        "What audited financial, capital-structure, cash-flow, and historical operating evidence supports a durable company and valuation assessment?",
+        "What point-in-time valuation and liquidity context supports interpreting the single close-price observation?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

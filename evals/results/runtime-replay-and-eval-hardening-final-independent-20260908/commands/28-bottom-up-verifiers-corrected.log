@@ -1,0 +1,135 @@
+{
+  "checks": {
+    "ablation": {
+      "comparability": {
+        "case_count": 4,
+        "status": "PASS"
+      },
+      "conclusion": "NO_MEASURABLE_GAIN",
+      "report_hash": "0de3fb2a686b3c31e5476d13d140cbb481d009c933780e90952d2b612f7a9877",
+      "status": "PASS"
+    },
+    "calibration": {
+      "agreement": 1.0,
+      "observations": 30,
+      "result_hash": "833076bc17d413e266ab4a8ccb8cb964aedf8f3e5a7dd46e02cda37ed7577242",
+      "status": "PASS"
+    },
+    "deterministic_test_evidence": {
+      "event_id": "test-event-f0e584f0-81d4-4ac1-9af7-1baba403ff40",
+      "result_hash": "1a3cad9a542df51ca015211f5fbce8f8509a3ef3edb9760ff00df1efa5c78610",
+      "status": "PASS",
+      "tests_run": 277
+    },
+    "execution_replay": {
+      "configuration_categories": [
+        "agents",
+        "evidence",
+        "mcp_adapters",
+        "model",
+        "prompt_and_instructions",
+        "risk_policy",
+        "runtime_profile",
+        "schemas",
+        "skills"
+      ],
+      "configuration_equivalent": true,
+      "replay_run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "result_hash": "3ef4e04212ff6a5988b71795be35a1379f40d09a8fe1220da9536ee0c1e18f4e",
+      "source_run_id": "rreh-candidate-risk-veto-current-20260907",
+      "status": "PASS"
+    },
+    "future_evidence_pre_gate": {
+      "allowed_ids": [],
+      "evidence_gate_event_index": 1,
+      "excluded": {
+        "ev-future-asof": [
+          "FUTURE_AS_OF",
+          "FUTURE_RETRIEVAL"
+        ],
+        "ev-future-retrieval": [
+          "FUTURE_RETRIEVAL"
+        ],
+        "ev-stale-update": [
+          "STALE"
+        ]
+      },
+      "injected_ids": [
+        "ev-future-asof",
+        "ev-future-retrieval"
+      ],
+      "injection_record_sha256": "8c49597add8e74d4973c0167c5ea5e8da7669f1c8376ffc7e541346810fbd09c",
+      "mechanism": "append_declared_evidence_before_pit_gate",
+      "pit": {
+        "injected_evidence_ids": [
+          "ev-future-asof",
+          "ev-future-retrieval"
+        ],
+        "injection_producer": "regression-fixture-injector",
+        "injection_reason_codes": [],
+        "injection_verified": true,
+        "injection_version": "future-evidence-injection/1.0.0",
+        "leak_count": 0,
+        "leaked_evidence_ids": [],
+        "status": "PASS"
+      },
+      "producer": "regression-fixture-injector",
+      "status": "PASS",
+      "trace_event_index": 3
+    },
+    "historic_regression_rejected_under_current_contract": {
+      "expected_error": "REGRESSION_SET_HASH_MISMATCH",
+      "saved_sha256": "99bce356b0f9edf18792905e7e87d8b94c46fc39e02b38f62e3136ae82eec552",
+      "status": "PASS"
+    },
+    "promotion_result": {
+      "fail_sentinel_bytes": 0,
+      "reason_codes": [
+        "PROMOTION_HARD_GATE_FAILED:mandatory_no_trade",
+        "PROMOTION_HARD_GATE_FAILED:runtime_regression",
+        "PROMOTION_HARD_GATE_FAILED:version_completeness"
+      ],
+      "result_hash": "d8960e37046d7798dfb95d553493fd530b27c2b3136bf329ff1584e870c64dcb",
+      "status": "PASS",
+      "status_value": "FAIL"
+    },
+    "runtime_eval:execution-replay-risk-veto": {
+      "error": "KeyError:'grader'",
+      "status": "FAIL"
+    },
+    "runtime_eval:execution-source-risk-veto": {
+      "error": "KeyError:'grader'",
+      "status": "FAIL"
+    },
+    "runtime_eval:source-normal": {
+      "error": "KeyError:'grader'",
+      "status": "FAIL"
+    },
+    "typed_invariant_registry": {
+      "count": 19,
+      "status": "PASS",
+      "types": [
+        "TERMINAL_STATE_IN",
+        "AGENTS_INCLUDE",
+        "AGENTS_EXCLUDE",
+        "RISK_NOT_BYPASSED",
+        "EXPECT_RISK_PASS",
+        "EXPECT_RISK_VETO",
+        "EXPECT_NO_TRADE",
+        "NO_FUTURE_EVIDENCE",
+        "EVIDENCE_CLOSURE",
+        "TRACE_COMPLETE",
+        "SPECIALIST_OUTPUT_VALID",
+        "CIO_CONFLICT_HANDLED",
+        "EXPECT_FAILED_STAGE",
+        "EVIDENCE_SUBSET_OF_GATE",
+        "SEMANTIC_DIMENSIONS_APPLICABLE",
+        "EXPECT_VALIDATION_REJECTION",
+        "LLM_CALLS_EQUAL",
+        "VALID_ACTION_SET",
+        "FORBIDDEN_ACTION"
+      ]
+    }
+  },
+  "status": "FAIL"
+}

@@ -1,0 +1,109 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于冻结证据评估当前组合；仅供 Ablation 研究，允许 NO_TRADE。",
+  "run_id": "rreh-ablation-v2-normal-full-council-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "3cb683eaa94ed63c7d6d831cecf6d3e80334369d35411649b5f8416bb57520fe",
+    "runtime_skeptic": "25e280d820fe079dabb06e5dff40192e4d72d8d4e3949a3e47245667932880b7"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [],
+      "confidence": 0,
+      "confidence_rationale": "未获得任何证据工具返回的可验证数据，按 fail-closed 原则不形成主张。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "fixture_evidence.query 调用失败（Transport closed）；所有允许证据 ID 的内容、source_id、as_of 与 retrieved_at 均不可用。"
+      ],
+      "invalidation_conditions": [
+        "在可获取并核验授权证据前，任何关于 SEC-AAA 的商业或估值解释均不成立。"
+      ],
+      "invocation_id": "inv_75d43cb5ff171c2625f2c905",
+      "run_id": "rreh-ablation-v2-normal-full-council-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；冻结证据研究。证据查询工具传输不可用，未获得可验证事实。",
+      "skill_execution": [
+        {
+          "invocation_hash": "41a00b3b41a50de9f8a9273c740c7622bdba522a76ddd2677fc414566cca0c34",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "efb582ca07568f84f86bf4d922f715890f51a380ca7f0e8be4397ea246ac7ad3",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "733ba0c9ea6bc3873304400fb3c92e6845035bf1aaffd975f3a97ddee66dc31f",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "未能取得授权证据内容，无法评估商业质量、财务趋势、估值或反证。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [],
+      "confidence": 0,
+      "confidence_rationale": "未获得可用证据，任何实质性反证判断均会超出 evidence-grounding 边界。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "无法取得允许 Evidence IDs 的事实、来源及时间属性，因而无法形成证据约束的非重复替代解释或失败路径。"
+      ],
+      "evidence_refs": [],
+      "invalidation_conditions": [
+        "成功取得并验证任一获授权 Evidence ID 的完整 point-in-time 证据后，应重新执行独立反证研究。"
+      ],
+      "invocation_id": "inv_c8cc8d428f248c47b09ed085",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-ablation-v2-normal-full-council-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；基于截至2026-01-31T23:59:59Z的获授权冻结证据开展独立反证研究。",
+      "skill_execution": [
+        {
+          "invocation_hash": "6840164a3a35e1622f77db48d497109e4f83fa3d87de38afba664e1d9a6015bf",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "9d8aa0f236b54451d5a41aaf322fab961dbeb93964a56f7aaf9eef08d20acb55",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "获授权的 fixture_evidence.query 调用因传输连接关闭而未返回任何证据内容。"
+      ]
+    }
+  }
+}

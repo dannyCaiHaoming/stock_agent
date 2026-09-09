@@ -1,0 +1,73 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "Claims c1-c4 are labeled FACT and cite their supporting records. Claim c5 is labeled INTERPRETATION, declares assumption a1, and limits the inference rather than treating the cited margin, debt/revenue ratio, or plan update as a valuation conclusion.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "CIO records the specialist consensus, reports no conflicts consistently with the gate conflict set, lists unresolved questions, and makes the evidence gaps the stated basis for NO_TRADE and reevaluation.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "The analyst, skeptic, and CIO all state bounded confidence rationales tied to the narrow frozen evidence and identified uncertainties; CIO confidence remains low and does not convert limited facts into a stronger conclusion.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "CIO NO_TRADE is tied to the limited static evidence set and explicitly identifies missing cash-flow, debt-structure, demand, capacity-execution, and valuation evidence; its reevaluation conditions request those verifiable inputs.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "The independent-first-pass skeptic gives three specific, falsifiable challenges—margin durability, capacity execution, and valuation downside—links each to frozen evidence, and states concrete evidence needed to weaken each challenge.",
+      "status": "PASS"
+    }
+  },
+  "eval_id": "rreh-eval-execution-replay-normal-v2-20260907",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "f6d6853f209de4ff530da47daf6bb455bbcf9f7406f5f35015e932f32e52e195",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "eb9863ce478144533aae68486f3322fff9b078405dacf44f72e912bc69652e8a",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

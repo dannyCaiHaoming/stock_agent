@@ -1,0 +1,42 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": null,
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_refs": ["Analyst claim: 收入同比增长。", "ev-a"],
+      "reason": "事实性主张引用了允许的证据 ev-a，且未将未验证推断表述为事实。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_refs": ["Skeptic challenge: 利润率持续性仍需验证。", "ev-b", "后续利润率证据"],
+      "reason": "独立首轮反证具体指出利润率持续性缺口，引用 ev-b 并给出可验证的补充证据要求。"
+    },
+    "cio_conflict_handling": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_refs": ["CIO conflict: 增长与利润率持续性仍有分歧", "ev-a", "ev-b", "CIO unresolved: 利润率能否持续"],
+      "reason": "明确记录共识、冲突、未决问题及其对维持而不增持的决策影响。"
+    },
+    "confidence_calibration": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_refs": ["CIO confidence: 0.55", "CIO rationale: 证据支持有限 HOLD，不支持更强动作。", "ev-a", "ev-b"],
+      "reason": "置信度与有限证据、已披露冲突及较保守的 HOLD 决策方向一致。"
+    },
+    "no_trade_reasoning": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_refs": [],
+      "reason": "最终 action 为 HOLD，不适用 NO_TRADE 维度。"
+    }
+  },
+  "output_hash": "9137bf748f6d986c23a73fa28c20845c4db6857b7959d923237f1244b6ccbc6f"
+}

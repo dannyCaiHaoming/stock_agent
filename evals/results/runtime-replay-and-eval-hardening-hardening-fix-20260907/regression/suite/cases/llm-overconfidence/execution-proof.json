@@ -1,0 +1,27 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/analyst-cio-rerun/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/insufficient-evidence/analyst-cio-rerun/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/analyst-cio-rerun"
+  },
+  "case_id": "llm-overconfidence",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "c5904fe303c5a6ef7efc8d0f395262d8b2a6787d9acfc8892161dbfa6cfffedf",
+    "grader_execution_proof": "9e28b19f91e6a25c9f2972be794b4c9a6c66d9b50aecd54bbf999ac47c16b4eb",
+    "runtime_eval": "ff7a8fdc3dc9a2cb112dc2d385b3eccc3b4f1fc754d2a291e7ee27c40be7405c",
+    "trace": "6533e772cae4fe2871b3041dcb5271742a3d80595e0e53cb4c7860d248ffc140",
+    "trace_report": "6c54a51a2b5be6228852d9df00998b8683e5c5582ccd1fc62724f7bb4713f84f"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "35e4b92d16c492486046b5615c92c5c864ad8a3e88152de9801b3b411b2af2bf",
+  "run_id": "rreh-ablation-v3-insufficient-analyst-cio-rerun-20260907",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "codex exec -C product --strict-config --json -m gpt-5.6-terra < insufficient-evidence-analyst-cio-smoke-prompt",
+  "status": "PASS"
+}

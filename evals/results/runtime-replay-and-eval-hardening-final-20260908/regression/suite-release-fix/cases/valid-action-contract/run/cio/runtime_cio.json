@@ -1,0 +1,55 @@
+{
+  "action": "HOLD",
+  "advisory_only": true,
+  "agent": "runtime_cio",
+  "confidence": 0.5,
+  "confidence_rationale": "仅表达对契约闭包的有限确定性。",
+  "conflicts": [],
+  "consensus": [
+    "两份报告均只引用当前 Gate 允许的 Evidence。"
+  ],
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "f8a9e975205f77bfd871d26c48edcfd713274dac7490256b4bf760caa0b1f6be"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "b8fdb6a301655539ca953f31eb80a94a1c7f4ecf08d8442b2a803448ee47c8cb"
+    }
+  ],
+  "counter_thesis": "契约合法不能替代 Risk Engine 的确定性校验。",
+  "current_weight": 0.5,
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin"
+  ],
+  "invalidation_conditions": [
+    "契约、Evidence 或 Risk Policy 任一发生变化。"
+  ],
+  "invocation_id": "inv_510637f668b7af2f8e9c9e44",
+  "maximum_notional": null,
+  "no_trade_explanation": null,
+  "no_trade_reason": null,
+  "reevaluation_conditions": [],
+  "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+  "schema_version": "cio-decision-draft/2.1.0",
+  "security_id": "SEC-AAA",
+  "skill_execution": [
+    {
+      "invocation_hash": "d7985706fe73a06c710322f9c3fc0c8ac725e7c9694eea022c446b1b45dae513",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "status": "COMPLETE",
+  "target_weight_range": [
+    0.5,
+    0.5
+  ],
+  "thesis": "该输出只验证合法 action 能经过完整 Runtime 与 Risk Engine。",
+  "time_horizon": "确定性契约验收周期",
+  "unresolved_questions": [
+    "本夹具不生成主观投资判断。"
+  ]
+}

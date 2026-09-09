@@ -1,0 +1,7 @@
+{
+  "case_id": "invalid-specialist-output",
+  "deterministic_outcome_hash": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+  "injection": "invalid-specialist-output",
+  "llm_calls": 0,
+  "schema_version": "regression-injection/1.0.0"
+}

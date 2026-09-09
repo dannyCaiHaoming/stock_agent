@@ -1,0 +1,106 @@
+{
+  "eval_hash": "5f6e99cba395456aad251cfb3c3f09d9a1b63f08c989e447100f5c30935e90c1",
+  "eval_id": "regression-eval-rrh-final-independent-v2-current-lock-fresh-20260908-future-information-leakage",
+  "grader": {
+    "agent": "deterministic-not-applicable",
+    "input_hash": "864af5ebd470b4551c566f492c5799bb0de6c711c33f156faa25ff5f9f14d58d",
+    "model": "none",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "6d15d457a0a3705b0eb64c82f8d7f6425ca2023ed3c36a8d6359ce5df1ea6ed2",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 0,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 0
+    },
+    "pit_leakage": {
+      "injected_evidence_ids": [
+        "ev-future-asof",
+        "ev-future-retrieval"
+      ],
+      "injection_producer": "regression-fixture-injector",
+      "injection_reason_codes": [],
+      "injection_verified": true,
+      "injection_version": "future-evidence-injection/1.0.0",
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": false,
+      "pre_risk_failure": false,
+      "risk_attempts": 0,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "dadbc841fafb4c766cbb5faa5a7df79b77cfe160e7129342f13710a9cb690403",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "715bfe3cf4ab5e67ea1a8d1de7b51408bbcc6b81f9c3d3dee4f07b5ed5e4307a",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-future-information-leakage-0c1ee5e5f05d",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "dadbc841fafb4c766cbb5faa5a7df79b77cfe160e7129342f13710a9cb690403",
+    "artifact_replay": "6d15d457a0a3705b0eb64c82f8d7f6425ca2023ed3c36a8d6359ce5df1ea6ed2",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "8b94670237b4f09ff17f1d2e57ecfa70bc3a216e9de3229c42c971057047b436",
+    "semantic_input": "864af5ebd470b4551c566f492c5799bb0de6c711c33f156faa25ff5f9f14d58d",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "9709426edbf1042cdac007f152745fac345b8caefbb72844164fe7105a3e404f"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

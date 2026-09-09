@@ -1,0 +1,102 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-nested-regression-normal-research-20260908",
+  "invocation_id": "inv_c528a18361338ea81b31b2eb",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "48ce9f75ac03520585b903cef847507b87217f917661f17b55f32dc57805d592"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "6aa7d6940eacfffa1a54889f7b2f79837d4b5b7b936dadc9cba35fa497ca434e"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得足以解决关键数据缺口的、截至决策截止日可核验的新证据之前",
+  "thesis": "允许证据确认 SEC-AAA 截至 2025-12-31 的 TTM 收入为 USD 1,000,000、经营利润率为 18%、总债务为 USD 150,000；截至 2026-01-30 的收盘价为 USD 100，且管理层在 2026-01-20 维持此前产能计划。债务/TTM 收入的确定性计算为 0.15。这些事实支持有限的盈利与执行方向观察，但不足以支持估值、现金流转换、债务承受能力或产能回报的判断。",
+  "counter_thesis": "现有单期财务、价格和产能计划维持表述无法排除债务到期、利息、流动性、现金流、产能融资与需求兑现的风险；同时缺少股数、企业价值、历史增长与竞争数据，无法检验 USD 100 价格是否具有估值支持。因此任何将现有利润率或相对债务规模直接外推为可执行配置判断的结论均未获证据闭环支持。",
+  "consensus": [
+    "两份报告均使用了 Gate 允许的、来源与时间血缘明确的证据，且机械冲突为空。",
+    "两份报告均认为 18% 的单期经营利润率与债务/收入观察不足以建立现金流、债务服务能力或盈利持续性的结论。",
+    "两份报告均认为产能计划维持不等同于融资、需求、进度或投资回报已经得到验证。",
+    "两份报告均指出缺少估值所需的股数、现金与企业价值输入，以及历史经营趋势。"
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "financial-strength-inference",
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-revenue",
+        "ev-normal-margin"
+      ],
+      "summary": "公司分析将 0.15 的债务/TTM 收入与 18% 经营利润率视为有限的盈利及相对债务规模观察；反证报告认为缺少到期、利息、现金、契约和现金流数据，不能据此判断债务服务能力或韧性。",
+      "unresolved": true,
+      "decision_impact": "不能把相对债务规模或单期利润率转换为支持任何目标权重或名义金额的依据。",
+      "confidence_impact": "缺少债务与现金流关键输入使商业质量判断保持低置信度。"
+    },
+    {
+      "conflict_key": "capacity-plan-inference",
+      "evidence_refs": [
+        "ev-normal-update",
+        "ev-normal-debt"
+      ],
+      "summary": "管理层维持产能计划可说明未披露的方向性收缩，但无法证明计划已融资、按期执行、由需求支持或可取得适当回报。",
+      "unresolved": true,
+      "decision_impact": "产能计划不能作为增长兑现或资本配置收益的可执行依据。",
+      "confidence_impact": "缺乏项目规模、资金来源、里程碑、利用率与回报输入。"
+    },
+    {
+      "conflict_key": "valuation-support-inference",
+      "evidence_refs": [
+        "ev-normal-price",
+        "ev-normal-margin",
+        "ev-normal-revenue"
+      ],
+      "summary": "已观察到的 USD 100 收盘价和单期收入、利润率事实不足以形成估值支持或判断盈利持续性。",
+      "unresolved": true,
+      "decision_impact": "不能把价格观察转化为买入、加仓、持有、减仓或退出的目标区间。",
+      "confidence_impact": "缺少股数、现金、其他负债、企业价值、增长历史和竞争信息。"
+    }
+  ],
+  "unresolved_questions": [
+    "截至决策截止日，现金、流动性安排、债务到期结构、利息费用、契约及自由现金流如何共同决定债务服务能力？",
+    "产能计划的资本开支、资金来源、建设节点、需求承诺、利用率与预期投资回报为何？",
+    "在稀释股数、现金与其他负债、企业价值、历史增长和竞争环境均未知的情况下，USD 100 的价格对应何种估值与安全边际？"
+  ],
+  "invalidation_conditions": [
+    "后续截至适用决策截止日的可核验证据显示债务到期、流动性、现金流与利息负担均可支持计划支出，则债务服务风险判断需要重新评估。",
+    "后续可核验证据显示产能扩张已融资、按期推进、存在需求支撑并有可评估回报，则执行风险判断需要重新评估。",
+    "后续可核验证据提供股数、现金和企业价值、历史收入与利润率趋势及竞争背景，并能形成估值判断，则估值不确定性需要重新评估。"
+  ],
+  "confidence": 0.38,
+  "confidence_rationale": "事实层面证据新鲜、来源明确且 Gate 未标记机械冲突；但两份已验证报告一致识别出现金流、债务服务、产能执行和估值的实质性数据缺口。专业报告之间对有限正面观察的可解释程度存在未解决分歧，且独立反证报告为 LOW_CONFIDENCE，因此无法以足够置信度形成方向性组合意图。",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "LOW_CONFIDENCE",
+  "no_trade_explanation": "现有允许证据虽支持有限的财务、价格与管理层表述观察，但没有闭合债务服务、现金流、产能执行和估值判断所需的关键问题。为避免将未验证的解释转化为组合动作，本草案选择 NO_TRADE。",
+  "reevaluation_conditions": [
+    "取得并经 Gate 允许的截至决策截止日债务到期、利息、现金、流动性、契约及现金流证据。",
+    "取得并经 Gate 允许的产能计划规模、融资、建设进度、需求支撑、利用率与回报证据。",
+    "取得并经 Gate 允许的稀释股数、现金与其他负债、企业价值、历史经营趋势与竞争背景，以完成估值和持续性评估。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "d38eacd009a492986493d29fa8866dd62d53b1fbd918a81f5db2bff16069eb4e",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

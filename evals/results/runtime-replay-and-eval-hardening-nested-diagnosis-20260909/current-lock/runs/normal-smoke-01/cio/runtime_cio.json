@@ -1,0 +1,66 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-current-lock-normal-smoke-01-20260909",
+  "invocation_id": "inv_25a0c0825477e4024947912f",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "d23351d5036e862be2a9f7fe6562edf3729034ff903406d24b57e89852a9a4e7"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "524614960b5215d66da98f4ac0bc4b06162d738190c16be14c3c6992e4e9cb35"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess when the identified operational, liquidity, and valuation evidence gaps are resolved.",
+  "thesis": "Fresh evidence establishes reported TTM revenue, total debt, an 18% operating margin, a USD 100 close price, and continuity of the stated capacity plan. The available record is not sufficient to establish durable earnings power, capacity-plan economics, liquidity resilience, or valuation.",
+  "counter_thesis": "The unchanged capacity plan may still face demand, execution, financing, and return risks; a single-period margin and debt-to-revenue observation cannot establish cash-flow resilience, and a single market price cannot establish valuation.",
+  "consensus": [
+    "Both validated reports treat the available evidence as fresh and adequate for a narrow factual record, but not for a high-confidence company-quality or valuation conclusion.",
+    "Both reports identify missing cash-flow, debt-structure, capacity-plan execution, and capitalization or valuation information as material decision gaps.",
+    "Both reports conclude that continuity of the capacity plan does not validate its demand support, economics, or execution."
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What are cash balance, free cash flow, debt maturities, interest burden, and financing capacity during the capacity-plan period?",
+    "What are the capacity plan's cost, schedule, utilization, demand support, and expected returns?",
+    "Are revenue growth and operating margin durable across periods and operating conditions?",
+    "What are diluted share count, market capitalization, enterprise value, and valuation-relevant forecasts or comparables?"
+  ],
+  "invalidation_conditions": [
+    "A material revision, delay, cancellation, or financing change to the capacity plan.",
+    "Evidence that the operating margin is non-recurring or deteriorates materially.",
+    "New liquidity, leverage, debt-service, or cash-flow evidence that materially changes the resilience assessment."
+  ],
+  "confidence": 0.36,
+  "confidence_rationale": "The reports agree on the narrow factual record and on material evidence gaps, with no mechanical conflicts. However, absent cash-flow, debt-structure, capacity-economics, growth, share-count, and valuation evidence, the Council cannot support an action-oriented conclusion with adequate confidence.",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "The verified record supports a narrow factual assessment but leaves material unanswered questions about durability, liquidity, capacity-plan economics, and valuation; no action-oriented recommendation is warranted until those gaps are resolved.",
+  "reevaluation_conditions": [
+    "Obtain verified cash, free-cash-flow, debt-maturity, interest, covenant, and financing evidence.",
+    "Obtain verified capacity-plan cost, timing, demand, utilization, progress, and return evidence.",
+    "Obtain multi-period growth and margin evidence plus share-count, valuation, forecast, and comparable-company information."
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "a5c9e4abfa6613a79f7633d11a30d74ad2536048b16523f52581b3e369022023",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

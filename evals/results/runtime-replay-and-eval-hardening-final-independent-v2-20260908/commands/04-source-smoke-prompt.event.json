@@ -1,0 +1,23 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "04-source-smoke-prompt",
+  "command": [
+    "python3",
+    "-m",
+    "product.runtime.cli",
+    "smoke-prompt",
+    "--repo",
+    "/Users/caihaoming/Documents/stock_agent",
+    "--run-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runs/source-normal"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T12:42:02.257832+00:00",
+  "ended_at": "2026-09-08T12:42:02.308696+00:00",
+  "exit_code": 0,
+  "stdout_sha256": "d2c3dce2dd3054457fa3c75a28e082703a604b1c53f7971e735664f179b89396",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

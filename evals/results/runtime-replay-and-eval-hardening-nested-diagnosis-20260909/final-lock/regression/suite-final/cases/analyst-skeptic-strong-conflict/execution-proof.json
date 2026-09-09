@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/analyst-skeptic-strong-conflict/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/analyst-skeptic-strong-conflict/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/analyst-skeptic-strong-conflict"
+  },
+  "case_id": "analyst-skeptic-strong-conflict",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "9afad6d4ae5178e9a843ac748c6dc8d1be205ea017f239f4d0f595fc427c6f14",
+    "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "grader_execution_proof": "cde173b965a86e5d4161223ddafeb85187d3b532342e60ff7aaf720006aea695",
+    "runtime_eval": "ed79d9280f96bbb700af6b6ae911900d4c96e0c36485773a889d1677ebcbfc67",
+    "trace": "4e1a339427a172ba35d883a6f3044c366ee7b6a4bab54c473b4a091e60fe0d09",
+    "trace_report": "11b37a507ca4950046508e27c4ddb7e489bbeb062b81da13de3518379c8c25bd"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "f0955dd49a1302619745799de3f5b11cc09a5ca5209022b8d07bbdfbad609611",
+  "run_id": "rrh-final-lock-regression-analyst-skeptic-strong-conflict-20260909",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli nested-codex-smoke --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/analyst-skeptic-strong-conflict",
+  "status": "PASS"
+}

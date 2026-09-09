@@ -1,0 +1,175 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-insufficient-price"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "在严格使用 Gate 授权证据且不补充外部事实的前提下，评估该持仓。工具参数必须服从 Invocation Prompt，Evidence 引用只能使用原始 evidence_id。若证据不足，应明确 NO_TRADE。",
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v7-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "05fab756dde63ef7c4648116f7464cdbf7e5c048e0c19263c93bbca29ecfbd0a",
+    "runtime_skeptic": "2cd464281d0129304052cc1e4a1bbe9b903c95472ebbceec979caa52dd005f32"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-1",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的收盘价为每股 100 USD；来源 fixture-market-primary，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-2",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "该单一、及时的价格观察不足以评估商业质量、盈利能力、竞争地位或估值，研究结论为 NO_TRADE。"
+        }
+      ],
+      "confidence": 0.05,
+      "confidence_rationale": "对已授权价格事实的置信度高，但该事实不能支撑公司研究或估值判断，因此整体研究置信度极低。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "SEC-AAA 的收入、利润、现金流、资产负债表和经营指标。",
+        "业务模式、竞争地位、管理层执行、风险因素和近期公司事件。",
+        "估值所需的盈利或现金流基准及可比信息。"
+      ],
+      "invalidation_conditions": [
+        "若获得经授权且可追溯的 SEC-AAA 基本面、竞争和估值证据，应重新开展研究。"
+      ],
+      "invocation_id": "inv_d62be77e6ad37cf2a185cd17",
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v7-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；授权证据仅为 ev-insufficient-price，来源 fixture-market-primary，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "74264defaa9a345aa821b67a95686229fec8dfe0a1d7ffc4c49f1cbd53dfa687",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "cab202e4ac751782eb923bf2f75f01259d7e1ef8803e4887cd63f1f723f1d5dc",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "eb9105aa6d7e7dccac597a56f4ee5f2fd9956dead41e90262ec526aada9b7858",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "没有授权的财务、经营、竞争、估值或事件证据。",
+        "无法以价格单点判断内在价值或基本面变化。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "ASSUMP-PRICE-SUFFICIENCY"
+          ],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "同一截止日前的经验证财务表现、业务与竞争证据",
+            "可复现的估值输入及其来源血缘",
+            "价格历史、成交量与流动性证据"
+          ],
+          "statement": "唯一授权证据是 SEC-AAA 于 2026-01-30T21:00:00Z 的新鲜收盘价 100 USD；单一时点价格不能区分价值支撑、短期技术性定价、流动性驱动或异常定价等替代解释。"
+        },
+        {
+          "assumption_ids": [
+            "ASSUMP-DOWNSIDE-ABSENCE",
+            "ASSUMP-PORTFOLIO-COMPATIBILITY"
+          ],
+          "challenge_id": "CH-002",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至决策截止日的风险事件与公司特定不利证据",
+            "持仓市值、组合总资产、现金权重及约束核验所需的授权证据",
+            "风险暴露、相关性和压力情景的来源化输入"
+          ],
+          "statement": "现有证据无法验证该持仓的下行路径，包括盈利恶化、估值压缩、流动性下降、集中度影响或与组合约束的联动；因此任何正向持仓解释均缺乏可独立反证的基础。"
+        }
+      ],
+      "confidence": 0.93,
+      "confidence_rationale": "对“证据不足以形成可验证投资观点”的判断具有高置信度，因为获授权集合仅含一条新鲜收盘价证据；对任何方向性经济或估值解释不具备足够证据。",
+      "counter_evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "data_gaps": [
+        "缺少收入、盈利、现金流、资产负债表和管理层执行证据。",
+        "缺少估值基准、同业比较、历史价格序列及成交量/流动性证据。",
+        "缺少催化剂、风险事件、持仓成本、组合总资产和风险暴露的授权证据。"
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "获得截止日前、可追溯且相互一致的基础面、估值、风险和流动性证据，能够检验上述替代解释。",
+        "获得足以核验 SEC-AAA 持仓与组合约束、集中度及现金要求关系的授权数据。"
+      ],
+      "invocation_id": "inv_0851aafc7ec8201c33ccff44",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v7-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；仅评估截至 2026-01-31T23:59:59Z 获授权的价格证据。该证据不足以支持投资观点，研究结论为 NO_TRADE，直至补足基础面、估值、风险与持仓相关证据。",
+      "skill_execution": [
+        {
+          "invocation_hash": "1b622aa9fe59c53342a3b0691781e36b7a92ecde3a8e7749a63de9a7d46409f8",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "cb7aa370cc20d104a7433005e87b239a7efcedd6619f0078d33dc4cdf4c76c2e",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "价格证据来自 fixture-market-primary，as_of 为 2026-01-30T21:00:00Z，retrieved_at 为 2026-01-30T21:05:00Z，且标记为 FRESH；但其仅覆盖 close_price。",
+        "无法从单一价格观察判断该价格是否反映可持续经营价值或短期市场条件。"
+      ]
+    }
+  }
+}

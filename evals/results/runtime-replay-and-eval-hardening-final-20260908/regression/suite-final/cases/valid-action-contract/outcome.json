@@ -1,0 +1,26 @@
+{
+  "action": null,
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic"
+  ],
+  "eval_status": "PASS",
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "forbidden_actions": [
+    "REDUCE"
+  ],
+  "future_leak_count": 0,
+  "llm_calls": 0,
+  "not_llm_output": true,
+  "outcome_hash": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+  "producer": "fixture",
+  "risk_bypassed": false,
+  "run_id": "regression-rrh-final-regression-20260908-valid-action-contract-2b6831c21754",
+  "terminal_state": "FAILED_VALIDATION",
+  "valid_action_set": [
+    "BUY",
+    "HOLD",
+    "TRIM",
+    "EXIT"
+  ]
+}

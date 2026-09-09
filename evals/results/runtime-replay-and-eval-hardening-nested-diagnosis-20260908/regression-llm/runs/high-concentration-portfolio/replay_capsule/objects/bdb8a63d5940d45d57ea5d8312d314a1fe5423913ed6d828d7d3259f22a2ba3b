@@ -1,0 +1,508 @@
+"""Auditable launcher for one prepared Codex-native Council run.
+
+This module does not orchestrate LLM roles.  It starts one Codex process with the
+portfolio-council prompt, preserves the raw invocation evidence, and derives the
+process verdict from the terminal run package instead of the Codex exit code.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shlex
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+from .hashing import canonical_hash, file_hash
+from .execution_proof import (
+    ExecutionProofError,
+    build_ephemeral_run_specialist_execution_proof,
+)
+from .native_eval import evaluate_run, persist_eval_result
+from .release_gate import check_run
+from .run_package import finalize_cio, integrity_snapshot
+from .smoke_prompt import build_smoke_prompt
+
+
+LAUNCHER_VERSION = "nested-codex-launcher/1.0.0"
+VALID_TERMINAL_STATES = {"COMPLETED", "SAFE_NO_TRADE"}
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _read_object(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, Mapping):
+        raise ValueError(f"ARTIFACT_NOT_OBJECT:{path}")
+    return dict(value)
+
+
+def _write_json(path: Path, value: Mapping[str, Any]) -> None:
+    if path.exists():
+        raise ValueError(f"INVOCATION_ARTIFACT_EXISTS:{path.name}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _writable_probe(path: Path) -> dict[str, Any]:
+    probe = path / ".nested-codex-write-probe"
+    result: dict[str, Any] = {
+        "path": str(path),
+        "exists": path.exists(),
+        "os_access_writable": os.access(path, os.W_OK),
+        "probe_write": False,
+    }
+    try:
+        probe.write_text("probe\n", encoding="utf-8")
+        probe.unlink()
+        result["probe_write"] = True
+    except OSError as exc:
+        result["error"] = f"{type(exc).__name__}:{exc}"
+    return result
+
+
+def _first_stderr_error(stderr: str) -> str | None:
+    for line in stderr.splitlines():
+        text = line.strip()
+        if text:
+            return text
+    return None
+
+
+def _parse_jsonl(path: Path) -> tuple[list[dict[str, Any]], str | None]:
+    if not path.is_file():
+        return [], "CODEX_EVENT_STREAM_MISSING"
+    records: list[dict[str, Any]] = []
+    for ordinal, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            return records, f"CODEX_EVENT_STREAM_INVALID_JSON:{ordinal}"
+        if not isinstance(value, Mapping):
+            return records, f"CODEX_EVENT_STREAM_NON_OBJECT:{ordinal}"
+        records.append(dict(value))
+    if not records:
+        return [], "CODEX_EVENT_STREAM_EMPTY"
+    return records, None
+
+
+def _resource_hashes(
+    repository_root: Path, run_dir: Path, manifest: Mapping[str, Any], prompt_path: Path
+) -> dict[str, Any]:
+    discovery = manifest.get("discovery", {})
+    invocation_skills: dict[str, dict[str, str]] = {}
+    for path in sorted((run_dir / "invocations").glob("*.json")):
+        invocation = _read_object(path)
+        invocation_skills[path.stem] = {
+            str(item["name"]): str(item["sha256"])
+            for item in invocation.get("skill_execution", [])
+            if isinstance(item, Mapping) and item.get("name") and item.get("sha256")
+        }
+    return {
+        "prompt": file_hash(prompt_path),
+        "agents_md": {
+            str(path.relative_to(repository_root)): file_hash(path)
+            for path in (repository_root / "AGENTS.md", repository_root / "product" / "AGENTS.md")
+            if path.is_file()
+        },
+        "skill": discovery.get("council_skill", {}).get("sha256"),
+        "agents": {
+            name: discovery.get(name, {}).get("sha256")
+            for name in ("company_agent", "skeptic_agent", "cio_agent")
+        },
+        "mcp": discovery.get("plugin_mcp", {}).get("sha256"),
+        "runtime_config": discovery.get("runtime_config", {}).get("sha256"),
+        "schemas": {
+            path.name: file_hash(path) for path in sorted((run_dir / "schemas").glob("*.json"))
+        },
+        "invocation_skills": invocation_skills,
+        "hook_recorder": file_hash(
+            repository_root / "product" / "runtime" / "codex_hook_recorder.py"
+        ),
+    }
+
+
+def _completion_checks(run_dir: Path) -> tuple[dict[str, Any], str | None]:
+    checks: dict[str, Any] = {
+        "skill_loaded": False,
+        "specialists_executed": False,
+        "cio_executed": False,
+        "risk_reached_or_legally_skipped": False,
+        "terminal_state_valid": False,
+        "required_artifacts_complete": False,
+    }
+    trace_path = run_dir / "decision_trace.json"
+    if not trace_path.is_file():
+        return checks, "DECISION_TRACE_MISSING"
+    try:
+        trace = _read_object(trace_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return checks, "DECISION_TRACE_INVALID"
+
+    terminal_state = trace.get("terminal_state")
+    checks["terminal_state"] = terminal_state
+    checks["terminal_state_valid"] = terminal_state in VALID_TERMINAL_STATES
+    pre_agent_safe = terminal_state == "SAFE_NO_TRADE" and any(
+        isinstance(item, Mapping) and item.get("stage") == "PRE_AGENT_SAFE_TERMINATION"
+        for item in trace.get("events", [])
+    )
+
+    proof_path = run_dir / "events" / "codex" / "specialist-execution-proof.json"
+    if proof_path.is_file():
+        try:
+            proof = _read_object(proof_path)
+            checks["skill_loaded"] = proof.get("portfolio_council_skill_bound") is True
+            dispatches = proof.get("dispatches", [])
+            children = proof.get("children", {})
+            expected = {"runtime_company_analyst", "runtime_skeptic"}
+            checks["specialists_executed"] = (
+                {item.get("agent") for item in dispatches if isinstance(item, Mapping)} == expected
+                and isinstance(children, Mapping)
+                and set(children) == expected
+            )
+        except (OSError, ValueError, json.JSONDecodeError):
+            pass
+    elif pre_agent_safe:
+        checks["skill_loaded"] = True
+        checks["specialists_executed"] = True
+
+    agents = trace.get("agents", [])
+    checks["cio_executed"] = pre_agent_safe or any(
+        isinstance(item, Mapping) and item.get("name") == "runtime_cio"
+        for item in agents
+    )
+    risk_lineage = trace.get("risk_lineage", [])
+    checks["risk_reached_or_legally_skipped"] = pre_agent_safe or bool(risk_lineage)
+    required = [
+        run_dir / "decision.json",
+        run_dir / "report.md",
+        trace_path,
+        run_dir / "eval" / "result.json",
+    ]
+    checks["required_artifacts"] = [str(path) for path in required]
+    checks["required_artifacts_complete"] = all(path.is_file() for path in required)
+
+    ordered = (
+        ("skill_loaded", "SKILL_LOAD_PROOF_MISSING"),
+        ("specialists_executed", "SPECIALIST_EXECUTION_PROOF_MISSING"),
+        ("cio_executed", "CIO_EXECUTION_PROOF_MISSING"),
+        ("risk_reached_or_legally_skipped", "RISK_STAGE_PROOF_MISSING"),
+        ("terminal_state_valid", "LEGAL_TERMINAL_STATE_MISSING"),
+        ("required_artifacts_complete", "TERMINAL_ARTIFACTS_INCOMPLETE"),
+    )
+    for key, code in ordered:
+        if not checks[key]:
+            return checks, code
+    return checks, None
+
+
+def build_nested_codex_command(
+    *,
+    codex_binary: str,
+    product_root: Path,
+    run_dir: Path,
+    model: str,
+    sqlite_home: Path,
+    log_dir: Path,
+    final_message_path: Path,
+    hook_recorder_path: Path,
+) -> list[str]:
+    """Return the canonical nested Codex command without shell interpolation."""
+
+    hook_command = " ".join(
+        (shlex.quote(sys.executable), shlex.quote(str(hook_recorder_path)))
+    )
+    hook_handler = (
+        '[{matcher="^(runtime_company_analyst|runtime_skeptic)$",'
+        f'hooks=[{{type="command",command={json.dumps(hook_command)},timeout=3}}]}}]'
+    )
+    return [
+        codex_binary,
+        "--ask-for-approval",
+        "never",
+        "--dangerously-bypass-hook-trust",
+        "exec",
+        "--ephemeral",
+        "--json",
+        "--sandbox",
+        "workspace-write",
+        "--add-dir",
+        str(run_dir),
+        "-C",
+        str(product_root),
+        "--strict-config",
+        "-c",
+        f'sqlite_home="{sqlite_home}"',
+        "-c",
+        f'log_dir="{log_dir}"',
+        "-c",
+        'history.persistence="none"',
+        "-c",
+        f"hooks.SubagentStart={hook_handler}",
+        "-c",
+        f"hooks.SubagentStop={hook_handler}",
+        "--output-last-message",
+        str(final_message_path),
+        "--model",
+        model,
+        "-",
+    ]
+
+
+def launch_nested_codex(
+    repository_root: Path,
+    *,
+    run_dir: Path,
+    codex_binary: str = "codex",
+    timeout_seconds: int = 1800,
+) -> tuple[dict[str, Any], int]:
+    """Launch one prepared run and return an artifact-derived verdict."""
+
+    repository_root = repository_root.resolve()
+    product_root = (repository_root / "product").resolve()
+    run_dir = run_dir.resolve()
+    manifest = _read_object(run_dir / "run_manifest.json")
+    if Path(str(manifest.get("output_dir", ""))).resolve() != run_dir:
+        raise ValueError("RUN_DIRECTORY_IDENTITY_MISMATCH")
+
+    invocation_dir = run_dir / "invocation"
+    if invocation_dir.exists():
+        raise ValueError("INVOCATION_DIRECTORY_ALREADY_EXISTS")
+    invocation_dir.mkdir(parents=True)
+    runtime_root = run_dir / ".codex-runtime"
+    sqlite_home = runtime_root / "sqlite"
+    log_dir = runtime_root / "logs"
+    tmp_dir = runtime_root / "tmp"
+    for path in (sqlite_home, log_dir, tmp_dir):
+        path.mkdir(parents=True, exist_ok=False)
+
+    prompt_path = invocation_dir / "prompt.txt"
+    prompt_path.write_text(
+        build_smoke_prompt(
+            run_dir,
+            repository_root=repository_root,
+            defer_deterministic_finalize=True,
+        ),
+        encoding="utf-8",
+    )
+    events_path = invocation_dir / "codex-events.jsonl"
+    hook_events_path = invocation_dir / "subagent-events.jsonl"
+    stderr_path = invocation_dir / "codex-stderr.log"
+    raw_final_path = tmp_dir / "final-message.txt"
+    command = build_nested_codex_command(
+        codex_binary=codex_binary,
+        product_root=product_root,
+        run_dir=run_dir,
+        model=str(manifest["model"]),
+        sqlite_home=sqlite_home,
+        log_dir=log_dir,
+        final_message_path=raw_final_path,
+        hook_recorder_path=product_root / "runtime" / "codex_hook_recorder.py",
+    )
+    environment = dict(os.environ)
+    environment["TMPDIR"] = str(tmp_dir)
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["STOCK_AGENT_RUN_DIR"] = str(run_dir)
+    environment["STOCK_AGENT_SUBAGENT_EVENT_LOG"] = str(hook_events_path)
+    before = integrity_snapshot(repository_root)
+    resources = _resource_hashes(repository_root, run_dir, manifest, prompt_path)
+    writable_paths = {
+        name: _writable_probe(path)
+        for name, path in {
+            "run_dir": run_dir,
+            "sqlite_home": sqlite_home,
+            "log_dir": log_dir,
+            "tmpdir": tmp_dir,
+        }.items()
+    }
+    environment_manifest = {
+        "schema_version": "nested-codex-environment/1.0.0",
+        "run_id": manifest["run_id"],
+        "cwd": str(product_root),
+        "repo_root": str(repository_root),
+        "product_root": str(product_root),
+        "run_dir": str(run_dir),
+        "command": command,
+        "model": manifest["model"],
+        "sandbox": "workspace-write",
+        "approval_policy": "never",
+        "ephemeral": True,
+        "hook_trust_bypass": True,
+        "subagent_event_log": str(hook_events_path),
+        "codex_home": environment.get("CODEX_HOME", str(Path.home() / ".codex")),
+        "sqlite_home": str(sqlite_home),
+        "log_dir": str(log_dir),
+        "tmpdir": str(tmp_dir),
+        "resource_hashes": resources,
+        "writable_paths": writable_paths,
+        "source_integrity_before": before,
+        "created_at": _utc_now(),
+    }
+    _write_json(invocation_dir / "environment-manifest.json", environment_manifest)
+    invocation_manifest = {
+        "schema_version": "nested-codex-invocation/1.0.0",
+        "launcher_version": LAUNCHER_VERSION,
+        "run_id": manifest["run_id"],
+        "prompt_path": str(prompt_path),
+        "prompt_sha256": resources["prompt"],
+        "command": command,
+        "cwd": str(product_root),
+        "model": manifest["model"],
+        "expected_artifacts": [
+            "decision.json",
+            "report.md",
+            "decision_trace.json",
+            "eval/result.json",
+        ],
+        "environment_manifest_sha256": file_hash(invocation_dir / "environment-manifest.json"),
+        "started_at": _utc_now(),
+    }
+    invocation_manifest["invocation_hash"] = canonical_hash(invocation_manifest)
+    _write_json(invocation_dir / "invocation-manifest.json", invocation_manifest)
+
+    started = time.monotonic()
+    timed_out = False
+    with prompt_path.open("r", encoding="utf-8") as prompt_stream, events_path.open(
+        "w", encoding="utf-8"
+    ) as stdout_stream, stderr_path.open("w", encoding="utf-8") as stderr_stream:
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=product_root,
+                stdin=prompt_stream,
+                stdout=stdout_stream,
+                stderr=stderr_stream,
+                text=True,
+                env=environment,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            codex_exit_code = completed.returncode
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            codex_exit_code = 124
+    elapsed = time.monotonic() - started
+
+    final_text = raw_final_path.read_text(encoding="utf-8") if raw_final_path.is_file() else ""
+    _write_json(
+        invocation_dir / "final-message.json",
+        {
+            "schema_version": "nested-codex-final-message/1.0.0",
+            "run_id": manifest["run_id"],
+            "present": bool(final_text),
+            "message": final_text,
+            "message_sha256": canonical_hash({"message": final_text}),
+        },
+    )
+    records, event_error = _parse_jsonl(events_path)
+    deterministic_continuation: dict[str, Any] = {
+        "attempted": False,
+        "execution_proof": None,
+        "risk_finalization": None,
+        "runtime_eval": None,
+        "error": None,
+    }
+    trace_path = run_dir / "decision_trace.json"
+    trace = _read_object(trace_path) if trace_path.is_file() else {}
+    pre_agent_safe = trace.get("terminal_state") == "SAFE_NO_TRADE" and not trace.get("agents")
+    draft_ready = all(
+        path.is_file()
+        for path in (
+            run_dir / "agents" / "runtime_company_analyst.json",
+            run_dir / "agents" / "runtime_skeptic.json",
+            run_dir / "cio" / "runtime_cio.json",
+        )
+    )
+    if (
+        codex_exit_code == 0
+        and event_error is None
+        and not timed_out
+        and (pre_agent_safe or draft_ready)
+    ):
+        deterministic_continuation["attempted"] = True
+        try:
+            if not pre_agent_safe:
+                proof_result = build_ephemeral_run_specialist_execution_proof(
+                    repository_root,
+                    run_dir=run_dir,
+                    codex_events_path=events_path,
+                    hook_events_path=hook_events_path,
+                    latency_ms=max(0, int(elapsed * 1000)),
+                )
+                deterministic_continuation["execution_proof"] = proof_result
+                finalization = finalize_cio(repository_root, run_dir=run_dir)
+                deterministic_continuation["risk_finalization"] = finalization
+                if finalization.get("next_state") == "ONE_CIO_REVISION_REQUIRED":
+                    raise ExecutionProofError("NESTED_CIO_REVISION_REQUIRED")
+            current_trace = _read_object(trace_path)
+            if current_trace.get("terminal_state") in VALID_TERMINAL_STATES:
+                if not (run_dir / "eval" / "result.json").is_file():
+                    evaluation = evaluate_run(repository_root, run_dir=run_dir)
+                    persist_eval_result(evaluation, run_dir=run_dir)
+                    deterministic_continuation["runtime_eval"] = {
+                        "status": evaluation["status"],
+                        "eval_hash": evaluation["eval_hash"],
+                    }
+        except (OSError, ValueError, ExecutionProofError, json.JSONDecodeError) as exc:
+            deterministic_continuation["error"] = str(exc)
+
+    completion, completion_error = _completion_checks(run_dir)
+    gate_result, gate_exit_code = check_run(repository_root, run_dir=run_dir)
+    after = integrity_snapshot(repository_root)
+    source_unchanged = before == after
+    stderr_text = stderr_path.read_text(encoding="utf-8")
+
+    failure_code: str | None = None
+    if timed_out:
+        failure_code = "NESTED_CODEX_TIMEOUT"
+    elif codex_exit_code != 0:
+        failure_code = "NESTED_CODEX_PROCESS_FAILED"
+    elif event_error:
+        failure_code = event_error
+    elif not source_unchanged:
+        failure_code = "PROTECTED_RUNTIME_INTEGRITY_CHANGED"
+    elif deterministic_continuation["error"] is not None:
+        failure_code = f"DETERMINISTIC_CONTINUATION_FAILED:{deterministic_continuation['error']}"
+    elif completion_error:
+        failure_code = completion_error
+    elif gate_exit_code != 0:
+        failure_code = "COUNCIL_RELEASE_CHECK_FAILED"
+
+    result = {
+        "schema_version": "nested-codex-process-result/1.0.0",
+        "launcher_version": LAUNCHER_VERSION,
+        "run_id": manifest["run_id"],
+        "status": "PASSED" if failure_code is None else "FAILED",
+        "failure_code": failure_code,
+        "codex_exit_code": codex_exit_code,
+        "timed_out": timed_out,
+        "elapsed_seconds": round(elapsed, 3),
+        "event_stream": {
+            "path": str(events_path),
+            "parse_error": event_error,
+            "event_count": len(records),
+            "last_event": records[-1] if records else None,
+        },
+        "stderr_first_exception": _first_stderr_error(stderr_text),
+        "deterministic_continuation": deterministic_continuation,
+        "completion_checks": completion,
+        "first_missing_stage": completion_error,
+        "release_check": {"exit_code": gate_exit_code, "result": gate_result},
+        "source_integrity_unchanged": source_unchanged,
+        "source_integrity_after": after,
+        "finished_at": _utc_now(),
+    }
+    result["process_result_hash"] = canonical_hash(result)
+    _write_json(invocation_dir / "process-result.json", result)
+    return result, 0 if failure_code is None else 7

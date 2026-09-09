@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/cases/mandatory-no-trade/run/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/cases/mandatory-no-trade/runtime-eval/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/cases/mandatory-no-trade/run"
+  },
+  "case_id": "mandatory-no-trade",
+  "executed_operations": [
+    "deterministic_injection",
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "1230488b4ddd4855887de61737081feee54f62d84b7cfb1aed0334faeaccc17a",
+    "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "deterministic_outcome": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+    "grader_execution_proof": null,
+    "runtime_eval": "7949858676fa2125fde3e7246f545889c867b71ed65c82f0d49d3dd82a8f4866",
+    "trace": "7c5203ec5f7dc290b6eb02284fc81aee39482724a92680c7bb180a45d42181fa",
+    "trace_report": "1719fb22b84bf67aa5904ce78677199b3a0be6c15c0a25c6a192d7520599e9f3"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "e5506953d4e602542e5527426e96c89187521976e5fa98fa43066b23f31152b4",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-mandatory-no-trade-c85c4991cf29",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:mandatory-no-trade",
+  "status": "PASS"
+}

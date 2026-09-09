@@ -1,0 +1,78 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 911104,
+  "eval_hash": "8b903c023879faf9f22b0376bc875b29b8b3438aee519fb2ffcea39ce68aa0e3",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 1006714,
+  "latency_ms": 263880,
+  "llm_calls": 22,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 13840,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin",
+        "ev-conflict-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将四项可追溯事实与解释性限制分开；两项收入的同日冲突直接支持其不形成收入规模、商业判断或估值结论的 Thesis。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin",
+        "ev-conflict-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录 Analyst 与 Skeptic 的共识，明确未决收入冲突、对置信度和结论边界的影响，以及尚待回答的问题；未以孤立价格或利润率覆盖冲突。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin",
+        "ev-conflict-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst、Skeptic 与 CIO 的低置信度均明确归因于同日收入冲突、口径不可比性和关键数据缺口，与可追溯但不足的证据范围方向一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin"
+      ],
+      "grade": 3,
+      "rationale": "NO_TRADE 明确锚定同一 as_of 的两项未解 revenue_ttm 冲突及利润率配对未证实，并给出可核验的来源调节、同口径利润表和补充证据重评条件。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 独立提出收入定义/来源冲突及利润率与收入边界未证实两项具体、可证伪挑战，并列出解决各挑战所需的可核验证据。",
+      "status": "PASS"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "89e12f44792b5565c3058023df971ed5b3ce7abc3aeae6d78df9254480249898"
+}

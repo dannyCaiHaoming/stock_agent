@@ -1,0 +1,68 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-ablation-v3-conflict-analyst-cio-20260907",
+  "invocation_id": "inv_97c9c72e9825e0d593a9c679",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "157e78eea1dd8bf9b3d25783d8501671184a5bd1633987cb770c23948d83532b"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在收入冲突得到可核验调和前不形成仓位调整意图。",
+  "thesis": "现有证据不足以建立可用于仓位决策的公司质量或估值 Thesis。",
+  "counter_thesis": "0.18 的经营利润率和新鲜价格本身不能解决核心收入基准冲突，亦不足以替代缺失的估值与商业质量证据。",
+  "consensus": [
+    "已验证的 Company Analyst 报告与 CIO 核验均确认两条同一 as_of 的收入证据不一致。",
+    "授权证据未提供可裁决收入来源优先级或调和二者口径的信息。"
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "summary": "同一报告时点的 revenue_ttm 分别为 USD 1,000,000 与 USD 1,250,000，且授权证据没有说明口径差异或来源优先级。",
+      "unresolved": true,
+      "decision_impact": "收入基准无法可靠确定，不能将经营利润率衔接为经营利润、也不能据此形成估值或仓位调整结论。",
+      "confidence_impact": "该冲突涉及核心经营指标，并伴随资本结构、增长和竞争证据缺口，显著压低决策置信度。"
+    }
+  ],
+  "unresolved_questions": [
+    "哪一条收入记录具有权威来源优先级，或两者是否因报告期间、确认口径或重述状态不同而可调和？",
+    "在已解决收入基准后，公司的增长、资本结构、每股数据和竞争地位如何？"
+  ],
+  "invalidation_conditions": [
+    "若后续授权的可追溯权威证据确认一条收入数值，或解释两条记录的口径差异，则当前证据冲突判断需要重新评估。",
+    "若后续授权证据表明任一收入记录的证券映射、来源版本或 as_of 不正确，则当前结论需要重新评估。"
+  ],
+  "confidence": 0.15,
+  "confidence_rationale": "CIO 已通过受限查询核验收入冲突，且验证报告仅为低置信度；没有授权证据可解决冲突或补足估值与业务质量数据，因此仅对不采取仓位意图的结论保持低置信度。",
+  "evidence_refs": [
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b",
+    "ev-conflict-margin",
+    "ev-conflict-price"
+  ],
+  "no_trade_reason": "EVIDENCE_CONFLICT",
+  "no_trade_explanation": "核心收入指标在相同 as_of 下存在未解决的来源冲突；在缺乏可核验的调和证据及完整估值、商业质量信息时，不形成仓位调整意图。",
+  "reevaluation_conditions": [
+    "获得可核验且具来源优先级的收入证据，或获得能解释两条收入记录口径差异的授权资料。",
+    "获得支持估值和商业质量判断的授权资本结构、每股、增长与竞争信息。"
+  ],
+  "skill_execution": [
+    {
+      "skill_name": "portfolio-council",
+      "version": "3.0.0",
+      "invocation_hash": "9e3826939d084803728cba0695e2a246d741fda4e42182426998a3c9c7830d01"
+    }
+  ],
+  "advisory_only": true
+}

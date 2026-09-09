@@ -1,0 +1,18 @@
+{
+  "artifacts": {},
+  "case_id": "valid-action-contract",
+  "executed_operations": [
+    "deterministic_injection",
+    "invariant_evaluation"
+  ],
+  "hashes": {
+    "outcome": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "db97c4c8510c80125cab550256f8fcc05e577c23bad935aa0951748a36357d1c",
+  "run_id": "regression-rreh-hardening-regression-20260907-valid-action-contract-2b6831c21754",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:valid-action-contract",
+  "status": "PASS"
+}

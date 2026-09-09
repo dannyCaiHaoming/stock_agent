@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-rrh-release-fix-20260908-invalid-specialist-output",
+  "expected_terminal_states": [
+    "FAILED_VALIDATION"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/invalid-specialist-output/run",
+  "run_id": "regression-rrh-release-fix-20260908-invalid-specialist-output-450613852fb2",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "8b4f7b3f3f70d8d6667a2b931a2ed43df83f2ad8da6f65c6fcc12df96bb66029",
+    "artifact_replay": "08f7aa70516fd0d180ec2f2c99ba88f70c62bd4c9bddf5fc53ff4445729324bb",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "fd7d8dba1fc3438400f7b6ee7cd0542df961a34448f2d9b99029d1f0a6dcf183",
+    "semantic_input": "7635204a8715358e227094004750fb925ab8060633bdba63a83cd802ea58fc98",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "ffcefd8776017d4c8755b522967146e3506d8936a752f33d2be02931b41dc53e"
+  }
+}

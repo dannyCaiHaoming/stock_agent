@@ -1,0 +1,53 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.12,
+      "confidence_rationale": "Confidence is high that the cited price observation exists, but very low that it can support an investment thesis; the independent Specialist reports agree on the material evidence gaps.",
+      "counter_thesis": "No independent counter-thesis can be substantively tested because the authorized evidence set contains no fundamentals, valuation context, market history, or event evidence.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "The limited price observation becomes unreliable if its authorized source corrects, restates, or supersedes it.",
+        "This insufficient-evidence conclusion must be reassessed when authorized, traceable fundamental, valuation, event, or risk evidence becomes available."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "The Gate permits only one fresh closing-price observation. The validated Analyst and independent Skeptic reports agree that it cannot establish business quality, valuation, risks, catalysts, or a defensible thesis, so no research recommendation can be formed.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain authorized, point-in-time company financial and operating evidence.",
+        "Obtain authorized valuation, peer, historical market, liquidity, event, and risk evidence directly relevant to the research question.",
+        "Re-run the Council after the additional evidence is Gate-validated and traceable."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The sole authorized fact is a fresh SEC-AAA closing-price observation; it does not support a company-quality, valuation, or catalyst thesis.",
+      "time_horizon": "Reassess only after authorized, point-in-time evidence resolves the identified gaps.",
+      "unresolved_questions": [
+        "What were SEC-AAA's revenue, profitability, cash-flow, balance-sheet, and operating trends as of the decision cutoff?",
+        "What valuation context, peer comparison, historical price and liquidity data, and relevant company or industry events would support or challenge a research thesis?",
+        "Does any authorized evidence establish material risks, catalysts, competitive position, or management guidance?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

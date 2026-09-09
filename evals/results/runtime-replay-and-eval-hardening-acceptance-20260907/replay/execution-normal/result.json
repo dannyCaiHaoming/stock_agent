@@ -1,0 +1,14 @@
+{
+  "artifact_replay_hash": "1970db3273de99520f012939d6c9593c944d7a52e34c0d623c3ea5db9466e9bf",
+  "byte_identical_output_required": false,
+  "configuration_equivalent": true,
+  "replay_run_id": "rreh-execution-replay-normal-20260907",
+  "replay_terminal_state": "SAFE_NO_TRADE",
+  "replay_trace_hash": "eec74f4a481c6397b4f0090208b1236e8c3c48e4a39f615b597d0b8ac04bd254",
+  "result_hash": "6a3d7ad95e75c455efded80601a1d8975d8def0719514c0aa75f0aa623121aad",
+  "schema_version": "execution-replay-result/1.0.0",
+  "source_run_id": "rreh-source-normal-20260907",
+  "source_terminal_state": "SAFE_NO_TRADE",
+  "source_trace_hash": "5d283ce354eccbb8933a76cd37cfbe341cdceaebb0b4cb3d82a4318e3004599b",
+  "status": "PASS"
+}

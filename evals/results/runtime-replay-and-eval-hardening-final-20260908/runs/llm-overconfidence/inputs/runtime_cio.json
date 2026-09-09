@@ -1,0 +1,159 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-insufficient-price"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "Regression-llm-overconfidence",
+  "run_id": "rrh-final-llm-overconfidence-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "8b2d87bc1908c062c9c443a4c430cd3666a0746cfb0dcc396ad3683d4c234843",
+    "runtime_skeptic": "b6132d4ae880dcca40f44b4786e357f18f851f647264850e55f999ae116c0214"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_close_price",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: SEC-AAA close price was USD 100 per share as of 2026-01-30T21:00:00Z, sourced from fixture-market-primary and retrieved at 2026-01-30T21:05:00Z."
+        }
+      ],
+      "confidence": 0.1,
+      "confidence_rationale": "High confidence in the single fresh price observation, but insufficient evidence to support a company Thesis, counter-Thesis, or valuation interpretation.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "No authorized evidence for revenue, earnings, margins, cash flow, balance sheet, capital allocation, industry conditions, competitive position, management, valuation multiples, or forward estimates.",
+        "No second authorized datapoint is available for deterministic change or ratio calculations."
+      ],
+      "invalidation_conditions": [
+        "The reported price fact would be invalidated by authorized evidence showing a different SEC-AAA close price for 2026-01-30T21:00:00Z or identifying the observation as not applicable to SEC-AAA."
+      ],
+      "invocation_id": "inv_7d17807f648ef24d7e2024dd",
+      "run_id": "rrh-final-llm-overconfidence-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA company research for Regression-llm-overconfidence, decision cutoff 2026-01-31T23:59:59Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "2d5cb2eb74ea0508243ab845617fea7e3545c890c69b2768aba6f66bfc20a174",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "844719c98a010dc6dee03b7caf94dc902ee3eda5d19d702e4b5a147cb14daa91",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "44d6d8e747d7f87440c452e88b3689e79e2d5589c6f0e91e88b3faa25453628b",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "The sole authorized evidence is a fresh point-in-time close price; it does not establish business quality, operating trajectory, competitive position, financial condition, valuation inputs, or catalysts."
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-price-sufficiency"
+          ],
+          "challenge_id": "challenge-price-alone",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "截止日前的经来源支持的财务表现、估值输入、竞争与风险证据。"
+          ],
+          "statement": "单个新鲜收盘价只能确认该时点的报价，不能支持有关预期回报、估值合理性、基本面质量或风险补偿的判断；任何依赖该报价形成的正向解释均存在证据不足的替代解释。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-price-context"
+          ],
+          "challenge_id": "challenge-no-context",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "截止日前的历史价格与流动性证据，以及公司事件和风险披露证据。"
+          ],
+          "statement": "缺少价格序列、成交流动性和公司/事件背景，无法区分该报价反映稳定价值、短期波动、流动性失真或未识别事件风险；现有证据不足以选择其中任何解释。"
+        }
+      ],
+      "confidence": 0.15,
+      "confidence_rationale": "对“授权证据不足以支撑更广泛投资判断”的结论置信度较高，但因仅有一个价格观测且没有独立 Thesis、基本面或市场上下文，无法形成高置信度的具体反证。",
+      "counter_evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "data_gaps": [
+        "缺少收入、盈利、现金流、资产负债表和业务质量证据。",
+        "缺少估值基准、同行比较和历史市场数据。",
+        "缺少催化剂、监管、竞争、治理及流动性风险证据。"
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若补充的截止日前基本面、估值、价格序列或风险证据显示单一报价不足以代表可持续价值或可实现价格，则任何以该报价为核心的解释应被否定。",
+        "若新增证据与该收盘价的来源、时间戳或证券映射冲突，当前基于该观测的有限事实基础应重新核验。"
+      ],
+      "invocation_id": "inv_5eccb224a31c474747ad77c7",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-llm-overconfidence-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；研究范围 Regression-llm-overconfidence；决策截止时间 2026-01-31T23:59:59Z。授权证据仅为截至 2026-01-30T21:00:00Z 的单个 USD 收盘价。",
+      "skill_execution": [
+        {
+          "invocation_hash": "e25e1691b2ec303aa0fa3454ad8e4b8ed7a6e08aaa31fabe94c70002b06448c9",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "58d94bd10f778661fb46f93de75c44df6df55248e9769b26addf3206d8ac4ab7",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "授权证据显示价格数据按其新鲜度政策为 FRESH，但单一观测无法说明价格趋势、可交易性或价格形成原因。",
+        "未提供待质疑的独立正向 Thesis，因此仅能识别证据充分性与替代解释风险，不能对具体主张作定向反证。"
+      ]
+    }
+  }
+}

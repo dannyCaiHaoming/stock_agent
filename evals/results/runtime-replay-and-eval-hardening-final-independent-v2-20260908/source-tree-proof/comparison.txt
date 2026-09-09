@@ -1,0 +1,13 @@
+head.txt_byte_equal=true
+branch.txt_byte_equal=true
+git-status-porcelain-v1.txt_byte_equal=true
+git-diff-unstaged.patch_byte_equal=true
+git-diff-staged.patch_byte_equal=true
+untracked-files.protected.txt_byte_equal=true
+source-tree-manifest.tsv_byte_equal=true
+source-tree.sha256_byte_equal=true
+before_tree_hash=5e06930f7c8a572fc31ff89146d1c613c6c8ba2a023598dcc1762e979b36b282
+after_tree_hash=5e06930f7c8a572fc31ff89146d1c613c6c8ba2a023598dcc1762e979b36b282
+before_manifest_entries=11118
+after_manifest_entries=11118
+all_protected_source_bytes_equal=true

@@ -1,0 +1,25 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "07-source-artifact-replay",
+  "command": [
+    "python3",
+    "-m",
+    "product.runtime.cli",
+    "artifact-replay",
+    "--repo",
+    "/Users/caihaoming/Documents/stock_agent",
+    "--run-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runs/source-normal",
+    "--output",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/replay/source-normal.json"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T12:53:18.440894+00:00",
+  "ended_at": "2026-09-08T12:53:18.571378+00:00",
+  "exit_code": 6,
+  "stdout_sha256": "d1452797e591418eeebe2d981817b00e2c63341bf0b0a318309f895613a28770",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

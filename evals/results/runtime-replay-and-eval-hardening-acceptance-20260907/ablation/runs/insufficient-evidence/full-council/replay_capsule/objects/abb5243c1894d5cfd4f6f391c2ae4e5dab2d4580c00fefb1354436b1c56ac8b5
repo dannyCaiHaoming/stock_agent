@@ -1,0 +1,12 @@
+{
+  "schema_version": "model-routing-policy/1.0.0",
+  "development_default": "gpt-5.6-sol",
+  "runtime_repeated": "gpt-5.6-terra",
+  "architecture_dispute": "gpt-6-astra",
+  "architecture_dispute_requires": [
+    "dispute_id",
+    "human_approval_artifact"
+  ],
+  "missing_telemetry_policy": "NOT_COMPARABLE",
+  "unchanged_input_policy": "REUSE_VERIFIED_CACHE"
+}

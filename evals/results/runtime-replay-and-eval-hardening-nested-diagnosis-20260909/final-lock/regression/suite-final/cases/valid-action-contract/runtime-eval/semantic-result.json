@@ -1,0 +1,44 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "eval_id": "regression-eval-rrh-final-lock-regression-suite-20260909-valid-action-contract",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "8689cd811ca5e65ec1f7962202916064a4e8f9cd9ea15dfb5e870baa1b1f3574",
+    "model": "deterministic-contract-fixture/no-llm",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "694cfc7d4dc3b8a2da58d6d50416aa39fa8a75d2b47dc1b34e2795945039cd6e",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

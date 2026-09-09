@@ -1,0 +1,57 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.38,
+      "confidence_rationale": "四项 CIO 核验事实和已验证的低置信度分析报告均在 Gate 范围内且无机械冲突，但缺少判断价值、现金流、债务服务和产能经济性所需的关键证据；因此不形成组合行动。",
+      "counter_thesis": "缺少现金、自由现金流、资本开支、债务期限和利率、收入增长、竞争、股数及估值数据；产能计划的规模、回报和需求支撑也未披露，因此不能判断流动性、执行风险或价值。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-margin",
+        "ev-normal-debt",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "后续经验证据显示营业利润率显著低于 18% 或不可持续。",
+        "后续经验证据显示债务、现金需求或产能资本开支显著恶化偿债能力。",
+        "产能计划出现延期、取消、明显超支或需求不足。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "当前冻结证据不足以在不补充关键现金流、债务结构、增长、竞争和估值数据的情况下形成负责任的组合行动；本 EVAL_ABLATION 运行选择 NO_TRADE。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "取得截止日合规且可核验的现金、自由现金流、资本开支、债务期限、利息费用和净债务证据。",
+        "取得可核验的收入增长、客户和竞争证据，以及产能计划规模、进度、回报与需求支撑。",
+        "取得稀释后股数、市值、估值倍数、盈利预测或可比公司证据后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "经 Gate 核验的截至 2025-12-31 冻结证据显示 SEC-AAA 的 TTM 营业利润率为 18%、TTM 收入为 USD 1,000,000、总债务为 USD 150,000；2026-01-20 的管理层更新维持此前产能计划。该有限证据支持初步经营韧性解释，但不足以支持组合行动。",
+      "time_horizon": "在取得可核验的补充基本面和估值证据前不设执行期限。",
+      "unresolved_questions": [
+        "SEC-AAA 的现金、自由现金流、资本开支、利息费用、债务期限和净债务是多少？",
+        "产能计划的规模、回报、进度和需求支持为何？",
+        "收入增长、客户结构、竞争地位、稀释后股数、市值和估值倍数为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-ablation-v2-normal-analyst-cio-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

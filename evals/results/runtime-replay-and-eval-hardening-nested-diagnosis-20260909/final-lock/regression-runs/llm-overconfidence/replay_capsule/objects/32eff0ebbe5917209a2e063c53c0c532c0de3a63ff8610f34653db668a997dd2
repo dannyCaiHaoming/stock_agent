@@ -1,0 +1,141 @@
+{
+  "schema_version": "council-decision-contract/1.0.0",
+  "decision_schema_version": "cio-decision-draft/2.1.0",
+  "actions": [
+    "BUY",
+    "ADD",
+    "HOLD",
+    "TRIM",
+    "EXIT",
+    "NO_TRADE"
+  ],
+  "action_profiles": [
+    {
+      "profile_id": "no-trade",
+      "actions": [
+        "NO_TRADE"
+      ],
+      "constraints": [
+        {
+          "rule_code": "NO_TRADE_EXECUTION_FIELDS_FORBIDDEN",
+          "fields": {
+            "target_weight_range": {
+              "kind": "const",
+              "value": null
+            },
+            "maximum_notional": {
+              "kind": "const",
+              "value": null
+            }
+          }
+        },
+        {
+          "rule_code": "NO_TRADE_FIELDS_REQUIRED",
+          "fields": {
+            "no_trade_reason": {
+              "kind": "non_empty_string"
+            },
+            "no_trade_explanation": {
+              "kind": "non_empty_string"
+            },
+            "reevaluation_conditions": {
+              "kind": "non_empty_array"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "profile_id": "advisory-action",
+      "actions": [
+        "BUY",
+        "ADD",
+        "HOLD",
+        "TRIM",
+        "EXIT"
+      ],
+      "constraints": [
+        {
+          "rule_code": "ACTION_WEIGHT_FIELDS_REQUIRED",
+          "fields": {
+            "security_id": {
+              "kind": "non_null"
+            },
+            "current_weight": {
+              "kind": "non_null"
+            },
+            "target_weight_range": {
+              "kind": "non_null"
+            }
+          }
+        },
+        {
+          "rule_code": "ACTION_RATIONALE_FIELDS_REQUIRED",
+          "fields": {
+            "thesis": {
+              "kind": "non_empty_string"
+            },
+            "evidence_refs": {
+              "kind": "non_empty_array"
+            },
+            "invalidation_conditions": {
+              "kind": "non_empty_array"
+            }
+          }
+        },
+        {
+          "rule_code": "ACTION_NO_TRADE_FIELDS_FORBIDDEN",
+          "fields": {
+            "no_trade_reason": {
+              "kind": "const",
+              "value": null
+            },
+            "no_trade_explanation": {
+              "kind": "const",
+              "value": null
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "prompt_examples": [
+    {
+      "example_id": "valid-no-trade",
+      "valid": true,
+      "value": {
+        "action": "NO_TRADE",
+        "target_weight_range": null,
+        "maximum_notional": null,
+        "no_trade_reason": "EVIDENCE_CONFLICT",
+        "no_trade_explanation": "关键证据冲突尚未解决。",
+        "reevaluation_conditions": [
+          "获得可核验的新证据后重新评估。"
+        ]
+      }
+    },
+    {
+      "example_id": "invalid-no-trade-zero-notional",
+      "valid": false,
+      "rule_code": "NO_TRADE_EXECUTION_FIELDS_FORBIDDEN",
+      "value": {
+        "action": "NO_TRADE",
+        "target_weight_range": null,
+        "maximum_notional": 0
+      }
+    },
+    {
+      "example_id": "invalid-no-trade-target-range",
+      "valid": false,
+      "rule_code": "NO_TRADE_EXECUTION_FIELDS_FORBIDDEN",
+      "value": {
+        "action": "NO_TRADE",
+        "target_weight_range": [
+          0,
+          0
+        ],
+        "maximum_notional": null
+      }
+    }
+  ]
+}

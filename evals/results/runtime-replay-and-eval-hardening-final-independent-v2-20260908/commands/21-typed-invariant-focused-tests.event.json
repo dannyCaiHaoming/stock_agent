@@ -1,0 +1,22 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "21-typed-invariant-focused-tests",
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "tests.test_runtime_regression.RuntimeRegressionTests.test_every_typed_invariant_has_positive_and_negative_evaluation",
+    "tests.test_runtime_regression.RuntimeRegressionTests.test_unknown_or_mistyped_invariant_fails_closed",
+    "tests.test_runtime_regression.RuntimeRegressionTests.test_checked_in_schema_is_generated_from_canonical_registry",
+    "tests.test_runtime_regression.RuntimeRegressionTests.test_set_contains_exactly_twelve_invariant_cases_with_provenance"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T13:07:49.091537+00:00",
+  "ended_at": "2026-09-08T13:07:49.154152+00:00",
+  "exit_code": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "120fcf1e1b1ef6883b716f1b33b4fbea79c7089f1d1ff950e98c9608d82abb42",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

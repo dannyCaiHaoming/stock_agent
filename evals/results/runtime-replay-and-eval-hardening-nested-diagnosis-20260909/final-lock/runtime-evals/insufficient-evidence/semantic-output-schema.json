@@ -1,0 +1,256 @@
+{
+  "$id": "portfolio-council/semantic-rubric-result/1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "dimensions": {
+      "additionalProperties": false,
+      "properties": {
+        "analyst_thesis_grounding": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "grade": {
+              "maximum": 3,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "rationale": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "NOT_APPLICABLE"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "grade",
+            "evidence_refs",
+            "rationale"
+          ],
+          "type": "object"
+        },
+        "cio_conflict_handling": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "grade": {
+              "maximum": 3,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "rationale": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "NOT_APPLICABLE"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "grade",
+            "evidence_refs",
+            "rationale"
+          ],
+          "type": "object"
+        },
+        "confidence_calibration": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "grade": {
+              "maximum": 3,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "rationale": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "NOT_APPLICABLE"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "grade",
+            "evidence_refs",
+            "rationale"
+          ],
+          "type": "object"
+        },
+        "no_trade_reasoning": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "grade": {
+              "maximum": 3,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "rationale": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "NOT_APPLICABLE"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "grade",
+            "evidence_refs",
+            "rationale"
+          ],
+          "type": "object"
+        },
+        "skeptic_counter_evidence": {
+          "additionalProperties": false,
+          "properties": {
+            "evidence_refs": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "grade": {
+              "maximum": 3,
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "rationale": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "PASS",
+                "FAIL",
+                "NOT_APPLICABLE"
+              ]
+            }
+          },
+          "required": [
+            "status",
+            "grade",
+            "evidence_refs",
+            "rationale"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "no_trade_reasoning",
+        "analyst_thesis_grounding",
+        "skeptic_counter_evidence",
+        "cio_conflict_handling",
+        "confidence_calibration"
+      ],
+      "type": "object"
+    },
+    "eval_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "grader": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "const": "dev_eval"
+        },
+        "input_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "prompt_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "rubric_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent",
+        "model",
+        "prompt_hash",
+        "rubric_hash",
+        "input_hash"
+      ],
+      "type": "object"
+    },
+    "output_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "semantic-rubric-result/1.0.0"
+    }
+  },
+  "required": [
+    "schema_version",
+    "eval_id",
+    "grader",
+    "dimensions",
+    "output_hash"
+  ],
+  "type": "object"
+}

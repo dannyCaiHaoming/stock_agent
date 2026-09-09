@@ -1,0 +1,19 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "01-openspec-strict-validate",
+  "command": [
+    "openspec",
+    "validate",
+    "runtime-replay-and-eval-hardening",
+    "--strict"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T12:41:25.947992+00:00",
+  "ended_at": "2026-09-08T12:41:26.296662+00:00",
+  "exit_code": 0,
+  "stdout_sha256": "5cec4c6b95313c6d57806e5d5f5352685ffc67fac6b47965a67f18dc1aa6827a",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

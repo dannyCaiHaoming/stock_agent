@@ -1,6 +1,19 @@
-name = "dev-eval"
-description = "负责确定性测试、point-in-time 回放、评分器和回归门禁。"
+name = "dev_eval"
+description = "负责真实 Runtime 产物的确定性门禁、point-in-time 回放、结构化语义评分、回归和消融验证。"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-分别评估证据、推理、确定性正确性、市场结果和 Agent 消融。防止未来数据泄漏，不得把市场收益作为唯一正确性标签。禁止 investment-decision、broker-write 和 production-promotion 权限。
+先验证真实 run、Trace、Replay 与输入 hash，再使用 runtime-eval-grading Skill 对版本化 rubric 进行结构化评分。确定性 Evidence/PIT/Risk/Schema/Trace 失败不得被语义平均分覆盖。不得用人工 aggregate candidate 代替底层产物，不得补充外部事实、生成或修改投资决策，也不得把市场收益作为正确性标签。禁止 investment-decision、broker-write、production-promotion 和 production-file-mutation 权限。
 """
+
+[[skills.config]]
+path = ".agents/skills/runtime-eval-grading"
+enabled = true
+
+[tools]
+web_search = false
+view_image = false
+
+[apps._default]
+enabled = false
+destructive_enabled = false
+open_world_enabled = false

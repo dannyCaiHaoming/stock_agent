@@ -1,0 +1,33 @@
+{
+  "assertion_failures": 1,
+  "command": [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+    "-m",
+    "unittest",
+    "evals.promotion.assertion_failure_fixture.IntentionalPromotionAssertionFailure.test_intentional_assertion_failure"
+  ],
+  "completed_at": "2026-09-08T08:00:11.389624Z",
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "environment_errors": 0,
+  "environment_probe": "PASS",
+  "event_hash": "162a285d66100d93174dabf862d578d02efd19058249f0435674e558f572a79d",
+  "event_id": "test-event-bc461296-7a73-4b15-8dea-cd7375f6d5d6",
+  "exit_code": 1,
+  "process_id": 15367,
+  "runner": "python-unittest-subprocess/1.0.0",
+  "schema_version": "deterministic-test-execution/1.0.0",
+  "started_at": "2026-09-08T08:00:11.329955Z",
+  "stderr": {
+    "bytes": 774,
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/assertion-failure-negative/stderr.txt",
+    "sha256": "7d3b1505aa0b0bd83f3c200ff265be4e50f6bb16a6dfbbff86c90290a717b209"
+  },
+  "stdout": {
+    "bytes": 0,
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/assertion-failure-negative/stdout.txt",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "test_errors": 0,
+  "tests_run": 1,
+  "tmpdir": "/private/tmp/stock-agent-assertion-failure-negative-20260908"
+}

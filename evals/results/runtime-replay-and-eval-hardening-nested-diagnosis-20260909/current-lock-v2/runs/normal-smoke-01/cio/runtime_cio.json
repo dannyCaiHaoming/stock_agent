@@ -1,0 +1,91 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-current-lock-v2-normal-smoke-01-20260909",
+  "invocation_id": "inv_b2fc3fbbf1b54c97397a5003",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "0fa5b814cdc120c49613600c9d8b6a3c8c5fa21308c8f379152c8ba4e52ce77e"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "5d773ed1ef8c7a7c9c7632766c4232d8402e2be96ef1efc87157b0eeb1c6cbf1"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得下列重新评估条件所需的可核验证据前不形成仓位变动意图。",
+  "thesis": "授权证据显示截至2025-12-31的TTM收入为1,000,000 USD、TTM经营利润率为18%、总债务为150,000 USD，且管理层在2026-01-20维持此前产能计划；这些事实支持对当前盈利能力和相对收入规模债务负担的初步、受限观察。",
+  "counter_thesis": "单期利润率、债务余额、单日价格和简短产能计划更新不能验证利润率可持续性、现金流与债务偿付能力、产能需求与回报，或市场价格是否已反映这些风险。",
+  "consensus": [
+    "两份报告均接受授权证据截至截止日且为FRESH，并认可收入、经营利润率、债务、价格和管理层更新的有限事实范围。",
+    "两份报告均认为缺少现金流、债务期限与成本、流动性、产能计划量化执行、股本和估值基础等关键输入。",
+    "两份报告均不支持从现有证据直接得出完整估值、偿债能力或产能项目经济回报结论。"
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "commercial-quality-and-leverage-interpretation",
+      "evidence_refs": [
+        "ev-normal-margin",
+        "ev-normal-debt",
+        "ev-normal-revenue"
+      ],
+      "summary": "Company Analyst 将18%经营利润率和15%债务/TTM收入比率视为盈利能力与相对债务负担有限的初步支持；Skeptic 认为缺少现金、期限、利率、契约、现金流与多期指标时，不能确认利润质量或杠杆风险。",
+      "unresolved": true,
+      "decision_impact": "该解释分歧阻止将有限横截面财务数据转化为仓位变动意图。",
+      "confidence_impact": "关键反证所需输入缺失，令综合结论维持低置信度。"
+    },
+    {
+      "conflict_key": "capacity-plan-signal",
+      "evidence_refs": [
+        "ev-normal-update",
+        "ev-normal-price"
+      ],
+      "summary": "管理层维持产能计划是已验证事实，但其是否代表需求验证、可执行资本开支或未被价格反映的经济价值仍无可核验证据。",
+      "unresolved": true,
+      "decision_impact": "无法将产能计划作为支持行动的催化剂或估值依据。",
+      "confidence_impact": "单一文字更新和单日价格观察不足以判断项目结果或市场预期。"
+    }
+  ],
+  "unresolved_questions": [
+    "现金、净债务、债务到期日、利率、契约、利息覆盖及再融资安排如何？",
+    "经营利润率是否由可持续经营驱动，现金流、自由现金流、营运资本和资本开支表现如何？",
+    "产能计划的规模、时间表、资金需求、需求或订单支持、项目回报及执行进度如何？",
+    "稀释后股数、企业价值、估值倍数、历史价格表现、同业比较和市场预期如何？"
+  ],
+  "invalidation_conditions": [
+    "后续可追溯披露显示经营利润率或收入基础显著恶化。",
+    "后续可追溯披露显示债务、利息负担、短期到期压力或再融资风险显著上升。",
+    "产能计划延期、缩减、超预算、需求不足或融资成本显著上升，导致项目经济回报恶化。"
+  ],
+  "confidence": 0.43,
+  "confidence_rationale": "事实层面的授权证据新鲜且无机械冲突，但两份已验证报告共同指出的现金流、债务结构、产能执行和估值输入缺失，且对有限财务指标和产能计划所能支持的解释存在未解决分歧；因此不足以形成可审慎执行的仓位判断。",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "现有 Gate-scoped 证据可支持有限的经营事实，却不能解决现金流、债务偿付、产能计划经济性和估值的实质性不确定性；在这些问题未获可核验信息前，不形成仓位变动意图。",
+  "reevaluation_conditions": [
+    "取得截至或接近重新评估日的现金、净债务、债务期限、利率、契约、利息覆盖、经营现金流与再融资证据。",
+    "取得多期收入、利润率、现金流、资本开支和一次性项目资料，以检验盈利质量与可持续性。",
+    "取得可独立验证的产能计划规模、时间表、预算、需求或订单支持、执行里程碑及项目回报证据。",
+    "取得股本、企业价值、估值倍数、历史价格与流动性、同业比较及市场预期数据。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "db64792e17b316a48fab704117cbc91116b26d3f09016f3d23b7f8a11f5bcc6f",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

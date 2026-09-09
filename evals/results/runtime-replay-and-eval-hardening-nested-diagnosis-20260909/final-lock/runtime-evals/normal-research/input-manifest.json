@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-lock-eval-normal-research-20260909",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/normal-research",
+  "run_id": "rrh-final-lock-regression-normal-research-20260909",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "dd2cfb3e4aacff1586b6f129954a58ab5c8e2ac3cb84dc5c9c095aa52bd5c9eb",
+    "artifact_replay": "8ce6badf42808642b5780e79788250789dd04a764c48271e08920f0f3cdb6279",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "3608d7bc5eeb4ce1e246e027eb0255517be21c37a4eb0882229bfd022828c7e0",
+    "semantic_input": "70716c462b0e6175672a91c47ba3cacea2e21c3dea79e2af0235043ac8a7a9b1",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "7bd56846be690ebee57f7fad77e160531694fe60ecb65cda5b8df70954840dee"
+  }
+}

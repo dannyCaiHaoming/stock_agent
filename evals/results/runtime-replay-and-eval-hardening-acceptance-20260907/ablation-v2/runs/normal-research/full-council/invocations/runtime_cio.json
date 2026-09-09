@@ -1,0 +1,45 @@
+{
+  "agent": {
+    "name": "runtime_cio",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_cio.toml",
+    "sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "version": "3.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [],
+  "input_artifact": "inputs/runtime_cio.json",
+  "input_hash": "7a5371bc20a46ff6db40c7daee7d1684ea22857266ee5a9ef3e20b6b6df07a1f",
+  "instruction_bundle_hash": "524174e47e44164d720c1ff773eaed4d0d13190762b011d011af4a216e97c564",
+  "invocation_id": "inv_bc6bf19e70fb53de3ea0734e",
+  "manifest_hash": "af595a523f124835369029f642dcdd569809ae9e826377169c4ae9da14f06048",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v2/runs/normal-research/full-council/schemas/cio-decision-draft.schema.json",
+  "output_schema_hash": "985fbd02ef486c6583c15e5a65a893a4369590793553f1a63244bc5fb5bb0fa8",
+  "run_id": "rreh-ablation-v2-normal-full-council-20260907",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "6c5e958db282a84bb0e80514d9b54a67ba605ef8759d020cab1f87be85d5f534",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "portfolio-council",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+      "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+      "version": "3.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_cio.txt",
+  "task_prompt_hash": "11d00b2eb6eca2a0129bacae59ef0cad4c2a8e3bb653d197fc591aac906519f0",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

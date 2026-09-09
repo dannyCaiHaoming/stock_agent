@@ -1,0 +1,42 @@
+{
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "0cb50cec508ae88bc88b0f7024df731fd8a137bdf73539eac1c2382bd47874b4",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 0,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 0
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": false,
+      "pre_risk_failure": false,
+      "risk_attempts": 0,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "f30472a9655b4a9cd2c928dea234e31b9d93ae86381dc557bd82b876305bc3d3",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "3bc3cc7ca263ec12d5654599e137def78537c8fcd07f89a4dd6da35679659f44",
+      "status": "PASS"
+    }
+  }
+}

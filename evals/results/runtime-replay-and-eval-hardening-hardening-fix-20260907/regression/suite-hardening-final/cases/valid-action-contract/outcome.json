@@ -1,0 +1,16 @@
+{
+  "forbidden_actions": [
+    "REDUCE"
+  ],
+  "llm_calls": 0,
+  "not_llm_output": true,
+  "outcome_hash": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+  "producer": "fixture",
+  "run_id": "regression-rreh-hardening-regression-final-20260908-valid-action-contract-2b6831c21754",
+  "valid_action_set": [
+    "BUY",
+    "HOLD",
+    "TRIM",
+    "EXIT"
+  ]
+}

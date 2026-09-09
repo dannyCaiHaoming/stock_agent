@@ -1,0 +1,88 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-insufficient-price"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "评估证据不足场景。",
+  "run_id": "rreh-ablation-v3-insufficient-analyst-cio-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "879631a9c9ac591630d675bd311bc2662de9307acef13dc316c434271aa48aff"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_close_price",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的收盘价为 100 USD/share；source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        }
+      ],
+      "confidence": 0.05,
+      "confidence_rationale": "价格事实具有新鲜且可追溯的单项证据，但其覆盖范围不足以形成任何公司基本面或估值主张。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入、利润率、现金流、资产负债表、行业竞争和管理层执行证据。",
+        "缺少估值所需的经营指标、资本成本、可比估值或内在价值假设证据。",
+        "缺少可用于验证或反驳公司 Thesis 的独立证据。"
+      ],
+      "invalidation_conditions": [
+        "若获得截至决策截止日且来源、as_of、retrieved_at 完整的公司基本面与估值证据，本报告的证据不足结论应重新评估。"
+      ],
+      "invocation_id": "inv_0cec7881e88ddd8eb21196b4",
+      "run_id": "rreh-ablation-v3-insufficient-analyst-cio-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA：评估证据不足场景；仅获授权的单一收盘价证据。",
+      "skill_execution": [
+        {
+          "invocation_hash": "bdc16ca66e0ddbf9cdea6c56e5a8ed4b5890aeb77d08dc3c53aae3c1a0d50737",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "87a655a35d8c1cc8bc37e2c1479a3d67f5f45a9408df22c4f22de2a2748fb8a3",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "b75105d01afe4bd3a4e283668afe51bc6c3b9a6f24a8c68e49b5dcacc5791f16",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一价格观察不能说明公司的业务质量、盈利能力、竞争地位、资本结构、估值或催化剂。"
+      ]
+    }
+  }
+}

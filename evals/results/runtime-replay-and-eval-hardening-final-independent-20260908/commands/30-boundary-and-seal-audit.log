@@ -1,0 +1,107 @@
+=== Runtime MCP read-only contract ===
+product/.mcp.json:12:      "enabled_tools": ["query", "calculate"],
+product/runtime/fixture_mcp.py:24:SUPPORTED_TOOLS = {"fixture_evidence.query", "fixture_math.calculate"}
+product/runtime/fixture_mcp.py:52:            "name": "query",
+product/runtime/fixture_mcp.py:59:                "readOnlyHint": True,
+product/runtime/fixture_mcp.py:60:                "destructiveHint": False,
+product/runtime/fixture_mcp.py:61:                "openWorldHint": False,
+product/runtime/fixture_mcp.py:71:            "name": "calculate",
+product/runtime/fixture_mcp.py:80:                "readOnlyHint": True,
+product/runtime/fixture_mcp.py:81:                "destructiveHint": False,
+product/runtime/fixture_mcp.py:82:                "openWorldHint": False,
+product/runtime/fixture_mcp.py:120:            "fixture_evidence.query",
+product/runtime/fixture_mcp.py:121:            "fixture_math.calculate",
+product/runtime/fixture_mcp.py:150:            "query": "fixture_evidence.query",
+product/runtime/fixture_mcp.py:151:            "calculate": "fixture_math.calculate",
+product/runtime/fixture_mcp.py:193:                "access_mode": "read",
+product/runtime/fixture_mcp.py:199:    def query(
+product/runtime/fixture_mcp.py:208:        if "fixture_evidence.query" not in self.allowed_tools:
+product/runtime/fixture_mcp.py:209:            raise ToolAccessError("TOOL_NOT_AUTHORIZED:fixture_evidence.query")
+product/runtime/fixture_mcp.py:223:        self._record("fixture_evidence.query", inputs, output)
+product/runtime/fixture_mcp.py:226:    def calculate(
+product/runtime/fixture_mcp.py:237:        if "fixture_math.calculate" not in self.allowed_tools:
+product/runtime/fixture_mcp.py:238:            raise ToolAccessError("TOOL_NOT_AUTHORIZED:fixture_math.calculate")
+product/runtime/fixture_mcp.py:273:        self._record("fixture_math.calculate", inputs, output)
+product/runtime/fixture_mcp.py:337:    def query(self, **arguments: Any) -> dict[str, Any]:
+product/runtime/fixture_mcp.py:346:        result = tools.query(**arguments)
+product/runtime/fixture_mcp.py:350:    def calculate(self, **arguments: Any) -> dict[str, Any]:
+product/runtime/fixture_mcp.py:359:        result = tools.calculate(**arguments)
+product/runtime/fixture_mcp.py:422:                if name == "query":
+product/runtime/fixture_mcp.py:423:                    value = tools.query(**arguments)
+product/runtime/fixture_mcp.py:424:                elif name == "calculate":
+product/runtime/fixture_mcp.py:425:                    value = tools.calculate(**arguments)
+product/runtime/fixture_mcp.py:455:                        "access_mode": "read",
+product/mcp/contracts.py:14:class AccessMode(StrEnum):
+product/mcp/contracts.py:15:    READ = "read"
+product/mcp/contracts.py:22:    access_mode: AccessMode
+product/mcp/contracts.py:33:        access_mode=AccessMode.READ,
+product/mcp/contracts.py:39:        name="market_data.query",
+product/mcp/contracts.py:41:        access_mode=AccessMode.READ,
+product/mcp/contracts.py:47:        name="fundamentals.query",
+product/mcp/contracts.py:49:        access_mode=AccessMode.READ,
+product/mcp/contracts.py:55:        name="filings_news.query",
+product/mcp/contracts.py:57:        access_mode=AccessMode.READ,
+product/mcp/contracts.py:63:        name="evidence.query",
+product/mcp/contracts.py:64:        capability="evidence-query",
+product/mcp/contracts.py:65:        access_mode=AccessMode.READ,
+product/mcp/contracts.py:71:        name="valuation.calculate",
+product/mcp/contracts.py:73:        access_mode=AccessMode.READ,
+product/mcp/contracts.py:79:        name="liquidity.calculate",
+product/mcp/contracts.py:81:        access_mode=AccessMode.READ,
+product/mcp/contracts.py:89:_FORBIDDEN_TOOL_TERMS: Final[tuple[str, ...]] = (
+product/mcp/contracts.py:107:        if contract.access_mode is not AccessMode.READ:
+product/mcp/contracts.py:118:        if any(term in searchable_metadata for term in _FORBIDDEN_TOOL_TERMS):
+=== Risk policy hard-constraint basis ===
+product/runtime/risk_runtime.py:105:    if draft["action"] != "NO_TRADE":
+product/runtime/risk_runtime.py:116:    final_action = "NO_TRADE" if primitive_report["status"] == "REJECTED" else draft["action"]
+product/runtime/risk_runtime.py:127:        "veto_reason": "RISK_VETO" if primitive_report["status"] == "REJECTED" else None,
+product/deterministic/risk.py:20:    REJECTED = "REJECTED"
+product/deterministic/risk.py:131:                else RiskStatus.REJECTED
+product/deterministic/policy.py:12:class RuleBasis(StrEnum):
+product/deterministic/policy.py:13:    ACCOUNTING_IDENTITY = "accounting_identity"
+product/deterministic/policy.py:14:    MATHEMATICAL_DEFINITION = "mathematical_definition"
+product/deterministic/policy.py:15:    DATA_QUALITY = "data_quality"
+product/deterministic/policy.py:16:    EXPLICIT_MANDATE = "explicit_mandate"
+product/deterministic/policy.py:46:ALLOWED_POLICY_METRICS: Final[frozenset[str]] = frozenset(
+product/deterministic/policy.py:62:    if metric not in ALLOWED_POLICY_METRICS:
+=== Learning/promotion mutation boundary ===
+evals/promotion/runtime_gate.py:619:    (output_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+evals/promotion/runtime_gate.py:620:    (output_dir / "input-manifest.json").write_text(json.dumps(inputs, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+evals/promotion/runtime_gate.py:637:    (output_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+evals/promotion/policy-v1.json:22:  "automatic_production_mutation": false
+learning/promotion.py:1:"""Human-controlled promotion and append-only rollback ledger."""
+learning/promotion.py:38:class PromotionRecord(JsonContract):
+learning/promotion.py:48:    approved_by: str
+learning/promotion.py:51:    rollback_conditions: tuple[str, ...]
+learning/promotion.py:55:        for name in ("record_id", "from_version_id", "to_version_id", "approved_by"):
+learning/promotion.py:65:        if not self.rollback_conditions or any(not item.strip() for item in self.rollback_conditions):
+learning/promotion.py:66:            raise ContractValidationError("rollback conditions must be explicit")
+learning/promotion.py:70:            raise ContractValidationError("rollback record must identify the promotion being rolled back")
+learning/promotion.py:100:        approved_by: str,
+learning/promotion.py:103:        rollback_conditions: tuple[str, ...],
+learning/promotion.py:117:            approved_by=approved_by,
+learning/promotion.py:120:            rollback_conditions=rollback_conditions,
+learning/promotion.py:127:    def rollback(
+learning/promotion.py:131:        approved_by: str,
+learning/promotion.py:135:        rollback_conditions: tuple[str, ...],
+learning/promotion.py:159:            approved_by=approved_by,
+learning/promotion.py:162:            rollback_conditions=rollback_conditions,
+product/contracts/learning.py:57:    schema_name: ClassVar[str] = "version-manifest"
+product/contracts/learning.py:191:class ImprovementProposal(ArtifactContract):
+product/contracts/learning.py:204:    rollback_plan: str
+product/contracts/learning.py:220:            ("rollback_plan", self.rollback_plan),
+product/contracts/learning.py:233:class PromotionRecord(ArtifactContract):
+product/contracts/learning.py:242:    approved_by: str
+product/contracts/learning.py:244:    rollback_conditions: tuple[str, ...]
+product/contracts/learning.py:254:        require_identifier(self.approved_by, "approved_by")
+product/contracts/learning.py:256:        require_non_empty_sequence(self.rollback_conditions, "rollback_conditions")
+product/contracts/learning.py:257:        for index, condition in enumerate(self.rollback_conditions):
+product/contracts/learning.py:258:            require_text(condition, f"rollback_conditions[{index}]")
+=== Runtime permission manifests ===
+find: product/agents: No such file or directory
+=== Sealed execution workspace modes ===
+dr-xr-xr-x 555 /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto
+dr-xr-xr-x 555 /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product
+-r--r--r-- 444 /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/version-manifest.json
+writable directories/files count: 0
+=== Current human approval ===

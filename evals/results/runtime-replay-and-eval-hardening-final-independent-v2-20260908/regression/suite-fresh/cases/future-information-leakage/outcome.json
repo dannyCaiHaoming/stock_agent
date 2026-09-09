@@ -1,0 +1,29 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [],
+  "cio_conflict_handled": false,
+  "eval_status": "PASS",
+  "evidence_closure": true,
+  "evidence_subset_of_gate": true,
+  "failed_stage": null,
+  "future_injection_verified": true,
+  "future_leak_count": 0,
+  "injected_evidence_ids": [
+    "ev-future-asof",
+    "ev-future-retrieval"
+  ],
+  "injection_mechanism": "append_declared_evidence_before_pit_gate",
+  "injection_type": "FUTURE_EVIDENCE",
+  "injection_version": "future-evidence-injection/1.0.0",
+  "llm_calls": 0,
+  "no_future_evidence": true,
+  "not_llm_output": true,
+  "outcome_hash": "522a7c84e040f11b95e4a5e04d6682b32dfa61a7390bd7ee2d2dbb822bfd7186",
+  "producer": "fixture",
+  "risk_bypassed": false,
+  "risk_status": null,
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-future-information-leakage-0c1ee5e5f05d",
+  "specialist_output_valid": true,
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_complete": true
+}

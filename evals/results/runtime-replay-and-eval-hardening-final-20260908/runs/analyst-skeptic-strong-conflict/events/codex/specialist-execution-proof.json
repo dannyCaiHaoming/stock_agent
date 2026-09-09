@@ -1,0 +1,183 @@
+{
+  "children": {
+    "runtime_company_analyst": {
+      "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "agent_role": "runtime_company_analyst",
+      "assistant_output_hash": "1ff93110015ceeadaf335ab9bc5f1997b22a6a84a1f08598dfa5834efb26dd60",
+      "codex_runtime": "codex-cli/0.153.4",
+      "configured_skills": [
+        {
+          "configured": true,
+          "name": "evidence-grounding",
+          "protocol_bound": true,
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "company-research",
+          "protocol_bound": true,
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "valuation",
+          "protocol_bound": true,
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "final_structured_output_hash": "2769d63f7018bece80454888292c15917c373f81654915f23897ac3ee3ea2eb8",
+      "model": "gpt-5.6-terra",
+      "multi_agent_version": "v2",
+      "observed_tool_calls": [
+        {
+          "arguments_hash": "8477602b1b6c1e7c62ed44a83c994c17d4ad0000e68fe306aec35967fe4b07be",
+          "call_id": "call_Nyito7SZ0swCtDQfNmDgphWe",
+          "ordinal": 18,
+          "tool": "fixture_evidence.query"
+        },
+        {
+          "arguments_hash": "7b5e80d7a594e6a20233e8aff1675f9c473291d10d8637f6729c9cbc424890c3",
+          "call_id": "call_jOLcuIOaCMNNR0wnpS7YBvdi",
+          "ordinal": 25,
+          "tool": "fixture_math.calculate"
+        }
+      ],
+      "parent_session_id": "01a07faa-85f7-7c12-b27d-cb2ea41c1804",
+      "raw_fixture_access_attempts": 0,
+      "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+      "role_instructions_loaded": true,
+      "rollout_sha256": "e1d8312fc277e435629e38e42421cbb9e5d50b01388977189afce3cd0143cdac",
+      "session_id": "01a07fab-8829-70c2-8927-54328003298c",
+      "task_binding": {
+        "agent_matches": true,
+        "binding_method": "protected_dispatch_plus_structured_output",
+        "invocation_id_matches": true,
+        "invocation_id_present": false,
+        "run_id_matches": true,
+        "run_id_present": false,
+        "task_prompt_hash": "b0141645d87a84867a748c7e085e17e2b19cc0b2c77aee273ee604751548ee43",
+        "task_prompt_present": false,
+        "verified": true
+      },
+      "thread_source": "subagent",
+      "unapproved_tool_calls": 0
+    },
+    "runtime_skeptic": {
+      "agent_resource_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+      "agent_role": "runtime_skeptic",
+      "assistant_output_hash": "cfcacb5c9f0f21e39f1762aa03bf1eaad06461952ec5e11b82c7b666660a9296",
+      "codex_runtime": "codex-cli/0.153.4",
+      "configured_skills": [
+        {
+          "configured": true,
+          "name": "evidence-grounding",
+          "protocol_bound": true,
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "counter-thesis",
+          "protocol_bound": true,
+          "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+          "version": "2.0.0"
+        }
+      ],
+      "final_structured_output_hash": "45fdca23dd1baf59b9dc50c4d2b6dbadea2e0c3b737d46c11706b311d36fa2f1",
+      "model": "gpt-5.6-terra",
+      "multi_agent_version": "v2",
+      "observed_tool_calls": [
+        {
+          "arguments_hash": "b8e951e11a75d24ab1c4f91a043c45c007040b4676f333c29f7e26c62947f468",
+          "call_id": "call_YzxztuIdcTFqNz3x59NeWBfd",
+          "ordinal": 12,
+          "tool": "fixture_evidence.query"
+        }
+      ],
+      "parent_session_id": "01a07faa-85f7-7c12-b27d-cb2ea41c1804",
+      "raw_fixture_access_attempts": 0,
+      "role_instruction_sha256": "742317a72c7d0fafb6008b6dd761a19f8999ce20c35ee522b18f434486f4c240",
+      "role_instructions_loaded": true,
+      "rollout_sha256": "97330e0b99f1be64fed22505263a958bced3d9b5bb2c074f2960c37555f83a04",
+      "session_id": "01a07fac-0e8e-7633-81d6-4d786a8a26b2",
+      "task_binding": {
+        "agent_matches": true,
+        "binding_method": "protected_dispatch_plus_structured_output",
+        "invocation_id_matches": true,
+        "invocation_id_present": false,
+        "run_id_matches": true,
+        "run_id_present": false,
+        "task_prompt_hash": "069bcdec0263f1aa0028e8a8b5ab6372ab97c306af14c9efee7e4a81c0a54831",
+        "task_prompt_present": false,
+        "verified": true
+      },
+      "thread_source": "subagent",
+      "unapproved_tool_calls": 0
+    }
+  },
+  "dispatches": [
+    {
+      "agent": "runtime_company_analyst",
+      "call_id": "call_BdasYrKKexC7KVrvJ6SfXoXI",
+      "child_session_id": "01a07fab-8829-70c2-8927-54328003298c",
+      "completion_ordinal": 47,
+      "dispatch_ordinal": 29,
+      "request": {
+        "agent_type": "runtime_company_analyst",
+        "fork_turns": "none",
+        "message_sha256": "f3c34b4d575eb16445881edec0df3c45ea84ff44ebc27d74671a45ba5c8409d5",
+        "protected_message_present": true,
+        "task_name": "company_research"
+      },
+      "request_hash": "37a3b285b28461ce48b56421f964cb7d2f1d589018571b0bd199444fc405fd6c",
+      "start_ordinal": 31
+    },
+    {
+      "agent": "runtime_skeptic",
+      "call_id": "call_ak2ythTsP5uT8KXmrrqYURej",
+      "child_session_id": "01a07fac-0e8e-7633-81d6-4d786a8a26b2",
+      "completion_ordinal": 57,
+      "dispatch_ordinal": 35,
+      "request": {
+        "agent_type": "runtime_skeptic",
+        "fork_turns": "none",
+        "message_sha256": "c2c58a7a68e284bd92a16aa27bf016ff809a83a0a497c6d53c585227fe59e814",
+        "protected_message_present": true,
+        "task_name": "independent_skeptic"
+      },
+      "request_hash": "cbae7f197028ad1b1df7be9ef16e9e7cb1e52f07c5b9d933232b5706f7457785",
+      "start_ordinal": 37
+    }
+  ],
+  "first_wait_ordinal": 45,
+  "independent_sessions_proven": true,
+  "parallel_dispatch_proven": true,
+  "parent": {
+    "codex_runtime": "codex-cli/0.153.4",
+    "model": "gpt-5.6-terra",
+    "rollout_sha256": "49f95fac5cc1ae1d61555ea7b48606e370d41120c527485efca57e13142c7b29",
+    "session_id": "01a07faa-85f7-7c12-b27d-cb2ea41c1804"
+  },
+  "portfolio_council_skill_bound": true,
+  "proof_hash": "cf6834efe2e74835f6dd635b564a3a99427466d69775ade2937299762709c9d6",
+  "raw_prompt_or_reasoning_retained": false,
+  "schema_version": "codex-execution-proof/2.0.0",
+  "specialist_topology": [
+    "runtime_company_analyst",
+    "runtime_skeptic"
+  ],
+  "telemetry": {
+    "cache_provenance": "NEW_EXECUTION",
+    "cached_tokens": 442368,
+    "input_tokens": 529498,
+    "latency_ms": 230294,
+    "llm_calls": 16,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 12152,
+    "status": "AVAILABLE",
+    "trigger_reason": "product_council"
+  }
+}

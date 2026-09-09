@@ -1,0 +1,29 @@
+{
+  "agent": "runtime_skeptic",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "mode": "INDEPENDENT_FIRST_PASS",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 10000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 900,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "Regression risk-veto：验证确定性 Risk Engine 否决不可绕过。",
+  "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+  "security_id": "SEC-AAA"
+}

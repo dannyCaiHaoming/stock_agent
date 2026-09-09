@@ -1,0 +1,50 @@
+{
+  "agent": "runtime_skeptic",
+  "artifact_refs": [],
+  "challenges": [
+    {
+      "assumption_ids": [],
+      "challenge_id": "contract-challenge-1",
+      "evidence_refs": [
+        "ev-normal-margin"
+      ],
+      "resolution_evidence_needed": [
+        "Risk Engine 的实际 lineage"
+      ],
+      "statement": "合法 Schema 不代表可以绕过确定性 Risk Engine。"
+    }
+  ],
+  "confidence": 0.5,
+  "confidence_rationale": "仅用于证明独立报告及 Evidence 闭包。",
+  "counter_evidence_refs": [
+    "ev-normal-debt"
+  ],
+  "data_gaps": [],
+  "evidence_refs": [
+    "ev-normal-margin"
+  ],
+  "invalidation_conditions": [
+    "Risk lineage 缺失或契约校验失败。"
+  ],
+  "invocation_id": "inv_dc51486386115d22c8064c5b",
+  "mode": "INDEPENDENT_FIRST_PASS",
+  "run_id": "regression-focused-closure-20260908-valid-action-contract-acd3c70a183b",
+  "schema_version": "counter-thesis-report/2.0.0",
+  "scope": "确定性 action 契约夹具的独立边界检查。",
+  "skill_execution": [
+    {
+      "invocation_hash": "9b0c3a71a33eb4b18a96064d65f6c5d69ab8c3db88d4dca948788ec14fe54e84",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "ea12d33414e55d19f13c4b39ffdebe2e60f5034788bf3dcac255335953a00fba",
+      "skill_name": "counter-thesis",
+      "version": "2.0.0"
+    }
+  ],
+  "status": "COMPLETE",
+  "uncertainties": [
+    "本案例不评价证券方向。"
+  ]
+}

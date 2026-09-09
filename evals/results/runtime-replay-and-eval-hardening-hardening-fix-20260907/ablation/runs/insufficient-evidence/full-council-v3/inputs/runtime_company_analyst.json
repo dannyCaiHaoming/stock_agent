@@ -1,0 +1,27 @@
+{
+  "agent": "runtime_company_analyst",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 500,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "在严格使用 Gate 授权证据且不补充外部事实的前提下，评估该持仓；Company Analyst 与 Independent Skeptic 必须分别真实调用 fixture_runtime 查询并保持隔离。若证据不足，应明确 NO_TRADE。",
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v3-20260908",
+  "security_id": "SEC-AAA"
+}

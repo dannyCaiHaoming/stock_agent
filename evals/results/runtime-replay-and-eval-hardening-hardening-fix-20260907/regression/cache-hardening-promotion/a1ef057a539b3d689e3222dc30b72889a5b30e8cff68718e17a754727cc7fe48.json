@@ -1,0 +1,100 @@
+{
+  "cache_key": "a1ef057a539b3d689e3222dc30b72889a5b30e8cff68718e17a754727cc7fe48",
+  "case_hash": "713a7854021ea1dc7798ea02870df42e2cc3b062ea77b2aa03b6e7c4abc4f102",
+  "case_id": "analyst-skeptic-strong-conflict",
+  "inputs": {
+    "candidate_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48",
+    "codex_runtime": "codex-cli/0.153.4",
+    "gate_context_hash": "733df70cab6a7e9b1d57616f706c7b3e2af8ff4c36f96be554dc9a0c48d8eca3",
+    "grader_hash": "66c424379b4d5e7a4bcae8d0b92b9d08c108367a1c285f59dda19ff6af970087",
+    "model": "gpt-5.6-terra",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "runtime_profile_hash": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+  },
+  "outcome": {
+    "action": "NO_TRADE",
+    "agents_run": [
+      "runtime_company_analyst",
+      "runtime_skeptic",
+      "runtime_cio"
+    ],
+    "cached_tokens": 911104,
+    "eval_hash": "8b903c023879faf9f22b0376bc875b29b8b3438aee519fb2ffcea39ce68aa0e3",
+    "eval_status": "PASS",
+    "failed_stage": null,
+    "future_leak_count": 0,
+    "input_tokens": 1006714,
+    "latency_ms": 263880,
+    "llm_calls": 22,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 13840,
+    "risk_bypassed": false,
+    "risk_status": "APPROVED",
+    "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+    "semantic_dimensions": {
+      "analyst_thesis_grounding": {
+        "evidence_refs": [
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b",
+          "ev-conflict-margin",
+          "ev-conflict-price"
+        ],
+        "grade": 3,
+        "rationale": "Analyst 将四项可追溯事实与解释性限制分开；两项收入的同日冲突直接支持其不形成收入规模、商业判断或估值结论的 Thesis。",
+        "status": "PASS"
+      },
+      "cio_conflict_handling": {
+        "evidence_refs": [
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b",
+          "ev-conflict-margin",
+          "ev-conflict-price"
+        ],
+        "grade": 3,
+        "rationale": "CIO 记录 Analyst 与 Skeptic 的共识，明确未决收入冲突、对置信度和结论边界的影响，以及尚待回答的问题；未以孤立价格或利润率覆盖冲突。",
+        "status": "PASS"
+      },
+      "confidence_calibration": {
+        "evidence_refs": [
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b",
+          "ev-conflict-margin",
+          "ev-conflict-price"
+        ],
+        "grade": 3,
+        "rationale": "Analyst、Skeptic 与 CIO 的低置信度均明确归因于同日收入冲突、口径不可比性和关键数据缺口，与可追溯但不足的证据范围方向一致。",
+        "status": "PASS"
+      },
+      "no_trade_reasoning": {
+        "evidence_refs": [
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b",
+          "ev-conflict-margin"
+        ],
+        "grade": 3,
+        "rationale": "NO_TRADE 明确锚定同一 as_of 的两项未解 revenue_ttm 冲突及利润率配对未证实，并给出可核验的来源调节、同口径利润表和补充证据重评条件。",
+        "status": "PASS"
+      },
+      "skeptic_counter_evidence": {
+        "evidence_refs": [
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b",
+          "ev-conflict-margin"
+        ],
+        "grade": 3,
+        "rationale": "Skeptic 独立提出收入定义/来源冲突及利润率与收入边界未证实两项具体、可证伪挑战，并列出解决各挑战所需的可核验证据。",
+        "status": "PASS"
+      }
+    },
+    "terminal_state": "SAFE_NO_TRADE",
+    "trace_hash": "89e12f44792b5565c3058023df971ed5b3ce7abc3aeae6d78df9254480249898"
+  },
+  "record_hash": "cf8b3c0e886041c646f690d7a6557244d296044fd8ef4b9e82da627a4d6aedf7",
+  "schema_version": "regression-cache/1.0.0",
+  "source": {
+    "eval_artifact_hash": "1131e15ca6f041e890dfbd9f7e7afa6e5ad49f62cc915c363be7f23dc91e6e00",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/analyst-skeptic-strong-conflict/full-council-v3-strict/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/full-council-v3",
+    "run_tree_hash": "75eb231d41f6120f75bf61ab7d76bb128bce7dc58ab68456f7728ddaf0a36a1c"
+  }
+}

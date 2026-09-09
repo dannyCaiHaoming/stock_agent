@@ -1,0 +1,33 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "03-source-run-prepare",
+  "command": [
+    "python3",
+    "-m",
+    "product.runtime.cli",
+    "prepare",
+    "--repo",
+    "/Users/caihaoming/Documents/stock_agent",
+    "--fixture",
+    "evals/fixtures/codex-native/normal-research.json",
+    "--run-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runs/source-normal",
+    "--run-id",
+    "rrh-final-independent-v2-source-normal-20260908",
+    "--model",
+    "gpt-5.6-terra",
+    "--question",
+    "基于冻结的 point-in-time fixture 运行完整只读 Portfolio Council，仅输出研究建议并经过确定性风险校验。",
+    "--trigger-reason",
+    "final-independent-v2-current-lock-release-gate"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T12:41:50.470505+00:00",
+  "ended_at": "2026-09-08T12:41:50.569946+00:00",
+  "exit_code": 0,
+  "stdout_sha256": "e17159c7141fc3ecfc344b13b7cc2fbb86e83e4168959854a3153d9f2fe2c73d",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

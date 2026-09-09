@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-eval-insufficient-evidence-20260908",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence",
+  "run_id": "rrh-final-insufficient-evidence-20260908",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "2e890d86234611da8ddc743ab611ddc57cf438b844eb3c71a50dc14f995d8025",
+    "artifact_replay": "13e53aa74812c0d78ead6c3027d333184c872e32b048765b45f47b5f15e956ac",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "bc73623c9edd6dccd4aa63d7cc8b9980707050c6bc5c4dcfb4132b74de563212",
+    "semantic_input": "1c73fb253955cc87e8c382a59b2eeb2e4e3f1c8239a5bac1de9019d8319d9426",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "04af1fdb59d89d002b05e6145b0ad23c55ed32551fe063664790c0f4fc0ff072"
+  }
+}

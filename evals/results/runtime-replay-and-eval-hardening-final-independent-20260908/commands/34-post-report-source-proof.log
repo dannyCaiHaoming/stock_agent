@@ -1,0 +1,6 @@
+report_sha256=5f219930c03b092e4546f74a9861f58170db046f04d14802c5af066a804528a5
+post_report_tree_hash=74cd955fdb09c491de903a8fdbd9be74a7b7eb36daf30a1bae80240be575146f
+post_report_manifest_cmp=0
+post_report_status_cmp=0
+102:- [ ] 11.10 按仓库流程执行独立只读 Release Gate 和人工批准；仅在所有声明门禁满足后标记 Change 完成，归档、同步主规格、检查敏感信息并提交推送。
+final_conditions=PASS

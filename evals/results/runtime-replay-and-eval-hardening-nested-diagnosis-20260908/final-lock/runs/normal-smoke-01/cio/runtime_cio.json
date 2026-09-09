@@ -1,0 +1,67 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-final-lock-normal-smoke-01-20260908",
+  "invocation_id": "inv_6ca9a257999d2556b75ee858",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "355b8a892113718b453702625f8158ad16cddc59a3df91652f9cff3b868f591d"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "c1b0712276329946823f43b422d3bfb1e6720868f41687484d06a93b4d702993"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在取得可核验的补充经营、资产负债表和估值资料后重新评估。",
+  "thesis": "截至决策截止日，TTM 收入、18%经营利润率、总债务与收入的有限比例关系以及未下调的产能计划构成初步正向经营质量观察，但这些观察不足以判断可持续性、资本回报或当前价格是否反映预期。",
+  "counter_thesis": "单期利润率、总债务与收入以及管理层计划连续性均不能替代现金流、净债务、利息及到期结构、需求验证、产能回报和完整估值资料；100美元收盘价也无法在缺少股数、企业价值和预测的情况下验证安全边际。",
+  "consensus": [
+    "两份已验证报告均将研究状态评为 LOW_CONFIDENCE。",
+    "双方均认可授权证据覆盖收入、利润率、债务、价格和管理层更新，但缺少现金流、债务服务能力、执行验证和估值所需输入。",
+    "双方均认为当前资料不足以形成可验证的价格与经营结果之间的判断。"
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "现金、净债务、利息费用、债务到期结构和自由现金流是否支持偿债与再融资韧性？",
+    "经营利润率、收入和现金流的多期趋势是否可持续，且是否不受一次性项目驱动？",
+    "产能项目的资本开支、需求、利用率、投产进度和投入资本回报是否得到可核验证实？",
+    "在获得稀释后股数、企业价值、预测和可比估值后，100美元价格是否仍具有可验证的安全边际？"
+  ],
+  "invalidation_conditions": [
+    "后续披露显示经营利润率显著低于18%、收入或现金流恶化。",
+    "后续披露显示产能计划延期、缩减、需求不足或资本回报不达预期。",
+    "新增资料显示净杠杆、利息覆盖或债务到期风险显著弱于当前有限指标所暗示的水平。"
+  ],
+  "confidence": 0.4,
+  "confidence_rationale": "两份独立、已验证报告在授权证据范围与关键缺口上相互印证，且无机械字段冲突；但缺失资料直接决定盈利持续性、偿债能力、产能回报和估值判断，因此不足以支持对现有50%仓位作出方向性调整。",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "已验证的专家报告一致表明，现有授权证据虽提供有限的正向经营观察，但缺失的现金流、债务服务、产能执行和估值资料对判断具有实质性影响；因此不形成仓位调整意图。",
+  "reevaluation_conditions": [
+    "获得可核验的现金、净债务、利息费用、债务到期与自由现金流资料。",
+    "获得多期利润率、收入、现金流及一次性项目归因资料。",
+    "获得产能项目进度、资本开支、利用率、需求和投入资本回报验证。",
+    "获得稀释后股数、企业价值、预测与可比估值资料。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "ff5b1984204a47a3ec069da047e87739e4fd69e61f53e7ededa931b126b18422",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

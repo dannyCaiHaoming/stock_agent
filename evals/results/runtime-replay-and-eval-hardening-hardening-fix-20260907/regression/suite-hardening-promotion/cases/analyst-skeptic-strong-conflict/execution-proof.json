@@ -1,0 +1,27 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/full-council-v3/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals/analyst-skeptic-strong-conflict/full-council-v3-strict/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/full-council-v3"
+  },
+  "case_id": "analyst-skeptic-strong-conflict",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "cb50b2d1f9d6105893ba629a7b842c8bd045c0fa3f00908236ec35ae630ac1a7",
+    "grader_execution_proof": "8597e6726e161799c9b35a7ff716665c2afdbc3d3d406e9fec19689d254f0083",
+    "runtime_eval": "8b903c023879faf9f22b0376bc875b29b8b3438aee519fb2ffcea39ce68aa0e3",
+    "trace": "89e12f44792b5565c3058023df971ed5b3ce7abc3aeae6d78df9254480249898",
+    "trace_report": "a9be407e6167607838183dd0eb0b037c61861aa3046cd50c93de4ecf917fe98e"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "bfa3e9408fbfb6e6c9d53c3550789c38afb08dfb47dbe13c272c449e4672ab41",
+  "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/full-council-v3 | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir <run-dir> --strict-config --json -m gpt-5.6-terra <plugin-allowlist> -",
+  "status": "PASS"
+}

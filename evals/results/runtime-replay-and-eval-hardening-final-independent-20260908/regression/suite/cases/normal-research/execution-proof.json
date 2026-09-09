@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/normal-research/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research"
+  },
+  "case_id": "normal-research",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "3e25df5397b62d8378b291b12d748d2fbce494d1fbc666b4a56df2d6bdc6def5",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "grader_execution_proof": "ad39f45d5284dc99dfcd56ee14a80a32ac99e19b030b50c250510fe2b02ce91f",
+    "runtime_eval": "a5993a27092c426443026239e674aa478a0506c4c51f6404d07ce78d9e666beb",
+    "trace": "fae1e04642cbbdd24c42bf3e04dff8d4b2521079cfd70050cd7ea50a3e08083c",
+    "trace_report": "fb7c4c3e2067bc1898eccfad869c491f7c5055d8f35349e09e3174d7f095196c"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "5e3b4f9e7da25c7b3c209cd5b4382b78d2b23895f23fe8fbd3c417460cbf0798",
+  "run_id": "rrh-final-normal-research-20260908",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research --strict-config --json -m gpt-5.6-terra -",
+  "status": "PASS"
+}

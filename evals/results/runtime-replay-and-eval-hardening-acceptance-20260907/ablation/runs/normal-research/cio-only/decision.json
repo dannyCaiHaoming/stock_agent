@@ -1,0 +1,53 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "Confidence is low because the available facts are fresh and internally conflict-free but limited in scope, and the cio-only profile contains no verified Specialist report to test the competing interpretation.",
+      "counter_thesis": "The 18% operating margin and maintained capacity plan could support a constructive interpretation, but that interpretation remains untested without a verified specialist report and the missing valuation, cash-flow, and competitive context.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "Reassess this no-trade conclusion if Gate-scoped evidence and verified analysis establish a decision-relevant valuation, cash-flow, or competitive change."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "The frozen evidence is insufficient to justify changing the current position without inventing the absent specialist analysis or missing valuation, cash-flow, and competitive evidence.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain Gate-scoped, source-attributed evidence covering valuation, cash flow, and competitive or demand conditions, then obtain verified analysis of that evidence."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The Gate-scoped record establishes a current 50% portfolio weight and contains fresh revenue, operating-margin, debt, price, and capacity-plan facts, but it does not by itself establish a sufficiently grounded directional portfolio change.",
+      "time_horizon": "Until the identified evidence gaps are resolved",
+      "unresolved_questions": [
+        "What valuation and cash-flow evidence supports a change from the existing 50% weight?",
+        "What competitive, demand, and capacity-execution evidence would distinguish a constructive interpretation from downside risk?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-ablation-normal-research-cio-only-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

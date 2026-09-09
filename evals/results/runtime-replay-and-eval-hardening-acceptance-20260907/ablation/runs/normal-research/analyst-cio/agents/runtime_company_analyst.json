@@ -1,0 +1,41 @@
+{
+  "schema_version": "agent-research-report/2.0.0",
+  "run_id": "rreh-ablation-normal-research-analyst-cio-20260907",
+  "invocation_id": "inv_1436f991fff122e9854314ad",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_company_analyst",
+  "scope": "SEC-AAA；基于冻结授权证据评估当前组合，仅供 Ablation 研究。",
+  "claims": [],
+  "assumptions": [],
+  "counter_evidence_refs": [],
+  "uncertainties": [
+    "当前运行环境未暴露 fixture_evidence.query，无法检索 Invocation Manifest 授权的任何证据；因此未形成事实或商业解释。"
+  ],
+  "data_gaps": [
+    "缺少 ev-normal-debt、ev-normal-margin、ev-normal-price、ev-normal-revenue 与 ev-normal-update 的可查询内容、source_id、as_of 和 retrieved_at。",
+    "无法核验收入、利润率、债务、价格与后续更新之间的时点一致性或冲突。"
+  ],
+  "invalidation_conditions": [
+    "在 fixture_evidence.query 可用且返回授权证据前，本报告不应被用作任何公司质量或估值判断的依据。"
+  ],
+  "confidence": 0.0,
+  "confidence_rationale": "未取得任何授权证据，且必需的只读查询工具不可调用；按 fail-closed 原则清空主张。",
+  "skill_execution": [
+    {
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0",
+      "invocation_hash": "b210d8f94b700c2a0a5aa19eee7a3a86723a06a01991165967f22f57eec1709b"
+    },
+    {
+      "skill_name": "company-research",
+      "version": "2.0.0",
+      "invocation_hash": "6e324ed7d0d7d6675e6fab8f1aa2f0219e4933a93e53eb287434bef5b08d96c1"
+    },
+    {
+      "skill_name": "valuation",
+      "version": "2.0.0",
+      "invocation_hash": "da6a16102ef96bc358279742f9067db5480a9b417a0e9a84cc195a3953f92b37"
+    }
+  ],
+  "artifact_refs": []
+}

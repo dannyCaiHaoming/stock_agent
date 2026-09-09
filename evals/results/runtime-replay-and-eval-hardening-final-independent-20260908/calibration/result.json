@@ -1,0 +1,40 @@
+{
+  "agreement": 1.0,
+  "calibration_id": "portfolio-council-semantic-calibration/1.0.0",
+  "input_hashes": {
+    "evidence-gap-no-trade_1": "def2c4e9da37a6586b0cf064a0d6dbe81a8289d26263b9053c9c67bdf58edb41",
+    "evidence-gap-no-trade_1_execution_proof": "5777e49c7a0b4ed4e6447d4c05f287bb5db7920e7a2aa715250e63c66eb0d835",
+    "evidence-gap-no-trade_2": "353a23fc91610be34022183ecac23b39bf0157179202d1c1562e57861a5dc65c",
+    "evidence-gap-no-trade_2_execution_proof": "7294984bcd2a1144ed947ae5512817db369395200edc72b5c2e37092f018a079",
+    "grader_index": "79a1b34f2561088a8e83c650b6c3b2e7c2e9417bf878138afa0002c240acb46d",
+    "grounded-balanced_1": "81d05641f337bd6c20958594aacb9257916b940a0fa96f3b20c0495674fc5c72",
+    "grounded-balanced_1_execution_proof": "7ec600df999ed2142ad398e74d53535d2e9959ac8749b333e758b6209b463d2d",
+    "grounded-balanced_2": "af723f9be193a1fa7338ea3a1544836f4b277c9decb2f0ad24f225f14f8f1376",
+    "grounded-balanced_2_execution_proof": "3408d02630caeaa666de04624e58503173d2fdcc356d9a015adcf9f2ca7a26b5",
+    "labels": "c0da4243635480e4cef30af216c53c59b040d3ec38ef1ad7b87bf06b4a794747",
+    "unsupported-overconfidence_1": "fc8f1da16fb5826eb3ba607e8031f47517090d137c756bcf971ef0073ebe2813",
+    "unsupported-overconfidence_1_execution_proof": "ade696ab9fd88617f3d2e9de2408f56a8ab3b94c2dc50936fb6da268f3f8f224",
+    "unsupported-overconfidence_2": "e4d921b764d9701fb0718ea29e525753036418601af5b34d17a8799b4bb69071",
+    "unsupported-overconfidence_2_execution_proof": "74efac4d7ae32539daad7374823d3720172991e25072d838c41a787a2374cda1"
+  },
+  "observations": 30,
+  "result_hash": "833076bc17d413e266ab4a8ccb8cb964aedf8f3e5a7dd46e02cda37ed7577242",
+  "schema_version": "semantic-calibration-result/1.0.0",
+  "session_ids": [
+    "01a07c36-2f13-7492-a0ca-9a540320547f",
+    "01a07c3a-de28-75e2-bc08-dbc6727f7a95"
+  ],
+  "source_artifacts": {
+    "grader_index": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/index.json",
+      "sha256": "79a1b34f2561088a8e83c650b6c3b2e7c2e9417bf878138afa0002c240acb46d"
+    },
+    "labels": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/grading/calibration/v1/labels.json",
+      "sha256": "c0da4243635480e4cef30af216c53c59b040d3ec38ef1ad7b87bf06b4a794747"
+    }
+  },
+  "status": "PASS",
+  "threshold": 0.8,
+  "unstable_dimensions": []
+}

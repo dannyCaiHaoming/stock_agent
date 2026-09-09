@@ -1,0 +1,42 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": "semantic-calibration-repeat-2-evidence-gap-no-trade",
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_references": [],
+      "reason": "Analyst 产物缺失。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_references": [],
+      "reason": "Skeptic 产物缺失。"
+    },
+    "cio_conflict_handling": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_references": [],
+      "reason": "CIO 产物缺失。"
+    },
+    "confidence_calibration": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_references": [],
+      "reason": "决策产物明确将极低置信度限定为不交易结论，并与 PIT 后无可用证据的门禁结果一致。"
+    },
+    "no_trade_reasoning": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_references": [],
+      "reason": "NO_TRADE 原因、无可形成研究判断的解释和取得 cutoff 前可验证证据的重评条件均完整且与证据门禁一致。"
+    }
+  },
+  "output_hash": "1ed06f8991b2d93eda7056f49312a05c24486d6c7b268e3b48df144db8023a92"
+}

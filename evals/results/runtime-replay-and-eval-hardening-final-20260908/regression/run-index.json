@@ -1,0 +1,38 @@
+{
+  "normal-research": {
+    "model": "gpt-5.6-terra",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/normal-research/eval/result.json",
+    "command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research --strict-config --json -m gpt-5.6-terra -"
+  },
+  "insufficient-evidence": {
+    "model": "gpt-5.6-terra",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/insufficient-evidence/eval/result.json",
+    "command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence --strict-config --json -m gpt-5.6-terra -"
+  },
+  "analyst-skeptic-strong-conflict": {
+    "model": "gpt-5.6-terra",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/analyst-skeptic-strong-conflict/eval/result.json",
+    "command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict --strict-config --json -m gpt-5.6-terra -"
+  },
+  "risk-veto": {
+    "model": "gpt-5.6-terra",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/risk-veto/eval/result.json",
+    "command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto --strict-config --json -m gpt-5.6-terra -"
+  },
+  "high-concentration-portfolio": {
+    "model": "gpt-5.6-terra",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/high-concentration-portfolio/eval/result.json",
+    "command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio --strict-config --json -m gpt-5.6-terra -"
+  },
+  "llm-overconfidence": {
+    "model": "gpt-5.6-terra",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/llm-overconfidence/eval/result.json",
+    "command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence --strict-config --json -m gpt-5.6-terra -"
+  }
+}

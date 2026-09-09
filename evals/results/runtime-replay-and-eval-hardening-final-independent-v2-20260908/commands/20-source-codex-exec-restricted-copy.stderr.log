@@ -1,0 +1,3 @@
+The restricted Codex process produced no observable run progress for 180 seconds and was interrupted.
+The outer logging wrapper raised KeyboardInterrupt while waiting for the child process.
+No stdout/stderr transcript was recoverable from the wrapper after interruption.

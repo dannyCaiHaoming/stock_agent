@@ -1,0 +1,10 @@
+{
+  "schema_version": "deterministic-test-raw-result/1.0.0",
+  "command": "/usr/bin/env TMPDIR=/private/tmp/stock-agent-full-final-20260908 python3 -m unittest discover -s tests",
+  "tmpdir": "/private/tmp/stock-agent-full-final-20260908",
+  "exit_code": 0,
+  "tests_run": 267,
+  "assertion_failures": 0,
+  "environment_errors": 0,
+  "raw_hash": "c90c224831f597e8254c6473283e3f10b700fe7c1960e643048eed533c8d7c0d"
+}

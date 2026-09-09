@@ -1,0 +1,27 @@
+{
+  "assertion_failures": 0,
+  "command": [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests"
+  ],
+  "completed_at": "2026-09-08T07:56:45.017330Z",
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "environment_errors": 0,
+  "event": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/full-suite-release-fix/execution-event.json",
+    "sha256": "d9cd9889e8e1132b521ca5ea969c712a992b365575c20872ef968d9f2b9d1426"
+  },
+  "event_id": "test-event-6c7cc670-9f90-4529-b7c0-0beb6e5fc0f2",
+  "exit_code": 0,
+  "result_hash": "ff6ad398ae61a39b61e170645ea710cbade2d94c70d3af1857c3537c34efc834",
+  "schema_version": "deterministic-test-report/1.0.0",
+  "started_at": "2026-09-08T07:53:17.579091Z",
+  "status": "PASS",
+  "test_errors": 0,
+  "tests_run": 272,
+  "tmpdir": "/private/tmp/stock-agent-full-suite-release-fix-20260908"
+}

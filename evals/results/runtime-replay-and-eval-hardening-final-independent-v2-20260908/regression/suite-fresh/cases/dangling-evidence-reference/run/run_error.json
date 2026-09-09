@@ -1,0 +1,8 @@
+{
+  "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "message": "EVIDENCE_CLOSURE_FAILED:missing-id",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-dangling-evidence-reference-d7e9374b2aa1",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

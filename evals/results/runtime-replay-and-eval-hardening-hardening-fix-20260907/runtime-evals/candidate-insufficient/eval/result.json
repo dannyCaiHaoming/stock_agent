@@ -1,0 +1,119 @@
+{
+  "eval_hash": "b718cdf61bf2f0aa9dd5c428f1524a935e0dfe0fb640d180c5f8d2db81700c63",
+  "eval_id": "rreh-hardening-eval-candidate-insufficient-20260907",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "2b5ba28bddf890f08f251f56b49c03fd36539a12f5072c0b871076be17dec660",
+    "input_hash": "bb19dae6f5ab50329d682d79d5784d089ccf49b200914e0138d937150d9e616f",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 370432,
+      "input_tokens": 414446,
+      "latency_ms": 166039,
+      "llm_calls": 13,
+      "output_tokens": 5558
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "c5ca5f43932a2324f6f061043c1b0e260751d641f4f7246a93963a6f79d8d146",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 1,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 1
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "25bc3c7ce0885d035040bbf22bf535bf26902f3270cd8df49e47f3f68803d2f9",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "COMPLETED",
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "e4ece510a2041809182b99534d3ac05f9ce1d3dcb6b7c2d336d893c663563269",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rreh-candidate-insufficient-20260907",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim_current_close_price",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "runtime_company_analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，且明确将公司 Thesis、估值和商业质量判断限制为证据不足，区分了已支持事实与不可作出的判断。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "runtime_cio 明确记录两份报告对证据范围限制的共识、无来源冲突、三项未决问题及其对不形成证券层建议的影响；decision.json 同时记录 Risk Engine 为 APPROVED 且终态为 SAFE_NO_TRADE。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 0.2、Skeptic 0.15 与 CIO 0.15 的理由均将置信度限定于单一价格事实或证据不足结论，并随缺少基本面、估值、事件与历史市场证据的高度不确定性保持低位。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "decision.json 与 runtime_cio 均将唯一允许的单点价格证据判为不足以支持公司质量、估值、催化剂、流动性或持仓风险判断；NO_TRADE、INSUFFICIENT_EVIDENCE 原因及取得带完整血缘的基本面、估值、价格历史、流动性和事件证据后的重评条件一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "challenge-price-alone-does-not-establish-investment-case",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "runtime_skeptic 以 INDEPENDENT_FIRST_PASS 明确单一价格不能建立或反驳投资判断，列出基本面、估值、事件、流动性与价格历史等具体所需证据，并给出该不足结论的可证伪失效条件。",
+      "status": "PASS"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "25bc3c7ce0885d035040bbf22bf535bf26902f3270cd8df49e47f3f68803d2f9",
+    "artifact_replay": "c5ca5f43932a2324f6f061043c1b0e260751d641f4f7246a93963a6f79d8d146",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "3ffcbdd9c3152c8cf23e66a86c56c57cf3e79a6517245415e0e244cf3b308726",
+    "semantic_input": "bb19dae6f5ab50329d682d79d5784d089ccf49b200914e0138d937150d9e616f",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "cf5a7c1e7841fbea65a7cd03c7727abab081feb3d6be90025f463e2fc3c9bf11"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

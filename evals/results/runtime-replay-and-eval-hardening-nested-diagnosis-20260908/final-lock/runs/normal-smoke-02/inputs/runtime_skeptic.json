@@ -1,0 +1,32 @@
+{
+  "agent": "runtime_skeptic",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "mode": "INDEPENDENT_FIRST_PASS",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 500,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "请基于冻结的组合与 point-in-time Evidence，完成仅供研究建议的投资委员会分析。",
+  "run_id": "rrh-final-lock-normal-smoke-02-20260908",
+  "security_id": "SEC-AAA"
+}

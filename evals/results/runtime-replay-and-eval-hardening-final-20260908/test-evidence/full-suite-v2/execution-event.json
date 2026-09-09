@@ -1,0 +1,35 @@
+{
+  "assertion_failures": 0,
+  "command": [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests"
+  ],
+  "completed_at": "2026-09-08T07:49:36.246941Z",
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "environment_errors": 0,
+  "environment_probe": "PASS",
+  "event_hash": "d58ec226ca15b2d4f1c505c6e9a55fe39719622bbef432791ff8f9eae433303c",
+  "event_id": "test-event-578b92b0-5aba-4b0e-bf27-01bf68222fbd",
+  "exit_code": 0,
+  "process_id": 7236,
+  "runner": "python-unittest-subprocess/1.0.0",
+  "schema_version": "deterministic-test-execution/1.0.0",
+  "started_at": "2026-09-08T07:46:10.496171Z",
+  "stderr": {
+    "bytes": 374,
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/full-suite-v2/stderr.txt",
+    "sha256": "d5e2adbba337626df66388c9a6db81124be9157b18a9caa757d378d36377c958"
+  },
+  "stdout": {
+    "bytes": 229,
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/full-suite-v2/stdout.txt",
+    "sha256": "55ae584173501698e705d6b802c65657b0929e971179a8451fffd78f9fb439df"
+  },
+  "test_errors": 0,
+  "tests_run": 272,
+  "tmpdir": "/private/tmp/stock-agent-full-v2-20260908"
+}

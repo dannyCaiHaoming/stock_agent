@@ -1,0 +1,39 @@
+{
+  "artifact_replay_hash": "2a7107740ded3a243d0ceacace6ad5726e7829fa00f66dc7f954d20c47593ba0",
+  "byte_identical_output_required": false,
+  "configuration_equivalent": true,
+  "replay_configuration_hashes": {
+    "agents": "b34208ab1a2150ce1fc985ea3ba91c00d625a40af1fcd828c5cf90e7b3df2a2b",
+    "evidence": "84984bb60fafe4fccdd27b4b3a799199d67163a5ee28de940b32825271840230",
+    "mcp_adapters": "f76ffe5fca4ec4b84c2721517e5f94c488954e253109c2a24e7ebaea452cf7a7",
+    "model": "7753a9f131a9e801043aa92583694b5fe2ab579c8f9200f062379f3015a3bda5",
+    "prompt_and_instructions": "b7047fe98057c76707fc7898fdeabae428768b7841baa8ef61d7d655a799897c",
+    "risk_policy": "3dc6bc9e64f52b235d57ece8c95f15d965d9d62f13ee36a69fa572a97bbf830d",
+    "runtime_profile": "80641d1c572847130e50059857c1e70a2f847ea40578a2f581b4ef83f47b6555",
+    "schemas": "0b457d49645dc2c63a8050e815a9a744d487742261bb70f2d197f4f64c176d31",
+    "skills": "d1e98bae5c6721b6dff95ec55680f5f6b1099f2b446cba939ae30c52e0c63bd8"
+  },
+  "replay_run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto",
+  "replay_run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "replay_terminal_state": "SAFE_NO_TRADE",
+  "replay_trace_hash": "36fd5f01fad90feaf3bf4001518b531ca18c8bc45b09a5a59b0398613df625ad",
+  "result_hash": "3ef4e04212ff6a5988b71795be35a1379f40d09a8fe1220da9536ee0c1e18f4e",
+  "schema_version": "execution-replay-result/1.0.0",
+  "source_configuration_hashes": {
+    "agents": "b34208ab1a2150ce1fc985ea3ba91c00d625a40af1fcd828c5cf90e7b3df2a2b",
+    "evidence": "84984bb60fafe4fccdd27b4b3a799199d67163a5ee28de940b32825271840230",
+    "mcp_adapters": "f76ffe5fca4ec4b84c2721517e5f94c488954e253109c2a24e7ebaea452cf7a7",
+    "model": "7753a9f131a9e801043aa92583694b5fe2ab579c8f9200f062379f3015a3bda5",
+    "prompt_and_instructions": "b7047fe98057c76707fc7898fdeabae428768b7841baa8ef61d7d655a799897c",
+    "risk_policy": "3dc6bc9e64f52b235d57ece8c95f15d965d9d62f13ee36a69fa572a97bbf830d",
+    "runtime_profile": "80641d1c572847130e50059857c1e70a2f847ea40578a2f581b4ef83f47b6555",
+    "schemas": "0b457d49645dc2c63a8050e815a9a744d487742261bb70f2d197f4f64c176d31",
+    "skills": "d1e98bae5c6721b6dff95ec55680f5f6b1099f2b446cba939ae30c52e0c63bd8"
+  },
+  "source_run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-risk-veto-current",
+  "source_run_id": "rreh-candidate-risk-veto-current-20260907",
+  "source_terminal_state": "SAFE_NO_TRADE",
+  "source_trace_hash": "120e61e96d1fe53b7e61dded0655fc87a9cba4098b84e280a75f22786c572f39",
+  "status": "PASS",
+  "workspace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto"
+}

@@ -1,0 +1,13 @@
+{
+  "artifacts": {},
+  "case_id": "risk-veto",
+  "executed_operations": [],
+  "hashes": {},
+  "llm_calls_during_verification": 0,
+  "producer": "missing-runtime-input",
+  "proof_hash": "6956536de9478cd4c1acc2b382bf04e41ed6ff494dd30eb831dcdbb245bc60c8",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-risk-veto-missing",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "none",
+  "status": "FAIL"
+}

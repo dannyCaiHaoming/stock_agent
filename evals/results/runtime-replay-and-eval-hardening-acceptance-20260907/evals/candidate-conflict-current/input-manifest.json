@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rreh-eval-candidate-conflict-current-20260907",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-conflict-current",
+  "run_id": "rreh-candidate-conflict-current-20260907",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "c105326413bd89ffa757200f48f08b7398f6af0da1f983a13d448ca39e2e348e",
+    "artifact_replay": "b5e577183829769d4e4c382f65930b463b06287ee4d2869b741962153c7ec995",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "3bda751773c3736a2bad27413f74c314ac397a6b8e68b0fc9b5c69fe3d4ea1df",
+    "semantic_input": "3778dfcecc2c9c92827b2dfa37408f02c0fad217055298149e6678dd1c8baab5",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "7cd825443cd09c2cbe05cd57f990efea536d802e678aee30a1480756a984e1b9"
+  }
+}

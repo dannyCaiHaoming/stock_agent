@@ -1,0 +1,56 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "CIO 使用 Gate-scoped 查询复核了两份收入事实：它们具有相同 as_of 但数值不同，且没有授权证据可确定优先级或调和口径。已验证 Analyst 报告同样为 LOW_CONFIDENCE；单一利润率与价格观测不能弥补经营规模与估值数据缺口。",
+      "counter_thesis": "若后续可追溯的权威证据能确认收入的正确口径与最终数值，并补齐趋势、现金流、资本结构和估值输入，则当前不行动结论需要重新评估。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "经可追溯权威来源确认 2025-12-31 TTM revenue 的正确口径和最终数值。",
+        "新增证据确认现有 operating margin 与收入的定义、期间及合并范围一致。",
+        "补齐收入趋势、现金流、资本结构、股本及前瞻盈利的 Gate-scoped 可核验数据。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键 TTM 收入事实存在未解决的实质冲突，且缺少调和口径和足以建立估值锚点的补充数据；在此条件下不形成行动性建议。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得可追溯权威来源对 TTM revenue 口径和最终数值的核验。",
+        "获得与该收入口径一致的经营趋势、现金流、资本结构和估值输入后重新综合。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已授权证据仅显示单一 TTM 利润率和价格观测；同一期间的 TTM 收入存在未解决的实质冲突，不能据此建立可靠的商业质量或估值 Thesis。",
+      "time_horizon": "在经可追溯权威来源调和收入冲突前不形成行动性观点。",
+      "unresolved_questions": [
+        "哪一份 TTM revenue 的报告口径与最终数值可由可追溯权威来源确认？",
+        "operating margin 的定义、期间和合并范围是否与经确认的收入口径一致？",
+        "收入增长、现金流、资本结构、股本和前瞻盈利数据是否支持可验证的估值判断？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-ablation-v3-conflict-analyst-cio-rerun-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "semantic-calibration-index/1.0.0",
+  "cases": {
+    "grounded-balanced": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/repeat-1/grounded-balanced.json",
+        "sha256": "1d47623a807e4ab61dd2814997f6defa21b79ed00385dd8749525c0e805cf261"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/repeat-2/grounded-balanced.json",
+        "sha256": "a5a3ad6a925f1ec4d51b249b494b002abfd946a78795e7a4441928a95b0e4ff8"
+      }
+    ],
+    "evidence-gap-no-trade": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/repeat-1/evidence-gap-no-trade.json",
+        "sha256": "a237a72c1ef583e665832e85091b520cd2ba06f9bdec8afd2a0815a73801b2f8"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/repeat-2/evidence-gap-no-trade.json",
+        "sha256": "281e22dcf0be505ef2f3720dd5e9266f80aff16615710cc55a5184a800f3c6cb"
+      }
+    ],
+    "unsupported-overconfidence": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/repeat-1/unsupported-overconfidence.json",
+        "sha256": "866cae87870f2567707b57c4c0a3255feb128ed7e21387a6b04e2b8ea00646fc"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/repeat-2/unsupported-overconfidence.json",
+        "sha256": "31376f948582a118ec241ce9bf4cbf446a78ee2fb516b23c8965ea5e9fbf2fe2"
+      }
+    ]
+  }
+}
+

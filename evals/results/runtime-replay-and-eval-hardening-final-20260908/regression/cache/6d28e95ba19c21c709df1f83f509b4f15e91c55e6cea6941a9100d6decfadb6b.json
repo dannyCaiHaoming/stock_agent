@@ -1,0 +1,106 @@
+{
+  "cache_key": "6d28e95ba19c21c709df1f83f509b4f15e91c55e6cea6941a9100d6decfadb6b",
+  "case_hash": "713a7854021ea1dc7798ea02870df42e2cc3b062ea77b2aa03b6e7c4abc4f102",
+  "case_id": "analyst-skeptic-strong-conflict",
+  "inputs": {
+    "candidate_hash": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "codex_runtime": "codex-cli/0.153.4",
+    "gate_context_hash": "733df70cab6a7e9b1d57616f706c7b3e2af8ff4c36f96be554dc9a0c48d8eca3",
+    "grader_hash": "13b78823c248fc4fae2e434884643654313a55896a227d40504687fd304e5c26",
+    "model": "gpt-5.6-terra",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "runtime_profile_hash": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+  },
+  "outcome": {
+    "action": "NO_TRADE",
+    "agents_run": [
+      "runtime_company_analyst",
+      "runtime_skeptic",
+      "runtime_cio"
+    ],
+    "cached_tokens": 442368,
+    "eval_hash": "ef8d1b52e7639b0b2a959b94b312d27b663b80d3fb6900804d07514ad489371e",
+    "eval_status": "PASS",
+    "failed_stage": null,
+    "future_leak_count": 0,
+    "input_tokens": 529498,
+    "latency_ms": 230294,
+    "llm_calls": 16,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 12152,
+    "risk_bypassed": false,
+    "risk_status": "APPROVED",
+    "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+    "semantic_dimensions": {
+      "analyst_thesis_grounding": {
+        "evidence_refs": [
+          "claim_margin_observation",
+          "claim_price_observation",
+          "claim_revenue_conflict",
+          "claim_valuation_interpretation",
+          "ev-conflict-margin",
+          "ev-conflict-price",
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b"
+        ],
+        "grade": 3,
+        "rationale": "Analyst 将利润率、价格和收入冲突明确标为 FACT 并附允许 Evidence 引用；受限的 INTERPRETATION 不裁决冲突，也未延伸为未经支持的公司或估值结论，并列明数据缺口和失效条件。",
+        "status": "PASS"
+      },
+      "cio_conflict_handling": {
+        "evidence_refs": [
+          "ev-conflict-margin",
+          "ev-conflict-price",
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b"
+        ],
+        "grade": 3,
+        "rationale": "CIO 明确记录两份 Specialist 报告的共识、收入 Evidence 的未解决冲突、其决策与置信度影响，以及未决问题；风险报告确认 APPROVED 且 final_action 为 NO_TRADE。",
+        "status": "PASS"
+      },
+      "confidence_calibration": {
+        "evidence_refs": [
+          "ev-conflict-margin",
+          "ev-conflict-price",
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b"
+        ],
+        "grade": 3,
+        "rationale": "Analyst 0.24 与 CIO 0.20 的低置信度直接对应未解决的收入冲突、孤立的利润率和价格观测以及缺失的公司和估值背景；结论保持受限，方向上与已记录不确定性一致。",
+        "status": "PASS"
+      },
+      "no_trade_reasoning": {
+        "evidence_refs": [
+          "ev-conflict-margin",
+          "ev-conflict-price",
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b"
+        ],
+        "grade": 3,
+        "rationale": "CIO 将 NO_TRADE 明确归因于同一 as_of 的未解决 TTM revenue 冲突及缺失的财务、估值和流动性背景；重评条件要求合格的收入调和与补充证据，与 Evidence Gate、APPROVED 风险结果和 SAFE_NO_TRADE 一致。",
+        "status": "PASS"
+      },
+      "skeptic_counter_evidence": {
+        "evidence_refs": [
+          "ev-conflict-margin",
+          "ev-conflict-price",
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b"
+        ],
+        "grade": 3,
+        "rationale": "Skeptic 独立列出可证伪的收入来源冲突、利润率背景缺口和单一价格观测缺口；每项均引用允许 Evidence，并给出具体的所需调和或补充证据。",
+        "status": "PASS"
+      }
+    },
+    "terminal_state": "SAFE_NO_TRADE",
+    "trace_hash": "e09481e0c855581ac41fc1a0fbce1bd2a2627899e16c1d5332846675dd0222cf"
+  },
+  "record_hash": "b2761f46e4532121b6bdb8529ed1ec57eae4175971074d21000d7989e9f5db2d",
+  "schema_version": "regression-cache/1.0.0",
+  "source": {
+    "eval_artifact_hash": "560bc3ef3f6a25b724df4d7566a4472ed0e57b2a1a9897959be42e27d7c0ce95",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/analyst-skeptic-strong-conflict/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict",
+    "run_tree_hash": "0904b7d38fe98de95798e2a1f84468704138d0bc9ec69c834bc75b16da2f8551"
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "10000.0",
+    "cash_weight": "0.1",
+    "concentration_hhi": "0.81",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.9",
+    "position_weights": {
+      "SEC-AAA": "0.9"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.9"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "请基于冻结的组合与 point-in-time Evidence，完成仅供研究建议的投资委员会分析。",
+  "run_id": "rrh-nested-regression-risk-veto-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "f0703a364c7b9df4dd6a02feff3902e8198e55addbd40357ef231f9d98cfa07a",
+    "runtime_skeptic": "6b9884ca3699d52a33607177b23c02ce261e09918a1108bc257c7e54b572a2f0"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_close_price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "FACT：SEC-AAA收盘价为100 USD/股；evidence_id=ev-risk-price，source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_revenue_ttm",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "FACT：SEC-AAA的TTM收入为1,000,000 USD；evidence_id=ev-risk-revenue，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        }
+      ],
+      "confidence": 0.2,
+      "confidence_rationale": "两项授权证据均为新鲜且来源明确的基础事实，但不足以支持公司基本面、竞争地位或估值解释。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "稀释后股份数、市值、净债务与企业价值。",
+        "毛利率、营业利润率、自由现金流及其历史趋势。",
+        "收入增长、客户集中度、竞争地位、业务分部和前瞻指引。",
+        "可用于交叉验证的反证或冲突证据。"
+      ],
+      "invalidation_conditions": [
+        "若后续授权证据修订收盘价或TTM收入，本报告中的相应事实应更新。",
+        "在补充市值、资本结构和经营质量证据前，任何估值或商业Thesis均不成立。"
+      ],
+      "invocation_id": "inv_85cc514a6fa83306c0563cf5",
+      "run_id": "rrh-nested-regression-risk-veto-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；仅基于截至2026-01-31T23:59:59Z的授权冻结证据进行公司研究。",
+      "skill_execution": [
+        {
+          "invocation_hash": "8ff364b9471cf585d4637d5069f48140524c513d578af84ff32a3e1e4e081d3f",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "d05b954d727a9c487f2e8f18073bc6db42890b86c7bc5da40b5c799e66128205",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7fa3be950980204f435c8197374eb19a6b7dcf42dba4392d3a7d7bd5a2a9d5e0",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "授权证据未提供股份数、利润率、现金流、资产负债表、业务分部、竞争信息或管理层指引，无法形成有证据支持的商业质量或估值Thesis。",
+        "价格与收入的计量单位不同，且缺少市值或企业价值，无法确定性计算收入倍数。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-valuation-supported-by-price-and-revenue"
+          ],
+          "challenge_id": "challenge-valuation-underdetermined",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "截至决策截止时间的稀释后股数或市值",
+            "净债务、自由现金流、盈利能力及收入增长的point-in-time数据"
+          ],
+          "statement": "收盘价和TTM收入不足以支持任何估值或基本面质量推断：缺少流通股数、企业价值、利润率、现金流、债务和增长数据；价格相对于收入的表面关系存在多种非重复解释。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-position-exposure-is-fully-characterized"
+          ],
+          "challenge_id": "challenge-concentration-risk-unresolved",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "完整组合估值和其他持仓暴露",
+            "流动性、成本基础及税务约束数据"
+          ],
+          "statement": "组合摘要显示SEC-AAA按给定价格和数量对应的名义价值显著高于所述单一持仓上限；但缺少估值时点、可交易性、税务成本基础和完整风险暴露，无法判断任何研究性判断的实施约束或替代解释。"
+        }
+      ],
+      "confidence": 0.38,
+      "confidence_rationale": "对证据覆盖范围有限以及由此无法唯一推断估值和风险暴露具有中等把握；对证券基本面方向不作判断。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "稀释后股数、市值和企业价值。",
+        "收入增长、毛利率、经营利润、自由现金流和债务。",
+        "完整组合风险暴露、流动性和成本基础。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若截至决策截止时间的经验证数据表明估值、现金流覆盖和资产负债表风险与上述证据缺口无实质关联，则估值不确定性挑战失效。",
+        "若完整组合估值证明SEC-AAA敞口并未超过适用约束，则集中度挑战失效。"
+      ],
+      "invocation_id": "inv_a9dc5752d708f9c0e2c53110",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-nested-regression-risk-veto-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；决策截止时间为2026-01-31T23:59:59Z。已审阅授权的收盘价（截至2026-01-30）及TTM收入（截至2025-12-31）证据。",
+      "skill_execution": [
+        {
+          "invocation_hash": "ab9dba154cf5bd7e10de7a4d2727a12961dbbada79756e6c4bb2cab8a3c0004d",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "0d8114c892eac3b95e7617aa95ba4c207410de4351788176ba9e01ad343e3e1c",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "TTM收入与收盘价的观察时点不同，且两项数据无法建立证券估值倍数。",
+        "没有获授权的盈利、现金流、资产负债表、竞争、催化剂或流动性证据。"
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "message": "run_id: `rrh-nested-current-lock-normal-02-20260908`  \nnext_state: `FAILED_VALIDATION`  \nCouncil Gate: `NATIVE_EXECUTION_PROOF_FAILED` (`RUN_PARENT_ROLLOUT_COUNT_INVALID:0`)  \n生成文件：`agents/runtime_company_analyst.json`、`agents/runtime_skeptic.json`、`cio/runtime_cio.json`",
+  "message_sha256": "52cef34d9f83dbf90991641bbb389f5430d87fa1616b694d41cd1ac1462e67f8",
+  "present": true,
+  "run_id": "rrh-nested-current-lock-normal-02-20260908",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

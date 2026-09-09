@@ -1,0 +1,54 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.15,
+      "confidence_rationale": "对不应从单一新鲜价格事实推导仓位行动的判断具有较高把握；但两份报告均指出缺失公司、估值、流动性、价格历史和事件证据，故无法对任何方向性 Thesis 或行动保持足够置信度。",
+      "counter_thesis": "单一价格观测不能验证收入、盈利、现金流、资本结构、竞争地位、估值基准、流动性、价格路径或事件风险，因此任何基于其作出的正向或负向仓位判断均不可证实。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若 fixture-market-primary 更正或撤回唯一收盘价记录，当前唯一事实主张失效。",
+        "若补充的点时基本面、估值、流动性或事件证据与该价格所隐含的稳定性假设冲突，本草案的有限观察不再适用。",
+        "若确认该收盘价不代表截止日前可执行或可重复的市场状态，价格代表性假设失效。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "Gate 允许的唯一证据是一项收盘价记录。两份独立且已验证的 Specialist 报告均认为该记录不足以支撑基本面、估值、流动性、风险或价格代表性判断；因此不形成仓位意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "取得并验证截至决策截止日的公司业务、财务报表、经营指标、管理层指引与行业竞争证据。",
+        "取得并验证估值所需的盈利、现金流、资本成本、可比基准与关键经营驱动因素证据。",
+        "取得并验证覆盖适当窗口的价格、成交量、流动性、波动、公司事件与风险披露证据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "唯一获准事实是 SEC-AAA 在 2026-01-30 的收盘价为 100 USD/share；该事实不足以支持公司基本面、估值或仓位调整判断。",
+      "time_horizon": "在取得并验证补充的截止日前证据后重新评估。",
+      "unresolved_questions": [
+        "截至决策截止日，SEC-AAA 的收入、盈利能力、现金流、资产负债表与经营指标为何？",
+        "截至决策截止日，SEC-AAA 的估值输入、可比基准及关键经营驱动因素为何？",
+        "价格路径、成交量、流动性、波动及公司特定事件或风险披露是否支持该单一价格的代表性？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

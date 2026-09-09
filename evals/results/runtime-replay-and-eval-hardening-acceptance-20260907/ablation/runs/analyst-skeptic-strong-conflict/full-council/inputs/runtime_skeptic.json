@@ -1,0 +1,31 @@
+{
+  "agent": "runtime_skeptic",
+  "allowed_evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "mode": "INDEPENDENT_FIRST_PASS",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 500,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "基于冻结冲突证据评估当前组合；仅供 Ablation 研究，允许 NO_TRADE。",
+  "run_id": "rreh-ablation-conflict-full-council-20260907",
+  "security_id": "SEC-AAA"
+}

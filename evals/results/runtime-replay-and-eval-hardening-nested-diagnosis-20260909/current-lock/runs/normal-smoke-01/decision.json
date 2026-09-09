@@ -1,0 +1,59 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.36,
+      "confidence_rationale": "The reports agree on the narrow factual record and on material evidence gaps, with no mechanical conflicts. However, absent cash-flow, debt-structure, capacity-economics, growth, share-count, and valuation evidence, the Council cannot support an action-oriented conclusion with adequate confidence.",
+      "counter_thesis": "The unchanged capacity plan may still face demand, execution, financing, and return risks; a single-period margin and debt-to-revenue observation cannot establish cash-flow resilience, and a single market price cannot establish valuation.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "A material revision, delay, cancellation, or financing change to the capacity plan.",
+        "Evidence that the operating margin is non-recurring or deteriorates materially.",
+        "New liquidity, leverage, debt-service, or cash-flow evidence that materially changes the resilience assessment."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "The verified record supports a narrow factual assessment but leaves material unanswered questions about durability, liquidity, capacity-plan economics, and valuation; no action-oriented recommendation is warranted until those gaps are resolved.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain verified cash, free-cash-flow, debt-maturity, interest, covenant, and financing evidence.",
+        "Obtain verified capacity-plan cost, timing, demand, utilization, progress, and return evidence.",
+        "Obtain multi-period growth and margin evidence plus share-count, valuation, forecast, and comparable-company information."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "Fresh evidence establishes reported TTM revenue, total debt, an 18% operating margin, a USD 100 close price, and continuity of the stated capacity plan. The available record is not sufficient to establish durable earnings power, capacity-plan economics, liquidity resilience, or valuation.",
+      "time_horizon": "Reassess when the identified operational, liquidity, and valuation evidence gaps are resolved.",
+      "unresolved_questions": [
+        "What are cash balance, free cash flow, debt maturities, interest burden, and financing capacity during the capacity-plan period?",
+        "What are the capacity plan's cost, schedule, utilization, demand support, and expected returns?",
+        "Are revenue growth and operating margin durable across periods and operating conditions?",
+        "What are diluted share count, market capitalization, enterprise value, and valuation-relevant forecasts or comparables?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-current-lock-normal-smoke-01-20260909",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

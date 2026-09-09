@@ -1,0 +1,27 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "10-runtime-eval-source-prepare",
+  "command": [
+    "python3",
+    "-m",
+    "product.runtime.cli",
+    "eval-prepare",
+    "--repo",
+    "/Users/caihaoming/Documents/stock_agent",
+    "--run-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runs/source-normal",
+    "--eval-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runtime-evals/source-normal",
+    "--eval-id",
+    "rrh-final-independent-v2-eval-source-normal-20260908"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T12:53:18.490080+00:00",
+  "ended_at": "2026-09-08T12:53:18.586733+00:00",
+  "exit_code": 6,
+  "stdout_sha256": "36c3939e5385038225dcf85e18077c5a0a3d689466257b3b33b6b35606c3e2a2",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

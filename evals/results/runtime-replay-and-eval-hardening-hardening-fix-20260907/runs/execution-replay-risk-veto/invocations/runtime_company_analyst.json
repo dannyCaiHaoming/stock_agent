@@ -1,0 +1,71 @@
+{
+  "agent": {
+    "name": "runtime_company_analyst",
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/.codex/agents/runtime_company_analyst.toml",
+    "sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+    "version": "2.1.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "input_artifact": "inputs/runtime_company_analyst.json",
+  "input_hash": "2b7215a1c734bd4b46f855fca7fa9f80b9655e7897ad756f4574c5d2ccea8088",
+  "instruction_bundle_hash": "475b82dd92c6d4e84c0379f7a617c05e2603918ed3fdd6e2f207bdae7730dee1",
+  "invocation_id": "inv_f143f0c9a729f0ef427d64ca",
+  "manifest_hash": "5147be63b1db32b59215daccb1d6b1f5df65fe434268feac7528a01bdabb79c5",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/schemas/agent-research-report.schema.json",
+  "output_schema_hash": "0ad42b4d84bf45705ace6a48146c901af3f899b20c1691b18a1960bd96cbd44c",
+  "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "bff863016023031571df7054b784957a0b58a2bd0ec99288746a07f8500d299c",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "9c0df1ed2f79b27d879a8dab636e6b521f7c5677af72d088789066ad41410069",
+      "skill_name": "company-research",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "59cfb28f655f7049cd0cbdd99990d890d91a60eaac66fe074c92f74a6913ae03",
+      "skill_name": "valuation",
+      "version": "2.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "evidence-grounding",
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/evidence-grounding/SKILL.md",
+      "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+      "version": "2.0.0"
+    },
+    {
+      "name": "company-research",
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/company-research/SKILL.md",
+      "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+      "version": "2.0.0"
+    },
+    {
+      "name": "valuation",
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/valuation/SKILL.md",
+      "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+      "version": "2.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_company_analyst.txt",
+  "task_prompt_hash": "1b7a44bc9538256c430b184724a47bb1db8719d8e7468be5a952503b45ea39d6",
+  "tool_permissions": [
+    "fixture_evidence.query",
+    "fixture_math.calculate"
+  ]
+}

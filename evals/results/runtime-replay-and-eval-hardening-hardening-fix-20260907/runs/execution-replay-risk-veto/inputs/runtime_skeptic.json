@@ -1,0 +1,29 @@
+{
+  "agent": "runtime_skeptic",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "mode": "INDEPENDENT_FIRST_PASS",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 10000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 900,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "请基于冻结证据研究组合中的 SEC-AAA，形成仅供建议的结构化决策，并由确定性 Risk Engine 执行最终校验。",
+  "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "security_id": "SEC-AAA"
+}

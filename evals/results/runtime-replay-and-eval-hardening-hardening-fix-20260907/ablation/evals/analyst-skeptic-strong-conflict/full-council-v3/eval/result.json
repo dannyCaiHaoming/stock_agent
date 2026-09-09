@@ -1,0 +1,132 @@
+{
+  "eval_hash": "393e9f391a2e4cd5571737ef0dcd911e2479851584676f4ff9d2aca53a3d8508",
+  "eval_id": "rreh-hardening-ablation-eval-conflict-full-council-v3-20260908",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "8c896a4f14a62f18b9e55c21997f68749573081f74d5306a47c51a4ec3278cda",
+    "input_hash": "59c5a00216dec17b6c0529370cebed843a88a65a745c9feb33b0031632da55eb",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 424448,
+      "input_tokens": 500326,
+      "latency_ms": 186690,
+      "llm_calls": 14,
+      "output_tokens": 6713
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "cb50b2d1f9d6105893ba629a7b842c8bd045c0fa3f00908236ec35ae630ac1a7",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 4,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 4
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "4d89df303bae9ff9f86ec1014318a3b5172923cdc3d3f557fff680926cac3818",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "a9be407e6167607838183dd0eb0b037c61861aa3046cd50c93de4ecf917fe98e",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "c1",
+        "c2",
+        "c3",
+        "c5",
+        "ev-conflict-margin",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "runtime_company_analyst 将收入、利润率和价格陈述分别标为 FACT 并引用 Gate 允许的证据；claim c5 明确标为 INTERPRETATION，且将商业与估值判断限制在同一 as_of 两项收入冲突和已列数据缺口之内。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "runtime_cio 明确记录 Analyst 与 Skeptic 对收入冲突及数据缺口的共识，将未解决冲突、其置信度影响和不形成仓位变更意图逐项关联，并列出未决问题；decision.json 同时记录 Risk APPROVED 和 SAFE_NO_TRADE，均与冻结产物一致。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 0.24、Skeptic 0.32 与 CIO 0.2 的理由均把置信度限制在已确认的收入冲突及有限事实范围内，而非对收入规模、经营质量或估值作高置信结论；数值方向与未解决冲突、不可比性和数据缺口一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "runtime_cio 与 decision.json 均将 Gate 标记为 INCOMPATIBLE_NORMALIZED_VALUES 的同一 as_of 收入冲突作为 MATERIAL_SOURCE_CONFLICT，说明该冲突阻止可核验的收入、估值或仓位解释，并列出取得可追溯口径与同边界财务资料后的重评条件。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "revenue-definition-or-source-conflict",
+        "margin-scale-linkage-unproven",
+        "ev-conflict-margin",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "runtime_skeptic 以 INDEPENDENT_FIRST_PASS 提出两个具体挑战：收入来源或定义冲突，以及利润率与收入规模的配对未获证明；两项挑战均引用冻结证据、列出所需裁决材料，并给出可证伪的失效条件。",
+      "status": "PASS"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "4d89df303bae9ff9f86ec1014318a3b5172923cdc3d3f557fff680926cac3818",
+    "artifact_replay": "cb50b2d1f9d6105893ba629a7b842c8bd045c0fa3f00908236ec35ae630ac1a7",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "75eb231d41f6120f75bf61ab7d76bb128bce7dc58ab68456f7728ddaf0a36a1c",
+    "semantic_input": "59c5a00216dec17b6c0529370cebed843a88a65a745c9feb33b0031632da55eb",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "89e12f44792b5565c3058023df971ed5b3ce7abc3aeae6d78df9254480249898"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

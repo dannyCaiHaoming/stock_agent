@@ -1,0 +1,86 @@
+{
+  "artifacts": {
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "counter_thesis": "",
+          "evidence_refs": [],
+          "invalidation_conditions": [],
+          "no_trade_explanation": "Point-in-time Evidence Gate 后没有可供研究使用的事实。",
+          "no_trade_reason": "STALE_DATA",
+          "reevaluation_conditions": [
+            "提供不晚于 decision_cutoff 且满足 freshness policy 的证据。"
+          ],
+          "security_id": null,
+          "thesis": ""
+        }
+      ],
+      "risk_report": {
+        "policy_version": "risk/reference/1.0.0",
+        "reason": "PRE_AGENT_SAFE_TERMINATION",
+        "status": "NOT_RUN"
+      },
+      "run_id": "regression-rrh-release-fix-20260908-future-information-leakage-63d42921f73d",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [],
+      "allowed_evidence_ids": [],
+      "bundle_hash": "cd9964c57b7ce9afd5c35258af8a04e4c60053658180421fa9b896d0f3aa1b98",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [
+        {
+          "as_of": "2026-02-01T21:00:00Z",
+          "evidence_id": "ev-future-asof",
+          "reason_codes": [
+            "FUTURE_AS_OF",
+            "FUTURE_RETRIEVAL"
+          ],
+          "retrieved_at": "2026-02-01T21:05:00Z",
+          "threshold_days": 7
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "evidence_id": "ev-future-retrieval",
+          "reason_codes": [
+            "FUTURE_RETRIEVAL"
+          ],
+          "retrieved_at": "2026-02-02T13:00:00Z",
+          "threshold_days": 400
+        },
+        {
+          "as_of": "2025-01-01T14:00:00Z",
+          "evidence_id": "ev-stale-update",
+          "reason_codes": [
+            "STALE"
+          ],
+          "retrieved_at": "2025-01-01T14:01:00Z",
+          "threshold_days": 30
+        }
+      ],
+      "excluded_evidence_ids": [
+        "ev-future-asof",
+        "ev-future-retrieval",
+        "ev-stale-update"
+      ],
+      "fixture_id": "future-or-stale-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-future-asof",
+        "ev-future-retrieval",
+        "ev-stale-update"
+      ],
+      "input_hash": "2abbf9d8fb5ad8519f9d17c7f06e4aaec5c34411f39eb59388c0bdd171707260",
+      "run_id": "regression-rrh-release-fix-20260908-future-information-leakage-63d42921f73d",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "regression-rrh-release-fix-20260908-future-information-leakage-63d42921f73d",
+  "terminal_state": "SAFE_NO_TRADE"
+}

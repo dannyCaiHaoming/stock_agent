@@ -1,0 +1,53 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.15,
+      "confidence_rationale": "对单一价格事实的真实性仅有有限的点状证据支持；两份独立已验证报告一致确认覆盖范围不足，因此无法对任何方向性 Thesis 或组合调整形成足够置信度。",
+      "counter_thesis": "价格观测可能包含未被授权证据所揭示的正面或负面信息，但现有材料无法检验这种解释，也无法将其转化为可证伪的 Thesis。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若唯一价格证据被其来源更正或不再可验证，当前唯一事实基础失效。",
+        "若获得截至 decision_cutoff 有效、经授权且可核验的多源基本面、估值、风险与事件证据，应重新评估本次证据不足结论。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "现有 Gate-scoped Evidence 仅为单一收盘价，无法支持对 SEC-AAA 的基本面、估值、催化剂、风险或持仓适配性作出可靠研究性判断；因此不形成仓位动作。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得截至 decision_cutoff 的、经授权且可核验的公司经营、财务、现金流、资产负债表及竞争信息。",
+        "获得截至 decision_cutoff 的、经授权且可核验的估值输入、市场预期、风险事件、流动性与价格时间序列证据。",
+        "确认新增证据通过 Gate、属于 Invocation 允许的 Evidence 集合，并能对当前证据不足结论形成可审计的支持或反驳。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "唯一获授权事实是 SEC-AAA 在指定时点的单一收盘价；该事实不足以支持公司质量、估值、催化剂、风险或持仓适配性的研究性判断。",
+      "time_horizon": "在获得可核验的、截至 decision_cutoff 的补充证据之前。",
+      "unresolved_questions": [
+        "截至 decision_cutoff，SEC-AAA 的经营、财务、现金流、资产负债表和竞争地位证据为何缺失？",
+        "截至 decision_cutoff，可核验的估值输入、市场预期、风险事件、流动性和价格时间序列证据为何缺失？",
+        "补充证据是否在本次 Gate 与 Invocation 的授权范围内，并能与该价格事实一致地支持或反驳 Thesis？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-nested-regression-insufficient-evidence-02-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

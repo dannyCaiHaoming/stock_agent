@@ -1,0 +1,73 @@
+{
+  "artifacts": {
+    "ablation": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/comparison-v2/result.json",
+      "sha256": "827354dce8fecc108211332b157a2c15ce220ff6be46f27d065f4d10c52c0371"
+    },
+    "baseline_ablation": null,
+    "baseline_manifest": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/baseline-version-manifest.json",
+      "sha256": "1378021f9c17822b0c75824d8b7514403d2b320abd67dd62b00dc083972704a6"
+    },
+    "baseline_runtime_evals": [],
+    "candidate_manifest": {
+      "path": "/Users/caihaoming/Documents/stock_agent/product/version-manifest.json",
+      "sha256": "61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404"
+    },
+    "deterministic_tests": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/deterministic-tests.json",
+      "sha256": "cf4f93e8984766190795c9de48516490f4004cea999b9f5084a11f2cccdecceb"
+    },
+    "execution_replay": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/replay/execution-normal/result.json",
+      "sha256": "c6bf7094d4f5b66463a07ce88bfe22d1f88620de30a58f0513f03b05cd6ff3f8"
+    },
+    "grader_proofs": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/evals/source-normal-v2/grader-execution-proof.json",
+        "sha256": "8198491d89fbf1cae598b15c40962116dad52f0b3a53a05bdc9e260b61c3e2e4"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/evals/execution-replay-normal-v2/grader-execution-proof.json",
+        "sha256": "4f20231858990287de502888aade8cf76f4757607ed15ebbbd9d1b6e980be741"
+      }
+    ],
+    "model_policy": {
+      "path": "/Users/caihaoming/Documents/stock_agent/product/model-routing.json",
+      "sha256": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5"
+    },
+    "regression": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/regression/first/result.json",
+      "sha256": "0ad6f4a96a11ce02d2aa1921ab8335f66c974ae616c1a43958af1d4e942be726"
+    },
+    "runtime_evals": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/evals/source-normal-v2/eval/result.json",
+        "sha256": "67a19bc7a67b3a5d1770c2d43c15376a55b3f88bb872c5ca4699972167b63bd5"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/evals/execution-replay-normal-v2/eval/result.json",
+        "sha256": "c2bd31121301afb8753c17dcc4f1a26ae1458ec2cf1e8bfa97c43ce56a242449"
+      }
+    ],
+    "semantic_calibration": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/v2/result/result.json",
+      "sha256": "1cd898bf805ec3d95d8e48807a22186e7fa435021139a88ab77828390b1407fc"
+    },
+    "trace_integrity": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/traces/source-normal.json",
+        "sha256": "c073f0b1cb2511ada6c908a3fe75303617d2211bcf08d90e93c55aece31e3579"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/traces/execution-replay-normal.json",
+        "sha256": "4a1f39576fa7b4ff202b5c3a958cbceb669055c35ef1061cd154ca0cd5d1d3c7"
+      }
+    ]
+  },
+  "baseline_version": "0.2.1-candidate.1",
+  "candidate_changes_default_topology": false,
+  "candidate_version": "0.3.0-candidate.1",
+  "gate_id": "rreh-promotion-candidate-20260907",
+  "schema_version": "promotion-input/1.0.0"
+}

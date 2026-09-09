@@ -1,0 +1,85 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim_revenue_ttm",
+        "claim_margin_ttm",
+        "claim_debt_ttm",
+        "claim_price",
+        "claim_capacity_update",
+        "claim_quality_interpretation",
+        "claim_valuation_interpretation",
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "runtime_company_analyst 明确区分 FACT 与 INTERPRETATION；每项事实和有限解释均引用允许 Evidence，并对持续性、偿债能力和估值所需数据缺口作出限制说明。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "runtime_cio 明确记录两份报告的共识、无机械冲突、四项未决问题及其对 NO_TRADE 的影响；decision.json 风险报告也确认 APPROVED 且 final_action 为 NO_TRADE。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 0.38、Skeptic 0.40 和 CIO 0.35 的低置信度均由已列明的关键数据缺口和不确定性解释，方向上与允许 Evidence 的有限覆盖一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "cio/runtime_cio.json 的 INSUFFICIENT_EVIDENCE、NO_TRADE 解释及四项重评条件与 gate.json 的允许证据范围和 decision.json 的 APPROVED SAFE_NO_TRADE 一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "debt-serviceability",
+        "margin-durability",
+        "capacity-plan-execution",
+        "price-interpretation",
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "runtime_skeptic 标记为 INDEPENDENT_FIRST_PASS，对债务、利润率、产能和价格提出具体可证伪挑战，并列出各挑战所需的核验材料和失效条件。",
+      "status": "PASS"
+    }
+  },
+  "eval_id": "rreh-eval-source-normal-v2-20260907",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "b26947a809072410476273a0ea78a4a0325e1e6449af80f8b992e73357355aed",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "e4158e482538ffca3a09e1802fbc1aa566d774ffe0119ceeeca9b6ed0219c965",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

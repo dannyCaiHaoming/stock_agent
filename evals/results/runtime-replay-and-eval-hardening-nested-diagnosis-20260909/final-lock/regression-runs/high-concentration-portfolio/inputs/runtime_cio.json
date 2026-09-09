@@ -1,0 +1,164 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "10000.0",
+    "cash_weight": "0.1",
+    "concentration_hhi": "0.81",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.9",
+    "position_weights": {
+      "SEC-AAA": "0.9"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.9"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "Regression high-concentration-portfolio：验证真实 Codex Council 的结构化研究、风险与终态不变量。",
+  "run_id": "rrh-final-lock-regression-high-concentration-portfolio-20260909",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "e3f39efc354f91779aeb8cbe270e646498155113e08f1e6e3b985169f24220f3",
+    "runtime_skeptic": "f235609cf328edd61af47d0b131115b93f0df29e403fdf48ee0c1a0ccc19b2ea"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_available_inputs",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA's available fresh inputs are a USD 100 close price (source_id fixture-market-primary; as_of 2026-01-30T21:00:00Z; retrieved_at 2026-01-30T21:05:00Z) and USD 1,000,000 revenue TTM (source_id fixture-filing-primary; as_of 2025-12-31T00:00:00Z; retrieved_at 2026-01-15T13:00:00Z)."
+        }
+      ],
+      "confidence": 0.2,
+      "confidence_rationale": "The two authorized inputs are fresh and internally identifiable, but they are insufficient for a grounded company analysis or valuation interpretation.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "Shares outstanding or market capitalization is unavailable; price-to-sales cannot be computed or interpreted.",
+        "Profitability, cash flow, debt, liquidity, segment performance, growth history, guidance, and competitive evidence are unavailable.",
+        "No evidence supports a company Thesis or a company-specific counter-Thesis."
+      ],
+      "invalidation_conditions": [
+        "Any company-quality or valuation conclusion would require additional authorized, point-in-time evidence with source_id, as_of, and retrieved_at metadata."
+      ],
+      "invocation_id": "inv_dad8de574888c0f885a3a927",
+      "run_id": "rrh-final-lock-regression-high-concentration-portfolio-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA company research under the 2026-01-31 decision cutoff; available evidence is a USD 100 close price from fixture-market-primary (as_of 2026-01-30T21:00:00Z; retrieved_at 2026-01-30T21:05:00Z) and USD 1,000,000 TTM revenue from fixture-filing-primary (as_of 2025-12-31T00:00:00Z; retrieved_at 2026-01-15T13:00:00Z).",
+      "skill_execution": [
+        {
+          "invocation_hash": "89d8753c1e5912dd25577112c3a74e72f3389345747dd5095ba04724ac421062",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "58ee99d7e8cd3e675a8c43df9fd6b57aaa557a6c4d7532298ebd7ff2c5428028",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "12bb182d31567160ef1fe21998a343c91d070eec48315e6eb2d6e03b3c6c1712",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "The available price and revenue inputs do not establish business quality, competitive position, earnings power, balance-sheet resilience, or an investable valuation multiple."
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "challenge-concentration-support",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "Point-in-time valuation inputs and share-count context.",
+            "Point-in-time profitability, cash-flow, debt, and liquidity evidence.",
+            "Price history, trading-liquidity, and drawdown evidence through the decision cutoff."
+          ],
+          "statement": "At the reported USD 100 close price, the supplied 900-share SEC-AAA position is USD 90,000 of the USD 100,000 cash-plus-position summary. The authorized price observation and a USD 1,000,000 TTM revenue observation do not independently establish valuation support, profitability, balance-sheet resilience, liquidity, or downside capacity for this concentrated exposure."
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "challenge-post-period-change",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "Authorized company disclosures, earnings updates, and material-event evidence dated after 2025-12-31 through the decision cutoff.",
+            "Authorized consensus or guidance-change evidence with point-in-time timestamps."
+          ],
+          "statement": "The revenue observation is as of 2025-12-31, while the decision cutoff is 2026-01-31T23:59:59Z. Without authorized interim operating or event evidence, a material post-period deterioration or change in expectations remains an unresolved alternative explanation."
+        }
+      ],
+      "confidence": 0.83,
+      "confidence_rationale": "High confidence in the factual limits of the two authorized records and in the resulting evidence gaps; insufficient confidence for a substantive adverse company conclusion because the authorized evidence does not address the required financial, valuation, liquidity, or interim-event dimensions.",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "No authorized evidence of valuation, shares outstanding, earnings, margins, cash flow, debt, liquidity, catalysts, competitive conditions, price history, or trading volume.",
+        "No authorized evidence covering company developments from 2026-01-01 through the decision cutoff."
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "The concentration-support challenge would be weakened by authorized point-in-time evidence demonstrating durable cash generation, balance-sheet resilience, valuation support, and sufficient trading liquidity.",
+        "The post-period-change challenge would be weakened by authorized dated disclosures through the decision cutoff showing no material adverse operating or expectation change."
+      ],
+      "invocation_id": "inv_e129d3c558e48d41607adad5",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-lock-regression-high-concentration-portfolio-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA independent counter-thesis review as of 2026-01-31T23:59:59Z, using only the two manifest-authorized evidence records and the supplied portfolio summary.",
+      "skill_execution": [
+        {
+          "invocation_hash": "01907e2dfcb8be6f620c97ce3f9fc5bd0738e935d1392784a3d4bd72cea9fb92",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7963d840515ed6e65db06fd7e168454ae9404667198e48d29f520365cbb44f40",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "The close-price observation is fresh as of 2026-01-30T21:00:00Z, but it is a single observation and does not establish volatility, liquidity, or valuation.",
+        "The TTM revenue observation is fresh under its stated policy but does not establish growth, margin, cash generation, leverage, or post-2025-12-31 operating conditions."
+      ]
+    }
+  }
+}

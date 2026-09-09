@@ -1,0 +1,57 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.24,
+      "confidence_rationale": "专业报告在冲突及关键数据缺口上相互印证，但Company Analyst为LOW_CONFIDENCE，Skeptic为INSUFFICIENT_EVIDENCE；机械收入冲突尚未裁决，且不存在支持商业质量和估值判断的完整输入。因此对继续维持无新组合意图的判断有足够程序性置信度，但对任何方向性 Thesis 没有足够投资性置信度。",
+      "counter_thesis": "同一截至日的TTM收入在两个允许来源中分别为1,000,000美元和1,250,000美元，且缺少可判定口径、合并范围或重述状态的证据；因此任何建立在收入、利润率可比性或价格估值解释之上的结论均未被解决。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "若权威且可追溯的截至截止日披露能将两项收入数值按一致口径对账，当前收入冲突判断应重新评估。",
+        "若完整财务对账证明18%利润率使用一致收入分母且不依赖重大一次性项目，当前盈利质量限制应重新评估。",
+        "若取得截至截止日的完整估值输入并显示100美元价格与经核实基本面一致，当前价格解释限制应重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "截至决策截止日，允许证据中同一TTM收入字段存在未解决的25%冲突，并且缺少判定盈利质量和估值所需的关键基础数据；因此不形成新的组合行动意图。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得可追溯且截至决策截止日可得的收入定义、合并范围和重述状态对账，以裁决两项收入证据。",
+        "获得与经裁决收入口径一致的营业利润、调整项、现金流、资本结构、股本及历史和前瞻经营数据。",
+        "在上述证据完成核验后，重新评估价格与基本面的关系。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已验证报告一致确认当前只可确认有限的事实：截至2025-12-31的18% TTM经营利润率和截至2026-01-30的100美元收盘价；这些事实不足以形成可验证的商业质量或估值 Thesis。",
+      "time_horizon": "在取得并核验截至决策截止日的收入口径对账及完整估值输入后重新评估。",
+      "unresolved_questions": [
+        "两项收入数值是否具有相同的确认口径、合并范围、期间和重述状态？",
+        "18%经营利润率是否采用与经裁决收入一致的分母，且是否不依赖重大一次性项目？",
+        "截至决策截止日的股本、资本结构、现金流、历史与前瞻经营数据及可比估值输入为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-nested-regression-analyst-skeptic-strong-conflict-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,324 @@
+"""Record privacy-minimized Codex subagent lifecycle evidence.
+
+The recorder is a lifecycle observer only.  It never orchestrates an Agent and
+never persists prompts, hidden reasoning, tool payloads, or assistant prose.
+"""
+
+from __future__ import annotations
+
+import fcntl
+import hashlib
+import json
+import os
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Mapping
+
+
+RECORDER_VERSION = "codex-subagent-hook-recorder/1.3.0"
+SUPPORTED_EVENTS = {"SubagentStart", "SubagentStop"}
+
+
+def _canonical_hash(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _resolve_scoped_log(
+    environ: Mapping[str, str], *, environment_key: str = "STOCK_AGENT_SUBAGENT_EVENT_LOG"
+) -> Path:
+    run_text = environ.get("STOCK_AGENT_RUN_DIR", "")
+    log_text = environ.get(environment_key, "")
+    if not run_text or not log_text:
+        raise ValueError("HOOK_OUTPUT_ENVIRONMENT_MISSING")
+    run_dir = Path(run_text).resolve()
+    log_path = Path(log_text).resolve()
+    if not log_path.is_relative_to(run_dir):
+        raise ValueError("HOOK_OUTPUT_OUTSIDE_RUN_DIR")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    return log_path
+
+
+def _dispatch_record(payload: Mapping[str, Any], *, decision: str) -> dict[str, Any]:
+    required = ("session_id", "turn_id", "tool_name", "tool_use_id", "cwd")
+    if any(not isinstance(payload.get(field), str) or not payload[field] for field in required):
+        raise ValueError("HOOK_DISPATCH_IDENTITY_INCOMPLETE")
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, Mapping):
+        raise ValueError("HOOK_DISPATCH_INPUT_INVALID")
+    agent_type = tool_input.get("agent_type")
+    if not isinstance(agent_type, str) or not agent_type:
+        agent_type = None
+    record: dict[str, Any] = {
+        "schema_version": "codex-subagent-dispatch/1.0.0",
+        "recorder_version": RECORDER_VERSION,
+        "hook_event_name": "PreToolUse",
+        "parent_session_id": payload["session_id"],
+        "turn_id": payload["turn_id"],
+        "tool_name": payload["tool_name"],
+        "tool_use_id": payload["tool_use_id"],
+        "agent_type": agent_type,
+        "task_name": tool_input.get("task_name"),
+        "fork_turns": tool_input.get("fork_turns"),
+        "model": payload.get("model"),
+        "cwd": payload["cwd"],
+        "permission_mode": payload.get("permission_mode"),
+        "decision": decision,
+        "observed_at": _utc_now(),
+        "raw_prompt_or_reasoning_retained": False,
+    }
+    record["event_hash"] = _canonical_hash(record)
+    return record
+
+
+def _reserved_agents(log_path: Path, *, parent_session_id: str) -> set[str]:
+    if not log_path.is_file():
+        return set()
+    reserved: set[str] = set()
+    for line in log_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(event, Mapping)
+            and event.get("decision") == "ALLOW"
+            and event.get("parent_session_id") == parent_session_id
+            and isinstance(event.get("agent_type"), str)
+        ):
+            reserved.add(str(event["agent_type"]))
+    return reserved
+
+
+def _append_record(log_path: Path, record: Mapping[str, Any]) -> None:
+    encoded = json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(encoded)
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _handle_pre_tool_use(
+    payload: Mapping[str, Any], *, environment: Mapping[str, str]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    dispatch_log = _resolve_scoped_log(
+        environment,
+        environment_key="STOCK_AGENT_SUBAGENT_DISPATCH_LOG",
+    )
+    expected = _expected_parallel_agents(environment)
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, Mapping):
+        raise ValueError("HOOK_DISPATCH_INPUT_INVALID")
+    agent_type = tool_input.get("agent_type")
+    if not isinstance(agent_type, str) or not agent_type:
+        # A catch-all matcher is intentional: current Codex versions can expose
+        # different aliases for local function tools. Non-Agent calls are
+        # observed without retaining their arguments and are always allowed.
+        record = _dispatch_record(payload, decision="IGNORE_NON_AGENT_TOOL")
+        lock_path = dispatch_log.with_suffix(dispatch_log.suffix + ".lock")
+        with lock_path.open("a", encoding="utf-8") as lock_handle:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+            _append_record(dispatch_log, record)
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+        return record, {}
+    lock_path = dispatch_log.with_suffix(dispatch_log.suffix + ".lock")
+    with lock_path.open("a", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        reserved = _reserved_agents(
+            dispatch_log,
+            parent_session_id=str(payload.get("session_id", "")),
+        )
+        if agent_type not in expected:
+            decision = "DENY_UNAPPROVED_AGENT"
+        elif agent_type in reserved:
+            decision = "DENY_DUPLICATE_AGENT"
+        else:
+            decision = "ALLOW"
+        record = _dispatch_record(payload, decision=decision)
+        _append_record(dispatch_log, record)
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+
+    if decision == "ALLOW":
+        return record, {}
+    reason = (
+        f"拒绝重复派发 Specialist：{agent_type}。每个必需 Specialist 在本轮只能启动一次。"
+        if decision == "DENY_DUPLICATE_AGENT"
+        else f"拒绝未授权 Agent：{agent_type}。本轮只允许固定的两个 Specialist。"
+    )
+    return record, {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+
+
+def minimize_hook_event(
+    payload: Mapping[str, Any], *, blocked_stop: bool = False
+) -> dict[str, Any]:
+    event_name = payload.get("hook_event_name")
+    if event_name not in SUPPORTED_EVENTS:
+        raise ValueError("HOOK_EVENT_UNSUPPORTED")
+    required = ("session_id", "turn_id", "agent_id", "agent_type", "model", "cwd")
+    if any(not isinstance(payload.get(field), str) or not payload[field] for field in required):
+        raise ValueError("HOOK_EVENT_IDENTITY_INCOMPLETE")
+
+    record: dict[str, Any] = {
+        "schema_version": "codex-subagent-hook-event/1.0.0",
+        "recorder_version": RECORDER_VERSION,
+        "hook_event_name": "SubagentStopBlocked" if blocked_stop else event_name,
+        "parent_session_id": payload["session_id"],
+        "turn_id": payload["turn_id"],
+        "child_session_id": payload["agent_id"],
+        "agent_type": payload["agent_type"],
+        "model": payload["model"],
+        "cwd": payload["cwd"],
+        "permission_mode": payload.get("permission_mode"),
+        "observed_at": _utc_now(),
+        "raw_prompt_or_reasoning_retained": False,
+    }
+    if event_name == "SubagentStop":
+        message = payload.get("last_assistant_message")
+        record["assistant_message_present"] = isinstance(message, str) and bool(message)
+        record["assistant_message_sha256"] = (
+            _canonical_hash({"assistant_message": message})
+            if isinstance(message, str)
+            else None
+        )
+        structured: Mapping[str, Any] | None = None
+        if isinstance(message, str):
+            try:
+                candidate = json.loads(message)
+            except json.JSONDecodeError:
+                candidate = None
+            if isinstance(candidate, Mapping):
+                structured = candidate
+        record["structured_output_present"] = structured is not None
+        record["final_structured_output_hash"] = (
+            _canonical_hash(structured) if structured is not None else None
+        )
+        record["output_binding"] = (
+            {
+                "run_id": structured.get("run_id"),
+                "invocation_id": structured.get("invocation_id"),
+                "agent": structured.get("agent"),
+            }
+            if structured is not None
+            else None
+        )
+        transcript = payload.get("agent_transcript_path")
+        record["agent_transcript_present"] = isinstance(transcript, str) and bool(transcript)
+        record["agent_transcript_path_sha256"] = (
+            _canonical_hash({"path": transcript})
+            if isinstance(transcript, str) and transcript
+            else None
+        )
+        record["stop_hook_active"] = payload.get("stop_hook_active") is True
+        if blocked_stop:
+            record["hook_decision"] = "BLOCK"
+    record["event_hash"] = _canonical_hash(record)
+    return record
+
+
+def _expected_parallel_agents(environment: Mapping[str, str]) -> set[str]:
+    return {
+        item.strip()
+        for item in environment.get("STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS", "").split(",")
+        if item.strip()
+    }
+
+
+def _started_agents(log_path: Path, *, parent_session_id: str) -> set[str]:
+    if not log_path.is_file():
+        return set()
+    starts: set[str] = set()
+    for line in log_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(event, Mapping)
+            and event.get("hook_event_name") == "SubagentStart"
+            and event.get("parent_session_id") == parent_session_id
+            and isinstance(event.get("agent_type"), str)
+        ):
+            starts.add(str(event["agent_type"]))
+    return starts
+
+
+def handle_hook_event(
+    payload: Mapping[str, Any], *, environ: Mapping[str, str] | None = None
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    environment = os.environ if environ is None else environ
+    if payload.get("hook_event_name") == "PreToolUse":
+        return _handle_pre_tool_use(payload, environment=environment)
+    log_path = _resolve_scoped_log(environment)
+    expected = _expected_parallel_agents(environment)
+    lock_path = log_path.with_suffix(log_path.suffix + ".lock")
+    with lock_path.open("a", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        blocked_stop = False
+        if payload.get("hook_event_name") == "SubagentStop" and expected:
+            started = _started_agents(
+                log_path,
+                parent_session_id=str(payload.get("session_id", "")),
+            )
+            blocked_stop = not expected <= started and payload.get("stop_hook_active") is not True
+        record = minimize_hook_event(payload, blocked_stop=blocked_stop)
+        _append_record(log_path, record)
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+    if blocked_stop:
+        missing = sorted(expected - _started_agents(
+            log_path,
+            parent_session_id=str(payload.get("session_id", "")),
+        ))
+        return record, {
+            "decision": "block",
+            "reason": (
+                "并行派发屏障：以下 Specialist 尚未启动，当前 Agent 不得先结束："
+                + ",".join(missing)
+            ),
+        }
+    return record, {}
+
+
+def record_hook_event(
+    payload: Mapping[str, Any], *, environ: Mapping[str, str] | None = None
+) -> dict[str, Any]:
+    record, _ = handle_hook_event(payload, environ=environ)
+    return record
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+        if not isinstance(payload, Mapping):
+            raise ValueError("HOOK_INPUT_NOT_OBJECT")
+        _, response = handle_hook_event(payload)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    # SubagentStop requires JSON stdout on a successful command hook.  An empty
+    # object is advisory and adds no model-visible context.
+    print(json.dumps(response, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

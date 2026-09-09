@@ -1,0 +1,52 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.15,
+      "confidence_rationale": "对单一收盘价事实的确认受其通过 Gate 的新鲜与来源血缘支持；但两份独立报告一致指出缺少形成任何证券层判断所需的关键证据，因此对可操作的研究结论置信度很低。",
+      "counter_thesis": "单一价格观察无法区分基本面、估值、流动性或事件驱动，也不足以反驳其他可能解释；缺乏独立的公司、估值、历史市场与事件证据。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若授权价格事实被更正、撤回或替换，关于该单一价格的事实基础失效。",
+        "取得截至决策截止日、带完整 source_id、as_of 与 retrieved_at 的基本面、估值、价格历史、流动性和事件证据后，应重新综合本结论。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "当前 Gate 范围内只有一条价格证据，无法支持或反驳公司质量、估值、催化剂、流动性或持仓风险判断；因此不形成任何建议性仓位变更。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得截至决策截止日且带完整来源血缘的公司基本面、估值与同业比较证据。",
+        "获得截至决策截止日的价格历史、成交量、流动性、风险事件与催化剂证据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "唯一经授权且新鲜的事实是 SEC-AAA 的单一时点收盘价；该事实不足以支持对商业质量、估值、风险回报或现有持仓合理性的判断。",
+      "time_horizon": "在取得满足 Gate 要求的新证据前不形成证券层建议。",
+      "unresolved_questions": [
+        "截至决策截止日，SEC-AAA 的业务模式、收入增长、盈利能力、现金流和资本结构如何？",
+        "截至决策截止日，SEC-AAA 的估值输入、可比基准与盈利预期是什么？",
+        "价格历史、成交量、流动性、波动性以及影响风险回报的事件证据为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-candidate-insufficient-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

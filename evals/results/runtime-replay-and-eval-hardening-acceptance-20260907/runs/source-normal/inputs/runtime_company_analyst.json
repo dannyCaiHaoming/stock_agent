@@ -1,0 +1,31 @@
+{
+  "agent": "runtime_company_analyst",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 500,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "基于冻结 fixture 执行只读投资委员会研究，并输出结构化建议。",
+  "run_id": "rreh-source-normal-20260907",
+  "security_id": "SEC-AAA"
+}

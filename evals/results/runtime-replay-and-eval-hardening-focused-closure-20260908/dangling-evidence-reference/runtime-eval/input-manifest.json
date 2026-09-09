@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-focused-closure-20260908-dangling-evidence-reference",
+  "expected_terminal_states": [
+    "FAILED_VALIDATION"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run",
+  "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "b91cc3e344ab357010032de714be4d074346b57e03b0e4d3568eeaa24e43357e",
+    "artifact_replay": "345485992618f8f294e34bf36dc868c027928f20eea85245bd990e31828fef33",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "593ec0cfa8eba142ba6634d8bec37deccf8e7dea57e61deb51a27bf399f8d16c",
+    "semantic_input": "597a3e392bca7ac9abcc2f253e09322383c8d3c4997129959f95735a0d676ad1",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "7d2bfec34d0cc718d3d8fb00707fdbddb73fc70aefc222e42a76d54c5c2759ec"
+  }
+}

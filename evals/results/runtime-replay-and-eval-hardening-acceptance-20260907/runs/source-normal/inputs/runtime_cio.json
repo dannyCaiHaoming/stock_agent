@@ -1,0 +1,283 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于冻结 fixture 执行只读投资委员会研究，并输出结构化建议。",
+  "run_id": "rreh-source-normal-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "6177d841147c6711429fc33afac379c425b9e15bc756c445e1580536c4278cde",
+    "runtime_skeptic": "a2f13592142a6c87e736233bc87dbd99b7b12ee7fc4e123e8e5a62d9775e83be"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "calculation_id:debt_to_revenue_001",
+        "calculation_hash:6f9395d7b5309d6033ba1c228a8e795544888fd674ad7524d17f0c8b7eb24ccf"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_revenue_ttm",
+          "evidence_refs": [
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "事实：TTM 收入为 USD 1,000,000；evidence_id=ev-normal-revenue，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_margin_ttm",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "FACT",
+          "statement": "事实：TTM 经营利润率为 18%；evidence_id=ev-normal-margin，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_debt_ttm",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "事实：总债务为 USD 150,000；evidence_id=ev-normal-debt，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。确定性计算 calculation_id=debt_to_revenue_001 显示债务/TTM收入为 0.15。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_price",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "kind": "FACT",
+          "statement": "事实：收盘价为 USD 100/股；evidence_id=ev-normal-price，source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_capacity_update",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "FACT",
+          "statement": "事实：管理层维持此前披露的产能计划；evidence_id=ev-normal-update，source_id=fixture-company-release，as_of=2026-01-20T14:00:00Z，retrieved_at=2026-01-20T14:01:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_quality_interpretation",
+          "evidence_refs": [
+            "ev-normal-margin",
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "解释：18% 的当期经营利润率与债务/TTM收入 15% 共同表明经营盈利和账面债务规模目前不存在显而易见的紧张信号；但缺少现金流、利息负担、到期结构和利润率趋势，不能据此确认偿债能力或经营质量的持续性。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_valuation_interpretation",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "解释：单一收盘价不能建立收入倍数、盈利倍数、自由现金流估值或情景价值区间，因为缺少股数、市值、净债务、现金流和可比公司数据；因此没有形成估值判断。"
+        }
+      ],
+      "confidence": 0.38,
+      "confidence_rationale": "基础收入、经营利润率、债务、价格及管理层更新均为截止日前的授权新鲜证据，且债务/收入比由确定性工具计算；但缺少现金流、债务结构、增长轨迹、竞争信息和估值所需的股本及企业价值数据，无法可靠评估持续经营质量或内在价值。",
+      "counter_evidence_refs": [
+        "ev-normal-debt"
+      ],
+      "data_gaps": [
+        "缺少现金、自由现金流、资本开支、营运资本、净债务与债务到期数据。",
+        "缺少收入增长、利润率历史、客户集中度、市场份额及竞争格局。",
+        "缺少稀释后股数、市值、企业价值、估值倍数及可比公司数据。",
+        "缺少产能计划的规模、时间表、资本开支、需求承诺和预期回报数据。"
+      ],
+      "invalidation_conditions": [
+        "若后续证据显示现金流或利息覆盖不足以支持债务与产能投入，则当前关于不存在显而易见债务紧张信号的有限解释失效。",
+        "若后续业绩显示经营利润率显著下降或收入持续萎缩，则当前经营盈利快照不再具代表性。",
+        "若产能计划延迟、成本显著超支、融资受限或需求未实现，则管理层维持计划不能视为经营支持因素。"
+      ],
+      "invocation_id": "inv_6c7955c9f962273f958cfe35",
+      "run_id": "rreh-source-normal-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 的冻结、只读公司基本面与估值证据审阅；决策截止时间为 2026-01-31T23:59:59Z。所有已用事实均来自授权证据：source_id、as_of 与 retrieved_at 已逐项写入对应 statement。",
+      "skill_execution": [
+        {
+          "invocation_hash": "689d878a9c48e95d3d1575a4566b77a574f58420a803bc113d4706385ac819c9",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "8d335d3f397f0703a8d5e97e49a2b19de83dc58bf7b4c01a16dcc794e4c9fca7",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7eace4dabdfd861fd2d7c9ff009d4f6314177438e25b354347d7a12c5fa27392",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "总债务不等同于净债务，未提供现金、债务期限、利率、契约或利息覆盖率。",
+        "经营利润率仅为单期 TTM 快照，未提供历史趋势、分部构成、一次性项目或竞争背景。",
+        "维持产能计划不证明需求、资本开支回报、项目进度或融资可得性。",
+        "价格数据在截止日前新鲜，但缺少股本与企业价值桥接，无法判断市场已反映何种增长或回报预期。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-debt-is-manageable"
+          ],
+          "challenge_id": "debt-serviceability",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "经审计现金与短期投资余额",
+            "债务到期表、利率及担保或契约条款",
+            "利息覆盖、自由现金流和流动性压力测试"
+          ],
+          "statement": "截至2025-12-31，总债务为150000美元、TTM收入为1000000美元，均来自fixture-filing-primary并于2026-01-15取得；收入规模本身不能证明债务可偿付，现金、到期结构、利率、现金流和契约压力均未知。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-margin-is-sustainable"
+          ],
+          "challenge_id": "margin-durability",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "resolution_evidence_needed": [
+            "多期毛利率和经营利润率序列",
+            "价格、成本、客户集中度及产能利用率驱动数据",
+            "管理层对利润率变化的量化指引及后续实际结果"
+          ],
+          "statement": "截至2025-12-31，TTM经营利润率为18%，来自fixture-filing-primary并于2026-01-15取得；单期TTM利润率可能反映暂时性定价、成本或确认时点，不能单独证明利润率具有持续性。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-capacity-plan-creates-value"
+          ],
+          "challenge_id": "capacity-plan-execution",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "resolution_evidence_needed": [
+            "产能计划的资本开支、融资来源、建设节点和预算",
+            "订单、客户承诺、需求预测及取消率",
+            "实际建设进度、投产率与项目回报数据"
+          ],
+          "statement": "2026-01-20的公司更新仅称管理层维持此前产能计划，来自fixture-company-release并于2026-01-20取得；维持计划并不等同于需求被验证、融资已落实或项目按预算和时点执行。"
+        },
+        {
+          "assumption_ids": [
+            "assumption-price-has-adequate-risk-adjustment"
+          ],
+          "challenge_id": "price-interpretation",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "resolution_evidence_needed": [
+            "稀释后股数、市值、企业价值及净债务",
+            "历史与前瞻经营指标、自由现金流和估值敏感性",
+            "可比公司或历史估值区间及其适用性说明"
+          ],
+          "statement": "2026-01-30收盘价为每股100美元，来自fixture-market-primary并于2026-01-30取得；孤立价格没有股本、估值倍数、现金流或可比基准，无法支持价格已反映或未反映经营和执行风险的判断。"
+        }
+      ],
+      "confidence": 0.4,
+      "confidence_rationale": "反证路径直接由授权证据的债务、收入、利润率、价格和管理层更新支持，但关键验证数据缺失，且独立第一轮不得接触其他研究结论，故仅具低置信度。",
+      "counter_evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "现金、自由现金流、利息费用、债务到期日和契约数据缺失。",
+        "多期利润率、收入增长、订单、客户集中度和成本驱动数据缺失。",
+        "产能项目资本开支、融资、建设进度、投产率和项目回报数据缺失。",
+        "股数、市值、企业价值、估值基准和可比数据缺失。"
+      ],
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "若经审计流动性、债务到期和利息覆盖证据显示在合理压力情景下仍有充足偿债能力，则债务可偿付性反证减弱。",
+        "若多期经营数据及可核验驱动因素显示18%经营利润率稳定或改善，则利润率持续性反证减弱。",
+        "若有可核验订单、融资和建设里程碑证明产能计划按预算推进且回报可接受，则执行风险反证减弱。",
+        "若完整股本、现金流和估值证据显示价格已充分覆盖相关风险，则价格解释反证减弱。"
+      ],
+      "invocation_id": "inv_d089be5af590b5e4a5ef5cb3",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-source-normal-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；仅基于截至2026-01-31T23:59:59Z授权的冻结证据开展独立反证研究。",
+      "skill_execution": [
+        {
+          "invocation_hash": "3cb94d616fb357f9d3db709a9177d336d6259caeecb38761300437a7284f15e9",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "1f491a3ac8ef978bc7549e06e1ac26b8a9ac03ddbe829aee39eb2976764697e9",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "授权证据均标记为FRESH，但覆盖范围不足以判断债务偿付能力、利润率持续性、产能计划执行概率或估值。",
+        "不存在可供独立核验的现金流、需求、股本或债务期限证据。",
+        "公司更新是管理层陈述，未提供计划执行、需求或回报的量化验证。"
+      ]
+    }
+  }
+}

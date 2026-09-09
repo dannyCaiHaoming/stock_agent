@@ -1,0 +1,76 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 410880,
+  "cio_conflict_handled": true,
+  "eval_hash": "72c71f693353ee26ee5a6e451bf4aec734659e5b75c74719d26b29e64af1cb4b",
+  "eval_status": "PASS",
+  "evidence_closure": true,
+  "evidence_subset_of_gate": true,
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 461454,
+  "latency_ms": 255957,
+  "llm_calls": 3,
+  "model": "gpt-5.6-terra",
+  "no_future_evidence": true,
+  "output_tokens": 8550,
+  "risk_bypassed": false,
+  "risk_status": "REJECTED",
+  "run_id": "rrh-final-lock-regression-high-concentration-portfolio-20260909",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The Analyst identifies only the two cited facts and explicitly limits its conclusion to insufficient evidence, distinguishing unavailable analysis from supported facts.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The CIO records Specialist consensus, no mechanical conflicts, unresolved questions, and explains the resulting insufficient-evidence decision impact.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The confidence rationales limit substantive conclusions to the sparse evidence while separating confidence in identified evidence gaps from company-level inference.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The final decision records RISK_VETO, the concrete breached bounds, and a re-evaluation condition tied to the Risk Engine feasible boundary.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The independent Skeptic cites the authorized records, specifies concentration and post-period uncertainty, and states concrete evidence needed to resolve each challenge.",
+      "status": "PASS"
+    }
+  },
+  "specialist_output_valid": true,
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_complete": true,
+  "trace_hash": "9c0d40cdda8e351d6e0d0585cf547b1b355a2bc7c04055ac6fc0c633e76e8b7f"
+}

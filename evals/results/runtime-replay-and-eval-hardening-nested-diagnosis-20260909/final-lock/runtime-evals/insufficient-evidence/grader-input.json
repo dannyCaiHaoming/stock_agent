@@ -1,0 +1,266 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-price-observation",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA close price was USD 100 per share as of 2026-01-30T21:00:00Z, sourced from fixture-market-primary and retrieved at 2026-01-30T21:05:00Z."
+        }
+      ],
+      "confidence": 0.08,
+      "confidence_rationale": "High confidence in the cited price observation; insufficient evidence for a company-level thesis or valuation interpretation.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "No authorized evidence of revenue, profitability, cash flow, balance sheet, management guidance, industry conditions, valuation inputs, or material risks was available."
+      ],
+      "invalidation_conditions": [
+        "The reported price fact is invalidated if the authorized source corrects, restates, or supersedes the closing-price observation.",
+        "Any company thesis requires authorized fundamental and valuation evidence."
+      ],
+      "invocation_id": "inv_fd3d80dea08c08d25474b0d7",
+      "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA company research as of 2026-01-31T23:59:59Z; only an authorized closing-price observation was available.",
+      "skill_execution": [
+        {
+          "invocation_hash": "54ed31edbe24b046e80cf40279fd9d3524aa1d264ebf88dcdf5a410749f1ad7a",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "16b35fe8370ef63dad5c591620846ea0050994f4a1a45ad9fda92a1a2f74dcb6",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "457fd27358d71c057e0bb1d4edc3cb51198d650f4dad66e0954c027b8bb29800",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "A single fresh market-price observation does not establish business quality, earnings power, competitive position, capital structure, valuation, or catalysts."
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "ASSUMP-PRICE-REPRESENTATIVE",
+            "ASSUMP-PRICE-EXPLAINS-THESIS"
+          ],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至决策截止日的公司经营与财务证据",
+            "估值、同业比较或市场环境证据",
+            "与研究主张直接相关的事件或风险证据"
+          ],
+          "statement": "唯一授权证据为SEC-AAA于2026-01-30T21:00:00Z的单一收盘价100 USD；该观察值不能区分基本面、估值、流动性或事件驱动等替代解释，也无法验证任何研究性主张的持续性。"
+        }
+      ],
+      "confidence": 0.17,
+      "confidence_rationale": "对“证据不足”判断的置信度较高，但对任何具体反方论点的置信度很低：授权集合仅含一条新鲜收盘价，不能证实非重复的因果替代解释。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入、盈利、现金流、资产负债表及经营指标。",
+        "缺少历史价格、成交量、估值及可比对象数据。",
+        "缺少公司事件、行业环境、风险事件和来源冲突信息。"
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若补充的授权证据显示该价格点不能代表截止日前的可交易市场水平，则本报告对价格观察的有限描述失效。",
+        "若补充的授权证据提供了与研究主张直接相关且可追溯的基本面、事件或估值信息，则当前不足证据终态需要重新评估。"
+      ],
+      "invocation_id": "inv_c7b65d3ab6d35c804d440fcc",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；在2026-01-31T23:59:59Z决策截止日前，独立检验可用证据是否足以支持或反驳任何研究性主张。",
+      "skill_execution": [
+        {
+          "invocation_hash": "23076e9417f10470bc6e15ca7fd65d9c1f295c2ee6f6bc55ac441b93d6514089",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "dab8b8636200a375ccd02eb0882caade294d0c07eaeec340699fbbff313a21b6",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "该单一价格点虽标记为FRESH，但不提供价格变动、成交环境、估值背景或基本面归因。",
+        "不存在可独立验证的公司经营、催化剂、竞争、风险或反证材料。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.12,
+      "confidence_rationale": "Confidence is high that the cited price observation exists, but very low that it can support an investment thesis; the independent Specialist reports agree on the material evidence gaps.",
+      "conflicts": [],
+      "consensus": [
+        "Both validated Specialist reports classify the available evidence as insufficient for a company-level research conclusion.",
+        "Both reports treat the single authorized closing-price observation as factual but inadequate for a thesis, valuation assessment, or decision rationale."
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "8183a7a42745c030dacac99483ae912af58bb5de1fe01dd4cbdd3d967caeee3d"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "cbec7990328c955cbfaa9358fb62000fdde1fff2e9d6fda157b1be1f48f29df7"
+        }
+      ],
+      "counter_thesis": "No independent counter-thesis can be substantively tested because the authorized evidence set contains no fundamentals, valuation context, market history, or event evidence.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "The limited price observation becomes unreliable if its authorized source corrects, restates, or supersedes it.",
+        "This insufficient-evidence conclusion must be reassessed when authorized, traceable fundamental, valuation, event, or risk evidence becomes available."
+      ],
+      "invocation_id": "inv_78ee2d1bb385869cc8975fed",
+      "maximum_notional": null,
+      "no_trade_explanation": "The Gate permits only one fresh closing-price observation. The validated Analyst and independent Skeptic reports agree that it cannot establish business quality, valuation, risks, catalysts, or a defensible thesis, so no research recommendation can be formed.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain authorized, point-in-time company financial and operating evidence.",
+        "Obtain authorized valuation, peer, historical market, liquidity, event, and risk evidence directly relevant to the research question.",
+        "Re-run the Council after the additional evidence is Gate-validated and traceable."
+      ],
+      "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "448d2d7a22bdfba229a4f6d91c5dad262de378f1233896901327df151fea068b",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "The sole authorized fact is a fresh SEC-AAA closing-price observation; it does not support a company-quality, valuation, or catalyst thesis.",
+      "time_horizon": "Reassess only after authorized, point-in-time evidence resolves the identified gaps.",
+      "unresolved_questions": [
+        "What were SEC-AAA's revenue, profitability, cash-flow, balance-sheet, and operating trends as of the decision cutoff?",
+        "What valuation context, peer comparison, historical price and liquidity data, and relevant company or industry events would support or challenge a research thesis?",
+        "Does any authorized evidence establish material risks, catalysts, competitive position, or management guidance?"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.12,
+          "confidence_rationale": "Confidence is high that the cited price observation exists, but very low that it can support an investment thesis; the independent Specialist reports agree on the material evidence gaps.",
+          "counter_thesis": "No independent counter-thesis can be substantively tested because the authorized evidence set contains no fundamentals, valuation context, market history, or event evidence.",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "invalidation_conditions": [
+            "The limited price observation becomes unreliable if its authorized source corrects, restates, or supersedes it.",
+            "This insufficient-evidence conclusion must be reassessed when authorized, traceable fundamental, valuation, event, or risk evidence becomes available."
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "The Gate permits only one fresh closing-price observation. The validated Analyst and independent Skeptic reports agree that it cannot establish business quality, valuation, risks, catalysts, or a defensible thesis, so no research recommendation can be formed.",
+          "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+          "reevaluation_conditions": [
+            "Obtain authorized, point-in-time company financial and operating evidence.",
+            "Obtain authorized valuation, peer, historical market, liquidity, event, and risk evidence directly relevant to the research question.",
+            "Re-run the Council after the additional evidence is Gate-validated and traceable."
+          ],
+          "security_id": "SEC-AAA",
+          "target_weight_range": null,
+          "thesis": "The sole authorized fact is a fresh SEC-AAA closing-price observation; it does not support a company-quality, valuation, or catalyst thesis.",
+          "time_horizon": "Reassess only after authorized, point-in-time evidence resolves the identified gaps.",
+          "unresolved_questions": [
+            "What were SEC-AAA's revenue, profitability, cash-flow, balance-sheet, and operating trends as of the decision cutoff?",
+            "What valuation context, peer comparison, historical price and liquidity data, and relevant company or industry events would support or challenge a research thesis?",
+            "Does any authorized evidence establish material risks, catalysts, competitive position, or management guidance?"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-insufficient-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://insufficient/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "bundle_hash": "acf3fa29dd6d25af4d6484bd204e0b15403186fa4723aefc4abc3a71b9c29572",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "insufficient-evidence-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "dc5ebd566dc1540e88c3385f99711c0d210d3b1dc8d61ff2eee8c58a108b78ec",
+      "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+  "terminal_state": "SAFE_NO_TRADE"
+}

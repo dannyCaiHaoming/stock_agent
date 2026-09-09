@@ -1,0 +1,756 @@
+{
+  "agents": [
+    {
+      "agent_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "084e9e39703a9b504b1818e1fc1e3003f88e7da232bfec65534ec5db0f8b6aed",
+      "instruction_bundle_hash": "1236bf1827a83bb524c51c9e733d775415f5c1d5593d6b9778a3975079d5872f",
+      "invocation_id": "inv_138474db80231c84e0134cdc",
+      "manifest_hash": "e47226ac6beadf4a49dafbd3bc2e41a01848c49b5fe97df326db4b7b3f096a49",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_company_analyst",
+      "output_hash": "3d503dc2cec4370c2ce84a0ca3e5662a11a22b6847ca88e6fce4f86eab1397ff",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260908/runs/current-lock-normal-04/schemas/agent-research-report.schema.json",
+      "output_schema_hash": "f3c4c1d800a191512b3bcf61f477c0986745f228ddd537095f2072216b643882",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "company-research",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/company-research/SKILL.md",
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "name": "valuation",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/valuation/SKILL.md",
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "34f981f03e511c2be73f28d9bc036db0314e59ce84e5cd8487597b289ae51a85",
+      "tool_permissions": [
+        "fixture_evidence.query",
+        "fixture_math.calculate"
+      ],
+      "version": "2.1.0"
+    },
+    {
+      "agent_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "e77df089df2281472e177a8a34f359b56560e9dc609879ed61dafa431856033d",
+      "instruction_bundle_hash": "cac59cf1472c9b1bd65e69e2c7544f410eaada7bfb676f35941e62837b1bc82b",
+      "invocation_id": "inv_3179fb43c24b6a45d4dcf15f",
+      "manifest_hash": "ffa7b8675a39ac51c0d1add4100be0d3555dddc39ea160ce8d36a488b9892607",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_skeptic",
+      "output_hash": "b4c3f6d77d1be32466ae81d141f77d3490dc38d7b8e20ac5eae1e24802b8b40d",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260908/runs/current-lock-normal-04/schemas/counter-thesis-report.schema.json",
+      "output_schema_hash": "d34b796de0b4ef24f8601256610735c5e6775aabe3868d807e8e7b3f0d372558",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "counter-thesis",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/counter-thesis/SKILL.md",
+          "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "bd30b3946bb258bc3b9ac0cc56b7d65863b65c589872d31d2fe6251541eab6e3",
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
+      "version": "2.0.0"
+    },
+    {
+      "agent_sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "79305e494495e79b55e8745cc8617c9569410645191d25f7128b4eb65c4dc2c1",
+      "instruction_bundle_hash": "733e0f6471e8376145d5ef2ad16057feb835b5ea2b72128c9077eea569e58f30",
+      "invocation_id": "inv_fd3e0d2a1d69d6eb0c33b25a",
+      "manifest_hash": "38bff2821fd34e26cb1f36c81f49b7ce6d6af967f51019ba37c98b794aa23bfb",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_cio",
+      "output_hash": "17e7f9e90663356175c07f78f13447ee3f5d54fdfb8d4918fc11ad9244a59703",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/product/schemas/runtime/cio-decision-draft.schema.json",
+      "output_schema_hash": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+      "skills": [
+        {
+          "name": "portfolio-council",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+          "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "af0ee0bd572c948c9d63aa592357ade4baab3a8ae3bf10e1ba270fcc581870c0",
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
+      "version": "3.0.0"
+    }
+  ],
+  "artifacts": {
+    "agents/runtime_company_analyst.json": "bcf2be09f632b196dd802ffad7b40bf3d6ab02f31ebf627bff57415e17fdf18a",
+    "agents/runtime_skeptic.json": "7f04649292521fa0644dbb3dd4e76d726ec8503a7b03562ca095ef28edc90802",
+    "audit/fixture_snapshot.json": "f88e40e06225ea6e8d251bfc6891428888168afc1beb8f7fe6d9ba81b72314ba",
+    "cio/runtime_cio.json": "ee293c313606cb6fd98f4ddce4465f1a9889f4d89a7da391573c208f3a3fb0e5",
+    "decision.json": "c90e52e47b0f925d01a6867162bd77ac88a33975e72588c79a0650c95643936b",
+    "eval/result.json": "a7366bd6dbe13dd752e4f94d631a82b25010ff03c77d10829c5023e9282fc9a2",
+    "events/codex/specialist-execution-proof.json": "a17e8c83f559bebef48ae41815015e3224ed4b7bc165505b523fdd0d8383c701",
+    "events/mcp/events.jsonl": "1cf0c08ba37938b2778e5544f09bebcd5b58c4e583d2a97ea731b46acb9d268e",
+    "evidence/gate.json": "f611f7512490e1901cd888f861b3e5930ea88f5b7db19738a97178d33b93381a",
+    "inputs/runtime_cio.json": "0caefd63150bbce0c0bd39fb9f9311c4edaec37ed05eee9c2aafda07b6c10740",
+    "inputs/runtime_company_analyst.json": "cf6c2a2ce98ca6fc19f5bc2b355a1c47b1d0def2191664277ce99a8586e73a6e",
+    "inputs/runtime_skeptic.json": "842f4b3d545e0a46133ba5a9299e5bde2dd8c19019e3ac637a8b624732ba485e",
+    "invocations/runtime_cio.json": "489c8b3157d34e8044dbea8e2c063867457e82060ff4c05246b74a06a25fe889",
+    "invocations/runtime_company_analyst.json": "609fc68871adfb847b2a4ee32e0a76230e82a31e60cbe232d3e1620c7e5c869a",
+    "invocations/runtime_skeptic.json": "720d88890ded280339c85709b788ba944fa315cf79947c984c4959a9b303bd77",
+    "prompts/runtime_cio.txt": "665ef80559218b22e98baa786a5907b801658c12231b23849db4584aa2149208",
+    "prompts/runtime_company_analyst.txt": "25b71fa1805200324af2558a2150aead03f95aaafaceb127d165ddd3da1ae592",
+    "prompts/runtime_skeptic.txt": "b457c47708555cb3ffd5ae96a8ae266091179d320073ea9492143568dec957fb",
+    "replay_capsule/manifest.json": "f2d871de902af7a1be20f89f416d7620319c8ec8b87d4f63c9e32c156a712499",
+    "replay_capsule/objects/0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6": "0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6",
+    "replay_capsule/objects/007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+    "replay_capsule/objects/02b31da85c82c71dff023e2273d4d7074f0ba4b0557d67b8f12fc38bf1289384": "02b31da85c82c71dff023e2273d4d7074f0ba4b0557d67b8f12fc38bf1289384",
+    "replay_capsule/objects/0623fa0d1cd4f64493cf33df20bf54f68f94819a700f5d264c681ca97eb3b5e1": "0623fa0d1cd4f64493cf33df20bf54f68f94819a700f5d264c681ca97eb3b5e1",
+    "replay_capsule/objects/0a259c65b1ee82f879883071e34cc5344a37ea6667509c0b9b4cc711f007a4cb": "0a259c65b1ee82f879883071e34cc5344a37ea6667509c0b9b4cc711f007a4cb",
+    "replay_capsule/objects/14c0c5283712fe492b4fdc0a82785d5aae12980ad68a9b813ca0712aaedc9b2a": "14c0c5283712fe492b4fdc0a82785d5aae12980ad68a9b813ca0712aaedc9b2a",
+    "replay_capsule/objects/1604fc69eeb6b206af21e4ff311b5fd1e74f5a2974d127bad46b73c2bb52337a": "1604fc69eeb6b206af21e4ff311b5fd1e74f5a2974d127bad46b73c2bb52337a",
+    "replay_capsule/objects/1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6": "1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6",
+    "replay_capsule/objects/183d0136767aa0e0f68d3ca0ea1746c23e0459254348de09dd2f578822236919": "183d0136767aa0e0f68d3ca0ea1746c23e0459254348de09dd2f578822236919",
+    "replay_capsule/objects/19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "replay_capsule/objects/1bcb9c1270962d5337b58ccfa9ca27969f83f5935321eb7fc6ca29f4c77fae23": "1bcb9c1270962d5337b58ccfa9ca27969f83f5935321eb7fc6ca29f4c77fae23",
+    "replay_capsule/objects/1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+    "replay_capsule/objects/1d0dc9334a17baa9e33346d36d879893c1c08903415c1d480d91bcc88a1c970a": "1d0dc9334a17baa9e33346d36d879893c1c08903415c1d480d91bcc88a1c970a",
+    "replay_capsule/objects/202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3": "202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3",
+    "replay_capsule/objects/2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394": "2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394",
+    "replay_capsule/objects/27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b": "27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b",
+    "replay_capsule/objects/30833b995994a21670ee497df217283875bf427abb4fa2d891056c19fc384b1d": "30833b995994a21670ee497df217283875bf427abb4fa2d891056c19fc384b1d",
+    "replay_capsule/objects/32852584de1e7d9e69f5a1b34cab0a06f6d8f58f5709e421e17b45d7c1d67014": "32852584de1e7d9e69f5a1b34cab0a06f6d8f58f5709e421e17b45d7c1d67014",
+    "replay_capsule/objects/32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+    "replay_capsule/objects/36170c9f6e7313d2f0edf9f6dabff8c5bc32aaf26e43faa6bab23e3477955a35": "36170c9f6e7313d2f0edf9f6dabff8c5bc32aaf26e43faa6bab23e3477955a35",
+    "replay_capsule/objects/38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7": "38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7",
+    "replay_capsule/objects/3a1dce65a02b6255b2c23928d0f2b08b031875ac641177f873cfdd575f08e8cb": "3a1dce65a02b6255b2c23928d0f2b08b031875ac641177f873cfdd575f08e8cb",
+    "replay_capsule/objects/3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+    "replay_capsule/objects/3c42984bd776f8980d058fca057acad090fc46d7efebbb39e1c106b9848e6ed6": "3c42984bd776f8980d058fca057acad090fc46d7efebbb39e1c106b9848e6ed6",
+    "replay_capsule/objects/4642a316043937151ce3c9ef8c7d565ab39b280608e9f31f2503b19561f9dabd": "4642a316043937151ce3c9ef8c7d565ab39b280608e9f31f2503b19561f9dabd",
+    "replay_capsule/objects/5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99": "5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99",
+    "replay_capsule/objects/5220d7de688f5b036efd2248b58bb0a0920052c6a096bf256c8ca458e282bf58": "5220d7de688f5b036efd2248b58bb0a0920052c6a096bf256c8ca458e282bf58",
+    "replay_capsule/objects/55c45fba48013051a92c6720ba0d29115f3e96cb83da44254f9f04fc30e1303e": "55c45fba48013051a92c6720ba0d29115f3e96cb83da44254f9f04fc30e1303e",
+    "replay_capsule/objects/58d2bf5abfff1fbb263a6db18f29553a8fdaaf71d81857951b08288cc3736abf": "58d2bf5abfff1fbb263a6db18f29553a8fdaaf71d81857951b08288cc3736abf",
+    "replay_capsule/objects/59f10b1adf922b40c9e9a948d025c54eeaba8229e50a3d0365aec3e8bf864b30": "59f10b1adf922b40c9e9a948d025c54eeaba8229e50a3d0365aec3e8bf864b30",
+    "replay_capsule/objects/5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23": "5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23",
+    "replay_capsule/objects/5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+    "replay_capsule/objects/623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+    "replay_capsule/objects/65c7b85ad11de41c4c500eb31de98ca1e995a021238a9e8a3a6945bd134cbc77": "65c7b85ad11de41c4c500eb31de98ca1e995a021238a9e8a3a6945bd134cbc77",
+    "replay_capsule/objects/685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f": "685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f",
+    "replay_capsule/objects/6ba2499fdeb544daf7a0566d5a78f13232d2de81aab1b288686808804e41d445": "6ba2499fdeb544daf7a0566d5a78f13232d2de81aab1b288686808804e41d445",
+    "replay_capsule/objects/70d0f3985229e5f43fd49f8b204af9fdef0beec207357ede5df5530ec980b5fa": "70d0f3985229e5f43fd49f8b204af9fdef0beec207357ede5df5530ec980b5fa",
+    "replay_capsule/objects/7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f": "7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f",
+    "replay_capsule/objects/7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+    "replay_capsule/objects/734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9": "734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9",
+    "replay_capsule/objects/74b301f1e3c5c792e0603c01d1ebcbe6944e799ba6a34ec5567e831dedccd1b2": "74b301f1e3c5c792e0603c01d1ebcbe6944e799ba6a34ec5567e831dedccd1b2",
+    "replay_capsule/objects/74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+    "replay_capsule/objects/753aa3af1346a336087ceca527f916e3f5a871e82053320306db2189693fcebf": "753aa3af1346a336087ceca527f916e3f5a871e82053320306db2189693fcebf",
+    "replay_capsule/objects/784f9ce5d56c6a3bee514246a352098460da58f2ca316729d552697374fab1d7": "784f9ce5d56c6a3bee514246a352098460da58f2ca316729d552697374fab1d7",
+    "replay_capsule/objects/78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5": "78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5",
+    "replay_capsule/objects/7a5a0d440c890248007dfaf66576b71c905b2c9d87c2371fc25f16416e8506aa": "7a5a0d440c890248007dfaf66576b71c905b2c9d87c2371fc25f16416e8506aa",
+    "replay_capsule/objects/7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+    "replay_capsule/objects/7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4": "7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4",
+    "replay_capsule/objects/7efd49bf3860e68592a398b5d8b516c2b7f7331140fd42dd9f4b1d6349f30057": "7efd49bf3860e68592a398b5d8b516c2b7f7331140fd42dd9f4b1d6349f30057",
+    "replay_capsule/objects/81ea2863f7ce94a7a977c3b9e1c90c9508b9bad30fc37ba603504c607a1d7571": "81ea2863f7ce94a7a977c3b9e1c90c9508b9bad30fc37ba603504c607a1d7571",
+    "replay_capsule/objects/88b74e6e11d5c2506f85561e323027fe0343f7fee66adee0fcf0bc61b626be53": "88b74e6e11d5c2506f85561e323027fe0343f7fee66adee0fcf0bc61b626be53",
+    "replay_capsule/objects/8a09fd7f3cfc62659cd476d4bd84aaffb2c6f4f7f26bc19023dba1f0719141a9": "8a09fd7f3cfc62659cd476d4bd84aaffb2c6f4f7f26bc19023dba1f0719141a9",
+    "replay_capsule/objects/8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434": "8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434",
+    "replay_capsule/objects/8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041": "8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041",
+    "replay_capsule/objects/90bd3698881a1cb58c0f663932c20e15b8433f09a87bca622c9421147003baa8": "90bd3698881a1cb58c0f663932c20e15b8433f09a87bca622c9421147003baa8",
+    "replay_capsule/objects/9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453": "9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453",
+    "replay_capsule/objects/9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2": "9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2",
+    "replay_capsule/objects/abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5",
+    "replay_capsule/objects/abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75": "abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75",
+    "replay_capsule/objects/abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+    "replay_capsule/objects/ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281": "ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281",
+    "replay_capsule/objects/b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33": "b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33",
+    "replay_capsule/objects/b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0": "b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0",
+    "replay_capsule/objects/b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+    "replay_capsule/objects/bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f": "bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f",
+    "replay_capsule/objects/bdb8a63d5940d45d57ea5d8312d314a1fe5423913ed6d828d7d3259f22a2ba3b": "bdb8a63d5940d45d57ea5d8312d314a1fe5423913ed6d828d7d3259f22a2ba3b",
+    "replay_capsule/objects/c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae": "c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae",
+    "replay_capsule/objects/c72feab25a26362d747f241d2be8fe4e6c0f73617674e7c743462846203971ca": "c72feab25a26362d747f241d2be8fe4e6c0f73617674e7c743462846203971ca",
+    "replay_capsule/objects/ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a": "ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a",
+    "replay_capsule/objects/cccb1cd61d9aa6e92150ea08b8765c06491fe4c91acb2be6f908b1bda245a469": "cccb1cd61d9aa6e92150ea08b8765c06491fe4c91acb2be6f908b1bda245a469",
+    "replay_capsule/objects/ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+    "replay_capsule/objects/cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a": "cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a",
+    "replay_capsule/objects/d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe": "d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe",
+    "replay_capsule/objects/d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+    "replay_capsule/objects/d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34": "d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34",
+    "replay_capsule/objects/d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+    "replay_capsule/objects/db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e": "db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e",
+    "replay_capsule/objects/de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb": "de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb",
+    "replay_capsule/objects/e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418": "e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418",
+    "replay_capsule/objects/ea1153a7d6425e58a169e6872dfa64862a1bf6d3afd209358f1a51498be1502f": "ea1153a7d6425e58a169e6872dfa64862a1bf6d3afd209358f1a51498be1502f",
+    "replay_capsule/objects/ea3c812e454b85ffd5e5175eee1ef8411021f55912faf497f567c30ba82aae8f": "ea3c812e454b85ffd5e5175eee1ef8411021f55912faf497f567c30ba82aae8f",
+    "replay_capsule/objects/eb03e4a97b00088e92ab9c142aea2d2eef161da66d785d6201b582ffdfe933af": "eb03e4a97b00088e92ab9c142aea2d2eef161da66d785d6201b582ffdfe933af",
+    "replay_capsule/objects/eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae": "eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae",
+    "replay_capsule/objects/ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6": "ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6",
+    "replay_capsule/objects/ebe7564c61babecab657e56f415975b13a8fa64eb2f91ef8fbaf71e2802ada7d": "ebe7564c61babecab657e56f415975b13a8fa64eb2f91ef8fbaf71e2802ada7d",
+    "replay_capsule/objects/efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d": "efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d",
+    "replay_capsule/objects/f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f": "f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f",
+    "replay_capsule/objects/f4d98e49adef75246b9392c4847d52226e7a38e39d58e8c0a3c6650c70595359": "f4d98e49adef75246b9392c4847d52226e7a38e39d58e8c0a3c6650c70595359",
+    "replay_capsule/objects/f611f7512490e1901cd888f861b3e5930ea88f5b7db19738a97178d33b93381a": "f611f7512490e1901cd888f861b3e5930ea88f5b7db19738a97178d33b93381a",
+    "replay_capsule/objects/f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9": "f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9",
+    "replay_capsule/objects/f78c8af076c72e6f312fceb57d6147055541e8895be047e5118bb39ed4c1ea28": "f78c8af076c72e6f312fceb57d6147055541e8895be047e5118bb39ed4c1ea28",
+    "replay_capsule/objects/f88e40e06225ea6e8d251bfc6891428888168afc1beb8f7fe6d9ba81b72314ba": "f88e40e06225ea6e8d251bfc6891428888168afc1beb8f7fe6d9ba81b72314ba",
+    "replay_capsule/objects/fa7561454bd8f9071ca032a7ed68803980431b452ab3088cc1e21dbd2d4982e4": "fa7561454bd8f9071ca032a7ed68803980431b452ab3088cc1e21dbd2d4982e4",
+    "replay_capsule/objects/fef80469d84211c95123e8e288724622b4c4097af7eb4915e7884e4038d7d191": "fef80469d84211c95123e8e288724622b4c4097af7eb4915e7884e4038d7d191",
+    "replay_capsule/objects/fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6": "fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6",
+    "replay_capsule/objects/fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0": "fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0",
+    "report.md": "ed3f83b280db8cdadd7fc40bb85886f5e20a0535d43413c36c93665536dbcb5a",
+    "risk/check-1.json": "b9521bf540677642972122eca763e7826ce8f0c6d33edb78ab230d89a9aae323",
+    "run_manifest.json": "a3459e8a71a1c08bef45f1e82e6c07db129e15df7a50caa22a701df453d96cbd",
+    "schemas/agent-research-report.schema.json": "f3c4c1d800a191512b3bcf61f477c0986745f228ddd537095f2072216b643882",
+    "schemas/counter-thesis-report.schema.json": "d34b796de0b4ef24f8601256610735c5e6775aabe3868d807e8e7b3f0d372558"
+  },
+  "codex_execution": {
+    "children": {
+      "runtime_company_analyst": {
+        "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "agent_role": "runtime_company_analyst",
+        "assistant_output_hash": "5a607718a6336594c5124e5e38e3bb590b71edf6ddf43bd5c43554a07c851659",
+        "codex_runtime": "codex-cli/0.153.4",
+        "configured_skills": [
+          {
+            "configured": true,
+            "name": "evidence-grounding",
+            "protocol_bound": true,
+            "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "company-research",
+            "protocol_bound": true,
+            "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "valuation",
+            "protocol_bound": true,
+            "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+            "version": "2.0.0"
+          }
+        ],
+        "final_structured_output_hash": "3d503dc2cec4370c2ce84a0ca3e5662a11a22b6847ca88e6fce4f86eab1397ff",
+        "model": "gpt-5.6-terra",
+        "multi_agent_version": "codex-subagent-hooks/1.0.0",
+        "observed_tool_calls": [
+          {
+            "arguments_hash": "829db5860a33b41091cc4340f7d05f42453126636ae7a60fe6e4cf9e5ec31621",
+            "call_id": null,
+            "ordinal": 0,
+            "output_hash": "cb781343f23b209ad34121fd3c3a67959a327425c7abc1978df8789aa760e36e",
+            "tool": "fixture_evidence.query"
+          },
+          {
+            "arguments_hash": "452357a54a9a72b6b4592f2223f593592f050899b9da228c1e3678c393bb76bd",
+            "call_id": null,
+            "ordinal": 1,
+            "output_hash": "2ae2420a057aac872025f8a0371a29e55182e952dcc37284941cc62ffb905f25",
+            "tool": "fixture_math.calculate"
+          }
+        ],
+        "parent_session_id": "01a08182-bb0e-7002-9fcf-b8271218dea8",
+        "raw_fixture_access_attempts": 0,
+        "role_instruction_binding_method": "hook_agent_type_plus_locked_agent_config",
+        "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+        "role_instructions_loaded": true,
+        "rollout_sha256": null,
+        "session_id": "01a08184-0957-7420-953a-99fe494de3fe",
+        "task_binding": {
+          "agent_matches": true,
+          "binding_method": "hook_identity_plus_structured_output",
+          "invocation_id_matches": true,
+          "invocation_id_present": true,
+          "run_id_matches": true,
+          "run_id_present": true,
+          "task_prompt_hash": "34f981f03e511c2be73f28d9bc036db0314e59ce84e5cd8487597b289ae51a85",
+          "task_prompt_present": true,
+          "verified": true
+        },
+        "thread_source": "subagent_hook",
+        "tool_boundary_binding_method": "locked_agent_policy_plus_mcp_lineage",
+        "unapproved_tool_calls": 0
+      },
+      "runtime_skeptic": {
+        "agent_resource_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+        "agent_role": "runtime_skeptic",
+        "assistant_output_hash": "b6057d18d29d696db89697012c24bda10095857b48bb84644f1721df45c95dc5",
+        "codex_runtime": "codex-cli/0.153.4",
+        "configured_skills": [
+          {
+            "configured": true,
+            "name": "evidence-grounding",
+            "protocol_bound": true,
+            "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "counter-thesis",
+            "protocol_bound": true,
+            "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+            "version": "2.0.0"
+          }
+        ],
+        "final_structured_output_hash": "b4c3f6d77d1be32466ae81d141f77d3490dc38d7b8e20ac5eae1e24802b8b40d",
+        "model": "gpt-5.6-terra",
+        "multi_agent_version": "codex-subagent-hooks/1.0.0",
+        "observed_tool_calls": [
+          {
+            "arguments_hash": "0e136a56f1c5f50b41b926a55c31b8700e4e68a53f996d25c4f5875684789928",
+            "call_id": null,
+            "ordinal": 0,
+            "output_hash": "cb781343f23b209ad34121fd3c3a67959a327425c7abc1978df8789aa760e36e",
+            "tool": "fixture_evidence.query"
+          }
+        ],
+        "parent_session_id": "01a08182-bb0e-7002-9fcf-b8271218dea8",
+        "raw_fixture_access_attempts": 0,
+        "role_instruction_binding_method": "hook_agent_type_plus_locked_agent_config",
+        "role_instruction_sha256": "742317a72c7d0fafb6008b6dd761a19f8999ce20c35ee522b18f434486f4c240",
+        "role_instructions_loaded": true,
+        "rollout_sha256": null,
+        "session_id": "01a08184-7efc-7f83-85b3-cbf42184dab9",
+        "task_binding": {
+          "agent_matches": true,
+          "binding_method": "hook_identity_plus_structured_output",
+          "invocation_id_matches": true,
+          "invocation_id_present": true,
+          "run_id_matches": true,
+          "run_id_present": true,
+          "task_prompt_hash": "bd30b3946bb258bc3b9ac0cc56b7d65863b65c589872d31d2fe6251541eab6e3",
+          "task_prompt_present": true,
+          "verified": true
+        },
+        "thread_source": "subagent_hook",
+        "tool_boundary_binding_method": "locked_agent_policy_plus_mcp_lineage",
+        "unapproved_tool_calls": 0
+      }
+    },
+    "dispatches": [
+      {
+        "agent": "runtime_company_analyst",
+        "call_id": "hook:01a08184-0957-7420-953a-99fe494de3fe",
+        "child_session_id": "01a08184-0957-7420-953a-99fe494de3fe",
+        "completion_ordinal": 2,
+        "dispatch_ordinal": 0,
+        "request": {
+          "agent_type": "runtime_company_analyst",
+          "fork_turns": "none",
+          "message_sha256": null,
+          "protected_message_present": false,
+          "task_name": "company_research"
+        },
+        "request_hash": "dbf336f698c386d4c56b13dbac1b656fb8f6948159e617e3587a7363d52df7cd",
+        "start_ordinal": 0
+      },
+      {
+        "agent": "runtime_skeptic",
+        "call_id": "hook:01a08184-7efc-7f83-85b3-cbf42184dab9",
+        "child_session_id": "01a08184-7efc-7f83-85b3-cbf42184dab9",
+        "completion_ordinal": 3,
+        "dispatch_ordinal": 1,
+        "request": {
+          "agent_type": "runtime_skeptic",
+          "fork_turns": "none",
+          "message_sha256": null,
+          "protected_message_present": false,
+          "task_name": "independent_skeptic"
+        },
+        "request_hash": "6f0d1f618561889e6dd9d072ba301f4f041495952abd311e760c445ebd9d68eb",
+        "start_ordinal": 1
+      }
+    ],
+    "independent_sessions_proven": true,
+    "parallel_dispatch_proven": true,
+    "parent": {
+      "codex_runtime": "codex-cli/0.153.4",
+      "model": "gpt-5.6-terra",
+      "rollout_sha256": null,
+      "session_id": "01a08182-bb0e-7002-9fcf-b8271218dea8"
+    },
+    "portfolio_council_skill_bound": true,
+    "proof_hash": "55f556f7a1696cc90f38fbf3e20412fa23b86505320ae8027836432f06d83ed0",
+    "schema_version": "codex-execution-proof/2.0.0",
+    "specialist_topology": [
+      "runtime_company_analyst",
+      "runtime_skeptic"
+    ],
+    "telemetry": {
+      "cache_provenance": "NEW_EXECUTION",
+      "cached_tokens": 637696,
+      "input_tokens": 694057,
+      "latency_ms": 301930,
+      "llm_calls": 3,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 10011,
+      "status": "AVAILABLE",
+      "trigger_reason": "product_council"
+    }
+  },
+  "events": [
+    {
+      "stage": "DISCOVERY_PREFLIGHT",
+      "status": "PASSED"
+    },
+    {
+      "allowed_evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "bundle_hash": "faa36cfbee3290427051370ce11851d3cc25d454ae79199654c8457ea1ce9562",
+      "excluded_evidence_ids": [],
+      "stage": "EVIDENCE_GATE",
+      "status": "PASSED"
+    },
+    {
+      "agents": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_INVOCATIONS_PREPARED"
+    },
+    {
+      "evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "reports": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_REPORTS_VALIDATED"
+    },
+    {
+      "attempt": 1,
+      "input_hash": "17e7f9e90663356175c07f78f13447ee3f5d54fdfb8d4918fc11ad9244a59703",
+      "policy_version": "risk/reference/1.0.0",
+      "stage": "RISK_ENGINE_STARTED"
+    },
+    {
+      "risk_status": "APPROVED",
+      "stage": "TERMINAL_DECISION_VALIDATED",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    {
+      "eval_hash": "828a2d6007bb62964d09c73cdb95fa14dc9f39aa73b1737fc9b286bed90fb91b",
+      "stage": "ACTUAL_ARTIFACT_EVAL",
+      "status": "PASSED"
+    }
+  ],
+  "evidence_lineage": {
+    "allowed_evidence_ids": [
+      "ev-normal-debt",
+      "ev-normal-margin",
+      "ev-normal-price",
+      "ev-normal-revenue",
+      "ev-normal-update"
+    ],
+    "bundle_hash": "faa36cfbee3290427051370ce11851d3cc25d454ae79199654c8457ea1ce9562",
+    "conflict_policy_version": "conflict-key/2.0.0",
+    "decision_cutoff": "2026-01-31T23:59:59Z",
+    "excluded_evidence_ids": [],
+    "freshness_policy_version": "freshness/fixture/2.0.0"
+  },
+  "failed_stage": null,
+  "mcp_events": [
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.1",
+      "agent": "runtime_company_analyst",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "829db5860a33b41091cc4340f7d05f42453126636ae7a60fe6e4cf9e5ec31621",
+      "invocation_id": "inv_138474db80231c84e0134cdc",
+      "output_hash": "cb781343f23b209ad34121fd3c3a67959a327425c7abc1978df8789aa760e36e",
+      "run_id": "rrh-nested-current-lock-normal-04-20260908",
+      "tool": "fixture_evidence.query"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.1",
+      "agent": "runtime_company_analyst",
+      "calculation_id": "debt_to_revenue_001",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-revenue"
+      ],
+      "input_hash": "452357a54a9a72b6b4592f2223f593592f050899b9da228c1e3678c393bb76bd",
+      "invocation_id": "inv_138474db80231c84e0134cdc",
+      "output_hash": "2ae2420a057aac872025f8a0371a29e55182e952dcc37284941cc62ffb905f25",
+      "run_id": "rrh-nested-current-lock-normal-04-20260908",
+      "tool": "fixture_math.calculate"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.1",
+      "agent": "runtime_skeptic",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "0e136a56f1c5f50b41b926a55c31b8700e4e68a53f996d25c4f5875684789928",
+      "invocation_id": "inv_3179fb43c24b6a45d4dcf15f",
+      "output_hash": "cb781343f23b209ad34121fd3c3a67959a327425c7abc1978df8789aa760e36e",
+      "run_id": "rrh-nested-current-lock-normal-04-20260908",
+      "tool": "fixture_evidence.query"
+    }
+  ],
+  "risk_lineage": [
+    {
+      "attempt": 1,
+      "error": null,
+      "input_hash": "17e7f9e90663356175c07f78f13447ee3f5d54fdfb8d4918fc11ad9244a59703",
+      "policy_version": "risk/reference/1.0.0",
+      "result": {
+        "check": {
+          "feasible_bounds": {
+            "SEC-AAA": {
+              "maximum": 0.6,
+              "minimum": 0.0
+            }
+          },
+          "mandate_version": "mandate/fixture/2.0.0",
+          "metric_definition_version": "portfolio-metrics/1.0.0",
+          "policy_version": "risk/reference/1.0.0",
+          "post_trade_metrics": {
+            "average_daily_value": {
+              "SEC-AAA": 10000000.0
+            },
+            "cash": 50000.0,
+            "cash_weight": 0.5,
+            "concentration_hhi": 0.25,
+            "cost_bps": 10.0,
+            "definition_version": "portfolio-metrics/1.0.0",
+            "liquidity_participation": {
+              "SEC-AAA": 0.0
+            },
+            "max_position_weight": 0.5,
+            "position_weights": {
+              "SEC-AAA": 0.5
+            },
+            "sector_exposure": {
+              "Synthetic Technology": 0.5
+            },
+            "simulated_cost": 0.0,
+            "total_value": 100000.0,
+            "trade_notionals": {
+              "SEC-AAA": 0.0
+            },
+            "turnover": 0.0
+          },
+          "pre_trade_metrics": {
+            "average_daily_value": {
+              "SEC-AAA": 10000000.0
+            },
+            "cash": 50000.0,
+            "cash_weight": 0.5,
+            "concentration_hhi": 0.25,
+            "definition_version": "portfolio-metrics/1.0.0",
+            "max_position_weight": 0.5,
+            "position_weights": {
+              "SEC-AAA": 0.5
+            },
+            "sector_exposure": {
+              "Synthetic Technology": 0.5
+            },
+            "total_value": 100000.0
+          },
+          "stage": "FINAL",
+          "status": "APPROVED",
+          "veto_codes": [],
+          "violations": []
+        },
+        "draft_hash": "17e7f9e90663356175c07f78f13447ee3f5d54fdfb8d4918fc11ad9244a59703",
+        "final_action": "NO_TRADE",
+        "modifications": [],
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "producer": "deterministic_risk_engine",
+        "run_id": "rrh-nested-current-lock-normal-04-20260908",
+        "schema_version": "native-risk-result/2.0.0",
+        "veto_reason": null
+      },
+      "result_hash": "74b18562c8698791abcfd836be3d5424172db901f778107cf56de90d59ab912b",
+      "run_id": "rrh-nested-current-lock-normal-04-20260908",
+      "schema_version": "risk-lineage/2.1.0",
+      "status": "COMPLETED"
+    }
+  ],
+  "run_id": "rrh-nested-current-lock-normal-04-20260908",
+  "runtime": {
+    "candidate_version": "0.3.0-candidate.1",
+    "codex_runtime": "codex-cli/0.153.4",
+    "discovery_hash": "a2451e93a5a9cb8c3a50cc77b75cc94f270000a8f9d0b3bcbb358a2ea15de548",
+    "model": "gpt-5.6-terra",
+    "replay_capsule": {
+      "manifest_hash": "2967156f363b2a8135a091743249a1856797c019e54df45d6b2c4330698dffb4",
+      "object_count": 96,
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260908/runs/current-lock-normal-04/replay_capsule",
+      "root_hash": "61ce586fcc787f040a921b1ba2f00feb8a8644190d9347eef713d2aee45b10dd",
+      "schema_version": "replay-capsule/1.0.0"
+    },
+    "runtime_profile": "fixture-council/3.0.0",
+    "trigger_reason": "product_council",
+    "version_lock": {
+      "agents": {
+        "runtime-cio": "3.0.0",
+        "runtime-company-analyst": "2.1.0",
+        "runtime-market-catalyst": "1.0.0",
+        "runtime-skeptic": "2.0.0"
+      },
+      "assurance": {
+        "ablation-profiles": "1.0.0",
+        "model-routing-policy": "1.0.0",
+        "promotion-policy": "1.0.0",
+        "regression-set": "1.1.0",
+        "runtime-eval-calibration": "1.0.0",
+        "runtime-eval-grader-agent": "1.0.0",
+        "runtime-eval-grader-skill": "1.0.0",
+        "runtime-eval-rubric": "1.0.0"
+      },
+      "assurance_hashes": {
+        "ablation_profiles": "7e69d2623791ffb6a2a319e68d33c4978ec9b7b8773c2c7db13fbb9c92293d70",
+        "model_routing_policy": "e68f5190f4e13a2d3136f87893b0ae894bfb9dc83124e5f29084567d0be16ff7",
+        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+        "regression_set": "6004fb79ed7ec5de46310e017cf493b2362b3259ddf2222982d78e75d9a143ef",
+        "runtime_eval_calibration": "d95a5763f08e0450fbf48f01661380bdd12004b2de66f34711e504b013c88627",
+        "runtime_eval_grader_agent": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
+        "runtime_eval_grader_skill": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+        "runtime_eval_rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+      },
+      "candidate_version": "0.3.0-candidate.1",
+      "codex_runtime": "codex-cli/0.153.4",
+      "data_snapshot": "fixture/codex-native/2.0.0",
+      "decision_contract": "council-decision-contract/1.0.0",
+      "manifest_version": "3.0.0",
+      "mcp_adapters": {
+        "fixture-gate-scoped": "2.1.1",
+        "fixture-reference": "1.0.0",
+        "provider-neutral-contracts": "1.0.0"
+      },
+      "model": "gpt-5.6-terra",
+      "resource_hashes": {
+        "cio_agent": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+        "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "council_skill": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+        "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+        "plugin": "0623fa0d1cd4f64493cf33df20bf54f68f94819a700f5d264c681ca97eb3b5e1",
+        "plugin_mcp": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+        "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+        "runtime_profile": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+        "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+      },
+      "risk_policy": "risk/reference/1.0.0",
+      "runtime_profile": "fixture-council/3.0.0",
+      "schemas": {
+        "ablation-report": "1.0.0",
+        "artifact-envelope": "1.0.0",
+        "decision-risk": "1.0.0",
+        "decision-trace": "2.1.0",
+        "deterministic-test-execution": "1.0.0",
+        "deterministic-test-report": "1.0.0",
+        "evidence": "1.0.0",
+        "execution-replay": "1.0.0",
+        "learning": "1.0.0",
+        "portfolio": "1.0.0",
+        "promotion-gate": "1.0.0",
+        "promotion-input": "1.0.0",
+        "regression-case": "1.1.0",
+        "regression-suite": "1.0.0",
+        "replay-capsule": "1.0.0",
+        "research": "1.0.0",
+        "runtime-artifacts": "2.1.0",
+        "runtime-eval-job": "1.0.0",
+        "semantic-calibration-result": "1.0.0",
+        "semantic-rubric-result": "1.0.0"
+      },
+      "skills": {
+        "catalyst-analysis": "1.0.0",
+        "company-research": "2.0.0",
+        "counter-thesis": "2.0.0",
+        "evidence-grounding": "2.0.0",
+        "portfolio-council": "3.0.0",
+        "valuation": "2.0.0"
+      }
+    }
+  },
+  "schema_version": "decision-trace/2.1.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

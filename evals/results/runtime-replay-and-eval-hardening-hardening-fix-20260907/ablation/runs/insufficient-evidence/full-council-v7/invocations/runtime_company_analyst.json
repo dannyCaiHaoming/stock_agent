@@ -1,0 +1,70 @@
+{
+  "agent": {
+    "name": "runtime_company_analyst",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_company_analyst.toml",
+    "sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+    "version": "2.1.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "input_artifact": "inputs/runtime_company_analyst.json",
+  "input_hash": "f27dd637aad544f56da8e78deef822fd45e52d63ff9867438f8af9f9b520c2a8",
+  "instruction_bundle_hash": "93af2e613cd4ba5e5a21313494a2a8d748b9af52e72c6049fa8eadd19de29f11",
+  "invocation_id": "inv_d62be77e6ad37cf2a185cd17",
+  "manifest_hash": "cc1fedb79846b2a062acec73c385c9e82e75c25e2f587bf461e5a6e77d10d873",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/insufficient-evidence/full-council-v7/schemas/agent-research-report.schema.json",
+  "output_schema_hash": "ab5bba37599bc3731d02fdc7a551514d6578a3f6d56b844337d66d4127da452d",
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v7-20260908",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "74264defaa9a345aa821b67a95686229fec8dfe0a1d7ffc4c49f1cbd53dfa687",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "cab202e4ac751782eb923bf2f75f01259d7e1ef8803e4887cd63f1f723f1d5dc",
+      "skill_name": "company-research",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "eb9105aa6d7e7dccac597a56f4ee5f2fd9956dead41e90262ec526aada9b7858",
+      "skill_name": "valuation",
+      "version": "2.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "evidence-grounding",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+      "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+      "version": "2.0.0"
+    },
+    {
+      "name": "company-research",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/company-research/SKILL.md",
+      "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+      "version": "2.0.0"
+    },
+    {
+      "name": "valuation",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/valuation/SKILL.md",
+      "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+      "version": "2.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_company_analyst.txt",
+  "task_prompt_hash": "c967fc83674351ca40e7c2bdd1fb9d3c922bd84b3deb56a8d758c0400323f67c",
+  "tool_permissions": [
+    "fixture_evidence.query",
+    "fixture_math.calculate"
+  ]
+}

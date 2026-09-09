@@ -1,0 +1,149 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-insufficient-price"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "验证证据不足场景在真实 Codex 下完成并行 Specialist、CIO、Risk 与合法终态。",
+  "run_id": "rrh-pretool-guard-insufficient-evidence-20260909",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "c37efc7c872f07cc56084b9b8d4870acca3d9e1ea64e9cc5777133b253c9ff98",
+    "runtime_skeptic": "bce22e393afdd4a7b6fafcea95ad71972810aa64fa2a66ffc9c2cf47d2794362"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_1",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 收盘价为 100 USD/股；来源 fixture-market-primary，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。"
+        }
+      ],
+      "confidence": 0.08,
+      "confidence_rationale": "对单一价格事实的置信度较高，但其信息范围不足以形成公司研究结论，因此整体研究置信度极低。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入、利润率、自由现金流、资产负债表、行业与竞争信息。",
+        "缺少估值所需的盈利或现金流基准、股份数量及可比公司或历史倍数。",
+        "缺少能够验证或反驳公司 Thesis 的独立公司基本面证据。"
+      ],
+      "invalidation_conditions": [
+        "若后续获得与该价格不一致且来源、as_of 与retrieved_at 完整的授权价格证据，则该价格事实需要重新核验。",
+        "在补充公司基本面和估值证据前，任何公司 Thesis 或估值解释均不成立。"
+      ],
+      "invocation_id": "inv_b1d94e7ca442c40db7e57d3b",
+      "run_id": "rrh-pretool-guard-insufficient-evidence-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；唯一授权证据为 fixture-market-primary 的收盘价，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "c2017d8eb99efebc908ef85642178e69c2bb5c6c9e99aa525f12e580c3670f5b",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7f2d35111aaf9f77b186a8bb6ad0ec95cc04a02648a92abc2d95426868892016",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "c1466aa26b15319f8ee41a675b2239f4f2444a2e37e9afcb3ca1cc3175598584",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一价格观察不能支持对商业质量、竞争地位、盈利能力、现金流、资本结构或估值的判断。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "A-PRICE-SUFFICIENCY"
+          ],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "Point-in-time financial performance and balance-sheet evidence.",
+            "Point-in-time valuation inputs and peer or market context.",
+            "Company-specific catalyst, risk, and liquidity evidence available before the decision cutoff."
+          ],
+          "statement": "A single close-price observation of USD 100 does not establish business fundamentals, valuation, catalysts, liquidity, downside risk, or whether any proposed research thesis is robust; treating it as sufficient support would be an unsupported alternative explanation."
+        }
+      ],
+      "confidence": 0.95,
+      "confidence_rationale": "High confidence that the evidence set is insufficient: the only authorized item is one fresh close-price observation, which cannot independently support or falsify a substantive company or portfolio thesis.",
+      "counter_evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "data_gaps": [
+        "Fundamental financial statements and operating metrics are absent.",
+        "Valuation inputs, capital structure, and comparable-company context are absent.",
+        "Catalyst calendar, adverse-event evidence, trading liquidity, and risk exposures are absent."
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "This insufficient-evidence conclusion would be invalidated by Gate-authorized, point-in-time evidence covering fundamentals, valuation, catalysts, liquidity, and material risks before the decision cutoff."
+      ],
+      "invocation_id": "inv_0c1e30a6e393a1300e98625c",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-pretool-guard-insufficient-evidence-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA independent first-pass counter-thesis review through decision cutoff 2026-01-31T23:59:59Z. The authorized evidence is one fresh USD close-price observation as of 2026-01-30T21:00:00Z from fixture-market-primary.",
+      "skill_execution": [
+        {
+          "invocation_hash": "eec953881f6abc2e800157ab33feceb21cfb3a5d2e0a4a3eaef99cf5ace6fdac",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "e5d204cf708bfe33227a3110c349b623b71bad8266f535b3fdb35f85348b49b8",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "The authorized observation is fresh and identifies a close price, but it does not explain the drivers or reliability of any investment thesis.",
+        "No independent evidence is available to distinguish a justified valuation from price momentum, market-wide movement, or an idiosyncratic temporary effect."
+      ]
+    }
+  }
+}

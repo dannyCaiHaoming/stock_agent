@@ -1,0 +1,19 @@
+{
+  "schema_version": "regression-set/1.0.0",
+  "set_id": "portfolio-council-regression/1.0.0",
+  "default_model_route": "runtime_repeated",
+  "cases": [
+    "normal-research.json",
+    "insufficient-evidence.json",
+    "all-evidence-stale.json",
+    "future-information-leakage.json",
+    "analyst-skeptic-strong-conflict.json",
+    "dangling-evidence-reference.json",
+    "risk-veto.json",
+    "high-concentration-portfolio.json",
+    "llm-overconfidence.json",
+    "mandatory-no-trade.json",
+    "valid-action-contract.json",
+    "invalid-specialist-output.json"
+  ]
+}

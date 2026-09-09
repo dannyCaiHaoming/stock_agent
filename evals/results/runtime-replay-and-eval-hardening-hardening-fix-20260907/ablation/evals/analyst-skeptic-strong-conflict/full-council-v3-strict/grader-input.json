@@ -1,0 +1,431 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "c1",
+          "evidence_refs": [
+            "ev-conflict-revenue-a"
+          ],
+          "kind": "FACT",
+          "statement": "收入证据 A：revenue_ttm 为 USD 1,000,000；source_id=fixture-filing-source-a，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c2",
+          "evidence_refs": [
+            "ev-conflict-revenue-b"
+          ],
+          "kind": "FACT",
+          "statement": "收入证据 B：revenue_ttm 为 USD 1,250,000；source_id=fixture-filing-source-b，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-16T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c3",
+          "evidence_refs": [
+            "ev-conflict-margin"
+          ],
+          "kind": "FACT",
+          "statement": "operating_margin_ttm 为 0.18；source_id=fixture-filing-source-a，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c4",
+          "evidence_refs": [
+            "ev-conflict-price"
+          ],
+          "kind": "FACT",
+          "statement": "收盘价为 USD 100；source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c5",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "两个新鲜且同一 as_of 的收入来源相差 25%，未获授权证据无法裁决哪一数值应作为收入基数；因此任何依赖收入规模的商业判断或估值解释均不具备充分证据基础。"
+        }
+      ],
+      "confidence": 0.24,
+      "confidence_rationale": "价格、利润率和两项收入均为新鲜授权证据，但关键收入事实在相同 as_of 下存在 25% 未解决分歧，且缺少裁决材料；商业 Thesis 与估值无法形成高置信度结论。",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-b"
+      ],
+      "data_gaps": [
+        "缺少可在两个收入数值间裁决的权威来源、报表调节表、会计口径说明或更正披露。",
+        "缺少支撑收入增长、竞争地位、现金流、资本结构及估值倍数判断的授权证据。"
+      ],
+      "invalidation_conditions": [
+        "若获得权威且可追溯的证据证明其中一个收入数值适用于一致的 revenue_ttm 定义，当前关于未解决收入冲突的限制即失效。",
+        "若确认两个收入数值的范围、币种、合并边界或会计口径不同，则当前将其视为同口径冲突的解释必须修订。"
+      ],
+      "invocation_id": "inv_e8ec7d2a87c3045e82d4c904",
+      "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "仅评估 SEC-AAA 截至 decision_cutoff 2026-01-31T23:59:59Z 的授权证据；同一 2025-12-31T00:00:00Z revenue_ttm 存在未解决来源冲突。",
+      "skill_execution": [
+        {
+          "invocation_hash": "3929110666870018611c0aeb6dd965fac6600064b1be75e0453fa7a9c0a24336",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "de96ba31e363d9881cd293d0e5605507b0521aa4f639b2a5772db9e82bab28bb",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "bda65829cc3fad006a5ed1e0a1bd3f7cdbadbc048499df885824d71455510fbc",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "收入冲突并非时间口径差异：两项证据的 as_of 均为 2025-12-31T00:00:00Z，但来自不同 source_id，且没有授权的来源调节、审计或口径说明。",
+        "18% operating_margin_ttm 无法单独确定应采用的收入规模，也不能消除收入冲突对估值及经营规模解释的影响。"
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "revenue_ttm_is_unambiguous",
+            "revenue_sources_are_comparable"
+          ],
+          "challenge_id": "revenue-definition-or-source-conflict",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "resolution_evidence_needed": [
+            "具有一致报告主体、合并范围、期间定义和重述状态的权威收入披露",
+            "两个来源的字段映射、口径及数据转换血缘"
+          ],
+          "statement": "同为2025-12-31的收入证据给出1,000,000与1,250,000 USD，差异25%。替代解释包括来源间的口径、合并范围、重述处理或数据映射不一致；在未核对原始申报定义前，不能将任一数值作为确定的收入规模、增长或估值基础。"
+        },
+        {
+          "assumption_ids": [
+            "margin_and_revenue_share_reporting_boundary",
+            "profitability_is_comparable_across_sources"
+          ],
+          "challenge_id": "margin-scale-linkage-unproven",
+          "evidence_refs": [
+            "ev-conflict-margin",
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "resolution_evidence_needed": [
+            "同一报告边界、同一期间下的收入与经营利润原始披露",
+            "可复算的TTM构成及非经常性项目说明"
+          ],
+          "statement": "18% TTM operating margin仅来自与较低收入数值相同的来源，授权证据未证明该利润率可与另一收入值配对。若收入差异反映口径或合并范围差异，利润率与收入规模的联立解释可能失真。"
+        }
+      ],
+      "confidence": 0.32,
+      "confidence_rationale": "对收入数值不一致这一事实具有较高把握，但缺少判定来源权威性和口径可比性的必要证据，不能在冲突中选定一方或形成可靠的经营规模解释。",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin"
+      ],
+      "data_gaps": [
+        "缺少原始披露中收入定义、报告主体、合并范围和重述信息。",
+        "缺少经营利润金额及利润率计算分子/分母，无法检验18%利润率的可比性。",
+        "缺少收入历史、客户/产品构成、现金流与资产负债表证据，无法检验任何增长或质量叙事。"
+      ],
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "若权威且可追溯的披露证明两项收入采用相同报告主体、期间、币种和合并范围，并明确其中一项为错误、过时或重述前数值，则收入冲突挑战失效。",
+        "若同一报告边界下的原始经营利润和收入可复算为18%且不存在未解释的调整项，则利润率与收入规模联立解释的挑战减弱。"
+      ],
+      "invocation_id": "inv_3e3193cdbcb64bfd8b633bc5",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；仅基于 Gate 授权证据评估截至 decision_cutoff 的同一 as_of 收入事实冲突及其对商业规模与盈利解释的反证影响。",
+      "skill_execution": [
+        {
+          "invocation_hash": "8c089b5df1e6d3f8c51cc4f7d8c21bbbceda4654d607ec4780c7e9c4fcec0bd7",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "2ea53dc20945d0b9d9e2bf518777c51197eca8ed72d439f39f6a92839b42ef1f",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "两项冲突收入均标示为FRESH且as_of相同，但授权证据未提供口径、审计/重述状态或来源优先级。",
+        "价格证据截至2026-01-30且新鲜，但没有授权的股本、现金流、增长、估值倍数或可比数据，不能把价格与经营事实形成可验证的估值解释。",
+        "无法判断收入差异是实质经营差异、报告范围差异还是数据处理差异。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.2,
+      "confidence_rationale": "Gate 允许的事实和两份独立已验证报告一致指向关键收入冲突；虽然冲突本身清晰，但没有授权证据裁决来源权威性、会计口径或利润率与收入的可比性，故无法形成足以支持仓位动作的置信度。",
+      "conflicts": [
+        {
+          "confidence_impact": "该关键基本面输入存在 25% 未解差异，且缺少来源优先级、报告边界、重述或调节证据，显著限制结论置信度。",
+          "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+          "decision_impact": "不能选择任一收入数值作为商业规模、增长、估值或与利润率联立解释的基础，因此不形成仓位变更意图。",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "summary": "同一 SEC-AAA、同一 2025-12-31 as_of 的 revenue_ttm 记录分别报告 USD 1,000,000 与 USD 1,250,000，来自不同 source_id；Gate 将其标记为 INCOMPATIBLE_NORMALIZED_VALUES。",
+          "unresolved": true
+        }
+      ],
+      "consensus": [
+        "Company Analyst 与 Independent Skeptic 均确认同一 as_of 的收入事实存在 25% 未解差异。",
+        "两份报告均认为缺少能在两来源之间裁决的权威披露、字段映射或会计口径说明。",
+        "现有价格与利润率事实不足以抵消收入冲突，不能形成可靠的经营规模或估值解释。"
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "72e8db124fd50a9b144c83147fc878b51cb2561455531a69ecae4ad161619931"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "08db291d9904d8ef76c72dfe314d6da4436d104895234fad5d17aca508a69f37"
+        }
+      ],
+      "counter_thesis": "同一 2025-12-31 as_of 的两条 revenue_ttm 证据分别为 USD 1,000,000 和 USD 1,250,000，来源不同且没有授权的口径、合并范围或重述说明。收入基数未解，也无法验证 18% margin 与任一收入口径可配对。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "权威且可追溯的来源证明其中一个收入数值在相同报告主体、期间、币种及合并范围下适用，并说明另一记录为何不适用。",
+        "同一报告边界下可复算的收入和经营利润披露验证或推翻 18% operating margin 与收入规模的配对。"
+      ],
+      "invocation_id": "inv_1dd454e696d60215eba14222",
+      "maximum_notional": null,
+      "no_trade_explanation": "关键收入事实在同一 as_of 下存在 25% 的未解决来源冲突，且缺少口径、报告边界、重述与来源优先级证据；在此条件下，任何收入规模、估值或仓位变更解释均不可核验。",
+      "no_trade_reason": "MATERIAL_SOURCE_CONFLICT",
+      "reevaluation_conditions": [
+        "取得能够逐项说明两个 revenue_ttm 记录的报告主体、合并范围、期间、币种、口径、重述状态及来源血缘的权威披露。",
+        "取得同一报告边界下可复算的收入和经营利润资料，并补充增长、现金流、资本结构及估值所需的授权证据。"
+      ],
+      "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "00fc45f67f2da1120cab86b416df551f23f026844db7914576efc14d5f5b84f1",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "target_weight_range": null,
+      "thesis": "授权证据显示 SEC-AAA 的 TTM operating margin 为 18%，收盘价为 USD 100；但现有记录不足以把这些孤立事实形成可靠的收入规模、增长或估值 Thesis。",
+      "time_horizon": "在收入定义、报告边界与来源优先级获得可核验澄清之前",
+      "unresolved_questions": [
+        "哪一收入记录具有适用的一致 revenue_ttm 定义、报告主体、合并范围和重述状态？",
+        "18% operating_margin_ttm 是否与经核验的同一收入口径和期间边界对应？",
+        "在获得收入口径澄清后，是否有足够的增长、现金流、资本结构和估值证据支持重新评估？"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.2,
+          "confidence_rationale": "Gate 允许的事实和两份独立已验证报告一致指向关键收入冲突；虽然冲突本身清晰，但没有授权证据裁决来源权威性、会计口径或利润率与收入的可比性，故无法形成足以支持仓位动作的置信度。",
+          "counter_thesis": "同一 2025-12-31 as_of 的两条 revenue_ttm 证据分别为 USD 1,000,000 和 USD 1,250,000，来源不同且没有授权的口径、合并范围或重述说明。收入基数未解，也无法验证 18% margin 与任一收入口径可配对。",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-conflict-margin",
+            "ev-conflict-price",
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "invalidation_conditions": [
+            "权威且可追溯的来源证明其中一个收入数值在相同报告主体、期间、币种及合并范围下适用，并说明另一记录为何不适用。",
+            "同一报告边界下可复算的收入和经营利润披露验证或推翻 18% operating margin 与收入规模的配对。"
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "关键收入事实在同一 as_of 下存在 25% 的未解决来源冲突，且缺少口径、报告边界、重述与来源优先级证据；在此条件下，任何收入规模、估值或仓位变更解释均不可核验。",
+          "no_trade_reason": "MATERIAL_SOURCE_CONFLICT",
+          "reevaluation_conditions": [
+            "取得能够逐项说明两个 revenue_ttm 记录的报告主体、合并范围、期间、币种、口径、重述状态及来源血缘的权威披露。",
+            "取得同一报告边界下可复算的收入和经营利润资料，并补充增长、现金流、资本结构及估值所需的授权证据。"
+          ],
+          "security_id": "SEC-AAA",
+          "target_weight_range": null,
+          "thesis": "授权证据显示 SEC-AAA 的 TTM operating margin 为 18%，收盘价为 USD 100；但现有记录不足以把这些孤立事实形成可靠的收入规模、增长或估值 Thesis。",
+          "time_horizon": "在收入定义、报告边界与来源优先级获得可核验澄清之前",
+          "unresolved_questions": [
+            "哪一收入记录具有适用的一致 revenue_ttm 定义、报告主体、合并范围和重述状态？",
+            "18% operating_margin_ttm 是否与经核验的同一收入口径和期间边界对应？",
+            "在获得收入口径澄清后，是否有足够的增长、现金流、资本结构和估值证据支持重新评估？"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "evidence_id": "ev-conflict-margin",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "operating_margin_ttm",
+          "source_id": "fixture-filing-source-a",
+          "source_locator": "fixture://conflict/margin/a",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "ratio",
+          "value": 0.18
+        },
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://conflict/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-source-a",
+          "source_locator": "fixture://conflict/revenue/a",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-16T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-source-b",
+          "source_locator": "fixture://conflict/revenue/b",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "bundle_hash": "f86a39f95ede2b8d004af99d8a6534236cd51cbe645c90594d40d77392425ae8",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [
+        {
+          "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+          "evidence_ids": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "observations": [
+            {
+              "currency": "USD",
+              "evidence_id": "ev-conflict-revenue-a",
+              "source_id": "fixture-filing-source-a",
+              "unit": "USD",
+              "value": 1000000
+            },
+            {
+              "currency": "USD",
+              "evidence_id": "ev-conflict-revenue-b",
+              "source_id": "fixture-filing-source-b",
+              "unit": "USD",
+              "value": 1250000
+            }
+          ],
+          "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+          "source_ids": [
+            "fixture-filing-source-a",
+            "fixture-filing-source-b"
+          ]
+        }
+      ],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "evidence-conflict-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "8eb2492efc16796982d1c1857889ba382bd629eae3475d156749c51d8bc05890",
+      "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+  "terminal_state": "SAFE_NO_TRADE"
+}

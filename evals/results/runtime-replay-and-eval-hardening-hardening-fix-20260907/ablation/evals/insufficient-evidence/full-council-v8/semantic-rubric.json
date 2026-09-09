@@ -1,0 +1,56 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim-1",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，明确该事实不能支持公司研究或估值主张，且列出数据缺口与重新评估条件。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录两份 Specialist 对证据不足的共识、无冲突、未决问题及其不形成持仓调整意图的影响，并将其纳入 NO_TRADE 说明。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "各报告明确将高置信度限定于证据不足和不形成方向性判断的结论，同时承认对具体商业质量、估值和风险判断证据不足，方向与不确定性一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 与 decision.json 均将唯一 Gate 授权价格事实判为不足以支持商业、估值或风险判断；INSUFFICIENT_EVIDENCE 的 NO_TRADE 理由、说明及取得可追溯基本面、估值和风险证据后重评的条件一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "challenge-evidence-sufficiency-001",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 以 INDEPENDENT_FIRST_PASS 具体说明单一价格不能独立验证的前提与未排除失败路径，列出可检验的数据缺口、所需证据和失效条件。",
+      "status": "PASS"
+    }
+  },
+  "eval_id": "rreh-hardening-ablation-eval-insufficient-full-council-v8-20260908",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "8c06313ea89b62aaecc450c10c36185b96f2317bdf306c33c81850bff05142af",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "da5447a953ca4f3d0ff3c5c8795ce9e3e9ae6d1e92db6ec8571477490ad3cfb0",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

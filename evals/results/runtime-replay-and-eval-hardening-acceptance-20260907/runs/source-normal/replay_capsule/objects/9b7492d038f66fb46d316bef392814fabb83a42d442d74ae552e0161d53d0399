@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/semantic-calibration-result/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "calibration_id", "status", "agreement", "threshold", "unstable_dimensions", "observations", "input_hashes", "result_hash"],
+  "properties": {
+    "schema_version": {"const": "semantic-calibration-result/1.0.0"},
+    "calibration_id": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["PASS", "FAIL"]},
+    "agreement": {"type": "number", "minimum": 0, "maximum": 1},
+    "threshold": {"type": "number", "minimum": 0, "maximum": 1},
+    "unstable_dimensions": {"type": "array", "items": {"type": "string"}},
+    "observations": {"type": "integer", "minimum": 1},
+    "input_hashes": {"type": "object", "minProperties": 3, "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "result_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

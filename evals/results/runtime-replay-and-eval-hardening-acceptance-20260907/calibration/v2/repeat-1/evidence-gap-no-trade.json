@@ -1,0 +1,37 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": "semantic-rubric-v1-calibration-v2-repeat-1-evidence-gap-no-trade",
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "reason": "SAFE_NO_TRADE 在 Analyst 运行前终止，未产生 Analyst。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "reason": "SAFE_NO_TRADE 在 Skeptic 运行前终止，未产生 Skeptic。"
+    },
+    "cio_conflict_handling": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "reason": "SAFE_NO_TRADE 在 CIO synthesis 前终止，未产生 CIO。"
+    },
+    "confidence_calibration": {
+      "status": "PASS",
+      "grade": 3,
+      "reason": "0.05 的置信度明确限定于无合格 PIT 证据时的不交易结论，理由与证据缺口一致。"
+    },
+    "no_trade_reasoning": {
+      "status": "PASS",
+      "grade": 3,
+      "reason": "NO_USABLE_EVIDENCE、证据不足解释和取得 cutoff 前可验证证据的重评条件彼此一致。"
+    }
+  },
+  "output_hash": "40fe447a48840fe39afe9fe27a5318389f35bb628ed8c0c9e5c112b58c0cf9b1"
+}

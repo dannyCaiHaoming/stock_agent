@@ -1,0 +1,68 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "mechanical_conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_ids": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "observations": [
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "source_id": "fixture-filing-source-a",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "source_id": "fixture-filing-source-b",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+      "source_ids": [
+        "fixture-filing-source-a",
+        "fixture-filing-source-b"
+      ]
+    }
+  ],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "评估 Analyst 与 Skeptic 强冲突场景。",
+  "run_id": "rreh-ablation-v3-conflict-cio-only-20260907",
+  "validated_report_hashes": {},
+  "validated_reports": {}
+}

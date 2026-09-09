@@ -1,0 +1,257 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "请基于冻结的组合与 point-in-time Evidence，完成仅供研究建议的投资委员会分析。",
+  "run_id": "rrh-nested-regression-normal-research-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "48ce9f75ac03520585b903cef847507b87217f917661f17b55f32dc57805d592",
+    "runtime_skeptic": "6aa7d6940eacfffa1a54889f7b2f79837d4b5b7b936dadc9cba35fa497ca434e"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "company_debt_to_revenue_20260908_inv_e36bf580e0f075688237c3dd"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_financial_snapshot",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "事实：SEC-AAA 的总债务为 USD 150,000、TTM 收入为 USD 1,000,000；两项均来自 fixture-filing-primary，as_of 为 2025-12-31T00:00:00Z，retrieved_at 为 2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_operating_margin",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "FACT",
+          "statement": "事实：TTM 经营利润率为 18%，来源 fixture-filing-primary，as_of 为 2025-12-31T00:00:00Z，retrieved_at 为 2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_market_price",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "kind": "FACT",
+          "statement": "事实：收盘价为每股 USD 100，来源 fixture-market-primary，as_of 为 2026-01-30T21:00:00Z，retrieved_at 为 2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_capacity_update",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "FACT",
+          "statement": "事实：管理层维持此前披露的产能计划；来源 fixture-company-release，as_of 为 2026-01-20T14:00:00Z，retrieved_at 为 2026-01-20T14:01:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_business_quality_interpretation",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue",
+            "ev-normal-margin"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "解释：确定性计算显示总债务/TTM 收入为 0.15（calculation_id: company_debt_to_revenue_20260908_inv_e36bf580e0f075688237c3dd）。结合 18% 经营利润率，现有证据支持公司具备盈利能力且债务相对收入规模不高；但这不足以判断利息覆盖、现金流转换或资本回报。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_execution_interpretation",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "解释：管理层维持产能计划表明战略方向未发生已披露的收缩性变化，但该表述未提供产能投放进度、需求验证或实际回报，因此不能单独作为增长兑现的证据。"
+        }
+      ],
+      "confidence": 0.7,
+      "confidence_rationale": "核心财务、价格和公司更新均为新鲜且具来源与时间血缘的允许证据，债务/收入比亦经确定性工具计算；但缺少现金流、债务服务、历史趋势、执行里程碑及估值输入，限制了商业质量与估值结论的置信度。",
+      "counter_evidence_refs": [
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "缺少现金、净债务、债务到期结构、利息费用和流动性数据。",
+        "缺少收入、利润率及自由现金流的历史序列与前瞻指引。",
+        "缺少流通股数、稀释、市场资本化和估值倍数所需数据。",
+        "缺少产能计划的金额、时间表、需求支撑和执行里程碑。"
+      ],
+      "invalidation_conditions": [
+        "后续经验证据显示经营利润率显著下降或收入基础恶化。",
+        "后续经验证据显示债务显著增加、流动性受限或债务服务能力恶化。",
+        "管理层撤回、延后或无法执行产能计划，或实际需求不足以支持该计划。"
+      ],
+      "invocation_id": "inv_e36bf580e0f075688237c3dd",
+      "run_id": "rrh-nested-regression-normal-research-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 的 point-in-time 公司研究；仅使用允许证据。价格来自 fixture-market-primary，截至 2026-01-30T21:00:00Z、于 2026-01-30T21:05:00Z 获取；财务数据来自 fixture-filing-primary，截至 2025-12-31T00:00:00Z、于 2026-01-15T13:00:00Z 获取；公司更新来自 fixture-company-release，截至 2026-01-20T14:00:00Z、于 2026-01-20T14:01:00Z 获取。",
+      "skill_execution": [
+        {
+          "invocation_hash": "86942443f8b5ca2f771952d574189bda430e5049adf003be91683bc761a3ef4a",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "b485e2441a96e88ff488d3dd96c6ba73b56fe1db9b8c3a6180e7691552641bac",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "56ab76623886d2f44b4ff81ea7884a06d9722551381fdf1138cf272775eac37e",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "产能计划维持仅为管理层表述，缺少项目进度、资本开支、订单或利用率数据。",
+        "单期 TTM 经营利润率不能说明利润率趋势或周期性。",
+        "USD 100 的价格缺少流通股数、市值、现金、自由现金流和可比估值数据，无法形成估值判断。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "ASSUMPTION_DEBT_IS_MANAGEABLE",
+            "ASSUMPTION_OPERATING_PROFIT_CONVERTS_TO_CASH"
+          ],
+          "challenge_id": "debt-service-and-refinancing-path",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-margin",
+            "ev-normal-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "Debt maturity schedule, interest expense or effective rate, covenant terms, cash balance, and cash-flow or free-cash-flow history as of the decision cutoff."
+          ],
+          "statement": "A 150,000 USD total-debt balance should not be treated as benign from the supplied data alone: maturity timing, interest burden, covenants, liquidity, and cash generation are absent, so leverage could constrain capital deployment or resilience despite the reported operating margin."
+        },
+        {
+          "assumption_ids": [
+            "ASSUMPTION_CAPACITY_PLAN_IS_VALUE_ACCRETIVE",
+            "ASSUMPTION_CAPACITY_PLAN_EXECUTES_TO_SCHEDULE"
+          ],
+          "challenge_id": "capacity-plan-execution-path",
+          "evidence_refs": [
+            "ev-normal-update",
+            "ev-normal-debt"
+          ],
+          "resolution_evidence_needed": [
+            "Plan scale, capex budget and funding source, construction milestones, demand commitments, expected utilization, and return-on-invested-capital assumptions."
+          ],
+          "statement": "Management maintaining a previously stated capacity plan is not evidence that the plan is funded, on schedule, demand-supported, or capable of earning acceptable returns. The same update can be consistent with delayed execution, capex pressure, or excess-capacity risk."
+        },
+        {
+          "assumption_ids": [
+            "ASSUMPTION_CURRENT_PRICE_REFLECTS_ATTRACTIVE_VALUE",
+            "ASSUMPTION_MARGIN_IS_DURABLE",
+            "ASSUMPTION_REVENUE_BASE_IS_SUSTAINABLE"
+          ],
+          "challenge_id": "valuation-and-earnings-durability-path",
+          "evidence_refs": [
+            "ev-normal-price",
+            "ev-normal-margin",
+            "ev-normal-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "Diluted share count, cash and other liabilities, valuation multiples, multi-period revenue and margin history, segment or customer concentration, and competitor pricing evidence."
+          ],
+          "statement": "The supplied close price and one-period revenue and operating-margin observations do not establish valuation support or earnings durability. Without share count, enterprise-value inputs, growth history, segment economics, and competitive context, a favorable interpretation of the 18% operating margin remains untested."
+        }
+      ],
+      "confidence": 0.42,
+      "confidence_rationale": "The authorized evidence is fresh and internally non-conflicting, but it is narrow: it supports identification of leverage, execution, and valuation-durability failure paths without resolving their likelihood or materiality.",
+      "counter_evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "Cash, liquidity facilities, debt maturity schedule, interest expense, covenants, and free-cash-flow data.",
+        "Share count, market capitalization, enterprise value, peer valuation context, and capital-allocation history.",
+        "Revenue growth history, customer concentration, backlog or demand commitments, utilization, capex requirements, and competitive conditions."
+      ],
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "Evidence that debt maturities, liquidity, and cash generation comfortably support obligations and planned capacity spending.",
+        "Evidence that capacity expansion is funded, on schedule, demand-backed, and expected to earn returns above the relevant cost of capital.",
+        "Evidence of durable revenue and margin performance together with valuation inputs that materially weaken the valuation-risk concern."
+      ],
+      "invocation_id": "inv_78e1a56c4b7db853e2a44c05",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-nested-regression-normal-research-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA independent counter-thesis review using only authorized point-in-time evidence available through the 2026-01-31T23:59:59Z decision cutoff; no portfolio action or target weight is selected.",
+      "skill_execution": [
+        {
+          "invocation_hash": "f2139994e0fcc854b6e0da6b4d71a4b45393656104f792b86feb933cdf6549a1",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "d9cec92fd0c4fa1cb0d0d039579ddc9b9704ad582e32738ea04b584051af0317",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "The operating-margin and revenue observations are as of 2025-12-31, while the observed market price is as of 2026-01-30; intervening operating developments are not supplied.",
+        "The capacity-plan update provides no measurable execution, financing, demand, or return information.",
+        "No evidence establishes whether total debt is secured, near-term, floating-rate, covenant-constrained, or offset by cash."
+      ]
+    }
+  }
+}

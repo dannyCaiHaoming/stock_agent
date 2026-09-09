@@ -1,0 +1,58 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.38,
+      "confidence_rationale": "事实层面证据新鲜、来源明确且 Gate 未标记机械冲突；但两份已验证报告一致识别出现金流、债务服务、产能执行和估值的实质性数据缺口。专业报告之间对有限正面观察的可解释程度存在未解决分歧，且独立反证报告为 LOW_CONFIDENCE，因此无法以足够置信度形成方向性组合意图。",
+      "counter_thesis": "现有单期财务、价格和产能计划维持表述无法排除债务到期、利息、流动性、现金流、产能融资与需求兑现的风险；同时缺少股数、企业价值、历史增长与竞争数据，无法检验 USD 100 价格是否具有估值支持。因此任何将现有利润率或相对债务规模直接外推为可执行配置判断的结论均未获证据闭环支持。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "后续截至适用决策截止日的可核验证据显示债务到期、流动性、现金流与利息负担均可支持计划支出，则债务服务风险判断需要重新评估。",
+        "后续可核验证据显示产能扩张已融资、按期推进、存在需求支撑并有可评估回报，则执行风险判断需要重新评估。",
+        "后续可核验证据提供股数、现金和企业价值、历史收入与利润率趋势及竞争背景，并能形成估值判断，则估值不确定性需要重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "现有允许证据虽支持有限的财务、价格与管理层表述观察，但没有闭合债务服务、现金流、产能执行和估值判断所需的关键问题。为避免将未验证的解释转化为组合动作，本草案选择 NO_TRADE。",
+      "no_trade_reason": "LOW_CONFIDENCE",
+      "reevaluation_conditions": [
+        "取得并经 Gate 允许的截至决策截止日债务到期、利息、现金、流动性、契约及现金流证据。",
+        "取得并经 Gate 允许的产能计划规模、融资、建设进度、需求支撑、利用率与回报证据。",
+        "取得并经 Gate 允许的稀释股数、现金与其他负债、企业价值、历史经营趋势与竞争背景，以完成估值和持续性评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "允许证据确认 SEC-AAA 截至 2025-12-31 的 TTM 收入为 USD 1,000,000、经营利润率为 18%、总债务为 USD 150,000；截至 2026-01-30 的收盘价为 USD 100，且管理层在 2026-01-20 维持此前产能计划。债务/TTM 收入的确定性计算为 0.15。这些事实支持有限的盈利与执行方向观察，但不足以支持估值、现金流转换、债务承受能力或产能回报的判断。",
+      "time_horizon": "在获得足以解决关键数据缺口的、截至决策截止日可核验的新证据之前",
+      "unresolved_questions": [
+        "截至决策截止日，现金、流动性安排、债务到期结构、利息费用、契约及自由现金流如何共同决定债务服务能力？",
+        "产能计划的资本开支、资金来源、建设节点、需求承诺、利用率与预期投资回报为何？",
+        "在稀释股数、现金与其他负债、企业价值、历史增长和竞争环境均未知的情况下，USD 100 的价格对应何种估值与安全边际？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-nested-regression-normal-research-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

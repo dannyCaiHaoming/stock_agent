@@ -1,0 +1,124 @@
+{
+  "eval_hash": "ce6d20e4b3d19cff53e7856b4e0e4225d6b61945c062f32395c34057704a3beb",
+  "eval_id": "rreh-ablation-v3-eval-normal-cio-only-20260907",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "6e60dfa1b496fe137e1f4456051f6f46d7fdf8db66481d8110c29140beb517e7",
+    "input_hash": "17367dd1c92cc9b1e94049896fd2310aac19b298270993773416fafd3f4bdc2f",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 229888,
+      "input_tokens": 282855,
+      "latency_ms": 137191,
+      "llm_calls": 10,
+      "output_tokens": 5063
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "27655bba19894d43f8e70affecda6640e030fd9b2ad60c76a4851ca0d6acbfbe",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 5,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 5
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "5ce02085553247eec47e083372539d300339d4780ff0816be8e9c1255cc5dc30",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "fc320e36a940b0554b660b15696f802c2b84a436241219d16720ffba2937c1f5",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rreh-ablation-v3-normal-cio-only-20260907",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "cio-only 输入没有 Analyst Specialist 报告，且 runtime_cio.consumed_reports 为空；没有可评分的 Analyst Thesis 或其证据引用。",
+      "status": "NOT_APPLICABLE"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确记录无已验证 Specialist 报告、空共识和空冲突，并以未决的估值、产能执行和竞争问题说明 NO_TRADE 的影响；引用的允许证据与其基础事实陈述一致。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "0.35 置信度的理由区分了新鲜且允许的基础事实与缺失的关键验证维度，并将不确定性限定为不形成调整建议；方向上与证据不足一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "NO_TRADE 明确归因于已允许证据未覆盖估值、现金流、竞争和产能执行验证，且给出获得 Gate-allowed 证据和经验证独立报告后的重评条件；该范围与所列五项允许证据一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "cio-only 输入没有 Skeptic Specialist 报告，且 runtime_cio.consumed_reports 为空；没有可评分的独立反证产物。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "5ce02085553247eec47e083372539d300339d4780ff0816be8e9c1255cc5dc30",
+    "artifact_replay": "27655bba19894d43f8e70affecda6640e030fd9b2ad60c76a4851ca0d6acbfbe",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "05c285a54a9beb19fd597746845ca5b18b0d86a2524a77dd1f8c9e9e448b3d7e",
+    "semantic_input": "17367dd1c92cc9b1e94049896fd2310aac19b298270993773416fafd3f4bdc2f",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "d696461ad33e9df8040455159d8f61ff76a23bf8a8517761aac4397ba696de08"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

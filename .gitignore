@@ -24,3 +24,6 @@ venv/
 # Editor-local state
 .idea/
 .vscode/
+
+# 本地 Codex 会话状态可能包含私人历史；保留本地，不随验收证据发布。
+evals/results/**/.codex-runtime/

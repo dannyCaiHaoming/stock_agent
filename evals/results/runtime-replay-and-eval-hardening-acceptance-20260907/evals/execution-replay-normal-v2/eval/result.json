@@ -1,0 +1,136 @@
+{
+  "eval_hash": "a9173a04d4c6ad1e03ce2b31e34eb13ddd6768b4f52247a2b6ce62c8e7f69681",
+  "eval_id": "rreh-eval-execution-replay-normal-v2-20260907",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "03dd606cc6e1a36f2e20a20d7e0749033d461fa38ef3606b540dda207be49337",
+    "input_hash": "f6d6853f209de4ff530da47daf6bb455bbcf9f7406f5f35015e932f32e52e195",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 287744,
+      "input_tokens": 351186,
+      "latency_ms": 138571,
+      "llm_calls": 12,
+      "output_tokens": 4640
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "1970db3273de99520f012939d6c9593c944d7a52e34c0d623c3ea5db9466e9bf",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 5,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 5
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "3a6a39c8e4f104cdda28f22e46f736fa0772f2d3c7cb0d4d78721ad75f6ac9d0",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "COMPLETED",
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "9c7dfb19ee058f2dcda21365677cc6ab5fce70fbd2b7462e52f5b3a977807ee4",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rreh-execution-replay-normal-20260907",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "Claims c1-c4 are labeled FACT and cite their supporting records. Claim c5 is labeled INTERPRETATION, declares assumption a1, and limits the inference rather than treating the cited margin, debt/revenue ratio, or plan update as a valuation conclusion.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "CIO records the specialist consensus, reports no conflicts consistently with the gate conflict set, lists unresolved questions, and makes the evidence gaps the stated basis for NO_TRADE and reevaluation.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "The analyst, skeptic, and CIO all state bounded confidence rationales tied to the narrow frozen evidence and identified uncertainties; CIO confidence remains low and does not convert limited facts into a stronger conclusion.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "CIO NO_TRADE is tied to the limited static evidence set and explicitly identifies missing cash-flow, debt-structure, demand, capacity-execution, and valuation evidence; its reevaluation conditions request those verifiable inputs.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "The independent-first-pass skeptic gives three specific, falsifiable challenges—margin durability, capacity execution, and valuation downside—links each to frozen evidence, and states concrete evidence needed to weaken each challenge.",
+      "status": "PASS"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "3a6a39c8e4f104cdda28f22e46f736fa0772f2d3c7cb0d4d78721ad75f6ac9d0",
+    "artifact_replay": "1970db3273de99520f012939d6c9593c944d7a52e34c0d623c3ea5db9466e9bf",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "3ceb711866f55963a158fb113648d0f9e88f8e7fd0c32be5bfa7a32b8954cc5c",
+    "semantic_input": "f6d6853f209de4ff530da47daf6bb455bbcf9f7406f5f35015e932f32e52e195",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "eec74f4a481c6397b4f0090208b1236e8c3c48e4a39f615b597d0b8ac04bd254"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

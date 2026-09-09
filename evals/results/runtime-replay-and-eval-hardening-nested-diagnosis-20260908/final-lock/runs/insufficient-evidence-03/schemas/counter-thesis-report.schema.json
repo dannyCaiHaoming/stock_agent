@@ -1,0 +1,167 @@
+{
+  "$id": "portfolio-council/counter-thesis-report/2.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "const": "runtime_skeptic"
+    },
+    "artifact_refs": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "challenges": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "assumption_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "challenge_id": {
+            "type": "string"
+          },
+          "evidence_refs": {
+            "items": {
+              "description": "必须逐字选择当前 Gate 的 allowed_evidence_ids；只能填写原始 evidence_id，禁止拼接 source_id、as_of、retrieved_at 或说明文字。",
+              "enum": [
+                "ev-insufficient-price"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "resolution_evidence_needed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "statement": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_id",
+          "statement",
+          "evidence_refs",
+          "assumption_ids",
+          "resolution_evidence_needed"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "confidence_rationale": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "counter_evidence_refs": {
+      "items": {
+        "description": "必须逐字选择当前 Gate 的 allowed_evidence_ids；只能填写原始 evidence_id，禁止拼接 source_id、as_of、retrieved_at 或说明文字。",
+        "enum": [
+          "ev-insufficient-price"
+        ],
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "data_gaps": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "evidence_refs": {
+      "items": {
+        "description": "必须逐字选择当前 Gate 的 allowed_evidence_ids；只能填写原始 evidence_id，禁止拼接 source_id、as_of、retrieved_at 或说明文字。",
+        "enum": [
+          "ev-insufficient-price"
+        ],
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "invalidation_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "invocation_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "mode": {
+      "const": "INDEPENDENT_FIRST_PASS"
+    },
+    "run_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "counter-thesis-report/2.0.0"
+    },
+    "scope": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "skill_execution": {
+      "items": {
+        "$ref": "agent-research-report.schema.json#/$defs/skill"
+      },
+      "minItems": 2,
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "COMPLETE",
+        "TIMEOUT",
+        "INSUFFICIENT_EVIDENCE",
+        "LOW_CONFIDENCE"
+      ]
+    },
+    "uncertainties": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "invocation_id",
+    "status",
+    "agent",
+    "mode",
+    "scope",
+    "challenges",
+    "evidence_refs",
+    "counter_evidence_refs",
+    "uncertainties",
+    "data_gaps",
+    "invalidation_conditions",
+    "confidence",
+    "confidence_rationale",
+    "skill_execution",
+    "artifact_refs"
+  ],
+  "type": "object",
+  "x-evidence-id-constraint": {
+    "allowed_evidence_ids_hash": "00df35d996ce5342533d506aaba0f030c24c1b259bb8b6829b2be9e0cd0ccfe9",
+    "mode": "enum",
+    "source": "agent_input.allowed_evidence_ids"
+  }
+}

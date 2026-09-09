@@ -72,7 +72,7 @@ class SkillConfigTests(unittest.TestCase):
             expected_version = (
                 "1.0.0"
                 if skill_name == "catalyst-analysis"
-                else "2.1.0"
+                else "3.0.0"
                 if skill_name == "portfolio-council"
                 else "2.0.0"
             )
@@ -172,7 +172,7 @@ class RuntimeAgentConfigTests(unittest.TestCase):
                 for name in profile
             },
             {
-                "runtime_cio": "2.1.0",
+                "runtime_cio": "3.0.0",
                 "runtime_company_analyst": "2.1.0",
                 "runtime_skeptic": "2.0.0",
             },

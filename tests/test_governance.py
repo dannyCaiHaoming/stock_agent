@@ -26,11 +26,19 @@ class GovernanceTests(unittest.TestCase):
         self.assertEqual(4, len(paths))
         for path in paths:
             config = tomllib.loads(path.read_text())
-            self.assertTrue(config["name"].startswith("dev-"))
+            self.assertTrue(config["name"].replace("_", "-").startswith("dev-"))
             self.assertIn("investment-decision", config["developer_instructions"])
             self.assertIn("broker-write", config["developer_instructions"])
         reviewer = tomllib.loads((ROOT / ".codex" / "agents" / "dev_reviewer.toml").read_text())
         self.assertEqual("read-only", reviewer["sandbox_mode"])
+
+    def test_development_agents_are_registered_for_codex_native_delegation(self):
+        config = tomllib.loads((ROOT / ".codex" / "config.toml").read_text(encoding="utf-8"))
+        self.assertEqual(
+            {"dev_architect", "dev_contracts", "dev_eval", "dev_reviewer"},
+            set(config["agents"]) - {"max_threads"},
+        )
+        self.assertEqual("agents/dev_eval.toml", config["agents"]["dev_eval"]["config_file"])
 
     def test_capability_template_has_five_required_sections(self):
         template = (ROOT / "reviews" / "capability-contract-template.md").read_text()
@@ -55,6 +63,8 @@ class GovernanceTests(unittest.TestCase):
             "mcp_adapters",
             "risk_policy",
             "data_snapshot",
+            "assurance",
+            "assurance_hashes",
         }
         self.assertEqual(required, set(manifest))
         for key in required:

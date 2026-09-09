@@ -1,0 +1,4 @@
+interface:
+  display_name: "Portfolio Council"
+  short_description: "基于证据、仅供研究建议的投资组合委员会"
+  default_prompt: "请以 CIO 身份评审我的持仓，只委派必要的研究能力，执行确定性风险校验，并返回研究建议计划或 NO_TRADE。"

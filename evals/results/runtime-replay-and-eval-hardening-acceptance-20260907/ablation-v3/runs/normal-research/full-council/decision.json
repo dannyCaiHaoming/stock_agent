@@ -1,0 +1,61 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.35,
+      "confidence_rationale": "五项 Gate 允许事实均经截至决策日的只读核验，且两份结构化报告均通过验证；但二者一致指出评估债务服务、利润质量、需求兑现及估值所需的关键资料缺失。没有机械证据冲突，但缺口本身阻止形成具备可验证基础的方向性行动。",
+      "counter_thesis": "独立反证指出，债务、历史利润率、维持产能计划与单一收盘价均不能分别或合并证明偿债能力、利润质量、需求支持或估值吸引力；缺失的现金流、债务结构、订单与资本结构资料对结论具实质性影响。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "取得显示充足流动性、债务可覆盖且无近期契约压力的截至决策日证据。",
+        "取得跨期、经常性且在压力情景下仍具韧性的利润率与现金流证据。",
+        "取得可验证的订单、利用率和资本回报数据，显示产能计划由需求支持且执行按计划推进。",
+        "取得完整资本结构与估值数据，显示在合理压力情景下仍存在明确安全边际。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "可用事实不足以验证偿债能力、利润与需求的可持续性以及估值安全边际；在这些关键问题未获可核验解决前，本 EVAL_ABLATION 运行不形成方向性行动。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得截至决策日的现金、净债务、利息费用、债务期限、契约及自由现金流资料。",
+        "获得利润率历史序列、一次性项目、客户/产品结构、竞争与定价资料。",
+        "获得订单、产能利用率、资本开支、资金来源、执行里程碑及资本回报资料。",
+        "获得稀释后股数、企业价值、净债务、盈利/现金流估值资料和压力情景分析。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "Gate 允许证据显示截至2025-12-31的TTM收入为1,000,000 USD、经营利润率为18%及总债务为150,000 USD，并显示管理层于2026-01-20维持既有产能计划；这些事实不足以验证商业质量、债务服务能力、需求兑现或估值安全边际。",
+      "time_horizon": "在取得重估条件所列的可核验证据之前",
+      "unresolved_questions": [
+        "截至决策日的现金、净债务、利息费用、债务期限、契约及自由现金流为何？",
+        "利润率的历史序列、一次性项目、客户/产品结构、竞争及定价韧性为何？",
+        "产能计划的订单、利用率、资本开支、资金来源、执行里程碑与资本回报为何？",
+        "稀释后股数、企业价值、净债务、盈利与现金流估值基础及压力情景为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-ablation-v3-normal-full-council-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

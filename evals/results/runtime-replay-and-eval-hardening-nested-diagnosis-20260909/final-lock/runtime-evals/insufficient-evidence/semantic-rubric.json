@@ -1,0 +1,54 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The Analyst labels claim-price-observation FACT, cites the price observation, and explicitly limits it to that fact while identifying no supported company thesis and the related evidence gaps.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO records Specialist consensus, no conflicts present, explicit unresolved questions, and the resulting NO_TRADE impact, all limited to the cited observation and documented gaps.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The low Analyst, Skeptic, and CIO confidence values are directionally consistent with the single authorized observation, material gaps, and stated uncertainty.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The sole cited allowed evidence supports the stated insufficiency; the NO_TRADE explanation and three traceable reevaluation conditions match the reported gaps.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "In its independent first pass, the Skeptic cites the sole observation and specifically identifies untestable assumptions, alternative explanations, data gaps, and the resolution evidence required.",
+      "status": "PASS"
+    }
+  },
+  "eval_id": "rrh-final-lock-eval-insufficient-evidence-20260909",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "9054784f2f7333606cb8996d99198aa6863b97d2b252c316653f06686c6a8b2b",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "89727cb8a59527ffdfe1b1b05e4b09a80c15f7ddf5e9a54fb40c043f2c1c59b0",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

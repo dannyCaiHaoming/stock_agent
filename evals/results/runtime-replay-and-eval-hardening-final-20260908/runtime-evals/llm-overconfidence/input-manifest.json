@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-eval-llm-overconfidence-20260908",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence",
+  "run_id": "rrh-final-llm-overconfidence-20260908",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "4f9a6e1944007fe7f1c1eaf00179c4af06e46c48edf88271b4b1e4db8cc0cc41",
+    "artifact_replay": "e10c943a6f03f22c72526e85da436d9fa7931b173a37cfe46e06b1ff81856572",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "7d3e1884261271972498602e4151c881a883082e92a09ce501b5632bd8795dad",
+    "semantic_input": "cb099ca5f8e51c72cf7a5ba3d26da4bb9c8b074ddb2806275c3865cbe0d88c0d",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "ec911a6a8c053fd64d59001893dc5f75c1723ffa402948924f3e548c8b28a54a"
+  }
+}

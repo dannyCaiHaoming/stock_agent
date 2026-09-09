@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/_bottom_up_audit.py", line 7, in <module>
+    from product.deterministic.policy import ALLOWED_POLICY_METRICS, RuleBasis
+ModuleNotFoundError: No module named 'product'

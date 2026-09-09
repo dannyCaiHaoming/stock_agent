@@ -1,0 +1,60 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-ablation-v3-conflict-cio-only-20260907",
+  "invocation_id": "inv_a3c607d447d7eef9984797de",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Until the conflicting revenue evidence is resolved with verifiable evidence.",
+  "thesis": "The Gate-scoped evidence shows a 0.18 operating margin and a recent close price of 100 for SEC-AAA, but it does not support an action because same-period revenue is reported as both 1000000 and 1250000 by separate allowed sources.",
+  "counter_thesis": "No contrary action thesis can be validated from this cio-only input because there are no validated Specialist reports and the material revenue conflict remains unresolved.",
+  "consensus": [],
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "summary": "Two Gate-allowed sources report incompatible normalized revenue_ttm values for the same security and period: 1000000 and 1250000 USD.",
+      "unresolved": true,
+      "decision_impact": "The conflict prevents reliable synthesis of the revenue evidence into an advisory action.",
+      "confidence_impact": "It materially lowers confidence because the conflict is unresolved and no validated Specialist report is available to assess its significance."
+    }
+  ],
+  "unresolved_questions": [
+    "Which verifiable source or reconciliation resolves the conflicting SEC-AAA revenue_ttm values for 2025-12-31?",
+    "Would the resolved revenue figure materially change the company-quality and valuation assessment?"
+  ],
+  "invalidation_conditions": [
+    "A verified reconciliation establishes a single supportable revenue_ttm value for SEC-AAA as of 2025-12-31.",
+    "A validated research report based only on Gate-allowed or subsequently verified evidence materially changes the assessment."
+  ],
+  "confidence": 0.1,
+  "confidence_rationale": "Confidence in any directional action is low because the CIO input contains no validated Specialist reports and includes a material unresolved conflict in same-period revenue evidence.",
+  "evidence_refs": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "no_trade_reason": "EVIDENCE_CONFLICT",
+  "no_trade_explanation": "The Gate-scoped revenue_ttm evidence conflicts for the same security and period, and this cio-only evaluation has no validated Specialist reports to resolve or assess that conflict. No advisory action is supported until the conflict is reconciled with verifiable evidence.",
+  "reevaluation_conditions": [
+    "Obtain a verifiable reconciliation or authoritative replacement for the conflicting revenue_ttm evidence.",
+    "Validate any resulting research report before a new CIO synthesis."
+  ],
+  "skill_execution": [
+    {
+      "skill_name": "portfolio-council",
+      "version": "3.0.0",
+      "invocation_hash": "1b7650861b8380f1daf2a469ced72daac3f2e28ae8441d9861bc1ef3693502bf"
+    }
+  ],
+  "advisory_only": true
+}

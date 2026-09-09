@@ -1,0 +1,58 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-final-insufficient-evidence-20260908",
+  "invocation_id": "inv_d796c36e8212b6c4dbb98631",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "a08dcfe8e6f27f51c5dee77965d9466bff1b50d8c4a8e662f8c26f342298a2f7"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "a9955ede8db3be30b4f005627f2e43f61164a87fb7dc67fbcc3544455d02f2c4"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess only when the identified point-in-time evidence gaps are remedied.",
+  "thesis": "The permitted evidence establishes only a USD 100 close price for SEC-AAA and does not support a company-quality, fundamental, or valuation thesis.",
+  "counter_thesis": "The same single price observation cannot distinguish favorable fundamentals from unobserved adverse developments, valuation risk, technical pricing, or liquidity constraints.",
+  "consensus": [
+    "Both validated specialist reports conclude that the sole permitted close-price observation is insufficient for a substantiated security-level thesis or valuation interpretation.",
+    "Both reports identify missing fundamental, valuation, catalyst, risk, and liquidity context as decision-material evidence gaps."
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What are SEC-AAA's point-in-time operating performance, financial condition, and capital structure?",
+    "What valuation context, catalysts, risks, and liquidity conditions apply at the decision cutoff?"
+  ],
+  "invalidation_conditions": [
+    "This decision must be reassessed if permitted point-in-time fundamental, valuation, catalyst, risk, and liquidity evidence becomes available.",
+    "The cited close-price fact is invalidated if its source is corrected or the SEC-AAA security mapping changes."
+  ],
+  "confidence": 0.1,
+  "confidence_rationale": "Confidence is limited to the sourced close-price fact. The unanimous specialist finding of material evidence gaps supports deferring any security-level recommendation, not an investment conclusion.",
+  "evidence_refs": [
+    "ev-insufficient-price"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "The Gate-scoped evidence contains only one close-price observation. The verified specialist reports agree this does not establish business quality, financial condition, valuation, catalysts, risks, or liquidity; therefore no change to the portfolio is supported.",
+  "reevaluation_conditions": [
+    "Obtain permitted, point-in-time company financial and operating evidence.",
+    "Obtain permitted, point-in-time valuation and capital-structure evidence.",
+    "Obtain permitted, point-in-time catalyst, risk, and liquidity evidence."
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "e5a586763c11ff60bd57f94a21bfb6a4281e83e2a6164e32b3c66227ae68eeca",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

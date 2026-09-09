@@ -1,0 +1,166 @@
+{
+  "agents": [
+    {
+      "invocation_id": "inv_783cd0b34879475ad9547efa",
+      "manifest_hash": "288fc23a5d40416102db4df78805d862e4c2deb75d27773a94c6cf9c138d8bb8",
+      "name": "runtime_company_analyst",
+      "status": "PREPARED",
+      "version": "2.1.0"
+    },
+    {
+      "invocation_id": "inv_074a3b5ef857f5cc747ba97d",
+      "manifest_hash": "4f42e2380d638e24eb4dabe94c0fe89d12cd62d8bbfeec5db86127c209f43450",
+      "name": "runtime_skeptic",
+      "status": "PREPARED",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_id": "inv_9d69dffd04481025259964e0",
+      "manifest_hash": "97279fbdb7adac8e72482156cfb794f0cd6a896e7d55f5777829afb368d07ae3",
+      "name": "runtime_cio",
+      "status": "PREPARED",
+      "version": "3.0.0"
+    }
+  ],
+  "artifacts": {
+    "evidence/gate.json": "300ff68f5da036ae2c0c9bf031a7dc367c43f85d568c2e121bc546b48ef94551",
+    "run_manifest.json": "d7cd54801f83465bb54b43ce7ea0ab76242e4322b6962431f6ba17d81e6d4db4"
+  },
+  "codex_execution": null,
+  "events": [
+    {
+      "stage": "DISCOVERY_PREFLIGHT",
+      "status": "PASSED"
+    },
+    {
+      "allowed_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "bundle_hash": "ce7b324b90afcd579543a1f2f2a99013597193576ac277659d4051d7056b6b4e",
+      "excluded_evidence_ids": [],
+      "stage": "EVIDENCE_GATE",
+      "status": "PASSED"
+    },
+    {
+      "agents": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_INVOCATIONS_PREPARED"
+    },
+    {
+      "evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "reports": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_REPORTS_VALIDATED"
+    }
+  ],
+  "evidence_lineage": null,
+  "failed_stage": null,
+  "mcp_events": [],
+  "risk_lineage": [],
+  "run_id": "rrh-parallel-barrier-diagnosis-insufficient-evidence-20260909",
+  "runtime": {
+    "candidate_version": "0.3.0-candidate.1",
+    "codex_runtime": "codex-cli/0.153.4",
+    "discovery_hash": "a2451e93a5a9cb8c3a50cc77b75cc94f270000a8f9d0b3bcbb358a2ea15de548",
+    "model": "gpt-5.6-terra",
+    "replay_capsule": {
+      "manifest_hash": "966ad1861db86681a2b2807b3057a2db1795ebb73b670c00d90892329bcbb329",
+      "object_count": 96,
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260908/barrier-diagnosis/runs/insufficient-evidence/replay_capsule",
+      "root_hash": "a7d0aec034356a3f2cc7ce660ba29feddd1fab399db4eef6b5b5edb26377bb3c",
+      "schema_version": "replay-capsule/1.0.0"
+    },
+    "runtime_profile": "fixture-council/3.0.0",
+    "trigger_reason": "product_council",
+    "version_lock": {
+      "agents": {
+        "runtime-cio": "3.0.0",
+        "runtime-company-analyst": "2.1.0",
+        "runtime-market-catalyst": "1.0.0",
+        "runtime-skeptic": "2.0.0"
+      },
+      "assurance": {
+        "ablation-profiles": "1.0.0",
+        "model-routing-policy": "1.0.0",
+        "promotion-policy": "1.0.0",
+        "regression-set": "1.1.0",
+        "runtime-eval-calibration": "1.0.0",
+        "runtime-eval-grader-agent": "1.0.0",
+        "runtime-eval-grader-skill": "1.0.0",
+        "runtime-eval-rubric": "1.0.0"
+      },
+      "assurance_hashes": {
+        "ablation_profiles": "7e69d2623791ffb6a2a319e68d33c4978ec9b7b8773c2c7db13fbb9c92293d70",
+        "model_routing_policy": "e68f5190f4e13a2d3136f87893b0ae894bfb9dc83124e5f29084567d0be16ff7",
+        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+        "regression_set": "6004fb79ed7ec5de46310e017cf493b2362b3259ddf2222982d78e75d9a143ef",
+        "runtime_eval_calibration": "d95a5763f08e0450fbf48f01661380bdd12004b2de66f34711e504b013c88627",
+        "runtime_eval_grader_agent": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
+        "runtime_eval_grader_skill": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+        "runtime_eval_rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+      },
+      "candidate_version": "0.3.0-candidate.1",
+      "codex_runtime": "codex-cli/0.153.4",
+      "data_snapshot": "fixture/codex-native/2.0.0",
+      "decision_contract": "council-decision-contract/1.0.0",
+      "manifest_version": "3.0.0",
+      "mcp_adapters": {
+        "fixture-gate-scoped": "2.1.1",
+        "fixture-reference": "1.0.0",
+        "provider-neutral-contracts": "1.0.0"
+      },
+      "model": "gpt-5.6-terra",
+      "resource_hashes": {
+        "cio_agent": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+        "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "council_skill": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+        "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+        "plugin": "0623fa0d1cd4f64493cf33df20bf54f68f94819a700f5d264c681ca97eb3b5e1",
+        "plugin_mcp": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+        "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+        "runtime_profile": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+        "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+      },
+      "risk_policy": "risk/reference/1.0.0",
+      "runtime_profile": "fixture-council/3.0.0",
+      "schemas": {
+        "ablation-report": "1.0.0",
+        "artifact-envelope": "1.0.0",
+        "decision-risk": "1.0.0",
+        "decision-trace": "2.1.0",
+        "deterministic-test-execution": "1.0.0",
+        "deterministic-test-report": "1.0.0",
+        "evidence": "1.0.0",
+        "execution-replay": "1.0.0",
+        "learning": "1.0.0",
+        "portfolio": "1.0.0",
+        "promotion-gate": "1.0.0",
+        "promotion-input": "1.0.0",
+        "regression-case": "1.1.0",
+        "regression-suite": "1.0.0",
+        "replay-capsule": "1.0.0",
+        "research": "1.0.0",
+        "runtime-artifacts": "2.1.0",
+        "runtime-eval-job": "1.0.0",
+        "semantic-calibration-result": "1.0.0",
+        "semantic-rubric-result": "1.0.0"
+      },
+      "skills": {
+        "catalyst-analysis": "1.0.0",
+        "company-research": "2.0.0",
+        "counter-thesis": "2.0.0",
+        "evidence-grounding": "2.0.0",
+        "portfolio-council": "3.0.0",
+        "valuation": "2.0.0"
+      }
+    }
+  },
+  "schema_version": "decision-trace/2.1.0",
+  "terminal_state": null
+}

@@ -1,0 +1,8 @@
+{
+  "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "message": "FORMAT_REPAIR_OUTPUT_IDENTITY_MISMATCH",
+  "run_id": "regression-rrh-final-lock-regression-suite-20260909-invalid-specialist-output-0054b5e5c8f3",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

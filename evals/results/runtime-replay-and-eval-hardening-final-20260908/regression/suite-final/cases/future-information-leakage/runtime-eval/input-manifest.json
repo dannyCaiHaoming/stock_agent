@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-rrh-final-regression-20260908-future-information-leakage",
+  "expected_terminal_states": [
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run",
+  "run_id": "regression-rrh-final-regression-20260908-future-information-leakage-63d42921f73d",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "cecef308cf0c924ff030ff7ecd84039a1a9cc37b590c4c9ed130b37e02863962",
+    "artifact_replay": "842d9adb8af9e380655e0e6476910fab9b7e54b2c6f415b1575a9cbd4be72fd5",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "7c302de53437911123d3659dd273bbd59422df511c904ea6c72b5df680955919",
+    "semantic_input": "4dba7926ddbdc69941b9a9be408c6e30685578bbdf7815caad00fd8e12c05053",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "f8a7a3cbef56bd6d9ad6af022c609efc1a94542adcf53ca034bb45391abaf444"
+  }
+}

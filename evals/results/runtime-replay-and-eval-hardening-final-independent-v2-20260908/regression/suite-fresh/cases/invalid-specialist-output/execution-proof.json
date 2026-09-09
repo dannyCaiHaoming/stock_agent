@@ -1,0 +1,31 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/cases/invalid-specialist-output/run/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/cases/invalid-specialist-output/runtime-eval/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/cases/invalid-specialist-output/run"
+  },
+  "case_id": "invalid-specialist-output",
+  "executed_operations": [
+    "deterministic_injection",
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "8376434f68144cdd6f79cfaa122b9f98fb539a5adf77ff2e4fb6b4e020a42000",
+    "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "deterministic_outcome": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+    "grader_execution_proof": null,
+    "regression_injection": "6f0c0b9e8a0919033b76d1d7cea1d25f5fd58101203734350afbe0e7fe71f732",
+    "runtime_eval": "df35b028ac9fc9f8c201a73478254e293758f0b0aba067e4b5d00f859ef318fc",
+    "trace": "2493fadd79d75ef748febb1c5fc0a4ff3eb419d5116bcb1f1d23f38fe9b7a3da",
+    "trace_report": "611148143984fa284625a29ef98fc053b7ada455443958ce2a2ee777aa16f33d"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "bbdb5729ef1840bad7ee88afbbee061b322d171e12f6c8a2bd407e8872ce2ce5",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-invalid-specialist-output-0054b5e5c8f3",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:invalid-specialist-output",
+  "status": "PASS"
+}

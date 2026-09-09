@@ -1,0 +1,28 @@
+{
+  "capsule_manifest_hash": "0e804d0ed9c914f3ac8a72d6b6c7e6fa7ceca2605fdbab6e1931a7f27aa8d506",
+  "checks": {
+    "artifact_matrix": "fed3749a427fa6d26546fb014459c332f801d4b33ce42d0038425c649c80848b",
+    "cio_draft_hash": "6fc7627b7a08dab12efb249cf045bd9370856528593d6f455a53baf846231abf",
+    "evidence_gate_hash": "171342a335504c1314ee41e3030a0de352923a88e07a44f7d97f07024cd41a28",
+    "report_render": "PASSED",
+    "risk_result_hash": "5167a5ea4321406943387cc00ad066775914b6c0511cd7d15d1249e7fea380ed",
+    "specialist_outputs": {
+      "runtime_company_analyst": "6334393840faf10b427a9f9379eb2e22fc61ce628668f9edb496d5e5b82d701d",
+      "runtime_skeptic": "1b42298acc842b8dfb54e030453170325506eb90ce3390740421c3b8bda2150f"
+    },
+    "trace_lineage": "PASSED"
+  },
+  "decision_hash": "579154a85ba314570d068513c99a308b4ded1c7f66b63f5a9990fd8a77ddbd86",
+  "execution_replay_ready": true,
+  "llm_calls": 0,
+  "mode": "ARTIFACT_REPLAY",
+  "replay_hash": "2a7107740ded3a243d0ceacace6ad5726e7829fa00f66dc7f954d20c47593ba0",
+  "report_hash": "71fe0f9dd906b4c6b83c4c49263c9e035b77ae299314cb59a3a680b5b09e9102",
+  "schema_version": "native-artifact-replay/2.1.0",
+  "source_run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto",
+  "source_run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "source_tree_hash": "6d9d3d39794da9d355dbe7d9044f30195d541e921b74b6575b90a545da6ea721",
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "36fd5f01fad90feaf3bf4001518b531ca18c8bc45b09a5a59b0398613df625ad"
+}

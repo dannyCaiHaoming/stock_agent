@@ -1,0 +1,145 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-insufficient-price"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "请基于冻结的组合与 point-in-time Evidence，完成仅供研究建议的投资委员会分析。",
+  "run_id": "rrh-parallel-barrier-diagnosis-insufficient-evidence-20260909",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "109db5e16eec9e1024c74687dd0aedd7a9c2cedd73f99f8192fc3e63823caa4b",
+    "runtime_skeptic": "1832a0bf9fff01375ae17d670b7d101d89c6cae01a65e1e8be413e80ebd72941"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_current_close_price",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的收盘价为每股 100 USD。"
+        }
+      ],
+      "confidence": 0.15,
+      "confidence_rationale": "价格事实有新鲜且可追溯的单一证据支持，但证据不足以支持公司研究 Thesis、反证或估值判断。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入、利润、现金流、资产负债表及管理层指引数据。",
+        "缺少行业、竞争地位、客户需求、催化剂和风险事件证据。",
+        "仅有一个价格证据，无法进行要求两个证据输入的确定性比例或变动计算。"
+      ],
+      "invalidation_conditions": [
+        "若后续授权证据表明 SEC-AAA 的价格、证券映射或时间点与现有价格事实不一致，则该价格事实失效。"
+      ],
+      "invocation_id": "inv_783cd0b34879475ad9547efa",
+      "run_id": "rrh-parallel-barrier-diagnosis-insufficient-evidence-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；唯一授权证据为 fixture-market-primary 的收盘价，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "8c36c3b856a727d54b6f7ec030b8c17abd556523c10e54ee2c86e644cd3242a2",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "8e2e33c7a584ac1a570717e1b941c32f4f96e1a5d616d398d12994604bf4e490",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "3bfcc3a4555fa68f99cd9fa7aee599e7612c5262066d343f310aa4c20c6577c4",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "不存在已授权的公司基本面、经营指标、竞争信息、估值倍数或历史财务数据，无法形成可验证的商业质量或估值解释。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "price-only-evidence-cannot-distinguish-failure-paths",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "Point-in-time financial results and operating KPIs for SEC-AAA.",
+            "Point-in-time valuation inputs, capital structure, and peer context.",
+            "Point-in-time material filings, company disclosures, and adverse-event evidence.",
+            "Point-in-time price history, liquidity, and market-context data."
+          ],
+          "statement": "The observed close price confirms only the portfolio mark; it cannot distinguish a durable-value interpretation from alternative explanations such as deteriorating operating outlook, elevated valuation risk, a temporary liquidity-driven price, or company-specific adverse developments. No counter-thesis can be substantively tested from price alone."
+        }
+      ],
+      "confidence": 0.25,
+      "confidence_rationale": "High confidence that the authorized evidence is limited to one fresh close-price observation; low confidence in any substantive counter-thesis because the required non-price evidence is absent.",
+      "counter_evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "data_gaps": [
+        "No fundamentals, earnings trajectory, guidance, cash-flow, balance-sheet, valuation, competitive-position, catalyst, risk-event, price-history, or liquidity evidence is authorized for this invocation."
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "The price-only insufficiency conclusion would be invalidated by authorized point-in-time evidence sufficient to test operating, valuation, event, and market-liquidity failure paths independently."
+      ],
+      "invocation_id": "inv_074a3b5ef857f5cc747ba97d",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-parallel-barrier-diagnosis-insufficient-evidence-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA independent counter-thesis review at decision cutoff 2026-01-31T23:59:59Z. Authorized evidence contains only a fresh USD 100 close price as of 2026-01-30T21:00:00Z, retrieved 2026-01-30T21:05:00Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "12c33091867642c61bce7d6392aea0bee95efa5f7fcffa4bedd981ab928a4d71",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "9c0d989ecf99e3243fd2dacaf705b9472e1f2bf9ff68ae61f26dde2042b17639",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "The single authorized price observation is fresh but contains no information about the drivers or sustainability of that price.",
+        "The frozen portfolio summary supplies position quantity and mandate constraints but does not establish an investment thesis to test."
+      ]
+    }
+  }
+}

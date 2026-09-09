@@ -1,0 +1,126 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-insufficient-price"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于截至决策截止日的冻结证据进行仅供评估的组合研究；证据不足时必须NO_TRADE；任何challenge若存在必须引用allowed_evidence_ids中的原始EvidenceID，否则保持challenges为空并在data_gaps中说明。",
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v2-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "5868aa95acad85b6d8d848b15ab0c837dfdf0c9cbe7e9d90e369e56a2d025b8f",
+    "runtime_skeptic": "d9d2e9ee85c6ff71cd6e905c1ceddd271d0a38d0aea67f41daaf7b05dd92ddd8"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-current-price",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "FACT：SEC-AAA收盘价为100 USD/股；evidence_id=ev-insufficient-price，source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        }
+      ],
+      "confidence": 0.1,
+      "confidence_rationale": "价格证据本身新鲜且可追溯，但不足以支持公司基本面或估值结论，因此只能报告有限事实并保持证据不足状态。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少公司财务报表、经营指标、管理层披露、行业与竞争证据，无法形成有依据的公司Thesis。",
+        "缺少估值所需的盈利、现金流、增长和资本成本输入，无法进行情景估值。",
+        "缺少历史价格或可比基准，无法评估价格趋势或相对估值。"
+      ],
+      "invalidation_conditions": [
+        "若后续授权证据显示该价格观察的证券映射、来源、时间戳或数值不准确，则当前唯一事实主张失效。"
+      ],
+      "invocation_id": "inv_f4d2b46beca2ec9e32bd1293",
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v2-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；仅基于授权冻结证据开展截至2026-01-31T23:59:59Z的公司研究。",
+      "skill_execution": [
+        {
+          "invocation_hash": "86e45c6f49de231e41a5b9420811bbe6129549c07b4cead334d3d80ca6e84367",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7bebd68bdb52dfbb6c37c43b4d012a85d8378799f9560b4238e62f75dc812b77",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "233323c3a11925bb6e2bb2c563623d262f444d0cca3c1e6d958f1b6cf9ce7406",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一价格观察不能说明业务质量、盈利能力、竞争地位、资本结构或估值。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [],
+      "confidence": 0,
+      "confidence_rationale": "没有可验证的授权证据内容，任何具体反证结论都会超出证据边界。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少可读取的授权证据内容，无法形成有证据支持且非重复的替代解释、失败路径或反证。",
+        "缺少足以评估 SEC-AAA 价格、基本面、事件及流动性风险的截至决策截止日证据。"
+      ],
+      "evidence_refs": [],
+      "invalidation_conditions": [
+        "若获得经授权、可读取且截至决策截止日的证据，应重新执行独立反证审阅。"
+      ],
+      "invocation_id": "inv_8754be391808ba44932fd6e5",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v2-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；仅使用本次允许的 ev-insufficient-price 进行截至 2026-01-31T23:59:59Z 的独立反证审阅。",
+      "skill_execution": [
+        {
+          "invocation_hash": "6932aea27a3a9233db152a68f754c3974e3ab68193d6dbc41c555c60fc2b5f33",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "eb46ddecbbf143e1be8c92a037a69b58736f740845f01f73ce020f210aa37d42",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "授权证据查询未能返回可审阅内容，无法确认其来源、截至时间或事实陈述。"
+      ]
+    }
+  }
+}

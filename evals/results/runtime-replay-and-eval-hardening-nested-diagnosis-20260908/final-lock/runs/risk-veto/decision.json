@@ -1,0 +1,67 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "counter_thesis": "独立反证指出，单一价格不能证明估值、流动性或下行保护，单期收入规模不能证明盈利能力、现金转化、客户风险或收入质量，因此任何基于这些指标作出的持仓判断均缺乏证据支撑。",
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若新增授权证据修订收盘价或 TTM 收入，现有事实基础须重新验证。",
+        "若补齐的授权证据显示盈利、现金流、估值、流动性或竞争条件与当前证据缺口判断不一致，则本 NO_TRADE 草案失效并须重新综合。",
+        "若新增授权证据显示收入、利润率或现金流恶化，或流动性不足，则应重新评估风险影响。"
+      ],
+      "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+      "no_trade_reason": "RISK_VETO",
+      "reevaluation_conditions": [
+        "仅在满足 Risk Engine 可行边界后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "thesis": "已验证报告共同确认的事实仅为 SEC-AAA 的收盘价和 TTM 收入；这些有限事实不足以形成有依据的商业质量、估值或持仓调整 Thesis。"
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "REJECTED",
+    "veto_reason": "RISK_VETO",
+    "violations": [
+      {
+        "code": "POSITION_LIMIT",
+        "limit": 0.6,
+        "metric": "target_max:SEC-AAA",
+        "observed": 0.9,
+        "policy_rule": "POSITION_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "LIQUIDITY_LIMIT",
+        "limit": "0:0.6",
+        "metric": "target_range:SEC-AAA",
+        "observed": "0.9:0.9",
+        "policy_rule": "LIQUIDITY_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "SECTOR_LIMIT",
+        "limit": 0.6,
+        "metric": "sector_range:Synthetic Technology",
+        "observed": "0.9:0.9",
+        "policy_rule": "SECTOR_LIMIT",
+        "remediable_within_range": false
+      }
+    ]
+  },
+  "run_id": "rrh-final-lock-regression-risk-veto-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

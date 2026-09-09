@@ -1,0 +1,67 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "counter_thesis": "The single price and revenue observations cannot establish valuation reasonableness, liquidity, volatility, revenue durability, profitability, cash conversion, or balance-sheet resilience.",
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "The USD 100 price fact is invalidated if fixture-market-primary corrects or supersedes the observation as of 2026-01-30T21:00:00Z.",
+        "The USD 1,000,000 TTM revenue fact is invalidated if fixture-filing-primary corrects or supersedes the observation as of 2025-12-31T00:00:00Z.",
+        "This no-trade conclusion is invalidated when new authorized, point-in-time evidence materially closes the identified valuation, profitability, cash-flow, liquidity, and business-quality gaps."
+      ],
+      "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+      "no_trade_reason": "RISK_VETO",
+      "reevaluation_conditions": [
+        "仅在满足 Risk Engine 可行边界后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "thesis": "The authorized evidence establishes only a USD 100 close price and USD 1,000,000 TTM revenue; it does not support a company-quality, valuation, or downside-risk thesis."
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "REJECTED",
+    "veto_reason": "RISK_VETO",
+    "violations": [
+      {
+        "code": "POSITION_LIMIT",
+        "limit": 0.6,
+        "metric": "target_max:SEC-AAA",
+        "observed": 0.9,
+        "policy_rule": "POSITION_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "LIQUIDITY_LIMIT",
+        "limit": "0:0.6",
+        "metric": "target_range:SEC-AAA",
+        "observed": "0.9:0.9",
+        "policy_rule": "LIQUIDITY_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "SECTOR_LIMIT",
+        "limit": 0.6,
+        "metric": "sector_range:Synthetic Technology",
+        "observed": "0.9:0.9",
+        "policy_rule": "SECTOR_LIMIT",
+        "remediable_within_range": false
+      }
+    ]
+  },
+  "run_id": "rrh-final-risk-veto-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

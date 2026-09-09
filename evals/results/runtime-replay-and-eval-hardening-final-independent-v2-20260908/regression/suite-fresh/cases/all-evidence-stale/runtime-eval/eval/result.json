@@ -1,0 +1,98 @@
+{
+  "eval_hash": "8d70aaa879c5f9dc24b7d79d3ca9a960e71975eb380877ae032666194cda5e28",
+  "eval_id": "regression-eval-rrh-final-independent-v2-current-lock-fresh-20260908-all-evidence-stale",
+  "grader": {
+    "agent": "deterministic-not-applicable",
+    "input_hash": "d28b2a2b947f5c85f14d96f60b7342adc1b9dfd6caf53e05058e98e1c0843837",
+    "model": "none",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "00d45bca4ddbaece07c3ae721f956f41387cc6246297b110b342d32773b6f863",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 0,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 0
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": false,
+      "pre_risk_failure": false,
+      "risk_attempts": 0,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "b4647ee8ea6021491c606c1e167f0cc2e81c64d564edc7972feca4987b7da7d4",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "30b8436c2f97dd030811f49999a94f2c7ba6236011b86d287fdf0beaf3335658",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-all-evidence-stale-b9647dff76d9",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该终态不适用语义评分。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "b4647ee8ea6021491c606c1e167f0cc2e81c64d564edc7972feca4987b7da7d4",
+    "artifact_replay": "00d45bca4ddbaece07c3ae721f956f41387cc6246297b110b342d32773b6f863",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "5d1cd0656d6e766449c2306f965aa165a677ab5420ad2bb6ba00495fddeafce4",
+    "semantic_input": "d28b2a2b947f5c85f14d96f60b7342adc1b9dfd6caf53e05058e98e1c0843837",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "c6b8e0e24ecb7837921ad435c3f6f623c1cb71383bed1325ed5fd207e2afd278"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

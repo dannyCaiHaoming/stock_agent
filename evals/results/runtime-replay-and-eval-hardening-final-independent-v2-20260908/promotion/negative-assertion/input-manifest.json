@@ -1,0 +1,73 @@
+{
+  "artifacts": {
+    "ablation": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/ablation/result/result.json",
+      "sha256": "6e26a9b9015b2cf8f47ade9ec93ce1c0c33ae4f36e101f86e8256d685fccbf73"
+    },
+    "baseline_ablation": null,
+    "baseline_manifest": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/baseline-version-manifest.json",
+      "sha256": "1378021f9c17822b0c75824d8b7514403d2b320abd67dd62b00dc083972704a6"
+    },
+    "baseline_runtime_evals": [],
+    "candidate_manifest": {
+      "path": "/Users/caihaoming/Documents/stock_agent/product/version-manifest.json",
+      "sha256": "02b31da85c82c71dff023e2273d4d7074f0ba4b0557d67b8f12fc38bf1289384"
+    },
+    "deterministic_tests": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/test-evidence/assertion-negative/result.json",
+      "sha256": "2b27aa214ebf1b5ef0a9461795b61613c535f2bda468e4ccb975d45e9a220880"
+    },
+    "execution_replay": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/execution-replay-refinalized/result.json",
+      "sha256": "ab4f8dca8028376a977e993dda0d343859677c044235619ff2da6434ab7ee284"
+    },
+    "grader_proofs": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/grader-execution-proof.json",
+        "sha256": "29f84c500dcb040b1c5cf34a4190ae73c56c7b125d53e8b6a9a600c54f7ac6a5"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/grader-execution-proof.json",
+        "sha256": "19112596b8e4206d778dc8df094e101f9afd1bd6c975f8d15d43a239950c2712"
+      }
+    ],
+    "model_policy": {
+      "path": "/Users/caihaoming/Documents/stock_agent/product/model-routing.json",
+      "sha256": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5"
+    },
+    "regression": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/result.json",
+      "sha256": "9112333d9a3de92b7a5065942e68f2686c38cc05d27db3eadebc84a0bacdb37b"
+    },
+    "runtime_evals": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/eval/result.json",
+        "sha256": "5919c851cc632403fa623b5e508152db2198eafa291bebc014a34b6ba0fe0c63"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/eval/result.json",
+        "sha256": "65d587df8acb5c9e29b572235a3fe25f9288fabef9a54c49f79e3dba2ea4e8e5"
+      }
+    ],
+    "semantic_calibration": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/calibration/result/result.json",
+      "sha256": "cf8cf8b63d79818dad358a9aece82b02bec81df677365d50276d46ae84b1aa79"
+    },
+    "trace_integrity": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/traces/execution-source-risk-veto.json",
+        "sha256": "6d4fa0a81ed055b2c56f307acc155a9c3b59421cfe2c5944fd43bbb5713c3951"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/traces/execution-replay-risk-veto.json",
+        "sha256": "358bd9091b6ae16ad7f951ca415d994cd92ac63f033cb4a12250d0a485e215ca"
+      }
+    ]
+  },
+  "baseline_version": "0.2.1-candidate.1",
+  "candidate_changes_default_topology": false,
+  "candidate_version": "0.3.0-candidate.1",
+  "gate_id": "rrh-final-independent-v2-negative-assertion-20260908",
+  "schema_version": "promotion-input/1.0.0"
+}

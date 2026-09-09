@@ -1,0 +1,117 @@
+{
+  "cache_key": "cc15ee6fa7544f832976639490843034e27b9c95d0d5d2e4ef231cbce99a68ec",
+  "case_hash": "ce26cefed8fdbd172a5cc0b24e25464164f35f0cf5255b9e5dea0c4a44a4a2c4",
+  "case_id": "normal-research",
+  "inputs": {
+    "candidate_hash": "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48",
+    "codex_runtime": "codex-cli/0.153.4",
+    "gate_context_hash": "88c5a36b03e45ff9b73f29d98a1a0904a610910deace4092d0164e3bc3c0860b",
+    "grader_hash": "1182c3f36b6f2ad844e351bb4860e0a06e14378362dbd820b4bb9d1ed21114c3",
+    "model": "gpt-5.6-terra",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "runtime_profile_hash": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+  },
+  "outcome": {
+    "action": "NO_TRADE",
+    "agents_run": [
+      "runtime_company_analyst",
+      "runtime_skeptic",
+      "runtime_cio"
+    ],
+    "cached_tokens": 699392,
+    "eval_hash": "141ccc91ab2ab36d7ee87febb4657592fb442c7a00c9e99c8d163adab0be90fc",
+    "eval_status": "PASS",
+    "failed_stage": null,
+    "future_leak_count": 0,
+    "input_tokens": 790413,
+    "latency_ms": 272331,
+    "llm_calls": 20,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 13001,
+    "risk_bypassed": false,
+    "risk_status": "APPROVED",
+    "run_id": "rreh-ablation-v3-normal-full-council-20260907",
+    "semantic_dimensions": {
+      "analyst_thesis_grounding": {
+        "evidence_refs": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5",
+          "c6",
+          "ev-normal-debt",
+          "ev-normal-margin",
+          "ev-normal-revenue",
+          "ev-normal-update",
+          "ev-normal-price"
+        ],
+        "grade": 3,
+        "rationale": "Analyst 将基础数值主张标为 FACT 并引用允许 Evidence；解释性主张披露假设且限定结论，未将有限事实延伸为估值或持续性结论。",
+        "status": "PASS"
+      },
+      "cio_conflict_handling": {
+        "evidence_refs": [
+          "ev-normal-debt",
+          "ev-normal-margin",
+          "ev-normal-price",
+          "ev-normal-revenue",
+          "ev-normal-update"
+        ],
+        "grade": 3,
+        "rationale": "CIO 记录两份专业报告的共识、与 Gate 一致的无机械冲突状态及四项未决问题，并将这些缺口明确连接到 NO_TRADE 和重评条件。",
+        "status": "PASS"
+      },
+      "confidence_calibration": {
+        "evidence_refs": [
+          "ev-normal-debt",
+          "ev-normal-margin",
+          "ev-normal-price",
+          "ev-normal-revenue",
+          "ev-normal-update"
+        ],
+        "grade": 3,
+        "rationale": "Analyst、Skeptic 与 CIO 的置信度理由均将有限证据覆盖、缺口和不确定性与其结论方向相连；CIO 的低置信度未把有限事实转化为方向性结论。",
+        "status": "PASS"
+      },
+      "no_trade_reasoning": {
+        "evidence_refs": [
+          "ev-normal-debt",
+          "ev-normal-margin",
+          "ev-normal-price",
+          "ev-normal-revenue",
+          "ev-normal-update"
+        ],
+        "grade": 3,
+        "rationale": "NO_TRADE 与五项允许且新鲜的证据范围一致，明确将现金流、债务结构、需求兑现和估值资料缺失作为原因，并列出对应的可核验重评条件。",
+        "status": "PASS"
+      },
+      "skeptic_counter_evidence": {
+        "evidence_refs": [
+          "debt-service-coverage-unknown",
+          "margin-quality-and-durability-unknown",
+          "capacity-plan-not-demand-validation",
+          "price-is-not-valuation-evidence",
+          "ev-normal-debt",
+          "ev-normal-margin",
+          "ev-normal-price",
+          "ev-normal-revenue",
+          "ev-normal-update"
+        ],
+        "grade": 3,
+        "rationale": "独立第一轮 Skeptic 对偿债能力、利润率质量、产能需求验证和价格估值分别提出具体、可证伪的挑战，并逐项给出所需解决证据。",
+        "status": "PASS"
+      }
+    },
+    "terminal_state": "SAFE_NO_TRADE",
+    "trace_hash": "ff223bdc066ceea006d2f563e273fa50a9a07142c77ffa30cf41173ef956030c"
+  },
+  "record_hash": "dab79ea4b19738cd1934769e3c2026ee063c0f77b8d4d3b63d2fd292001cd5b6",
+  "schema_version": "regression-cache/1.0.0",
+  "source": {
+    "eval_artifact_hash": "65da5a94982ce4eeac59dbfcb1f4e9ef5f98380b243167e7b74551c600c07e5b",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/evals-regraded/normal-research/full-council/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/normal-research/full-council",
+    "run_tree_hash": "35b8bef61bbe248237d9a306d8be991fdf4279eb5d585b5d3c97e6dcd046b5eb"
+  }
+}

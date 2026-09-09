@@ -1,0 +1,122 @@
+{
+  "eval_hash": "72c71f693353ee26ee5a6e451bf4aec734659e5b75c74719d26b29e64af1cb4b",
+  "eval_id": "rrh-final-lock-eval-high-concentration-portfolio-20260909",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "9be2d83fd820ee22991477f9a0b16c574b63dfc04e5c3e033cccdf9f4171088f",
+    "input_hash": "465da2c9f61523601ee4daf3e2fb891e37e6166cb3f42235d12d04520224e6a4",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 317184,
+      "input_tokens": 375975,
+      "latency_ms": 141699,
+      "llm_calls": 13,
+      "output_tokens": 4606
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "400ec2ff713d87cd16a1eeca0ff2666fa537aa216fa4a474ab9b9b7c61fb02a0",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 2,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 2
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "06245d62cc2ff021b73af391bde3d401e1943e192c377cf3c81a6441f2c8895d",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "COMPLETED",
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "255924238048982c9a8c103836bdc0dee807d80f41efabd01824feff30d1bfd1",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rrh-final-lock-regression-high-concentration-portfolio-20260909",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The Analyst identifies only the two cited facts and explicitly limits its conclusion to insufficient evidence, distinguishing unavailable analysis from supported facts.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The CIO records Specialist consensus, no mechanical conflicts, unresolved questions, and explains the resulting insufficient-evidence decision impact.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The confidence rationales limit substantive conclusions to the sparse evidence while separating confidence in identified evidence gaps from company-level inference.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The final decision records RISK_VETO, the concrete breached bounds, and a re-evaluation condition tied to the Risk Engine feasible boundary.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The independent Skeptic cites the authorized records, specifies concentration and post-period uncertainty, and states concrete evidence needed to resolve each challenge.",
+      "status": "PASS"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "06245d62cc2ff021b73af391bde3d401e1943e192c377cf3c81a6441f2c8895d",
+    "artifact_replay": "400ec2ff713d87cd16a1eeca0ff2666fa537aa216fa4a474ab9b9b7c61fb02a0",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "6cb9d2e28b2886726ce4000da41d9b4b5b295b8e8ec930b9ff1bf4a2b3c6d0a7",
+    "semantic_input": "465da2c9f61523601ee4daf3e2fb891e37e6166cb3f42235d12d04520224e6a4",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "9c0d40cdda8e351d6e0d0585cf547b1b355a2bc7c04055ac6fc0c633e76e8b7f"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

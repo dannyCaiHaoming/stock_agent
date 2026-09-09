@@ -1,0 +1,153 @@
+{
+  "schema_version": "semantic-calibration-samples/1.0.0",
+  "note": "仅供开发控制面的 rubric 校准；不是 Runtime 决策，不是投资建议。",
+  "cases": [
+    {
+      "case_id": "grounded-balanced",
+      "allowed_evidence_ids": [
+        "ev-a",
+        "ev-b"
+      ],
+      "artifacts": {
+        "analyst": {
+          "status": "COMPLETE",
+          "claims": [
+            {
+              "kind": "FACT",
+              "statement": "收入同比增长。",
+              "evidence_refs": [
+                "ev-a"
+              ]
+            }
+          ],
+          "assumptions": [],
+          "confidence": 0.65,
+          "confidence_rationale": "两项证据支持有限经营判断。"
+        },
+        "skeptic": {
+          "status": "COMPLETE",
+          "mode": "INDEPENDENT_FIRST_PASS",
+          "challenges": [
+            {
+              "statement": "利润率持续性仍需验证。",
+              "evidence_refs": [
+                "ev-b"
+              ],
+              "resolution_evidence_needed": [
+                "后续利润率证据"
+              ]
+            }
+          ],
+          "confidence": 0.6,
+          "confidence_rationale": "反证具体但范围有限。"
+        },
+        "cio": {
+          "action": "HOLD",
+          "consensus": [
+            "收入改善"
+          ],
+          "conflicts": [
+            {
+              "summary": "增长与利润率持续性仍有分歧",
+              "evidence_refs": [
+                "ev-a",
+                "ev-b"
+              ],
+              "decision_impact": "维持而不增持"
+            }
+          ],
+          "unresolved_questions": [
+            "利润率能否持续"
+          ],
+          "confidence": 0.55,
+          "confidence_rationale": "证据支持有限 HOLD，不支持更强动作。",
+          "evidence_refs": [
+            "ev-a",
+            "ev-b"
+          ],
+          "no_trade_reason": null,
+          "no_trade_explanation": null,
+          "reevaluation_conditions": []
+        }
+      }
+    },
+    {
+      "case_id": "evidence-gap-no-trade",
+      "allowed_evidence_ids": [],
+      "artifacts": {
+        "pre_agent_gate": {
+          "status": "SAFE_NO_TRADE",
+          "reason": "PIT 后无可用证据"
+        },
+        "analyst": null,
+        "skeptic": null,
+        "cio": null,
+        "decision": {
+          "action": "NO_TRADE",
+          "confidence": 0.05,
+          "confidence_rationale": "无 PIT 合格证据，置信度只针对不交易结论。",
+          "no_trade_reason": "NO_USABLE_EVIDENCE",
+          "no_trade_explanation": "Evidence Gate 后无可用事实，不能形成研究判断。",
+          "reevaluation_conditions": [
+            "获得 cutoff 前可验证证据"
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "unsupported-overconfidence",
+      "allowed_evidence_ids": [
+        "ev-price"
+      ],
+      "artifacts": {
+        "analyst": {
+          "status": "COMPLETE",
+          "claims": [
+            {
+              "kind": "INTERPRETATION",
+              "statement": "公司必将高速增长。",
+              "evidence_refs": []
+            }
+          ],
+          "assumptions": [],
+          "confidence": 0.98,
+          "confidence_rationale": "我非常确定。"
+        },
+        "skeptic": {
+          "status": "COMPLETE",
+          "mode": "INDEPENDENT_FIRST_PASS",
+          "challenges": [
+            {
+              "statement": "单一价格事实不能证明增长。",
+              "evidence_refs": [
+                "ev-price"
+              ],
+              "resolution_evidence_needed": [
+                "收入与现金流证据"
+              ]
+            }
+          ],
+          "confidence": 0.8,
+          "confidence_rationale": "反证明确针对证据缺口。"
+        },
+        "cio": {
+          "action": "BUY",
+          "consensus": [
+            "看多"
+          ],
+          "conflicts": [],
+          "unresolved_questions": [],
+          "confidence": 0.97,
+          "confidence_rationale": "采纳 Analyst。",
+          "evidence_refs": [
+            "ev-price"
+          ],
+          "no_trade_reason": null,
+          "no_trade_explanation": null,
+          "reevaluation_conditions": []
+        }
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,8 @@
+{
+  "code": "NATIVE_EXECUTION_PROOF_FAILED",
+  "failed_stage": "EXECUTION_PROOF",
+  "message": "SPECIALIST_COMPLETION_EVENT_INVALID:runtime_company_analyst",
+  "run_id": "rreh-ablation-v3-insufficient-analyst-cio-20260907",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

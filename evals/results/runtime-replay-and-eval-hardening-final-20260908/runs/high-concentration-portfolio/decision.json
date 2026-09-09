@@ -1,0 +1,67 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "counter_thesis": "The existing 0.90 single-security weight is concentrated relative to the stated 0.60 maximum-position mandate, while the authorized evidence does not quantify downside, liquidity, or the valuation basis needed to determine an evidence-supported response.",
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "This insufficiency conclusion must be reassessed if cutoff-valid evidence establishes a reliable valuation basis, durable cash generation, and balance-sheet capacity.",
+        "This concentration-risk assessment must be reassessed if cutoff-valid risk and liquidity evidence demonstrates that the single-security failure path is acceptably bounded under the mandate.",
+        "Any material correction to the authorized price or TTM revenue evidence invalidates the corresponding factual basis."
+      ],
+      "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+      "no_trade_reason": "RISK_VETO",
+      "reevaluation_conditions": [
+        "仅在满足 Risk Engine 可行边界后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "thesis": "The authorized record establishes a fresh USD 100 close price and USD 1,000,000 TTM revenue, but does not establish company quality, valuation, cash generation, or a supportable forward thesis."
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "REJECTED",
+    "veto_reason": "RISK_VETO",
+    "violations": [
+      {
+        "code": "POSITION_LIMIT",
+        "limit": 0.6,
+        "metric": "target_max:SEC-AAA",
+        "observed": 0.9,
+        "policy_rule": "POSITION_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "LIQUIDITY_LIMIT",
+        "limit": "0:0.6",
+        "metric": "target_range:SEC-AAA",
+        "observed": "0.9:0.9",
+        "policy_rule": "LIQUIDITY_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "SECTOR_LIMIT",
+        "limit": 0.6,
+        "metric": "sector_range:Synthetic Technology",
+        "observed": "0.9:0.9",
+        "policy_rule": "SECTOR_LIMIT",
+        "remediable_within_range": false
+      }
+    ]
+  },
+  "run_id": "rrh-final-high-concentration-portfolio-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

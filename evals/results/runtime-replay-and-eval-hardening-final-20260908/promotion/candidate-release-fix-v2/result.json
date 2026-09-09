@@ -1,0 +1,185 @@
+{
+  "baseline_version": "0.2.1-candidate.1",
+  "candidate_version": "0.3.0-candidate.1",
+  "gate_id": "rrh-release-fix-promotion-20260908",
+  "hard_gates": {
+    "ablation_comparability": {
+      "detail": {
+        "conclusion": "NO_MEASURABLE_GAIN",
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "deterministic_tests": {
+      "detail": {
+        "assertion_failures": 0,
+        "command": [
+          "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "tests"
+        ],
+        "completed_at": "2026-09-08T07:56:45.017330Z",
+        "cwd": "/Users/caihaoming/Documents/stock_agent",
+        "environment_errors": 0,
+        "event_hash": "d9cd9889e8e1132b521ca5ea969c712a992b365575c20872ef968d9f2b9d1426",
+        "event_id": "test-event-6c7cc670-9f90-4529-b7c0-0beb6e5fc0f2",
+        "event_path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/full-suite-release-fix/execution-event.json",
+        "exit_code": 0,
+        "started_at": "2026-09-08T07:53:17.579091Z",
+        "status": "PASS",
+        "test_errors": 0,
+        "tests_run": 272,
+        "tmpdir": "/private/tmp/stock-agent-full-suite-release-fix-20260908"
+      },
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "detail": {
+        "scope": "all runtime evals",
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "execution_replay": {
+      "detail": {
+        "status": "PASS",
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "mandatory_no_trade": {
+      "detail": [
+        "all-evidence-stale",
+        "mandatory-no-trade"
+      ],
+      "status": "PASS"
+    },
+    "pit_leakage": {
+      "detail": {
+        "expected": "zero leaks",
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "detail": {
+        "scope": "all runtime evals",
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "runtime_regression": {
+      "detail": {
+        "reason_codes": [],
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "schema_success": {
+      "detail": {
+        "scope": "all runtime evals",
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "semantic_calibration": {
+      "detail": {
+        "agreement": 1.0,
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "detail": {
+        "run_ids": [
+          "rrh-final-normal-research-20260908",
+          "rrh-final-risk-veto-20260908"
+        ],
+        "verification_errors": []
+      },
+      "status": "PASS"
+    },
+    "version_completeness": {
+      "detail": {
+        "baseline": "0.2.1-candidate.1",
+        "baseline_ablation": false,
+        "baseline_ablation_versions": [],
+        "baseline_eval_versions": [],
+        "baseline_manifest_diagnostic": "version manifest requires non-empty assurance",
+        "baseline_manifest_valid": false,
+        "baseline_runtime_evals": 0,
+        "baseline_version_lock_hashes": [],
+        "candidate": "0.3.0-candidate.1",
+        "candidate_ablation_versions": [
+          "0.3.0-candidate.1"
+        ],
+        "candidate_eval_versions": [
+          "0.3.0-candidate.1"
+        ],
+        "candidate_trace_versions": [
+          "0.3.0-candidate.1"
+        ],
+        "candidate_version_lock_hashes": [
+          "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48",
+          "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4",
+          "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017"
+        ],
+        "execution_versions": [
+          "0.3.0-candidate.1"
+        ],
+        "version_binding_errors": [
+          "PROMOTION_CANDIDATE_VERSION_LOCK_MISMATCH:['5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48', 'ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4', 'ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017']"
+        ]
+      },
+      "status": "FAIL"
+    }
+  },
+  "input_hashes": {
+    "ablation": "25bbf81a719fe724feab279fc5064efdc4701f12207d2ff7047efbeb3068c7e8",
+    "baseline_manifest": "1378021f9c17822b0c75824d8b7514403d2b320abd67dd62b00dc083972704a6",
+    "candidate_manifest": "dbc508cc24544230a19c37f2a1b62106f5f58c220231c101e2725cddd39cb1b3",
+    "deterministic_tests": "d9a33da2b4d7f3267621187a79514ab38cff2a0d11edf53fae4fae6a8c5f51c9",
+    "execution_replay": "ab4f8dca8028376a977e993dda0d343859677c044235619ff2da6434ab7ee284",
+    "grader_proof_0": "6057b0c2b1680ab7930f2837d00c094346942f079149e5978a9bb47e5341db12",
+    "grader_proof_1": "429fea3fb1ed9d15674d35dde4e30c69e9d08a50b78f1faa2b3aa1fd2f2baddb",
+    "input_manifest": "3289c5f10ed5364681f2eb02649ecdf66ca4b812a0ec418e371ec12e5eba48b2",
+    "model_policy": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5",
+    "regression": "99bce356b0f9edf18792905e7e87d8b94c46fc39e02b38f62e3136ae82eec552",
+    "runtime_eval_0": "59635ca41e809efa3fdb98513937e018f3582c5980619649ab9963d1730d2f62",
+    "runtime_eval_1": "0a8c5cfdfccac65343239b9c850ed67fb8bfa622f3b08f57766903415723f567",
+    "semantic_calibration": "cf8cf8b63d79818dad358a9aece82b02bec81df677365d50276d46ae84b1aa79",
+    "trace_integrity_0": "706ce34bbeaee99a1b65e9ccf47decbd3f000996a4aa1577054d22b7cde3d817",
+    "trace_integrity_1": "de401f1b66b1262542fb0edbe3e96715890e81c9c43079dfb57528ad0a2e5992"
+  },
+  "prior_result": null,
+  "reason_codes": [
+    "PROMOTION_HARD_GATE_FAILED:version_completeness"
+  ],
+  "result_hash": "34aa720163af3d30b31414f1db92dfe6db03e7b28650115f1767e65b1d19d348",
+  "schema_version": "promotion-gate/1.0.0",
+  "soft_metrics": {
+    "ablation_conclusion": "NO_MEASURABLE_GAIN",
+    "ablation_gain_required": false,
+    "cost_and_latency": {
+      "baseline_latency_ms": null,
+      "baseline_tokens": null,
+      "candidate_latency_ms": null,
+      "candidate_tokens": null,
+      "latency_delta_ms": null,
+      "status": "FAIL_COST_COMPARISON",
+      "token_delta": null
+    },
+    "semantic": {
+      "baseline_mean": null,
+      "candidate_mean": 1.0,
+      "delta": null,
+      "status": "NOT_COMPARABLE",
+      "tolerance": 0.05
+    },
+    "telemetry_status": "MISSING_TELEMETRY"
+  },
+  "status": "FAIL"
+}

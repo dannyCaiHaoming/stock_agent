@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-rrh-final-independent-v2-current-lock-fresh-20260908-mandatory-no-trade",
+  "expected_terminal_states": [
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/regression/suite-fresh/cases/mandatory-no-trade/run",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-mandatory-no-trade-c85c4991cf29",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "2ea5ca53f3d162255a064d19a2a8fd1303c0536dab7eeed332ea02ad574fc5db",
+    "artifact_replay": "1230488b4ddd4855887de61737081feee54f62d84b7cfb1aed0334faeaccc17a",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "814d25b3fed6efd338564b9d96ae8e2d5165bda9713766d366b5b2738cfaaf63",
+    "semantic_input": "44d07a4e8fb50a19099a675a1914f1839437c256d1e78ab27e9098df1434d22e",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "7c5203ec5f7dc290b6eb02284fc81aee39482724a92680c7bb180a45d42181fa"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "message": "rrh-final-lock-normal-smoke-01-20260908  \nCIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "3c82d8f6def20d833f1055a489e07b825b0d83c23bd2daba803eb75e73d19031",
+  "present": true,
+  "run_id": "rrh-final-lock-normal-smoke-01-20260908",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

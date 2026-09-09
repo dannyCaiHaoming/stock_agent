@@ -1,0 +1,68 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "mechanical_conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_ids": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "observations": [
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "source_id": "fixture-filing-source-a",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "source_id": "fixture-filing-source-b",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+      "source_ids": [
+        "fixture-filing-source-a",
+        "fixture-filing-source-b"
+      ]
+    }
+  ],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "仅使用 Gate 授权证据评估同一 as_of 下收入事实冲突。Evidence 引用只能使用原始 evidence_id；未解决时允许 NO_TRADE。",
+  "run_id": "rreh-hardening-ablation-conflict-cio-only-v2-20260908",
+  "validated_report_hashes": {},
+  "validated_reports": {}
+}

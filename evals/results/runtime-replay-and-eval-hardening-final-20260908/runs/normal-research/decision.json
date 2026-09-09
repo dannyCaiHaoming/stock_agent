@@ -1,0 +1,60 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.32,
+      "confidence_rationale": "The two independent reports agree on the limited factual record and on the material missing inputs. Although the recorded margin and debt-to-revenue relationship are not adverse on their own, the evidence does not support a reliable assessment of cash generation, balance-sheet resilience, capacity-return economics, durability, or valuation; therefore confidence in any directional action is low.",
+      "counter_thesis": "The maintained capacity plan may require financing or fail to earn adequate returns; the historical operating margin may not persist, and the USD 100 close has no usable valuation context without equity-value, cash-flow, or comparable evidence.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "New verified financial disclosures contradict the reported debt, revenue, or operating-margin facts.",
+        "New evidence shows material liquidity, refinancing, maturity, or interest-burden stress.",
+        "Capacity execution is delayed, curtailed, inadequately financed, or unsupported by demand and economic returns.",
+        "New point-in-time operating or valuation evidence materially changes the current evidence-gap assessment."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "The validated reports identify material unresolved gaps in liquidity, debt service, capacity-plan funding and returns, operating durability, and valuation. Those gaps prevent a sufficiently supported directional advisory conclusion.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain point-in-time evidence for cash, liquidity, debt maturities, interest burden, covenants, and operating cash flow.",
+        "Obtain capacity-plan capex, funding, timing, utilization, expected-return, and execution evidence.",
+        "Obtain post-period operating trajectory and valuation inputs, including shares outstanding, earnings or free cash flow, enterprise value, and comparable context."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "Authorized evidence supports that SEC-AAA reported USD 1,000,000 TTM revenue, a 0.18 operating margin, USD 150,000 total debt, and maintained its stated capacity plan. The reports do not establish durability, liquidity, capacity economics, or valuation at the observed price.",
+      "time_horizon": "Reassess only when the specified point-in-time evidence gaps are resolved.",
+      "unresolved_questions": [
+        "What are cash, liquidity, debt maturities, interest burden, covenant constraints, and operating cash flow?",
+        "What are the capacity plan's capex, timing, funding, utilization, expected returns, and execution milestones?",
+        "Are revenue and operating margins durable based on post-period, segment, pricing, volume, and competitive evidence?",
+        "What point-in-time shares outstanding, enterprise-value, earnings, free-cash-flow, and comparable data establish valuation at the USD 100 close?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-normal-research-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

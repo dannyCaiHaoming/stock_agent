@@ -1,0 +1,8 @@
+{
+  "code": "NATIVE_EXECUTION_PROOF_FAILED",
+  "failed_stage": "EXECUTION_PROOF",
+  "message": "RUN_PARENT_ROLLOUT_COUNT_INVALID:0",
+  "run_id": "rrh-nested-current-lock-normal-02-20260908",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

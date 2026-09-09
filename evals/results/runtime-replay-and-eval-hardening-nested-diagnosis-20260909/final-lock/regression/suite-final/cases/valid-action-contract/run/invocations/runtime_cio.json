@@ -1,0 +1,48 @@
+{
+  "agent": {
+    "name": "runtime_cio",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_cio.toml",
+    "sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "version": "3.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin"
+  ],
+  "input_artifact": "inputs/runtime_cio.json",
+  "input_hash": "a901671110e28e68304eb0a3beaf41f8141a01b6fccda0b71a348c5822360332",
+  "instruction_bundle_hash": "733e0f6471e8376145d5ef2ad16057feb835b5ea2b72128c9077eea569e58f30",
+  "invocation_id": "inv_50ef32299b3122463d172a9d",
+  "manifest_hash": "db151552fc9cd9ba78081c8b6d99c67c04f5a54b26a46903e2883804731baf15",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/product/schemas/runtime/cio-decision-draft.schema.json",
+  "output_schema_hash": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+  "run_id": "regression-rrh-final-lock-regression-suite-20260909-valid-action-contract-acd3c70a183b",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "ed39456986621ff24bc676881284fa06085569ec393b47152bcfa479086fd008",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "portfolio-council",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+      "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+      "version": "3.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_cio.txt",
+  "task_prompt_hash": "af0ee0bd572c948c9d63aa592357ade4baab3a8ae3bf10e1ba270fcc581870c0",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

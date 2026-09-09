@@ -1,0 +1,13 @@
+before_tree_hash=74cd955fdb09c491de903a8fdbd9be74a7b7eb36daf30a1bae80240be575146f
+after_tree_hash=74cd955fdb09c491de903a8fdbd9be74a7b7eb36daf30a1bae80240be575146f
+manifest_cmp=0
+status_cmp=0
+unstaged_diff_cmp=0
+staged_diff_cmp=0
+protected_untracked_cmp=0
+head_cmp=0
+branch_cmp=0
+before_manifest_entries=10675
+after_manifest_entries=10675
+before_protected_untracked=10090
+after_protected_untracked=10090

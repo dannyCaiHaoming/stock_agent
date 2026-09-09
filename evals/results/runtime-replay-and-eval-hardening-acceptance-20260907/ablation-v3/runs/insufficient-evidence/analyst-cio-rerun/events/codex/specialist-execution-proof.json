@@ -1,0 +1,108 @@
+{
+  "children": {
+    "runtime_company_analyst": {
+      "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "agent_role": "runtime_company_analyst",
+      "assistant_output_hash": "01c11621bf1c30d8e057a6df40cc8b49bcd7322b41f908df991bfb4621d6b57f",
+      "codex_runtime": "codex-cli/0.153.4",
+      "configured_skills": [
+        {
+          "configured": true,
+          "name": "evidence-grounding",
+          "protocol_bound": true,
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "company-research",
+          "protocol_bound": true,
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "valuation",
+          "protocol_bound": true,
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "final_structured_output_hash": "7b3685c0d4577ea28fa54d4e541eba5af386d7f2cb56f4fc07846f68df28626c",
+      "model": "gpt-5.6-terra",
+      "multi_agent_version": "v2",
+      "observed_tool_calls": [
+        {
+          "arguments_hash": "985beede5000bda4c98d64b46c71565987aac35afe004e7d79ea140c6d0cbe50",
+          "call_id": "call_omDwS32XDfEh5RcdMWROBq8u",
+          "ordinal": 16,
+          "tool": "fixture_evidence.query"
+        }
+      ],
+      "parent_session_id": "01a07b0f-69c3-7f43-b7b0-e4ad3c154c3b",
+      "raw_fixture_access_attempts": 0,
+      "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+      "role_instructions_loaded": true,
+      "rollout_sha256": "edeb4efa0f2654042f4ecdae5e104d918db4d4795ba65240320e1b55f865e25c",
+      "session_id": "01a07b10-cc83-7b11-ab63-c4a0f8cb908c",
+      "task_binding": {
+        "agent_matches": true,
+        "binding_method": "protected_dispatch_plus_structured_output",
+        "invocation_id_matches": true,
+        "invocation_id_present": false,
+        "run_id_matches": true,
+        "run_id_present": false,
+        "task_prompt_hash": "b2d488780b2d34ca18de036cda9143558458bf38080a6d56252bbf967cfe22fb",
+        "task_prompt_present": false,
+        "verified": true
+      },
+      "thread_source": "subagent",
+      "unapproved_tool_calls": 0
+    }
+  },
+  "dispatches": [
+    {
+      "agent": "runtime_company_analyst",
+      "call_id": "call_OUSRqSv7pinn9IiFkkB9zsFm",
+      "child_session_id": "01a07b10-cc83-7b11-ab63-c4a0f8cb908c",
+      "completion_ordinal": 54,
+      "dispatch_ordinal": 42,
+      "request": {
+        "agent_type": "runtime_company_analyst",
+        "fork_turns": "none",
+        "message_sha256": "ef411edaa416016bbab02c47ac933caf45a901fa4d3dd106b8451c3abfe7ae2a",
+        "protected_message_present": true,
+        "task_name": "company_research"
+      },
+      "request_hash": "aee13fdd89ad1f0b363abe39115327c155438594d972dc3877512070f1f74b60",
+      "start_ordinal": 44
+    }
+  ],
+  "first_wait_ordinal": 52,
+  "independent_sessions_proven": true,
+  "parallel_dispatch_proven": true,
+  "parent": {
+    "codex_runtime": "codex-cli/0.153.4",
+    "model": "gpt-5.6-terra",
+    "rollout_sha256": "d68742a7fe75d9d1ff39a76d68450d1803d9980140d450cd6ac6a96c60bfa7e3",
+    "session_id": "01a07b0f-69c3-7f43-b7b0-e4ad3c154c3b"
+  },
+  "portfolio_council_skill_bound": true,
+  "proof_hash": "6d8d8b9958f7d2be388e430bdec1bdf799b5a3c0ba64e1bac649e4426aa26edf",
+  "raw_prompt_or_reasoning_retained": false,
+  "schema_version": "codex-execution-proof/2.0.0",
+  "specialist_topology": [
+    "runtime_company_analyst"
+  ],
+  "telemetry": {
+    "cache_provenance": "NEW_EXECUTION",
+    "cached_tokens": 491776,
+    "input_tokens": 556296,
+    "latency_ms": 204387,
+    "llm_calls": 15,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 7651,
+    "status": "AVAILABLE",
+    "trigger_reason": "ablation:insufficient-evidence"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.1,
+      "confidence_rationale": "Confidence in any directional action is low because the CIO input contains no validated Specialist reports and includes a material unresolved conflict in same-period revenue evidence.",
+      "counter_thesis": "No contrary action thesis can be validated from this cio-only input because there are no validated Specialist reports and the material revenue conflict remains unresolved.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "A verified reconciliation establishes a single supportable revenue_ttm value for SEC-AAA as of 2025-12-31.",
+        "A validated research report based only on Gate-allowed or subsequently verified evidence materially changes the assessment."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "The Gate-scoped revenue_ttm evidence conflicts for the same security and period, and this cio-only evaluation has no validated Specialist reports to resolve or assess that conflict. No advisory action is supported until the conflict is reconciled with verifiable evidence.",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "Obtain a verifiable reconciliation or authoritative replacement for the conflicting revenue_ttm evidence.",
+        "Validate any resulting research report before a new CIO synthesis."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The Gate-scoped evidence shows a 0.18 operating margin and a recent close price of 100 for SEC-AAA, but it does not support an action because same-period revenue is reported as both 1000000 and 1250000 by separate allowed sources.",
+      "time_horizon": "Until the conflicting revenue evidence is resolved with verifiable evidence.",
+      "unresolved_questions": [
+        "Which verifiable source or reconciliation resolves the conflicting SEC-AAA revenue_ttm values for 2025-12-31?",
+        "Would the resolved revenue figure materially change the company-quality and valuation assessment?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-ablation-v3-conflict-cio-only-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

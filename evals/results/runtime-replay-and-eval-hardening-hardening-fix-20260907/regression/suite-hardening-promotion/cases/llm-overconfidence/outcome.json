@@ -1,0 +1,63 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_cio"
+  ],
+  "cached_tokens": 538368,
+  "eval_hash": "162c1601e5c4e2173ae2bb786d727e8ecfcdd4151a88c3a40cc5ce331c437df9",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 595823,
+  "latency_ms": 207523,
+  "llm_calls": 17,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 8140,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rreh-hardening-ablation-insufficient-analyst-cio-v3-20260908",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim-1",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，且明确限制该事实不足以支持公司研究或估值判断，区分了已支持事实与数据缺口。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录已验证 Analyst 的 INSUFFICIENT_EVIDENCE 共识、空冲突、三项未决问题及其对 NO_TRADE 的影响；冻结输入没有 Skeptic 产物，未将其误作未处理冲突。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 与 CIO 均为 0.05，理由明确限定在单一价格事实、广泛数据缺口和不确定性，不把不足证据转为方向性结论，方向一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 将 NO_TRADE 明确归因于唯一获准的单一价格事实不足以支持公司研究、估值或风险判断，并要求补充带完整血缘的 Gate 授权基本面、估值和风险证据后重新评估；与 SAFE_NO_TRADE 一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "冻结输入未包含 Skeptic 运行产物；该 analyst-cio 拓扑中无法评估独立反证质量。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "29ba3371b41607a5251214e34cbbf3dd1cada25ba363585e8f409b638f3bbafb"
+}

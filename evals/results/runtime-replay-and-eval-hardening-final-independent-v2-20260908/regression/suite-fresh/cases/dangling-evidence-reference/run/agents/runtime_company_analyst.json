@@ -1,0 +1,46 @@
+{
+  "agent": "runtime_company_analyst",
+  "artifact_refs": [],
+  "assumptions": [],
+  "claims": [
+    {
+      "assumption_ids": [],
+      "claim_id": "injected-claim",
+      "evidence_refs": [
+        "missing-id"
+      ],
+      "kind": "FACT",
+      "statement": "This fixture intentionally references a missing Evidence ID."
+    }
+  ],
+  "confidence": 0.0,
+  "confidence_rationale": "Deterministic negative fixture, not an investment conclusion.",
+  "counter_evidence_refs": [],
+  "data_gaps": [],
+  "invalidation_conditions": [
+    "The validator rejects the payload."
+  ],
+  "invocation_id": "inv_2bf9445e83f72a8c25682bc7",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-dangling-evidence-reference-d7e9374b2aa1",
+  "schema_version": "agent-research-report/2.0.0",
+  "scope": "Deterministic dangling Evidence injection.",
+  "skill_execution": [
+    {
+      "invocation_hash": "589be3e53f1259854c74ae2d0aacae1715a57a526c00fe7d77d5c9fde034fa4e",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "508d42c20b26704958af251fddacc41864b7dcb93c135c0417434c2b73f695a7",
+      "skill_name": "company-research",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "466a0b03446fa8180ad8ef834080cbf9ed1056a0768cf1e8c518cf7e5bd6b873",
+      "skill_name": "valuation",
+      "version": "2.0.0"
+    }
+  ],
+  "status": "COMPLETE",
+  "uncertainties": []
+}

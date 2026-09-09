@@ -1,0 +1,72 @@
+{
+  "cases": {
+    "normal-research": {
+      "cio-only": {
+        "case_id": "normal-research",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/normal-research/cio-only",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/normal-research/cio-only/eval/result.json"
+      },
+      "analyst-cio": {
+        "case_id": "normal-research",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/normal-research/analyst-cio",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/normal-research/analyst-cio/eval/result.json"
+      },
+      "full-council": {
+        "case_id": "normal-research",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/normal-research/full-council",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/normal-research/full-council/eval/result.json"
+      }
+    },
+    "insufficient-evidence": {
+      "cio-only": {
+        "case_id": "insufficient-evidence",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/cio-only",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/insufficient-evidence/cio-only/eval/result.json"
+      },
+      "analyst-cio": {
+        "case_id": "insufficient-evidence",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/analyst-cio-rerun",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/insufficient-evidence/analyst-cio-rerun/eval/result.json"
+      },
+      "full-council": {
+        "case_id": "insufficient-evidence",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/full-council",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/insufficient-evidence/full-council/eval/result.json"
+      }
+    },
+    "analyst-skeptic-strong-conflict": {
+      "cio-only": {
+        "case_id": "analyst-skeptic-strong-conflict",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/analyst-skeptic-strong-conflict/cio-only",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/analyst-skeptic-strong-conflict/cio-only/eval/result.json"
+      },
+      "analyst-cio": {
+        "case_id": "analyst-skeptic-strong-conflict",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/analyst-skeptic-strong-conflict/analyst-cio-rerun",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/analyst-skeptic-strong-conflict/analyst-cio-rerun/eval/result.json"
+      },
+      "full-council": {
+        "case_id": "analyst-skeptic-strong-conflict",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/analyst-skeptic-strong-conflict/full-council",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/analyst-skeptic-strong-conflict/full-council/eval/result.json"
+      }
+    },
+    "mandatory-no-trade": {
+      "cio-only": {
+        "case_id": "mandatory-no-trade",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/cio-only",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/mandatory-no-trade/cio-only/eval/result.json"
+      },
+      "analyst-cio": {
+        "case_id": "mandatory-no-trade",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/analyst-cio",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/mandatory-no-trade/analyst-cio/eval/result.json"
+      },
+      "full-council": {
+        "case_id": "mandatory-no-trade",
+        "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/full-council",
+        "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/evals/mandatory-no-trade/full-council/eval/result.json"
+      }
+    }
+  }
+}

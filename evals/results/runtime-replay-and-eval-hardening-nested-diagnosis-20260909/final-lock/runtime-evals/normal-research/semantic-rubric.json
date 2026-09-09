@@ -1,0 +1,72 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-normal-revenue",
+        "ev-normal-margin",
+        "ev-normal-debt",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将可追溯事实与有限解释分开；解释引用收入、利润率、债务和公司更新，并明确未能支持持续性、竞争壁垒或未来回报的部分。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-normal-revenue",
+        "ev-normal-margin",
+        "ev-normal-debt",
+        "ev-normal-update",
+        "ev-normal-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确记录 Specialist 共识及无机械冲突，并把未决的估值、现金流、债务、经营趋势和产能问题与 NO_TRADE 结论及重评条件相连。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-normal-revenue",
+        "ev-normal-margin",
+        "ev-normal-debt",
+        "ev-normal-update",
+        "ev-normal-price"
+      ],
+      "grade": 3,
+      "rationale": "各报告的置信度理由区分已支持的点时事实与未解决的数据缺口；CIO 的低置信度与有限证据、无估值基础和不确定性方向一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-normal-price",
+        "ev-normal-margin",
+        "ev-normal-debt",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "NO_TRADE 将估值、现金流、债务期限、经营趋势与产能执行信息缺口明确关联到无法形成风险回报判断，并列出可核验的重评条件。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-normal-margin",
+        "ev-normal-revenue",
+        "ev-normal-debt",
+        "ev-normal-update",
+        "ev-normal-price"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 独立地针对利润率持续性、产能执行与融资、以及价格解释提出具体可证伪的限制，并为每项说明所需的解决证据。",
+      "status": "PASS"
+    }
+  },
+  "eval_id": "rrh-final-lock-eval-normal-research-20260909",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "70716c462b0e6175672a91c47ba3cacea2e21c3dea79e2af0235043ac8a7a9b1",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "d3d01692fc145b5a487c0a2d5a983de607326bdc909c3a76133e5f6be9383752",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

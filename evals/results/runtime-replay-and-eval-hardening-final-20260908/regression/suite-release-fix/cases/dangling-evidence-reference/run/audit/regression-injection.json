@@ -1,0 +1,7 @@
+{
+  "case_id": "dangling-evidence-reference",
+  "deterministic_outcome_hash": "5de16440c582fab0f0a09de01f82957ae83111469b60120b11cb50107181e472",
+  "injection": "dangling-evidence-reference",
+  "llm_calls": 0,
+  "schema_version": "regression-injection/1.0.0"
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "16-promotion-gate",
+  "command": [
+    "python3",
+    "-m",
+    "product.runtime.cli",
+    "promotion",
+    "--repo",
+    "/Users/caihaoming/Documents/stock_agent",
+    "--input-manifest",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/promotion/input.json",
+    "--output-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/promotion/result"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T12:56:28.524004+00:00",
+  "ended_at": "2026-09-08T12:56:29.835722+00:00",
+  "exit_code": 5,
+  "stdout_sha256": "6bfcc21509d7b2f17b2a202e074503f80e983a00a72a9d8a6020c4ff99ea893b",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

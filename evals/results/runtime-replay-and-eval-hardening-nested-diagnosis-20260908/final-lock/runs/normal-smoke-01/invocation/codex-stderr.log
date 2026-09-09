@@ -1,0 +1,19 @@
+2026-09-08T15:33:50.605988Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/
+2026-09-08T15:33:50.606041Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/
+2026-09-08T15:33:50.626069Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.628590Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.630858Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.632846Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.634625Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.636401Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.638489Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.640300Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.642075Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.644014Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:50.651874Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T15:33:52.287684Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/
+2026-09-08T15:33:52.287703Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/
+2026-09-08T15:35:54.459790Z  WARN codex_core_plugins::manager: failed to refresh cached remote plugin catalog error=failed to parse remote plugin catalog response from https://chatgpt.com/backend-api/ps/plugins/list?scope=GLOBAL&limit=200&pageToken=eyJzY29wZSI6IkdMT0JBTCIsIndvcmtzcGFjZV9pZCI6bnVsbCwiY3JlYXRvcl9hY2NvdW50X3VzZXJfaWQiOm51bGwsImNvbGxlY3Rpb24iOm51bGwsImluY2x1ZGVfcmVzdHJpY3RlZF9wbHVnaW5zIjp0cnVlLCJpbmNsdWRlX3VubGlzdGVkX2dsb2JhbF9wbHVnaW5zIjp0cnVlLCJlbGlnaWJsZV9wbGFuX3R5cGUiOiJwcm9saXRlIiwiZW5mb3JjZV9wbGFuX2VsaWdpYmlsaXR5IjpmYWxzZSwicmFua19ieV9wb3B1bGFyaXR5Ijp0cnVlLCJjb250aW51YXRpb24iOnsiZGVwbG95bWVudF90eXBlIjoicHJpbWFyeSIsInF1ZXJ5X2lkIjoicnM0OmI5MzBlZTc5LTUwN2YtNDVmMC1hOTkwLTQ0MDc2YjY4MWEyMjpZVkNYVGYwOjA6bGVhZi05YjU5MmI4OC0wNTM3LTQ5NGYtOGU1MC1mYzFhMWM0M2QyOTkiLCJjdXJzb3IiOiJaSDY5ZFhDNGdMdnZlSExwaEpVSzZmamkyTkdqUE5TMEdzVkNwSlZaZ192VU5lRUZjWjVjZGpTNENKZ3BSWlpnNmFKWmFGVmJiZEEyS24yaTFGSDFqb0RrTjBDbXNDNlFRRGJrZmtlWHVHUDJXeVM3U3E5V3hyM0wtNzdHU0ktMXFjS2ViRUdXcnlZNWNIbmVwbldIVkdhWmpoaXNXYW9GRVlRZ0xYb1NDV1Job3IxR1hCdnZwQlY5bmlka1Zrek1XSzFpTFBURVVLZz0ifX0: EOF while parsing a value at line 1 column 0 scope=Global
+2026-09-08T15:36:02.887136Z  WARN codex_core::hook_runtime: failed to resolve parent transcript path for subagent hook parent_thread_id=01a081a7-7581-73e2-b13a-40593edc0275 error=invalid thread-store request: no rollout found for thread id 01a081a7-7581-73e2-b13a-40593edc0275
+2026-09-08T15:36:19.552762Z  WARN codex_core::hook_runtime: failed to resolve parent transcript path for subagent hook parent_thread_id=01a081a7-7581-73e2-b13a-40593edc0275 error=invalid thread-store request: no rollout found for thread id 01a081a7-7581-73e2-b13a-40593edc0275
+2026-09-08T15:38:28.583338Z ERROR codex_models_manager::manager: failed to refresh available models: timeout waiting for child process to exit

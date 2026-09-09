@@ -1,0 +1,21 @@
+{
+  "normal-research": {
+    "cache_record": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/regression/cache/814382e4a8b7641d085e145f218775780100358f2715b2372ca13299642d3525.json"
+  },
+  "insufficient-evidence": {
+    "cache_record": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/regression/cache/554d77e489ea0221e46b49400555db90e8f46a8b6a98f54bec296e2bdcd7bafc.json"
+  },
+  "analyst-skeptic-strong-conflict": {
+    "cache_record": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/regression/cache/54b27629ce21270eb06483432f92aa22d00ed0e3ee1e8ce769fb56a86607a544.json"
+  },
+  "risk-veto": {
+    "cache_record": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/regression/cache/25c9421d3f02590da18a1a36c2c175c3062a7cac89e88af3cd313c7517aed151.json"
+  },
+  "high-concentration-portfolio": {
+    "cache_record": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/regression/cache/59d76e879ea25ba0e125105a0f758cfa1f1a20088f191cc404d0f4745ee94206.json"
+  },
+  "llm-overconfidence": {
+    "cache_record": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/regression/cache/947214c624107f514e69a7f13d185e699b130245a91520b9ebb92221277fd5f0.json"
+  }
+}
+

@@ -1,0 +1,90 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-insufficient-price"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "在严格使用 Gate 授权证据且不补充外部事实的前提下，评估该持仓。Company Analyst 必须通过 fixture_runtime 查询 Gate 证据；工具参数必须服从 Invocation Prompt，Evidence 引用只能使用原始 evidence_id。若证据不足，应明确 NO_TRADE。",
+  "run_id": "rreh-hardening-ablation-insufficient-analyst-cio-v3-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "ffbeb1aebdb7c9f3b6e1ef1e5aa74ebb6743b47edf58945c302c53e419597da8"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-1",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的收盘价为 100 USD/share；source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        }
+      ],
+      "confidence": 0.05,
+      "confidence_rationale": "已验证的唯一事实是单一、鲜度合格的收盘价（source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z）；其不足以支持公司研究或估值判断。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少公司业务、财务报表、经营指标、管理层指引与竞争证据。",
+        "缺少估值所需的盈利、现金流、资本结构和可比基准证据。",
+        "缺少价格历史、成交流动性及催化剂证据。",
+        "因此无法形成有证据支持的公司 Thesis；研究结论为 NO_TRADE。"
+      ],
+      "invalidation_conditions": [
+        "在补充经 Gate 授权且包含 source_id、as_of、retrieved_at 的公司基本面、估值和风险证据前，不应将本报告用于支持持仓变更。"
+      ],
+      "invocation_id": "inv_2eb00911e667464de441e4f9",
+      "run_id": "rreh-hardening-ablation-insufficient-analyst-cio-v3-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；仅获授权价格证据：source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "ada824fc5067c47692747ebea16f5222d6b16fa2328c234692d9c2acad31d5b8",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "50627c778145b61d349a25cd117e71a75c40e9e0f9288a28159093c4037d672a",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "67d5688919268390bd8b8db9d1d5ddc2ef17b85a55ab2af22e6490e5a299b72a",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一价格观察无法说明收入、盈利、现金流、竞争地位、资本结构、估值或风险变化。",
+        "该价格事实不构成对持仓商业质量或内在价值的支持或反证。"
+      ]
+    }
+  }
+}

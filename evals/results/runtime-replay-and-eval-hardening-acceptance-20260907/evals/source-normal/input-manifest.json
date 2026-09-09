@@ -1,0 +1,20 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rreh-eval-source-normal-20260907",
+  "expected_terminal_states": [
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal",
+  "run_id": "rreh-source-normal-20260907",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "987d5dab4d78799b4fc27baadf3780b37497914115baa0b2fc3429ce98a025e9",
+    "artifact_replay": "609c32f6e2b8efb173678040f3a1d1a9ce5cda6aa6fff2cddfb3e942bee8c473",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "d0616ecbaedbec97a285b2a6b0a7c0cec6a547276cc7f960fc191b6f81b71bef",
+    "semantic_input": "b26947a809072410476273a0ea78a4a0325e1e6449af80f8b992e73357355aed",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "5d283ce354eccbb8933a76cd37cfbe341cdceaebb0b4cb3d82a4318e3004599b"
+  }
+}

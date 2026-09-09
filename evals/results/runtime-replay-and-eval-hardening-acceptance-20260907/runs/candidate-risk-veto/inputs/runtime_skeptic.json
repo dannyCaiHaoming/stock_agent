@@ -1,0 +1,29 @@
+{
+  "agent": "runtime_skeptic",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "mode": "INDEPENDENT_FIRST_PASS",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 10000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 900,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "基于冻结证据评估高集中度组合；所有建议必须经过确定性风险引擎。",
+  "run_id": "rreh-candidate-risk-veto-20260907",
+  "security_id": "SEC-AAA"
+}

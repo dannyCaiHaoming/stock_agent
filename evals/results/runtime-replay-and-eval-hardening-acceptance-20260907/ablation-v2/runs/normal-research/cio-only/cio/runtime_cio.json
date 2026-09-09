@@ -1,0 +1,47 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-ablation-v2-normal-cio-only-20260907",
+  "invocation_id": "inv_f29a0d616ef11284d52ed81c",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得并验证专业研究报告前不形成调整建议。",
+  "thesis": "Gate 范围内的材料显示截至 2025 年末营业利润率为 18%、收入为 1,000,000 美元、总债务为 150,000 美元，且管理层于 2026-01-20 维持既定产能计划。",
+  "counter_thesis": "没有已验证的 Company Analyst 或 Independent Skeptic 报告，无法就这些孤立事实的经济意义、估值含义或反证形成经交叉审阅的综合判断。",
+  "consensus": [],
+  "conflicts": [],
+  "unresolved_questions": [
+    "在没有专业报告的情况下，收入、利润率、债务与产能计划不足以建立经过反证的投资 Thesis。",
+    "缺少对竞争地位、盈利持续性、资本配置和估值的独立分析。"
+  ],
+  "invalidation_conditions": [
+    "若后续经验证的专业报告表明当前证据的解释或关键事实存在重大缺口，应保持不作调整并重新综合。"
+  ],
+  "confidence": 0.2,
+  "confidence_rationale": "对 Gate 事实本身的来源、as_of 与 retrieved_at 可核验，但 cio-only 实验拓扑没有任何已验证的专业报告，故无法对组合调整形成足够置信度。",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "本次 cio-only 评估没有可消费的已验证 Specialist 报告；仅凭 Gate 范围内的有限事实不足以形成经反证的组合调整结论。",
+  "reevaluation_conditions": [
+    "在相同 Gate 边界内获得并验证 Company Analyst 与 Independent Skeptic 的结构化报告后重新综合。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "922fbb115c6880e805c0cc0de21a9545f031498e39c66bf5e7efc9d37b62d0ce",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

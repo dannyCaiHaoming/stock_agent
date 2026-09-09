@@ -1,0 +1,15 @@
+{
+  "agent": "runtime_company_analyst",
+  "invocation_id": null,
+  "maximum_repairs": 1,
+  "original_evidence_refs": [],
+  "original_fact_atoms": [],
+  "original_report_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+  "permitted_change": "FORMAT_ONLY",
+  "repair_number": 1,
+  "repaired_output_relative_path": "repairs/runtime_company_analyst-attempt-2.json",
+  "request_hash": "c246d72629871fa56f1211494adbaf0a07a17ed8f76ba5ef0cc7f18855f78a2e",
+  "run_id": "regression-focused-closure-20260908-invalid-specialist-output-0054b5e5c8f3",
+  "schema_version": "specialist-format-repair/2.0.0",
+  "validation_error": "AgentResearchReport keys invalid; missing=['agent', 'artifact_refs', 'assumptions', 'claims', 'confidence', 'confidence_rationale', 'counter_evidence_refs', 'data_gaps', 'invalidation_conditions', 'invocation_id', 'run_id', 'schema_version', 'scope', 'skill_execution', 'status', 'uncertainties'], extra=[]"
+}

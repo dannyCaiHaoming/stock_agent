@@ -1,0 +1,7 @@
+{
+  "message": "rrh-final-lock-regression-risk-veto-retry-01-20260909  \nCIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "fb32101b5649a51954579cf51715195c9fc9ce0e2d4c77960e018e5473aa1692",
+  "present": true,
+  "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

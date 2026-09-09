@@ -1,0 +1,27 @@
+{
+  "agent": "runtime_company_analyst",
+  "allowed_evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "portfolio_summary": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "price": 100,
+        "quantity": 500,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "research_scope": "验证证据不足场景在真实 Codex 下完成并行 Specialist、CIO、Risk 与合法终态。",
+  "run_id": "rrh-pretool-guard-insufficient-evidence-20260909",
+  "security_id": "SEC-AAA"
+}

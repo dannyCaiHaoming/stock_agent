@@ -1,0 +1,338 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_close_price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2026-01-30T21:00:00Z，SEC-AAA 收盘价为 100 USD/股；来源 fixture-market-primary，retrieved_at 为 2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_revenue_ttm",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2025-12-31T00:00:00Z，SEC-AAA 的 TTM 收入为 1,000,000 USD；来源 fixture-filing-primary，retrieved_at 为 2026-01-15T13:00:00Z。"
+        }
+      ],
+      "confidence": 0.2,
+      "confidence_rationale": "两项经授权且新鲜的冻结证据足以确认价格和 TTM 收入事实，但不足以评估公司商业质量、竞争优势、盈利能力或估值，故不能形成高置信度研究结论。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少 SEC-AAA 的业务描述、竞争与行业证据。",
+        "缺少历史和前瞻收入、利润率、盈利及现金流数据。",
+        "缺少股本、净债务、企业价值及可比公司估值数据。",
+        "缺少可能支持或反驳基本面 Thesis 的独立反证。"
+      ],
+      "invalidation_conditions": [
+        "若来源 fixture-market-primary 对 ev-risk-price 的价格、as_of 或 retrieved_at 作出更正，则价格事实主张失效。",
+        "若来源 fixture-filing-primary 对 ev-risk-revenue 的收入、as_of 或 retrieved_at 作出更正，则收入事实主张失效。",
+        "若补充的授权证据显示收入质量、盈利能力、资本结构或竞争地位与当前未知状态存在重大不利差异，任何后续基本面解释均须重新研究。"
+      ],
+      "invocation_id": "inv_f143f0c9a729f0ef427d64ca",
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": {
+        "decision_cutoff": "2026-01-31T23:59:59Z",
+        "research_question": "基于冻结证据评估 SEC-AAA 的公司基本面与估值可解释性；不输出组合或交易动作。",
+        "security_id": "SEC-AAA"
+      },
+      "skill_execution": [
+        {
+          "invocation_hash": "bff863016023031571df7054b784957a0b58a2bd0ec99288746a07f8500d299c",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "9c0df1ed2f79b27d879a8dab636e6b521f7c5677af72d088789066ad41410069",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "59cfb28f655f7049cd0cbdd99990d890d91a60eaac66fe074c92f74a6913ae03",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "授权证据未提供收入增长、毛利率、盈利能力、自由现金流、资产负债表、竞争地位、管理层执行或业务分部信息，因此无法形成受证据支持的商业质量 Thesis。",
+        "价格与 TTM 收入的单位和口径不能单独构成可解释的估值倍数；缺少股本、企业价值、净债务和盈利或现金流指标。"
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "A-price-level-represents-risk-and-valuation"
+          ],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至决策截止日的价格时间序列、成交量与流动性指标",
+            "估值所需的股本、企业价值、盈利或现金流数据"
+          ],
+          "statement": "单一收盘价只能确认某一时点的价格水平，不能支持价格稳定性、流动性、波动率、回撤或估值合理性的判断；任何基于该价格推导持仓风险可控或具备上行空间的解释均缺乏独立支撑。"
+        },
+        {
+          "assumption_ids": [
+            "A-revenue-scale-implies-business-quality"
+          ],
+          "challenge_id": "CH-002",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "毛利率、营业利润、自由现金流及其趋势",
+            "债务、现金、到期结构和流动性数据",
+            "收入增长、分部构成、客户集中度及可比期间披露"
+          ],
+          "statement": "TTM收入仅反映规模，不能证明盈利能力、现金流转换、增长质量、客户集中度或资产负债表承压情况；收入规模不能替代经营质量或下行保护的证据。"
+        }
+      ],
+      "confidence": 0.86,
+      "confidence_rationale": "对“现有两项证据不足以支持经营质量、估值或风险可控推断”的置信度较高；对证券基本面本身不作正负判断，因为授权证据范围不足。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "缺少估值、盈利能力、现金流、资本结构、流动性、价格历史与风险暴露数据。",
+        "缺少业务竞争地位、催化剂、监管风险及重大负面事件的冻结证据。",
+        "缺少证券数量之外的可验证流通股本或市场资本化数据，无法评估持仓集中风险的市场背景。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若补充的截止日前证据显示持续盈利、稳健自由现金流、充足流动性、可承受的资本结构，并能以估值和风险数据反驳上述限制，则CH-001与CH-002的证据不足反证应被重新评估。",
+        "若后续冻结证据与已核验价格或收入事实存在实质冲突，现有结论应失效并进行来源冲突处理。"
+      ],
+      "invocation_id": "inv_edbbabec5852f3351868ee87",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；决策截止日为2026-01-31T23:59:59Z。已核验的冻结证据为：fixture-market-primary于2026-01-30T21:00:00Z的收盘价100 USD/share，及fixture-filing-primary于2025-12-31T00:00:00Z的TTM收入1,000,000 USD。",
+      "skill_execution": [
+        {
+          "invocation_hash": "9e8f826a922217702d79372006d5258d1c2e38c2c15e1f33174e59ffbdbcf980",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "65d71aad235118a0e495693195ffaa8620d0b706923b522e2ffabb106e5873a1",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "价格证据在截止日前保持新鲜，但不提供历史波动、交易深度或估值背景。",
+        "收入证据在截止日前保持新鲜，但其报告期早于决策截止日，且没有利润、现金流或资产负债表佐证。",
+        "未提供需被反证的独立Thesis；本报告仅识别证据不足导致的替代失败路径。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.9,
+      "confidence_rationale": "对现有允许证据不足以支持方向性建议的结论具有高置信度：Company Analyst 为 INSUFFICIENT_EVIDENCE，Independent Skeptic 以 0.86 置信度提出相同限制，且没有机械证据冲突；这不代表对 SEC-AAA 基本面作出高置信度判断。",
+      "conflicts": [],
+      "consensus": [
+        "两份已验证报告均确认仅有 ev-risk-price 和 ev-risk-revenue 两项允许证据。",
+        "两份报告均认为现有证据不足以形成经营质量、估值或风险可控的判断。",
+        "组合当前 SEC-AAA 权重为 0.9，超过输入 mandate 的 0.6 上限；本草案不提出交易执行字段。"
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "6334393840faf10b427a9f9379eb2e22fc61ce628668f9edb496d5e5b82d701d"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "1b42298acc842b8dfb54e030453170325506eb90ce3390740421c3b8bda2150f"
+        }
+      ],
+      "counter_thesis": "单点价格与单期收入规模均不能证明风险可控、流动性、下行保护或估值吸引力；两项基础事实不足以反驳这一限制。",
+      "current_weight": 0.9,
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若 ev-risk-price 的价格、as_of 或 retrieved_at 被其来源更正，则基于该事实的范围判断失效。",
+        "若 ev-risk-revenue 的收入、as_of 或 retrieved_at 被其来源更正，则基于该事实的范围判断失效。",
+        "若获得截止日前可核验的盈利、现金流、资本结构、估值、流动性或竞争证据，当前证据不足结论必须重新综合。"
+      ],
+      "invocation_id": "inv_c1737c0db800b94e7d1d7120",
+      "maximum_notional": null,
+      "no_trade_explanation": "缺少形成可解释 Thesis、估值与风险判断所必需的截止日前证据；因此不提出任何买入、增持、持有、减持或退出建议。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "补充经 Gate 验证且不晚于 decision_cutoff 的经营、盈利、现金流与资本结构证据。",
+        "补充经 Gate 验证的股本、企业价值、估值与可比数据。",
+        "补充经 Gate 验证的价格历史、流动性、波动率和回撤数据。"
+      ],
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "518b4ef4ea615452380dc0b5f684097b49ac82f5d866b027e2ecde35bf115b18",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "已验证的冻结证据仅确认 SEC-AAA 的单点收盘价与 TTM 收入，无法支持关于商业质量、盈利能力、现金流、资本结构或估值合理性的 Thesis。",
+      "time_horizon": "在获得截止日前可核验的补充证据前不形成方向性建议。",
+      "unresolved_questions": [
+        "截止日前的收入增长、利润率、盈利能力与自由现金流趋势是什么？",
+        "截至截止日前的现金、债务、到期结构、流通股本、企业价值与可比估值数据是什么？",
+        "截至截止日前的价格时间序列、成交量、流动性、波动率及回撤数据是什么？",
+        "公司的业务、竞争地位、客户集中度、重大事件和监管风险是否存在可核验的支持或反证？"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "counter_thesis": "单点价格与单期收入规模均不能证明风险可控、流动性、下行保护或估值吸引力；两项基础事实不足以反驳这一限制。",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "invalidation_conditions": [
+            "若 ev-risk-price 的价格、as_of 或 retrieved_at 被其来源更正，则基于该事实的范围判断失效。",
+            "若 ev-risk-revenue 的收入、as_of 或 retrieved_at 被其来源更正，则基于该事实的范围判断失效。",
+            "若获得截止日前可核验的盈利、现金流、资本结构、估值、流动性或竞争证据，当前证据不足结论必须重新综合。"
+          ],
+          "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+          "no_trade_reason": "RISK_VETO",
+          "reevaluation_conditions": [
+            "仅在满足 Risk Engine 可行边界后重新评估。"
+          ],
+          "security_id": "SEC-AAA",
+          "thesis": "已验证的冻结证据仅确认 SEC-AAA 的单点收盘价与 TTM 收入，无法支持关于商业质量、盈利能力、现金流、资本结构或估值合理性的 Thesis。"
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "REJECTED",
+        "veto_reason": "RISK_VETO",
+        "violations": [
+          {
+            "code": "POSITION_LIMIT",
+            "limit": 0.6,
+            "metric": "target_max:SEC-AAA",
+            "observed": 0.9,
+            "policy_rule": "POSITION_LIMIT",
+            "remediable_within_range": false
+          },
+          {
+            "code": "LIQUIDITY_LIMIT",
+            "limit": "0:0.6",
+            "metric": "target_range:SEC-AAA",
+            "observed": "0.9:0.9",
+            "policy_rule": "LIQUIDITY_LIMIT",
+            "remediable_within_range": false
+          },
+          {
+            "code": "SECTOR_LIMIT",
+            "limit": 0.6,
+            "metric": "sector_range:Synthetic Technology",
+            "observed": "0.9:0.9",
+            "policy_rule": "SECTOR_LIMIT",
+            "remediable_within_range": false
+          }
+        ]
+      },
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-risk-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://risk/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-risk-revenue",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://risk/revenue/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "bundle_hash": "29ba4d5ff911cf7fced44f75c391066a5d0d9b549156ba9532525e8c277ce1c5",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "risk-veto-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "e341d5190821ab1ee77e6c56b6d61c8b2826e8501b88faf5b16b9209ddb8189c",
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,10 @@
+E
+======================================================================
+ERROR: IntentionalAssertionFailure (unittest.loader._FailedTest.IntentionalAssertionFailure)
+----------------------------------------------------------------------
+AttributeError: module 'evals.promotion.assertion_failure_fixture' has no attribute 'IntentionalAssertionFailure'. Did you mean: 'IntentionalPromotionAssertionFailure'?
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)

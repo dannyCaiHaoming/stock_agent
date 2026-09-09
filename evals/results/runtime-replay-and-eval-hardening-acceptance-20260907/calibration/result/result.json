@@ -1,0 +1,22 @@
+{
+  "agreement": 0.9666666666666667,
+  "calibration_id": "portfolio-council-semantic-calibration/1.0.0",
+  "input_hashes": {
+    "evidence-gap-no-trade_1": "a237a72c1ef583e665832e85091b520cd2ba06f9bdec8afd2a0815a73801b2f8",
+    "evidence-gap-no-trade_2": "281e22dcf0be505ef2f3720dd5e9266f80aff16615710cc55a5184a800f3c6cb",
+    "grader_index": "43f9149ad0081a80594ca67ab37dc5a6087bbad7519ff52a1ed6c9581e88da09",
+    "grounded-balanced_1": "1d47623a807e4ab61dd2814997f6defa21b79ed00385dd8749525c0e805cf261",
+    "grounded-balanced_2": "a5a3ad6a925f1ec4d51b249b494b002abfd946a78795e7a4441928a95b0e4ff8",
+    "labels": "c0da4243635480e4cef30af216c53c59b040d3ec38ef1ad7b87bf06b4a794747",
+    "unsupported-overconfidence_1": "866cae87870f2567707b57c4c0a3255feb128ed7e21387a6b04e2b8ea00646fc",
+    "unsupported-overconfidence_2": "31376f948582a118ec241ce9bf4cbf446a78ee2fb516b23c8965ea5e9fbf2fe2"
+  },
+  "observations": 30,
+  "result_hash": "30825a75cfa8fc876365ec9fc1c8aa9e08fb3163bfc1ee274e492f47d5613fcc",
+  "schema_version": "semantic-calibration-result/1.0.0",
+  "status": "FAIL",
+  "threshold": 0.8,
+  "unstable_dimensions": [
+    "evidence-gap-no-trade:confidence_calibration"
+  ]
+}

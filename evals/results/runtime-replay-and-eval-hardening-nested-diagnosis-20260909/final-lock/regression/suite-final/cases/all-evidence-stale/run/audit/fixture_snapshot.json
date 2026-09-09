@@ -1,0 +1,79 @@
+{
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence": [
+    {
+      "as_of": "2026-02-01T21:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-future-asof",
+      "published_at": "2026-02-01T21:00:00Z",
+      "retrieved_at": "2026-02-01T21:05:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "close_price",
+      "source_id": "fixture-market-future",
+      "source_locator": "fixture://future/asof/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD_per_share",
+      "value": 110
+    },
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-future-retrieval",
+      "published_at": "2026-02-02T12:55:00Z",
+      "retrieved_at": "2026-02-02T13:00:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "revenue_ttm",
+      "source_id": "fixture-restatement-future",
+      "source_locator": "fixture://future/retrieval/2",
+      "source_type": "fixture",
+      "source_version": "2",
+      "unit": "USD",
+      "value": 1250000
+    },
+    {
+      "as_of": "2025-01-01T14:00:00Z",
+      "evidence_id": "ev-stale-update",
+      "retrieved_at": "2025-01-01T14:01:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "company_update",
+      "source_id": "fixture-company-old",
+      "source_locator": "fixture://stale/update/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "text",
+      "value": "An old operating plan was published."
+    }
+  ],
+  "fixture_id": "future-or-stale-v1",
+  "fixture_version": "2.0.0",
+  "freshness_policy": {
+    "default_max_age_days": 30,
+    "field_max_age_days": {
+      "close_price": 7,
+      "company_update": 30,
+      "revenue_ttm": 400
+    },
+    "version": "freshness/fixture/2.0.0"
+  },
+  "portfolio": {
+    "base_currency": "USD",
+    "cash": 50000,
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.6,
+      "minimum_cash_weight": 0.1
+    },
+    "positions": [
+      {
+        "average_daily_value": 10000000,
+        "industry": "Synthetic Technology",
+        "price": 100,
+        "quantity": 500,
+        "security_id": "SEC-AAA"
+      }
+    ]
+  },
+  "scenario_type": "future_or_stale"
+}

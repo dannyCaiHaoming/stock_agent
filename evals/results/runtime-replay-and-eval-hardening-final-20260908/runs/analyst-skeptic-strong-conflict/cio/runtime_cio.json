@@ -1,0 +1,75 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+  "invocation_id": "inv_06ceba929f4979b74ea376f4",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "2769d63f7018bece80454888292c15917c373f81654915f23897ac3ee3ea2eb8"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "45fdca23dd1baf59b9dc50c4d2b6dbadea2e0c3b737d46c11706b311d36fa2f1"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess only after eligible evidence resolves the conflict.",
+  "thesis": "The authorized record establishes an 18% TTM operating-margin observation and a USD 100 close-price observation, but it does not establish a reliable company or valuation thesis because the core TTM revenue input is unresolved.",
+  "counter_thesis": "The independent review finds the same-period revenue observations materially inconsistent and finds that the isolated margin and price observations lack historical, valuation, liquidity, cash-flow, balance-sheet, and competitive context.",
+  "consensus": [
+    "Both validated specialist reports identify the same unresolved same-period TTM revenue conflict.",
+    "Both reports find the authorized evidence insufficient for a grounded company-level or valuation conclusion.",
+    "Both reports identify missing reconciliation and broader financial-context evidence as decision-limiting."
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "summary": "Two authorized fresh sources report incompatible USD 1,000,000 and USD 1,250,000 TTM revenue values for the same security and as-of date.",
+      "unresolved": true,
+      "decision_impact": "The conflict prevents reliable revenue-based scale, profitability-dollar, growth, and valuation interpretation.",
+      "confidence_impact": "The unresolved 25% discrepancy materially lowers confidence in any action-oriented thesis."
+    }
+  ],
+  "unresolved_questions": [
+    "Which authorized revenue observation, if either, uses the applicable reporting definition, perimeter, and restatement status?",
+    "What audited financial, capital-structure, cash-flow, and historical operating evidence supports a durable company and valuation assessment?",
+    "What point-in-time valuation and liquidity context supports interpreting the single close-price observation?"
+  ],
+  "invalidation_conditions": [
+    "An authoritative eligible reconciliation establishes that one revenue observation is inapplicable or reconciles both definitions.",
+    "Eligible historical and primary-source disclosures establish materially different recurring profitability or financial condition.",
+    "Eligible valuation and liquidity evidence supplies context that materially changes the investment interpretation."
+  ],
+  "confidence": 0.2,
+  "confidence_rationale": "The underlying data conflict is explicit and both specialist reports independently conclude that the narrow authorized evidence set cannot resolve it or support a company-level thesis. The individual price and margin observations do not cure the absence of reconciled financial and valuation context.",
+  "evidence_refs": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "no_trade_reason": "EVIDENCE_CONFLICT",
+  "no_trade_explanation": "A material same-period revenue conflict remains unresolved, and the remaining authorized observations do not provide the financial, valuation, or liquidity context needed for an action-oriented recommendation.",
+  "reevaluation_conditions": [
+    "Obtain eligible reconciled primary-source revenue evidence for the 2025-12-31 reporting period.",
+    "Obtain eligible historical profitability, cash-flow, balance-sheet, capital-structure, valuation, and liquidity evidence before reassessment."
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "60a83a16c4994ae8bb0972313f0ac130673c6a573cea917bbe9297fa8ff664f8",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

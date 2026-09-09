@@ -1,0 +1,8 @@
+{
+  "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "message": "FORMAT_REPAIR_OUTPUT_IDENTITY_MISMATCH",
+  "run_id": "regression-rrh-release-fix-20260908-invalid-specialist-output-450613852fb2",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

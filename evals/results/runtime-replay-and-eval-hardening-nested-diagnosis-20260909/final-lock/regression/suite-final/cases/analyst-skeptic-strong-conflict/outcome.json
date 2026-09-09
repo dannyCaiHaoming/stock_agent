@@ -1,0 +1,93 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 453632,
+  "cio_conflict_handled": true,
+  "eval_hash": "ed79d9280f96bbb700af6b6ae911900d4c96e0c36485773a889d1677ebcbfc67",
+  "eval_status": "PASS",
+  "evidence_closure": true,
+  "evidence_subset_of_gate": true,
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 500747,
+  "latency_ms": 252235,
+  "llm_calls": 3,
+  "model": "gpt-5.6-terra",
+  "no_future_evidence": true,
+  "output_tokens": 9083,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rrh-final-lock-regression-analyst-skeptic-strong-conflict-20260909",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim-margin-fact",
+        "claim-price-fact",
+        "claim-revenue-conflict-fact",
+        "claim-thesis-limited",
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将利润率、价格和两项收入观察分别标注为 FACT 并引用允许证据；其 INTERPRETATION 明确受同期间收入冲突和数据缺口限制，未将未证实的收入规模、增长或估值判断表述为事实。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin",
+        "ev-conflict-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确记录 Specialist 对收入冲突和证据边界的共识，保留未解决冲突、未决问题及其对收入、盈利和估值推导的影响，并在 decision.json 中保持与 Risk APPROVED 和 SAFE_NO_TRADE 一致的结论。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst、Skeptic 和 CIO 的置信度理由均将判断范围限定为已验证冲突或有限事实，并随未解决收入冲突、口径不明及经营和估值数据缺口保持审慎；未以固定数值或市场结果作为正确性依据。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin",
+        "ev-conflict-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 与 decision.json 均将同一报告期的未解决收入冲突及补充经营和估值数据缺口列为 NO_TRADE 原因，并给出取得统一可追溯收入口径和补充同口径证据后的重评条件；与 Evidence Gate 的冲突记录和 SAFE_NO_TRADE 一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "revenue-definition-or-restatement-conflict",
+        "profitability-context-gap",
+        "price-is-not-valuation-evidence",
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 以 INDEPENDENT_FIRST_PASS 提出具体的收入口径、利润率可比性和价格语境挑战，逐项引用授权证据，列明可证伪的替代解释、所需解决证据和失效条件。",
+      "status": "PASS"
+    }
+  },
+  "specialist_output_valid": true,
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_complete": true,
+  "trace_hash": "4e1a339427a172ba35d883a6f3044c366ee7b6a4bab54c473b4a091e60fe0d09"
+}

@@ -1,0 +1,413 @@
+=== output files ===
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/ablation/report.md
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/ablation/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/calibration/report.md
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/calibration/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/01-openspec-strict-validate.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/01-openspec-strict-validate.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/02-full-deterministic-tests.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/02-full-deterministic-tests.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/03-artifact-replay.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/03-artifact-replay.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/04-trace-check-source.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/04-trace-check-source.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/05-execution-replay-finalize.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/05-execution-replay-finalize.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/06-runtime-eval-source-prepare.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/06-runtime-eval-source-prepare.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/07-runtime-eval-source-finalize.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/07-runtime-eval-source-finalize.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/08-runtime-eval-replay-prepare.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/08-runtime-eval-replay-prepare.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/09-runtime-eval-replay-finalize.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/09-runtime-eval-replay-finalize.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/10-calibration.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/10-calibration.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/11-regression-12-case.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/11-regression-12-case.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/12-future-artifact-replay.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/12-future-artifact-replay.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/13-future-trace-check.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/13-future-trace-check.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/14-future-runtime-eval-verify.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/14-future-runtime-eval-verify.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/15-ablation.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/15-ablation.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/16-runtime-eval-execution-source-prepare.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/16-runtime-eval-execution-source-prepare.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/17-runtime-eval-execution-source-finalize.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/17-runtime-eval-execution-source-finalize.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/18-trace-check-execution-source.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/18-trace-check-execution-source.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/19-trace-check-execution-replay.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/19-trace-check-execution-replay.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/20-promotion.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/20-promotion.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/21-assertion-failure-evidence.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/21-assertion-failure-evidence.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/22-assertion-failure-evidence-valid.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/22-assertion-failure-evidence-valid.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/23-promotion-negative-assertion.exit
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/23-promotion-negative-assertion.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/commands/24-final-inspection.log
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-input-negative-assertion.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-input.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/FAIL
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/input-manifest.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/report.md
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion/FAIL
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion/input-manifest.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion/report.md
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/cache/8ca2ab196973b2a8830ecc94c6057fa7a438bc3a91cf24bd631447fa48efe44f.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/cache/e0eb030f616215ce335158a78b0ca04a792ade1847fea775f3f158e4a602f0b1.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/artifact-replay-future-injection.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/artifact-replay-source-normal.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/execution-replay-refinalized/report.md
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/execution-replay-refinalized/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/execution-replay-run.after.sha256
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/execution-replay-run.before.sha256
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/execution-source.after.sha256
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/execution-source.before.sha256
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/replay/source-normal.after.sha256
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/deterministic.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/grader-execution-proof.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/grader-input.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/grader-prompt.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/input-manifest.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/semantic-output-schema.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/semantic-result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-replay-risk-veto/semantic-rubric.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/deterministic.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/grader-execution-proof.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/grader-input.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/grader-prompt.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/input-manifest.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/semantic-output-schema.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/semantic-result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/execution-source-risk-veto/semantic-rubric.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/deterministic.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/grader-execution-proof.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/grader-input.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/grader-prompt.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/input-manifest.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/semantic-output-schema.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/semantic-result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/runtime-evals/source-normal/semantic-rubric.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/branch.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/git-diff-staged.patch
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/git-diff-unstaged.patch
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/git-status-porcelain-v1.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/head.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/source-tree-manifest.tsv
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/source-tree.sha256
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/source-tree-proof/before/untracked-files.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative-2/execution-event.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative-2/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative-2/stderr.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative-2/stdout.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative/execution-event.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative/stderr.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative/stdout.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite-2/execution-event.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite-2/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite-2/stderr.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite-2/stdout.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite/execution-event.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite/result.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite/stderr.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/full-suite/stdout.txt
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/traces/execution-replay-risk-veto.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/traces/execution-source-risk-veto.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/traces/future-injection.json
+/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/traces/source-normal.json
+=== task 11.10 ===
+102:- [ ] 11.10 按仓库流程执行独立只读 Release Gate 和人工批准；仅在所有声明门禁满足后标记 Change 完成，归档、同步主规格、检查敏感信息并提交推送。
+=== acceptance report headings and key terms ===
+1:# runtime-replay-and-eval-hardening 可审计验收报告
+3:## 1. 当前结论与范围
+5:- Change 实现进度为 69/70；`Task 11.10` 保持未完成。
+7:- 当前 canonical candidate version lock 为 `618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198`；Regression Set 版本为 `1.1.0`，set hash 为 `6004fb79ed7ec5de46310e017cf493b2362b3259ddf2222982d78e75d9a143ef`。
+8:- 聚焦单元/集成测试为 15/15 PASS；受影响的六个确定性 Regression/Runtime Eval 案例为 6/6 PASS。
+9:- 历史完整 12-case Regression 在旧锁 `ecc5578a...`、Regression Set `1.0.0` 下为 12/12 PASS；它证明完整链已经实际运行，但不能替代最终 Gate 对当前 `1.1.0` typed contract 的一次完整重验。
+10:- Promotion Gate 保持真实 FAIL。当前状态定义为 `NOT_PROMOTABLE_BUT_CHANGE_VALIDATED`：Change 能力已具备进入最终独立只读 Gate 的条件，但现有证据包不能晋升。
+12:## 2. 三项阻断的 Root Cause 与修复映射
+16:| typed `expected_invariants` | Schema 只约束为字符串，Runner 维护手写分支，未知 invariant 可能进入 fixture，Eval 与 Regression 词汇不统一 | 新增 canonical invariant registry；Schema 由 registry 生成 discriminated `oneOf`；Runner 与 Runtime Eval 共享验证/事实派生；未知类型、错误 value 类型和 schema 漂移均 fail-closed | `tests.test_runtime_regression` 15/15；19 类 invariant 均有正负判定；未知类型与错误类型负例通过；六个受影响案例 6/6 | PASS |
+17:| Future-information-leakage 注入 | Runner 在 PIT 结果产生后推导 `PIT_LEAKAGE` 摘要，没有可证明的 pre-Gate producer、注入对象和机制 | fixture 显式声明 `injection_evidence_ids`；先生成 baseline，再由版本化 injector 在 PIT Gate 前追加未来 Evidence；Trace、注入记录、Gate 与 Eval 绑定同一 ID/时间/hash | run `regression-focused-closure-20260908-future-information-leakage-0c1ee5e5f05d`；两个未来 ID 均被 Gate 排除；Eval `injection_verified=true`、`leak_count=0`；删除 Trace 注入事件或模拟 Gate 放行均 FAIL | PASS |
+18:| Verification Report 完整性 | 原报告只有部分命令和 PASS 摘要，缺少全链每阶段的 ID、输入、输出、锁、hash、Specs/Tasks 映射 | 本报告第 4 节逐项列出 Run、Artifact Replay、Execution Replay、Runtime Eval、Calibration、12-case Regression、Ablation、Promotion Gate 的实际证据 | 第 4 节路径闭包及第 7 节状态边界 | PASS |
+20:## 3. 本轮聚焦验证
+22:### 3.1 聚焦测试
+31:### 3.2 受影响 Regression / Eval 子集
+57:- candidate lock：`618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198`
+69:### 3.3 Future Evidence 确定性证明
+75:- baseline fixture SHA-256：`540515997273f22a32ae0402680d9028b1c8449d823ec58e4f9ed76f75c1d154`
+82:  - `evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/injection/baseline-fixture.json`
+89:## 4. Change 实际执行链
+93:### 4.1 Run → Persist
+109:### 4.2 Artifact Replay
+123:### 4.3 Execution Replay
+140:### 4.4 Runtime Eval
+162:### 4.5 Calibration
+179:### 4.6 12-case Regression
+192:- Specs / Tasks：decision-trace-evaluation「Regression Set 必须以 expected_invariants 描述至少十二类案例」；6.1–6.8、11.6。
+194:### 4.7 Ablation
+206:- Specs / Tasks：decision-trace-evaluation「Ablation 必须基于可比的真实运行而非人工分数」；7.1–7.6、11.7。
+208:### 4.8 Promotion Gate
+217:- 输入：`promotion/input-release-fix.json`，SHA-256 `3289c5f10ed5364681f2eb02649ecdf66ca4b812a0ec418e371ec12e5eba48b2`，逐项绑定测试、Eval、Regression、Replay、Calibration、Ablation 与 Trace hash。
+221:- Specs / Tasks：controlled-learning-loop「Promotion Gate 必须直接消费真实验证产物并执行安全硬门禁」；8.1–8.8、11.8。
+223:## 5. Promotion version_completeness 分类
+225:### A. 本 Change 生成证据的版本混用
+227:现有 Promotion 输入同时引用 `5d0e5f...`、`ae13c85...`、`ecc5578...` 三个候选锁。这来自实现期间分阶段生成的 Execution Replay、Ablation、Regression/Eval 证据被组合进同一次候选 Gate。它们各自在自己的锁下可验证，但不能共同证明一个可晋升候选。
+231:### B. 历史 baseline 天然不完整
+233:baseline `0.2.1-candidate.1` 缺少新版 assurance、Runtime Eval 与 Ablation 闭包，旧 manifest 也不满足当前完整性 Schema。该历史事实不补写、不伪造。
+235:因此 Promotion 保持：
+241:真正 Promotion PASS 需要在单一新鲜 version lock 下重建候选全链，并建立符合当前契约的 baseline；不能通过放宽门禁获得。
+243:## 6. 版本、模型与消耗
+246:- 历史真实 Runtime Regression 使用 `gpt-5.6-terra`。
+247:- 历史六个真实 LLM Regression 案例共记录 96 次调用事件、3,216,952 input tokens、67,505 output tokens、2,717,952 cached tokens、1,402,929 ms 累计延迟；这是 Trace 聚合遥测，不是本轮新增调用。
+251:## 7. 最终边界
+255:- `Task 11.10` 仍未完成；不得归档、提交、推送或晋升。
+256:- 当前 Promotion 为 `NOT_PROMOTABLE_BUT_CHANGE_VALIDATED`，不生成 `promotion/PASS`。
+=== approval records ===
+evals/reports/candidate-0.1.0.json:38:  "promotion_status": "HUMAN_APPROVED_CANDIDATE_NOT_ACTIVATED",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/decision_trace.json:662:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/decision_trace.json:672:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/decision_trace.json:712:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/decision_trace.json:713:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/run_manifest.json:215:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/run_manifest.json:216:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/execution-replay.json:25:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/execution-replay.json:35:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/execution-replay.json:75:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/execution-replay.json:76:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/run_manifest.json:124:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/run_manifest.json:125:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/run_manifest.json:216:      "product/schemas/runtime/promotion-gate.schema.json": "7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/run_manifest.json:217:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/run_manifest.json:124:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/run_manifest.json:125:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/run_manifest.json:210:      "product/schemas/runtime/promotion-gate.schema.json": "7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/run_manifest.json:211:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/run_manifest.json:215:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/run_manifest.json:216:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/replay_capsule/manifest.json:616:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/replay_capsule/manifest.json:624:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/replay_capsule/manifest.json:648:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/decision_trace.json:192:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/decision_trace.json:202:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/decision_trace.json:244:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/decision_trace.json:245:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/replay_capsule/manifest.json:648:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-input-negative-assertion.json:2:  "schema_version": "promotion-input/1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-input-negative-assertion.json:13:      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/baseline-version-manifest.json",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/run_manifest.json:215:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/run_manifest.json:216:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/decision_trace.json:167:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/decision_trace.json:177:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/decision_trace.json:219:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/regression/suite/cases/all-evidence-stale/run/decision_trace.json:220:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative/execution-event.json:7:    "evals.promotion.assertion_failure_fixture.IntentionalAssertionFailure.test_bottom_level_assertion_failure"
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/replay_capsule/manifest.json:616:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/replay_capsule/manifest.json:624:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/result.json:20:          "evals.promotion.assertion_failure_fixture.IntentionalPromotionAssertionFailure.test_intentional_assertion_failure"
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/result.json:164:  "schema_version": "promotion-gate/1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative/result.json:7:    "evals.promotion.assertion_failure_fixture.IntentionalAssertionFailure.test_bottom_level_assertion_failure"
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/replay_capsule/manifest.json:648:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/input-manifest.json:9:      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/baseline-version-manifest.json",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-negative-assertion/input-manifest.json:72:  "schema_version": "promotion-input/1.0.0"
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-input.json:2:  "schema_version": "promotion-input/1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion-input.json:13:      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/baseline-version-manifest.json",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative-2/execution-event.json:7:    "evals.promotion.assertion_failure_fixture.IntentionalPromotionAssertionFailure.test_intentional_assertion_failure"
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/test-evidence/assertion-failure-negative-2/result.json:7:    "evals.promotion.assertion_failure_fixture.IntentionalPromotionAssertionFailure.test_intentional_assertion_failure"
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/decision_trace.json:669:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/decision_trace.json:679:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/decision_trace.json:719:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/source-normal/decision_trace.json:720:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/decision_trace.json:671:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/decision_trace.json:681:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/decision_trace.json:723:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/normal-research/decision_trace.json:724:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/decision_trace.json:426:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/decision_trace.json:436:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/decision_trace.json:478:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/decision_trace.json:479:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/decision_trace.json:663:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/decision_trace.json:673:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/decision_trace.json:715:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/analyst-skeptic-strong-conflict/decision_trace.json:716:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/decision_trace.json:166:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/decision_trace.json:176:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/decision_trace.json:218:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/decision_trace.json:219:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/run_manifest.json:124:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/run_manifest.json:125:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/run_manifest.json:216:      "product/schemas/runtime/promotion-gate.schema.json": "7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/run_manifest.json:217:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/decision_trace.json:611:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/decision_trace.json:621:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/decision_trace.json:663:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/decision_trace.json:664:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/run_manifest.json:124:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/run_manifest.json:125:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/run_manifest.json:210:      "product/schemas/runtime/promotion-gate.schema.json": "7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/run_manifest.json:211:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion/result.json:165:  "schema_version": "promotion-gate/1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/run_manifest.json:215:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/run_manifest.json:216:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion/input-manifest.json:9:      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/baseline-version-manifest.json",
+evals/results/runtime-replay-and-eval-hardening-final-independent-20260908/promotion/input-manifest.json:72:  "schema_version": "promotion-input/1.0.0"
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/decision_trace.json:654:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/decision_trace.json:664:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/decision_trace.json:706:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/decision_trace.json:707:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/acceptance-report.md:7:实现验收状态为 **PASS，等待独立只读 Release Gate 与人工批准**。候选 Promotion Gate 自身为预期且可审计的 **FAIL**：新版安全门禁均通过，但历史 `0.2.1-candidate.1` 基线没有新版 Assurance 证据，且代表性 Ablation 中三个案例缺少可比较的完整语义/遥测，因此系统没有虚构晋升结论。安全硬门禁反例也按预期 FAIL。
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/acceptance-report.md:67:python3 -m product.runtime.cli promotion --repo /Users/caihaoming/Documents/stock_agent --input-manifest /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/input.json --output-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/candidate
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/acceptance-report.md:68:python3 -m product.runtime.cli promotion --repo /Users/caihaoming/Documents/stock_agent --input-manifest /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/input-negative-hard-gate.json --output-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/negative-hard-gate
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/acceptance-report.md:82:- Promotion：`promotion/candidate/`、`promotion/negative-hard-gate/`
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/acceptance-report.md:87:1. 历史基线 `0.2.1-candidate.1` 没有本 Change 新增的 Assurance 字段、baseline Runtime Eval 和 baseline Ablation，因此只能作为 hash-bound legacy diagnostic，不能被宣称为 promotion-ready。
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/acceptance-report.md:96:Task 11.10 尚未执行：需要独立、只读 Release Gate 和人工批准。完成该门禁前，不得标记 Change 完成，不得归档或晋升版本。
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/replay_capsule/manifest.json:648:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/replay_capsule/manifest.json:616:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/replay_capsule/manifest.json:624:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/replay_capsule/manifest.json:616:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/replay_capsule/manifest.json:624:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/execution-replay.json:25:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/execution-replay.json:35:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/execution-replay.json:75:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/execution-replay.json:76:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/decision_trace.json:166:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/decision_trace.json:176:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/decision_trace.json:218:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/future-information-leakage/run/decision_trace.json:219:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate.md:3:当前 Change **不能通过独立 Release Gate，也不能进入人工批准**。
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate.md:30:| Task 11.10 | PASS（状态真实性） | 仍为 `[ ]`，未发现人工批准；必须保持未完成 |
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate.md:34:[Promotion result.json](/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/promotion/candidate-final/result.json) 自哈希和 Schema 均有效，`FAIL` sentinel 为零字节且无 `PASS` sentinel。除 `version_completeness` 外，其余自动硬门禁均为 PASS。
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate.md:73:- [Promotion input](/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/promotion/input-final.json)
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate.md:83:jq ... promotion/candidate-final/{result,input-manifest}.json
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate.md:87:shasum -a 256 <promotion input artifacts and calibration rollouts>
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate.md:96:最终裁定：**不能进入人工批准；Task 11.10 必须继续未完成。**
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/decision_trace.json:291:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/decision_trace.json:301:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/decision_trace.json:343:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/decision_trace.json:344:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/decision_trace.json:609:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/decision_trace.json:619:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/decision_trace.json:659:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient/decision_trace.json:660:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/decision_trace.json:679:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/decision_trace.json:689:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/decision_trace.json:729:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/decision_trace.json:730:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate-release-fix.md:49:[Promotion result](/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/promotion/candidate-release-fix-v2/result.json) 的 FAIL 属实：
+evals/results/runtime-replay-and-eval-hardening-final-20260908/independent-release-gate-release-fix.md:92:最终裁定：**不得进入人工批准，不得勾选 Task 11.10，不得归档或晋升。**
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/replay_capsule/manifest.json:632:      "logical_path": "product/schemas/runtime/promotion-gate.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/replay_capsule/manifest.json:640:      "logical_path": "product/schemas/runtime/promotion-input.schema.json",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/decision_trace.json:299:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/decision_trace.json:309:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/decision_trace.json:351:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/decision_trace.json:352:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/valid-action-contract/run/run_manifest.json:74:        "promotion-policy": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/valid-action-contract/run/run_manifest.json:84:        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/valid-action-contract/run/run_manifest.json:126:        "promotion-gate": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/valid-action-contract/run/run_manifest.json:127:        "promotion-input": "1.0.0",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/valid-action-contract/run/run_manifest.json:214:      "product/schemas/runtime/promotion-gate.schema.json": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/valid-action-contract/run/run_manifest.json:215:      "product/schemas/runtime/promotion-input.schema.json": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto/decision_trace.json:654:        "promotion-policy": "1.0.0",

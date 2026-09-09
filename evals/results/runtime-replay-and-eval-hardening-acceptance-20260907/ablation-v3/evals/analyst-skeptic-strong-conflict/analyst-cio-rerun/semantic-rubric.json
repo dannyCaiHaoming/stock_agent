@@ -1,0 +1,68 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim-margin",
+        "claim-price",
+        "claim-revenue-conflict",
+        "claim-thesis-limited",
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将利润率、价格和收入冲突标注为 FACT，并以允许 Evidence 引用；受限解释没有把冲突事实延伸为未经支持的商业质量或估值结论，且列明数据缺口与失效条件。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确记录 Analyst 与自身核验的共识，逐项说明两份收入 Evidence 的未解决冲突、决策和置信度影响，并列出未决问题；风险报告确认 APPROVED 且 final_action 为 NO_TRADE。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 0.25 和 CIO 0.20 的低置信度均直接对应收入冲突、单一经营与价格观测以及缺失的估值和经营数据；结论保持受限，方向上与已记录的不确定性一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "CIO 将 NO_TRADE 明确归因于同一 as_of 的未解决 TTM revenue 冲突及估值输入缺失；重评条件要求可追溯权威来源调和口径并补齐可核验数据，与 Evidence Gate、APPROVED 风险结果和 SAFE_NO_TRADE 一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "冻结输入未包含 Skeptic 运行产物；该 analyst-cio rerun 拓扑中无法评估独立反证质量。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "eval_id": "rreh-ablation-v3-eval-conflict-analyst-cio-rerun-20260907",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "6efed5752d3d1d14cc3ac85168a2378f85fefd2a9ae3113fd4456bb9e2e6ee70",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "75d0f43b22dacb9a452f65c80bafe1e852d5ac36be456f973d1c61680e0ab0ab",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

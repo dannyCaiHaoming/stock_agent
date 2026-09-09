@@ -1,0 +1,83 @@
+ M .codex/agents/dev_eval.toml
+ M evals/ablation/__init__.py
+ M evals/fixtures/codex-native/future-or-stale.json
+ M evals/grading/__init__.py
+ M evals/promotion/__init__.py
+ M product/.codex-plugin/plugin.json
+ M product/.codex/agents/runtime_cio.toml
+ M product/.mcp.json
+ M product/runtime-profile.json
+ M product/runtime/artifact_matrix.py
+ M product/runtime/cli.py
+ M product/runtime/execution_proof.py
+ M product/runtime/fixture_mcp.py
+ M product/runtime/invocation.py
+ M product/runtime/native_eval.py
+ M product/runtime/release_gate.py
+ M product/runtime/replay.py
+ M product/runtime/run_package.py
+ M product/runtime/smoke_prompt.py
+ M product/runtime/trace_validation.py
+ M product/runtime/validation.py
+ M product/runtime/versioning.py
+ M product/skills/portfolio-council/SKILL.md
+ M product/version-manifest.json
+ M product/version-manifest.schema.json
+ M tests/test_governance.py
+ M tests/test_native_eval.py
+ M tests/test_native_evidence_gate.py
+ M tests/test_native_execution_proof.py
+ M tests/test_native_invocation_validation.py
+ M tests/test_native_trace.py
+ M tests/test_portfolio_council_skill.py
+ M tests/test_product_config.py
+ M tests/test_runtime_foundation.py
+?? .agents/skills/runtime-eval-grading/
+?? .codex/config.toml
+?? evals/ablation/profiles-v1.json
+?? evals/ablation/runtime.py
+?? evals/fixtures/codex-native/insufficient-evidence.json
+?? evals/grading/calibration.py
+?? evals/grading/calibration/
+?? evals/grading/semantic-rubric-v1.json
+?? evals/promotion/assertion_failure_fixture.py
+?? evals/promotion/policy-v1.json
+?? evals/promotion/runtime_gate.py
+?? evals/promotion/test_evidence.py
+?? evals/regression/
+?? evals/results/
+?? openspec/changes/runtime-replay-and-eval-hardening/
+?? product/model-routing.json
+?? product/runtime/eval_execution_proof.py
+?? product/runtime/execution_replay.py
+?? product/runtime/model_routing.py
+?? product/runtime/reason_codes.py
+?? product/runtime/regression_invariants.py
+?? product/runtime/replay_capsule.py
+?? product/runtime/runtime_eval.py
+?? product/runtime/runtime_profiles.py
+?? product/runtime/schema_validation.py
+?? product/schemas/runtime/ablation-report.schema.json
+?? product/schemas/runtime/deterministic-test-execution.schema.json
+?? product/schemas/runtime/deterministic-test-report.schema.json
+?? product/schemas/runtime/execution-replay.schema.json
+?? product/schemas/runtime/promotion-gate.schema.json
+?? product/schemas/runtime/promotion-input.schema.json
+?? product/schemas/runtime/regression-case.schema.json
+?? product/schemas/runtime/regression-suite.schema.json
+?? product/schemas/runtime/replay-capsule.schema.json
+?? product/schemas/runtime/runtime-eval-job.schema.json
+?? product/schemas/runtime/semantic-calibration-result.schema.json
+?? product/schemas/runtime/semantic-rubric-result.schema.json
+?? reviews/runtime/runtime-replay-and-eval-hardening-acceptance.md
+?? reviews/runtime/runtime-replay-eval-runbook.md
+?? tests/test_assurance_contracts.py
+?? tests/test_eval_calibration.py
+?? tests/test_eval_execution_proof.py
+?? tests/test_replay_capsule.py
+?? tests/test_runtime_ablation.py
+?? tests/test_runtime_assurance_cli.py
+?? tests/test_runtime_eval_job.py
+?? tests/test_runtime_eval_skill.py
+?? tests/test_runtime_promotion.py
+?? tests/test_runtime_regression.py

@@ -1,0 +1,7 @@
+{
+  "message": "rrh-nested-regression-insufficient-evidence-02-20260908  \nCIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "0a349f33bdd55d4324cc04c0558f1beee0b6b7f060a7ef5d17d5b11483576290",
+  "present": true,
+  "run_id": "rrh-nested-regression-insufficient-evidence-02-20260908",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

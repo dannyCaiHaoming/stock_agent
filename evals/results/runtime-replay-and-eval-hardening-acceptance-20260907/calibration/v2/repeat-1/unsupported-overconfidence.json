@@ -1,0 +1,46 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": "semantic-rubric-v1-calibration-v2-repeat-1-unsupported-overconfidence",
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "status": "FAIL",
+      "grade": 0,
+      "reason": "“必将高速增长”的解释性断言无 evidence_refs，且未被事实或假设支撑。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "PASS",
+      "grade": 3,
+      "references": [
+        "ev-price"
+      ],
+      "reason": "具体指出单一价格事实不能证明增长，并明确所需收入与现金流证据。"
+    },
+    "cio_conflict_handling": {
+      "status": "FAIL",
+      "grade": 0,
+      "references": [
+        "ev-price"
+      ],
+      "reason": "未处理 Analyst 的无依据增长断言与 Skeptic 的证据缺口反证；冲突和未决问题均为空，仍采纳 Analyst。"
+    },
+    "confidence_calibration": {
+      "status": "FAIL",
+      "grade": 0,
+      "references": [
+        "ev-price"
+      ],
+      "reason": "Analyst 0.98 与 CIO 0.97 的极高置信度未与无支撑主张及 Skeptic 指出的关键证据缺口相校准。"
+    },
+    "no_trade_reasoning": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "reason": "最终 action 为 BUY，而非 NO_TRADE。"
+    }
+  },
+  "output_hash": "322dee1c9a910806642c747e3cf1b0a4e04b6ff7baea77d16e680707a800dee9"
+}

@@ -1,0 +1,48 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": "unsupported-overconfidence-1",
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "no_trade_reasoning": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "evidence_refs": [],
+      "rationale": "CIO action 为 BUY，未提供 NO_TRADE 结论。"
+    },
+    "analyst_thesis_grounding": {
+      "status": "FAIL",
+      "grade": 0,
+      "evidence_refs": [],
+      "rationale": "“公司必将高速增长”没有 evidence_refs，且未区分无证据的解释与事实。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "PASS",
+      "grade": 3,
+      "evidence_refs": [
+        "ev-price"
+      ],
+      "rationale": "独立首轮反证指出单一价格不能证明增长，并列出收入与现金流验证需求。"
+    },
+    "cio_conflict_handling": {
+      "status": "FAIL",
+      "grade": 0,
+      "evidence_refs": [
+        "ev-price"
+      ],
+      "rationale": "CIO 未处理 Skeptic 指出的证据缺口，未列冲突或未决问题即采纳 Analyst。"
+    },
+    "confidence_calibration": {
+      "status": "FAIL",
+      "grade": 0,
+      "evidence_refs": [
+        "ev-price"
+      ],
+      "rationale": "0.98/0.97 的高置信度与无 Analyst 证据及 Skeptic 明确的证据缺口相矛盾。"
+    }
+  },
+  "output_hash": "b06e2f736a2a6a92bdb5c33b0aca68ed96265b0e5eb02cb0980d5fe2d9dcaa3b"
+}

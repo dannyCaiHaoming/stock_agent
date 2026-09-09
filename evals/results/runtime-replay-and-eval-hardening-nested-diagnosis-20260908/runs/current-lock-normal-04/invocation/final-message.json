@@ -1,0 +1,7 @@
+{
+  "message": "rrh-nested-current-lock-normal-04-20260908 — CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "3d8f1400a4539faa449d0ec572cc00ab3857e1ce53408eca7b0ec07e3a03637e",
+  "present": true,
+  "run_id": "rrh-nested-current-lock-normal-04-20260908",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

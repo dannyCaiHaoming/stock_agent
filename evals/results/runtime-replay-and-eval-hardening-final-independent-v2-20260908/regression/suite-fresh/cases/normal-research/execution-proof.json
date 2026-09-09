@@ -1,0 +1,13 @@
+{
+  "artifacts": {},
+  "case_id": "normal-research",
+  "executed_operations": [],
+  "hashes": {},
+  "llm_calls_during_verification": 0,
+  "producer": "missing-runtime-input",
+  "proof_hash": "0e543190f4fab82f2d8d0c1c546996b5d3a2286b5a37747c77f2d28db569a2cd",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-normal-research-missing",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "none",
+  "status": "FAIL"
+}

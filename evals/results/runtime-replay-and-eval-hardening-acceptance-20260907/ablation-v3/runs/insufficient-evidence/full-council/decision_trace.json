@@ -1,0 +1,360 @@
+{
+  "agents": [
+    {
+      "agent_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "63b61d17a6a2dd8920c27b7459a62af82dddf12cf56ca712250df214fda30a2e",
+      "instruction_bundle_hash": "e8ee1eb10e6bb0bdab96a6a41f8c1ceffe2e2e6cc14c10970c6aba170fc2cf4e",
+      "invocation_id": "inv_7c52fec62596ac38baaf0800",
+      "manifest_hash": "e013dc779b94e0a41a8b24fce15f55166e9e7fbf9bc3edc4a09a33641a186506",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_company_analyst",
+      "output_hash": "992270cf179db29662269d9a0f8ced8f5025af54d0b139ba3ac87fa6820cfe55",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/full-council/schemas/agent-research-report.schema.json",
+      "output_schema_hash": "ab5bba37599bc3731d02fdc7a551514d6578a3f6d56b844337d66d4127da452d",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "company-research",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/company-research/SKILL.md",
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "name": "valuation",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/valuation/SKILL.md",
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "b2d488780b2d34ca18de036cda9143558458bf38080a6d56252bbf967cfe22fb",
+      "tool_permissions": [
+        "fixture_evidence.query",
+        "fixture_math.calculate"
+      ],
+      "version": "2.1.0"
+    },
+    {
+      "agent_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "5626785b2db8a17ed0465405373c1ec4eb62dc2d57fa1ead651bccbe5e4f3a71",
+      "instruction_bundle_hash": "107bafd985aff4490216dedf7d75ee4cea5643009c8cef637b405910f39a73dc",
+      "invocation_id": "inv_df805ca149f3bb687c654d16",
+      "manifest_hash": "0a52f494b60173c1d88b57dcfd4f74a0e1e34f35ce194e34eacd27e5325a1edc",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_skeptic",
+      "output_hash": "30620874d16eef8f8ab5a971aba9d165388917e4cc5a8e70465eeb531878a1b4",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/full-council/schemas/counter-thesis-report.schema.json",
+      "output_schema_hash": "0ca94b67a0dc23bdc48c03ee73ef85a0bd0ebb0424c401363c6dd2b4e18f6906",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "counter-thesis",
+          "path": "/Users/caihaoming/Documents/stock_agent/product/skills/counter-thesis/SKILL.md",
+          "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "75cb087fbfe13143a2c851e203f8d04f24f569bdecf500b36f3f19e051fce1b1",
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
+      "version": "2.0.0"
+    }
+  ],
+  "artifacts": {
+    "agents/runtime_company_analyst.json": "a93a9b35e5e6438677011cf32931e51c7d60a7aa0946911a2597145d7f916e22",
+    "agents/runtime_skeptic.json": "1ce7a29aed3e31e4855dcaf1e4c9996b883aa25ee0cb8758f9aa2fbd8acc9c1d",
+    "audit/fixture_snapshot.json": "3235da6e667047d7853ada2d2426e6648ea8eabd9b80120dd9906078acd0ae4f",
+    "events/mcp/events.jsonl": "ea910647ea5b5471f34c8bfb89c6ee644fc746967734021c0867b5c248693344",
+    "evidence/gate.json": "03ad2be8fb76a4f9a27727116f20fc4c72e6e6f33aa953a3575c945df17e1d69",
+    "inputs/runtime_company_analyst.json": "30a5e62a4b9d52755b90d408610f1f6d1fd2f04f08d716c0231a0f9573ef981c",
+    "inputs/runtime_skeptic.json": "4dba3aa4d6212bbd13fa8fab942d1d29c48d0eb0c5088234af1d192762291a15",
+    "invocations/runtime_company_analyst.json": "ea7a889c04c92c74d037fb0409abcbf428be2f08b255e0db3354443c086dc1fb",
+    "invocations/runtime_skeptic.json": "1b1bda4c7b5d0261ca8d88c86a3565825d859f67dc2144f158ef23053af63d4e",
+    "prompts/runtime_company_analyst.txt": "a20fd236af050c64c9e2478d43367c286e3ba41fe2eb991b2b23fb3c5a352422",
+    "prompts/runtime_skeptic.txt": "e73b8c2d2d2a14a4716e73a07597dda4bca724091cabc6fe9cbe876870435e77",
+    "replay_capsule/manifest.json": "23a7703fc28a4d23c50be02f17ceabc0d1b2eb0e294bed4aeeef2f778d6b2eb2",
+    "replay_capsule/objects/0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6": "0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6",
+    "replay_capsule/objects/007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+    "replay_capsule/objects/03ad2be8fb76a4f9a27727116f20fc4c72e6e6f33aa953a3575c945df17e1d69": "03ad2be8fb76a4f9a27727116f20fc4c72e6e6f33aa953a3575c945df17e1d69",
+    "replay_capsule/objects/14c0c5283712fe492b4fdc0a82785d5aae12980ad68a9b813ca0712aaedc9b2a": "14c0c5283712fe492b4fdc0a82785d5aae12980ad68a9b813ca0712aaedc9b2a",
+    "replay_capsule/objects/1604fc69eeb6b206af21e4ff311b5fd1e74f5a2974d127bad46b73c2bb52337a": "1604fc69eeb6b206af21e4ff311b5fd1e74f5a2974d127bad46b73c2bb52337a",
+    "replay_capsule/objects/1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6": "1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6",
+    "replay_capsule/objects/19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "replay_capsule/objects/1bcb9c1270962d5337b58ccfa9ca27969f83f5935321eb7fc6ca29f4c77fae23": "1bcb9c1270962d5337b58ccfa9ca27969f83f5935321eb7fc6ca29f4c77fae23",
+    "replay_capsule/objects/1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+    "replay_capsule/objects/1f4685c1165b16b70274bc443a5a0d81962de42e621fcfad174e03d7d1223b85": "1f4685c1165b16b70274bc443a5a0d81962de42e621fcfad174e03d7d1223b85",
+    "replay_capsule/objects/202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3": "202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3",
+    "replay_capsule/objects/2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394": "2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394",
+    "replay_capsule/objects/27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b": "27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b",
+    "replay_capsule/objects/30833b995994a21670ee497df217283875bf427abb4fa2d891056c19fc384b1d": "30833b995994a21670ee497df217283875bf427abb4fa2d891056c19fc384b1d",
+    "replay_capsule/objects/3235da6e667047d7853ada2d2426e6648ea8eabd9b80120dd9906078acd0ae4f": "3235da6e667047d7853ada2d2426e6648ea8eabd9b80120dd9906078acd0ae4f",
+    "replay_capsule/objects/32852584de1e7d9e69f5a1b34cab0a06f6d8f58f5709e421e17b45d7c1d67014": "32852584de1e7d9e69f5a1b34cab0a06f6d8f58f5709e421e17b45d7c1d67014",
+    "replay_capsule/objects/32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+    "replay_capsule/objects/38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7": "38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7",
+    "replay_capsule/objects/3a1dce65a02b6255b2c23928d0f2b08b031875ac641177f873cfdd575f08e8cb": "3a1dce65a02b6255b2c23928d0f2b08b031875ac641177f873cfdd575f08e8cb",
+    "replay_capsule/objects/3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+    "replay_capsule/objects/4642a316043937151ce3c9ef8c7d565ab39b280608e9f31f2503b19561f9dabd": "4642a316043937151ce3c9ef8c7d565ab39b280608e9f31f2503b19561f9dabd",
+    "replay_capsule/objects/5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99": "5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99",
+    "replay_capsule/objects/53037375735cad0d804bb0f6c69f74aba3aaee07fffd12b7c3bdb4b92f3cfd6e": "53037375735cad0d804bb0f6c69f74aba3aaee07fffd12b7c3bdb4b92f3cfd6e",
+    "replay_capsule/objects/55c45fba48013051a92c6720ba0d29115f3e96cb83da44254f9f04fc30e1303e": "55c45fba48013051a92c6720ba0d29115f3e96cb83da44254f9f04fc30e1303e",
+    "replay_capsule/objects/58d2bf5abfff1fbb263a6db18f29553a8fdaaf71d81857951b08288cc3736abf": "58d2bf5abfff1fbb263a6db18f29553a8fdaaf71d81857951b08288cc3736abf",
+    "replay_capsule/objects/5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23": "5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23",
+    "replay_capsule/objects/5d6cc34d4b93d0309c7bcb3bcb804438041170c61add417b3808b4dbdfdd61ab": "5d6cc34d4b93d0309c7bcb3bcb804438041170c61add417b3808b4dbdfdd61ab",
+    "replay_capsule/objects/61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404": "61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404",
+    "replay_capsule/objects/623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+    "replay_capsule/objects/685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f": "685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f",
+    "replay_capsule/objects/6ba2499fdeb544daf7a0566d5a78f13232d2de81aab1b288686808804e41d445": "6ba2499fdeb544daf7a0566d5a78f13232d2de81aab1b288686808804e41d445",
+    "replay_capsule/objects/6bf872492f627d739bfe779e6ba7d8798edbc61025a19d4d0874828c4fe255e6": "6bf872492f627d739bfe779e6ba7d8798edbc61025a19d4d0874828c4fe255e6",
+    "replay_capsule/objects/6c1b4af448f4d91991317e385cc00ced6c0fee04c89ad4e911a6634dcfbfaa0e": "6c1b4af448f4d91991317e385cc00ced6c0fee04c89ad4e911a6634dcfbfaa0e",
+    "replay_capsule/objects/70d0f3985229e5f43fd49f8b204af9fdef0beec207357ede5df5530ec980b5fa": "70d0f3985229e5f43fd49f8b204af9fdef0beec207357ede5df5530ec980b5fa",
+    "replay_capsule/objects/7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f": "7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f",
+    "replay_capsule/objects/7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+    "replay_capsule/objects/734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9": "734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9",
+    "replay_capsule/objects/74b301f1e3c5c792e0603c01d1ebcbe6944e799ba6a34ec5567e831dedccd1b2": "74b301f1e3c5c792e0603c01d1ebcbe6944e799ba6a34ec5567e831dedccd1b2",
+    "replay_capsule/objects/74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+    "replay_capsule/objects/7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263": "7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263",
+    "replay_capsule/objects/78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5": "78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5",
+    "replay_capsule/objects/79eec16aea072393b1829a096b97c12ed584def13c4c9896987daad1a7f815b9": "79eec16aea072393b1829a096b97c12ed584def13c4c9896987daad1a7f815b9",
+    "replay_capsule/objects/7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+    "replay_capsule/objects/7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4": "7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4",
+    "replay_capsule/objects/81ea2863f7ce94a7a977c3b9e1c90c9508b9bad30fc37ba603504c607a1d7571": "81ea2863f7ce94a7a977c3b9e1c90c9508b9bad30fc37ba603504c607a1d7571",
+    "replay_capsule/objects/82435fd942ff0e8bc6902e3608c0c77574bda4fa9b350db995273c737bd51d82": "82435fd942ff0e8bc6902e3608c0c77574bda4fa9b350db995273c737bd51d82",
+    "replay_capsule/objects/8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434": "8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434",
+    "replay_capsule/objects/8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041": "8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041",
+    "replay_capsule/objects/90bd3698881a1cb58c0f663932c20e15b8433f09a87bca622c9421147003baa8": "90bd3698881a1cb58c0f663932c20e15b8433f09a87bca622c9421147003baa8",
+    "replay_capsule/objects/94a9c8a7a2774583391c079b8313b570d73321adfd10db0d93cf3c29fab48f40": "94a9c8a7a2774583391c079b8313b570d73321adfd10db0d93cf3c29fab48f40",
+    "replay_capsule/objects/974aa7678a007c8b24b405c4bb3740c55d5bf4fcdabadfbfeabe5b8105158385": "974aa7678a007c8b24b405c4bb3740c55d5bf4fcdabadfbfeabe5b8105158385",
+    "replay_capsule/objects/9b7492d038f66fb46d316bef392814fabb83a42d442d74ae552e0161d53d0399": "9b7492d038f66fb46d316bef392814fabb83a42d442d74ae552e0161d53d0399",
+    "replay_capsule/objects/9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453": "9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453",
+    "replay_capsule/objects/9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2": "9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2",
+    "replay_capsule/objects/a31a651e42b0364daa5aaf4fcb180583a3111e8ce2fd344fb0050bebe98eb696": "a31a651e42b0364daa5aaf4fcb180583a3111e8ce2fd344fb0050bebe98eb696",
+    "replay_capsule/objects/abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5",
+    "replay_capsule/objects/abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75": "abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75",
+    "replay_capsule/objects/abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+    "replay_capsule/objects/ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281": "ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281",
+    "replay_capsule/objects/b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33": "b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33",
+    "replay_capsule/objects/b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0": "b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0",
+    "replay_capsule/objects/b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+    "replay_capsule/objects/b6608e2f63a8fa41ee0fdbfeae3615eb02b2f355b56fe548e8f45f9b4071ff9e": "b6608e2f63a8fa41ee0fdbfeae3615eb02b2f355b56fe548e8f45f9b4071ff9e",
+    "replay_capsule/objects/bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f": "bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f",
+    "replay_capsule/objects/c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae": "c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae",
+    "replay_capsule/objects/ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a": "ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a",
+    "replay_capsule/objects/cccb1cd61d9aa6e92150ea08b8765c06491fe4c91acb2be6f908b1bda245a469": "cccb1cd61d9aa6e92150ea08b8765c06491fe4c91acb2be6f908b1bda245a469",
+    "replay_capsule/objects/ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+    "replay_capsule/objects/cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a": "cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a",
+    "replay_capsule/objects/cf66bd5f9ae4b322e350aa014bf17f6812d478d9da90cf0bb20639f87615972a": "cf66bd5f9ae4b322e350aa014bf17f6812d478d9da90cf0bb20639f87615972a",
+    "replay_capsule/objects/d13d24ac3332f77ca969dfbbd27c276dfed3f1a21e58ef843aeff9ba5394538d": "d13d24ac3332f77ca969dfbbd27c276dfed3f1a21e58ef843aeff9ba5394538d",
+    "replay_capsule/objects/d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe": "d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe",
+    "replay_capsule/objects/d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+    "replay_capsule/objects/d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34": "d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34",
+    "replay_capsule/objects/d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+    "replay_capsule/objects/db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e": "db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e",
+    "replay_capsule/objects/de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb": "de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb",
+    "replay_capsule/objects/e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418": "e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418",
+    "replay_capsule/objects/eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae": "eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae",
+    "replay_capsule/objects/ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6": "ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6",
+    "replay_capsule/objects/ebe7564c61babecab657e56f415975b13a8fa64eb2f91ef8fbaf71e2802ada7d": "ebe7564c61babecab657e56f415975b13a8fa64eb2f91ef8fbaf71e2802ada7d",
+    "replay_capsule/objects/efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d": "efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d",
+    "replay_capsule/objects/f0b42478409a1fbfd209af3768501d652f179730df9fc58be393eb19f82a0cc2": "f0b42478409a1fbfd209af3768501d652f179730df9fc58be393eb19f82a0cc2",
+    "replay_capsule/objects/f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f": "f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f",
+    "replay_capsule/objects/f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9": "f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9",
+    "replay_capsule/objects/f78c8af076c72e6f312fceb57d6147055541e8895be047e5118bb39ed4c1ea28": "f78c8af076c72e6f312fceb57d6147055541e8895be047e5118bb39ed4c1ea28",
+    "replay_capsule/objects/fa7561454bd8f9071ca032a7ed68803980431b452ab3088cc1e21dbd2d4982e4": "fa7561454bd8f9071ca032a7ed68803980431b452ab3088cc1e21dbd2d4982e4",
+    "replay_capsule/objects/fba645ccc247e0d7f110c311172a87a57c531b9f4d7f574efdd35c0a6832d22f": "fba645ccc247e0d7f110c311172a87a57c531b9f4d7f574efdd35c0a6832d22f",
+    "replay_capsule/objects/fef80469d84211c95123e8e288724622b4c4097af7eb4915e7884e4038d7d191": "fef80469d84211c95123e8e288724622b4c4097af7eb4915e7884e4038d7d191",
+    "replay_capsule/objects/fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6": "fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6",
+    "replay_capsule/objects/fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0": "fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0",
+    "run_error.json": "fb38c19c49b10b89d990cc9b4423fbb6df5a6e3b9595e858cf1a224dce62ffcc",
+    "run_manifest.json": "13233fbd6add4aaf0e6be5c33e5ada3131a4993d5621323ce1822d3c9f8beb06",
+    "schemas/agent-research-report.schema.json": "ab5bba37599bc3731d02fdc7a551514d6578a3f6d56b844337d66d4127da452d",
+    "schemas/counter-thesis-report.schema.json": "0ca94b67a0dc23bdc48c03ee73ef85a0bd0ebb0424c401363c6dd2b4e18f6906"
+  },
+  "codex_execution": null,
+  "events": [
+    {
+      "stage": "DISCOVERY_PREFLIGHT",
+      "status": "PASSED"
+    },
+    {
+      "allowed_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "bundle_hash": "40895dd450e3b30f81b8a80e664d927bb3ff383c6266fa93cc1c6c9bdb88610d",
+      "excluded_evidence_ids": [],
+      "stage": "EVIDENCE_GATE",
+      "status": "PASSED"
+    },
+    {
+      "agents": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_INVOCATIONS_PREPARED"
+    },
+    {
+      "error": "UNGROUNDED_CHALLENGE",
+      "stage": "SPECIALIST_REPORT_REJECTED"
+    },
+    {
+      "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+      "failed_stage": "SPECIALIST_VALIDATION",
+      "stage": "VALIDATION_FAILED"
+    }
+  ],
+  "evidence_lineage": {
+    "allowed_evidence_ids": [
+      "ev-insufficient-price"
+    ],
+    "bundle_hash": "40895dd450e3b30f81b8a80e664d927bb3ff383c6266fa93cc1c6c9bdb88610d",
+    "conflict_policy_version": "conflict-key/2.0.0",
+    "decision_cutoff": "2026-01-31T23:59:59Z",
+    "excluded_evidence_ids": [],
+    "freshness_policy_version": "freshness/fixture/2.0.0"
+  },
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "mcp_events": [
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.1",
+      "agent": "runtime_company_analyst",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "1e63f17e5c436f354609acfbf80e034c98adccfff95ba76f460bc295c99f813c",
+      "invocation_id": "inv_7c52fec62596ac38baaf0800",
+      "output_hash": "82b4325cf946ab1454acb4beb988bb644daaf28b9345e99d8221c888535da26d",
+      "run_id": "rreh-ablation-v3-insufficient-full-council-20260907",
+      "tool": "fixture_evidence.query"
+    }
+  ],
+  "risk_lineage": [],
+  "run_id": "rreh-ablation-v3-insufficient-full-council-20260907",
+  "runtime": {
+    "candidate_version": "0.3.0-candidate.1",
+    "codex_runtime": "codex-cli/0.153.4",
+    "discovery_hash": "fe4c40698e82813d0e14bebc7891ab9f17070897bfb26eb497f2836489f7ae8c",
+    "model": "gpt-5.6-terra",
+    "replay_capsule": {
+      "manifest_hash": "a902910078dfda8e6e8f1c572bc1fbcf63cfa123cc189858481913f4c534387f",
+      "object_count": 91,
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/insufficient-evidence/full-council/replay_capsule",
+      "root_hash": "4aab86b615c16bc360495a75079188450cc3b246aa87425a4356becaaa80ce72",
+      "schema_version": "replay-capsule/1.0.0"
+    },
+    "runtime_profile": "fixture-council/3.0.0",
+    "trigger_reason": "ablation:insufficient-evidence",
+    "version_lock": {
+      "agents": {
+        "runtime-cio": "3.0.0",
+        "runtime-company-analyst": "2.1.0",
+        "runtime-market-catalyst": "1.0.0",
+        "runtime-skeptic": "2.0.0"
+      },
+      "assurance": {
+        "ablation-profiles": "1.0.0",
+        "model-routing-policy": "1.0.0",
+        "promotion-policy": "1.0.0",
+        "regression-set": "1.0.0",
+        "runtime-eval-calibration": "1.0.0",
+        "runtime-eval-grader-agent": "1.0.0",
+        "runtime-eval-grader-skill": "1.0.0",
+        "runtime-eval-rubric": "1.0.0"
+      },
+      "assurance_hashes": {
+        "ablation_profiles": "7e69d2623791ffb6a2a319e68d33c4978ec9b7b8773c2c7db13fbb9c92293d70",
+        "model_routing_policy": "e68f5190f4e13a2d3136f87893b0ae894bfb9dc83124e5f29084567d0be16ff7",
+        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+        "regression_set": "1946efea07c2337c76551f8fb32d8fbf7a55cc3cef8a2eedb8e855049faef7b7",
+        "runtime_eval_calibration": "d95a5763f08e0450fbf48f01661380bdd12004b2de66f34711e504b013c88627",
+        "runtime_eval_grader_agent": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
+        "runtime_eval_grader_skill": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+        "runtime_eval_rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+      },
+      "candidate_version": "0.3.0-candidate.1",
+      "codex_runtime": "codex-cli/0.153.4",
+      "data_snapshot": "fixture/codex-native/2.0.0",
+      "decision_contract": "council-decision-contract/1.0.0",
+      "manifest_version": "3.0.0",
+      "mcp_adapters": {
+        "fixture-gate-scoped": "2.1.1",
+        "fixture-reference": "1.0.0",
+        "provider-neutral-contracts": "1.0.0"
+      },
+      "model": "gpt-5.6-terra",
+      "resource_hashes": {
+        "cio_agent": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+        "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "council_skill": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+        "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+        "plugin": "94a9c8a7a2774583391c079b8313b570d73321adfd10db0d93cf3c29fab48f40",
+        "plugin_mcp": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+        "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+        "runtime_profile": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+        "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+      },
+      "risk_policy": "risk/reference/1.0.0",
+      "runtime_profile": "fixture-council/3.0.0",
+      "schemas": {
+        "ablation-report": "1.0.0",
+        "artifact-envelope": "1.0.0",
+        "decision-risk": "1.0.0",
+        "decision-trace": "2.1.0",
+        "evidence": "1.0.0",
+        "execution-replay": "1.0.0",
+        "learning": "1.0.0",
+        "portfolio": "1.0.0",
+        "promotion-gate": "1.0.0",
+        "promotion-input": "1.0.0",
+        "regression-case": "1.0.0",
+        "regression-suite": "1.0.0",
+        "replay-capsule": "1.0.0",
+        "research": "1.0.0",
+        "runtime-artifacts": "2.1.0",
+        "runtime-eval-job": "1.0.0",
+        "semantic-calibration-result": "1.0.0",
+        "semantic-rubric-result": "1.0.0"
+      },
+      "skills": {
+        "catalyst-analysis": "1.0.0",
+        "company-research": "2.0.0",
+        "counter-thesis": "2.0.0",
+        "evidence-grounding": "2.0.0",
+        "portfolio-council": "3.0.0",
+        "valuation": "2.0.0"
+      }
+    }
+  },
+  "schema_version": "decision-trace/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

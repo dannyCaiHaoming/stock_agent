@@ -1,0 +1,386 @@
+{
+  "candidate_version_lock": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+  "cases": [
+    {
+      "case_hash": "b9647dff76d992c56499a6b51372cecb2d8fa28297be82d0dff574b1cb0f7315",
+      "case_id": "all-evidence-stale",
+      "execution_proof": {
+        "artifacts": {
+          "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/all-evidence-stale/run/decision_trace.json",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/all-evidence-stale/runtime-eval/eval/result.json",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/all-evidence-stale/run"
+        },
+        "case_id": "all-evidence-stale",
+        "executed_operations": [
+          "deterministic_injection",
+          "trace_integrity_report",
+          "artifact_replay",
+          "runtime_eval_verify"
+        ],
+        "hashes": {
+          "artifact_replay": "d72ef3cb5928d2222f32eab35af8ff89bb0054057a9ad7132929301db5170a33",
+          "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+          "deterministic_outcome": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+          "grader_execution_proof": null,
+          "runtime_eval": "4e0be05072e4b5aabe23615609e617233fe961b3489f911a55e71c1b7de4dc81",
+          "trace": "8bab0ac4c3756d6724e8f1a7449bf2fab73f479ee244fe445a9d13801a6e72a2",
+          "trace_report": "1adca45b8ed2a07ec5f8f0c491f723572f56ae903e5e362d32cc385c44c87e88"
+        },
+        "llm_calls_during_verification": 0,
+        "producer": "deterministic-injection",
+        "proof_hash": "84f8692b9e25b0673af7532c24c4ef13c28c09d97b8787b943f7bdd3c4e2c608",
+        "run_id": "regression-focused-closure-20260908-all-evidence-stale-b9647dff76d9",
+        "schema_version": "regression-case-execution-proof/1.0.0",
+        "source_command": "execute_deterministic_case:all-evidence-stale",
+        "status": "PASS"
+      },
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [],
+        "cio_conflict_handled": false,
+        "eval_status": "PASS",
+        "evidence_closure": true,
+        "evidence_subset_of_gate": true,
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "no_future_evidence": true,
+        "not_llm_output": true,
+        "outcome_hash": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "risk_status": null,
+        "run_id": "regression-focused-closure-20260908-all-evidence-stale-b9647dff76d9",
+        "specialist_output_valid": true,
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_complete": true
+      },
+      "run_id": "regression-focused-closure-20260908-all-evidence-stale-b9647dff76d9",
+      "status": "PASS"
+    },
+    {
+      "case_hash": "0c1ee5e5f05d469c4f37f7c44cd3c60d635a79ec43b0e77dfec9a22c848f5ca4",
+      "case_id": "future-information-leakage",
+      "execution_proof": {
+        "artifacts": {
+          "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run/decision_trace.json",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/runtime-eval/eval/result.json",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/future-information-leakage/run"
+        },
+        "case_id": "future-information-leakage",
+        "executed_operations": [
+          "deterministic_injection",
+          "trace_integrity_report",
+          "artifact_replay",
+          "runtime_eval_verify"
+        ],
+        "hashes": {
+          "artifact_replay": "8ae1c3ed812f7e0dd9d4a4a280f7e75d5b27619baad4414f40ddafce5643b399",
+          "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+          "deterministic_outcome": "522a7c84e040f11b95e4a5e04d6682b32dfa61a7390bd7ee2d2dbb822bfd7186",
+          "grader_execution_proof": null,
+          "regression_injection": "8c49597add8e74d4973c0167c5ea5e8da7669f1c8376ffc7e541346810fbd09c",
+          "runtime_eval": "ba9a5e0329df5829ed87a111bd1fe3e9d5cb8ed75de1efa347eb18b10accbaa3",
+          "trace": "4c1d6833f49310b38bf2a87006dca1f8f78acda9f7bde68bafd9faff71ef7d52",
+          "trace_report": "38bacc0bcc2a42117fec1a1c0c083e6a15b10872570c902f62d12f8e0d5dbaa1"
+        },
+        "llm_calls_during_verification": 0,
+        "producer": "deterministic-injection",
+        "proof_hash": "147066bd15951ed46978fc286556234b439d919983730184a952f2761d7783c9",
+        "run_id": "regression-focused-closure-20260908-future-information-leakage-0c1ee5e5f05d",
+        "schema_version": "regression-case-execution-proof/1.0.0",
+        "source_command": "execute_deterministic_case:future-information-leakage",
+        "status": "PASS"
+      },
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [],
+        "cio_conflict_handled": false,
+        "eval_status": "PASS",
+        "evidence_closure": true,
+        "evidence_subset_of_gate": true,
+        "failed_stage": null,
+        "future_injection_verified": true,
+        "future_leak_count": 0,
+        "injected_evidence_ids": [
+          "ev-future-asof",
+          "ev-future-retrieval"
+        ],
+        "injection_mechanism": "append_declared_evidence_before_pit_gate",
+        "injection_type": "FUTURE_EVIDENCE",
+        "injection_version": "future-evidence-injection/1.0.0",
+        "llm_calls": 0,
+        "no_future_evidence": true,
+        "not_llm_output": true,
+        "outcome_hash": "522a7c84e040f11b95e4a5e04d6682b32dfa61a7390bd7ee2d2dbb822bfd7186",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "risk_status": null,
+        "run_id": "regression-focused-closure-20260908-future-information-leakage-0c1ee5e5f05d",
+        "specialist_output_valid": true,
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_complete": true
+      },
+      "run_id": "regression-focused-closure-20260908-future-information-leakage-0c1ee5e5f05d",
+      "status": "PASS"
+    },
+    {
+      "case_hash": "d7e9374b2aa1b4d5577aa27c4dae51421cc387ae180478fbea0342c70f217414",
+      "case_id": "dangling-evidence-reference",
+      "execution_proof": {
+        "artifacts": {
+          "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run/decision_trace.json",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/runtime-eval/eval/result.json",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/dangling-evidence-reference/run"
+        },
+        "case_id": "dangling-evidence-reference",
+        "executed_operations": [
+          "deterministic_injection",
+          "trace_integrity_report",
+          "artifact_replay",
+          "runtime_eval_verify"
+        ],
+        "hashes": {
+          "artifact_replay": "345485992618f8f294e34bf36dc868c027928f20eea85245bd990e31828fef33",
+          "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+          "deterministic_outcome": "5de16440c582fab0f0a09de01f82957ae83111469b60120b11cb50107181e472",
+          "grader_execution_proof": null,
+          "regression_injection": "7a5ddf27ff9e513af0e99313c8b4334a8a52e9e09fce652da2f52ba0ad05a322",
+          "runtime_eval": "51aac6ea1f0b492e88c21834e7cc0ae260c8901f50fd52a06d5186eefd1089d5",
+          "trace": "7d2bfec34d0cc718d3d8fb00707fdbddb73fc70aefc222e42a76d54c5c2759ec",
+          "trace_report": "33fcf361d1d454fb8b6dc59e1b937070c0d275a3573afe08e68e61eac5b1a828"
+        },
+        "llm_calls_during_verification": 0,
+        "producer": "deterministic-injection",
+        "proof_hash": "7863610f1ae6130a4a11112faeb96f0ddff795926f6ecce9f8cf32e80a6e69a2",
+        "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+        "schema_version": "regression-case-execution-proof/1.0.0",
+        "source_command": "execute_deterministic_case:dangling-evidence-reference",
+        "status": "PASS"
+      },
+      "outcome": {
+        "action": null,
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic"
+        ],
+        "cio_conflict_handled": false,
+        "eval_status": "PASS",
+        "evidence_closure": true,
+        "evidence_subset_of_gate": false,
+        "failed_stage": "SPECIALIST_VALIDATION",
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "no_future_evidence": true,
+        "not_llm_output": true,
+        "outcome_hash": "5de16440c582fab0f0a09de01f82957ae83111469b60120b11cb50107181e472",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "risk_status": null,
+        "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+        "specialist_output_valid": true,
+        "terminal_state": "FAILED_VALIDATION",
+        "trace_complete": true,
+        "validator_rejection": "EVIDENCE_CLOSURE_FAILED"
+      },
+      "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+      "status": "PASS"
+    },
+    {
+      "case_hash": "c85c4991cf29fd81c0ffb68ece6c9918f6f55db7808c0535a08c785f47b6485d",
+      "case_id": "mandatory-no-trade",
+      "execution_proof": {
+        "artifacts": {
+          "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/mandatory-no-trade/run/decision_trace.json",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/mandatory-no-trade/runtime-eval/eval/result.json",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/mandatory-no-trade/run"
+        },
+        "case_id": "mandatory-no-trade",
+        "executed_operations": [
+          "deterministic_injection",
+          "trace_integrity_report",
+          "artifact_replay",
+          "runtime_eval_verify"
+        ],
+        "hashes": {
+          "artifact_replay": "b489c4e688fc328b6a8e865a4a862b7b7fff3ceb0a4b073e7cbf4e37e2d83414",
+          "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+          "deterministic_outcome": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+          "grader_execution_proof": null,
+          "runtime_eval": "84e80310d24eac84322b67d3b8b8262880e9a2381b0355b914632d41469273b4",
+          "trace": "d0fc374d1610d90e7947adc8b9dacdc1c32038f5861ec5c01e840c85e8f33b59",
+          "trace_report": "fede48533f45eb85041e4a01bd841fabdd0e1bbb11118b849b7fc6cac5b30b08"
+        },
+        "llm_calls_during_verification": 0,
+        "producer": "deterministic-injection",
+        "proof_hash": "80ec96c02d91aee0e59def8c4cd804f76bd65c7c212839fea9fac360d998cb63",
+        "run_id": "regression-focused-closure-20260908-mandatory-no-trade-c85c4991cf29",
+        "schema_version": "regression-case-execution-proof/1.0.0",
+        "source_command": "execute_deterministic_case:mandatory-no-trade",
+        "status": "PASS"
+      },
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [],
+        "cio_conflict_handled": false,
+        "eval_status": "PASS",
+        "evidence_closure": true,
+        "evidence_subset_of_gate": true,
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "no_future_evidence": true,
+        "not_llm_output": true,
+        "outcome_hash": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "risk_status": null,
+        "run_id": "regression-focused-closure-20260908-mandatory-no-trade-c85c4991cf29",
+        "specialist_output_valid": true,
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_complete": true
+      },
+      "run_id": "regression-focused-closure-20260908-mandatory-no-trade-c85c4991cf29",
+      "status": "PASS"
+    },
+    {
+      "case_hash": "acd3c70a183bb4efc06cf8c0393a0d3c59b510e9ae117fd1b33723f95bafc1fe",
+      "case_id": "valid-action-contract",
+      "execution_proof": {
+        "artifacts": {
+          "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run/decision_trace.json",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/runtime-eval/eval/result.json",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/valid-action-contract/run"
+        },
+        "case_id": "valid-action-contract",
+        "executed_operations": [
+          "deterministic_injection",
+          "trace_integrity_report",
+          "artifact_replay",
+          "runtime_eval_verify"
+        ],
+        "hashes": {
+          "artifact_replay": "e4de920f946da407a5bf6386ad9ea286c0681aaed1c6e623071fd106bddb7126",
+          "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+          "deterministic_outcome": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+          "grader_execution_proof": null,
+          "regression_injection": "550c8f2240d1f602dd1b6bb55a159956c7cdbac4798f9104c6d7e6a747e33cfd",
+          "runtime_eval": "440d5aa69a0a66b9961d47d440f8fc8e806f12b89e81c80ffc1e67e0693540fb",
+          "trace": "d0d52bd81ae9ffd6ad3e39cc9a5366ccb1450acf0fc9d164dadd968765c0b466",
+          "trace_report": "e8395d93e041f0238ac3f0096479aeb27272934304d26a1ce0a80b7faa7f0df9"
+        },
+        "llm_calls_during_verification": 0,
+        "producer": "deterministic-injection",
+        "proof_hash": "89acbcc54096ad87cadfbf89d62a89b475895c9ef7811844bf8e737bebd73da7",
+        "run_id": "regression-focused-closure-20260908-valid-action-contract-acd3c70a183b",
+        "schema_version": "regression-case-execution-proof/1.0.0",
+        "source_command": "execute_deterministic_case:valid-action-contract",
+        "status": "PASS"
+      },
+      "outcome": {
+        "action": "HOLD",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cio_conflict_handled": false,
+        "eval_status": "PASS",
+        "evidence_closure": true,
+        "evidence_subset_of_gate": true,
+        "failed_stage": null,
+        "forbidden_actions": [
+          "REDUCE"
+        ],
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "no_future_evidence": true,
+        "not_llm_output": true,
+        "outcome_hash": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "regression-focused-closure-20260908-valid-action-contract-acd3c70a183b",
+        "specialist_output_valid": true,
+        "terminal_state": "COMPLETED",
+        "trace_complete": true,
+        "valid_action_set": [
+          "BUY",
+          "HOLD",
+          "TRIM",
+          "EXIT"
+        ]
+      },
+      "run_id": "regression-focused-closure-20260908-valid-action-contract-acd3c70a183b",
+      "status": "PASS"
+    },
+    {
+      "case_hash": "0054b5e5c8f35ddbb0fb4cebbc74c57b2fe59077bdfe5724cfce7167d8086371",
+      "case_id": "invalid-specialist-output",
+      "execution_proof": {
+        "artifacts": {
+          "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/invalid-specialist-output/run/decision_trace.json",
+          "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/invalid-specialist-output/runtime-eval/eval/result.json",
+          "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/invalid-specialist-output/run"
+        },
+        "case_id": "invalid-specialist-output",
+        "executed_operations": [
+          "deterministic_injection",
+          "trace_integrity_report",
+          "artifact_replay",
+          "runtime_eval_verify"
+        ],
+        "hashes": {
+          "artifact_replay": "f53f4a21154c6d78d20b6ad6e6983eedc987898985e6c3fa60f238f806ed1d26",
+          "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+          "deterministic_outcome": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+          "grader_execution_proof": null,
+          "regression_injection": "6f0c0b9e8a0919033b76d1d7cea1d25f5fd58101203734350afbe0e7fe71f732",
+          "runtime_eval": "c0e4761cdc72daa1c91dca9b02dc6db92bff445d4a1d625e9830491e7db99d8a",
+          "trace": "20f67b18d4cd4e6bb9d00c8a879a58bb1c3d8a45256a385e5ce25f16de849eb7",
+          "trace_report": "6d22a7e8e332c28c0722883b11d7b7d08f561a6fce1ade3a4d8c8f8fd35081a8"
+        },
+        "llm_calls_during_verification": 0,
+        "producer": "deterministic-injection",
+        "proof_hash": "77d1da8d686c7b27c377212cdb4089e576a26c16b55062c0eddf8c8eab403edd",
+        "run_id": "regression-focused-closure-20260908-invalid-specialist-output-0054b5e5c8f3",
+        "schema_version": "regression-case-execution-proof/1.0.0",
+        "source_command": "execute_deterministic_case:invalid-specialist-output",
+        "status": "PASS"
+      },
+      "outcome": {
+        "action": null,
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic"
+        ],
+        "cio_conflict_handled": false,
+        "eval_status": "PASS",
+        "evidence_closure": true,
+        "evidence_subset_of_gate": true,
+        "failed_stage": "SPECIALIST_VALIDATION",
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "no_future_evidence": true,
+        "not_llm_output": true,
+        "outcome_hash": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "risk_status": null,
+        "run_id": "regression-focused-closure-20260908-invalid-specialist-output-0054b5e5c8f3",
+        "specialist_output_valid": false,
+        "terminal_state": "FAILED_VALIDATION",
+        "trace_complete": true,
+        "validator_rejection": "SCHEMA_INVALID"
+      },
+      "run_id": "regression-focused-closure-20260908-invalid-specialist-output-0054b5e5c8f3",
+      "status": "PASS"
+    }
+  ],
+  "regression_set_hash": "6004fb79ed7ec5de46310e017cf493b2362b3259ddf2222982d78e75d9a143ef",
+  "result_hash": "b6af7395d78ad66cd605fdd5542b5827420c4c1b7d9b6f31cdb73b8f22b6c680",
+  "schema_version": "focused-regression-subset/1.0.0",
+  "selected_case_count": 6,
+  "status": "PASS",
+  "suite_id": "focused-closure-20260908"
+}

@@ -1,0 +1,21 @@
+2026-09-08T17:02:48.912333Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/
+2026-09-08T17:02:48.912404Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/
+2026-09-08T17:02:48.934661Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.940180Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.943198Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.946272Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.949913Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.960874Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.963948Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.966318Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.968633Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.970915Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.973481Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.975799Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:48.978134Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-09-08T17:02:51.213535Z  WARN codex_skills::interface: ignoring interface.icon_small: icon path with '..' must resolve under plugin assets/
+2026-09-08T17:02:51.213562Z  WARN codex_skills::interface: ignoring interface.icon_large: icon path with '..' must resolve under plugin assets/
+2026-09-08T17:04:31.099983Z  WARN codex_core::hook_runtime: failed to resolve parent transcript path for subagent hook parent_thread_id=01a081f8-ea43-7da3-aaf0-616104db9f0a error=invalid thread-store request: no rollout found for thread id 01a081f8-ea43-7da3-aaf0-616104db9f0a
+2026-09-08T17:04:39.229691Z ERROR codex_core::tools::router: error=Tool call blocked by PreToolUse hook: 拒绝重复派发 Specialist：runtime_skeptic。每个必需 Specialist 在本轮只能启动一次。. Tool: collaborationspawn_agent
+2026-09-08T17:04:58.075454Z  WARN codex_core::hook_runtime: failed to resolve parent transcript path for subagent hook parent_thread_id=01a081f8-ea43-7da3-aaf0-616104db9f0a error=invalid thread-store request: no rollout found for thread id 01a081f8-ea43-7da3-aaf0-616104db9f0a
+2026-09-08T17:05:02.777342Z  WARN codex_core::hook_runtime: failed to resolve parent transcript path for subagent hook parent_thread_id=01a081f8-ea43-7da3-aaf0-616104db9f0a error=invalid thread-store request: no rollout found for thread id 01a081f8-ea43-7da3-aaf0-616104db9f0a

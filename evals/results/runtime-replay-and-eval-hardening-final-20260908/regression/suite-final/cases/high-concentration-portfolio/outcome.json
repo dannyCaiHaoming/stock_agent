@@ -1,0 +1,70 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 453888,
+  "eval_hash": "e1a6369defa3c5f445fb2049e43b95efb2a985a38ab76605ccf2a5cf572dd5a9",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 520744,
+  "latency_ms": 249976,
+  "llm_calls": 15,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 11665,
+  "risk_bypassed": false,
+  "risk_status": "REJECTED",
+  "run_id": "rrh-final-high-concentration-portfolio-20260908",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "报告将价格和 TTM 收入明确列为带引用的事实，并明确区分这些事实与因估值、财务和业务证据缺失而不能形成的 Thesis。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确记录专业报告共识、无机械证据冲突、未决问题及其对不形成方向性行动的影响，并在最终风险否决前保持该限制。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Analyst、Skeptic 和 CIO 的低置信度均直接与授权证据狭窄、关键数据缺口及未量化集中风险相匹配，未依赖固定置信度或市场结果。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "最终 NO_TRADE 明确归因于 Risk Engine veto，并保留可行边界、具体违规及仅在满足该边界后重评的条件；其事实输入均可追溯。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "独立首轮提出了可证伪的估值基础和集中风险挑战，逐项说明缺口、所需验证证据及失效条件。",
+      "status": "PASS"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "be8a1ba92cb94009a0d3775853b7a09f9366bbd188fb1aece8cc718d591b0428"
+}

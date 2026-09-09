@@ -1,0 +1,76 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 567552,
+  "cio_conflict_handled": true,
+  "eval_hash": "58c2027fed80cc585944e4558f2ff4573fb2484b871dfd9097dd3f5bb5c63b8b",
+  "eval_status": "PASS",
+  "evidence_closure": true,
+  "evidence_subset_of_gate": true,
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 616798,
+  "latency_ms": 265015,
+  "llm_calls": 3,
+  "model": "gpt-5.6-terra",
+  "no_future_evidence": true,
+  "output_tokens": 10423,
+  "risk_bypassed": false,
+  "risk_status": "REJECTED",
+  "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将价格和 TTM 收入分别表述为带引用的 FACT，并明确限制为不足以形成公司质量、竞争地位或估值 Thesis，区分了事实与不可作出的判断。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录两份报告对有限证据范围的共识、无来源冲突、三个未决问题及其对不形成仓位意图的影响；final decision 保留 Risk veto。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 的低置信度对应有限事实覆盖；Skeptic 与 CIO 的置信度理由均限定于算术风险冲突或证据不足结论，并明确其不确定性和数据缺口，未将其作为方向性判断。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "decision.json 记录 RISK_VETO、Risk Engine 否决说明及仅在满足可行边界后重评的条件；这些引用均在冻结 Gate 的允许 Evidence 中。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 以独立首轮审视提出价格和收入均不能替代集中度硬约束的具体、可证伪挑战，列出风险引擎、完整组合口径和获准例外等所需核验材料及失效条件。",
+      "status": "PASS"
+    }
+  },
+  "specialist_output_valid": true,
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_complete": true,
+  "trace_hash": "d2968692c83fe7e4c111126c98ddb3445ab85281677eff5a914c50c3a1eb30f2"
+}

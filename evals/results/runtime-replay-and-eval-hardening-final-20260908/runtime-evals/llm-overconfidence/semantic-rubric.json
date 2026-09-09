@@ -1,0 +1,54 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The analyst confines its conclusion to the cited price fact and explicitly states that it cannot support a broader thesis or valuation interpretation.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The CIO records consensus, no asserted conflicts, unresolved questions, and the resulting NO_TRADE impact.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Low reported confidence aligns with a single observation and unresolved uncertainty; the rationales distinguish confidence in insufficiency from confidence in company inference.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The CIO ties NO_TRADE to the single authorized price observation and specifies cutoff-compliant evidence required for reevaluation.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The independent first-pass skeptic identifies concrete alternative explanations and data gaps, cites the only evidence, and lists resolution evidence.",
+      "status": "PASS"
+    }
+  },
+  "eval_id": "rrh-final-eval-llm-overconfidence-20260908",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "cb099ca5f8e51c72cf7a5ba3d26da4bb9c8b074ddb2806275c3865cbe0d88c0d",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "b2301bbf4e8222548ae01bef7b4e86d39ff06df66717f9d64d02626a39e4050f",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

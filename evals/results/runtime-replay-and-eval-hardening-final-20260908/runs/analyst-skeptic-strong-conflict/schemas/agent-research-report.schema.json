@@ -1,0 +1,210 @@
+{
+  "$defs": {
+    "assumption": {
+      "additionalProperties": false,
+      "properties": {
+        "assumption_id": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "statement": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "assumption_id",
+        "statement",
+        "rationale"
+      ],
+      "type": "object"
+    },
+    "claim": {
+      "additionalProperties": false,
+      "properties": {
+        "assumption_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "claim_id": {
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "description": "必须逐字选择当前 Gate 的 allowed_evidence_ids；只能填写原始 evidence_id，禁止拼接 source_id、as_of、retrieved_at 或说明文字。",
+            "enum": [
+              "ev-conflict-margin",
+              "ev-conflict-price",
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "FACT",
+            "INTERPRETATION"
+          ]
+        },
+        "statement": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "statement",
+        "kind",
+        "evidence_refs",
+        "assumption_ids"
+      ],
+      "type": "object"
+    },
+    "skill": {
+      "additionalProperties": false,
+      "properties": {
+        "invocation_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "skill_name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_name",
+        "version",
+        "invocation_hash"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "portfolio-council/agent-research-report/2.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "const": "runtime_company_analyst"
+    },
+    "artifact_refs": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "assumptions": {
+      "items": {
+        "$ref": "#/$defs/assumption"
+      },
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/claim"
+      },
+      "type": "array"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "confidence_rationale": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "counter_evidence_refs": {
+      "items": {
+        "description": "必须逐字选择当前 Gate 的 allowed_evidence_ids；只能填写原始 evidence_id，禁止拼接 source_id、as_of、retrieved_at 或说明文字。",
+        "enum": [
+          "ev-conflict-margin",
+          "ev-conflict-price",
+          "ev-conflict-revenue-a",
+          "ev-conflict-revenue-b"
+        ],
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "data_gaps": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "invalidation_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "invocation_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "run_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "agent-research-report/2.0.0"
+    },
+    "scope": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "skill_execution": {
+      "items": {
+        "$ref": "#/$defs/skill"
+      },
+      "minItems": 3,
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "COMPLETE",
+        "TIMEOUT",
+        "INSUFFICIENT_EVIDENCE",
+        "LOW_CONFIDENCE"
+      ]
+    },
+    "uncertainties": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "invocation_id",
+    "status",
+    "agent",
+    "scope",
+    "claims",
+    "assumptions",
+    "counter_evidence_refs",
+    "uncertainties",
+    "data_gaps",
+    "invalidation_conditions",
+    "confidence",
+    "confidence_rationale",
+    "skill_execution",
+    "artifact_refs"
+  ],
+  "type": "object",
+  "x-evidence-id-constraint": {
+    "allowed_evidence_ids_hash": "7074c16abd4b188713c245079afda7f3bd01103c9fbb61a9384fc5d8d6822132",
+    "mode": "enum",
+    "source": "agent_input.allowed_evidence_ids"
+  }
+}

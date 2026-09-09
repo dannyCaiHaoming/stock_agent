@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-lock-eval-insufficient-evidence-20260909",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/insufficient-evidence",
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "5df25525ab07fe220a27a23a40f184f74d1e78159784f7aae6b08c42a565696c",
+    "artifact_replay": "70401bf5426ad917279407f8e1621b86b80fab692944ed7fbe9b90b80b839fd4",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "c36ecae1e7f0a23b9a4e3e0c07ed9296b0f578ecc0c6a3705aac544b8b79b0cb",
+    "semantic_input": "9054784f2f7333606cb8996d99198aa6863b97d2b252c316653f06686c6a8b2b",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "da9e2095a82255279a13fe57d14bbf732ff3cceaf42947134f136d522a7f1ad3"
+  }
+}

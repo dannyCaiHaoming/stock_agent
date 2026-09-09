@@ -1,0 +1,96 @@
+{
+  "cache_key": "ed03ae199e40dc106a2c6e5770afa728798cc93795808185729cc6ac39896436",
+  "case_hash": "ac4272f0af0a479b5424e74549df8ec9ab02e54a48b8d88d424464d95098c0b9",
+  "case_id": "high-concentration-portfolio",
+  "inputs": {
+    "candidate_hash": "61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404",
+    "codex_runtime": "codex-cli/0.153.4",
+    "gate_context_hash": "72db3b66ec29665608b02204548aa8d03919fbba2e6bd577dea2ea141eeffe31",
+    "grader_hash": "8951431d41e3e91ec57ae40fe46c4eba8d02658608642fd3d2ddfce51f9d99b6",
+    "model": "gpt-5.6-terra",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "runtime_profile_hash": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+  },
+  "outcome": {
+    "action": "NO_TRADE",
+    "agents_run": [
+      "runtime_company_analyst",
+      "runtime_skeptic",
+      "runtime_cio"
+    ],
+    "cached_tokens": 406528,
+    "eval_hash": "e8d0d290b88dcd71636ee588e873ead4c428ea57684e538cf7be987a2d2fa134",
+    "eval_status": "PASS",
+    "failed_stage": null,
+    "future_leak_count": 0,
+    "input_tokens": 521151,
+    "latency_ms": 212321,
+    "llm_calls": 16,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 8896,
+    "risk_bypassed": false,
+    "risk_status": "REJECTED",
+    "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+    "semantic_dimensions": {
+      "analyst_thesis_grounding": {
+        "evidence_refs": [
+          "claim_close_price",
+          "claim_revenue_ttm",
+          "ev-risk-price",
+          "ev-risk-revenue"
+        ],
+        "grade": 3,
+        "rationale": "runtime_company_analyst 将两项主张标记为 FACT 并分别引用允许 Evidence；其余结论限于这些事实不足以支持商业质量、竞争、盈利或估值，且明确列出数据缺口与失效条件。",
+        "status": "PASS"
+      },
+      "cio_conflict_handling": {
+        "evidence_refs": [
+          "ev-risk-price",
+          "ev-risk-revenue"
+        ],
+        "grade": 3,
+        "rationale": "runtime_cio 记录两份报告关于证据覆盖限制的共识、无来源冲突和四项未决问题，并据此说明不形成行动建议；decision.json 另明确记录 Risk Engine 的 RISK_VETO。",
+        "status": "PASS"
+      },
+      "confidence_calibration": {
+        "evidence_refs": [
+          "ev-risk-price",
+          "ev-risk-revenue"
+        ],
+        "grade": 3,
+        "rationale": "Analyst 的 0.2 受限于仅两项单点事实；Skeptic 的 0.86 明确限于证据不足结论；CIO 的 0.9 明确限于不形成方向性建议，三者均以数据缺口和不确定性校准结论方向。",
+        "status": "PASS"
+      },
+      "no_trade_reasoning": {
+        "evidence_refs": [
+          "ev-risk-price",
+          "ev-risk-revenue"
+        ],
+        "grade": 3,
+        "rationale": "decision.json 的终态为 SAFE_NO_TRADE，risk_report 明确为 RISK_VETO 并列出三项违反；CIO 的证据不足理由及最终仅在满足 Risk Engine 可行边界后重评的条件，均与冻结产物一致。",
+        "status": "PASS"
+      },
+      "skeptic_counter_evidence": {
+        "evidence_refs": [
+          "CH-001",
+          "CH-002",
+          "ev-risk-price",
+          "ev-risk-revenue"
+        ],
+        "grade": 3,
+        "rationale": "runtime_skeptic 以 INDEPENDENT_FIRST_PASS 提出单点价格不能支持风险或估值、收入规模不能替代经营质量的两项具体挑战，逐项给出所需核验材料和可证伪的失效条件。",
+        "status": "PASS"
+      }
+    },
+    "terminal_state": "SAFE_NO_TRADE",
+    "trace_hash": "36fd5f01fad90feaf3bf4001518b531ca18c8bc45b09a5a59b0398613df625ad"
+  },
+  "record_hash": "7fe6af16eb34a50a1fd3b0899f3bddf063893102e55e2f16e1d97ff7a4ba755c",
+  "schema_version": "regression-cache/1.0.0",
+  "source": {
+    "eval_artifact_hash": "cfc91be80db89bf583465d5b34b48daf6fb587ed4cf9725a60df568f09f19388",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runtime-evals/execution-replay-risk-veto/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto",
+    "run_tree_hash": "6d9d3d39794da9d355dbe7d9044f30195d541e921b74b6575b90a545da6ea721"
+  }
+}

@@ -1,0 +1,23 @@
+$runtime-eval-grading
+
+你是 Runtime Eval 的开发控制面协调线程，不是投资决策者。只处理 `/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/normal-research` 中已冻结的 Eval 输入，不补充外部事实，不修改源 Run 或产品文件。
+
+在等待前只启动一次独立子 Agent：`agent_type=dev_eval`、`task_name=semantic_grading`、`fork_turns=none`。子任务必须包含：
+- eval_id: `rrh-final-lock-eval-normal-research-20260909`
+- eval_dir: `/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/normal-research`
+- grader_prompt_hash: `937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de`
+- rubric_hash: `8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f`
+- semantic_input_hash: `70716c462b0e6175672a91c47ba3cacea2e21c3dea79e2af0235043ac8a7a9b1`
+- semantic_output_schema_hash: `644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca`
+
+要求子 Agent 完整读取 `grader-prompt.txt`、`grader-input.json`、`semantic-output-schema.json` 与 `/Users/caihaoming/Documents/stock_agent/evals/grading/semantic-rubric-v1.json`，应用 runtime-eval-grading Skill，只返回一个符合 Schema 的 JSON 对象。grader.agent 必须为 dev_eval，grader.model 必须为 gpt-5.6-terra，并逐字复制上述三个 lineage hash。不得生成投资建议或隐藏推理。
+`input-manifest.json` 中的 source_hashes 是 Runtime 按 canonical JSON/契约算法生成并已确定性验证的 lineage 值，不等同于文件字节 `sha256sum`。只核对上述值与 manifest 完全相同；禁止将其按文件字节哈希重新解释后误报完整性失败。
+
+收到结果后原样保存为 `/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/normal-research/semantic-result.json`，然后运行：
+`python3 -m product.runtime.cli eval-execution-proof --repo /Users/caihaoming/Documents/stock_agent --eval-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/normal-research --semantic-result /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/normal-research/semantic-result.json --sessions-root /Users/caihaoming/.codex/sessions`
+
+证明通过后运行：
+`python3 -m product.runtime.cli eval-finalize --repo /Users/caihaoming/Documents/stock_agent --eval-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/normal-research --semantic-result /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/normal-research/semantic-result.json`
+
+最终只报告 eval_id、Eval 状态、`eval/result.json` 与 `eval/report.md`；不得改写评分以追求 PASS。
+

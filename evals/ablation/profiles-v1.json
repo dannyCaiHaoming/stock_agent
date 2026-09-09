@@ -1,0 +1,11 @@
+{
+  "schema_version": "ablation-profiles/1.0.0",
+  "profiles": {
+    "cio-only": {"run_mode": "EVAL_ABLATION", "agents": ["runtime_cio"], "publishable": false},
+    "analyst-cio": {"run_mode": "EVAL_ABLATION", "agents": ["runtime_company_analyst", "runtime_cio"], "publishable": false},
+    "full-council": {"run_mode": "EVAL_ABLATION", "agents": ["runtime_company_analyst", "runtime_skeptic", "runtime_cio"], "publishable": false}
+  },
+  "product_profile": {"run_mode": "PRODUCT_COUNCIL", "agents": ["runtime_company_analyst", "runtime_skeptic", "runtime_cio"], "publishable": true},
+  "quality_gain_threshold": 0.1,
+  "representative_cases": ["normal-research", "insufficient-evidence", "analyst-skeptic-strong-conflict", "mandatory-no-trade"]
+}

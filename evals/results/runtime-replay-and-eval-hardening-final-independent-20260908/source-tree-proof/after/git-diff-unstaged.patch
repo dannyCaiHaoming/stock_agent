@@ -1,0 +1,2964 @@
+diff --git a/.codex/agents/dev_eval.toml b/.codex/agents/dev_eval.toml
+index b4c4daf..f8e56ed 100644
+--- a/.codex/agents/dev_eval.toml
++++ b/.codex/agents/dev_eval.toml
+@@ -1,6 +1,19 @@
+-name = "dev-eval"
+-description = "负责确定性测试、point-in-time 回放、评分器和回归门禁。"
++name = "dev_eval"
++description = "负责真实 Runtime 产物的确定性门禁、point-in-time 回放、结构化语义评分、回归和消融验证。"
+ sandbox_mode = "workspace-write"
+ developer_instructions = """
+-分别评估证据、推理、确定性正确性、市场结果和 Agent 消融。防止未来数据泄漏，不得把市场收益作为唯一正确性标签。禁止 investment-decision、broker-write 和 production-promotion 权限。
++先验证真实 run、Trace、Replay 与输入 hash，再使用 runtime-eval-grading Skill 对版本化 rubric 进行结构化评分。确定性 Evidence/PIT/Risk/Schema/Trace 失败不得被语义平均分覆盖。不得用人工 aggregate candidate 代替底层产物，不得补充外部事实、生成或修改投资决策，也不得把市场收益作为正确性标签。禁止 investment-decision、broker-write、production-promotion 和 production-file-mutation 权限。
+ """
++
++[[skills.config]]
++path = ".agents/skills/runtime-eval-grading"
++enabled = true
++
++[tools]
++web_search = false
++view_image = false
++
++[apps._default]
++enabled = false
++destructive_enabled = false
++open_world_enabled = false
+diff --git a/evals/ablation/__init__.py b/evals/ablation/__init__.py
+index b314dc8..165c85a 100644
+--- a/evals/ablation/__init__.py
++++ b/evals/ablation/__init__.py
+@@ -1,5 +1,13 @@
+ """Multi-agent architecture ablation evaluation."""
+ 
+ from .evaluator import AblationComparison, AblationEvaluator, VariantRun
++from .runtime import RuntimeAblationError, compare_runtime_ablation_set, compare_runtime_variants
+ 
+-__all__ = ["AblationComparison", "AblationEvaluator", "VariantRun"]
++__all__ = [
++    "AblationComparison",
++    "AblationEvaluator",
++    "VariantRun",
++    "RuntimeAblationError",
++    "compare_runtime_ablation_set",
++    "compare_runtime_variants",
++]
+diff --git a/evals/fixtures/codex-native/future-or-stale.json b/evals/fixtures/codex-native/future-or-stale.json
+index 29123e5..9437a7b 100644
+--- a/evals/fixtures/codex-native/future-or-stale.json
++++ b/evals/fixtures/codex-native/future-or-stale.json
+@@ -28,6 +28,7 @@
+       "source_locator": "fixture://future/asof/1",
+       "source_version": "1",
+       "as_of": "2026-02-01T21:00:00Z",
++      "published_at": "2026-02-01T21:00:00Z",
+       "retrieved_at": "2026-02-01T21:05:00Z"
+     },
+     {
+@@ -42,6 +43,7 @@
+       "source_locator": "fixture://future/retrieval/2",
+       "source_version": "2",
+       "as_of": "2025-12-31T00:00:00Z",
++      "published_at": "2026-02-02T12:55:00Z",
+       "retrieved_at": "2026-02-02T13:00:00Z"
+     },
+     {
+diff --git a/evals/grading/__init__.py b/evals/grading/__init__.py
+index a1c2bf4..be1b91c 100644
+--- a/evals/grading/__init__.py
++++ b/evals/grading/__init__.py
+@@ -12,6 +12,7 @@ from .reasoning import (
+     EvidenceReasoningGrader,
+     GraderValidationReport,
+ )
++from .calibration import evaluate_calibration
+ 
+ __all__ = [
+     "DeterministicGateInput",
+@@ -20,6 +21,7 @@ __all__ = [
+     "EvidenceReasoningCase",
+     "EvidenceReasoningGrade",
+     "EvidenceReasoningGrader",
++    "evaluate_calibration",
+     "GateCheck",
+     "GraderValidationReport",
+ ]
+diff --git a/evals/promotion/__init__.py b/evals/promotion/__init__.py
+index 4e63f7c..42ef2dd 100644
+--- a/evals/promotion/__init__.py
++++ b/evals/promotion/__init__.py
+@@ -7,11 +7,22 @@ from .gates import (
+     PromotionGate,
+     SplitMetrics,
+ )
++from .runtime_gate import RuntimePromotionError, run_promotion_gate
++from .test_evidence import (
++    DeterministicTestEvidenceError,
++    run_deterministic_test_evidence,
++    verify_deterministic_test_evidence,
++)
+ 
+ __all__ = [
+     "CandidateEvaluation",
+     "HoldoutStrategy",
+     "PromotionDecision",
+     "PromotionGate",
++    "RuntimePromotionError",
++    "DeterministicTestEvidenceError",
++    "run_promotion_gate",
++    "run_deterministic_test_evidence",
++    "verify_deterministic_test_evidence",
+     "SplitMetrics",
+ ]
+diff --git a/product/.codex-plugin/plugin.json b/product/.codex-plugin/plugin.json
+index 930ae79..4670bba 100644
+--- a/product/.codex-plugin/plugin.json
++++ b/product/.codex-plugin/plugin.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "product",
+-  "version": "0.2.4+codex.20260906091442",
++  "version": "0.3.0+codex.20260908020500",
+   "description": "\u9762\u5411 Codex\u3001\u8bc1\u636e\u4f18\u5148\u4e14\u4ec5\u4f9b\u7814\u7a76\u5efa\u8bae\u7684 Portfolio Council",
+   "author": {
+     "name": "Portfolio Council \u9879\u76ee"
+diff --git a/product/.codex/agents/runtime_cio.toml b/product/.codex/agents/runtime_cio.toml
+index a63d88c..1aeee3c 100644
+--- a/product/.codex/agents/runtime_cio.toml
++++ b/product/.codex/agents/runtime_cio.toml
+@@ -6,7 +6,7 @@ model_reasoning_effort = "high"
+ developer_instructions = """
+ 仅在用户调用 portfolio-council Skill 时担任 CIO。先完成仓库产品包发现、portfolio 输入校验和 point-in-time Evidence Gate。存在可用证据时，在等待任何结果前并行委派 runtime_company_analyst 与 runtime_skeptic；不得使用 Python callback 或固定模板替代 LLM 研究。
+ 
+-只接收两份已验证的结构化专业报告、Evidence References、确定性组合数据和本次 run_id 的 fixture_evidence.query 工具。需要核验事实时通过只读工具解析引用，不得读取原始 fixture 或被 Gate 排除的事实。综合共识、冲突、数据缺口、反证、置信度理由和失效条件，输出 CIODecisionDraft JSON；必须遵守动态 task prompt 中由 canonical decision contract 生成的动作字段条件和示例，不得另行猜测 null 语义；禁止创建、修改或路由订单。
++默认产品运行只接收两份已验证的结构化专业报告、Evidence References、确定性组合数据和本次 run_id 的 fixture_evidence.query 工具。只有输入 manifest 明确标记 `EVAL_ABLATION` 时，才按动态 task prompt 接收零份、一份或两份报告；此模式仅供开发评估、不可发布，也不得伪造未参与的 Specialist。需要核验事实时通过只读工具解析引用，不得读取原始 fixture 或被 Gate 排除的事实。综合共识、冲突、数据缺口、反证、置信度理由和失效条件，输出 CIODecisionDraft JSON；必须遵守动态 task prompt 中由 canonical decision contract 生成的动作字段条件和示例，不得另行猜测 null 语义；禁止创建、修改或路由订单。
+ 
+ 完整草案必须交给 deterministic Risk Engine。不得覆盖 REJECTED；REVISE_REQUIRED 最多修订一次。最终产物只能由确定性校验和渲染工具保存到显式 run 目录，运行期间不得修改产品代码、Agent、Skill、Schema 或 Risk Policy。
+ """
+diff --git a/product/.mcp.json b/product/.mcp.json
+index 2b692e0..cdcb0bf 100644
+--- a/product/.mcp.json
++++ b/product/.mcp.json
+@@ -1,11 +1,13 @@
+ {
+   "mcpServers": {
+     "fixture_runtime": {
+-      "command": "/bin/sh",
++      "command": "python3",
+       "args": [
+-        "-c",
+-        "cd .. && exec python3 -m product.runtime.fixture_mcp --stateless"
++        "-m",
++        "runtime.fixture_mcp",
++        "--stateless"
+       ],
++      "cwd": ".",
+       "enabled": true,
+       "enabled_tools": ["query", "calculate"],
+       "default_tools_approval_mode": "approve",
+diff --git a/product/runtime-profile.json b/product/runtime-profile.json
+index a10dcb5..698840e 100644
+--- a/product/runtime-profile.json
++++ b/product/runtime-profile.json
+@@ -1,5 +1,5 @@
+ {
+-  "profile_id": "fixture-council/2.1.0",
++  "profile_id": "fixture-council/3.0.0",
+   "entry_skill": "portfolio-council",
+   "working_directory": "product",
+   "max_threads": 3,
+@@ -19,7 +19,7 @@
+       "sandbox_mode": "read-only"
+     },
+     "runtime_cio": {
+-      "version": "2.1.0",
++      "version": "3.0.0",
+       "config_file": ".codex/agents/runtime_cio.toml",
+       "skills": ["portfolio-council"],
+       "tool_permissions": ["fixture_evidence.query"],
+@@ -27,6 +27,11 @@
+     }
+   },
+   "parallel_first_pass": ["runtime_company_analyst", "runtime_skeptic"],
++  "evaluation_profiles": {
++    "cio-only": ["runtime_cio"],
++    "analyst-cio": ["runtime_company_analyst", "runtime_cio"],
++    "full-council": ["runtime_company_analyst", "runtime_skeptic", "runtime_cio"]
++  },
+   "excluded_agents": ["runtime_market_catalyst"],
+   "disabled_capabilities": [
+     "web_search",
+diff --git a/product/runtime/artifact_matrix.py b/product/runtime/artifact_matrix.py
+index b9b8b69..b496441 100644
+--- a/product/runtime/artifact_matrix.py
++++ b/product/runtime/artifact_matrix.py
+@@ -14,6 +14,7 @@ from .terminal_contract import (
+     normalize_failure_stage,
+     stage_at_or_after,
+ )
++from .runtime_profiles import validate_runtime_mode
+ 
+ 
+ ARTIFACT_MATRIX_VERSION = "native-artifact-matrix/2.1.0"
+@@ -34,8 +35,9 @@ def _read_object(path: Path) -> dict[str, Any]:
+     return dict(value)
+ 
+ 
+-def _required_chain_files(*, authenticity_required: bool) -> set[str]:
+-    agents = ("runtime_company_analyst", "runtime_skeptic")
++def _required_chain_files(
++    *, authenticity_required: bool, specialists: tuple[str, ...]
++) -> set[str]:
+     required = {
+         "evidence/gate.json",
+         "inputs/runtime_cio.json",
+@@ -44,7 +46,7 @@ def _required_chain_files(*, authenticity_required: bool) -> set[str]:
+         "cio/runtime_cio.json",
+         "risk/check-1.json",
+     }
+-    for agent in agents:
++    for agent in specialists:
+         required.update(
+             {
+                 f"inputs/{agent}.json",
+@@ -116,9 +118,14 @@ def validate_artifact_matrix(
+         if has_chain:
+             if manifest is None:
+                 raise ArtifactMatrixError("RUN_MANIFEST_REQUIRED_FOR_CHAIN")
++            topology = validate_runtime_mode(
++                run_mode=str(manifest.get("run_mode", "PRODUCT_COUNCIL")),
++                ablation_profile=manifest.get("ablation_profile"),
++            )
+             required.update(
+                 _required_chain_files(
+-                    authenticity_required=manifest.get("authenticity_required") is not False
++                    authenticity_required=manifest.get("authenticity_required") is not False,
++                    specialists=tuple(agent for agent in topology if agent != "runtime_cio"),
+                 )
+             )
+         else:
+diff --git a/product/runtime/cli.py b/product/runtime/cli.py
+index 92d6065..799c0c8 100644
+--- a/product/runtime/cli.py
++++ b/product/runtime/cli.py
+@@ -19,6 +19,15 @@ from .native_rerun import prepare_native_rerun
+ from .release_gate import check_run
+ from .smoke_prompt import build_smoke_prompt
+ from .terminal_contract import FailureStage
++from .execution_replay import finalize_execution_replay, prepare_execution_replay
++from .reason_codes import code_from_error
++from .runtime_eval import build_eval_smoke_prompt, finalize_eval_job, prepare_eval_job
++from .eval_execution_proof import (
++    build_eval_execution_proof,
++    discover_eval_rollouts,
++    persist_eval_execution_proof,
++)
++from .trace_validation import trace_integrity_report
+ 
+ 
+ def main(argv: Sequence[str] | None = None) -> int:
+@@ -32,6 +41,9 @@ def main(argv: Sequence[str] | None = None) -> int:
+     prepare.add_argument("--run-id", required=True)
+     prepare.add_argument("--model", required=True)
+     prepare.add_argument("--question", required=True)
++    prepare.add_argument("--run-mode", default="PRODUCT_COUNCIL", choices=("PRODUCT_COUNCIL", "EVAL_ABLATION"))
++    prepare.add_argument("--ablation-profile", choices=("cio-only", "analyst-cio", "full-council"))
++    prepare.add_argument("--trigger-reason", default="product_council")
+ 
+     cio = subparsers.add_parser("prepare-cio")
+     cio.add_argument("--repo", type=Path, required=True)
+@@ -74,6 +86,91 @@ def main(argv: Sequence[str] | None = None) -> int:
+     rerun.add_argument("--run-dir", type=Path, required=True)
+     rerun.add_argument("--run-id", required=True)
+ 
++    artifact_replay = subparsers.add_parser("artifact-replay")
++    artifact_replay.add_argument("--repo", type=Path, required=True)
++    artifact_replay.add_argument("--run-dir", type=Path, required=True)
++    artifact_replay.add_argument("--output", type=Path, required=True)
++
++    execution_prepare = subparsers.add_parser("prepare-execution-replay")
++    execution_prepare.add_argument("--source-run-dir", type=Path, required=True)
++    execution_prepare.add_argument("--run-dir", type=Path, required=True)
++    execution_prepare.add_argument("--run-id", required=True)
++    execution_prepare.add_argument("--workspace", type=Path)
++
++    execution_finalize = subparsers.add_parser("finalize-execution-replay")
++    execution_finalize.add_argument("--source-run-dir", type=Path, required=True)
++    execution_finalize.add_argument("--run-dir", type=Path, required=True)
++    execution_finalize.add_argument("--output-dir", type=Path, required=True)
++
++    eval_prepare = subparsers.add_parser("eval-prepare")
++    eval_prepare.add_argument("--repo", type=Path, required=True)
++    eval_prepare.add_argument("--run-dir", type=Path, required=True)
++    eval_prepare.add_argument("--eval-dir", type=Path, required=True)
++    eval_prepare.add_argument("--eval-id", required=True)
++    eval_prepare.add_argument("--expected-terminal-state", action="append")
++
++    eval_finalize = subparsers.add_parser("eval-finalize")
++    eval_finalize.add_argument("--repo", type=Path, required=True)
++    eval_finalize.add_argument("--eval-dir", type=Path, required=True)
++    eval_finalize.add_argument("--semantic-result", type=Path)
++
++    eval_prompt = subparsers.add_parser("eval-smoke-prompt")
++    eval_prompt.add_argument("--repo", type=Path, required=True)
++    eval_prompt.add_argument("--eval-dir", type=Path, required=True)
++
++    eval_proof = subparsers.add_parser("eval-execution-proof")
++    eval_proof.add_argument("--repo", type=Path, required=True)
++    eval_proof.add_argument("--eval-dir", type=Path, required=True)
++    eval_proof.add_argument("--semantic-result", type=Path, required=True)
++    eval_proof.add_argument("--sessions-root", type=Path, required=True)
++
++    calibration = subparsers.add_parser("eval-calibration")
++    calibration.add_argument("--repo", type=Path, required=True)
++    calibration.add_argument("--labels", type=Path, required=True)
++    calibration.add_argument("--grader-index", type=Path, required=True)
++    calibration.add_argument("--output-dir", type=Path, required=True)
++
++    calibration_proof = subparsers.add_parser("calibration-execution-proof")
++    calibration_proof.add_argument("--repo", type=Path, required=True)
++    calibration_proof.add_argument("--case-id", required=True)
++    calibration_proof.add_argument("--repeat", type=int, required=True)
++    calibration_proof.add_argument("--grader-output", type=Path, required=True)
++    calibration_proof.add_argument("--parent-rollout", type=Path, required=True)
++    calibration_proof.add_argument("--child-rollout", type=Path, required=True)
++    calibration_proof.add_argument("--prompt", type=Path, required=True)
++    calibration_proof.add_argument("--input", type=Path, required=True)
++    calibration_proof.add_argument("--output", type=Path, required=True)
++
++    regression = subparsers.add_parser("regression")
++    regression.add_argument("--repo", type=Path, required=True)
++    regression.add_argument("--output-dir", type=Path, required=True)
++    regression.add_argument("--suite-id", required=True)
++    regression.add_argument("--candidate-hash", required=True)
++    regression.add_argument("--run-index", type=Path, required=True)
++    regression.add_argument("--cache-dir", type=Path)
++    regression.add_argument("--force", action="store_true")
++
++    ablation = subparsers.add_parser("ablation")
++    ablation.add_argument("--repo", type=Path, required=True)
++    ablation.add_argument("--output-dir", type=Path, required=True)
++    ablation.add_argument("--ablation-id", required=True)
++    ablation.add_argument("--variants", type=Path, required=True)
++
++    promotion = subparsers.add_parser("promotion")
++    promotion.add_argument("--repo", type=Path, required=True)
++    promotion.add_argument("--input-manifest", type=Path, required=True)
++    promotion.add_argument("--output-dir", type=Path, required=True)
++
++    test_evidence = subparsers.add_parser("test-evidence")
++    test_evidence.add_argument("--repo", type=Path, required=True)
++    test_evidence.add_argument("--output-dir", type=Path, required=True)
++    test_evidence.add_argument("--tmpdir", type=Path, required=True)
++    test_evidence.add_argument("--test-target", action="append", default=[])
++
++    trace_check = subparsers.add_parser("trace-check")
++    trace_check.add_argument("--run-dir", type=Path, required=True)
++    trace_check.add_argument("--output", type=Path, required=True)
++
+     args = parser.parse_args(argv)
+     if args.command == "prepare":
+         result = prepare_run(
+@@ -83,6 +180,9 @@ def main(argv: Sequence[str] | None = None) -> int:
+             run_id=args.run_id,
+             model=args.model,
+             research_question=args.question,
++            run_mode=args.run_mode,
++            ablation_profile=args.ablation_profile,
++            trigger_reason=args.trigger_reason,
+         )
+     elif args.command == "prepare-cio":
+         result = prepare_cio(args.repo, run_dir=args.run_dir, model=args.model)
+@@ -143,6 +243,19 @@ def main(argv: Sequence[str] | None = None) -> int:
+     elif args.command == "replay":
+         result = replay_run(args.repo, run_dir=args.run_dir)
+         write_replay_result(result, output_path=args.output)
++    elif args.command == "artifact-replay":
++        try:
++            result = replay_run(args.repo, run_dir=args.run_dir)
++            write_replay_result(result, output_path=args.output)
++        except (OSError, ValueError, json.JSONDecodeError) as exc:
++            failure = {
++                "status": "FAIL",
++                "reason_code": code_from_error(exc),
++                "message": str(exc),
++                "command": args.command,
++            }
++            print(json.dumps(failure, ensure_ascii=False, sort_keys=True))
++            return 6
+     elif args.command == "eval":
+         result = evaluate_run(args.repo, run_dir=args.run_dir)
+         persist_eval_result(result, run_dir=args.run_dir)
+@@ -150,19 +263,170 @@ def main(argv: Sequence[str] | None = None) -> int:
+         result, exit_code = check_run(args.repo, run_dir=args.run_dir)
+         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+         return exit_code
+-    else:
++    elif args.command == "prepare-rerun":
+         result = prepare_native_rerun(
+             args.repo,
+             source_run_dir=args.source_run_dir,
+             new_run_dir=args.run_dir,
+             new_run_id=args.run_id,
+         )
++    else:
++        try:
++            if args.command == "prepare-execution-replay":
++                result = prepare_execution_replay(
++                    source_run_dir=args.source_run_dir,
++                    new_run_dir=args.run_dir,
++                    new_run_id=args.run_id,
++                    workspace_root=args.workspace,
++                )
++            elif args.command == "finalize-execution-replay":
++                result = finalize_execution_replay(
++                    source_run_dir=args.source_run_dir,
++                    replay_run_dir=args.run_dir,
++                    output_dir=args.output_dir,
++                )
++            elif args.command == "eval-prepare":
++                result = prepare_eval_job(
++                    args.repo,
++                    run_dir=args.run_dir,
++                    eval_dir=args.eval_dir,
++                    eval_id=args.eval_id,
++                    expected_terminal_states=tuple(args.expected_terminal_state or ("COMPLETED", "SAFE_NO_TRADE")),
++                )
++            elif args.command == "eval-finalize":
++                result = finalize_eval_job(
++                    args.repo,
++                    eval_dir=args.eval_dir,
++                    semantic_result_path=args.semantic_result,
++                )
++            elif args.command == "eval-smoke-prompt":
++                print(build_eval_smoke_prompt(args.repo, eval_dir=args.eval_dir))
++                return 0
++            elif args.command == "eval-execution-proof":
++                parent, child = discover_eval_rollouts(
++                    args.sessions_root,
++                    eval_dir=args.eval_dir.resolve(),
++                    eval_id=str(json.loads((args.eval_dir / "input-manifest.json").read_text(encoding="utf-8"))["eval_id"]),
++                )
++                proof = build_eval_execution_proof(
++                    args.repo,
++                    eval_dir=args.eval_dir,
++                    semantic_result_path=args.semantic_result,
++                    parent_rollout=parent,
++                    child_rollout=child,
++                )
++                persist_eval_execution_proof(proof, eval_dir=args.eval_dir)
++                result = {
++                    "eval_id": proof["eval_id"],
++                    "next_state": "EVAL_EXECUTION_PROOF_VERIFIED",
++                    "proof_hash": proof["proof_hash"],
++                }
++            elif args.command == "eval-calibration":
++                from evals.grading.calibration import run_calibration
++
++                result = run_calibration(
++                    args.repo,
++                    labels_path=args.labels,
++                    grader_index_path=args.grader_index,
++                    output_dir=args.output_dir,
++                )
++            elif args.command == "calibration-execution-proof":
++                from evals.grading.calibration import build_calibration_execution_proof
++
++                result = build_calibration_execution_proof(
++                    args.repo,
++                    case_id=args.case_id,
++                    repeat=args.repeat,
++                    grader_output_path=args.grader_output,
++                    parent_rollout=args.parent_rollout,
++                    child_rollout=args.child_rollout,
++                    prompt_path=args.prompt,
++                    input_path=args.input,
++                )
++                if args.output.exists():
++                    raise ValueError("CALIBRATION_EXECUTION_PROOF_OUTPUT_EXISTS")
++                args.output.parent.mkdir(parents=True, exist_ok=True)
++                args.output.write_text(
++                    json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
++                    encoding="utf-8",
++                )
++            elif args.command == "regression":
++                from evals.regression.runner import run_regression_suite
++
++                run_index = json.loads(args.run_index.read_text(encoding="utf-8"))
++                result = run_regression_suite(
++                    args.repo,
++                    output_dir=args.output_dir,
++                    suite_id=args.suite_id,
++                    candidate_hash=args.candidate_hash,
++                    run_index=run_index,
++                    cache_dir=args.cache_dir,
++                    force=args.force,
++                )
++            elif args.command == "ablation":
++                from evals.ablation.runtime import compare_runtime_ablation_set, compare_runtime_variants
++
++                variants = json.loads(args.variants.read_text(encoding="utf-8"))
++                if isinstance(variants, dict) and set(variants) == {"cases"}:
++                    result = compare_runtime_ablation_set(
++                        args.repo,
++                        ablation_id=args.ablation_id,
++                        cases=variants["cases"],
++                        output_dir=args.output_dir,
++                    )
++                else:
++                    result = compare_runtime_variants(
++                        args.repo,
++                        ablation_id=args.ablation_id,
++                        variants=variants,
++                        output_dir=args.output_dir,
++                    )
++            elif args.command == "trace-check":
++                trace = json.loads((args.run_dir / "decision_trace.json").read_text(encoding="utf-8"))
++                result = trace_integrity_report(trace, run_dir=args.run_dir)
++                if args.output.exists():
++                    raise ValueError("TRACE_OUTPUT_EXISTS")
++                args.output.parent.mkdir(parents=True, exist_ok=True)
++                args.output.write_text(
++                    json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
++                    encoding="utf-8",
++                )
++            elif args.command == "promotion":
++                from evals.promotion.runtime_gate import run_promotion_gate
++
++                result = run_promotion_gate(
++                    args.repo,
++                    input_manifest_path=args.input_manifest,
++                    output_dir=args.output_dir,
++                )
++            else:
++                from evals.promotion.test_evidence import run_deterministic_test_evidence
++
++                result = run_deterministic_test_evidence(
++                    args.repo,
++                    output_dir=args.output_dir,
++                    tmpdir=args.tmpdir,
++                    test_targets=args.test_target,
++                )
++        except (OSError, ValueError, json.JSONDecodeError) as exc:
++            failure = {
++                "status": "FAIL",
++                "reason_code": code_from_error(exc),
++                "message": str(exc),
++                "command": args.command,
++            }
++            print(json.dumps(failure, ensure_ascii=False, sort_keys=True))
++            return 6
+     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+     failed = "FAILED_VALIDATION" in {
+         result.get("next_state"),
+         result.get("terminal_state"),
+     }
+-    return 2 if failed else 0
++    if failed:
++        return 2
++    if result.get("status") in {"FAIL", "FAILED"} or result.get("conclusion") == "NOT_COMPARABLE":
++        return 5
++    return 0
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/product/runtime/execution_proof.py b/product/runtime/execution_proof.py
+index 21e88a3..ef86db6 100644
+--- a/product/runtime/execution_proof.py
++++ b/product/runtime/execution_proof.py
+@@ -10,10 +10,12 @@ from __future__ import annotations
+ import json
+ import re
+ import tomllib
++from datetime import datetime
+ from pathlib import Path
+ from typing import Any, Mapping, Sequence
+ 
+ from .hashing import canonical_hash, file_hash
++from .runtime_profiles import validate_runtime_mode
+ 
+ 
+ PROOF_SCHEMA_VERSION = "codex-execution-proof/2.0.0"
+@@ -160,6 +162,35 @@ def _custom_tool_calls(records: Sequence[Mapping[str, Any]]) -> list[dict[str, A
+     return calls
+ 
+ 
++def _verify_parent_run_isolation(
++    records: Sequence[Mapping[str, Any]],
++    *,
++    repository_root: Path,
++    run_dir: Path,
++) -> None:
++    """Reject parent commands that inspect another persisted runtime result.
++
++    The CIO may read product contracts and its own frozen run package. Reading a
++    different run can leak a previous decision into an ablation or replay and is
++    therefore a fail-closed execution-proof violation.
++    """
++
++    results_root = (repository_root.resolve() / "evals" / "results").resolve()
++    current_run = run_dir.resolve()
++    absolute_path = re.compile(r"/[A-Za-z0-9._+@%:=~-]+(?:/[A-Za-z0-9._+@%:=~-]+)*")
++    for call in _custom_tool_calls(records):
++        if call.get("name") != "exec":
++            continue
++        command_text = str(call.get("input", ""))
++        for raw_path in absolute_path.findall(command_text):
++            candidate = Path(raw_path).resolve()
++            if candidate != results_root and not candidate.is_relative_to(results_root):
++                continue
++            if candidate == current_run or candidate.is_relative_to(current_run):
++                continue
++            raise ExecutionProofError("PARENT_CROSS_RUN_ARTIFACT_ACCESS")
++
++
+ def _subagent_events(records: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+     events: list[dict[str, Any]] = []
+     for ordinal, record in enumerate(records):
+@@ -188,6 +219,44 @@ def _expected_runtime(runtime: str) -> str:
+     return runtime.removeprefix(prefix)
+ 
+ 
++def _rollout_telemetry(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
++    totals: Mapping[str, Any] | None = None
++    calls = 0
++    timestamps: list[datetime] = []
++    for record in records:
++        timestamp = record.get("timestamp")
++        if isinstance(timestamp, str):
++            try:
++                timestamps.append(datetime.fromisoformat(timestamp.replace("Z", "+00:00")))
++            except ValueError:
++                pass
++        payload = _payload(record)
++        if record.get("type") == "event_msg" and payload.get("type") == "token_count":
++            info = payload.get("info", {})
++            total = info.get("total_token_usage", {}) if isinstance(info, Mapping) else {}
++            if isinstance(total, Mapping):
++                totals = total
++                calls += 1
++    if totals is None:
++        return {
++            "status": "MISSING_TELEMETRY",
++            "input_tokens": None,
++            "output_tokens": None,
++            "cached_tokens": None,
++            "latency_ms": None,
++            "llm_calls": None,
++        }
++    latency = int((max(timestamps) - min(timestamps)).total_seconds() * 1000) if len(timestamps) >= 2 else None
++    return {
++        "status": "AVAILABLE" if latency is not None else "MISSING_TELEMETRY",
++        "input_tokens": int(totals.get("input_tokens", 0)),
++        "output_tokens": int(totals.get("output_tokens", 0)),
++        "cached_tokens": int(totals.get("cached_input_tokens", 0)),
++        "latency_ms": latency,
++        "llm_calls": calls,
++    }
++
++
+ def _logical_tool_name(call: Mapping[str, Any], allowed_tools: set[str]) -> str | None:
+     namespace = str(call.get("namespace") or "")
+     name = str(call.get("name") or "")
+@@ -357,12 +426,16 @@ def build_specialist_execution_proof(
+     child_rollouts: Mapping[str, Path],
+     invocation_manifests: Mapping[str, Mapping[str, Any]],
+     task_prompts: Mapping[str, str],
++    specialist_agents: Sequence[str] = SPECIALIST_AGENTS,
+ ) -> dict[str, Any]:
+     """Build a privacy-minimized proof for the fixed parallel specialist pass."""
+ 
+-    if set(invocation_manifests) != set(SPECIALIST_AGENTS):
++    specialists = tuple(specialist_agents)
++    if any(name not in SPECIALIST_AGENTS for name in specialists) or len(set(specialists)) != len(specialists):
++        raise ExecutionProofError("SPECIALIST_TOPOLOGY_INVALID")
++    if set(invocation_manifests) != set(specialists):
+         raise ExecutionProofError("SPECIALIST_MANIFEST_SET_INVALID")
+-    if set(child_rollouts) != set(SPECIALIST_AGENTS) or set(task_prompts) != set(SPECIALIST_AGENTS):
++    if set(child_rollouts) != set(specialists) or set(task_prompts) != set(specialists):
+         raise ExecutionProofError("SPECIALIST_PROOF_INPUT_SET_INVALID")
+ 
+     parent_records = _load_jsonl(parent_rollout)
+@@ -379,7 +452,7 @@ def build_specialist_execution_proof(
+     first_wait = min(waits) if waits else None
+ 
+     dispatches: list[dict[str, Any]] = []
+-    for agent_name in SPECIALIST_AGENTS:
++    for agent_name in specialists:
+         matches = [
+             call
+             for call in calls
+@@ -434,14 +507,16 @@ def build_specialist_execution_proof(
+         )
+ 
+     child_ids = [dispatch["child_session_id"] for dispatch in dispatches]
+-    if len(set(child_ids)) != len(SPECIALIST_AGENTS):
++    if len(set(child_ids)) != len(specialists):
+         raise ExecutionProofError("SPECIALISTS_SHARE_SESSION")
+-    if first_wait is not None and max(item["dispatch_ordinal"] for item in dispatches) >= first_wait:
++    if dispatches and first_wait is not None and max(item["dispatch_ordinal"] for item in dispatches) >= first_wait:
+         raise ExecutionProofError("PARALLEL_DISPATCH_NOT_PROVEN")
+ 
+     children: dict[str, Any] = {}
++    child_record_sets: dict[str, Sequence[Mapping[str, Any]]] = {}
+     for agent_name, rollout in child_rollouts.items():
+         records = _load_jsonl(rollout)
++        child_record_sets[agent_name] = records
+         dispatch = next(item for item in dispatches if item["agent"] == agent_name)
+         child = _child_proof(
+             repository_root=repository_root,
+@@ -459,6 +534,10 @@ def build_specialist_execution_proof(
+             raise ExecutionProofError(f"CHILD_SESSION_MISMATCH:{agent_name}")
+         children[agent_name] = child
+ 
++    telemetry_parts = [_rollout_telemetry(parent_records)] + [
++        _rollout_telemetry(child_record_sets[name]) for name in specialists
++    ]
++    telemetry_available = all(item["status"] == "AVAILABLE" for item in telemetry_parts)
+     proof: dict[str, Any] = {
+         "schema_version": PROOF_SCHEMA_VERSION,
+         "parent": {
+@@ -471,8 +550,20 @@ def build_specialist_execution_proof(
+         "first_wait_ordinal": first_wait,
+         "parallel_dispatch_proven": True,
+         "independent_sessions_proven": True,
++        "specialist_topology": list(specialists),
++        "portfolio_council_skill_bound": "$product:portfolio-council" in "\n".join(
++            _message_texts(parent_records, role="user")
++        ),
+         "children": children,
+         "raw_prompt_or_reasoning_retained": False,
++        "telemetry": {
++            "status": "AVAILABLE" if telemetry_available else "MISSING_TELEMETRY",
++            "input_tokens": sum(item["input_tokens"] for item in telemetry_parts) if telemetry_available else None,
++            "output_tokens": sum(item["output_tokens"] for item in telemetry_parts) if telemetry_available else None,
++            "cached_tokens": sum(item["cached_tokens"] for item in telemetry_parts) if telemetry_available else None,
++            "latency_ms": telemetry_parts[0]["latency_ms"] if telemetry_available else None,
++            "llm_calls": sum(item["llm_calls"] for item in telemetry_parts) if telemetry_available else None,
++        },
+     }
+     proof["proof_hash"] = canonical_hash(proof)
+     return proof
+@@ -497,7 +588,10 @@ def verify_specialist_execution_proof(
+         raise ExecutionProofError("UNMINIMIZED_CODEX_LOG")
+ 
+     children = proof.get("children", {})
+-    for agent_name in SPECIALIST_AGENTS:
++    specialists = tuple(str(name) for name in proof.get("specialist_topology", []))
++    if set(specialists) != set(invocation_manifests) or proof.get("portfolio_council_skill_bound") is not True:
++        raise ExecutionProofError("COUNCIL_SKILL_OR_TOPOLOGY_PROOF_INVALID")
++    for agent_name in specialists:
+         manifest = invocation_manifests.get(agent_name)
+         report = reports.get(agent_name)
+         child = children.get(agent_name) if isinstance(children, Mapping) else None
+@@ -575,30 +669,52 @@ def build_run_specialist_execution_proof(
+     if Path(str(run_manifest.get("output_dir", ""))).resolve() != run_dir:
+         raise ExecutionProofError("RUN_DIRECTORY_IDENTITY_MISMATCH")
+     run_id = str(run_manifest.get("run_id", ""))
++    topology = validate_runtime_mode(
++        run_mode=str(run_manifest.get("run_mode", "PRODUCT_COUNCIL")),
++        ablation_profile=run_manifest.get("ablation_profile"),
++    )
++    specialists = tuple(agent for agent in topology if agent != "runtime_cio")
+     manifests = {
+         agent_name: _read_object(run_dir / "invocations" / f"{agent_name}.json")
+-        for agent_name in SPECIALIST_AGENTS
++        for agent_name in specialists
+     }
+     reports = {
+         agent_name: _read_object(run_dir / "agents" / f"{agent_name}.json")
+-        for agent_name in SPECIALIST_AGENTS
++        for agent_name in specialists
+     }
+     task_prompts = {
+         agent_name: (run_dir / "prompts" / f"{agent_name}.txt").read_text(
+             encoding="utf-8"
+         )
+-        for agent_name in SPECIALIST_AGENTS
++        for agent_name in specialists
+     }
+     if any(manifest.get("run_id") != run_id for manifest in manifests.values()):
+         raise ExecutionProofError("CROSS_RUN_INVOCATION_MANIFEST")
+ 
++    parent_records = _load_jsonl(parent_rollout)
++    _verify_parent_run_isolation(
++        parent_records,
++        repository_root=repository_root,
++        run_dir=run_dir,
++    )
+     proof = build_specialist_execution_proof(
+         repository_root,
+         parent_rollout=parent_rollout,
+         child_rollouts=child_rollouts,
+         invocation_manifests=manifests,
+         task_prompts=task_prompts,
++        specialist_agents=specialists,
+     )
++    proof_body = dict(proof)
++    proof_body.pop("proof_hash")
++    proof_body["telemetry"] = {
++        **proof_body["telemetry"],
++        "model": run_manifest.get("model"),
++        "trigger_reason": run_manifest.get("trigger_reason", "product_council"),
++        "cache_provenance": "NEW_EXECUTION",
++    }
++    proof = proof_body
++    proof["proof_hash"] = canonical_hash(proof)
+     mcp_events = _read_event_jsonl(run_dir / "events" / "mcp" / "events.jsonl")
+     verify_specialist_execution_proof(
+         proof,
+@@ -626,6 +742,7 @@ def discover_run_rollouts(
+     *,
+     run_dir: Path,
+     run_id: str,
++    specialist_agents: Sequence[str] = SPECIALIST_AGENTS,
+ ) -> tuple[Path, dict[str, Path]]:
+     """Resolve one parent and its role-bound children without exposing raw logs."""
+ 
+@@ -664,7 +781,7 @@ def discover_run_rollouts(
+             if call.get("namespace") == "collaboration"
+             and call.get("name") == "spawn_agent"
+         }
+-        if set(SPECIALIST_AGENTS) <= dispatched:
++        if set(specialist_agents) == dispatched & set(SPECIALIST_AGENTS):
+             parents.append((path, str(meta.get("id", ""))))
+     if len(parents) != 1:
+         raise ExecutionProofError(f"RUN_PARENT_ROLLOUT_COUNT_INVALID:{len(parents)}")
+@@ -678,12 +795,12 @@ def discover_run_rollouts(
+         if meta.get("parent_thread_id") != parent_id:
+             continue
+         role = meta.get("agent_role")
+-        if role not in SPECIALIST_AGENTS:
++        if role not in specialist_agents:
+             continue
+         if role in children:
+             raise ExecutionProofError(f"DUPLICATE_CHILD_ROLE:{role}")
+         children[str(role)] = path
+-    missing = set(SPECIALIST_AGENTS) - set(children)
++    missing = set(specialist_agents) - set(children)
+     if missing:
+         raise ExecutionProofError(
+             f"ROLE_BOUND_CHILD_ROLLOUT_MISSING:{','.join(sorted(missing))}"
+@@ -698,10 +815,16 @@ def discover_and_build_run_specialist_execution_proof(
+     sessions_root: Path,
+ ) -> dict[str, Any]:
+     run_manifest = _read_object(run_dir / "run_manifest.json")
++    topology = validate_runtime_mode(
++        run_mode=str(run_manifest.get("run_mode", "PRODUCT_COUNCIL")),
++        ablation_profile=run_manifest.get("ablation_profile"),
++    )
++    specialists = tuple(agent for agent in topology if agent != "runtime_cio")
+     parent, children = discover_run_rollouts(
+         sessions_root,
+         run_dir=run_dir,
+         run_id=str(run_manifest.get("run_id", "")),
++        specialist_agents=specialists,
+     )
+     return build_run_specialist_execution_proof(
+         repository_root,
+diff --git a/product/runtime/fixture_mcp.py b/product/runtime/fixture_mcp.py
+index 77b4998..ff217e2 100644
+--- a/product/runtime/fixture_mcp.py
++++ b/product/runtime/fixture_mcp.py
+@@ -9,10 +9,18 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
+ from pathlib import Path
+ from typing import Any, Mapping, Sequence
+ 
+-from product.mcp.provenance import canonical_json, content_hash
+-
+-
+-MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.1.0"
++try:
++    # Repository execution: ``python -m product.runtime.fixture_mcp``.
++    from product.mcp.provenance import canonical_json, content_hash
++except ModuleNotFoundError as exc:
++    # Installed-plugin execution: the cachebuster directory is the import root,
++    # so the same module is addressed as ``runtime.fixture_mcp``.
++    if exc.name != "product":
++        raise
++    from mcp.provenance import canonical_json, content_hash
++
++
++MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.1.1"
+ SUPPORTED_TOOLS = {"fixture_evidence.query", "fixture_math.calculate"}
+ 
+ 
+@@ -42,7 +50,11 @@ def _tool_manifest(*, stateless: bool = False) -> tuple[dict[str, Any], ...]:
+     return (
+         {
+             "name": "query",
+-            "description": "Read Gate-allowed fixture evidence for one verified invocation.",
++            "description": (
++                "Read Gate-allowed fixture evidence for one verified invocation. Pass exactly "
++                "run_dir (stateless mode), run_id, agent, invocation_id, and evidence_ids as an "
++                "array. Never pass singular evidence_id or omit the invocation identity."
++            ),
+             "annotations": {
+                 "readOnlyHint": True,
+                 "destructiveHint": False,
+@@ -425,7 +437,12 @@ def serve_stdio(
+             else:
+                 raise ToolAccessError(f"UNKNOWN_METHOD:{method}")
+             response = {"jsonrpc": "2.0", "id": request_id, "result": result}
+-        except (TypeError, ValueError, ToolAccessError) as exc:
++        except (KeyError, TypeError, ValueError, ToolAccessError) as exc:
++            error_message = (
++                f"MISSING_TOOL_ARGUMENT:{exc.args[0]}"
++                if isinstance(exc, KeyError) and exc.args
++                else str(exc)
++            )
+             if called_tool is not None:
+                 _write_event(
+                     event_log or tools.dynamic_event_log,
+@@ -434,14 +451,14 @@ def serve_stdio(
+                         "adapter_version": MCP_ADAPTER_VERSION,
+                         "tool": called_tool,
+                         "input_hash": content_hash(called_arguments),
+-                        "error": str(exc),
++                        "error": error_message,
+                         "access_mode": "read",
+                     },
+                 )
+             response = {
+                 "jsonrpc": "2.0",
+                 "id": request_id,
+-                "error": {"code": -32001, "message": str(exc)},
++                "error": {"code": -32001, "message": error_message},
+             }
+         sys.stdout.write(canonical_json(response) + "\n")
+         sys.stdout.flush()
+diff --git a/product/runtime/invocation.py b/product/runtime/invocation.py
+index e5a846d..1310898 100644
+--- a/product/runtime/invocation.py
++++ b/product/runtime/invocation.py
+@@ -86,6 +86,30 @@ def build_specialist_output_schema(
+     return schema
+ 
+ 
++def build_cio_ablation_output_schema(
++    repository_root: Path,
++    *,
++    expected_report_agents: Sequence[str],
++) -> dict[str, Any]:
++    """Compile a run-scoped CIO schema for an evaluation-only topology."""
++
++    allowed = list(expected_report_agents)
++    if any(item not in SPECIALIST_AGENTS for item in allowed) or len(allowed) != len(set(allowed)):
++        raise ValueError("invalid ablation report-agent set")
++    source = repository_root.resolve() / "product" / OUTPUT_SCHEMAS["runtime_cio"]
++    schema = copy.deepcopy(json.loads(source.read_text(encoding="utf-8")))
++    consumed = schema["properties"]["consumed_reports"]
++    consumed["minItems"] = len(allowed)
++    consumed["maxItems"] = len(allowed)
++    consumed["items"]["properties"]["agent"]["enum"] = allowed
++    schema["x-eval-ablation"] = {
++        "expected_report_agents": allowed,
++        "expected_report_agents_hash": canonical_hash(allowed),
++        "publishable": False,
++    }
++    return schema
++
++
+ def build_specialist_task_prompt(
+     *, agent_name: str, allowed_evidence_ids: Sequence[str]
+ ) -> str:
+@@ -103,6 +127,10 @@ def build_specialist_task_prompt(
+     return (
+         f"读取 Invocation Manifest，使用授权只读工具，并只返回符合 {schema_name} 的单个 JSON 对象。\n"
+         f"allowed_evidence_ids: {rendered_ids}\n"
++        "调用 mcp__fixture_runtime__query 时必须且只能传入 run_dir、run_id、agent、invocation_id、"
++        "evidence_ids；evidence_ids 必须是数组，禁止使用单数 evidence_id。上述值必须逐字取自父任务、"
++        "Agent input 与 Invocation Manifest。若工具返回参数契约错误，只允许按该契约纠正后重试一次；"
++        "不得把工具错误写成无证据 challenge 或 claim。\n"
+         "所有 evidence_refs 与 counter_evidence_refs 只能逐字填写上述集合中的原始 evidence_id。\n"
+         "禁止在 evidence_id 后拼接 source_id、as_of、retrieved_at、分隔符、来源说明或任何其他文字。\n"
+         "需要描述来源与时间时，应写入 statement、scope、uncertainties、data_gaps 或其他说明字段，"
+@@ -221,6 +249,7 @@ def create_invocation_manifest(
+     model: str,
+     evidence_ids: Sequence[str],
+     output_schema_path: Path | None = None,
++    expected_report_agents: Sequence[str] | None = None,
+ ) -> dict[str, Any]:
+     if agent_name not in AGENT_FILES:
+         raise ValueError(f"unknown runtime agent: {agent_name}")
+@@ -286,8 +315,17 @@ def create_invocation_manifest(
+             raise ValueError("specialist input Evidence IDs differ from invocation")
+     else:
+         if output_schema_path is not None:
+-            raise ValueError("CIO output schema must remain product-owned")
+-        output_schema_path = (product_root / OUTPUT_SCHEMAS[agent_name]).resolve()
++            expected_schema = build_cio_ablation_output_schema(
++                repository_root,
++                expected_report_agents=expected_report_agents or (),
++            )
++            actual_schema = json.loads(output_schema_path.read_text(encoding="utf-8"))
++            if actual_schema != expected_schema:
++                raise ValueError("CIO ablation output schema differs from topology")
++        else:
++            if expected_report_agents is not None:
++                raise ValueError("CIO ablation topology requires run-scoped output schema")
++            output_schema_path = (product_root / OUTPUT_SCHEMAS[agent_name]).resolve()
+     if not output_schema_path.is_file():
+         raise FileNotFoundError(f"missing output schema: {output_schema_path}")
+     input_hash = canonical_hash(agent_input)
+@@ -386,7 +424,20 @@ def verify_invocation_manifest(
+         ):
+             raise ValueError("specialist output schema path is not canonical")
+     elif not output_schema.is_relative_to(product_root):
+-        raise ValueError("invocation output schema mismatch")
++        expected_agents = sorted(agent_input.get("validated_reports", {}).keys())
++        expected_schema = build_cio_ablation_output_schema(
++            repository_root, expected_report_agents=expected_agents
++        )
++        try:
++            actual_schema = json.loads(output_schema.read_text(encoding="utf-8"))
++        except (OSError, json.JSONDecodeError) as exc:
++            raise ValueError("CIO ablation output schema is missing or invalid") from exc
++        if (
++            actual_schema != expected_schema
++            or output_schema.parent.name != "schemas"
++            or output_schema.name != Path(OUTPUT_SCHEMAS[agent_name]).name
++        ):
++            raise ValueError("CIO ablation output schema mismatch")
+     expected_contract = contract_record(product_root)
+     if manifest.get("decision_contract") != expected_contract:
+         raise ValueError("invocation decision contract mismatch")
+diff --git a/product/runtime/native_eval.py b/product/runtime/native_eval.py
+index 3d394c0..b2a14f8 100644
+--- a/product/runtime/native_eval.py
++++ b/product/runtime/native_eval.py
+@@ -235,19 +235,39 @@ def evaluate_run(
+         checks["conflict_preserved_and_consumed"] = "PASSED"
+     elif fixture_id == "risk-veto-v1":
+         fixture = _read_object(run_dir / "audit" / "fixture_snapshot.json")
+-        boundary_name = fixture.get("boundary_draft_fixture")
+-        boundary_path = Path(str(manifest["fixture"])).resolve().parent / str(boundary_name)
+-        boundary = _read_object(boundary_path)
+-        if boundary.get("producer") != "fixture" or boundary.get("not_llm_output") is not True:
+-            raise NativeEvalError("RISK_BOUNDARY_PRODUCER_INVALID")
+-        first = check_cio_draft(fixture, boundary, run_id="eval-risk-boundary")
+-        second = check_cio_draft(fixture, boundary, run_id="eval-risk-boundary")
++        risk_lineage = trace.get("risk_lineage")
++        if not isinstance(risk_lineage, list) or not risk_lineage:
++            raise NativeEvalError("ACTUAL_RISK_LINEAGE_MISSING")
++        final_risk = risk_lineage[-1]
++        if not isinstance(final_risk, Mapping):
++            raise NativeEvalError("ACTUAL_RISK_LINEAGE_INVALID")
++        expected_input_hash = final_risk.get("input_hash")
++        draft_candidates = [
++            run_dir / "cio" / "runtime_cio_revision.json",
++            run_dir / "cio" / "runtime_cio.json",
++        ]
++        matching_drafts = [
++            draft
++            for path in draft_candidates
++            if path.is_file()
++            for draft in [_read_object(path)]
++            if canonical_hash(draft) == expected_input_hash
++        ]
++        if len(matching_drafts) != 1:
++            raise NativeEvalError("ACTUAL_RISK_INPUT_NOT_CLOSED")
++        draft = matching_drafts[0]
++        first = check_cio_draft(fixture, draft, run_id=str(manifest["run_id"]))
++        second = check_cio_draft(fixture, draft, run_id=str(manifest["run_id"]))
+         if first != second or first.get("check", {}).get("status") != "REJECTED":
+-            raise NativeEvalError("RISK_BOUNDARY_NOT_DETERMINISTICALLY_VETOED")
++            raise NativeEvalError("ACTUAL_RISK_NOT_DETERMINISTICALLY_VETOED")
+         if first.get("final_action") != "NO_TRADE" or first.get("veto_reason") != "RISK_VETO":
+-            raise NativeEvalError("RISK_BOUNDARY_VETO_OUTPUT_INVALID")
+-        checks["deterministic_risk_boundary"] = "PASSED"
+-        checks["risk_boundary_result_hash"] = canonical_hash(first)
++            raise NativeEvalError("ACTUAL_RISK_VETO_OUTPUT_INVALID")
++        if final_risk.get("result") != first:
++            raise NativeEvalError("ACTUAL_RISK_RESULT_MISMATCH")
++        if final_risk.get("result_hash") != canonical_hash(first):
++            raise NativeEvalError("ACTUAL_RISK_RESULT_HASH_MISMATCH")
++        checks["deterministic_actual_risk_replay"] = "PASSED"
++        checks["actual_risk_result_hash"] = canonical_hash(first)
+     elif fixture_id == "normal-research-v1":
+         if not has_chain:
+             raise NativeEvalError("NORMAL_FIXTURE_FULL_CHAIN_MISSING")
+diff --git a/product/runtime/release_gate.py b/product/runtime/release_gate.py
+index 0795e93..3c3c674 100644
+--- a/product/runtime/release_gate.py
++++ b/product/runtime/release_gate.py
+@@ -44,6 +44,14 @@ def check_run(repository_root: Path, *, run_dir: Path) -> tuple[dict[str, Any],
+     try:
+         trace = _read_object(run_dir / "decision_trace.json")
+         terminal_state = str(trace.get("terminal_state", ""))
++        manifest = _read_object(run_dir / "run_manifest.json")
++        if manifest.get("run_mode") == "EVAL_ABLATION":
++            return _failure_result(
++                run_dir=run_dir,
++                category="ABLATION_PROFILE_NOT_PUBLISHABLE",
++                message="EVAL_ABLATION artifacts are experimental and cannot be released",
++                exit_code=5,
++            )
+         validate_decision_trace(trace, run_dir=run_dir)
+         matrix = validate_artifact_matrix(run_dir, require_eval=False)
+     except (OSError, ValueError, json.JSONDecodeError) as exc:
+diff --git a/product/runtime/replay.py b/product/runtime/replay.py
+index 56bdd12..82e427e 100644
+--- a/product/runtime/replay.py
++++ b/product/runtime/replay.py
+@@ -8,17 +8,19 @@ from typing import Any, Mapping
+ 
+ from .artifact_matrix import validate_artifact_matrix
+ from .evidence_gate import run_evidence_gate
+-from .hashing import canonical_hash
++from .hashing import canonical_hash, file_hash
+ from .invocation import verify_invocation_manifest
+ from .risk_runtime import check_cio_draft
+ from .run_package import _render_report
+ from .trace_validation import validate_decision_trace
++from .replay_capsule import validate_replay_capsule
+ from .terminal_contract import FailureStage
+ from .validation import (
+     validate_cio_draft,
+     validate_company_report,
+     validate_skeptic_report,
+ )
++from .runtime_profiles import validate_runtime_mode
+ 
+ 
+ REPLAY_VERSION = "native-artifact-replay/2.1.0"
+@@ -38,10 +40,82 @@ def _read_object(path: Path) -> dict[str, Any]:
+     return dict(value)
+ 
+ 
++def _tree_hash(run_dir: Path) -> str:
++    return canonical_hash(
++        {
++            str(path.relative_to(run_dir)): file_hash(path)
++            for path in sorted(run_dir.rglob("*"))
++            if path.is_file()
++        }
++    )
++
++
++def _capsule_hashes(capsule: Mapping[str, Any]) -> dict[str, str]:
++    return {str(item["logical_path"]): str(item["sha256"]) for item in capsule["objects"]}
++
++
++def _frozen_logical_path(path: str, *, product_root: str) -> str:
++    candidate = Path(path)
++    source_root = Path(product_root)
++    try:
++        relative = candidate.relative_to(source_root)
++    except ValueError as exc:
++        raise ReplayError(f"REPLAY_RESOURCE_OUTSIDE_FROZEN_PRODUCT:{path}") from exc
++    return (Path("product") / relative).as_posix()
++
++
++def _verify_frozen_invocation(
++    invocation: Mapping[str, Any],
++    *,
++    agent_input: Mapping[str, Any],
++    source_product_root: str,
++    capsule: Mapping[str, Any],
++    run_dir: Path,
++) -> None:
++    body = dict(invocation)
++    claimed = body.pop("manifest_hash", None)
++    if claimed != canonical_hash(body) or invocation.get("input_hash") != canonical_hash(agent_input):
++        raise ReplayError("REPLAY_INVOCATION_HASH_MISMATCH")
++    frozen = _capsule_hashes(capsule)
++    agent = invocation.get("agent")
++    if not isinstance(agent, Mapping):
++        raise ReplayError("REPLAY_AGENT_RESOURCE_INVALID")
++    if frozen.get(_frozen_logical_path(str(agent.get("path", "")), product_root=source_product_root)) != agent.get("sha256"):
++        raise ReplayError("REPLAY_AGENT_RESOURCE_MISMATCH")
++    for skill in invocation.get("skills", []):
++        if not isinstance(skill, Mapping) or frozen.get(
++            _frozen_logical_path(str(skill.get("path", "")), product_root=source_product_root)
++        ) != skill.get("sha256"):
++            raise ReplayError("REPLAY_SKILL_RESOURCE_MISMATCH")
++    contract = invocation.get("decision_contract")
++    contract_logical = (
++        _frozen_logical_path(str(contract.get("path", "")), product_root=source_product_root)
++        if isinstance(contract, Mapping)
++        else ""
++    )
++    contract_object_hash = frozen.get(contract_logical)
++    contract_payload = (
++        _read_object(run_dir / "replay_capsule" / "objects" / contract_object_hash)
++        if contract_object_hash
++        else None
++    )
++    if not isinstance(contract, Mapping) or contract_payload is None or canonical_hash(contract_payload) != contract.get("sha256"):
++        raise ReplayError("REPLAY_DECISION_CONTRACT_MISMATCH")
++    output_schema = Path(str(invocation.get("output_schema", ""))).resolve()
++    if output_schema.is_relative_to(run_dir):
++        actual_hash = file_hash(output_schema)
++    else:
++        logical = _frozen_logical_path(str(output_schema), product_root=source_product_root)
++        actual_hash = frozen.get(logical)
++    if actual_hash != invocation.get("output_schema_hash"):
++        raise ReplayError("REPLAY_OUTPUT_SCHEMA_MISMATCH")
++
++
+ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
+     """Re-run deterministic gates without invoking an LLM or changing the run."""
+ 
+     run_dir = run_dir.resolve()
++    source_tree_hash = _tree_hash(run_dir)
+     trace = _read_object(run_dir / "decision_trace.json")
+     matrix = validate_artifact_matrix(run_dir, require_eval=False)
+     validate_decision_trace(trace, run_dir=run_dir)
+@@ -53,6 +127,11 @@ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
+             matrix=matrix,
+         )
+     manifest = _read_object(run_dir / "run_manifest.json")
++    capsule: dict[str, Any] | None = None
++    if manifest.get("execution_replay_supported") is True:
++        capsule = validate_replay_capsule(
++            run_dir / "replay_capsule", expected_run_id=str(manifest["run_id"])
++        )
+     decision = _read_object(run_dir / "decision.json")
+     if manifest.get("run_id") != decision.get("run_id"):
+         raise ReplayError("REPLAY_RUN_ID_MISMATCH")
+@@ -76,31 +155,47 @@ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
+         checks["evidence_gate_hash"] = canonical_hash(replayed_gate)
+ 
+     if (run_dir / "invocations").is_dir():
++        topology = validate_runtime_mode(
++            run_mode=str(manifest.get("run_mode", "PRODUCT_COUNCIL")),
++            ablation_profile=manifest.get("ablation_profile"),
++        )
++        specialists = tuple(agent for agent in topology if agent != "runtime_cio")
+         specialist_validators = {
+             "runtime_company_analyst": validate_company_report,
+             "runtime_skeptic": validate_skeptic_report,
+         }
+         reports: dict[str, dict[str, Any]] = {}
+-        for agent_name, validator in specialist_validators.items():
++        for agent_name in specialists:
++            validator = specialist_validators[agent_name]
+             agent_input = _read_object(run_dir / "inputs" / f"{agent_name}.json")
+             invocation = _read_object(
+                 run_dir / "invocations" / f"{agent_name}.json"
+             )
+-            verify_invocation_manifest(
+-                repository_root,
+-                invocation,
+-                agent_input=agent_input,
+-            )
++            if capsule is None:
++                verify_invocation_manifest(repository_root, invocation, agent_input=agent_input)
++            else:
++                _verify_frozen_invocation(
++                    invocation,
++                    agent_input=agent_input,
++                    source_product_root=str(manifest["discovery"]["product_root"]),
++                    capsule=capsule,
++                    run_dir=run_dir,
++                )
+             report = _read_object(run_dir / "agents" / f"{agent_name}.json")
+             validator(report, run_id=str(manifest["run_id"]), manifest=invocation)
+             reports[agent_name] = report
+         cio_input = _read_object(run_dir / "inputs" / "runtime_cio.json")
+         cio_invocation = _read_object(run_dir / "invocations" / "runtime_cio.json")
+-        verify_invocation_manifest(
+-            repository_root,
+-            cio_invocation,
+-            agent_input=cio_input,
+-        )
++        if capsule is None:
++            verify_invocation_manifest(repository_root, cio_invocation, agent_input=cio_input)
++        else:
++            _verify_frozen_invocation(
++                cio_invocation,
++                agent_input=cio_input,
++                source_product_root=str(manifest["discovery"]["product_root"]),
++                capsule=capsule,
++                run_dir=run_dir,
++            )
+         draft_path = (
+             run_dir / "cio" / "runtime_cio_revision.json"
+             if (run_dir / "risk" / "check-2.json").is_file()
+@@ -119,6 +214,7 @@ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
+             report_hashes={
+                 name: canonical_hash(report) for name, report in reports.items()
+             },
++            expected_report_agents=specialists,
+         )
+         fixture = _read_object(fixture_path)
+         replayed_risk = check_cio_draft(
+@@ -141,6 +237,9 @@ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
+ 
+     result = {
+         "schema_version": REPLAY_VERSION,
++        "mode": "ARTIFACT_REPLAY",
++        "llm_calls": 0,
++        "source_run_dir": str(run_dir),
+         "source_run_id": manifest["run_id"],
+         "terminal_state": decision["terminal_state"],
+         "status": "PASSED",
+@@ -148,7 +247,12 @@ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
+         "decision_hash": canonical_hash(decision),
+         "report_hash": canonical_hash({"report": rendered}),
+         "trace_hash": canonical_hash(trace),
++        "source_tree_hash": source_tree_hash,
++        "capsule_manifest_hash": capsule["manifest_hash"] if capsule else None,
++        "execution_replay_ready": capsule is not None,
+     }
++    if _tree_hash(run_dir) != source_tree_hash:
++        raise ReplayError("REPLAY_SOURCE_MUTATED")
+     result["replay_hash"] = canonical_hash(result)
+     return result
+ 
+@@ -174,6 +278,11 @@ def _replay_failed_run(
+     manifest = _read_object(manifest_path) if manifest_path.is_file() else None
+     if manifest is not None and manifest.get("run_id") != trace.get("run_id"):
+         raise ReplayError("REPLAY_RUN_ID_MISMATCH")
++    capsule: dict[str, Any] | None = None
++    if manifest is not None and manifest.get("execution_replay_supported") is True:
++        capsule = validate_replay_capsule(
++            run_dir / "replay_capsule", expected_run_id=str(trace["run_id"])
++        )
+ 
+     fixture_path = run_dir / "audit" / "fixture_snapshot.json"
+     gate_path = run_dir / "evidence" / "gate.json"
+@@ -200,7 +309,16 @@ def _replay_failed_run(
+             continue
+         agent_input = _read_object(input_path)
+         invocation = _read_object(invocation_path)
+-        verify_invocation_manifest(repository_root, invocation, agent_input=agent_input)
++        if capsule is None:
++            verify_invocation_manifest(repository_root, invocation, agent_input=agent_input)
++        else:
++            _verify_frozen_invocation(
++                invocation,
++                agent_input=agent_input,
++                source_product_root=str(manifest["discovery"]["product_root"]),
++                capsule=capsule,
++                run_dir=run_dir,
++            )
+         if not report_path.is_file():
+             specialist_errors.append(f"MISSING_REPORT:{agent_name}")
+             continue
+@@ -228,9 +346,18 @@ def _replay_failed_run(
+     if cio_path.is_file() and cio_input_path.is_file() and cio_invocation_path.is_file():
+         cio_input = _read_object(cio_input_path)
+         cio_invocation = _read_object(cio_invocation_path)
+-        verify_invocation_manifest(
+-            repository_root, cio_invocation, agent_input=cio_input
+-        )
++        if capsule is None:
++            verify_invocation_manifest(
++                repository_root, cio_invocation, agent_input=cio_input
++            )
++        else:
++            _verify_frozen_invocation(
++                cio_invocation,
++                agent_input=cio_input,
++                source_product_root=str(manifest["discovery"]["product_root"]),
++                capsule=capsule,
++                run_dir=run_dir,
++            )
+         draft = _read_object(cio_path)
+         try:
+             validate_cio_draft(
+@@ -241,8 +368,8 @@ def _replay_failed_run(
+                     name: canonical_hash(report)
+                     for name, report in specialist_reports.items()
+                 }
+-                if len(specialist_reports) == 2
+-                else None,
++                if specialist_reports else {},
++                expected_report_agents=tuple(specialist_reports),
+             )
+         except ValueError as exc:
+             cio_error = str(exc)
+@@ -263,6 +390,9 @@ def _replay_failed_run(
+ 
+     result = {
+         "schema_version": REPLAY_VERSION,
++        "mode": "ARTIFACT_REPLAY",
++        "llm_calls": 0,
++        "source_run_dir": str(run_dir),
+         "source_run_id": trace["run_id"],
+         "source_terminal_state": "FAILED_VALIDATION",
+         "failed_stage": failed_stage,
+@@ -270,6 +400,9 @@ def _replay_failed_run(
+         "status": "PASSED",
+         "checks": checks,
+         "trace_hash": canonical_hash(trace),
++        "source_tree_hash": _tree_hash(run_dir),
++        "capsule_manifest_hash": capsule["manifest_hash"] if capsule else None,
++        "execution_replay_ready": capsule is not None,
+     }
+     result["replay_hash"] = canonical_hash(result)
+     return result
+@@ -278,6 +411,9 @@ def _replay_failed_run(
+ def write_replay_result(result: Mapping[str, Any], *, output_path: Path) -> None:
+     if output_path.exists():
+         raise ReplayError("REPLAY_OUTPUT_ALREADY_EXISTS")
++    source_dir = Path(str(result.get("source_run_dir", ""))).resolve()
++    if output_path.resolve().is_relative_to(source_dir):
++        raise ReplayError("REPLAY_OUTPUT_MUST_BE_EXTERNAL")
+     output_path.parent.mkdir(parents=True, exist_ok=True)
+     output_path.write_text(
+         json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+diff --git a/product/runtime/run_package.py b/product/runtime/run_package.py
+index fef1f7a..acb9dfd 100644
+--- a/product/runtime/run_package.py
++++ b/product/runtime/run_package.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ import json
++import platform
+ from enum import StrEnum
+ from pathlib import Path
+ from typing import Any, Mapping, Sequence
+@@ -21,6 +22,7 @@ from .format_repair import (
+ from .hashing import canonical_hash, file_hash
+ from .invocation import (
+     OUTPUT_SCHEMAS,
++    build_cio_ablation_output_schema,
+     build_specialist_output_schema,
+     build_specialist_task_prompt,
+     build_specialist_inputs,
+@@ -29,6 +31,8 @@ from .invocation import (
+     verify_invocation_manifest,
+ )
+ from .risk_runtime import build_risk_snapshot, check_cio_draft
++from .replay_capsule import build_replay_capsule, capsule_reference
++from .runtime_profiles import validate_runtime_mode
+ from .terminal_contract import (
+     FailureStage,
+     RISK_LINEAGE_VERSION,
+@@ -135,6 +139,9 @@ def _base_trace(run_id: str, run_manifest: Mapping[str, Any]) -> dict[str, Any]:
+             "candidate_version": run_manifest["candidate_version"],
+             "discovery_hash": run_manifest["discovery"]["discovery_hash"],
+             "version_lock": run_manifest["discovery"]["version_manifest"],
++            "runtime_profile": run_manifest["runtime_profile"],
++            "replay_capsule": run_manifest.get("replay_capsule"),
++            "trigger_reason": run_manifest.get("trigger_reason", "product_council"),
+         },
+         "agents": [],
+         "events": [],
+@@ -151,6 +158,11 @@ def _record_artifact(trace: dict[str, Any], run_dir: Path, path: Path) -> None:
+ 
+ 
+ def _record_all_artifacts(trace: dict[str, Any], run_dir: Path) -> None:
++    # Rebuild the closure from the current run tree.  A retried stage may have
++    # removed or renamed a transient artifact that was recorded by an earlier
++    # failed terminalization; retaining that stale entry makes the final trace
++    # impossible to verify even though the published package is self-consistent.
++    trace["artifacts"] = {}
+     for path in sorted(run_dir.rglob("*")):
+         if path.is_file() and path.name != "decision_trace.json":
+             _record_artifact(trace, run_dir, path)
+@@ -190,6 +202,8 @@ def _enrich_trace_from_run(trace: dict[str, Any], run_dir: Path) -> None:
+                 "skills": manifest["skills"],
+                 "tool_permissions": manifest["tool_permissions"],
+                 "decision_contract": manifest["decision_contract"],
++                "output_schema": manifest["output_schema"],
++                "output_schema_hash": manifest["output_schema_hash"],
+             }
+         )
+         output_root = "cio" if agent_name == "runtime_cio" else "agents"
+@@ -208,6 +222,9 @@ def _enrich_trace_from_run(trace: dict[str, Any], run_dir: Path) -> None:
+             "children": proof["children"],
+             "parallel_dispatch_proven": proof["parallel_dispatch_proven"],
+             "independent_sessions_proven": proof["independent_sessions_proven"],
++            "specialist_topology": proof.get("specialist_topology", []),
++            "portfolio_council_skill_bound": proof.get("portfolio_council_skill_bound"),
++            "telemetry": proof.get("telemetry"),
+         }
+     mcp_path = run_dir / "events" / "mcp" / "events.jsonl"
+     if mcp_path.is_file():
+@@ -363,11 +380,27 @@ def prepare_run(
+     model: str,
+     research_question: str,
+     authenticity_required: bool = True,
++    run_mode: str = "PRODUCT_COUNCIL",
++    ablation_profile: str | None = None,
++    trigger_reason: str = "product_council",
+ ) -> dict[str, Any]:
+     root = repository_root.resolve()
++    try:
++        topology = validate_runtime_mode(
++            run_mode=run_mode, ablation_profile=ablation_profile
++        )
++    except ValueError as exc:
++        raise RunPackageError(str(exc)) from exc
+     fixture_root = (root / "evals" / "fixtures" / "codex-native").resolve()
+     fixture_path = fixture_path.resolve()
+-    if not fixture_path.is_relative_to(fixture_root):
++    regression_injection_root = (run_dir.resolve().parent / "injection").resolve()
++    regression_injected_fixture = (
++        authenticity_required is False
++        and trigger_reason == "regression_deterministic_injection"
++        and fixture_path.is_relative_to(regression_injection_root)
++        and fixture_path.name == "injected-fixture.json"
++    )
++    if not fixture_path.is_relative_to(fixture_root) and not regression_injected_fixture:
+         raise RunPackageError("fixture must come from the versioned codex-native fixture root")
+     if run_dir.exists():
+         raise RunPackageError("run directory must be new")
+@@ -421,6 +454,9 @@ def prepare_run(
+             "research_question": research_question,
+             "output_dir": str(run_dir.resolve()),
+             "authenticity_required": authenticity_required,
++            "run_mode": run_mode,
++            "ablation_profile": ablation_profile,
++            "trigger_reason": trigger_reason,
+             "discovery": discovery.to_dict(),
+             "integrity_before": integrity,
+         }
+@@ -465,6 +501,9 @@ def prepare_run(
+         "research_question": research_question,
+         "output_dir": str(run_dir.resolve()),
+         "authenticity_required": authenticity_required,
++        "run_mode": run_mode,
++        "ablation_profile": ablation_profile,
++        "trigger_reason": trigger_reason,
+         "discovery": discovery.to_dict(),
+         "integrity_before": integrity,
+     }
+@@ -481,6 +520,41 @@ def prepare_run(
+             failed_stage=FailureStage.EVIDENCE_GATE,
+         )
+     _write_json(run_dir / "evidence" / "gate.json", gate)
++    try:
++        capsule = build_replay_capsule(
++            root,
++            run_dir=run_dir,
++            run_id=run_id,
++            locked_context={
++                "candidate_version": run_manifest["candidate_version"],
++                "model": model,
++                "codex_runtime": run_manifest["codex_runtime"],
++                "python_runtime": f"python/{platform.python_version()}",
++                "runtime_profile": run_manifest["runtime_profile"],
++                "run_mode": run_mode,
++                "ablation_profile": ablation_profile,
++                "trigger_reason": trigger_reason,
++                "research_question": research_question,
++                "decision_cutoff": fixture["decision_cutoff"],
++                "fixture_hash": file_hash(run_dir / "audit" / "fixture_snapshot.json"),
++                "gate_hash": file_hash(run_dir / "evidence" / "gate.json"),
++                "version_manifest_hash": canonical_hash(discovery.version_manifest),
++                "product_integrity_hash": integrity["snapshot_hash"],
++            },
++        )
++    except (OSError, ValueError) as exc:
++        return fail_run(
++            run_dir,
++            run_id=run_id,
++            code="REPLAY_CAPSULE_BUILD_FAILED",
++            message=str(exc),
++            failed_stage=FailureStage.PREFLIGHT,
++        )
++    run_manifest["replay_capsule"] = capsule_reference(
++        capsule, capsule_dir=run_dir / "replay_capsule"
++    )
++    run_manifest["execution_replay_supported"] = True
++    _write_json(run_dir / "run_manifest.json", run_manifest, replace=True)
+     trace = _base_trace(run_id, run_manifest)
+     trace["events"].extend(
+         [
+@@ -516,9 +590,11 @@ def prepare_run(
+         allowed_evidence_ids=gate["allowed_evidence_ids"],
+         research_question=research_question,
+     )
+-    validate_skeptic_first_pass_input(inputs["runtime_skeptic"])
++    specialists = tuple(agent for agent in topology if agent != "runtime_cio")
++    if "runtime_skeptic" in specialists:
++        validate_skeptic_first_pass_input(inputs["runtime_skeptic"])
+     specialist_schema_paths: dict[str, Path] = {}
+-    for agent_name in ("runtime_company_analyst", "runtime_skeptic"):
++    for agent_name in specialists:
+         schema_path = run_dir / "schemas" / Path(
+             OUTPUT_SCHEMAS[agent_name]
+         ).name
+@@ -531,7 +607,8 @@ def prepare_run(
+             ),
+         )
+         specialist_schema_paths[agent_name] = schema_path
+-    for agent_name, agent_input in inputs.items():
++    for agent_name in specialists:
++        agent_input = inputs[agent_name]
+         input_path = run_dir / "inputs" / f"{agent_name}.json"
+         _write_json(input_path, agent_input)
+         task_prompt = build_specialist_task_prompt(
+@@ -562,10 +639,12 @@ def prepare_run(
+     trace["events"].append(
+         {
+             "stage": "SPECIALIST_INVOCATIONS_PREPARED",
+-            "agents": ["runtime_company_analyst", "runtime_skeptic"],
++            "agents": list(specialists),
+         }
+     )
+     _write_json(run_dir / "decision_trace.json", trace)
++    if not specialists:
++        return prepare_cio(root, run_dir=run_dir, model=model)
+     return {"run_id": run_id, "next_state": "DISPATCH_REQUIRED"}
+ 
+ 
+@@ -586,8 +665,14 @@ def prepare_cio(
+         "runtime_skeptic": validate_skeptic_report,
+     }
+     trace = _read_json(run_dir / "decision_trace.json")
++    topology = validate_runtime_mode(
++        run_mode=str(run_manifest.get("run_mode", "PRODUCT_COUNCIL")),
++        ablation_profile=run_manifest.get("ablation_profile"),
++    )
++    specialists = tuple(agent for agent in topology if agent != "runtime_cio")
+     try:
+-        for agent_name, validator in validators.items():
++        for agent_name in specialists:
++            validator = validators[agent_name]
+             agent_input = _read_json(run_dir / "inputs" / f"{agent_name}.json")
+             manifest = _read_json(run_dir / "invocations" / f"{agent_name}.json")
+             verify_invocation_manifest(root, manifest, agent_input=agent_input)
+@@ -703,6 +788,8 @@ def prepare_cio(
+     fixture = _read_json(run_dir / "audit" / "fixture_snapshot.json")
+     snapshot = build_risk_snapshot(fixture, run_id=run_id)
+     metrics = calculate_portfolio_metrics(snapshot)
++    if not specialists:
++        refs.update(gate["allowed_evidence_ids"])
+     cio_input = {
+         "run_id": run_id,
+         "agent": "runtime_cio",
+@@ -722,12 +809,24 @@ def prepare_cio(
+     _write_json(run_dir / "inputs" / "runtime_cio.json", cio_input)
+     contract_prompt = render_cio_action_prompt(load_decision_contract(root / "product"))
+     task_prompt = (
+-        "综合两份已验证结构化报告，输出 CIODecisionDraft 2.1.0 JSON；"
++        f"按 {run_manifest.get('run_mode', 'PRODUCT_COUNCIL')} / {run_manifest.get('ablation_profile')} 拓扑，"
++        f"综合 {len(reports)} 份已验证结构化报告与 Gate-scoped Evidence，输出 CIODecisionDraft 2.1.0 JSON；"
+         "consumed_reports 必须逐字复制输入中的 validated_report_hashes，"
+         "不得自行计算文件字节哈希。\n"
+         f"{contract_prompt}"
+     )
+     _write_text(run_dir / "prompts" / "runtime_cio.txt", task_prompt)
++    cio_schema_path: Path | None = None
++    expected_report_agents: Sequence[str] | None = None
++    if run_manifest.get("run_mode") == "EVAL_ABLATION":
++        cio_schema_path = run_dir / "schemas" / "cio-decision-draft.schema.json"
++        _write_json(
++            cio_schema_path,
++            build_cio_ablation_output_schema(
++                root, expected_report_agents=specialists
++            ),
++        )
++        expected_report_agents = specialists
+     manifest = create_invocation_manifest(
+         root,
+         run_id=run_id,
+@@ -736,6 +835,8 @@ def prepare_cio(
+         task_prompt=task_prompt,
+         model=model,
+         evidence_ids=sorted(refs),
++        output_schema_path=cio_schema_path,
++        expected_report_agents=expected_report_agents,
+     )
+     _write_json(run_dir / "invocations" / "runtime_cio.json", manifest)
+     trace["agents"].append(
+@@ -773,6 +874,11 @@ def finalize_cio(
+     draft_name = "runtime_cio_revision.json" if revision else "runtime_cio.json"
+     draft_path = run_dir / "cio" / draft_name
+     trace = _read_json(run_dir / "decision_trace.json")
++    topology = validate_runtime_mode(
++        run_mode=str(run_manifest.get("run_mode", "PRODUCT_COUNCIL")),
++        ablation_profile=run_manifest.get("ablation_profile"),
++    )
++    specialists = tuple(agent for agent in topology if agent != "runtime_cio")
+     if run_manifest.get("authenticity_required") is not False:
+         try:
+             proof = _read_json(
+@@ -782,11 +888,11 @@ def finalize_cio(
+                 agent_name: _read_json(
+                     run_dir / "invocations" / f"{agent_name}.json"
+                 )
+-                for agent_name in ("runtime_company_analyst", "runtime_skeptic")
++                for agent_name in specialists
+             }
+             specialist_reports = {
+                 agent_name: _read_json(run_dir / "agents" / f"{agent_name}.json")
+-                for agent_name in ("runtime_company_analyst", "runtime_skeptic")
++                for agent_name in specialists
+             }
+             mcp_event_path = run_dir / "events" / "mcp" / "events.jsonl"
+             mcp_events = [
+@@ -816,13 +922,14 @@ def finalize_cio(
+             agent_name: canonical_hash(
+                 _read_json(run_dir / "agents" / f"{agent_name}.json")
+             )
+-            for agent_name in ("runtime_company_analyst", "runtime_skeptic")
++            for agent_name in specialists
+         }
+         validate_cio_draft(
+             draft,
+             run_id=run_id,
+             manifest=manifest,
+             report_hashes=report_hashes,
++            expected_report_agents=specialists,
+         )
+         if revision:
+             original = _read_json(run_dir / "cio" / "runtime_cio.json")
+diff --git a/product/runtime/smoke_prompt.py b/product/runtime/smoke_prompt.py
+index d074c15..5121479 100644
+--- a/product/runtime/smoke_prompt.py
++++ b/product/runtime/smoke_prompt.py
+@@ -6,6 +6,8 @@ import json
+ from pathlib import Path
+ from typing import Any, Mapping
+ 
++from .runtime_profiles import validate_runtime_mode
++
+ 
+ def _read_object(path: Path) -> dict[str, Any]:
+     value = json.loads(path.read_text(encoding="utf-8"))
+@@ -14,6 +16,63 @@ def _read_object(path: Path) -> dict[str, Any]:
+     return dict(value)
+ 
+ 
++def _build_ablation_prompt(
++    *,
++    run_dir: Path,
++    repository_root: Path,
++    manifest: Mapping[str, Any],
++) -> str:
++    run_id = str(manifest["run_id"])
++    model = str(manifest["model"])
++    topology = validate_runtime_mode(
++        run_mode="EVAL_ABLATION",
++        ablation_profile=manifest.get("ablation_profile"),
++    )
++    specialists = [name for name in topology if name != "runtime_cio"]
++    task_names = {
++        "runtime_company_analyst": "company_research",
++        "runtime_skeptic": "independent_skeptic",
++    }
++    dispatch_plan = "、".join(
++        f"{name}(task_name={task_names[name]})" for name in specialists
++    )
++    dispatch = (
++        "不启动 Specialist；prepare 阶段已生成 CIO 输入与 Invocation。"
++        if not specialists
++        else (
++            "在首次等待前依次启动以下独立 Agent（fork_turns=none）："
++            + dispatch_plan
++            + "。每个任务必须逐字携带自己的 prompt、input、invocation_id 和 run-scoped Schema；"
++            "Company Analyst 必须调用 `mcp__fixture_runtime__query`，可选调用 `mcp__fixture_runtime__calculate`；"
++            "Skeptic 必须调用 `mcp__fixture_runtime__query`。每个 Agent 只能返回一个 JSON 对象给主线程，"
++            "禁止子 Agent 调用 file_change、apply_patch、shell 或自行落盘；主线程收到结果后原样保存到 agents/<agent>.json。"
++        )
++    )
++    preparation = (
++        "跳过 prepare-cio，因为 CIO 输入已存在。"
++        if not specialists
++        else f"完成 Specialist 并由主线程保存报告后运行 `cd {repository_root} && python3 -m product.runtime.cli prepare-cio --repo {repository_root} --run-dir {run_dir} --model {model}`，仅在返回 CIO_SYNTHESIS_REQUIRED 后继续。"
++    )
++    return f"""$product:portfolio-council
++
++你是开发控制面授权的 `EVAL_ABLATION` 主线程 CIO。本运行仅用于评估、不可作为产品建议发布；禁止读取 audit/fixture_snapshot.json、Web、外部数据、券商与账户，禁止修改产品文件。除已加载的产品 Skill/Agent 指令与执行确定性 CLI 所需的产品模块外，只能读取当前 `run_dir` 内的冻结产物；严禁搜索、列举或读取 `evals/results` 下任何其他历史 Run、决策、报告、Trace 或示例，也不得用 `git status` 探查仓库。
++
++- run_id: `{run_id}`
++- run_dir: `{run_dir}`
++- profile: `{manifest.get('ablation_profile')}`
++- model: `{model}`
++
++严格执行：
++
++1. 读取 run_manifest、Gate、现有 inputs/invocations/prompts 及输出 Schema。{dispatch}
++2. {preparation}
++3. 读取当前 Run 的 CIO input、invocation、prompt 与 Schema。主线程只基于当前 Run 的 Gate-scoped Evidence 和已验证报告（如有）综合；不得读取其他 Run 的 CIO 输出作为格式或结论示例。当 `allowed_evidence_ids` 非空时，至少调用一次 runtime_cio 授权的 `mcp__fixture_runtime__query`，禁止空 Evidence 查询。保存单个合法 JSON 到 `cio/runtime_cio.json`，不得伪造缺席的 Specialist 报告。
++4. 运行 `cd {repository_root} && python3 -m product.runtime.cli execution-proof --repo {repository_root} --run-dir {run_dir} --sessions-root /Users/caihaoming/.codex/sessions`，必须得到 EXECUTION_PROOF_VERIFIED。
++5. 运行 `cd {repository_root} && python3 -m product.runtime.cli finalize-cio --repo {repository_root} --run-dir {run_dir}`；如 Risk 要求一次修订，只按 revision request 修订并使用 `--revision`，不得绕过或覆盖 Risk。
++6. 确认生成 decision.json、report.md、decision_trace.json。不得运行产品 `check-run` 冒充可发布；语义 Eval 由外部 dev_eval Job 完成。最终仅报告 run_id、实验 Profile、终态与产物名。
++"""
++
++
+ def build_smoke_prompt(run_dir: Path, *, repository_root: Path) -> str:
+     """Return instructions only; Codex remains the LLM orchestrator and CIO."""
+ 
+@@ -37,6 +96,18 @@ def build_smoke_prompt(run_dir: Path, *, repository_root: Path) -> str:
+             )
+         )
+         if pre_agent_safe_termination:
++            if manifest.get("run_mode") == "EVAL_ABLATION":
++                return f"""$product:portfolio-council
++
++你是开发控制面授权的 `EVAL_ABLATION` 主线程 CIO。本运行已由 point-in-time Evidence Gate 在任何 Agent 获取上下文前安全终止；禁止启动子 Agent、调用 LLM 研究、读取原始 fixture、外部数据或交易能力，也不得运行产品 `check-run` 冒充可发布。
++
++- run_id: `{run_id}`
++- run_dir: `{run_dir}`
++- profile: `{manifest.get('ablation_profile')}`
++- terminal_state: `SAFE_NO_TRADE`
++
++只读取 `run_manifest.json`、`evidence/gate.json`、`decision.json`、`report.md` 与 `decision_trace.json`，确认 `agents` 和 `risk_lineage` 为空且存在 `PRE_AGENT_SAFE_TERMINATION`。语义 Eval 由外部 dev_eval Job 完成；最终仅报告实验 Profile、终态和三个终态产物名。
++"""
+             return f"""$product:portfolio-council
+ 
+ 你是本次 fixture Council 的 Codex 主线程 CIO。该运行已由 point-in-time Evidence Gate 在任何专业 Agent 获取上下文前安全终止；禁止启动子 Agent、调用 LLM 研究、读取 `{run_dir / 'audit' / 'fixture_snapshot.json'}` 或任何 `evals/fixtures` 原始文件，禁止修改产品代码。
+@@ -54,9 +125,15 @@ def build_smoke_prompt(run_dir: Path, *, repository_root: Path) -> str:
+ 3. 运行 `cd {repository_root} && python3 -m product.runtime.cli check-run --repo {repository_root} --run-dir {run_dir}`。不得仅依据 `codex exec` 的 shell exit code判断 Council 成功；只有 `check-run` 返回零才可报告 Release Gate 通过。
+ 4. 最终只报告 run_id、`SAFE_NO_TRADE`、Council Gate 状态和三项发布产物文件名。不得输出或执行真实订单。
+ """
++    if manifest.get("run_mode") == "EVAL_ABLATION":
++        return _build_ablation_prompt(
++            run_dir=run_dir,
++            repository_root=repository_root,
++            manifest=manifest,
++        )
+     return f"""$product:portfolio-council
+ 
+-你是本次 fixture Council 的 Codex 主线程 CIO。继续一个已通过确定性预检的运行；禁止读取 `{run_dir / 'audit' / 'fixture_snapshot.json'}` 或任何 `evals/fixtures` 原始文件，禁止 Web、App、外部 Provider、券商、账户与订单工具，禁止修改产品代码。
++你是本次 fixture Council 的 Codex 主线程 CIO。继续一个已通过确定性预检的运行；禁止读取 `{run_dir / 'audit' / 'fixture_snapshot.json'}` 或任何 `evals/fixtures` 原始文件，禁止 Web、App、外部 Provider、券商、账户与订单工具，禁止修改产品代码。除已加载的产品 Skill/Agent 指令与执行确定性 CLI 所需的产品模块外，只能读取当前 `run_dir` 内的冻结产物；严禁搜索、列举或读取 `evals/results` 下任何其他历史 Run、决策、报告、Trace 或示例，也不得用 `git status` 探查仓库。
+ 
+ 固定参数：
+ - repository_root: `{repository_root}`
+@@ -68,7 +145,7 @@ def build_smoke_prompt(run_dir: Path, *, repository_root: Path) -> str:
+ 
+ 1. 只读取 run_dir 内的 `run_manifest.json`、`evidence/gate.json`、`inputs/runtime_company_analyst.json`、`inputs/runtime_skeptic.json`、对应 `invocations/*.json`、`prompts/*.txt`，以及每个 Invocation Manifest 的 `output_schema` 指向的完整 Schema。Specialist Schema 是本次 Gate 约束的 run-scoped Schema；CIO Schema 保持仓库产品所有。不得读取 audit/fixture_snapshot.json。
+ 2. 在等待任何一个结果前，连续调用两次 collaboration `spawn_agent`。第一条调用必须包含 `task_name=company_research`、`agent_type=runtime_company_analyst`、`fork_turns=none`；第二条必须包含 `task_name=independent_skeptic`、`agent_type=runtime_skeptic`、`fork_turns=none`。`agent_type` 是必填验收字段，禁止用同名 task_name 代替。两条子任务消息必须逐字包含各自 `prompts/<agent>.txt` 的 task prompt、run_id、invocation_id、run_dir、完整 Agent input、完整 `skill_execution` 数组和 run-scoped 输出 Schema 契约。所有 `evidence_refs` 与 `counter_evidence_refs` 只能从 Agent input 的 `allowed_evidence_ids` 中逐字选择原始 ID；禁止拼接 source_id、as_of、retrieved_at、分隔符或说明文字。来源描述必须放在其他说明字段中，不得污染引用字段。
+-3. 两个子 Agent 必须独立调用插件工具 `mcp__fixture_runtime__query`，参数必须包含本次 run_dir/run_id、自己的 agent/invocation_id 和所需 Evidence IDs；Company Analyst 可额外调用 `mcp__fixture_runtime__calculate`。calculate 只允许参数 `run_dir`、`run_id`、`agent`、`invocation_id`、`calculation_id`、`operation`、`evidence_ids`；`calculation_id` 必须唯一且非空，`operation` 只能是 `ratio` 或 `percent_change`，`evidence_ids` 必须恰好两个；禁止传 `operands`、`expression` 或 `divide`。不得使用 Shell 或直接文件读取获取 Evidence。要求它们只返回一个 JSON 对象，不加 Markdown。
++3. 两个子 Agent 必须独立调用插件工具 `mcp__fixture_runtime__query`，且必须逐字传入且仅传入 `run_dir`、`run_id`、`agent`、`invocation_id`、`evidence_ids` 五个参数；`evidence_ids` 必须为数组，禁止使用单数 `evidence_id`。若工具返回参数契约错误，只允许按这五个参数纠正后重试一次；不得把工具错误写成无 Evidence 引用的 challenge 或 claim。Company Analyst 可额外调用 `mcp__fixture_runtime__calculate`。calculate 只允许参数 `run_dir`、`run_id`、`agent`、`invocation_id`、`calculation_id`、`operation`、`evidence_ids`；`calculation_id` 必须唯一且非空，`operation` 只能是 `ratio` 或 `percent_change`，`evidence_ids` 必须恰好两个；禁止传 `operands`、`expression` 或 `divide`。不得使用 Shell 或直接文件读取获取 Evidence。要求它们只返回一个 JSON 对象，不加 Markdown。
+ 4. 两个委派都发出后才可等待。收到结果后，将原样 JSON 分别保存为 `agents/runtime_company_analyst.json` 与 `agents/runtime_skeptic.json`；此时不得自行判断或改写格式错误。
+ 5. 运行 `cd {repository_root} && python3 -m product.runtime.cli prepare-cio --repo {repository_root} --run-dir {run_dir} --model {model}`。若返回 `ONE_SPECIALIST_FORMAT_REPAIR_REQUIRED`，读取返回的 repair request，只向其中指定的原 Agent/原会话请求一次纯格式修复，并将结果保存到返回的 `repaired_output` 路径；随后只可再运行一次同一 `prepare-cio` 命令。修复不得新增事实、Evidence ID、Agent 身份或 Invocation；第二次仍非法必须停止。只有返回 `CIO_SYNTHESIS_REQUIRED` 才继续。
+ 6. 读取 `inputs/runtime_cio.json`、`invocations/runtime_cio.json`、`prompts/runtime_cio.txt` 和 CIO Schema。你自己担任 CIO，不再启动 CIO 子 Agent。只基于两份已验证报告、Evidence References、机械冲突与组合确定性数据综合；需要核验时调用同一个 fixture MCP，并使用 runtime_cio 的 invocation_id。必须逐字遵守 `prompts/runtime_cio.txt` 中由 canonical decision contract 生成的条件和示例；`consumed_reports` 的 `output_hash` 必须逐字复制 `inputs/runtime_cio.json` 中对应的 `validated_report_hashes`，禁止运行 `shasum` 或自行计算文件字节哈希。输出必须显式记录 consensus、conflicts、unresolved_questions、invalidation_conditions、confidence_rationale，允许 NO_TRADE，禁止固定结论。
+diff --git a/product/runtime/trace_validation.py b/product/runtime/trace_validation.py
+index d8652e6..d2cb4f8 100644
+--- a/product/runtime/trace_validation.py
++++ b/product/runtime/trace_validation.py
+@@ -6,7 +6,11 @@ import json
+ from pathlib import Path
+ from typing import Any, Mapping
+ 
+-from .hashing import file_hash
++from .hashing import canonical_hash, file_hash
++from .evidence_gate import run_evidence_gate
++from .replay_capsule import validate_replay_capsule
++from .runtime_profiles import validate_runtime_mode
++from .validation import collect_evidence_refs
+ from .terminal_contract import (
+     FailureStage,
+     RUN_ERROR_VERSION,
+@@ -102,8 +106,25 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+     )
+     if manifest is not None and manifest.get("run_id") != trace.get("run_id"):
+         raise TraceValidationError("TRACE_RUN_ID_MISMATCH")
+-    published = terminal_state in {"COMPLETED", "SAFE_NO_TRADE"}
+     runtime = trace.get("runtime")
++    if manifest is not None and manifest.get("execution_replay_supported") is True:
++        reference = manifest.get("replay_capsule")
++        if not isinstance(reference, Mapping):
++            raise TraceValidationError("TRACE_CAPSULE_REFERENCE_MISSING")
++        try:
++            capsule = validate_replay_capsule(
++                run_dir / "replay_capsule", expected_run_id=str(trace.get("run_id"))
++            )
++        except ValueError as exc:
++            raise TraceValidationError(str(exc)) from exc
++        if (
++            reference.get("manifest_hash") != capsule.get("manifest_hash")
++            or reference.get("root_hash") != capsule.get("root_hash")
++            or not isinstance(runtime, Mapping)
++            or runtime.get("replay_capsule") != reference
++        ):
++            raise TraceValidationError("TRACE_CAPSULE_REFERENCE_MISMATCH")
++    published = terminal_state in {"COMPLETED", "SAFE_NO_TRADE"}
+     if published:
+         required_runtime = {
+             "model",
+@@ -120,6 +141,16 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+     if not isinstance(agents, list):
+         raise TraceValidationError("TRACE_AGENTS_INVALID")
+     if has_chain:
++        try:
++            topology = set(
++                validate_runtime_mode(
++                    run_mode=str(manifest.get("run_mode", "PRODUCT_COUNCIL")) if manifest else "PRODUCT_COUNCIL",
++                    ablation_profile=manifest.get("ablation_profile") if manifest else None,
++                )
++            )
++        except ValueError as exc:
++            raise TraceValidationError(str(exc)) from exc
++        specialist_topology = topology - {"runtime_cio"}
+         by_name = {
+             str(item.get("name")): item
+             for item in agents
+@@ -127,18 +158,18 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+         }
+         actual_agents = set(by_name)
+         if published:
+-            expected_agents = CHAIN_AGENTS
++            expected_agents = topology
+         elif failed_stage is not None and stage_at_or_after(
+             failed_stage, FailureStage.EXECUTION_PROOF
+         ):
+-            expected_agents = CHAIN_AGENTS
++            expected_agents = topology
+         elif failed_stage in {
+             FailureStage.SPECIALIST_VALIDATION.value,
+             FailureStage.CIO_SYNTHESIS.value,
+         }:
+-            expected_agents = CHAIN_AGENTS - {"runtime_cio"}
++            expected_agents = specialist_topology
+         elif failed_stage == FailureStage.SPECIALIST_EXECUTION.value:
+-            if not actual_agents or not actual_agents <= CHAIN_AGENTS - {"runtime_cio"}:
++            if not actual_agents or not actual_agents <= specialist_topology:
+                 raise TraceValidationError("TRACE_AGENT_SET_INVALID")
+             expected_agents = actual_agents
+         else:
+@@ -159,6 +190,8 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+             "skills",
+             "tool_permissions",
+             "decision_contract",
++            "output_schema",
++            "output_schema_hash",
+         }
+         for name, item in by_name.items():
+             if not required_agent_fields <= set(item):
+@@ -169,6 +202,41 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+             )
+             if output_required and "output_hash" not in item:
+                 raise TraceValidationError(f"TRACE_AGENT_OUTPUT_LINEAGE_MISSING:{name}")
++            invocation_path = run_dir / "invocations" / f"{name}.json"
++            input_path = run_dir / "inputs" / f"{name}.json"
++            prompt_path = run_dir / "prompts" / f"{name}.txt"
++            try:
++                invocation = json.loads(invocation_path.read_text(encoding="utf-8"))
++                agent_input = json.loads(input_path.read_text(encoding="utf-8"))
++                prompt = prompt_path.read_text(encoding="utf-8")
++            except (OSError, json.JSONDecodeError) as exc:
++                raise TraceValidationError(f"TRACE_AGENT_ARTIFACT_INVALID:{name}") from exc
++            if not isinstance(invocation, Mapping) or not isinstance(agent_input, Mapping):
++                raise TraceValidationError(f"TRACE_AGENT_ARTIFACT_INVALID:{name}")
++            if (
++                item.get("manifest_hash") != invocation.get("manifest_hash")
++                or item.get("version") != invocation.get("agent", {}).get("version")
++                or item.get("agent_sha256") != invocation.get("agent", {}).get("sha256")
++                or item.get("model") != invocation.get("model")
++                or item.get("input_hash") != canonical_hash(agent_input)
++                or item.get("input_hash") != invocation.get("input_hash")
++                or item.get("task_prompt_hash") != canonical_hash({"task_prompt": prompt})
++                or item.get("task_prompt_hash") != invocation.get("task_prompt_hash")
++                or item.get("instruction_bundle_hash") != invocation.get("instruction_bundle_hash")
++                or item.get("evidence_ids") != invocation.get("evidence_ids")
++                or item.get("skills") != invocation.get("skills")
++                or item.get("tool_permissions") != invocation.get("tool_permissions")
++                or item.get("decision_contract") != invocation.get("decision_contract")
++                or item.get("output_schema") != invocation.get("output_schema")
++                or item.get("output_schema_hash") != invocation.get("output_schema_hash")
++            ):
++                raise TraceValidationError(f"TRACE_AGENT_LINEAGE_HASH_MISMATCH:{name}")
++            output_root = "cio" if name == "runtime_cio" else "agents"
++            output_path = run_dir / output_root / f"{name}.json"
++            if output_path.is_file():
++                output = json.loads(output_path.read_text(encoding="utf-8"))
++                if item.get("output_hash") != canonical_hash(output):
++                    raise TraceValidationError(f"TRACE_AGENT_OUTPUT_HASH_MISMATCH:{name}")
+         evidence = trace.get("evidence_lineage")
+         if not isinstance(evidence, Mapping) or not {
+             "decision_cutoff",
+@@ -179,6 +247,55 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+             "conflict_policy_version",
+         } <= set(evidence):
+             raise TraceValidationError("TRACE_EVIDENCE_LINEAGE_INCOMPLETE")
++        fixture_path = run_dir / "audit" / "fixture_snapshot.json"
++        gate_path = run_dir / "evidence" / "gate.json"
++        try:
++            fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
++            gate = json.loads(gate_path.read_text(encoding="utf-8"))
++        except (OSError, json.JSONDecodeError) as exc:
++            raise TraceValidationError("TRACE_PIT_ARTIFACT_MISSING_OR_INVALID") from exc
++        expected_gate = run_evidence_gate(fixture, run_id=str(trace["run_id"])).artifact
++        if canonical_hash(gate) != canonical_hash(expected_gate):
++            raise TraceValidationError("TRACE_PIT_GATE_MISMATCH")
++        expected_lineage = {
++            "decision_cutoff": gate["decision_cutoff"],
++            "allowed_evidence_ids": gate["allowed_evidence_ids"],
++            "excluded_evidence_ids": gate["excluded_evidence_ids"],
++            "bundle_hash": gate["bundle_hash"],
++            "freshness_policy_version": gate["freshness_policy_version"],
++            "conflict_policy_version": gate["conflict_policy_version"],
++        }
++        if evidence != expected_lineage:
++            raise TraceValidationError("TRACE_EVIDENCE_LINEAGE_MISMATCH")
++        allowed_ids = set(gate["allowed_evidence_ids"])
++        evidence_refs: set[str] = set()
++        for relative in (
++            "agents/runtime_company_analyst.json",
++            "agents/runtime_skeptic.json",
++            "cio/runtime_cio.json",
++            "cio/runtime_cio_revision.json",
++            "decision.json",
++        ):
++            path = run_dir / relative
++            if path.is_file():
++                try:
++                    payload = json.loads(path.read_text(encoding="utf-8"))
++                except (OSError, json.JSONDecodeError) as exc:
++                    raise TraceValidationError(f"TRACE_EVIDENCE_ARTIFACT_INVALID:{relative}") from exc
++                evidence_refs.update(collect_evidence_refs(payload))
++        unknown = sorted(evidence_refs - allowed_ids)
++        contained_evidence_failure = (
++            terminal_state == "FAILED_VALIDATION"
++            and failed_stage in {
++                FailureStage.SPECIALIST_VALIDATION.value,
++                FailureStage.CIO_VALIDATION.value,
++                FailureStage.PUBLICATION_VALIDATION.value,
++            }
++            and not (run_dir / "decision.json").exists()
++            and any(item in str(error.get("message", "")) for item in unknown)
++        )
++        if unknown and not contained_evidence_failure:
++            raise TraceValidationError(f"TRACE_EVIDENCE_CLOSURE_FAILED:{','.join(unknown)}")
+         if risk_lineage_required(
+             terminal_state=terminal_state,
+             failed_stage=str(failed_stage) if failed_stage is not None else None,
+@@ -197,6 +314,18 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+                 for item in trace["risk_lineage"]
+             ):
+                 raise TraceValidationError("TRACE_RISK_LINEAGE_SEQUENCE_INVALID")
++            if runtime and isinstance(runtime, Mapping):
++                version_lock = runtime.get("version_lock")
++                expected_policy = (
++                    version_lock.get("risk_policy")
++                    if isinstance(version_lock, Mapping)
++                    else None
++                )
++                if expected_policy and any(
++                    item.get("policy_version") != expected_policy
++                    for item in trace["risk_lineage"]
++                ):
++                    raise TraceValidationError("TRACE_RISK_POLICY_VERSION_MISMATCH")
+         proof_required = published or (
+             failed_stage is not None
+             and stage_at_or_after(failed_stage, FailureStage.CIO_VALIDATION)
+@@ -209,7 +338,61 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
+             proof = trace.get("codex_execution")
+             if not isinstance(proof, Mapping) or not proof.get("proof_hash"):
+                 raise TraceValidationError("TRACE_CODEX_PROOF_MISSING")
++            proof_path = run_dir / "events" / "codex" / "specialist-execution-proof.json"
++            try:
++                saved_proof = json.loads(proof_path.read_text(encoding="utf-8"))
++            except (OSError, json.JSONDecodeError) as exc:
++                raise TraceValidationError("TRACE_CODEX_PROOF_MISSING") from exc
++            expected_proof = {
++                "schema_version": saved_proof["schema_version"],
++                "proof_hash": saved_proof["proof_hash"],
++                "parent": saved_proof["parent"],
++                "dispatches": saved_proof["dispatches"],
++                "children": saved_proof["children"],
++                "parallel_dispatch_proven": saved_proof["parallel_dispatch_proven"],
++                "independent_sessions_proven": saved_proof["independent_sessions_proven"],
++                "specialist_topology": saved_proof.get("specialist_topology", []),
++                "portfolio_council_skill_bound": saved_proof.get("portfolio_council_skill_bound"),
++                "telemetry": saved_proof.get("telemetry"),
++            }
++            if proof != expected_proof:
++                raise TraceValidationError("TRACE_CODEX_PROOF_MISMATCH")
++            telemetry = proof.get("telemetry")
++            required_telemetry = {
++                "status", "input_tokens", "output_tokens", "cached_tokens", "latency_ms",
++                "llm_calls", "model", "trigger_reason", "cache_provenance",
++            }
++            if (
++                not isinstance(telemetry, Mapping)
++                or set(telemetry) != required_telemetry
++                or telemetry.get("status") != "AVAILABLE"
++                or telemetry.get("model") != runtime.get("model")
++                or telemetry.get("trigger_reason") != runtime.get("trigger_reason")
++                or any(
++                    not isinstance(telemetry.get(field), int) or isinstance(telemetry.get(field), bool) or telemetry[field] < 0
++                    for field in ("input_tokens", "output_tokens", "cached_tokens", "latency_ms", "llm_calls")
++                )
++                or telemetry.get("llm_calls", 0) <= 0
++            ):
++                raise TraceValidationError("TRACE_LLM_TELEMETRY_INCOMPLETE")
+             if not trace.get("mcp_events"):
+                 raise TraceValidationError("TRACE_MCP_LINEAGE_MISSING")
+     elif agents or trace.get("risk_lineage") or trace.get("codex_execution"):
+         raise TraceValidationError("TRACE_PRE_AGENT_TERMINATION_HAS_RUNTIME_ACTIVITY")
++
++
++def trace_integrity_report(trace: Mapping[str, Any], *, run_dir: Path) -> dict[str, Any]:
++    """Return the canonical report used by every downstream assurance flow."""
++
++    validate_decision_trace(trace, run_dir=run_dir)
++    report = {
++        "schema_version": "trace-integrity-report/1.0.0",
++        "source_run_dir": str(run_dir.resolve()),
++        "run_id": trace["run_id"],
++        "terminal_state": trace["terminal_state"],
++        "failed_stage": trace["failed_stage"],
++        "status": "PASS",
++        "trace_hash": canonical_hash(trace),
++    }
++    report["report_hash"] = canonical_hash(report)
++    return report
+diff --git a/product/runtime/validation.py b/product/runtime/validation.py
+index 6665cee..996cfe5 100644
+--- a/product/runtime/validation.py
++++ b/product/runtime/validation.py
+@@ -144,6 +144,7 @@ def validate_cio_draft(
+     run_id: str,
+     manifest: Mapping[str, Any],
+     report_hashes: Mapping[str, str] | None = None,
++    expected_report_agents: Sequence[str] = ("runtime_company_analyst", "runtime_skeptic"),
+ ) -> set[str]:
+     _require_exact_keys(value, CIO_REQUIRED, "CIODecisionDraft")
+     if value.get("schema_version") != "cio-decision-draft/2.1.0":
+@@ -154,12 +155,13 @@ def validate_cio_draft(
+     if value.get("advisory_only") is not True:
+         raise ArtifactValidationError("ADVISORY_ONLY_REQUIRED")
+     consumed = value.get("consumed_reports", [])
+-    if len(consumed) != 2 or any(not isinstance(item, Mapping) for item in consumed):
+-        raise ArtifactValidationError("BOTH_SPECIALIST_REPORTS_REQUIRED")
++    expected_agents = set(expected_report_agents)
++    if len(consumed) != len(expected_agents) or any(not isinstance(item, Mapping) for item in consumed):
++        raise ArtifactValidationError("EXPECTED_SPECIALIST_REPORTS_REQUIRED")
+     consumed_hashes = {
+         str(item.get("agent")): str(item.get("output_hash")) for item in consumed
+     }
+-    if set(consumed_hashes) != {"runtime_company_analyst", "runtime_skeptic"}:
++    if set(consumed_hashes) != expected_agents:
+         raise ArtifactValidationError("SPECIALIST_REPORT_IDENTITY_INVALID")
+     if any(len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest) for digest in consumed_hashes.values()):
+         raise ArtifactValidationError("SPECIALIST_REPORT_HASH_INVALID")
+diff --git a/product/runtime/versioning.py b/product/runtime/versioning.py
+index 1528acd..b3b7c04 100644
+--- a/product/runtime/versioning.py
++++ b/product/runtime/versioning.py
+@@ -17,7 +17,15 @@ REQUIRED_SCALAR_FIELDS = (
+     "risk_policy",
+     "data_snapshot",
+ )
+-REQUIRED_MAPPING_FIELDS = ("resource_hashes", "skills", "agents", "schemas", "mcp_adapters")
++REQUIRED_MAPPING_FIELDS = (
++    "resource_hashes",
++    "skills",
++    "agents",
++    "schemas",
++    "mcp_adapters",
++    "assurance",
++    "assurance_hashes",
++)
+ FORBIDDEN_MODEL_MARKERS = ("fixture-model", "placeholder", "unknown", "mock")
+ 
+ 
+@@ -58,6 +66,23 @@ def validate_version_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
+         for digest in candidate["resource_hashes"].values()
+     ):
+         raise ValueError("resource hashes must be lowercase SHA-256 values")
++    expected_assurance = {
++        "model_routing_policy",
++        "runtime_eval_rubric",
++        "runtime_eval_grader_skill",
++        "runtime_eval_grader_agent",
++        "runtime_eval_calibration",
++        "regression_set",
++        "ablation_profiles",
++        "promotion_policy",
++    }
++    if set(candidate["assurance_hashes"]) != expected_assurance:
++        raise ValueError("assurance_hashes must lock every replay/eval assurance resource")
++    if any(
++        len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest)
++        for digest in candidate["assurance_hashes"].values()
++    ):
++        raise ValueError("assurance hashes must be lowercase SHA-256 values")
+     return candidate
+ 
+ 
+diff --git a/product/skills/portfolio-council/SKILL.md b/product/skills/portfolio-council/SKILL.md
+index d26480a..ce7b094 100644
+--- a/product/skills/portfolio-council/SKILL.md
++++ b/product/skills/portfolio-council/SKILL.md
+@@ -2,10 +2,10 @@
+ name: portfolio-council
+ description: 当用户提供版本化 portfolio fixture 并请求运行 Codex-native 投资委员会时，主持只读、仅供建议的双 Agent 研究、CIO 综合和确定性风险校验闭环。
+ metadata:
+-  version: "2.1.0"
++  version: "3.0.0"
+ ---
+ 
+-# Portfolio Council（Fixture Council 2.1）
++# Portfolio Council（Fixture Council 3.0）
+ 
+ 本 Skill 是 fixture Council 的唯一产品入口。当前 Codex 主线程担任 CIO；Python 只执行确定性预检、Evidence Gate、数学计算、Schema/引用校验、Risk Engine、哈希、渲染与存储，不得调用 LLM、生成 Thesis、动作或置信度。
+ 
+@@ -20,7 +20,7 @@ metadata:
+ ## 固定运行阶段
+ 
+ 1. 创建唯一 `run_id` 和显式运行目录，保存输入及候选版本 manifest；禁止覆盖已有目录。
+-2. 确定性校验 portfolio fixture，并执行 point-in-time Evidence Gate。Gate 同时排除 `as_of` 或 `retrieved_at` 晚于 `decision_cutoff` 的事实，应用声明式 freshness policy，机械标记规范化字段冲突，并保存允许/排除 Evidence IDs 与 bundle hash。
++2. 确定性校验 portfolio fixture，并执行 point-in-time Evidence Gate。Gate 同时排除 `as_of` 或 `retrieved_at` 晚于 `decision_cutoff` 的事实，应用声明式 freshness policy，机械标记规范化字段冲突，并保存允许/排除 Evidence IDs 与 bundle hash；在任何 Agent 获取上下文前生成内容寻址 Replay Capsule。
+ 3. 仅当输入有效且 Gate 仍有可用证据时继续。为两个专业 Agent 生成不可变 Invocation Manifest 和相互独立的输入包。
+ 4. 在等待任一结果前，通过 Codex 原生委派能力同时启动 `runtime_company_analyst` 与 `runtime_skeptic`。两个 Agent 必须使用独立会话与隔离上下文；Skeptic 第一轮不得接收 Analyst/CIO 输出、摘要、hash 或派生结论。默认不得调用所有 runtime Agent；本 Profile 只调用固定双 Agent，不调用 Market/Catalyst 或其他 Agent。
+ 5. Agent 只能通过绑定本次 `run_id` 的 `fixture_evidence.query` 读取 Gate 允许事实；Company Analyst 可额外调用只读确定性计算工具。禁止读取原始 fixture、被排除事实、实时 Web、外部 Provider、App、券商、账户和任何写工具。
+@@ -29,6 +29,12 @@ metadata:
+ 8. 每个可形成的 CIO draft 必须进入 deterministic Risk Engine。禁止覆盖 `REJECTED`；`REVISE_REQUIRED` 最多修订一次，第二次仍未通过时移除违规意图或形成 `NO_TRADE: RISK_VETO`。
+ 9. 在 CIO draft、Risk result 和最终决策边界再次执行 Schema 与 Evidence Closure 校验，由确定性渲染器生成产物并运行实际 Eval。
+ 
++## Replay 与评估拓扑
++
++- Artifact Replay 只验证冻结运行包，不调用 LLM，也不改写源 Run。
++- Execution Replay 必须从已验证 Replay Capsule 在隔离工作区创建新的 `run_id`，重新运行本 Skill、独立 Agent、CIO 和 Risk；不得从当前仓库或全局同名 Skill 补齐缺失资源。
++- 只有开发控制面明确标记为 `EVAL_ABLATION` 时，才允许 `cio-only`、`analyst-cio` 或 `full-council` 实验拓扑。A/B 结果是不可发布评估产物，不能冒充默认产品建议；所有形成的 CIO 草案仍必须经过 Risk Engine。
++
+ ## 三类互斥终态
+ 
+ - `COMPLETED`：LLM Council 与 Risk Engine 均完成，保存 `decision.json`、`report.md`、`decision_trace.json` 及全部审计产物。
+@@ -50,5 +56,6 @@ Trace 必须关联 `run_id`、Agent/Skill 名称与版本、仓库路径与内
+ - 运行期间禁止修改代码、Skill、Agent、Schema、Risk Policy、测试或版本指针。
+ - 禁止把投资判断编码成确定性评分或大型 if/else 规则。
+ - 禁止用 fake adapter、callback、固定字符串或 fixture 预期结果冒充真实 LLM 验收。
++- 禁止将 `EVAL_ABLATION` 产物作为产品建议或正常 Release 候选；默认产品链路始终要求 Company Analyst 与 Independent Skeptic。
+ - `codex exec` 结束后必须独立运行确定性 `check-run`；只有 `check-run` 返回零才表示 Council 通过 Release Gate。
+ - 本版本不接入真实行情、SEC/FRED、期权、多市场、动态 Agent 路由或 Reflection Agent。
+diff --git a/product/version-manifest.json b/product/version-manifest.json
+index dcfac35..6cd8e3b 100644
+--- a/product/version-manifest.json
++++ b/product/version-manifest.json
+@@ -1,23 +1,23 @@
+ {
+-  "manifest_version": "2.0.0",
+-  "candidate_version": "0.2.1-candidate.1",
++  "manifest_version": "3.0.0",
++  "candidate_version": "0.3.0-candidate.1",
+   "codex_runtime": "codex-cli/0.153.4",
+   "model": "gpt-5.6-terra",
+-  "runtime_profile": "fixture-council/2.1.0",
++  "runtime_profile": "fixture-council/3.0.0",
+   "decision_contract": "council-decision-contract/1.0.0",
+   "resource_hashes": {
+-    "plugin": "f75aee1c19b3046b66b94788b1479ff2930fe702420578074e049fbf115812a3",
+-    "plugin_mcp": "22a55d24f1a2a9dd2e1f94604f583d9ecb9d891e53e9132f5f90b60dd9c0064a",
++    "plugin": "0623fa0d1cd4f64493cf33df20bf54f68f94819a700f5d264c681ca97eb3b5e1",
++    "plugin_mcp": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+     "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+-    "runtime_profile": "8f36661023acd80bd954dd07766bd0dac74ca3c079498c83b050e18946078f6f",
++    "runtime_profile": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+     "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+-    "council_skill": "2b84c0c85a7b96c55292bf92b147a9fac8ce990d40ac838859388553038030ae",
+-    "cio_agent": "156946f965cdbc769e81239fe2ecc6bea08439520762ce7cb5e63bcf6d69ecf7",
++    "council_skill": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
++    "cio_agent": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+     "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+     "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+   },
+   "skills": {
+-    "portfolio-council": "2.1.0",
++    "portfolio-council": "3.0.0",
+     "evidence-grounding": "2.0.0",
+     "company-research": "2.0.0",
+     "valuation": "2.0.0",
+@@ -25,7 +25,7 @@
+     "catalyst-analysis": "1.0.0"
+   },
+   "agents": {
+-    "runtime-cio": "2.1.0",
++    "runtime-cio": "3.0.0",
+     "runtime-company-analyst": "2.1.0",
+     "runtime-market-catalyst": "1.0.0",
+     "runtime-skeptic": "2.0.0"
+@@ -38,13 +38,45 @@
+     "decision-risk": "1.0.0",
+     "decision-trace": "2.1.0",
+     "runtime-artifacts": "2.1.0",
+-    "learning": "1.0.0"
++    "learning": "1.0.0",
++    "replay-capsule": "1.0.0",
++    "execution-replay": "1.0.0",
++    "runtime-eval-job": "1.0.0",
++    "semantic-rubric-result": "1.0.0",
++    "semantic-calibration-result": "1.0.0",
++    "regression-case": "1.1.0",
++    "regression-suite": "1.0.0",
++    "ablation-report": "1.0.0",
++    "deterministic-test-execution": "1.0.0",
++    "deterministic-test-report": "1.0.0",
++    "promotion-input": "1.0.0",
++    "promotion-gate": "1.0.0"
+   },
+   "mcp_adapters": {
+     "provider-neutral-contracts": "1.0.0",
+     "fixture-reference": "1.0.0",
+-    "fixture-gate-scoped": "2.1.0"
++    "fixture-gate-scoped": "2.1.1"
+   },
+   "risk_policy": "risk/reference/1.0.0",
+-  "data_snapshot": "fixture/codex-native/2.0.0"
++  "data_snapshot": "fixture/codex-native/2.0.0",
++  "assurance": {
++    "model-routing-policy": "1.0.0",
++    "runtime-eval-rubric": "1.0.0",
++    "runtime-eval-grader-skill": "1.0.0",
++    "runtime-eval-grader-agent": "1.0.0",
++    "runtime-eval-calibration": "1.0.0",
++    "regression-set": "1.1.0",
++    "ablation-profiles": "1.0.0",
++    "promotion-policy": "1.0.0"
++  },
++  "assurance_hashes": {
++    "model_routing_policy": "e68f5190f4e13a2d3136f87893b0ae894bfb9dc83124e5f29084567d0be16ff7",
++    "runtime_eval_rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
++    "runtime_eval_grader_skill": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
++    "runtime_eval_grader_agent": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
++    "runtime_eval_calibration": "d95a5763f08e0450fbf48f01661380bdd12004b2de66f34711e504b013c88627",
++    "regression_set": "6004fb79ed7ec5de46310e017cf493b2362b3259ddf2222982d78e75d9a143ef",
++    "ablation_profiles": "7e69d2623791ffb6a2a319e68d33c4978ec9b7b8773c2c7db13fbb9c92293d70",
++    "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b"
++  }
+ }
+diff --git a/product/version-manifest.schema.json b/product/version-manifest.schema.json
+index 7d4a274..41b0875 100644
+--- a/product/version-manifest.schema.json
++++ b/product/version-manifest.schema.json
+@@ -1,9 +1,9 @@
+ {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+-  "$id": "portfolio-council/version-manifest/2.0.0",
++  "$id": "portfolio-council/version-manifest/3.0.0",
+   "title": "Portfolio Council Version Manifest",
+   "type": "object",
+-  "required": ["manifest_version", "candidate_version", "codex_runtime", "model", "runtime_profile", "decision_contract", "resource_hashes", "skills", "agents", "schemas", "mcp_adapters", "risk_policy", "data_snapshot"],
++  "required": ["manifest_version", "candidate_version", "codex_runtime", "model", "runtime_profile", "decision_contract", "resource_hashes", "skills", "agents", "schemas", "mcp_adapters", "risk_policy", "data_snapshot", "assurance", "assurance_hashes"],
+   "properties": {
+     "manifest_version": {"type": "string", "minLength": 1},
+     "candidate_version": {"type": "string", "minLength": 1},
+@@ -33,6 +33,23 @@
+     "mcp_adapters": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
+     "risk_policy": {"type": "string", "minLength": 1},
+     "data_snapshot": {"type": "string", "minLength": 1}
++    ,
++    "assurance": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string", "minLength": 1}},
++    "assurance_hashes": {
++      "type": "object",
++      "required": ["model_routing_policy", "runtime_eval_rubric", "runtime_eval_grader_skill", "runtime_eval_grader_agent", "runtime_eval_calibration", "regression_set", "ablation_profiles", "promotion_policy"],
++      "additionalProperties": false,
++      "properties": {
++        "model_routing_policy": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
++        "runtime_eval_rubric": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
++        "runtime_eval_grader_skill": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
++        "runtime_eval_grader_agent": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
++        "runtime_eval_calibration": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
++        "regression_set": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
++        "ablation_profiles": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
++        "promotion_policy": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
++      }
++    }
+   },
+   "additionalProperties": false
+ }
+diff --git a/tests/test_governance.py b/tests/test_governance.py
+index 7506aa6..257a2e3 100644
+--- a/tests/test_governance.py
++++ b/tests/test_governance.py
+@@ -26,12 +26,20 @@ class GovernanceTests(unittest.TestCase):
+         self.assertEqual(4, len(paths))
+         for path in paths:
+             config = tomllib.loads(path.read_text())
+-            self.assertTrue(config["name"].startswith("dev-"))
++            self.assertTrue(config["name"].replace("_", "-").startswith("dev-"))
+             self.assertIn("investment-decision", config["developer_instructions"])
+             self.assertIn("broker-write", config["developer_instructions"])
+         reviewer = tomllib.loads((ROOT / ".codex" / "agents" / "dev_reviewer.toml").read_text())
+         self.assertEqual("read-only", reviewer["sandbox_mode"])
+ 
++    def test_development_agents_are_registered_for_codex_native_delegation(self):
++        config = tomllib.loads((ROOT / ".codex" / "config.toml").read_text(encoding="utf-8"))
++        self.assertEqual(
++            {"dev_architect", "dev_contracts", "dev_eval", "dev_reviewer"},
++            set(config["agents"]) - {"max_threads"},
++        )
++        self.assertEqual("agents/dev_eval.toml", config["agents"]["dev_eval"]["config_file"])
++
+     def test_capability_template_has_five_required_sections(self):
+         template = (ROOT / "reviews" / "capability-contract-template.md").read_text()
+         for heading in ("## Input", "## Tool / Data", "## Skill / Reasoning", "## Structured Output", "## Eval"):
+@@ -55,6 +63,8 @@ class GovernanceTests(unittest.TestCase):
+             "mcp_adapters",
+             "risk_policy",
+             "data_snapshot",
++            "assurance",
++            "assurance_hashes",
+         }
+         self.assertEqual(required, set(manifest))
+         for key in required:
+diff --git a/tests/test_native_eval.py b/tests/test_native_eval.py
+index 25532f4..dee0946 100644
+--- a/tests/test_native_eval.py
++++ b/tests/test_native_eval.py
+@@ -134,10 +134,10 @@ def scenario_cio_output(run_dir: Path, *, include_conflict: bool = True):
+             {"agent": report["agent"], "output_hash": canonical_hash(report)}
+             for report in reports
+         ],
+-        "action": "TRIM" if is_risk else "HOLD",
++        "action": "NO_TRADE" if is_risk else "HOLD",
+         "security_id": "SEC-AAA",
+         "current_weight": current_weight,
+-        "target_weight_range": [0.55, 0.6] if is_risk else [0.5, 0.5],
++        "target_weight_range": None if is_risk else [0.5, 0.5],
+         "maximum_notional": None,
+         "time_horizon": "fixture evaluation horizon",
+         "thesis": "The admitted evidence supports a bounded monitoring decision.",
+@@ -149,9 +149,15 @@ def scenario_cio_output(run_dir: Path, *, include_conflict: bool = True):
+         "confidence": 0.45,
+         "confidence_rationale": "Unresolved evidence limitations reduce confidence.",
+         "evidence_refs": refs,
+-        "no_trade_reason": None,
+-        "no_trade_explanation": None,
+-        "reevaluation_conditions": [],
++        "no_trade_reason": "RISK_OR_MANDATE_CONSTRAINT" if is_risk else None,
++        "no_trade_explanation": (
++            "The existing fixture position already breaches deterministic limits."
++            if is_risk else None
++        ),
++        "reevaluation_conditions": (
++            ["Re-evaluate after the position is within mandate limits."]
++            if is_risk else []
++        ),
+         "skill_execution": manifest["skill_execution"],
+         "advisory_only": True,
+     }
+@@ -250,7 +256,7 @@ class NativeArtifactEvalTests(unittest.TestCase):
+             "normal-research.json": "normal_full_chain",
+             "future-or-stale.json": "future_stale_exact_filtering",
+             "evidence-conflict.json": "conflict_preserved_and_consumed",
+-            "risk-veto.json": "deterministic_risk_boundary",
++            "risk-veto.json": "deterministic_actual_risk_replay",
+         }
+         with tempfile.TemporaryDirectory() as directory:
+             for fixture, expected_check in expected_checks.items():
+@@ -263,6 +269,19 @@ class NativeArtifactEvalTests(unittest.TestCase):
+                 self.assertEqual(result["checks"][expected_check], "PASSED")
+                 validate_native_eval_result(result)
+ 
++    def test_risk_eval_rejects_persisted_result_that_does_not_match_reexecution(self):
++        with tempfile.TemporaryDirectory() as directory:
++            run_dir = self._complete_scenario(directory, "risk-veto.json")
++            trace_path = run_dir / "decision_trace.json"
++            trace = read_json(trace_path)
++            trace["risk_lineage"][-1]["result"]["final_action"] = "HOLD"
++            write_json(trace_path, trace)
++            with self.assertRaisesRegex(
++                (NativeEvalError, ValueError),
++                "TRACE|RISK|risk",
++            ):
++                evaluate_run(ROOT, run_dir=run_dir, allow_test_artifacts=True)
++
+     def test_conflict_fixture_fails_when_cio_does_not_explicitly_consume_conflict(self):
+         with tempfile.TemporaryDirectory() as directory:
+             run_dir = self._complete_scenario(
+diff --git a/tests/test_native_evidence_gate.py b/tests/test_native_evidence_gate.py
+index f8a2597..822b568 100644
+--- a/tests/test_native_evidence_gate.py
++++ b/tests/test_native_evidence_gate.py
+@@ -192,6 +192,16 @@ class GateScopedFixtureToolTests(unittest.TestCase):
+         self.assertEqual(parameters, set(schema["properties"]))
+         self.assertFalse(schema["additionalProperties"])
+ 
++    def test_query_manifest_spells_out_exact_stateless_parameters(self):
++        query = next(
++            item for item in StatelessFixtureTools.tool_manifest() if item["name"] == "query"
++        )
++        self.assertEqual(
++            query["inputSchema"]["required"],
++            ["run_dir", "run_id", "agent", "invocation_id", "evidence_ids"],
++        )
++        self.assertIn("Never pass singular evidence_id", query["description"])
++
+     def test_calculation_rejects_invalid_id_before_accessing_facts(self):
+         with self.assertRaisesRegex(ToolAccessError, "INVALID_CALCULATION_ID"):
+             self.tools.calculate(
+@@ -310,6 +320,59 @@ class GateScopedFixtureToolTests(unittest.TestCase):
+             self.assertNotIn("ev-normal-debt", serialized)
+             self.assertNotIn("must-fail", serialized)
+ 
++    def test_mcp_missing_required_argument_returns_error_without_closing_transport(self):
++        with tempfile.TemporaryDirectory() as directory:
++            run_dir = Path(directory) / "run"
++            prepare_run(
++                ROOT,
++                fixture_path=FIXTURES / "normal-research.json",
++                run_dir=run_dir,
++                run_id="stateless-missing-argument",
++                model="gpt-5.6-terra",
++                research_question="验证 MCP 缺参不关闭传输。",
++            )
++            invocation = json.loads(
++                (run_dir / "invocations" / "runtime_skeptic.json").read_text()
++            )
++            invalid = {
++                "jsonrpc": "2.0",
++                "id": 1,
++                "method": "tools/call",
++                "params": {
++                    "name": "query",
++                    "arguments": {"evidence_id": "ev-normal-price"},
++                },
++            }
++            valid = {
++                "jsonrpc": "2.0",
++                "id": 2,
++                "method": "tools/call",
++                "params": {
++                    "name": "query",
++                    "arguments": {
++                        "run_dir": str(run_dir),
++                        "run_id": "stateless-missing-argument",
++                        "agent": "runtime_skeptic",
++                        "invocation_id": invocation["invocation_id"],
++                        "evidence_ids": ["ev-normal-price"],
++                    },
++                },
++            }
++            stdin = io.StringIO(json.dumps(invalid) + "\n" + json.dumps(valid) + "\n")
++            stdout = io.StringIO()
++            with mock.patch("sys.stdin", stdin), mock.patch("sys.stdout", stdout):
++                serve_stdio(stateless=True)
++            responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
++            self.assertEqual(
++                responses[0]["error"]["message"],
++                "MISSING_TOOL_ARGUMENT:run_dir",
++            )
++            self.assertFalse(responses[1]["result"]["isError"])
++            self.assertEqual(
++                responses[1]["result"]["structuredContent"]["evidence"][0]["evidence_id"],
++                "ev-normal-price",
++            )
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/test_native_execution_proof.py b/tests/test_native_execution_proof.py
+index 232d230..5c45d54 100644
+--- a/tests/test_native_execution_proof.py
++++ b/tests/test_native_execution_proof.py
+@@ -109,15 +109,17 @@ class NativeExecutionProofTests(unittest.TestCase):
+         raw_fixture_access_agent=None,
+         protected_child_input=False,
+         protected_message="gAAAA" + "A" * 120,
++        agents=AGENTS,
+     ):
+         parent_id = "parent-session"
+-        call_ids = {agent: f"call-{index}" for index, agent in enumerate(AGENTS, 1)}
+-        child_ids = {agent: f"child-{index}" for index, agent in enumerate(AGENTS, 1)}
++        call_ids = {agent: f"call-{index}" for index, agent in enumerate(agents, 1)}
++        child_ids = {agent: f"child-{index}" for index, agent in enumerate(agents, 1)}
+         parent = [
+-            {"type": "session_meta", "payload": {"id": parent_id, "cli_version": "0.153.4"}},
++            {"timestamp": "2026-09-07T00:00:00Z", "type": "session_meta", "payload": {"id": parent_id, "cli_version": "0.153.4"}},
+             {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
++            message("user", f"$product:portfolio-council run_id={self.run_id}"),
+         ]
+-        for index, agent in enumerate(AGENTS):
++        for index, agent in enumerate(agents):
+             if second_dispatch_after_wait and index == 1:
+                 parent.append(
+                     {
+@@ -181,7 +183,7 @@ class NativeExecutionProofTests(unittest.TestCase):
+                 },
+             }
+         )
+-        for agent in AGENTS:
++        for agent in agents:
+             parent.append(
+                 {
+                     "type": "event_msg",
+@@ -197,11 +199,16 @@ class NativeExecutionProofTests(unittest.TestCase):
+                     },
+                 }
+             )
++        parent.append({
++            "timestamp": "2026-09-07T00:00:03Z",
++            "type": "event_msg",
++            "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 100, "cached_input_tokens": 20, "output_tokens": 30}}},
++        })
+         parent_path = directory / "parent.jsonl"
+         write_jsonl(parent_path, parent)
+ 
+         children = {}
+-        for agent in AGENTS:
++        for agent in agents:
+             manifest = self.manifests[agent]
+             with Path(manifest["agent"]["path"]).open("rb") as handle:
+                 instructions = tomllib.load(handle)["developer_instructions"]
+@@ -209,6 +216,7 @@ class NativeExecutionProofTests(unittest.TestCase):
+             task = f"{self.prompts[agent]} run_id={self.run_id} invocation_id={manifest['invocation_id']}"
+             records = [
+                 {
++                    "timestamp": "2026-09-07T00:00:00Z",
+                     "type": "session_meta",
+                     "payload": {
+                         "id": child_ids[agent],
+@@ -262,6 +270,11 @@ class NativeExecutionProofTests(unittest.TestCase):
+                     json.dumps(self._report(agent), sort_keys=True),
+                 )
+             )
++            records.append({
++                "timestamp": "2026-09-07T00:00:02Z",
++                "type": "event_msg",
++                "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 40, "cached_input_tokens": 10, "output_tokens": 20}}},
++            })
+             write_jsonl(
+                 child_path,
+                 records,
+@@ -303,6 +316,10 @@ class NativeExecutionProofTests(unittest.TestCase):
+             self.assertTrue(proof["parallel_dispatch_proven"])
+             self.assertTrue(proof["independent_sessions_proven"])
+             self.assertFalse(proof["raw_prompt_or_reasoning_retained"])
++            self.assertEqual(proof["telemetry"]["status"], "AVAILABLE")
++            self.assertEqual(proof["telemetry"]["input_tokens"], 180)
++            self.assertEqual(proof["telemetry"]["cached_tokens"], 40)
++            self.assertEqual(proof["telemetry"]["latency_ms"], 3000)
+             self.assertNotIn(self.prompts[AGENTS[0]], json.dumps(proof))
+             self.assertEqual(
+                 {item["agent"] for item in proof["dispatches"]}, set(AGENTS)
+@@ -329,6 +346,31 @@ class NativeExecutionProofTests(unittest.TestCase):
+                     task_prompts=self.prompts,
+                 )
+ 
++    def test_zero_and_one_specialist_ablation_topologies_have_native_proof(self):
++        with tempfile.TemporaryDirectory() as directory:
++            root = Path(directory)
++            for index, specialists in enumerate(((), ("runtime_company_analyst",))):
++                case = root / str(index)
++                case.mkdir()
++                parent, children = self._rollouts(case, agents=specialists)
++                proof = build_specialist_execution_proof(
++                    ROOT,
++                    parent_rollout=parent,
++                    child_rollouts=children,
++                    invocation_manifests={name: self.manifests[name] for name in specialists},
++                    task_prompts={name: self.prompts[name] for name in specialists},
++                    specialist_agents=specialists,
++                )
++                self.assertEqual(proof["specialist_topology"], list(specialists))
++                self.assertTrue(proof["portfolio_council_skill_bound"])
++                reports, events = self._reports_and_events()
++                verify_specialist_execution_proof(
++                    proof,
++                    invocation_manifests={name: self.manifests[name] for name in specialists},
++                    reports={name: reports[name] for name in specialists},
++                    mcp_events=events,
++                )
++
+     def test_current_codex_protected_dispatch_binds_through_structured_output(self):
+         with tempfile.TemporaryDirectory() as directory:
+             parent, children = self._rollouts(
+@@ -470,6 +512,58 @@ class NativeExecutionProofTests(unittest.TestCase):
+             self.assertEqual(saved["proof_hash"], result["proof_hash"])
+             self.assertNotIn(self.prompts[AGENTS[0]], output.read_text(encoding="utf-8"))
+ 
++    def test_run_proof_rejects_parent_cross_run_artifact_access(self):
++        with tempfile.TemporaryDirectory() as directory:
++            root = Path(directory)
++            run_dir = root / "run"
++            (run_dir / "invocations").mkdir(parents=True)
++            (run_dir / "prompts").mkdir()
++            (run_dir / "agents").mkdir()
++            (run_dir / "events" / "mcp").mkdir(parents=True)
++            (run_dir / "run_manifest.json").write_text(
++                json.dumps({"run_id": self.run_id, "output_dir": str(run_dir)}),
++                encoding="utf-8",
++            )
++            reports, events = self._reports_and_events()
++            for agent in AGENTS:
++                (run_dir / "invocations" / f"{agent}.json").write_text(
++                    json.dumps(self.manifests[agent]), encoding="utf-8"
++                )
++                (run_dir / "prompts" / f"{agent}.txt").write_text(
++                    self.prompts[agent], encoding="utf-8"
++                )
++                (run_dir / "agents" / f"{agent}.json").write_text(
++                    json.dumps(reports[agent]), encoding="utf-8"
++                )
++            write_jsonl(run_dir / "events" / "mcp" / "events.jsonl", events)
++            parent, children = self._rollouts(root)
++            records = [json.loads(line) for line in parent.read_text().splitlines()]
++            records.append(
++                {
++                    "type": "response_item",
++                    "payload": {
++                        "type": "custom_tool_call",
++                        "name": "exec",
++                        "call_id": "cross-run-read",
++                        "input": (
++                            "const r = await tools.exec_command({cmd: 'jq . "
++                            f"{ROOT / 'evals' / 'results' / 'other-run' / 'decision.json'}"
++                            "'}); text(r.output);"
++                        ),
++                    },
++                }
++            )
++            write_jsonl(parent, records)
++            with self.assertRaisesRegex(
++                ExecutionProofError, "PARENT_CROSS_RUN_ARTIFACT_ACCESS"
++            ):
++                build_run_specialist_execution_proof(
++                    ROOT,
++                    run_dir=run_dir,
++                    parent_rollout=parent,
++                    child_rollouts=children,
++                )
++
+     def test_rollout_discovery_requires_run_binding_and_role_bound_children(self):
+         with tempfile.TemporaryDirectory() as directory:
+             root = Path(directory)
+diff --git a/tests/test_native_invocation_validation.py b/tests/test_native_invocation_validation.py
+index 67be882..a3221f4 100644
+--- a/tests/test_native_invocation_validation.py
++++ b/tests/test_native_invocation_validation.py
+@@ -162,6 +162,9 @@ class InvocationManifestTests(unittest.TestCase):
+             "allowed_evidence_ids",
+             "原始 evidence_id",
+             "禁止在 evidence_id 后拼接 source_id、as_of、retrieved_at",
++            "run_dir、run_id、agent、invocation_id",
++            "evidence_ids 必须是数组",
++            "禁止使用单数 evidence_id",
+             "不得污染 evidence_refs",
+             "不得自行截断",
+         ):
+diff --git a/tests/test_native_trace.py b/tests/test_native_trace.py
+index bf9cd69..853b0d0 100644
+--- a/tests/test_native_trace.py
++++ b/tests/test_native_trace.py
+@@ -5,6 +5,7 @@ import tempfile
+ import unittest
+ from pathlib import Path
+ 
++from product.runtime.hashing import file_hash
+ from product.runtime.run_package import finalize_cio, prepare_cio, prepare_run
+ from product.runtime.trace_validation import TraceValidationError, validate_decision_trace
+ from tests.test_native_run_package import FIXTURES, ROOT, cio_output, specialist_outputs, write_json
+@@ -57,6 +58,36 @@ class NativeDecisionTraceTests(unittest.TestCase):
+             with self.assertRaisesRegex(TraceValidationError, "AGENT_LINEAGE_INCOMPLETE"):
+                 validate_decision_trace(trace, run_dir=run_dir)
+ 
++    def test_final_trace_rebuilds_artifact_closure_after_transient_file_is_removed(self):
++        with tempfile.TemporaryDirectory() as directory:
++            run_dir = Path(directory) / "trace"
++            prepare_run(
++                ROOT,
++                fixture_path=FIXTURES / "normal-research.json",
++                run_dir=run_dir,
++                run_id="trace-transient-artifact",
++                model="gpt-5.6-terra",
++                research_question="研究 fixture。",
++                authenticity_required=False,
++            )
++            specialist_outputs(run_dir)
++            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
++
++            transient = run_dir / "agents" / "transient-name.json"
++            write_json(transient, {"transient": True})
++            trace_path = run_dir / "decision_trace.json"
++            trace = json.loads(trace_path.read_text())
++            trace["artifacts"]["agents/transient-name.json"] = file_hash(transient)
++            write_json(trace_path, trace)
++            transient.unlink()
++
++            write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
++            finalize_cio(ROOT, run_dir=run_dir)
++            final_trace = json.loads(trace_path.read_text())
++
++            self.assertNotIn("agents/transient-name.json", final_trace["artifacts"])
++            validate_decision_trace(final_trace, run_dir=run_dir)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/test_portfolio_council_skill.py b/tests/test_portfolio_council_skill.py
+index 719ea44..f1e4602 100644
+--- a/tests/test_portfolio_council_skill.py
++++ b/tests/test_portfolio_council_skill.py
+@@ -1,4 +1,6 @@
+ import json
++import os
++import subprocess
+ import tempfile
+ import unittest
+ from pathlib import Path
+@@ -80,11 +82,66 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
+             self.assertNotIn("spawn_agent", prompt)
+             self.assertNotIn("prepare-cio", prompt)
+ 
++    def test_ablation_smoke_prompt_uses_declared_topology_and_is_not_publishable(self):
++        with tempfile.TemporaryDirectory() as directory:
++            root = Path(directory)
++            for profile, expected in (
++                ("cio-only", []),
++                ("analyst-cio", ["runtime_company_analyst"]),
++                ("full-council", ["runtime_company_analyst", "runtime_skeptic"]),
++            ):
++                run_dir = root / profile
++                prepare_run(
++                    ROOT,
++                    fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "normal-research.json",
++                    run_dir=run_dir,
++                    run_id=f"smoke-{profile}",
++                    model="gpt-5.6-terra",
++                    research_question="评估拓扑。",
++                    authenticity_required=True,
++                    run_mode="EVAL_ABLATION",
++                    ablation_profile=profile,
++                    trigger_reason=f"ablation:{profile}",
++                )
++                prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
++                self.assertIn("EVAL_ABLATION", prompt)
++                self.assertIn("不可作为产品建议发布", prompt)
++                self.assertIn(f"cd {ROOT}", prompt)
++                for agent in expected:
++                    self.assertIn(agent, prompt)
++                if not expected:
++                    self.assertIn("不启动 Specialist", prompt)
++                else:
++                    self.assertIn("禁止子 Agent 调用 file_change", prompt)
++                    self.assertIn("mcp__fixture_runtime__query", prompt)
++
++    def test_ablation_pre_agent_safe_termination_never_dispatches_or_uses_product_gate(self):
++        with tempfile.TemporaryDirectory() as directory:
++            run_dir = Path(directory) / "stale-ablation"
++            result = prepare_run(
++                ROOT,
++                fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "future-or-stale.json",
++                run_dir=run_dir,
++                run_id="smoke-stale-ablation",
++                model="gpt-5.6-terra",
++                research_question="评估无可用 Evidence 的实验拓扑。",
++                authenticity_required=True,
++                run_mode="EVAL_ABLATION",
++                ablation_profile="full-council",
++                trigger_reason="ablation:mandatory-no-trade",
++            )
++            self.assertEqual(result["next_state"], "SAFE_NO_TRADE")
++            prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
++            self.assertIn("PRE_AGENT_SAFE_TERMINATION", prompt)
++            self.assertIn("禁止启动子 Agent", prompt)
++            self.assertIn("不得运行产品 `check-run`", prompt)
++            self.assertNotIn("spawn_agent", prompt)
++
+     def test_plugin_manifest_is_safe_and_complete(self):
+         path = ROOT / "product" / ".codex-plugin" / "plugin.json"
+         manifest = json.loads(path.read_text())
+         self.assertEqual(path.parents[1].name, manifest["name"])
+-        self.assertRegex(manifest["version"], r"^0\.2\.4\+codex\.[A-Za-z0-9.-]+$")
++        self.assertRegex(manifest["version"], r"^0\.3\.0\+codex\.[A-Za-z0-9.-]+$")
+         self.assertEqual("./skills/", manifest["skills"])
+         self.assertNotIn("apps", manifest)
+         self.assertEqual("./.mcp.json", manifest["mcpServers"])
+@@ -92,6 +149,37 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
+         self.assertIsInstance(manifest["interface"]["defaultPrompt"], list)
+         self.assertLessEqual(len(manifest["interface"]["defaultPrompt"]), 3)
+ 
++    def test_plugin_mcp_starts_from_plugin_root_without_product_directory_name(self):
++        config = json.loads((ROOT / "product" / ".mcp.json").read_text())
++        server = config["mcpServers"]["fixture_runtime"]
++        self.assertEqual(server["cwd"], ".")
++        self.assertEqual(
++            server["args"], ["-m", "runtime.fixture_mcp", "--stateless"]
++        )
++        self.assertNotIn("cd ..", " ".join(server["args"]))
++
++        request = json.dumps(
++            {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
++        ) + "\n"
++        env = dict(os.environ)
++        env["PYTHONDONTWRITEBYTECODE"] = "1"
++        result = subprocess.run(
++            [server["command"], *server["args"]],
++            cwd=ROOT / "product",
++            input=request,
++            text=True,
++            capture_output=True,
++            env=env,
++            check=False,
++            timeout=10,
++        )
++        self.assertEqual(result.returncode, 0, result.stderr)
++        response = json.loads(result.stdout)
++        self.assertEqual(
++            [tool["name"] for tool in response["result"]["tools"]],
++            ["query", "calculate"],
++        )
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/test_product_config.py b/tests/test_product_config.py
+index e7c863c..9ac752a 100644
+--- a/tests/test_product_config.py
++++ b/tests/test_product_config.py
+@@ -72,7 +72,7 @@ class SkillConfigTests(unittest.TestCase):
+             expected_version = (
+                 "1.0.0"
+                 if skill_name == "catalyst-analysis"
+-                else "2.1.0"
++                else "3.0.0"
+                 if skill_name == "portfolio-council"
+                 else "2.0.0"
+             )
+@@ -172,7 +172,7 @@ class RuntimeAgentConfigTests(unittest.TestCase):
+                 for name in profile
+             },
+             {
+-                "runtime_cio": "2.1.0",
++                "runtime_cio": "3.0.0",
+                 "runtime_company_analyst": "2.1.0",
+                 "runtime_skeptic": "2.0.0",
+             },
+diff --git a/tests/test_runtime_foundation.py b/tests/test_runtime_foundation.py
+index 7ae47e2..b7cc9d1 100644
+--- a/tests/test_runtime_foundation.py
++++ b/tests/test_runtime_foundation.py
+@@ -8,6 +8,8 @@ from pathlib import Path
+ 
+ from product.runtime import discover_product_resources, load_version_manifest
+ from product.runtime.versioning import validate_version_manifest
++from product.runtime.hashing import canonical_hash, file_hash
++from evals.regression.runner import load_regression_set
+ 
+ 
+ ROOT = Path(__file__).resolve().parents[1]
+@@ -16,12 +18,13 @@ ROOT = Path(__file__).resolve().parents[1]
+ class VersionManifestTests(unittest.TestCase):
+     def test_candidate_manifest_locks_native_runtime_versions(self):
+         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
+-        self.assertEqual("0.2.1-candidate.1", manifest["candidate_version"])
++        self.assertEqual("0.3.0-candidate.1", manifest["candidate_version"])
+         self.assertEqual("codex-cli/0.153.4", manifest["codex_runtime"])
+         self.assertEqual("gpt-5.6-terra", manifest["model"])
+         self.assertIn("fixture-gate-scoped", manifest["mcp_adapters"])
+         self.assertIn("runtime-cio", manifest["agents"])
+         self.assertEqual(len(manifest["resource_hashes"]), 9)
++        self.assertEqual(len(manifest["assurance_hashes"]), 8)
+ 
+     def test_manifest_fails_closed_for_missing_or_fixture_model(self):
+         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
+@@ -33,6 +36,24 @@ class VersionManifestTests(unittest.TestCase):
+         fixture_model["model"] = "fixture-model/1"
+         with self.assertRaises(ValueError):
+             validate_version_manifest(fixture_model)
++        missing_assurance = copy.deepcopy(manifest)
++        del missing_assurance["assurance_hashes"]["runtime_eval_rubric"]
++        with self.assertRaises(ValueError):
++            validate_version_manifest(missing_assurance)
++
++    def test_assurance_version_hashes_resolve_to_current_control_plane(self):
++        manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
++        expected = {
++            "model_routing_policy": canonical_hash(json.loads((ROOT / "product" / "model-routing.json").read_text(encoding="utf-8"))),
++            "runtime_eval_rubric": canonical_hash(json.loads((ROOT / "evals" / "grading" / "semantic-rubric-v1.json").read_text(encoding="utf-8"))),
++            "runtime_eval_grader_skill": file_hash(ROOT / ".agents" / "skills" / "runtime-eval-grading" / "SKILL.md"),
++            "runtime_eval_grader_agent": file_hash(ROOT / ".codex" / "agents" / "dev_eval.toml"),
++            "runtime_eval_calibration": canonical_hash(json.loads((ROOT / "evals" / "grading" / "calibration" / "v1" / "labels.json").read_text(encoding="utf-8"))),
++            "regression_set": load_regression_set(ROOT)["set_hash"],
++            "ablation_profiles": canonical_hash(json.loads((ROOT / "evals" / "ablation" / "profiles-v1.json").read_text(encoding="utf-8"))),
++            "promotion_policy": canonical_hash(json.loads((ROOT / "evals" / "promotion" / "policy-v1.json").read_text(encoding="utf-8"))),
++        }
++        self.assertEqual(manifest["assurance_hashes"], expected)
+ 
+ 
+ class ProductDiscoveryTests(unittest.TestCase):

@@ -1,0 +1,10 @@
+{
+  "schema_version": "deterministic-test-report/1.0.0",
+  "status": "FAIL",
+  "command": "negative acceptance fixture",
+  "tests_run": 1,
+  "failures": 1,
+  "errors": 0,
+  "completed_at": "2026-09-07T18:00:00+08:00",
+  "note": "仅用于验证 Promotion Gate 的确定性测试硬门禁，非真实测试结果。"
+}

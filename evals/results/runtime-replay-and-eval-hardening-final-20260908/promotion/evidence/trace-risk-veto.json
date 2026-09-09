@@ -1,0 +1,10 @@
+{
+  "failed_stage": null,
+  "report_hash": "de58c8c1db3004bce10a03aefd6ccd2943a9c9555c377959c8dd336c6cddfcbb",
+  "run_id": "rrh-final-risk-veto-20260908",
+  "schema_version": "trace-integrity-report/1.0.0",
+  "source_run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto",
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "29009dd8c10dfc873e5cefe4a054f536a85965291a0a618ce0e4cb5ef9461e84"
+}

@@ -1,0 +1,319 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "contract-claim-1",
+          "evidence_refs": [
+            "ev-normal-debt"
+          ],
+          "kind": "FACT",
+          "statement": "引用的 Evidence 已通过当前运行的 PIT Gate。"
+        }
+      ],
+      "confidence": 0.5,
+      "confidence_rationale": "置信度只描述契约夹具的证据闭包，不表达投资观点。",
+      "counter_evidence_refs": [
+        "ev-normal-margin"
+      ],
+      "data_gaps": [],
+      "invalidation_conditions": [
+        "任一契约或 Evidence 版本发生变化。"
+      ],
+      "invocation_id": "inv_e3a60c93f20c1f4d22b6c15d",
+      "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "确定性 action 契约夹具；不构成投资结论。",
+      "skill_execution": [
+        {
+          "invocation_hash": "b816b87e43d8e07d6dc4f12c370683ad04dd383c89bcc98acf311a7d768de4af",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "226eb9f069e058de4162f041b25b639e0aebfccb47d87dc23bfd99e79a8c31dd",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "518154a7364577ab51aa8ef8bf981a8bba6e666d6a4492a92a2eb010e612e270",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "本案例只验证结构化 action 与 Risk 边界。"
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "contract-challenge-1",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "resolution_evidence_needed": [
+            "Risk Engine 的实际 lineage"
+          ],
+          "statement": "合法 Schema 不代表可以绕过确定性 Risk Engine。"
+        }
+      ],
+      "confidence": 0.5,
+      "confidence_rationale": "仅用于证明独立报告及 Evidence 闭包。",
+      "counter_evidence_refs": [
+        "ev-normal-debt"
+      ],
+      "data_gaps": [],
+      "evidence_refs": [
+        "ev-normal-margin"
+      ],
+      "invalidation_conditions": [
+        "Risk lineage 缺失或契约校验失败。"
+      ],
+      "invocation_id": "inv_da841a629f22aa112c8a21c2",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "确定性 action 契约夹具的独立边界检查。",
+      "skill_execution": [
+        {
+          "invocation_hash": "2c36a9b613a24b41863fa54862d021a6ebf9c0e6f09e9ad1309340afad95df33",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "cebd89b0b887f58078d9ed1f96c1552690786e8452e496ccdfb245f2705c3639",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "本案例不评价证券方向。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "HOLD",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.5,
+      "confidence_rationale": "仅表达对契约闭包的有限确定性。",
+      "conflicts": [],
+      "consensus": [
+        "两份报告均只引用当前 Gate 允许的 Evidence。"
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "f8a9e975205f77bfd871d26c48edcfd713274dac7490256b4bf760caa0b1f6be"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "b8fdb6a301655539ca953f31eb80a94a1c7f4ecf08d8442b2a803448ee47c8cb"
+        }
+      ],
+      "counter_thesis": "契约合法不能替代 Risk Engine 的确定性校验。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin"
+      ],
+      "invalidation_conditions": [
+        "契约、Evidence 或 Risk Policy 任一发生变化。"
+      ],
+      "invocation_id": "inv_510637f668b7af2f8e9c9e44",
+      "maximum_notional": null,
+      "no_trade_explanation": null,
+      "no_trade_reason": null,
+      "reevaluation_conditions": [],
+      "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "d7985706fe73a06c710322f9c3fc0c8ac725e7c9694eea022c446b1b45dae513",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "target_weight_range": [
+        0.5,
+        0.5
+      ],
+      "thesis": "该输出只验证合法 action 能经过完整 Runtime 与 Risk Engine。",
+      "time_horizon": "确定性契约验收周期",
+      "unresolved_questions": [
+        "本夹具不生成主观投资判断。"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "HOLD",
+          "confidence": 0.5,
+          "confidence_rationale": "仅表达对契约闭包的有限确定性。",
+          "counter_thesis": "契约合法不能替代 Risk Engine 的确定性校验。",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-margin"
+          ],
+          "invalidation_conditions": [
+            "契约、Evidence 或 Risk Policy 任一发生变化。"
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": null,
+          "no_trade_reason": null,
+          "reevaluation_conditions": [],
+          "security_id": "SEC-AAA",
+          "target_weight_range": [
+            0.5,
+            0.5
+          ],
+          "thesis": "该输出只验证合法 action 能经过完整 Runtime 与 Risk Engine。",
+          "time_horizon": "确定性契约验收周期",
+          "unresolved_questions": [
+            "本夹具不生成主观投资判断。"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "HOLD",
+        "original_action": "HOLD",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "COMPLETED"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-debt",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "total_debt",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/debt/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 150000
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "evidence_id": "ev-normal-margin",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "operating_margin_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/margin/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "ratio",
+          "value": 0.18
+        },
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://normal/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-revenue",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/revenue/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "as_of": "2026-01-20T14:00:00Z",
+          "evidence_id": "ev-normal-update",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-20T14:01:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "company_update",
+          "source_id": "fixture-company-release",
+          "source_locator": "fixture://normal/update/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "text",
+          "value": "Management maintained the previously stated capacity plan."
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "bundle_hash": "bffa107d505235eeaf7ae13f6c6eabbef999927aa75487a3b10433c0a72f8d29",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "normal-research-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "0aa04db91168086dabaec2e69647c59e80b7cac099d6ae07e3bdf63a5928b7fe",
+      "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+  "terminal_state": "COMPLETED"
+}

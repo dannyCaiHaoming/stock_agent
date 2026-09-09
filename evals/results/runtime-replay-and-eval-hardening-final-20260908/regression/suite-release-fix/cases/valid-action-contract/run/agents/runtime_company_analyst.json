@@ -1,0 +1,50 @@
+{
+  "agent": "runtime_company_analyst",
+  "artifact_refs": [],
+  "assumptions": [],
+  "claims": [
+    {
+      "assumption_ids": [],
+      "claim_id": "contract-claim-1",
+      "evidence_refs": [
+        "ev-normal-debt"
+      ],
+      "kind": "FACT",
+      "statement": "引用的 Evidence 已通过当前运行的 PIT Gate。"
+    }
+  ],
+  "confidence": 0.5,
+  "confidence_rationale": "置信度只描述契约夹具的证据闭包，不表达投资观点。",
+  "counter_evidence_refs": [
+    "ev-normal-margin"
+  ],
+  "data_gaps": [],
+  "invalidation_conditions": [
+    "任一契约或 Evidence 版本发生变化。"
+  ],
+  "invocation_id": "inv_e3a60c93f20c1f4d22b6c15d",
+  "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+  "schema_version": "agent-research-report/2.0.0",
+  "scope": "确定性 action 契约夹具；不构成投资结论。",
+  "skill_execution": [
+    {
+      "invocation_hash": "b816b87e43d8e07d6dc4f12c370683ad04dd383c89bcc98acf311a7d768de4af",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "226eb9f069e058de4162f041b25b639e0aebfccb47d87dc23bfd99e79a8c31dd",
+      "skill_name": "company-research",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "518154a7364577ab51aa8ef8bf981a8bba6e666d6a4492a92a2eb010e612e270",
+      "skill_name": "valuation",
+      "version": "2.0.0"
+    }
+  ],
+  "status": "COMPLETE",
+  "uncertainties": [
+    "本案例只验证结构化 action 与 Risk 边界。"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-eval-risk-veto-20260908",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/risk-veto",
+  "run_id": "rrh-final-risk-veto-20260908",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "1a274bdd0abbae6d810e9e1e264699ed682c86bcae9f65dbaaa63c126f811408",
+    "artifact_replay": "3747fbd10cf2200b77dfebbe64e697604d6f589d3bf2ee75307ad81d1ce5fc14",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "f5b8958ae331fcea8d9ce57506ae18242f3c1b1290f231e44c989b79447988d5",
+    "semantic_input": "e53d304c20d6584aadf80cec4471c1849347f5eee1da10e23b7320b81b732438",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "29009dd8c10dfc873e5cefe4a054f536a85965291a0a618ce0e4cb5ef9461e84"
+  }
+}

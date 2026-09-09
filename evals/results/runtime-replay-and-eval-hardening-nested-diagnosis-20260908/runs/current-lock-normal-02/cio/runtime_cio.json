@@ -1,0 +1,68 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-nested-current-lock-normal-02-20260908",
+  "invocation_id": "inv_be3a50bc5b937b6db5c8e3f9",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "9b1b9bee6eb9850bd8b04fe2bb7f6613bbe71c8cbb5c96fc9fbbdfaab892a08e"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "b950178030ca7e720de5d4ecb5c65cb8ef4529ce5c4f62055d14b4f62fa9c0d0"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在取得可核验的补充基本面、资本结构和估值资料前不形成方向性建议。",
+  "thesis": "授权证据显示截至 2025-12-31 的 TTM 收入为 1,000,000 USD、经营利润率为 18%、总债务为 150,000 USD，且管理层在 2026-01-20 维持产能计划；这些事实提供了有限的经营稳定性背景。",
+  "counter_thesis": "单期利润率、债务与收入规模以及管理层计划陈述，均不能验证利润率可持续性、偿债能力、产能项目回报或当前价格是否已反映乐观预期；缺失的现金流、债务结构、需求执行和估值数据对建议具有实质性影响。",
+  "consensus": [
+    "两份报告均确认五项授权证据在决策截止日前可用，并包含收入、经营利润率、总债务、单一价格观察及产能计划维持的事实。",
+    "两份报告均认为缺少现金流、债务期限与利率、流动性、需求与产能执行、股本及估值资料，无法充分判断商业质量、资本结构或估值。",
+    "两份报告均将管理层维持产能计划视为有限事实，而非需求、融资、执行或投资回报的验证。"
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "经营利润率是否具备多期可持续性，及其收入、成本、竞争和现金流驱动因素为何？",
+    "债务的到期、利率、契约、现金余额、流动性和利息覆盖状况如何？",
+    "产能计划的需求验证、资本开支、融资来源、利用率、执行进度和经济回报为何？",
+    "流通股数、企业价值、盈利与自由现金流、估值倍数及同业比较如何支持或反驳当前价格的估值判断？"
+  ],
+  "invalidation_conditions": [
+    "取得多期财务与现金流资料后，若显示利润率恶化、收入下降或现金流覆盖不足，则当前有限稳定性背景失效。",
+    "若债务明细显示重大到期、利率、契约或流动性压力，则总债务相对收入的有限解释失效。",
+    "若产能计划被取消、延后、融资受限，或需求、利用率和资本回报证据不足，则其潜在正面解释失效。",
+    "若完整估值资料显示当前价格已反映或超过可验证的基本面改善预期，则不得据当前事实形成正面方向性结论。"
+  ],
+  "confidence": 0.42,
+  "confidence_rationale": "对已授权五项事实及其时点一致性具有中等置信度；但两份独立报告一致识别出影响估值、偿债能力、经营持续性和产能经济性的关键数据缺口，因此对任何方向性建议的置信度不足。",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "可用证据未能覆盖现金流与债务结构、产能计划执行和回报、以及估值所需的核心信息；在这些实质性问题未解决前，不能形成受证据支持的方向性建议。",
+  "reevaluation_conditions": [
+    "获得多期收入、利润率、经营现金流和自由现金流及其驱动因素。",
+    "获得债务期限、利率、契约、现金余额、流动性和利息覆盖资料。",
+    "获得产能计划的需求、资本开支、融资、利用率、建设里程碑和投资回报的可核验证据。",
+    "获得股本、企业价值、盈利和现金流预测、估值倍数及同业比较资料。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "ee91365d0135fbedfd15465f91d76df40dbb645d47dfca728f3d73fcdc91375b",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

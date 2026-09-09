@@ -1,0 +1,246 @@
+{
+  "schema_version": "final-independent-bottom-up-audit/1.0.0",
+  "candidate_lock": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+  "runtime_tools": {
+    "status": "PASS",
+    "access_modes": [
+      "read"
+    ],
+    "contract_names": [
+      "security_master.resolve",
+      "market_data.query",
+      "fundamentals.query",
+      "filings_news.query",
+      "evidence.query",
+      "valuation.calculate",
+      "liquidity.calculate"
+    ],
+    "fixture_mcp_enabled_tools": [
+      "query",
+      "calculate"
+    ],
+    "fixture_annotations": {
+      "query": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "calculate": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    "runtime_agent_tool_permissions": {
+      "runtime_company_analyst": [
+        "fixture_evidence.query",
+        "fixture_math.calculate"
+      ],
+      "runtime_skeptic": [
+        "fixture_evidence.query"
+      ],
+      "runtime_cio": [
+        "fixture_evidence.query"
+      ]
+    },
+    "assertions": {
+      "access_enum_read_only": true,
+      "all_contracts_read_only": true,
+      "fixture_annotations_read_only": true,
+      "only_query_and_calculate_enabled": true
+    }
+  },
+  "risk_engine": {
+    "status": "PASS",
+    "rule_bases": [
+      "accounting_identity",
+      "data_quality",
+      "explicit_mandate",
+      "mathematical_definition"
+    ],
+    "allowed_metrics": [
+      "adv_participation",
+      "amount_conservation",
+      "cash_weight",
+      "leverage",
+      "long_only",
+      "position_weight",
+      "price_age",
+      "sector_weight",
+      "turnover"
+    ],
+    "assertions": {
+      "only_objective_bases": true,
+      "finite_metric_allowlist": true
+    }
+  },
+  "learning_and_promotion_boundary": {
+    "status": "PASS",
+    "automatic_production_mutation": false,
+    "current_candidate_human_approval_records": [],
+    "human_approval_status": "FAIL_MISSING_CURRENT_PROMOTION_RECORD",
+    "task_11_10_unchecked": true
+  },
+  "typed_invariants": {
+    "status": "PASS",
+    "count": 19,
+    "types": [
+      "TERMINAL_STATE_IN",
+      "AGENTS_INCLUDE",
+      "AGENTS_EXCLUDE",
+      "RISK_NOT_BYPASSED",
+      "EXPECT_RISK_PASS",
+      "EXPECT_RISK_VETO",
+      "EXPECT_NO_TRADE",
+      "NO_FUTURE_EVIDENCE",
+      "EVIDENCE_CLOSURE",
+      "TRACE_COMPLETE",
+      "SPECIALIST_OUTPUT_VALID",
+      "CIO_CONFLICT_HANDLED",
+      "EXPECT_FAILED_STAGE",
+      "EVIDENCE_SUBSET_OF_GATE",
+      "SEMANTIC_DIMENSIONS_APPLICABLE",
+      "EXPECT_VALIDATION_REJECTION",
+      "LLM_CALLS_EQUAL",
+      "VALID_ACTION_SET",
+      "FORBIDDEN_ACTION"
+    ],
+    "schema_equals_registry": true
+  },
+  "fresh_regression": {
+    "status": "FAIL",
+    "suite_id": "rrh-final-independent-v2-current-lock-fresh-20260908",
+    "set_hash": "6004fb79ed7ec5de46310e017cf493b2362b3259ddf2222982d78e75d9a143ef",
+    "candidate_hash": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "case_count": 12,
+    "pass_count": 6,
+    "fail_count": 6,
+    "run_ids_globally_unique": true,
+    "deterministic_cases_full_chain": true,
+    "reason_codes": [
+      "REGRESSION_CASE_FAILED:normal-research",
+      "REGRESSION_CASE_FAILED:insufficient-evidence",
+      "REGRESSION_CASE_FAILED:analyst-skeptic-strong-conflict",
+      "REGRESSION_CASE_FAILED:risk-veto",
+      "REGRESSION_CASE_FAILED:high-concentration-portfolio",
+      "REGRESSION_CASE_FAILED:llm-overconfidence"
+    ]
+  },
+  "future_evidence": {
+    "status": "PASS",
+    "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-future-information-leakage-0c1ee5e5f05d",
+    "producer": "regression-fixture-injector",
+    "injection_type": "FUTURE_EVIDENCE",
+    "mechanism": "append_declared_evidence_before_pit_gate",
+    "version": "future-evidence-injection/1.0.0",
+    "decision_cutoff": "2026-01-31T23:59:59Z",
+    "injected_evidence": [
+      {
+        "evidence_id": "ev-future-asof",
+        "original_as_of": "2026-02-01T21:00:00Z",
+        "original_published_at": "2026-02-01T21:00:00Z",
+        "original_retrieved_at": "2026-02-01T21:05:00Z"
+      },
+      {
+        "evidence_id": "ev-future-retrieval",
+        "original_as_of": "2025-12-31T00:00:00Z",
+        "original_published_at": "2026-02-02T12:55:00Z",
+        "original_retrieved_at": "2026-02-02T13:00:00Z"
+      }
+    ],
+    "allowed_evidence_ids": [],
+    "excluded": [
+      {
+        "as_of": "2026-02-01T21:00:00Z",
+        "evidence_id": "ev-future-asof",
+        "reason_codes": [
+          "FUTURE_AS_OF",
+          "FUTURE_RETRIEVAL"
+        ],
+        "retrieved_at": "2026-02-01T21:05:00Z",
+        "threshold_days": 7
+      },
+      {
+        "as_of": "2025-12-31T00:00:00Z",
+        "evidence_id": "ev-future-retrieval",
+        "reason_codes": [
+          "FUTURE_RETRIEVAL"
+        ],
+        "retrieved_at": "2026-02-02T13:00:00Z",
+        "threshold_days": 400
+      },
+      {
+        "as_of": "2025-01-01T14:00:00Z",
+        "evidence_id": "ev-stale-update",
+        "reason_codes": [
+          "STALE"
+        ],
+        "retrieved_at": "2025-01-01T14:01:00Z",
+        "threshold_days": 30
+      }
+    ],
+    "eval_pit_gate": {
+      "injected_evidence_ids": [
+        "ev-future-asof",
+        "ev-future-retrieval"
+      ],
+      "injection_producer": "regression-fixture-injector",
+      "injection_reason_codes": [],
+      "injection_verified": true,
+      "injection_version": "future-evidence-injection/1.0.0",
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "executed_operations": [
+      "deterministic_injection",
+      "trace_integrity_report",
+      "artifact_replay",
+      "runtime_eval_verify"
+    ]
+  },
+  "fresh_source_run": {
+    "status": "FAIL_NONTERMINAL",
+    "run_id": "rrh-final-independent-v2-source-normal-20260908",
+    "model": "gpt-5.6-terra",
+    "candidate_lock": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "terminal_state": null,
+    "event_count": 3,
+    "codex_event_exit_code": 0,
+    "codex_stdout_sha256": "08fb59bd899433fa7fb5ac981b5639d726d7b761d3aa0e57a7e843a81900b7fc"
+  },
+  "calibration": {
+    "status": "PASS",
+    "agreement": 1.0,
+    "observations": 30,
+    "session_ids": [
+      "01a07c36-2f13-7492-a0ca-9a540320547f",
+      "01a07c3a-de28-75e2-bc08-dbc6727f7a95"
+    ]
+  },
+  "ablation": {
+    "runner_status": "PASS",
+    "conclusion": "NO_MEASURABLE_GAIN",
+    "source_candidate_locks": [
+      "5d0e5faae763037c412665122a06db7d1dbf03a60a55092fd4da31c12f8c7f48",
+      "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4"
+    ],
+    "current_lock_equivalent": false
+  },
+  "promotion": {
+    "status": "FAIL",
+    "gate_id": "rrh-final-independent-v2-gate-20260908",
+    "reason_codes": [
+      "PROMOTION_HARD_GATE_FAILED:mandatory_no_trade",
+      "PROMOTION_HARD_GATE_FAILED:runtime_regression",
+      "PROMOTION_HARD_GATE_FAILED:version_completeness"
+    ],
+    "negative_assertion_status": "FAIL",
+    "negative_assertion_reason_codes": [
+      "PROMOTION_HARD_GATE_FAILED:deterministic_tests",
+      "PROMOTION_HARD_GATE_FAILED:mandatory_no_trade",
+      "PROMOTION_HARD_GATE_FAILED:runtime_regression",
+      "PROMOTION_HARD_GATE_FAILED:version_completeness"
+    ]
+  }
+}

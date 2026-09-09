@@ -1,0 +1,5 @@
+eval_id：`rrh-final-lock-eval-insufficient-evidence-20260909`  
+Eval 状态：`PASS`  
+
+[eval/result.json](/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/insufficient-evidence/eval/result.json)  
+[eval/report.md](/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/insufficient-evidence/eval/report.md)

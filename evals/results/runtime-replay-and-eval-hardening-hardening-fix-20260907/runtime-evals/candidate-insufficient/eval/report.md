@@ -1,0 +1,37 @@
+# Runtime Eval 报告
+
+- Eval ID：`rreh-hardening-eval-candidate-insufficient-20260907`
+- Run ID：`rreh-candidate-insufficient-20260907`
+- 终态：`SAFE_NO_TRADE`
+- 结果：`PASS`
+
+## 硬门禁
+
+- artifact_replay: `PASS`
+- evidence_closure: `PASS`
+- pit_leakage: `PASS`
+- risk_bypass: `PASS`
+- schema_and_artifacts: `PASS`
+- terminal_contract: `PASS`
+- trace_completeness: `PASS`
+
+## 语义 Rubric
+
+- analyst_thesis_grounding: `PASS` / grade=3 — runtime_company_analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，且明确将公司 Thesis、估值和商业质量判断限制为证据不足，区分了已支持事实与不可作出的判断。
+- cio_conflict_handling: `PASS` / grade=3 — runtime_cio 明确记录两份报告对证据范围限制的共识、无来源冲突、三项未决问题及其对不形成证券层建议的影响；decision.json 同时记录 Risk Engine 为 APPROVED 且终态为 SAFE_NO_TRADE。
+- confidence_calibration: `PASS` / grade=3 — Analyst 0.2、Skeptic 0.15 与 CIO 0.15 的理由均将置信度限定于单一价格事实或证据不足结论，并随缺少基本面、估值、事件与历史市场证据的高度不确定性保持低位。
+- no_trade_reasoning: `PASS` / grade=3 — decision.json 与 runtime_cio 均将唯一允许的单点价格证据判为不足以支持公司质量、估值、催化剂、流动性或持仓风险判断；NO_TRADE、INSUFFICIENT_EVIDENCE 原因及取得带完整血缘的基本面、估值、价格历史、流动性和事件证据后的重评条件一致。
+- skeptic_counter_evidence: `PASS` / grade=3 — runtime_skeptic 以 INDEPENDENT_FIRST_PASS 明确单一价格不能建立或反驳投资判断，列出基本面、估值、事件、流动性与价格历史等具体所需证据，并给出该不足结论的可证伪失效条件。
+
+## Grader Lineage
+
+- Agent：`dev_eval`
+- Model：`gpt-5.6-terra`
+- Prompt hash：`937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de`
+- Rubric hash：`8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f`
+- Input hash：`bb19dae6f5ab50329d682d79d5784d089ccf49b200914e0138d937150d9e616f`
+- Execution proof hash：`2b5ba28bddf890f08f251f56b49c03fd36539a12f5072c0b871076be17dec660`
+
+## Reason Codes
+
+- 无

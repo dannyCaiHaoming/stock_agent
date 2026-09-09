@@ -1,0 +1,73 @@
+{
+  "schema_version": "promotion-input/1.0.0",
+  "gate_id": "rrh-final-promotion-current-baseline-gap-20260908",
+  "candidate_version": "0.3.0-candidate.1",
+  "baseline_version": "0.2.1-candidate.1",
+  "candidate_changes_default_topology": false,
+  "artifacts": {
+    "candidate_manifest": {
+      "path": "/Users/caihaoming/Documents/stock_agent/product/version-manifest.json",
+      "sha256": "dbc508cc24544230a19c37f2a1b62106f5f58c220231c101e2725cddd39cb1b3"
+    },
+    "baseline_manifest": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/promotion/baseline-version-manifest.json",
+      "sha256": "1378021f9c17822b0c75824d8b7514403d2b320abd67dd62b00dc083972704a6"
+    },
+    "model_policy": {
+      "path": "/Users/caihaoming/Documents/stock_agent/product/model-routing.json",
+      "sha256": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5"
+    },
+    "deterministic_tests": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/full-suite/result.json",
+      "sha256": "825e810c7b01521ebb55131532f884aa5cd39ec92ff8ea4674a823e6176bec93"
+    },
+    "semantic_calibration": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/result/result.json",
+      "sha256": "cf8cf8b63d79818dad358a9aece82b02bec81df677365d50276d46ae84b1aa79"
+    },
+    "regression": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/result.json",
+      "sha256": "01aab751fef3eecfd6739a63e4be9b6198d974833003b5a18ac26731d657d86c"
+    },
+    "execution_replay": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/replay/execution-replay-risk-veto/result.json",
+      "sha256": "ab4f8dca8028376a977e993dda0d343859677c044235619ff2da6434ab7ee284"
+    },
+    "runtime_evals": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/normal-research/eval/result.json",
+        "sha256": "59635ca41e809efa3fdb98513937e018f3582c5980619649ab9963d1730d2f62"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/risk-veto/eval/result.json",
+        "sha256": "0a8c5cfdfccac65343239b9c850ed67fb8bfa622f3b08f57766903415723f567"
+      }
+    ],
+    "grader_proofs": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/normal-research/grader-execution-proof.json",
+        "sha256": "6057b0c2b1680ab7930f2837d00c094346942f079149e5978a9bb47e5341db12"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/risk-veto/grader-execution-proof.json",
+        "sha256": "429fea3fb1ed9d15674d35dde4e30c69e9d08a50b78f1faa2b3aa1fd2f2baddb"
+      }
+    ],
+    "baseline_runtime_evals": [],
+    "ablation": {
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/comparison-hardening-final/result.json",
+      "sha256": "25bbf81a719fe724feab279fc5064efdc4701f12207d2ff7047efbeb3068c7e8"
+    },
+    "baseline_ablation": null,
+    "trace_integrity": [
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/promotion/evidence/trace-normal.json",
+        "sha256": "706ce34bbeaee99a1b65e9ccf47decbd3f000996a4aa1577054d22b7cde3d817"
+      },
+      {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/promotion/evidence/trace-risk-veto.json",
+        "sha256": "de401f1b66b1262542fb0edbe3e96715890e81c9c43079dfb57528ad0a2e5992"
+      }
+    ]
+  }
+}

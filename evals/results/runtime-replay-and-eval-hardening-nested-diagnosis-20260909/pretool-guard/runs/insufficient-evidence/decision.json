@@ -1,0 +1,53 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.93,
+      "confidence_rationale": "Confidence is high that the available evidence is inadequate because both independent reports, grounded in the same sole authorized price observation, identify the absence of all decision-critical fundamental, valuation, catalyst, liquidity, and risk inputs. Confidence in any directional investment conclusion is therefore insufficient.",
+      "counter_thesis": "No substantive company thesis can be responsibly supported or falsified from a single close-price observation; treating that observation as sufficient would be unsupported.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "This NO_TRADE synthesis should be revisited if Gate-authorized point-in-time evidence becomes available for fundamentals, valuation, catalysts, liquidity, and material risks before the decision cutoff.",
+        "If an authorized source provides conflicting price evidence with complete source and timing lineage, the reported close-price fact requires re-verification."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "The Gate permits only one fresh close-price observation. It cannot support a substantiated thesis, counter-thesis resolution, valuation assessment, or risk assessment for SEC-AAA.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain Gate-authorized, point-in-time financial performance and balance-sheet evidence.",
+        "Obtain Gate-authorized valuation inputs and peer or market context.",
+        "Obtain Gate-authorized company-specific catalyst, liquidity, and material-risk evidence."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The sole authorized observation is a fresh SEC-AAA close price of USD 100; it does not establish business quality, valuation, catalysts, liquidity, or downside risk.",
+      "time_horizon": "Reassess only after Gate-authorized point-in-time fundamental, valuation, catalyst, liquidity, and risk evidence becomes available.",
+      "unresolved_questions": [
+        "What were SEC-AAA's point-in-time operating performance, profitability, cash flow, and balance-sheet condition before the decision cutoff?",
+        "What valuation inputs and comparable or market context support or challenge the observed close price?",
+        "Which company-specific catalysts, liquidity conditions, and material downside risks were observable before the decision cutoff?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-pretool-guard-insufficient-evidence-20260909",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

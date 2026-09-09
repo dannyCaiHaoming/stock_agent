@@ -1,0 +1,51 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-final-normal-research-20260908",
+  "invocation_id": "inv_e8e01d0539c744127782e49d",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {"agent": "runtime_company_analyst", "output_hash": "cf0c9e06609bb9239d1c621ccfd991f1046f8c7f8ba7ee876994ee765891f11b"},
+    {"agent": "runtime_skeptic", "output_hash": "00035632889908eb75d815d41f6a4c29405fdf74f2e3cbe8aff52b9289ac336b"}
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess only when the specified point-in-time evidence gaps are resolved.",
+  "thesis": "Authorized evidence supports that SEC-AAA reported USD 1,000,000 TTM revenue, a 0.18 operating margin, USD 150,000 total debt, and maintained its stated capacity plan. The reports do not establish durability, liquidity, capacity economics, or valuation at the observed price.",
+  "counter_thesis": "The maintained capacity plan may require financing or fail to earn adequate returns; the historical operating margin may not persist, and the USD 100 close has no usable valuation context without equity-value, cash-flow, or comparable evidence.",
+  "consensus": [
+    "Both validated reports treat the authorized facts as fresh and internally consistent within the decision cutoff.",
+    "Both reports find material gaps in liquidity, debt-service capacity, capacity-plan economics, operating trajectory, and valuation context.",
+    "Both reports support withholding an action until the missing evidence is available."
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What are cash, liquidity, debt maturities, interest burden, covenant constraints, and operating cash flow?",
+    "What are the capacity plan's capex, timing, funding, utilization, expected returns, and execution milestones?",
+    "Are revenue and operating margins durable based on post-period, segment, pricing, volume, and competitive evidence?",
+    "What point-in-time shares outstanding, enterprise-value, earnings, free-cash-flow, and comparable data establish valuation at the USD 100 close?"
+  ],
+  "invalidation_conditions": [
+    "New verified financial disclosures contradict the reported debt, revenue, or operating-margin facts.",
+    "New evidence shows material liquidity, refinancing, maturity, or interest-burden stress.",
+    "Capacity execution is delayed, curtailed, inadequately financed, or unsupported by demand and economic returns.",
+    "New point-in-time operating or valuation evidence materially changes the current evidence-gap assessment."
+  ],
+  "confidence": 0.32,
+  "confidence_rationale": "The two independent reports agree on the limited factual record and on the material missing inputs. Although the recorded margin and debt-to-revenue relationship are not adverse on their own, the evidence does not support a reliable assessment of cash generation, balance-sheet resilience, capacity-return economics, durability, or valuation; therefore confidence in any directional action is low.",
+  "evidence_refs": ["ev-normal-debt", "ev-normal-margin", "ev-normal-price", "ev-normal-revenue", "ev-normal-update"],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "The validated reports identify material unresolved gaps in liquidity, debt service, capacity-plan funding and returns, operating durability, and valuation. Those gaps prevent a sufficiently supported directional advisory conclusion.",
+  "reevaluation_conditions": [
+    "Obtain point-in-time evidence for cash, liquidity, debt maturities, interest burden, covenants, and operating cash flow.",
+    "Obtain capacity-plan capex, funding, timing, utilization, expected-return, and execution evidence.",
+    "Obtain post-period operating trajectory and valuation inputs, including shares outstanding, earnings or free cash flow, enterprise value, and comparable context."
+  ],
+  "skill_execution": [
+    {"invocation_hash": "c78c81361ec6801535b1d4a2d04389013bf56bc9a001accf129803944530c7ba", "skill_name": "portfolio-council", "version": "3.0.0"}
+  ],
+  "advisory_only": true
+}

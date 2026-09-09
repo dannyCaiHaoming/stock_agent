@@ -1,0 +1,13 @@
+{
+  "artifacts": {},
+  "case_id": "high-concentration-portfolio",
+  "executed_operations": [],
+  "hashes": {},
+  "llm_calls_during_verification": 0,
+  "producer": "missing-runtime-input",
+  "proof_hash": "defe31d6c6cdb2521cfc119f9b7448cf7d1b832bb4ea2009da42419e42f09976",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-high-concentration-portfolio-missing",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "none",
+  "status": "FAIL"
+}

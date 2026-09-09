@@ -1,0 +1,96 @@
+{
+  "candidate_hash": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+  "case_count": 12,
+  "cases": [
+    {
+      "case_id": "normal-research",
+      "llm_required": true,
+      "producer": "codex-native-runtime",
+      "run_id": "rrh-final-normal-research-20260908",
+      "status": "PASS"
+    },
+    {
+      "case_id": "insufficient-evidence",
+      "llm_required": true,
+      "producer": "codex-native-runtime",
+      "run_id": "rrh-final-insufficient-evidence-20260908",
+      "status": "PASS"
+    },
+    {
+      "case_id": "all-evidence-stale",
+      "llm_required": false,
+      "producer": "deterministic-injection",
+      "run_id": "regression-rrh-release-fix-20260908-all-evidence-stale-42d07a9edbdd",
+      "status": "PASS"
+    },
+    {
+      "case_id": "future-information-leakage",
+      "llm_required": false,
+      "producer": "deterministic-injection",
+      "run_id": "regression-rrh-release-fix-20260908-future-information-leakage-63d42921f73d",
+      "status": "PASS"
+    },
+    {
+      "case_id": "analyst-skeptic-strong-conflict",
+      "llm_required": true,
+      "producer": "codex-native-runtime",
+      "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+      "status": "PASS"
+    },
+    {
+      "case_id": "dangling-evidence-reference",
+      "llm_required": false,
+      "producer": "deterministic-injection",
+      "run_id": "regression-rrh-release-fix-20260908-dangling-evidence-reference-98ba8eb85851",
+      "status": "PASS"
+    },
+    {
+      "case_id": "risk-veto",
+      "llm_required": true,
+      "producer": "codex-native-runtime",
+      "run_id": "rrh-final-risk-veto-20260908",
+      "status": "PASS"
+    },
+    {
+      "case_id": "high-concentration-portfolio",
+      "llm_required": true,
+      "producer": "codex-native-runtime",
+      "run_id": "rrh-final-high-concentration-portfolio-20260908",
+      "status": "PASS"
+    },
+    {
+      "case_id": "llm-overconfidence",
+      "llm_required": true,
+      "producer": "codex-native-runtime",
+      "run_id": "rrh-final-llm-overconfidence-20260908",
+      "status": "PASS"
+    },
+    {
+      "case_id": "mandatory-no-trade",
+      "llm_required": false,
+      "producer": "deterministic-injection",
+      "run_id": "regression-rrh-release-fix-20260908-mandatory-no-trade-15d691293960",
+      "status": "PASS"
+    },
+    {
+      "case_id": "valid-action-contract",
+      "llm_required": false,
+      "producer": "deterministic-injection",
+      "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+      "status": "PASS"
+    },
+    {
+      "case_id": "invalid-specialist-output",
+      "llm_required": false,
+      "producer": "deterministic-injection",
+      "run_id": "regression-rrh-release-fix-20260908-invalid-specialist-output-450613852fb2",
+      "status": "PASS"
+    }
+  ],
+  "current_contract_verification": "REJECTED:REGRESSION_SET_HASH_MISMATCH",
+  "set_hash": "1946efea07c2337c76551f8fb32d8fbf7a55cc3cef8a2eedb8e855049faef7b7",
+  "status": "PASS",
+  "suite_hash": "7f6bca3ba4d3cabb735791db4ee57e72a2d1bdfdbcaeb3b792c2ea4a8c4e9321",
+  "suite_id": "rrh-release-fix-20260908",
+  "unique_run_id_count": 12
+}

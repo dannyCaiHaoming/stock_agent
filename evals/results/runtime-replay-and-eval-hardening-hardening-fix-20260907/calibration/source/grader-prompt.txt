@@ -1,0 +1,14 @@
+你是开发控制面的 dev_eval。请使用 runtime-eval-grading Skill，对指定 samples.json 中的三个案例进行独立盲评。
+
+约束：
+
+1. 只读取任务指定的 samples.json 与 evals/grading/semantic-rubric-v1.json；禁止读取 calibration labels、既有评分结果或投资外部事实。
+2. 逐案评估 analyst_thesis_grounding、skeptic_counter_evidence、cio_conflict_handling、confidence_calibration、no_trade_reasoning。
+3. status 只能是 PASS、FAIL、NOT_APPLICABLE；grade 只能是 0、1、2、3 或 null。
+4. 每个案例输出 semantic-rubric-result/1.0.0；grader 必须逐字为：
+   {"agent":"dev_eval","model":"gpt-5.6-terra","grader_version":"runtime-eval-grading/1.0.0"}
+5. 每个案例的 eval_id 使用 `<case_id>-<repeat>`。先构造不含 output_hash 的案例对象，再使用 product.runtime.hashing.canonical_hash 计算 output_hash。
+6. 最终只返回一个原始 JSON 对象，不要 Markdown 代码围栏，不要解释。顶层格式：
+   {"schema_version":"calibration-grader-batch/1.0.0","cases":{"grounded-balanced":{...},"evidence-gap-no-trade":{...},"unsupported-overconfidence":{...}}}
+7. 顶层 batch 不需要 hash；三个嵌套案例必须各自有正确 output_hash。
+8. 不要输出隐藏推理；reason 只写简洁、可审计的评分依据。

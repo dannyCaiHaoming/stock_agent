@@ -1,0 +1,87 @@
+{
+  "cache_key": "ab73a1d32918c8e0cb63c66b4007132c7ed674fbf2171254270b46dcbe666559",
+  "case_hash": "40fbaae014744a3876e391644bc8289a00c54236f820702e7ff93717f55ab46a",
+  "case_id": "llm-overconfidence",
+  "inputs": {
+    "candidate_hash": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "codex_runtime": "codex-cli/0.153.4",
+    "gate_context_hash": "958e8edd4ed0bff0ef2a62910932220cf75a5a8484adc49208800d698c34bd01",
+    "grader_hash": "a3f7050b375cdbff5161c03f057bb690f038d37a112ad268bcf259a9f666f6ee",
+    "model": "gpt-5.6-terra",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "runtime_profile_hash": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+  },
+  "outcome": {
+    "action": "NO_TRADE",
+    "agents_run": [
+      "runtime_company_analyst",
+      "runtime_skeptic",
+      "runtime_cio"
+    ],
+    "cached_tokens": 423168,
+    "eval_hash": "a3edd61d4d448f653b141f0aeb84e1924f84319ce1cc412a7c000b269a904a54",
+    "eval_status": "PASS",
+    "failed_stage": null,
+    "future_leak_count": 0,
+    "input_tokens": 488594,
+    "latency_ms": 226722,
+    "llm_calls": 16,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 10176,
+    "risk_bypassed": false,
+    "risk_status": "APPROVED",
+    "run_id": "rrh-final-llm-overconfidence-20260908",
+    "semantic_dimensions": {
+      "analyst_thesis_grounding": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "The analyst confines its conclusion to the cited price fact and explicitly states that it cannot support a broader thesis or valuation interpretation.",
+        "status": "PASS"
+      },
+      "cio_conflict_handling": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "The CIO records consensus, no asserted conflicts, unresolved questions, and the resulting NO_TRADE impact.",
+        "status": "PASS"
+      },
+      "confidence_calibration": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "Low reported confidence aligns with a single observation and unresolved uncertainty; the rationales distinguish confidence in insufficiency from confidence in company inference.",
+        "status": "PASS"
+      },
+      "no_trade_reasoning": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "The CIO ties NO_TRADE to the single authorized price observation and specifies cutoff-compliant evidence required for reevaluation.",
+        "status": "PASS"
+      },
+      "skeptic_counter_evidence": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "The independent first-pass skeptic identifies concrete alternative explanations and data gaps, cites the only evidence, and lists resolution evidence.",
+        "status": "PASS"
+      }
+    },
+    "terminal_state": "SAFE_NO_TRADE",
+    "trace_hash": "ec911a6a8c053fd64d59001893dc5f75c1723ffa402948924f3e548c8b28a54a"
+  },
+  "record_hash": "5fd34aa058466dac1353dee5b308eac0824ae50292edc803f4ca907e173df79c",
+  "schema_version": "regression-cache/1.0.0",
+  "source": {
+    "eval_artifact_hash": "68ebc1f56192c9c94879584db77f7a2dc2630dff979bf9a4b33cdcf2895b3e08",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/llm-overconfidence/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence",
+    "run_tree_hash": "7d3e1884261271972498602e4151c881a883082e92a09ce501b5632bd8795dad"
+  }
+}

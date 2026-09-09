@@ -1,0 +1,61 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.35,
+      "confidence_rationale": "Gate-scoped 事实均在截止日前且两份独立报告在数据缺口上达成一致，但它们共同为低置信度；缺少评估价值、债务可偿付性、盈利持续性和产能执行所需的关键数据。因此不将有限正面快照转化为仓位建议。",
+      "counter_thesis": "债务/收入、单期利润率、管理层维持计划和单一价格均无法替代现金流、债务期限与利率、需求验证、项目执行及股本/企业价值证据；因此无法可靠判断风险调整后的价值或执行风险。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "若新增可核验的现金流、债务期限、利率和利息覆盖证据显示流动性或偿债能力不足，则任何关于债务压力暂不显著的有限解释失效。",
+        "若后续业绩显示收入持续萎缩或经营利润率显著下降，则现有经营表现快照失效。",
+        "若产能计划出现延迟、显著超支、融资受限、需求未实现或回报不达标，则该计划不应作为支持因素。",
+        "若完整股本、现金流和估值资料表明市场价格未充分反映相关风险，或反之，现有价格解释须重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键的现金流、债务结构、经营趋势、产能执行与估值证据均缺失；两份独立报告均为低置信度，不能支持对现有仓位作出建议性调整。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得经审计现金、自由现金流、利息覆盖、债务到期和契约资料。",
+        "获得多期收入、利润率、客户/成本驱动和经营表现资料。",
+        "获得产能计划的资本开支、融资、订单/需求、建设里程碑和项目回报资料。",
+        "获得稀释后股数、市值、企业价值、净债务、现金流与可比估值资料。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "截至截止日，授权证据显示 TTM 收入、18%经营利润率、总债务、收盘价格及管理层维持产能计划的陈述；但这些有限快照不足以验证持续经营质量、偿债能力、产能项目回报或估值。",
+      "time_horizon": "在获得列明的可核验证据后重新评估；本次不形成交易性时间安排。",
+      "unresolved_questions": [
+        "经审计现金、自由现金流、利息覆盖、债务到期与契约在合理压力情景下是否支持偿债能力？",
+        "收入与利润率的多期趋势、客户与成本驱动是否支持经营表现的持续性？",
+        "产能计划的资本开支、融资、订单/需求、建设进度与项目回报是否可被核验？",
+        "稀释后股数、市值、企业价值、净债务与可比基准如何改变对价格的解释？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-source-normal-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

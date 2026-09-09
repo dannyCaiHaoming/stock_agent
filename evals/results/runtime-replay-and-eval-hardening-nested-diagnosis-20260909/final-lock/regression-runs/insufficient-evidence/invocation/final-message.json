@@ -1,0 +1,7 @@
+{
+  "message": "rrh-final-lock-regression-insufficient-evidence-20260909 — CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "e16e28ca2783303422d161a6fd5237eff1756e4d882c79de76f7f8c9d3b0b956",
+  "present": true,
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/counter-thesis-report/2.0.0",
+  "type": "object",
+  "required": ["schema_version", "run_id", "invocation_id", "status", "agent", "mode", "scope", "challenges", "evidence_refs", "counter_evidence_refs", "uncertainties", "data_gaps", "invalidation_conditions", "confidence", "confidence_rationale", "skill_execution", "artifact_refs"],
+  "properties": {
+    "schema_version": {"const": "counter-thesis-report/2.0.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["COMPLETE", "TIMEOUT", "INSUFFICIENT_EVIDENCE", "LOW_CONFIDENCE"]},
+    "agent": {"const": "runtime_skeptic"},
+    "mode": {"const": "INDEPENDENT_FIRST_PASS"},
+    "scope": {"type": "string", "minLength": 1},
+    "challenges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["challenge_id", "statement", "evidence_refs", "assumption_ids", "resolution_evidence_needed"],
+        "properties": {
+          "challenge_id": {"type": "string"},
+          "statement": {"type": "string"},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "assumption_ids": {"type": "array", "items": {"type": "string"}},
+          "resolution_evidence_needed": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "counter_evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "uncertainties": {"type": "array", "items": {"type": "string"}},
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "invalidation_conditions": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "confidence_rationale": {"type": "string", "minLength": 1},
+    "skill_execution": {"type": "array", "minItems": 2, "items": {"$ref": "agent-research-report.schema.json#/$defs/skill"}},
+    "artifact_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

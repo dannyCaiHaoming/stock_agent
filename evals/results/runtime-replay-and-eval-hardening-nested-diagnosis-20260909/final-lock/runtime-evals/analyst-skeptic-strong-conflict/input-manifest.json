@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-lock-eval-analyst-skeptic-strong-conflict-20260909",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/analyst-skeptic-strong-conflict",
+  "run_id": "rrh-final-lock-regression-analyst-skeptic-strong-conflict-20260909",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "33d548b1b22a3753de40cfc2d72acfa7606b8cb86c0f6e531e5fa06bb561b2f1",
+    "artifact_replay": "9afad6d4ae5178e9a843ac748c6dc8d1be205ea017f239f4d0f595fc427c6f14",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "2ab5979c5e0ab843bb46ca6127432735f9cef490947c3a5bf1f1d5f0fb7f5244",
+    "semantic_input": "1f64bb326436ba6ad378ecf2ab1adc0f4d3ecfc322dc2ea7073bbd63722ec965",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "4e1a339427a172ba35d883a6f3044c366ee7b6a4bab54c473b4a091e60fe0d09"
+  }
+}

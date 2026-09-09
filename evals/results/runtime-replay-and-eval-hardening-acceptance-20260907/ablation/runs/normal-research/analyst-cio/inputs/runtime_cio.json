@@ -1,0 +1,73 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于冻结证据评估当前组合；仅供 Ablation 研究，允许 NO_TRADE。",
+  "run_id": "rreh-ablation-normal-research-analyst-cio-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "dcf6452cd6c017c73d75266df5d35c8fa94cd46b799b92d7f830167b29d98f17"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [],
+      "confidence": 0.0,
+      "confidence_rationale": "未取得任何授权证据，且必需的只读查询工具不可调用；按 fail-closed 原则清空主张。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少 ev-normal-debt、ev-normal-margin、ev-normal-price、ev-normal-revenue 与 ev-normal-update 的可查询内容、source_id、as_of 和 retrieved_at。",
+        "无法核验收入、利润率、债务、价格与后续更新之间的时点一致性或冲突。"
+      ],
+      "invalidation_conditions": [
+        "在 fixture_evidence.query 可用且返回授权证据前，本报告不应被用作任何公司质量或估值判断的依据。"
+      ],
+      "invocation_id": "inv_1436f991fff122e9854314ad",
+      "run_id": "rreh-ablation-normal-research-analyst-cio-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；基于冻结授权证据评估当前组合，仅供 Ablation 研究。",
+      "skill_execution": [
+        {
+          "invocation_hash": "b210d8f94b700c2a0a5aa19eee7a3a86723a06a01991165967f22f57eec1709b",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "6e324ed7d0d7d6675e6fab8f1aa2f0219e4933a93e53eb287434bef5b08d96c1",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "da6a16102ef96bc358279742f9067db5480a9b417a0e9a84cc195a3953f92b37",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "当前运行环境未暴露 fixture_evidence.query，无法检索 Invocation Manifest 授权的任何证据；因此未形成事实或商业解释。"
+      ]
+    }
+  }
+}

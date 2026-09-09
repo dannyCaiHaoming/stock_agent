@@ -1,0 +1,53 @@
+{
+  "allowed_evidence": [],
+  "allowed_evidence_ids": [],
+  "bundle_hash": "b11fe5db8eb2fbaec973a63f5e43aabf24679d13c9687576aeb13abcfca7482b",
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "conflicts": [],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "excluded": [
+    {
+      "as_of": "2026-02-01T21:00:00Z",
+      "evidence_id": "ev-future-asof",
+      "reason_codes": [
+        "FUTURE_AS_OF",
+        "FUTURE_RETRIEVAL"
+      ],
+      "retrieved_at": "2026-02-01T21:05:00Z",
+      "threshold_days": 7
+    },
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "evidence_id": "ev-future-retrieval",
+      "reason_codes": [
+        "FUTURE_RETRIEVAL"
+      ],
+      "retrieved_at": "2026-02-02T13:00:00Z",
+      "threshold_days": 400
+    },
+    {
+      "as_of": "2025-01-01T14:00:00Z",
+      "evidence_id": "ev-stale-update",
+      "reason_codes": [
+        "STALE"
+      ],
+      "retrieved_at": "2025-01-01T14:01:00Z",
+      "threshold_days": 30
+    }
+  ],
+  "excluded_evidence_ids": [
+    "ev-future-asof",
+    "ev-future-retrieval",
+    "ev-stale-update"
+  ],
+  "fixture_id": "future-or-stale-v1",
+  "freshness_policy_version": "freshness/fixture/2.0.0",
+  "input_evidence_ids": [
+    "ev-future-asof",
+    "ev-future-retrieval",
+    "ev-stale-update"
+  ],
+  "input_hash": "2abbf9d8fb5ad8519f9d17c7f06e4aaec5c34411f39eb59388c0bdd171707260",
+  "run_id": "rreh-ablation-mandatory-analyst-cio-20260907",
+  "schema_version": "evidence-gate/2.0.0"
+}

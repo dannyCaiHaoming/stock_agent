@@ -1,0 +1,956 @@
+{
+  "candidate_hash": "c4a1b647615c9b77834dff1d6fad52d4f1597c6e6cc7c122425a2c9e7b674943",
+  "case_results": [
+    {
+      "cache_provenance": {
+        "cache_key": "bbe5acf210b699e512113f7762d33681564d1149c444966a3af69a2a163720a8",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "ce26cefed8fdbd172a5cc0b24e25464164f35f0cf5255b9e5dea0c4a44a4a2c4",
+      "case_id": "normal-research",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/normal-research/execution-proof.json",
+        "proof_hash": "8d9a5a72babb85647b846de8cd00b0c38da3f32ea71ff798e2b1eeefd2ab0824",
+        "sha256": "451a1756ab616efa97edbe8716fb5dd47778ccf7c516c0bb69fb2f324ca4388f"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 699392,
+        "eval_hash": "141ccc91ab2ab36d7ee87febb4657592fb442c7a00c9e99c8d163adab0be90fc",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 790413,
+        "latency_ms": 272331,
+        "llm_calls": 20,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 13001,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-ablation-v3-normal-full-council-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "c1",
+              "c2",
+              "c3",
+              "c4",
+              "c5",
+              "c6",
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-revenue",
+              "ev-normal-update",
+              "ev-normal-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 将基础数值主张标为 FACT 并引用允许 Evidence；解释性主张披露假设且限定结论，未将有限事实延伸为估值或持续性结论。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "CIO 记录两份专业报告的共识、与 Gate 一致的无机械冲突状态及四项未决问题，并将这些缺口明确连接到 NO_TRADE 和重评条件。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "Analyst、Skeptic 与 CIO 的置信度理由均将有限证据覆盖、缺口和不确定性与其结论方向相连；CIO 的低置信度未把有限事实转化为方向性结论。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "NO_TRADE 与五项允许且新鲜的证据范围一致，明确将现金流、债务结构、需求兑现和估值资料缺失作为原因，并列出对应的可核验重评条件。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "debt-service-coverage-unknown",
+              "margin-quality-and-durability-unknown",
+              "capacity-plan-not-demand-validation",
+              "price-is-not-valuation-evidence",
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "独立第一轮 Skeptic 对偿债能力、利润率质量、产能需求验证和价格估值分别提出具体、可证伪的挑战，并逐项给出所需解决证据。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "ff223bdc066ceea006d2f563e273fa50a9a07142c77ffa30cf41173ef956030c"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/normal-research/outcome.json",
+        "sha256": "6e46c2bb94830f38480bca4050667630df2b03c7e65c249d58de141d64a4259a"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "aa935f53cdaaf08ddc4f5d037c2c84ba2c7d8a1d16033c7303f44a7eb57d4a9d",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "2debe88f8e48464f74c5d062e006cb622e8d116b7f66b5b016d1102631c5c7c5",
+      "case_id": "insufficient-evidence",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/insufficient-evidence/execution-proof.json",
+        "proof_hash": "00e69e7c48b8c943465415bec8b580c7c17348c9fa5358ab8d525e6db6c95539",
+        "sha256": "33bef89004861e9cb082af47da5a6c48a5daec834878b0e1f9c76b18e996674e"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 710656,
+        "eval_hash": "d4749929947f19a7d9c575c7cec6cd7f274e5effad5c3eacc8e5ae61f81a7410",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 807412,
+        "latency_ms": 256052,
+        "llm_calls": 20,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 12135,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "claim-1",
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，明确该事实不能支持公司研究或估值主张，且列出数据缺口与重新评估条件。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "CIO 记录两份 Specialist 对证据不足的共识、无冲突、未决问题及其不形成持仓调整意图的影响，并将其纳入 NO_TRADE 说明。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "各报告明确将高置信度限定于证据不足和不形成方向性判断的结论，同时承认对具体商业质量、估值和风险判断证据不足，方向与不确定性一致。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "CIO 与 decision.json 均将唯一 Gate 授权价格事实判为不足以支持商业、估值或风险判断；INSUFFICIENT_EVIDENCE 的 NO_TRADE 理由、说明及取得可追溯基本面、估值和风险证据后重评的条件一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "challenge-evidence-sufficiency-001",
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "Skeptic 以 INDEPENDENT_FIRST_PASS 具体说明单一价格不能独立验证的前提与未排除失败路径，列出可检验的数据缺口、所需证据和失效条件。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "9b5c91b27fc99409b0554a5d3703ec0bc045bbd644f840e382f9c3e9ac3db991"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/insufficient-evidence/outcome.json",
+        "sha256": "47b1e4bcd824bd264519c9d16a47881a1a62157a855e9233d23fce1789d489d7"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "42d07a9edbdd9e29a78b1617cf277f68714f9f3fd38d7c5795d1e3b27ab146fe",
+      "case_id": "all-evidence-stale",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/all-evidence-stale/execution-proof.json",
+        "proof_hash": "5222cd930546422e923f767f3c766e47ea88aae4c3080aa047a7bb5781419de6",
+        "sha256": "63dae78baffe24f6c2911e46914e417b827fc9dc3f16724330261f40b7e14139"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_no_trade"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_not_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "future_leak_count_equals"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [],
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "run_id": "regression-rreh-hardening-regression-final-20260908-all-evidence-stale-42d07a9edbdd",
+        "terminal_state": "SAFE_NO_TRADE"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/all-evidence-stale/outcome.json",
+        "sha256": "14498dbae697ffc2aeef77e9aee26fd04fed168b1eaaa14fe938ecb5e6d8753a"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "63d42921f73d77478c9008bdd7ec2f787d01308fe77d57e56230a194a14160ec",
+      "case_id": "future-information-leakage",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/future-information-leakage/execution-proof.json",
+        "proof_hash": "2dc750b88d96b2c50a60980e2030a9435af80b9e301f3c148eb47418e99b9ae3",
+        "sha256": "072d85e15db772490edf065eb662072ca9ea3727fc47c44ce9199574287452eb"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "validator_rejects"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "leaked_evidence_ids": [
+          "ev-future-asof",
+          "ev-future-retrieval"
+        ],
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "949eaea43d9bb34ff1e9771711452e86f7629219264c96e4a03b078edb479031",
+        "producer": "fixture",
+        "run_id": "regression-rreh-hardening-regression-final-20260908-future-information-leakage-63d42921f73d",
+        "validator_rejection": "PIT_LEAKAGE"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/future-information-leakage/outcome.json",
+        "sha256": "1d19979e35561becd9e4fe6b89a740697bbcc73a856849e98aeb5dd6bdbd0e4c"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "dfc4759fd2e129278aa764f0f7bd63d160624b154495227e70382d2b6aab4fba",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "713a7854021ea1dc7798ea02870df42e2cc3b062ea77b2aa03b6e7c4abc4f102",
+      "case_id": "analyst-skeptic-strong-conflict",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/analyst-skeptic-strong-conflict/execution-proof.json",
+        "proof_hash": "bfa3e9408fbfb6e6c9d53c3550789c38afb08dfb47dbe13c272c449e4672ab41",
+        "sha256": "ecca5e4b88874761e100214b1a06197b42c6272f34180acf9d7486b4f96dc703"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 911104,
+        "eval_hash": "8b903c023879faf9f22b0376bc875b29b8b3438aee519fb2ffcea39ce68aa0e3",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 1006714,
+        "latency_ms": 263880,
+        "llm_calls": 22,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 13840,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b",
+              "ev-conflict-margin",
+              "ev-conflict-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 将四项可追溯事实与解释性限制分开；两项收入的同日冲突直接支持其不形成收入规模、商业判断或估值结论的 Thesis。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b",
+              "ev-conflict-margin",
+              "ev-conflict-price"
+            ],
+            "grade": 3,
+            "rationale": "CIO 记录 Analyst 与 Skeptic 的共识，明确未决收入冲突、对置信度和结论边界的影响，以及尚待回答的问题；未以孤立价格或利润率覆盖冲突。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b",
+              "ev-conflict-margin",
+              "ev-conflict-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst、Skeptic 与 CIO 的低置信度均明确归因于同日收入冲突、口径不可比性和关键数据缺口，与可追溯但不足的证据范围方向一致。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b",
+              "ev-conflict-margin"
+            ],
+            "grade": 3,
+            "rationale": "NO_TRADE 明确锚定同一 as_of 的两项未解 revenue_ttm 冲突及利润率配对未证实，并给出可核验的来源调节、同口径利润表和补充证据重评条件。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b",
+              "ev-conflict-margin"
+            ],
+            "grade": 3,
+            "rationale": "Skeptic 独立提出收入定义/来源冲突及利润率与收入边界未证实两项具体、可证伪挑战，并列出解决各挑战所需的可核验证据。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "89e12f44792b5565c3058023df971ed5b3ce7abc3aeae6d78df9254480249898"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/analyst-skeptic-strong-conflict/outcome.json",
+        "sha256": "88a1cc7515d843f4a68628e7a18962150ff1889216c8f8f5f83c9de1c083e77d"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "98ba8eb85851d79151672ff2ef48c8162f7fc711ecd8a90ac8fcca1e4123231a",
+      "case_id": "dangling-evidence-reference",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/dangling-evidence-reference/execution-proof.json",
+        "proof_hash": "0aeeb27b01f059a0f89f9227e2ad10d0afb336e095357be132dbe627253bf23e",
+        "sha256": "b18cf69314129ed3025cd10c774781c1edcca89fdd8dd55a6adfb9f784cf2963"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "validator_rejects"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "5de16440c582fab0f0a09de01f82957ae83111469b60120b11cb50107181e472",
+        "producer": "fixture",
+        "run_id": "regression-rreh-hardening-regression-final-20260908-dangling-evidence-reference-98ba8eb85851",
+        "validator_rejection": "EVIDENCE_CLOSURE_FAILED"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/dangling-evidence-reference/outcome.json",
+        "sha256": "b876cf365b44e81f36d9f8fc6d1663e4f6f826528ccf40792ab57126212ba75b"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "a02e5ee56b53e8354e99fc35e02f928cc44dc021eca85eac3d13eb9df042accd",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "6c13288ed0548249c38489ab44a01b8a8823615616ea419b4289290d4004f4fe",
+      "case_id": "risk-veto",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/risk-veto/execution-proof.json",
+        "proof_hash": "b36788c47030f865cb95e0276bdb9042ff95fa93111b378b101b215f9c2681a9",
+        "sha256": "67b8429cac9a402a82964133eb449021411b68df4a7318d3b7a715416b8a9936"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_no_trade"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_veto"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 457728,
+        "eval_hash": "769fbb5a5e8cb3166cddd2b81ba5791327005396fdc2fc751f0aa6150dfbbac3",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 529577,
+        "latency_ms": 239567,
+        "llm_calls": 16,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 11499,
+        "risk_bypassed": false,
+        "risk_status": "REJECTED",
+        "run_id": "rreh-candidate-risk-veto-current-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 仅将价格和 TTM 收入表述为带引用的 FACT，并明确说明这些单点事实不足以支撑商业质量或估值结论。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "CIO 明确区分无来源冲突与证据覆盖不足，记录两份报告的共识、未决问题和重评所需信息；最终 Risk veto 亦被保留在 final decision。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 的低置信度对应有限事实覆盖；Skeptic 与 CIO 的较高置信度限定为证据不足和不形成行动建议的结论，未把它们表述为方向性判断。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "final decision 明确记录 RISK_VETO、Risk Engine 否决说明及满足可行边界后重评条件；其证据引用与冻结 Gate 的允许 Evidence ID 一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Skeptic 独立提出价格非估值、收入规模非经营质量及时点联结缺口三项具体、可证伪挑战，并列出所需核验材料。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "120e61e96d1fe53b7e61dded0655fc87a9cba4098b84e280a75f22786c572f39"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/risk-veto/outcome.json",
+        "sha256": "3d497f5f11f1ce288377a949d35eca6e5343f55470b7408d6ad276e9e7200d31"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "e200c90788687d237f58af8fea4886ddd785512608170993db9fb7e7bbf3db8d",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "ac4272f0af0a479b5424e74549df8ec9ab02e54a48b8d88d424464d95098c0b9",
+      "case_id": "high-concentration-portfolio",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/high-concentration-portfolio/execution-proof.json",
+        "proof_hash": "c3807ae66a422e30e0dfa584e500794b74dba094e83d9da2c593be716648ddf1",
+        "sha256": "5a1ab08f5a7e2d5cea8173801faebbc6de17a6a849aedc055d355fecc424025a"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 406528,
+        "eval_hash": "dbdd61c950c540e1c1ea05489ab60024aa93bf16c0a5f6b170cf2d1f5411273a",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 521151,
+        "latency_ms": 212321,
+        "llm_calls": 16,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 8896,
+        "risk_bypassed": false,
+        "risk_status": "REJECTED",
+        "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 将两项主张限定为有引用的价格和 TTM 收入事实，并明确区分其余商业质量、估值和风险判断所需的证据缺口。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "CIO 明确记录两份报告的共识、无机械证据冲突及未决问题，并将其影响限定为不形成方向性建议；最终 Risk Veto 亦被保留。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 的低置信度对应证据不足；Skeptic 与 CIO 的较高置信度均明确限定为对证据不足结论的置信度，而非对证券基本面的方向性判断。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "最终决策明确由 Risk Engine 的 RISK_VETO 触发 NO_TRADE，并列出可行边界后重评条件；CIO 的证据不足理由亦与冻结证据范围一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Independent First Pass 针对单点价格和单期收入提出具体、可证伪的限制，并列明解决各限制所需的冻结证据。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "36fd5f01fad90feaf3bf4001518b531ca18c8bc45b09a5a59b0398613df625ad"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/high-concentration-portfolio/outcome.json",
+        "sha256": "ea2b144def0a942f8542634d5c513cbb0035db72290f0fe68db9f0020d218790"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "78744ab5a5fbb023b740823217163fc63e7bd859e2727d328228135b2801931e",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "40fbaae014744a3876e391644bc8289a00c54236f820702e7ff93717f55ab46a",
+      "case_id": "llm-overconfidence",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/llm-overconfidence/execution-proof.json",
+        "proof_hash": "410b3d7b0f815e7572b92fa9e0c1e0adf2ae1ec9a6909f95e54c6f490eb62924",
+        "sha256": "c3d50ae49e763cb57a0e58363b413aa84c8f57ef16d5962edcead58a99cccb17"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_cio"
+        ],
+        "cached_tokens": 538368,
+        "eval_hash": "162c1601e5c4e2173ae2bb786d727e8ecfcdd4151a88c3a40cc5ce331c437df9",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 595823,
+        "latency_ms": 207523,
+        "llm_calls": 17,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 8140,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-hardening-ablation-insufficient-analyst-cio-v3-20260908",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "claim-1",
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，且明确限制该事实不足以支持公司研究或估值判断，区分了已支持事实与数据缺口。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "CIO 记录已验证 Analyst 的 INSUFFICIENT_EVIDENCE 共识、空冲突、三项未决问题及其对 NO_TRADE 的影响；冻结输入没有 Skeptic 产物，未将其误作未处理冲突。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 与 CIO 均为 0.05，理由明确限定在单一价格事实、广泛数据缺口和不确定性，不把不足证据转为方向性结论，方向一致。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "CIO 将 NO_TRADE 明确归因于唯一获准的单一价格事实不足以支持公司研究、估值或风险判断，并要求补充带完整血缘的 Gate 授权基本面、估值和风险证据后重新评估；与 SAFE_NO_TRADE 一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [],
+            "grade": null,
+            "rationale": "冻结输入未包含 Skeptic 运行产物；该 analyst-cio 拓扑中无法评估独立反证质量。",
+            "status": "NOT_APPLICABLE"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "29ba3371b41607a5251214e34cbbf3dd1cada25ba363585e8f409b638f3bbafb"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/llm-overconfidence/outcome.json",
+        "sha256": "52d6c3cf1917e0a05fe84dcd939f1c3f414549758a1db9e98aa6617d298bd128"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "15d6912939602b59785ee31796e6e638595001e8d0b04ddd4b5bfa6cc2ac8247",
+      "case_id": "mandatory-no-trade",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/mandatory-no-trade/execution-proof.json",
+        "proof_hash": "b47d6bc65747063d1a9cd12c2f383d3e0f9e907839a4382284b21f7dc736d6b5",
+        "sha256": "bbe6b4f3b4b1ad461b6c51f200ca8f94f0edaa4b5cbbd611958a28306734ea1e"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_no_trade"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_not_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [],
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "run_id": "regression-rreh-hardening-regression-final-20260908-mandatory-no-trade-15d691293960",
+        "terminal_state": "SAFE_NO_TRADE"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/mandatory-no-trade/outcome.json",
+        "sha256": "522838ec8df2d576f95e3ec141d88da793a8cffdfd0fc40d1b49ed1119d2a555"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "2b6831c21754aa810c5b21e2387af86162d6ab050bfb4b05480e8cbcfe22bb8b",
+      "case_id": "valid-action-contract",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/valid-action-contract/execution-proof.json",
+        "proof_hash": "4ce5c95deafa1a6273bbe0d67b1af59b26acddf26479e2964457c7673be1b72f",
+        "sha256": "53fa2d14b7fb28826de61397263d840683d04c48fbc767afbd8c9513fd6a2ded"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "valid_action_set"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "forbidden_action"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "forbidden_actions": [
+          "REDUCE"
+        ],
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+        "producer": "fixture",
+        "run_id": "regression-rreh-hardening-regression-final-20260908-valid-action-contract-2b6831c21754",
+        "valid_action_set": [
+          "BUY",
+          "HOLD",
+          "TRIM",
+          "EXIT"
+        ]
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/valid-action-contract/outcome.json",
+        "sha256": "1a1a5d245adcb59f350afdbcbfa1cf956fb202c0413d3f894aefe50215dcae60"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "450613852fb2bfba2462a6e9033215d23a9a9cba0238425e6dfd2a26b6ba11bf",
+      "case_id": "invalid-specialist-output",
+      "execution_proof": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/invalid-specialist-output/execution-proof.json",
+        "proof_hash": "1ae9c09177dd90a9d2f0923b12a31538f5a142743d3a38c93e9a2d8b6b7cdcee",
+        "sha256": "b00318c156525c2c98ccf9f02f679b8f69f983524e5e8e0bbeb11fb644c30695"
+      },
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "validator_rejects"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+        "producer": "fixture",
+        "run_id": "regression-rreh-hardening-regression-final-20260908-invalid-specialist-output-450613852fb2",
+        "validator_rejection": "SCHEMA_INVALID"
+      },
+      "outcome_artifact": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/regression/suite-hardening-final/cases/invalid-specialist-output/outcome.json",
+        "sha256": "660ea52ac847a13ddd082ad0f489d52078043c96657d3f3b893adc558e5b9b96"
+      },
+      "status": "PASS"
+    }
+  ],
+  "reason_codes": [],
+  "schema_version": "regression-suite/1.0.0",
+  "set_hash": "1946efea07c2337c76551f8fb32d8fbf7a55cc3cef8a2eedb8e855049faef7b7",
+  "status": "PASS",
+  "suite_hash": "1a240490453936b9cf6b901ca6494da4d5d3e26e1d6a9e7ba6099098c3cefd53",
+  "suite_id": "rreh-hardening-regression-final-20260908"
+}

@@ -1,0 +1,69 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "ev-normal-revenue",
+        "ev-normal-margin",
+        "ev-normal-debt",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "c1–c4 将收入、利润率、债务及管理层更新分别锚定到允许 Evidence；c5 明确标为 INTERPRETATION 并以 a1 和数据缺口限制其范围。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "CIO 说明与唯一已验证 Analyst 报告的共识，记录无冲突，并列出流动性、现金流、需求、执行和估值等未决问题及其对 NO_TRADE 的影响。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 与 CIO 的置信度理由均以允许的核心事实为边界，并因流动性、现金流、趋势、需求与估值缺口而限制结论；方向与证据充分度和不确定性一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "grade": 3,
+      "rationale": "NO_TRADE 明确对应 INSUFFICIENT_EVIDENCE：已引用事实仅支持初步经营和杠杆观察，且重评条件具体要求补足流动性、历史趋势、需求、产能经济性与估值证据。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "冻结输入未包含 runtime_skeptic 报告或 Skeptic Claim，无法对独立反证维度评分。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "eval_id": "rreh-hardening-ablation-regrade-normal-research-analyst-cio-20260908",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "b8aa99ac9162952b7180df6f710de1918e555681af5d3a6b4f757900fcb637ac",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "8287d5ef653147bb4ba5afa5500443d745c7ccaaff938a225f3e4dfb2bd73cf1",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

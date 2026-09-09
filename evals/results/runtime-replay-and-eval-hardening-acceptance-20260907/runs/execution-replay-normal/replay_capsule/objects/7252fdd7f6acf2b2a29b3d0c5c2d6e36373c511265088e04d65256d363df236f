@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/runtime-eval-job/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "eval_id", "run_id", "terminal_state", "status", "hard_gates", "semantic_rubric", "grader", "source_hashes", "reason_codes", "eval_hash"],
+  "properties": {
+    "schema_version": {"const": "runtime-eval-job/1.0.0"},
+    "eval_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "terminal_state": {"type": "string", "enum": ["COMPLETED", "SAFE_NO_TRADE", "FAILED_VALIDATION"]},
+    "status": {"type": "string", "enum": ["PASS", "FAIL"]},
+    "hard_gates": {"type": "object"},
+    "semantic_rubric": {"type": "object"},
+    "grader": {"type": "object"},
+    "source_hashes": {"type": "object"},
+    "reason_codes": {"type": "array", "items": {"type": "string"}},
+    "eval_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

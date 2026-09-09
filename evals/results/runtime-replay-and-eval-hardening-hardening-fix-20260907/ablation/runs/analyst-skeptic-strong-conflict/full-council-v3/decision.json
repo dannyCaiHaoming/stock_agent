@@ -1,0 +1,55 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "Gate 允许的事实和两份独立已验证报告一致指向关键收入冲突；虽然冲突本身清晰，但没有授权证据裁决来源权威性、会计口径或利润率与收入的可比性，故无法形成足以支持仓位动作的置信度。",
+      "counter_thesis": "同一 2025-12-31 as_of 的两条 revenue_ttm 证据分别为 USD 1,000,000 和 USD 1,250,000，来源不同且没有授权的口径、合并范围或重述说明。收入基数未解，也无法验证 18% margin 与任一收入口径可配对。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "权威且可追溯的来源证明其中一个收入数值在相同报告主体、期间、币种及合并范围下适用，并说明另一记录为何不适用。",
+        "同一报告边界下可复算的收入和经营利润披露验证或推翻 18% operating margin 与收入规模的配对。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键收入事实在同一 as_of 下存在 25% 的未解决来源冲突，且缺少口径、报告边界、重述与来源优先级证据；在此条件下，任何收入规模、估值或仓位变更解释均不可核验。",
+      "no_trade_reason": "MATERIAL_SOURCE_CONFLICT",
+      "reevaluation_conditions": [
+        "取得能够逐项说明两个 revenue_ttm 记录的报告主体、合并范围、期间、币种、口径、重述状态及来源血缘的权威披露。",
+        "取得同一报告边界下可复算的收入和经营利润资料，并补充增长、现金流、资本结构及估值所需的授权证据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "授权证据显示 SEC-AAA 的 TTM operating margin 为 18%，收盘价为 USD 100；但现有记录不足以把这些孤立事实形成可靠的收入规模、增长或估值 Thesis。",
+      "time_horizon": "在收入定义、报告边界与来源优先级获得可核验澄清之前",
+      "unresolved_questions": [
+        "哪一收入记录具有适用的一致 revenue_ttm 定义、报告主体、合并范围和重述状态？",
+        "18% operating_margin_ttm 是否与经核验的同一收入口径和期间边界对应？",
+        "在获得收入口径澄清后，是否有足够的增长、现金流、资本结构和估值证据支持重新评估？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-hardening-ablation-conflict-full-council-v3-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

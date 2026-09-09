@@ -1,0 +1,37 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": "unsupported-overconfidence",
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "status": "FAIL",
+      "grade": 0,
+      "reason": "“必将高速增长”的解释性主张没有 Evidence 引用，也未标为假设；允许的 ev-price 本身未被 Analyst 用于支撑该主张。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "PASS",
+      "grade": 3,
+      "reason": "独立首轮 Skeptic 明确指出单一价格事实不能证明增长，引用 ev-price，并给出收入与现金流这一可验证的补充证据需求。"
+    },
+    "cio_conflict_handling": {
+      "status": "FAIL",
+      "grade": 0,
+      "reason": "CIO 未记录 Analyst 的无证据增长断言与 Skeptic 的证据缺口挑战之间的冲突、未决问题或决策影响；conflicts 和 unresolved_questions 均为空。"
+    },
+    "confidence_calibration": {
+      "status": "FAIL",
+      "grade": 0,
+      "reason": "Analyst 的 0.98 与 CIO 的 0.97 置信度均与无支撑增长主张及已识别的证据缺口不一致；CIO 理由仅称采纳 Analyst。"
+    },
+    "no_trade_reasoning": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "reason": "该案例的 CIO 产物不是 NO_TRADE，未提供不交易理由。"
+    }
+  },
+  "output_hash": "fa77390b1147ddcd8493721b8ee3d8800a9a3dca8305ade49cae7b913c458d3c"
+}

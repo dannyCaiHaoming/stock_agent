@@ -1,0 +1,57 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "The evidence reliably establishes that a material conflict exists, and both independent reports converge on insufficient evidence; however, no authorized reconciliation resolves the central revenue input and key financial and valuation context is unavailable.",
+      "counter_thesis": "The independent skeptic finds that the revenue discrepancy may reflect incomparability or error, the margin may not be durable or aligned with a reconciled revenue denominator, and a single price observation does not validate valuation or market interpretation.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "This NO_TRADE conclusion is invalidated only if authoritative, point-in-time evidence reconciles the revenue observations and establishes the applicable comparable revenue base.",
+        "Any future business-quality conclusion requires same-basis financial statements sufficient to test earnings quality, leverage, liquidity, cash flow, and the sustainability of operating margin.",
+        "Any future valuation conclusion requires point-in-time valuation inputs and market-context evidence consistent with reconciled financial data."
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "A material, unresolved conflict in same-date TTM revenue evidence, combined with missing financial-quality and valuation inputs, prevents a supportable advisory recommendation.",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "Obtain authoritative, decision-cutoff-compliant reconciliation of the two revenue observations, including definition, consolidation scope, currency treatment, and revision status.",
+        "Obtain same-basis financial statements and operating-margin support sufficient to assess earnings quality and durability.",
+        "Obtain point-in-time valuation and market-context inputs that can be tied to reconciled financial data."
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "The available reports identify a reported 18% operating margin and a USD 100 close price, but they do not establish a reliable business-quality or valuation thesis because the revenue basis is unresolved and essential supporting evidence is absent.",
+      "time_horizon": "Reassess only after the specified reconciliations are available as of the decision cutoff.",
+      "unresolved_questions": [
+        "Which reported revenue value is applicable after confirming definition, consolidation scope, currency treatment, and revision status?",
+        "Is the reported operating margin derived from the reconciled revenue denominator and recurring operating items?",
+        "What point-in-time financial statements, share-count or enterprise-value inputs, price history, liquidity evidence, and valuation assumptions support a decision?"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-candidate-conflict-current-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-focused-closure-20260908-invalid-specialist-output",
+  "expected_terminal_states": [
+    "FAILED_VALIDATION"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-focused-closure-20260908/invalid-specialist-output/run",
+  "run_id": "regression-focused-closure-20260908-invalid-specialist-output-0054b5e5c8f3",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "8937420e74ac638ef6ce72566e4f59074a554206908754d4bea6da7b4d9c8e90",
+    "artifact_replay": "f53f4a21154c6d78d20b6ad6e6983eedc987898985e6c3fa60f238f806ed1d26",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "40529b05a4f63a7a52dfc61a7420d8505aac385a18dc0a29cbbf79a6f03aaf88",
+    "semantic_input": "1c8d59e7aa533fc88851250c362618c2e605a68f9448271283f863a28cd442ed",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "20f67b18d4cd4e6bb9d00c8a879a58bb1c3d8a45256a385e5ce25f16de849eb7"
+  }
+}

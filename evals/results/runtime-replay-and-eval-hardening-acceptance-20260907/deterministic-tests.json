@@ -1,0 +1,11 @@
+{
+  "schema_version": "deterministic-test-report/1.0.0",
+  "status": "PASS",
+  "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests",
+  "tests_run": 248,
+  "failures": 0,
+  "errors": 0,
+  "completed_at": "2026-09-07T17:46:00+08:00",
+  "note": "NATIVE_EXECUTION_PROOF_FAILED 行为来自预期的负向测试样例；测试进程退出码为 0。"
+}
+

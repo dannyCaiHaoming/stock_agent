@@ -1,0 +1,70 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 457728,
+  "eval_hash": "769fbb5a5e8cb3166cddd2b81ba5791327005396fdc2fc751f0aa6150dfbbac3",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 529577,
+  "latency_ms": 239567,
+  "llm_calls": 16,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 11499,
+  "risk_bypassed": false,
+  "risk_status": "REJECTED",
+  "run_id": "rreh-candidate-risk-veto-current-20260907",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 仅将价格和 TTM 收入表述为带引用的 FACT，并明确说明这些单点事实不足以支撑商业质量或估值结论。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确区分无来源冲突与证据覆盖不足，记录两份报告的共识、未决问题和重评所需信息；最终 Risk veto 亦被保留在 final decision。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 的低置信度对应有限事实覆盖；Skeptic 与 CIO 的较高置信度限定为证据不足和不形成行动建议的结论，未把它们表述为方向性判断。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "final decision 明确记录 RISK_VETO、Risk Engine 否决说明及满足可行边界后重评条件；其证据引用与冻结 Gate 的允许 Evidence ID 一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 独立提出价格非估值、收入规模非经营质量及时点联结缺口三项具体、可证伪挑战，并列出所需核验材料。",
+      "status": "PASS"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "120e61e96d1fe53b7e61dded0655fc87a9cba4098b84e280a75f22786c572f39"
+}

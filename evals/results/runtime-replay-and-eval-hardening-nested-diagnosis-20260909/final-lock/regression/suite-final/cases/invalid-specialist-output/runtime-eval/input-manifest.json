@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-rrh-final-lock-regression-suite-20260909-invalid-specialist-output",
+  "expected_terminal_states": [
+    "FAILED_VALIDATION"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression/suite-final/cases/invalid-specialist-output/run",
+  "run_id": "regression-rrh-final-lock-regression-suite-20260909-invalid-specialist-output-0054b5e5c8f3",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "95f1ff51046af19aeff920910418b3e273b57add68998c6175cc1562a28b8972",
+    "artifact_replay": "69ad456063eb4aedde77f9f54984be315e18279c26c201e0dce93a837b9e96a8",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "47b2ecfa9a6b59bfbf5e154a786e4310d2a0511120c8587d571e9b94f439832a",
+    "semantic_input": "f5e2dc3c1be4f5299d64529869af75a53e692381ce5a9f04454ca5afb98943e9",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "4c82f7691e8f30812a778a2825132f13b6eb695d7e3ec2eefc52081785586ff3"
+  }
+}

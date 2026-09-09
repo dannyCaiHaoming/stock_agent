@@ -1,0 +1,48 @@
+{
+  "agent": {
+    "name": "runtime_cio",
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/.codex/agents/runtime_cio.toml",
+    "sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "version": "3.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "input_artifact": "inputs/runtime_cio.json",
+  "input_hash": "480a9eb559e169c7d223c231b8f4203167f6e4b4aafcaf25b0b7c935641cbb92",
+  "instruction_bundle_hash": "6b88d31ea3946b864ee3d9c9abd6af65cc0cf30a184b7b4f1fa53f428b14c6f0",
+  "invocation_id": "inv_c1737c0db800b94e7d1d7120",
+  "manifest_hash": "57b6a478fc0a0068074a931637ca1ba18998c6fdff3b66d1e354c376f6aedb42",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/schemas/runtime/cio-decision-draft.schema.json",
+  "output_schema_hash": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+  "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "518b4ef4ea615452380dc0b5f684097b49ac82f5d866b027e2ecde35bf115b18",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "portfolio-council",
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/portfolio-council/SKILL.md",
+      "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+      "version": "3.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_cio.txt",
+  "task_prompt_hash": "21621cec3e05266127eec68dcb4c7039c632616ed3dd878a530b9e9a0282bba0",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

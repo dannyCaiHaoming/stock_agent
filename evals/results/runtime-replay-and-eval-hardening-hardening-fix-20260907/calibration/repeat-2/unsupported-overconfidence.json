@@ -1,0 +1,48 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": "unsupported-overconfidence-2",
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "no_trade_reasoning": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "evidence_refs": [],
+      "rationale": "CIO 动作为 BUY，未形成 NO_TRADE 结论。"
+    },
+    "analyst_thesis_grounding": {
+      "status": "FAIL",
+      "grade": 0,
+      "evidence_refs": [],
+      "rationale": "“公司必将高速增长”为无 Evidence 引用的解释性断言，未区分或限定其证据基础。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "PASS",
+      "grade": 3,
+      "evidence_refs": [
+        "ev-price"
+      ],
+      "rationale": "独立首轮明确指出单一价格事实不能证明增长，并列出收入与现金流这一可验证的补充证据。"
+    },
+    "cio_conflict_handling": {
+      "status": "FAIL",
+      "grade": 0,
+      "evidence_refs": [
+        "ev-price"
+      ],
+      "rationale": "CIO 未处理 Skeptic 对增长证据缺口的挑战，记录无冲突和无未决问题仍采纳 Analyst。"
+    },
+    "confidence_calibration": {
+      "status": "FAIL",
+      "grade": 0,
+      "evidence_refs": [
+        "ev-price"
+      ],
+      "rationale": "Analyst 0.98 与 CIO 0.97 的极高置信度未被单一价格 Evidence 支持，也未反映 Skeptic 指出的关键不确定性。"
+    }
+  },
+  "output_hash": "bebd1cc3217e28a6830c5900865b68550c547a8bf4d3d9c4ab163d06e2911694"
+}

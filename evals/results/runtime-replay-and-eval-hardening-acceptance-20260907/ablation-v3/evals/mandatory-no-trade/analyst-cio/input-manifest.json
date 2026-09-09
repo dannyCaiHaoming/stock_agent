@@ -1,0 +1,20 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rreh-ablation-v3-eval-mandatory-analyst-cio-20260907",
+  "expected_terminal_states": [
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/analyst-cio",
+  "run_id": "rreh-ablation-v3-mandatory-analyst-cio-20260907",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "8313f7ac6b00a742243d4822d1eb63ae467368789403d8562156ba91b87fc386",
+    "artifact_replay": "c670100f029f7c4e227e475b080a615f47c113be7d0128a2935f84b26f4070d3",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "c90c0e73e678baf8ad7ae94296c231a729f0b0d2062ce5a1c0e0033bd2b1a05f",
+    "semantic_input": "57584e9bc2497ee23fb14f2e504b6671397e04fbdf6f3da1b3c5c707a59d3a69",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "96b21651486731d2415eec8ae29f0905eb447e183645d6e42915f3bf1f09862f"
+  }
+}

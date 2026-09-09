@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/all-evidence-stale/run/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/all-evidence-stale/runtime-eval/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/all-evidence-stale/run"
+  },
+  "case_id": "all-evidence-stale",
+  "executed_operations": [
+    "deterministic_injection",
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "70ec9f1309d1acca05ed48e3e1f1758e626b14e536c821f6059b61fb1e499c52",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "deterministic_outcome": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+    "grader_execution_proof": null,
+    "runtime_eval": "3bb1ed5970605682a4cdba87e96d36bfe36f34752750dc66020869e039cb9df0",
+    "trace": "ddee752cb05ceb38082e0ecdf70d055f52b68d6d389c6885c1bfa38a1d2be756",
+    "trace_report": "38f6845403ac5202c6e14e7284e0d93e07c44ecb75bb7160c6b71ac378ab0a3b"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "0f0ce0bb4a2573353fe3aea8263bc466696dcbddfd7de47a8c5ff830452e4b3b",
+  "run_id": "regression-rrh-final-regression-20260908-all-evidence-stale-42d07a9edbdd",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:all-evidence-stale",
+  "status": "PASS"
+}

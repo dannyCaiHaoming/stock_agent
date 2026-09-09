@@ -134,10 +134,10 @@ def scenario_cio_output(run_dir: Path, *, include_conflict: bool = True):
             {"agent": report["agent"], "output_hash": canonical_hash(report)}
             for report in reports
         ],
-        "action": "TRIM" if is_risk else "HOLD",
+        "action": "NO_TRADE" if is_risk else "HOLD",
         "security_id": "SEC-AAA",
         "current_weight": current_weight,
-        "target_weight_range": [0.55, 0.6] if is_risk else [0.5, 0.5],
+        "target_weight_range": None if is_risk else [0.5, 0.5],
         "maximum_notional": None,
         "time_horizon": "fixture evaluation horizon",
         "thesis": "The admitted evidence supports a bounded monitoring decision.",
@@ -149,9 +149,15 @@ def scenario_cio_output(run_dir: Path, *, include_conflict: bool = True):
         "confidence": 0.45,
         "confidence_rationale": "Unresolved evidence limitations reduce confidence.",
         "evidence_refs": refs,
-        "no_trade_reason": None,
-        "no_trade_explanation": None,
-        "reevaluation_conditions": [],
+        "no_trade_reason": "RISK_OR_MANDATE_CONSTRAINT" if is_risk else None,
+        "no_trade_explanation": (
+            "The existing fixture position already breaches deterministic limits."
+            if is_risk else None
+        ),
+        "reevaluation_conditions": (
+            ["Re-evaluate after the position is within mandate limits."]
+            if is_risk else []
+        ),
         "skill_execution": manifest["skill_execution"],
         "advisory_only": True,
     }
@@ -245,12 +251,13 @@ class NativeArtifactEvalTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 evaluate_run(ROOT, run_dir=run_dir)
 
-    def test_four_fixture_invariants_use_actual_artifacts_without_fixed_actions(self):
+    def test_fixture_invariants_use_actual_artifacts_without_fixed_actions(self):
         expected_checks = {
             "normal-research.json": "normal_full_chain",
+            "insufficient-evidence.json": "insufficient_evidence_full_chain",
             "future-or-stale.json": "future_stale_exact_filtering",
             "evidence-conflict.json": "conflict_preserved_and_consumed",
-            "risk-veto.json": "deterministic_risk_boundary",
+            "risk-veto.json": "deterministic_actual_risk_replay",
         }
         with tempfile.TemporaryDirectory() as directory:
             for fixture, expected_check in expected_checks.items():
@@ -262,6 +269,19 @@ class NativeArtifactEvalTests(unittest.TestCase):
                 )
                 self.assertEqual(result["checks"][expected_check], "PASSED")
                 validate_native_eval_result(result)
+
+    def test_risk_eval_rejects_persisted_result_that_does_not_match_reexecution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self._complete_scenario(directory, "risk-veto.json")
+            trace_path = run_dir / "decision_trace.json"
+            trace = read_json(trace_path)
+            trace["risk_lineage"][-1]["result"]["final_action"] = "HOLD"
+            write_json(trace_path, trace)
+            with self.assertRaisesRegex(
+                (NativeEvalError, ValueError),
+                "TRACE|RISK|risk",
+            ):
+                evaluate_run(ROOT, run_dir=run_dir, allow_test_artifacts=True)
 
     def test_conflict_fixture_fails_when_cio_does_not_explicitly_consume_conflict(self):
         with tempfile.TemporaryDirectory() as directory:

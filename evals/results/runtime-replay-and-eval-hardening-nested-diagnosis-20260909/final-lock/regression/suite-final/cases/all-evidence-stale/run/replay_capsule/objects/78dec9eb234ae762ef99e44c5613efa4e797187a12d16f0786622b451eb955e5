@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/execution-replay/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_run_id", "new_run_id", "source_capsule_hash", "workspace", "locked_inputs", "locked_input_hash", "source_manifest_hash", "new_manifest_hash", "llm_output_equality_required", "contract_and_semantic_eval_required", "status"],
+  "properties": {
+    "schema_version": {"const": "execution-replay/1.0.0"},
+    "source_run_id": {"type": "string", "minLength": 1},
+    "new_run_id": {"type": "string", "minLength": 1},
+    "source_capsule_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "workspace": {"type": "string", "minLength": 1},
+    "locked_inputs": {"type": "object"},
+    "locked_input_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_manifest_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "new_manifest_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "llm_output_equality_required": {"const": false},
+    "contract_and_semantic_eval_required": {"const": true},
+    "status": {"type": "string", "enum": ["PREPARED", "COMPLETED", "FAILED"]}
+  }
+}

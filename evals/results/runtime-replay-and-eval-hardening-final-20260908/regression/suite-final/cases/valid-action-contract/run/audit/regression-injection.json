@@ -1,0 +1,7 @@
+{
+  "case_id": "valid-action-contract",
+  "deterministic_outcome_hash": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+  "injection": "valid-action-contract",
+  "llm_calls": 0,
+  "schema_version": "regression-injection/1.0.0"
+}

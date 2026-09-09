@@ -1,0 +1,27 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "20-source-codex-exec-restricted-copy",
+  "command": [
+    "codex",
+    "exec",
+    "--strict-config",
+    "--json",
+    "-s",
+    "workspace-write",
+    "--add-dir",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runs/source-normal",
+    "-m",
+    "gpt-5.6-terra",
+    "-"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runtime-exec-root/product",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "exit_code": 130,
+  "status": "TIMEOUT_NO_PROGRESS",
+  "observed_no_progress_seconds": 180,
+  "stdin_path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/commands/04-source-smoke-prompt.stdout.log",
+  "stdin_sha256": "d2c3dce2dd3054457fa3c75a28e082703a604b1c53f7971e735664f179b89396",
+  "stdout_capture": "UNAVAILABLE_AFTER_WRAPPER_INTERRUPT",
+  "stderr_capture": "KeyboardInterrupt while waiting for codex child process",
+  "run_observation": "No agents/, cio/, or risk/ files were produced; decision_trace remained non-terminal."
+}

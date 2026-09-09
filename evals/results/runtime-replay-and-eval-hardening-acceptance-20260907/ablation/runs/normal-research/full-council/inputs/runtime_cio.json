@@ -1,0 +1,228 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "基于冻结证据评估当前组合；仅供 Ablation 研究，允许 NO_TRADE。",
+  "run_id": "rreh-ablation-normal-research-full-council-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "9a3791818f1b884f6522ac4ab1b8ef8fea6c1d7c3dca0e880b8349aeb57ba839",
+    "runtime_skeptic": "9ff0886f115f637548874a0a0f98469e921c6169974b2b1518f3028ec24d5141"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "calculation:company_debt_to_revenue_v1:6f9395d7b5309d6033ba1c228a8e795544888fd674ad7524d17f0c8b7eb24ccf"
+      ],
+      "assumptions": [
+        {
+          "assumption_id": "a1_leverage_proxy",
+          "rationale": "该比率由授权的总债务和 TTM 收入确定性计算得出，但不包含偿债能力所需的现金流、现金余额或期限结构。",
+          "statement": "债务/TTM 收入可作为规模化债务负担的描述性指标。"
+        },
+        {
+          "assumption_id": "a2_single_period_limit",
+          "rationale": "授权证据只提供截至 2025-12-31 的一个 TTM 利润率观测值。",
+          "statement": "单期经营利润率不足以代表可持续盈利能力。"
+        },
+        {
+          "assumption_id": "a3_plan_not_execution",
+          "rationale": "公司更新仅说明管理层维持此前计划，未包含实施或回报指标。",
+          "statement": "维持既有计划不等同于计划已经执行或产生经济回报。"
+        }
+      ],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "c1_revenue_fact",
+          "evidence_refs": [
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2025-12-31T00:00:00Z，SEC-AAA 的 TTM 收入为 1,000,000 USD；来源 fixture-filing-primary，retrieved_at 2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c2_debt_fact",
+          "evidence_refs": [
+            "ev-normal-debt"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2025-12-31T00:00:00Z，SEC-AAA 的总债务为 150,000 USD；来源 fixture-filing-primary，retrieved_at 2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c3_margin_fact",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2025-12-31T00:00:00Z，SEC-AAA 的 TTM 经营利润率为 18%；来源 fixture-filing-primary，retrieved_at 2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c4_price_fact",
+          "evidence_refs": [
+            "ev-normal-price"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2026-01-30T21:00:00Z，SEC-AAA 收盘价为 100 USD/股；来源 fixture-market-primary，retrieved_at 2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c5_capacity_update_fact",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "FACT",
+          "statement": "截至 2026-01-20T14:00:00Z，管理层维持此前披露的产能计划；来源 fixture-company-release，retrieved_at 2026-01-20T14:01:00Z。"
+        },
+        {
+          "assumption_ids": [
+            "a1_leverage_proxy"
+          ],
+          "claim_id": "c6_leverage_interpretation",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "确定性计算显示总债务/TTM 收入为 0.15；在缺少现金、利息负担、债务期限及自由现金流信息时，这仅支持“相对收入规模的债务不高”的初步观察，不能独立证明资产负债表韧性。"
+        },
+        {
+          "assumption_ids": [
+            "a2_single_period_limit"
+          ],
+          "claim_id": "c7_business_quality_interpretation",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "18% TTM 经营利润率表明公司在该报告期实现了正经营盈利；但没有利润率、收入或现金流的历史序列，无法判断盈利质量、增长持续性或竞争优势。"
+        },
+        {
+          "assumption_ids": [
+            "a3_plan_not_execution"
+          ],
+          "claim_id": "c8_plan_execution_interpretation",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "管理层维持产能计划降低了计划已被撤回的不确定性，但该更新未披露执行进度、资本开支、需求承接或预期回报，因此不能确认扩产会增厚价值。"
+        }
+      ],
+      "confidence": 0.58,
+      "confidence_rationale": "基础财务和价格事实均来自截止日前的新鲜、可追溯来源，且债务/收入计算由确定性工具完成；但证据覆盖仅含单期经营数据、单一价格和简短计划更新，缺少现金流、历史趋势、估值输入及产能执行证据，因此只能给出低置信度的商业解释。",
+      "counter_evidence_refs": [
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "缺少收入、经营利润率和经营利润的历史序列，无法评估增长、周期性或利润率趋势。",
+        "缺少自由现金流、资本开支、现金、净债务、利息费用和债务期限，无法评估资本配置与偿债能力。",
+        "缺少股数、市值、企业价值、盈利倍数、同业比较及前瞻预测，无法形成证据支持的估值判断。",
+        "缺少产能计划的项目细节、执行里程碑和需求验证。"
+      ],
+      "invalidation_conditions": [
+        "后续经核实的财务披露显示截至 2025-12-31 的总债务、TTM 收入或经营利润率与所用数据存在重大差异。",
+        "公司撤回、显著延迟或重新界定产能计划，或披露该计划需要未被当前证据覆盖的重大资本投入。",
+        "新增披露显示现金流、债务期限、融资成本或需求条件使债务/收入这一有限指标不再具有解释力。"
+      ],
+      "invocation_id": "inv_e969c6b713ecb7f95fae8426",
+      "run_id": "rreh-ablation-normal-research-full-council-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 的冻结、Gate 授权证据研究；截止 2026-01-31T23:59:59Z，仅供 Ablation 研究，不包含组合或交易动作。",
+      "skill_execution": [
+        {
+          "invocation_hash": "95c05fdd90111a1ea3feb8981023c7a2d3d2ae1d0a9c8ae1bd79bb92b554bfbb",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "b1bc72d923504067182574a8b7ca6cf5286b09cadf9c9193d71a7140ba72f272",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7f01731e4e746fb732aa1bd27bf0115d481a003828a75d0f48da0d26299b1b3c",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "产能计划的规模、时点、融资需求、需求基础和预期回报均未披露；该更新不能验证执行结果。",
+        "价格证据仅为截至 2026-01-30 的单一收盘价，无法判断估值、市场预期或波动风险。",
+        "债务的到期结构、利率、担保、现金及流动性均不可得。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [],
+      "confidence": 0,
+      "confidence_rationale": "未成功取得任何 Gate 授权证据；为避免编造或接触受隔离保护的派生结论，未作实质分析。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少可读取的债务、利润率、价格、收入及更新证据，无法形成证据约束的替代解释或失败路径。"
+      ],
+      "evidence_refs": [],
+      "invalidation_conditions": [
+        "在可访问并验证允许 Evidence IDs 的内容前，本报告不应被用于反驳或支持任何研究主张。"
+      ],
+      "invocation_id": "inv_eed057bc8674e41ed75d4aad",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-ablation-normal-research-full-council-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；基于冻结证据评估当前组合，仅供 Ablation 研究。",
+      "skill_execution": [
+        {
+          "invocation_hash": "3656485b5760f784d4e8079ce5953b96f7d773c0f507a83192187b6f4b2ce453",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "26e3e55982f0c897c5821f1deae14d91ffd8ed9376a07ceb9b9c0ebbe90f1316",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "授权的 fixture_evidence.query 在当前隔离运行环境中不可调用；未获得任何允许的证据内容。"
+      ]
+    }
+  }
+}

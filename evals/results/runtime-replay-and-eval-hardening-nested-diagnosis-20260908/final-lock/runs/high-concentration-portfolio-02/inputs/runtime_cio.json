@@ -1,0 +1,182 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "10000.0",
+    "cash_weight": "0.1",
+    "concentration_hhi": "0.81",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.9",
+    "position_weights": {
+      "SEC-AAA": "0.9"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.9"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "请基于冻结的组合与 point-in-time Evidence，完成仅供研究建议的投资委员会分析。",
+  "run_id": "rrh-final-lock-regression-high-concentration-portfolio-02-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "63a1c93817c5a553f235b29bcbcf7818ee40c2972c6dc48368e987d89ae18e1d",
+    "runtime_skeptic": "788e403d58467ba10bdfc0d3819c908754f7ab910dbc70a13f23fa7b086f5e0d"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 收盘价为每股 100 USD；source_id 为 fixture-market-primary，as_of 为 2026-01-30T21:00:00Z，retrieved_at 为 2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-revenue",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的 revenue_ttm 为 1,000,000 USD；source_id 为 fixture-filing-primary，as_of 为 2025-12-31T00:00:00Z，retrieved_at 为 2026-01-15T13:00:00Z。"
+        }
+      ],
+      "confidence": 0.22,
+      "confidence_rationale": "两项基础事实均来自新鲜的授权证据并具有完整来源与时间字段，但证据范围不足以支持商业解释、竞争判断或估值结论。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少公司业务模式、客户需求、竞争格局和风险因素的证据，无法形成受证据约束的商业质量 Thesis。",
+        "缺少股份数量、市值、利润、自由现金流、债务和可比估值数据，无法开展有意义的估值分析。",
+        "缺少历史期间财务序列，无法验证收入趋势或经营杠杆。"
+      ],
+      "invalidation_conditions": [
+        "若 fixture-market-primary 对截至 2026-01-30T21:00:00Z 的 SEC-AAA 收盘价作出更正，则价格事实失效。",
+        "若 fixture-filing-primary 对截至 2025-12-31T00:00:00Z 的 SEC-AAA TTM 营收作出更正，则营收事实失效。"
+      ],
+      "invocation_id": "inv_a55a11b86a78d1a6113a8761",
+      "run_id": "rrh-final-lock-regression-high-concentration-portfolio-02-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 的仅供研究建议分析，决策截止日为 2026-01-31T23:59:59Z；可用证据仅覆盖价格与TTM营收。",
+      "skill_execution": [
+        {
+          "invocation_hash": "7f2e9351613c51921e9d02594b4dc59d05b9351e53a455a6b7588b7d2f6c26a8",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "bbc03a5c6aa30ef65d9bc3ef25c713d0ef6b887e550864b62e86b0502a4a5488",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "70901243668ba68950d5b75026d24132464464ea72b11897be7185d2fa504726",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "可用价格与营收证据的截至日期不同，无法据此确认二者在同一估值时点的对应关系。",
+        "营收的增长、盈利能力、现金流、资产负债表、竞争地位及管理层执行情况均未获证据支持。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "ASSUMP-POSITION-QUANTITY-AND-CASH-ARE-ACCURATE",
+            "ASSUMP-CLOSE-PRICE-IS-REPRESENTATIVE-OF-EXIT-VALUE"
+          ],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "决策时点可执行流动性、价差与冲击成本证据",
+            "经核实的持仓约束适用性及例外授权记录"
+          ],
+          "statement": "组合中 SEC-AAA 按冻结价格计约占总资产 90%，显著高于摘要所列 60% 单一持仓上限；即使公司基本面叙事成立，集中度仍会使单一证券价格波动成为组合结果的主导来源。"
+        },
+        {
+          "assumption_ids": [
+            "ASSUMP-REVENUE-IS-RECURRING-AND-COMPARABLE",
+            "ASSUMP-REVENUE-TRANSLATES-INTO-ECONOMIC-VALUE"
+          ],
+          "challenge_id": "CH-002",
+          "evidence_refs": [
+            "ev-risk-revenue",
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "同口径的历史收入、利润率和自由现金流证据",
+            "截至 cutoff 的估值分母、股本与可比公司估值证据",
+            "客户、续约和收入集中度披露"
+          ],
+          "statement": "截至 2025-12-31 的 TTM 收入为 1,000,000 美元，但单一绝对收入数据不能支持增长、盈利能力、客户集中度、现金流质量或估值合理性的结论；市场价格可能由未获验证的预期而非可持续经营质量驱动。"
+        }
+      ],
+      "confidence": 0.48,
+      "confidence_rationale": "获准证据新鲜且明确支持价格与收入的事实描述，但仅两项证据不足以判定估值、经营质量、流动性或正向 Thesis 的可靠性；报告因此保留可检验的失败路径并标记为低置信度。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "缺少 SEC-AAA 的市值、股本、估值倍数、历史价格和成交量。",
+        "缺少收入增长、毛利率、经营利润、现金流、资产负债表及客户集中度。",
+        "缺少适用于该组合的执行约束、流动性限制和集中度例外信息。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若经核实的组合估值或持仓口径显示 SEC-AAA 权重不高于适用集中度上限，则 CH-001 的集中度挑战失效。",
+        "若 point-in-time 财务和估值证据显示可持续盈利、稳健现金流、足够流动性且估值具备明确安全边际，则 CH-002 的基本面充分性挑战被显著削弱。"
+      ],
+      "invocation_id": "inv_7b186d12726894b763dc45ed",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-lock-regression-high-concentration-portfolio-02-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "独立审视 SEC-AAA 于 decision_cutoff 2026-01-31T23:59:59Z 前的冻结组合风险与可证伪路径；仅使用获准的价格和收入证据，不接触其他 Agent 结论。",
+      "skill_execution": [
+        {
+          "invocation_hash": "b3f8c94cb81695d77c1d69d3c526e502754d192f1cd60ff5a0f223a124f1c957",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "cf98af3d4cf4a1071626b432537ed79d10db10d9523bd0614b969d69b7af70fe",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "价格证据为 2026-01-30 收盘价，不能证明截止时点的流动性、成交可行性或后续价格稳定性。",
+        "收入证据截至 2025-12-31，不能单独说明收入质量、趋势、盈利能力或估值。",
+        "未提供待反驳的正向 Thesis；挑战仅针对从现有输入可能推导出的集中度与基本面充分性主张。"
+      ]
+    }
+  }
+}

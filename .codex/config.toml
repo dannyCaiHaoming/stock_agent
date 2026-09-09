@@ -1,0 +1,22 @@
+sandbox_mode = "workspace-write"
+[agents]
+max_threads = 4
+
+[agents.dev_architect]
+description = "OpenSpec 一致性、能力边界和架构决策。"
+config_file = "agents/dev_architect.toml"
+
+[agents.dev_contracts]
+description = "版本化数据、证据、决策和追踪契约。"
+config_file = "agents/dev_contracts.toml"
+
+[agents.dev_eval]
+description = "真实 Runtime 产物的独立语义评分、回归和消融验证。"
+config_file = "agents/dev_eval.toml"
+
+[agents.dev_reviewer]
+description = "权限、架构边界、回归结果和晋升证据的只读评审。"
+config_file = "agents/dev_reviewer.toml"
+
+[sandbox_workspace_write]
+network_access = true

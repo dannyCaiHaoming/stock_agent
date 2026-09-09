@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_intentional_assertion_failure (evals.promotion.assertion_failure_fixture.IntentionalPromotionAssertionFailure.test_intentional_assertion_failure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/caihaoming/Documents/stock_agent/evals/promotion/assertion_failure_fixture.py", line 10, in test_intentional_assertion_failure
+    self.fail("intentional Promotion Gate negative fixture")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: intentional Promotion Gate negative fixture
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

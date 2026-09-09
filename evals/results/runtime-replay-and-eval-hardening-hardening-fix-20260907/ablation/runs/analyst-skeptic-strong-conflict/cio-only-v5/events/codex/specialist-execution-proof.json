@@ -1,0 +1,29 @@
+{
+  "children": {},
+  "dispatches": [],
+  "first_wait_ordinal": null,
+  "independent_sessions_proven": true,
+  "parallel_dispatch_proven": true,
+  "parent": {
+    "codex_runtime": "codex-cli/0.153.4",
+    "model": "gpt-5.6-terra",
+    "rollout_sha256": "0f2961ba64866c132f95d8db4d40111a4f7a1c412895abf30175ef6aa0301c73",
+    "session_id": "01a07f17-f037-7fc1-be35-7373d7bf0bc5"
+  },
+  "portfolio_council_skill_bound": true,
+  "proof_hash": "8ea7b053b73b015723a167134b7c1f87486cd03c3155b8a72dd47d400b818353",
+  "raw_prompt_or_reasoning_retained": false,
+  "schema_version": "codex-execution-proof/2.0.0",
+  "specialist_topology": [],
+  "telemetry": {
+    "cache_provenance": "NEW_EXECUTION",
+    "cached_tokens": 287488,
+    "input_tokens": 331461,
+    "latency_ms": 111440,
+    "llm_calls": 9,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 3867,
+    "status": "AVAILABLE",
+    "trigger_reason": "runtime_acceptance"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 512512,
+  "cio_conflict_handled": true,
+  "eval_hash": "db64387946c22340ddb346f1954c5f405e257fdae724a49167190489f44e11c1",
+  "eval_status": "PASS",
+  "evidence_closure": true,
+  "evidence_subset_of_gate": true,
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 558448,
+  "latency_ms": 252719,
+  "llm_calls": 3,
+  "model": "gpt-5.6-terra",
+  "no_future_evidence": true,
+  "output_tokens": 8439,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The Analyst labels claim-price-observation FACT, cites the price observation, and explicitly limits it to that fact while identifying no supported company thesis and the related evidence gaps.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO records Specialist consensus, no conflicts present, explicit unresolved questions, and the resulting NO_TRADE impact, all limited to the cited observation and documented gaps.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The low Analyst, Skeptic, and CIO confidence values are directionally consistent with the single authorized observation, material gaps, and stated uncertainty.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The sole cited allowed evidence supports the stated insufficiency; the NO_TRADE explanation and three traceable reevaluation conditions match the reported gaps.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "In its independent first pass, the Skeptic cites the sole observation and specifically identifies untestable assumptions, alternative explanations, data gaps, and the resolution evidence required.",
+      "status": "PASS"
+    }
+  },
+  "specialist_output_valid": true,
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_complete": true,
+  "trace_hash": "da9e2095a82255279a13fe57d14bbf732ff3cceaf42947134f136d522a7f1ad3"
+}

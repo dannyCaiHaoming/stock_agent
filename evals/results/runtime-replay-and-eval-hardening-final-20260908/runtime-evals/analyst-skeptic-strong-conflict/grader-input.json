@@ -1,0 +1,440 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "calculation:revenue_source_b_vs_a_delta_inv_2b94e9a274eac0c95174f105"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_margin_observation",
+          "evidence_refs": [
+            "ev-conflict-margin"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA operating margin TTM was 0.18, sourced from fixture-filing-source-a as of 2025-12-31T00:00:00Z and retrieved at 2026-01-15T13:00:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_price_observation",
+          "evidence_refs": [
+            "ev-conflict-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA closing price was USD 100 per share, sourced from fixture-market-primary as of 2026-01-30T21:00:00Z and retrieved at 2026-01-30T21:05:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_revenue_conflict",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "kind": "FACT",
+          "statement": "Two fresh sources report conflicting SEC-AAA TTM revenue for the same 2025-12-31T00:00:00Z as-of date: fixture-filing-source-a reported USD 1,000,000, retrieved 2026-01-15T13:00:00Z, while fixture-filing-source-b reported USD 1,250,000, retrieved 2026-01-16T13:00:00Z. The deterministic calculation shows the latter is 25% above the former."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_valuation_interpretation",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "The unresolved 25% revenue discrepancy is material to any revenue-based valuation interpretation; the authorized evidence does not establish which reported value is the appropriate economic denominator."
+        }
+      ],
+      "confidence": 0.24,
+      "confidence_rationale": "The price and operating-margin observations are fresh and individually sourced, but a same-period 25% conflict in the core revenue input is unresolved. This prevents a sufficiently grounded company or valuation thesis.",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-b"
+      ],
+      "data_gaps": [
+        "A source-reconciliation record or primary filing support explaining the USD 250,000 TTM revenue discrepancy.",
+        "Consistent audited financial statements and capital-structure data needed for valuation analysis.",
+        "Operating-history and competitive-position evidence needed to assess business quality or durability."
+      ],
+      "invalidation_conditions": [
+        "A validated reconciliation establishes that either reported revenue figure is misstated, differently scoped, or not comparable.",
+        "Additional authorized evidence materially changes the reported operating margin or closing-price observation.",
+        "New authorized financial evidence resolves revenue but indicates materially different profitability, cash generation, or capital structure."
+      ],
+      "invocation_id": "inv_2b94e9a274eac0c95174f105",
+      "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA; decision cutoff 2026-01-31T23:59:59Z. Reviewed only authorized evidence: filing-source revenue and operating-margin observations as of 2025-12-31T00:00:00Z, and primary-market closing price as of 2026-01-30T21:00:00Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "4274d65da331a76612445b6cb9648d7e8ff845c5da766d38f4c18d011949bd0d",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "2adb83841302c2fd37354ca35b91f4d6aa36df39de6e30c2458e558afdbc7364",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "ca0b540edca0bd320c6275c01bd066a6c363f9cf21f9980fd56dd8c3e6f8b3b5",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "Revenue observations conflict across fixture-filing-source-a and fixture-filing-source-b despite identical as-of dates; no reconciliation evidence is authorized.",
+        "The available evidence does not provide earnings, cash flow, shares outstanding, growth, or peer/valuation-multiple context.",
+        "Operating margin cannot be reliably paired with either revenue observation to infer operating profit without resolving the revenue conflict."
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "revenue-data-is-consistent",
+            "revenue-derived-interpretations-are-reliable"
+          ],
+          "challenge_id": "revenue-source-conflict",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "resolution_evidence_needed": [
+            "A reconciled primary filing or issuer disclosure identifying the applicable revenue definition, reporting perimeter, and restatement status as of 2025-12-31."
+          ],
+          "statement": "The two fresh revenue_ttm observations as of 2025-12-31 conflict materially: 1,000,000 versus 1,250,000 USD. Revenue-dependent growth, scale, margin-dollar, or valuation interpretations are therefore not reliably established without reconciliation of the underlying reporting basis."
+        },
+        {
+          "assumption_ids": [
+            "operating-margin-is-durable",
+            "current-profitability-represents-recurring-economics"
+          ],
+          "challenge_id": "profitability-context-gap",
+          "evidence_refs": [
+            "ev-conflict-margin"
+          ],
+          "resolution_evidence_needed": [
+            "Comparable historical operating-margin observations, a stated metric definition, and primary-source explanation of material period effects."
+          ],
+          "statement": "A single 18% operating-margin TTM observation supports neither durability nor direction of profitability. It may reflect a temporary mix, accounting, or operating effect rather than recurring economics."
+        },
+        {
+          "assumption_ids": [
+            "single-price-observation-supports-market-interpretation"
+          ],
+          "challenge_id": "price-interpretation-gap",
+          "evidence_refs": [
+            "ev-conflict-price"
+          ],
+          "resolution_evidence_needed": [
+            "Point-in-time share-count and valuation inputs, price/volume history, and liquidity evidence available before the decision cutoff."
+          ],
+          "statement": "One close price observation of 100 USD is insufficient to substantiate valuation, liquidity, momentum, or risk/reward interpretations; no share-count, valuation multiple, trading-history, or market-depth evidence is available."
+        }
+      ],
+      "confidence": 0.8,
+      "confidence_rationale": "High confidence that the authorized revenue observations conflict and that the remaining authorized observations lack sufficient context for broader inference; low confidence in any company-level conclusion because the permitted evidence set is narrow.",
+      "counter_evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "data_gaps": [
+        "Reconciled revenue definition and reporting perimeter.",
+        "Historical profitability and revenue trend data.",
+        "Cash-flow, balance-sheet, debt, dilution, and liquidity data.",
+        "Valuation inputs beyond a single close price."
+      ],
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "The revenue conflict is invalidated if an authoritative reconciliation demonstrates that one observation is inapplicable or that both use consistently reconcilable definitions.",
+        "The profitability-context challenge is invalidated if comparable point-in-time history and disclosures demonstrate durable recurring operating margins.",
+        "The price-interpretation challenge is invalidated if sufficient point-in-time valuation and liquidity evidence supports the relevant market interpretation."
+      ],
+      "invocation_id": "inv_694a8c1f11baa425945e5ae9",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA; Regression-analyst-skeptic-strong-conflict; decision cutoff 2026-01-31T23:59:59Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "eb4638124249a79b20a22c4d2ce9ee05ebcf2d2eec8d480bc7677c499404720d",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "84fc26bbc6b33eb471702119241b44725fc8258933a3c44d4ebd6a7a22b01439",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "The source conflict cannot be resolved from the authorized evidence alone.",
+        "The relationship between the reported operating margin and either revenue observation is unverified.",
+        "No forward operating, competitive, balance-sheet, or cash-flow evidence was authorized."
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.2,
+      "confidence_rationale": "The underlying data conflict is explicit and both specialist reports independently conclude that the narrow authorized evidence set cannot resolve it or support a company-level thesis. The individual price and margin observations do not cure the absence of reconciled financial and valuation context.",
+      "conflicts": [
+        {
+          "confidence_impact": "The unresolved 25% discrepancy materially lowers confidence in any action-oriented thesis.",
+          "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+          "decision_impact": "The conflict prevents reliable revenue-based scale, profitability-dollar, growth, and valuation interpretation.",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "summary": "Two authorized fresh sources report incompatible USD 1,000,000 and USD 1,250,000 TTM revenue values for the same security and as-of date.",
+          "unresolved": true
+        }
+      ],
+      "consensus": [
+        "Both validated specialist reports identify the same unresolved same-period TTM revenue conflict.",
+        "Both reports find the authorized evidence insufficient for a grounded company-level or valuation conclusion.",
+        "Both reports identify missing reconciliation and broader financial-context evidence as decision-limiting."
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "2769d63f7018bece80454888292c15917c373f81654915f23897ac3ee3ea2eb8"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "45fdca23dd1baf59b9dc50c4d2b6dbadea2e0c3b737d46c11706b311d36fa2f1"
+        }
+      ],
+      "counter_thesis": "The independent review finds the same-period revenue observations materially inconsistent and finds that the isolated margin and price observations lack historical, valuation, liquidity, cash-flow, balance-sheet, and competitive context.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "An authoritative eligible reconciliation establishes that one revenue observation is inapplicable or reconciles both definitions.",
+        "Eligible historical and primary-source disclosures establish materially different recurring profitability or financial condition.",
+        "Eligible valuation and liquidity evidence supplies context that materially changes the investment interpretation."
+      ],
+      "invocation_id": "inv_06ceba929f4979b74ea376f4",
+      "maximum_notional": null,
+      "no_trade_explanation": "A material same-period revenue conflict remains unresolved, and the remaining authorized observations do not provide the financial, valuation, or liquidity context needed for an action-oriented recommendation.",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "Obtain eligible reconciled primary-source revenue evidence for the 2025-12-31 reporting period.",
+        "Obtain eligible historical profitability, cash-flow, balance-sheet, capital-structure, valuation, and liquidity evidence before reassessment."
+      ],
+      "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "60a83a16c4994ae8bb0972313f0ac130673c6a573cea917bbe9297fa8ff664f8",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "target_weight_range": null,
+      "thesis": "The authorized record establishes an 18% TTM operating-margin observation and a USD 100 close-price observation, but it does not establish a reliable company or valuation thesis because the core TTM revenue input is unresolved.",
+      "time_horizon": "Reassess only after eligible evidence resolves the conflict.",
+      "unresolved_questions": [
+        "Which authorized revenue observation, if either, uses the applicable reporting definition, perimeter, and restatement status?",
+        "What audited financial, capital-structure, cash-flow, and historical operating evidence supports a durable company and valuation assessment?",
+        "What point-in-time valuation and liquidity context supports interpreting the single close-price observation?"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.2,
+          "confidence_rationale": "The underlying data conflict is explicit and both specialist reports independently conclude that the narrow authorized evidence set cannot resolve it or support a company-level thesis. The individual price and margin observations do not cure the absence of reconciled financial and valuation context.",
+          "counter_thesis": "The independent review finds the same-period revenue observations materially inconsistent and finds that the isolated margin and price observations lack historical, valuation, liquidity, cash-flow, balance-sheet, and competitive context.",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-conflict-margin",
+            "ev-conflict-price",
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "invalidation_conditions": [
+            "An authoritative eligible reconciliation establishes that one revenue observation is inapplicable or reconciles both definitions.",
+            "Eligible historical and primary-source disclosures establish materially different recurring profitability or financial condition.",
+            "Eligible valuation and liquidity evidence supplies context that materially changes the investment interpretation."
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "A material same-period revenue conflict remains unresolved, and the remaining authorized observations do not provide the financial, valuation, or liquidity context needed for an action-oriented recommendation.",
+          "no_trade_reason": "EVIDENCE_CONFLICT",
+          "reevaluation_conditions": [
+            "Obtain eligible reconciled primary-source revenue evidence for the 2025-12-31 reporting period.",
+            "Obtain eligible historical profitability, cash-flow, balance-sheet, capital-structure, valuation, and liquidity evidence before reassessment."
+          ],
+          "security_id": "SEC-AAA",
+          "target_weight_range": null,
+          "thesis": "The authorized record establishes an 18% TTM operating-margin observation and a USD 100 close-price observation, but it does not establish a reliable company or valuation thesis because the core TTM revenue input is unresolved.",
+          "time_horizon": "Reassess only after eligible evidence resolves the conflict.",
+          "unresolved_questions": [
+            "Which authorized revenue observation, if either, uses the applicable reporting definition, perimeter, and restatement status?",
+            "What audited financial, capital-structure, cash-flow, and historical operating evidence supports a durable company and valuation assessment?",
+            "What point-in-time valuation and liquidity context supports interpreting the single close-price observation?"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "evidence_id": "ev-conflict-margin",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "operating_margin_ttm",
+          "source_id": "fixture-filing-source-a",
+          "source_locator": "fixture://conflict/margin/a",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "ratio",
+          "value": 0.18
+        },
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://conflict/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-source-a",
+          "source_locator": "fixture://conflict/revenue/a",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-16T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-source-b",
+          "source_locator": "fixture://conflict/revenue/b",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "bundle_hash": "7d54b54fc952919a8613727bc4e566212fccf17b942e73c1f69f9c3b3402d46a",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [
+        {
+          "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+          "evidence_ids": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "observations": [
+            {
+              "currency": "USD",
+              "evidence_id": "ev-conflict-revenue-a",
+              "source_id": "fixture-filing-source-a",
+              "unit": "USD",
+              "value": 1000000
+            },
+            {
+              "currency": "USD",
+              "evidence_id": "ev-conflict-revenue-b",
+              "source_id": "fixture-filing-source-b",
+              "unit": "USD",
+              "value": 1250000
+            }
+          ],
+          "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+          "source_ids": [
+            "fixture-filing-source-a",
+            "fixture-filing-source-b"
+          ]
+        }
+      ],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "evidence-conflict-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "8eb2492efc16796982d1c1857889ba382bd629eae3475d156749c51d8bc05890",
+      "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rrh-final-analyst-skeptic-strong-conflict-20260908",
+  "terminal_state": "SAFE_NO_TRADE"
+}

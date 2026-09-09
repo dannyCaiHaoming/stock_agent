@@ -1,0 +1,113 @@
+{
+  "baseline_version": "0.2.1-candidate.1",
+  "candidate_version": "0.3.0-candidate.1",
+  "gate_id": "rreh-promotion-candidate-20260907",
+  "hard_gates": {
+    "ablation_comparability": {
+      "detail": "NOT_COMPARABLE",
+      "status": "FAIL"
+    },
+    "deterministic_tests": {
+      "detail": "PASS",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "detail": "all runtime evals",
+      "status": "PASS"
+    },
+    "execution_replay": {
+      "detail": "PASS",
+      "status": "PASS"
+    },
+    "mandatory_no_trade": {
+      "detail": [
+        "all-evidence-stale",
+        "mandatory-no-trade"
+      ],
+      "status": "PASS"
+    },
+    "pit_leakage": {
+      "detail": "zero leaks",
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "detail": "all runtime evals",
+      "status": "PASS"
+    },
+    "runtime_regression": {
+      "detail": [],
+      "status": "PASS"
+    },
+    "schema_success": {
+      "detail": "all runtime evals",
+      "status": "PASS"
+    },
+    "semantic_calibration": {
+      "detail": 1.0,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "detail": [
+        "rreh-source-normal-20260907",
+        "rreh-execution-replay-normal-20260907"
+      ],
+      "status": "PASS"
+    },
+    "version_completeness": {
+      "detail": {
+        "baseline": "0.2.1-candidate.1",
+        "baseline_ablation": false,
+        "baseline_manifest_diagnostic": "version manifest requires non-empty assurance",
+        "baseline_manifest_valid": false,
+        "baseline_runtime_evals": 0,
+        "candidate": "0.3.0-candidate.1"
+      },
+      "status": "FAIL"
+    }
+  },
+  "input_hashes": {
+    "ablation": "827354dce8fecc108211332b157a2c15ce220ff6be46f27d065f4d10c52c0371",
+    "baseline_manifest": "1378021f9c17822b0c75824d8b7514403d2b320abd67dd62b00dc083972704a6",
+    "candidate_manifest": "61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404",
+    "deterministic_tests": "cf4f93e8984766190795c9de48516490f4004cea999b9f5084a11f2cccdecceb",
+    "execution_replay": "c6bf7094d4f5b66463a07ce88bfe22d1f88620de30a58f0513f03b05cd6ff3f8",
+    "grader_proof_0": "8198491d89fbf1cae598b15c40962116dad52f0b3a53a05bdc9e260b61c3e2e4",
+    "grader_proof_1": "4f20231858990287de502888aade8cf76f4757607ed15ebbbd9d1b6e980be741",
+    "input_manifest": "92b1fca5aec6f197748b94308062df61785bf53e761b260beda64bbc03ff4a84",
+    "model_policy": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5",
+    "regression": "0ad6f4a96a11ce02d2aa1921ab8335f66c974ae616c1a43958af1d4e942be726",
+    "runtime_eval_0": "67a19bc7a67b3a5d1770c2d43c15376a55b3f88bb872c5ca4699972167b63bd5",
+    "runtime_eval_1": "c2bd31121301afb8753c17dcc4f1a26ae1458ec2cf1e8bfa97c43ce56a242449",
+    "semantic_calibration": "1cd898bf805ec3d95d8e48807a22186e7fa435021139a88ab77828390b1407fc",
+    "trace_integrity_0": "c073f0b1cb2511ada6c908a3fe75303617d2211bcf08d90e93c55aece31e3579",
+    "trace_integrity_1": "4a1f39576fa7b4ff202b5c3a958cbceb669055c35ef1061cd154ca0cd5d1d3c7"
+  },
+  "reason_codes": [
+    "PROMOTION_HARD_GATE_FAILED:ablation_comparability",
+    "PROMOTION_HARD_GATE_FAILED:version_completeness"
+  ],
+  "result_hash": "a739c704e5625c9389fdb674cbaf9ee07dba571dae28565cec0a515b61802395",
+  "schema_version": "promotion-gate/1.0.0",
+  "soft_metrics": {
+    "ablation_conclusion": "NOT_COMPARABLE",
+    "ablation_gain_required": false,
+    "cost_and_latency": {
+      "baseline_latency_ms": null,
+      "baseline_tokens": null,
+      "candidate_latency_ms": null,
+      "candidate_tokens": null,
+      "latency_delta_ms": null,
+      "status": "FAIL_COST_COMPARISON",
+      "token_delta": null
+    },
+    "semantic": {
+      "baseline_mean": null,
+      "candidate_mean": 1.0,
+      "delta": null,
+      "status": "NOT_COMPARABLE",
+      "tolerance": 0.05
+    },
+    "telemetry_status": "MISSING_TELEMETRY"
+  },
+  "status": "FAIL"
+}

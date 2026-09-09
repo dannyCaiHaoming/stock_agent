@@ -1,0 +1,7 @@
+{
+  "message": "rrh-same-batch-diagnosis-insufficient-evidence-20260909 — CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "fa45f3e6481f155966b76acd4a3855bcdb33fe0101be53b55e34097115472c01",
+  "present": true,
+  "run_id": "rrh-same-batch-diagnosis-insufficient-evidence-20260909",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

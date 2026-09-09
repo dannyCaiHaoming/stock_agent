@@ -1,0 +1,155 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_close_price",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "FACT：SEC-AAA 收盘价为 100 USD/股；source_id 为 fixture-market-primary，as_of 为 2026-01-30T21:00:00Z，retrieved_at 为 2026-01-30T21:05:00Z。"
+        }
+      ],
+      "confidence": 0.15,
+      "confidence_rationale": "对单一收盘价事实的置信度受新鲜且具来源血缘的授权证据支持；但公司研究和估值所需关键基本面证据完全缺失。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入、利润率、现金流、资产负债表和管理层指引。",
+        "缺少行业、竞争、客户集中度及风险事件证据。",
+        "缺少估值所需的盈利、现金流、股本和可比公司数据。",
+        "缺少历史价格、成交量及基准比较数据。"
+      ],
+      "invalidation_conditions": [
+        "若 fixture-market-primary 对该 as_of 的收盘价进行更正，则价格事实失效。"
+      ],
+      "invocation_id": "inv_7c52fec62596ac38baaf0800",
+      "run_id": "rreh-ablation-v3-insufficient-full-council-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；仅获授权证据 ev-insufficient-price：fixture-market-primary 的收盘价，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "c378637d0d6468612b9c2cb108edd12f2ccb04dd5c6f9c2f1b84e1e99526cb5d",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "a7bdb4f40b7fda61dd1ffa35507ad0f0cb3bb13dd7de02a87fb09be53eb81acc",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "6ab513657fa4594e5b537dd692d0001befcd00a296e290a08f1bd18ba63f19bd",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一价格证据不能说明业务质量、竞争地位、盈利能力或估值。",
+        "该价格虽标记为 FRESH，但缺少公司基本面和历史比较数据。"
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "CH-001",
+          "evidence_refs": [],
+          "resolution_evidence_needed": [
+            "可由授权 evidence_id 支持且在决策截止日前的价格、基本面、事件和来源血缘证据。"
+          ],
+          "statement": "授权证据查询不可用，无法验证价格、时点、来源血缘或任何可支持研究范围的事实；因此任何正向解释均可能只是由未验证输入或陈旧数据驱动。"
+        }
+      ],
+      "confidence": 0.05,
+      "confidence_rationale": "唯一允许的证据查询未成功，且没有任何可核验的授权证据内容；只能高置信地识别证据访问缺口，不能形成实质反证判断。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少可读取的授权证据内容。",
+        "缺少可核验的价格时点与来源信息。",
+        "缺少可支持替代解释或失败路径评估的公司、市场和事件证据。"
+      ],
+      "evidence_refs": [],
+      "invalidation_conditions": [
+        "若授权证据查询恢复且返回在决策截止日前、来源与时间血缘完整的证据，本报告的证据不足结论应重新评估。"
+      ],
+      "invocation_id": "inv_df805ca149f3bb687c654d16",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-ablation-v3-insufficient-full-council-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；在 2026-01-31T23:59:59Z 决策截止日前评估证据不足场景。",
+      "skill_execution": [
+        {
+          "invocation_hash": "5d331c022698188f5f20df750ebe7bf545d28ede16ddac5428f2ba1482e3f9b8",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "71a48601f8f15e68ec1c15948d0e4c53c8b7187a74242fec03798385026c2453",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "fixture_evidence.query 调用因传输关闭失败，未取得授权 Evidence ID 的内容。",
+        "无法判断现有持仓价格是否具备有效来源、as_of 和 retrieved_at。"
+      ]
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-insufficient-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://insufficient/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "bundle_hash": "40895dd450e3b30f81b8a80e664d927bb3ff383c6266fa93cc1c6c9bdb88610d",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "insufficient-evidence-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "dc5ebd566dc1540e88c3385f99711c0d210d3b1dc8d61ff2eee8c58a108b78ec",
+      "run_id": "rreh-ablation-v3-insufficient-full-council-20260907",
+      "schema_version": "evidence-gate/2.0.0"
+    },
+    "run_error.json": {
+      "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+      "failed_stage": "SPECIALIST_VALIDATION",
+      "message": "UNGROUNDED_CHALLENGE",
+      "run_id": "rreh-ablation-v3-insufficient-full-council-20260907",
+      "schema_version": "run-error/2.1.0",
+      "terminal_state": "FAILED_VALIDATION"
+    }
+  },
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "run_id": "rreh-ablation-v3-insufficient-full-council-20260907",
+  "terminal_state": "FAILED_VALIDATION"
+}

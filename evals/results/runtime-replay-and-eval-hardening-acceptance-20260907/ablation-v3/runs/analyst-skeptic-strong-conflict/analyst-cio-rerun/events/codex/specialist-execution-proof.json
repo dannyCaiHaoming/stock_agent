@@ -1,0 +1,108 @@
+{
+  "children": {
+    "runtime_company_analyst": {
+      "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "agent_role": "runtime_company_analyst",
+      "assistant_output_hash": "faecccb366f5ffb506e5e600a776172fb60a279fedd11594433bb02119f72fc3",
+      "codex_runtime": "codex-cli/0.153.4",
+      "configured_skills": [
+        {
+          "configured": true,
+          "name": "evidence-grounding",
+          "protocol_bound": true,
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "company-research",
+          "protocol_bound": true,
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "valuation",
+          "protocol_bound": true,
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "final_structured_output_hash": "2e9f9054cb2b9a46adff83d7b7fea9ddf8678f34ce53fea1305289fd2aead174",
+      "model": "gpt-5.6-terra",
+      "multi_agent_version": "v2",
+      "observed_tool_calls": [
+        {
+          "arguments_hash": "5af24cce8ff160490e6b88964c7e4dcd0863627e011fcdc1eb25658e3850b9d7",
+          "call_id": "call_kqafYyXTANsDMJ9RQKWVoyRS",
+          "ordinal": 18,
+          "tool": "fixture_evidence.query"
+        }
+      ],
+      "parent_session_id": "01a07b13-4a12-7773-a841-731ceeed19b0",
+      "raw_fixture_access_attempts": 0,
+      "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+      "role_instructions_loaded": true,
+      "rollout_sha256": "fbaae306f739bfa4d472da6ed7f3a54f3090e7e7098f265957efc9990ef53549",
+      "session_id": "01a07b14-8931-70e0-a09f-63b52ce87bcc",
+      "task_binding": {
+        "agent_matches": true,
+        "binding_method": "protected_dispatch_plus_structured_output",
+        "invocation_id_matches": true,
+        "invocation_id_present": false,
+        "run_id_matches": true,
+        "run_id_present": false,
+        "task_prompt_hash": "c04455793e693f58864176e2e3a7fb177982defa05be175e8b1612bf5d688454",
+        "task_prompt_present": false,
+        "verified": true
+      },
+      "thread_source": "subagent",
+      "unapproved_tool_calls": 0
+    }
+  },
+  "dispatches": [
+    {
+      "agent": "runtime_company_analyst",
+      "call_id": "call_NslY9LuiHeZ5Q1SZ3sDjRfoQ",
+      "child_session_id": "01a07b14-8931-70e0-a09f-63b52ce87bcc",
+      "completion_ordinal": 48,
+      "dispatch_ordinal": 29,
+      "request": {
+        "agent_type": "runtime_company_analyst",
+        "fork_turns": "none",
+        "message_sha256": "061ea28486a6bd18149849ccbb20f54c6332d17f9aad95db2c9062c8ac7571a9",
+        "protected_message_present": true,
+        "task_name": "company_research"
+      },
+      "request_hash": "a6c6ea19f71b0322569adc4ece1144d9d1098a6cfc14ac338fbafae1645dc5bd",
+      "start_ordinal": 31
+    }
+  ],
+  "first_wait_ordinal": 39,
+  "independent_sessions_proven": true,
+  "parallel_dispatch_proven": true,
+  "parent": {
+    "codex_runtime": "codex-cli/0.153.4",
+    "model": "gpt-5.6-terra",
+    "rollout_sha256": "366feda0bd1517b0909fe687e85e84dc56a5fc2e2296bba959aa95354de06110",
+    "session_id": "01a07b13-4a12-7773-a841-731ceeed19b0"
+  },
+  "portfolio_council_skill_bound": true,
+  "proof_hash": "59c18b113af466ec565896f7fd855fe35bb9ca8748c985c0d222f1bd0f29699f",
+  "raw_prompt_or_reasoning_retained": false,
+  "schema_version": "codex-execution-proof/2.0.0",
+  "specialist_topology": [
+    "runtime_company_analyst"
+  ],
+  "telemetry": {
+    "cache_provenance": "NEW_EXECUTION",
+    "cached_tokens": 578560,
+    "input_tokens": 656936,
+    "latency_ms": 241762,
+    "llm_calls": 16,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 8395,
+    "status": "AVAILABLE",
+    "trigger_reason": "ablation:analyst-skeptic-strong-conflict"
+  }
+}

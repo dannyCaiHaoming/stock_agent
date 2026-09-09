@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/llm-overconfidence/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence"
+  },
+  "case_id": "llm-overconfidence",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "e10c943a6f03f22c72526e85da436d9fa7931b173a37cfe46e06b1ff81856572",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "grader_execution_proof": "0695117081afbb4ddb2a4bb2d01c2f517e889209ebdd823aebfa6a9af7b2ec89",
+    "runtime_eval": "a3edd61d4d448f653b141f0aeb84e1924f84319ce1cc412a7c000b269a904a54",
+    "trace": "ec911a6a8c053fd64d59001893dc5f75c1723ffa402948924f3e548c8b28a54a",
+    "trace_report": "1340103bdbdcd6865ed13a53ff21b648ba68791f0438b8bc0e0398cbec99d666"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "b92e00989e864b5f3aa7d6583aeac6534d4b1fdbb817fd2019c3184887fe7a10",
+  "run_id": "rrh-final-llm-overconfidence-20260908",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/llm-overconfidence --strict-config --json -m gpt-5.6-terra -",
+  "status": "PASS"
+}

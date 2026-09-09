@@ -1,0 +1,55 @@
+{
+  "allowed_evidence": [
+    {
+      "as_of": "2026-01-30T21:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-risk-price",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "freshness_status": "FRESH",
+      "retrieved_at": "2026-01-30T21:05:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "close_price",
+      "source_id": "fixture-market-primary",
+      "source_locator": "fixture://risk/price/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD_per_share",
+      "value": 100
+    },
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "currency": "USD",
+      "evidence_id": "ev-risk-revenue",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "freshness_status": "FRESH",
+      "retrieved_at": "2026-01-15T13:00:00Z",
+      "security_id": "SEC-AAA",
+      "semantic_field": "revenue_ttm",
+      "source_id": "fixture-filing-primary",
+      "source_locator": "fixture://risk/revenue/1",
+      "source_type": "fixture",
+      "source_version": "1",
+      "unit": "USD",
+      "value": 1000000
+    }
+  ],
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "bundle_hash": "94ce8fa4b7f40179fb9e094780e6c37f0a4d511b4ba7597faca9b26cb5bdf07d",
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "conflicts": [],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "excluded": [],
+  "excluded_evidence_ids": [],
+  "fixture_id": "risk-veto-v1",
+  "freshness_policy_version": "freshness/fixture/2.0.0",
+  "input_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "input_hash": "e341d5190821ab1ee77e6c56b6d61c8b2826e8501b88faf5b16b9209ddb8189c",
+  "run_id": "rrh-final-lock-regression-high-concentration-portfolio-20260908",
+  "schema_version": "evidence-gate/2.0.0"
+}

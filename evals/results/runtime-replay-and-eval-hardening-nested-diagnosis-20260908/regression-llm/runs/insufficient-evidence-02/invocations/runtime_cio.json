@@ -1,0 +1,47 @@
+{
+  "agent": {
+    "name": "runtime_cio",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_cio.toml",
+    "sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "version": "3.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-insufficient-price"
+  ],
+  "input_artifact": "inputs/runtime_cio.json",
+  "input_hash": "d4eba51b8aa06b304368076e57bbe8ec2bf7ae2ad6c6a23a694f9af96f17e240",
+  "instruction_bundle_hash": "733e0f6471e8376145d5ef2ad16057feb835b5ea2b72128c9077eea569e58f30",
+  "invocation_id": "inv_abff8a958ae1502ea59f0bb4",
+  "manifest_hash": "e26e2f82a3c656826c061cca314d27596bf3f6409de68c7085fdb535d70a8e50",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/product/schemas/runtime/cio-decision-draft.schema.json",
+  "output_schema_hash": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+  "run_id": "rrh-nested-regression-insufficient-evidence-02-20260908",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "ef93aac287b5aec76746b274397129c33a8f2dd89edcbb427de750fde6733cd5",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "portfolio-council",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+      "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+      "version": "3.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_cio.txt",
+  "task_prompt_hash": "af0ee0bd572c948c9d63aa592357ade4baab3a8ae3bf10e1ba270fcc581870c0",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

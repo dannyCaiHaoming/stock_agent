@@ -1,0 +1,735 @@
+{
+  "agents": [
+    {
+      "agent_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "2b7215a1c734bd4b46f855fca7fa9f80b9655e7897ad756f4574c5d2ccea8088",
+      "instruction_bundle_hash": "475b82dd92c6d4e84c0379f7a617c05e2603918ed3fdd6e2f207bdae7730dee1",
+      "invocation_id": "inv_f143f0c9a729f0ef427d64ca",
+      "manifest_hash": "5147be63b1db32b59215daccb1d6b1f5df65fe434268feac7528a01bdabb79c5",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_company_analyst",
+      "output_hash": "6334393840faf10b427a9f9379eb2e22fc61ce628668f9edb496d5e5b82d701d",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/schemas/agent-research-report.schema.json",
+      "output_schema_hash": "0ad42b4d84bf45705ace6a48146c901af3f899b20c1691b18a1960bd96cbd44c",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "company-research",
+          "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/company-research/SKILL.md",
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "name": "valuation",
+          "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/valuation/SKILL.md",
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "1b7a44bc9538256c430b184724a47bb1db8719d8e7468be5a952503b45ea39d6",
+      "tool_permissions": [
+        "fixture_evidence.query",
+        "fixture_math.calculate"
+      ],
+      "version": "2.1.0"
+    },
+    {
+      "agent_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "c5b67ba8c866313f525a89e6b9d97c8f6ff2d9740401d45bbc2147ca8d5254ce",
+      "instruction_bundle_hash": "03a3854f7a030e535509a93523f35cfd94db635a0da858523a78d239d8b829e6",
+      "invocation_id": "inv_edbbabec5852f3351868ee87",
+      "manifest_hash": "cda23825a5a6dd566e2b3c3ff4912349933921cde41352503accb8ccd0583105",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_skeptic",
+      "output_hash": "1b42298acc842b8dfb54e030453170325506eb90ce3390740421c3b8bda2150f",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/schemas/counter-thesis-report.schema.json",
+      "output_schema_hash": "2e72eb3e12b03da957247a9c1dbfd2e28e36e72d0508e5dfabd331073b86f644",
+      "skills": [
+        {
+          "name": "evidence-grounding",
+          "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/evidence-grounding/SKILL.md",
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "name": "counter-thesis",
+          "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/counter-thesis/SKILL.md",
+          "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "b8935bc7aed109ff62884e87f7fe04dc7c16332a54fee894883fc1a24681680a",
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
+      "version": "2.0.0"
+    },
+    {
+      "agent_sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+      "codex_runtime": "codex-cli/0.153.4",
+      "decision_contract": {
+        "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/contracts/council-decision-contract.json",
+        "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+        "version": "council-decision-contract/1.0.0"
+      },
+      "evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "480a9eb559e169c7d223c231b8f4203167f6e4b4aafcaf25b0b7c935641cbb92",
+      "instruction_bundle_hash": "6b88d31ea3946b864ee3d9c9abd6af65cc0cf30a184b7b4f1fa53f428b14c6f0",
+      "invocation_id": "inv_c1737c0db800b94e7d1d7120",
+      "manifest_hash": "57b6a478fc0a0068074a931637ca1ba18998c6fdff3b66d1e354c376f6aedb42",
+      "model": "gpt-5.6-terra",
+      "name": "runtime_cio",
+      "output_hash": "6fc7627b7a08dab12efb249cf045bd9370856528593d6f455a53baf846231abf",
+      "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/schemas/runtime/cio-decision-draft.schema.json",
+      "output_schema_hash": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+      "skills": [
+        {
+          "name": "portfolio-council",
+          "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/skills/portfolio-council/SKILL.md",
+          "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "COMPLETED",
+      "task_prompt_hash": "21621cec3e05266127eec68dcb4c7039c632616ed3dd878a530b9e9a0282bba0",
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
+      "version": "3.0.0"
+    }
+  ],
+  "artifacts": {
+    "agents/runtime_company_analyst.json": "96822c5249d30d47a7d5700bd0f1a5c7df1f96a6ef1bd7df1d4a6221aeff675f",
+    "agents/runtime_skeptic.json": "7d1a0bb7327a62b7c7c83f0e65ff4c20aae55aab31f370eec2e6628013b948d7",
+    "audit/fixture_snapshot.json": "f2fbabb97680fee3e1155fb197d75bcb3ceb9e14dc85f7361d23444a21bd9c84",
+    "cio/runtime_cio.json": "d6602d83a17927cdad591fd6a0be03ea53b6a09629d41b479936b36034b29372",
+    "decision.json": "97f79a5add27db1434fe73f12a1977be3454f4be1bd3de8a54ad7f3590671d01",
+    "eval/result.json": "853800760f76f59492c87d3a3820adb7f52d3386a2880ade1d3ccdf8e54c55f8",
+    "events/codex/specialist-execution-proof.json": "b86306e0cdafca5f68e9d0f388f8b6177658d322114ea764a1bd2fbc06103925",
+    "events/mcp/events.jsonl": "8e20aff212291752ff76974a9984b65250fcec123f02b047f69006800d3249ee",
+    "evidence/gate.json": "c233d7443d1cb736b92e50759a072b55170c717035220a4c7da54cf7549fdf80",
+    "execution-replay.json": "d100734ba7571cacfbe2fc5bbcf356822cdd84262d7fa8845f048a25f44cd897",
+    "inputs/runtime_cio.json": "54c3eac19c8a8f8cfe96245cc2788bb4d203324f991f0f6e6a003110ab4c6e37",
+    "inputs/runtime_company_analyst.json": "e460fd2a6af4ad0052dca924f90f59514c433fdf6cd3c43013e51682c3370a36",
+    "inputs/runtime_skeptic.json": "d8384fb0619b88c4aafae98eac4cb58c147b66cd02028cd29a9a1cbdb3feae29",
+    "invocations/runtime_cio.json": "b00143fd9159c90a3179ca711acb21223a9b0c86a3a8e2960cbef6bfdaa8902b",
+    "invocations/runtime_company_analyst.json": "80fda4e38b9bcff95e96fbfbb49b47ad20e78ed8bb4c9ba3fe7f803f98582b3e",
+    "invocations/runtime_skeptic.json": "937ea08a68517a656bfe5eb74a6353f67948d67e68ac61d260aec03298152167",
+    "prompts/runtime_cio.txt": "a7c62506de01f14fc6cf2131b805cd86a98e8d2d0945c6b2ab8796633b573f09",
+    "prompts/runtime_company_analyst.txt": "f36141bd78174aa814bbd26c686a0621565eda0d30f1902699232781258ced31",
+    "prompts/runtime_skeptic.txt": "d2e9f55ca6f97b53dfa983c1af34dda161a360e67851c1fed0c082579bdadeca",
+    "replay_capsule/manifest.json": "d92b200245bddb862f4934958abfd51014d6c63cb8ec3014da90886cc22d1231",
+    "replay_capsule/objects/0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6": "0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6",
+    "replay_capsule/objects/007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+    "replay_capsule/objects/14c0c5283712fe492b4fdc0a82785d5aae12980ad68a9b813ca0712aaedc9b2a": "14c0c5283712fe492b4fdc0a82785d5aae12980ad68a9b813ca0712aaedc9b2a",
+    "replay_capsule/objects/1604fc69eeb6b206af21e4ff311b5fd1e74f5a2974d127bad46b73c2bb52337a": "1604fc69eeb6b206af21e4ff311b5fd1e74f5a2974d127bad46b73c2bb52337a",
+    "replay_capsule/objects/1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6": "1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6",
+    "replay_capsule/objects/19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "replay_capsule/objects/1bcb9c1270962d5337b58ccfa9ca27969f83f5935321eb7fc6ca29f4c77fae23": "1bcb9c1270962d5337b58ccfa9ca27969f83f5935321eb7fc6ca29f4c77fae23",
+    "replay_capsule/objects/1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+    "replay_capsule/objects/1f4685c1165b16b70274bc443a5a0d81962de42e621fcfad174e03d7d1223b85": "1f4685c1165b16b70274bc443a5a0d81962de42e621fcfad174e03d7d1223b85",
+    "replay_capsule/objects/202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3": "202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3",
+    "replay_capsule/objects/2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394": "2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394",
+    "replay_capsule/objects/27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b": "27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b",
+    "replay_capsule/objects/30833b995994a21670ee497df217283875bf427abb4fa2d891056c19fc384b1d": "30833b995994a21670ee497df217283875bf427abb4fa2d891056c19fc384b1d",
+    "replay_capsule/objects/32852584de1e7d9e69f5a1b34cab0a06f6d8f58f5709e421e17b45d7c1d67014": "32852584de1e7d9e69f5a1b34cab0a06f6d8f58f5709e421e17b45d7c1d67014",
+    "replay_capsule/objects/32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+    "replay_capsule/objects/38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7": "38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7",
+    "replay_capsule/objects/3a1dce65a02b6255b2c23928d0f2b08b031875ac641177f873cfdd575f08e8cb": "3a1dce65a02b6255b2c23928d0f2b08b031875ac641177f873cfdd575f08e8cb",
+    "replay_capsule/objects/3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+    "replay_capsule/objects/4642a316043937151ce3c9ef8c7d565ab39b280608e9f31f2503b19561f9dabd": "4642a316043937151ce3c9ef8c7d565ab39b280608e9f31f2503b19561f9dabd",
+    "replay_capsule/objects/5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99": "5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99",
+    "replay_capsule/objects/53037375735cad0d804bb0f6c69f74aba3aaee07fffd12b7c3bdb4b92f3cfd6e": "53037375735cad0d804bb0f6c69f74aba3aaee07fffd12b7c3bdb4b92f3cfd6e",
+    "replay_capsule/objects/55c45fba48013051a92c6720ba0d29115f3e96cb83da44254f9f04fc30e1303e": "55c45fba48013051a92c6720ba0d29115f3e96cb83da44254f9f04fc30e1303e",
+    "replay_capsule/objects/58d2bf5abfff1fbb263a6db18f29553a8fdaaf71d81857951b08288cc3736abf": "58d2bf5abfff1fbb263a6db18f29553a8fdaaf71d81857951b08288cc3736abf",
+    "replay_capsule/objects/5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23": "5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23",
+    "replay_capsule/objects/5d6cc34d4b93d0309c7bcb3bcb804438041170c61add417b3808b4dbdfdd61ab": "5d6cc34d4b93d0309c7bcb3bcb804438041170c61add417b3808b4dbdfdd61ab",
+    "replay_capsule/objects/61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404": "61e0f7db8b31471f921b7560d318c86ad677dc725ccdbda078b1406daa614404",
+    "replay_capsule/objects/623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+    "replay_capsule/objects/685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f": "685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f",
+    "replay_capsule/objects/6ba2499fdeb544daf7a0566d5a78f13232d2de81aab1b288686808804e41d445": "6ba2499fdeb544daf7a0566d5a78f13232d2de81aab1b288686808804e41d445",
+    "replay_capsule/objects/6bf872492f627d739bfe779e6ba7d8798edbc61025a19d4d0874828c4fe255e6": "6bf872492f627d739bfe779e6ba7d8798edbc61025a19d4d0874828c4fe255e6",
+    "replay_capsule/objects/6c1b4af448f4d91991317e385cc00ced6c0fee04c89ad4e911a6634dcfbfaa0e": "6c1b4af448f4d91991317e385cc00ced6c0fee04c89ad4e911a6634dcfbfaa0e",
+    "replay_capsule/objects/70d0f3985229e5f43fd49f8b204af9fdef0beec207357ede5df5530ec980b5fa": "70d0f3985229e5f43fd49f8b204af9fdef0beec207357ede5df5530ec980b5fa",
+    "replay_capsule/objects/7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f": "7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f",
+    "replay_capsule/objects/7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+    "replay_capsule/objects/734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9": "734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9",
+    "replay_capsule/objects/74b301f1e3c5c792e0603c01d1ebcbe6944e799ba6a34ec5567e831dedccd1b2": "74b301f1e3c5c792e0603c01d1ebcbe6944e799ba6a34ec5567e831dedccd1b2",
+    "replay_capsule/objects/74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+    "replay_capsule/objects/7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263": "7637abbc5e02f0e8b87184d002dfb6501ce27c44a899faa807e7378745cd1263",
+    "replay_capsule/objects/78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5": "78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5",
+    "replay_capsule/objects/79eec16aea072393b1829a096b97c12ed584def13c4c9896987daad1a7f815b9": "79eec16aea072393b1829a096b97c12ed584def13c4c9896987daad1a7f815b9",
+    "replay_capsule/objects/7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+    "replay_capsule/objects/7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4": "7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4",
+    "replay_capsule/objects/81ea2863f7ce94a7a977c3b9e1c90c9508b9bad30fc37ba603504c607a1d7571": "81ea2863f7ce94a7a977c3b9e1c90c9508b9bad30fc37ba603504c607a1d7571",
+    "replay_capsule/objects/82435fd942ff0e8bc6902e3608c0c77574bda4fa9b350db995273c737bd51d82": "82435fd942ff0e8bc6902e3608c0c77574bda4fa9b350db995273c737bd51d82",
+    "replay_capsule/objects/8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434": "8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434",
+    "replay_capsule/objects/8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041": "8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041",
+    "replay_capsule/objects/90bd3698881a1cb58c0f663932c20e15b8433f09a87bca622c9421147003baa8": "90bd3698881a1cb58c0f663932c20e15b8433f09a87bca622c9421147003baa8",
+    "replay_capsule/objects/94a9c8a7a2774583391c079b8313b570d73321adfd10db0d93cf3c29fab48f40": "94a9c8a7a2774583391c079b8313b570d73321adfd10db0d93cf3c29fab48f40",
+    "replay_capsule/objects/974aa7678a007c8b24b405c4bb3740c55d5bf4fcdabadfbfeabe5b8105158385": "974aa7678a007c8b24b405c4bb3740c55d5bf4fcdabadfbfeabe5b8105158385",
+    "replay_capsule/objects/9b7492d038f66fb46d316bef392814fabb83a42d442d74ae552e0161d53d0399": "9b7492d038f66fb46d316bef392814fabb83a42d442d74ae552e0161d53d0399",
+    "replay_capsule/objects/9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453": "9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453",
+    "replay_capsule/objects/9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2": "9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2",
+    "replay_capsule/objects/a31a651e42b0364daa5aaf4fcb180583a3111e8ce2fd344fb0050bebe98eb696": "a31a651e42b0364daa5aaf4fcb180583a3111e8ce2fd344fb0050bebe98eb696",
+    "replay_capsule/objects/abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5",
+    "replay_capsule/objects/abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75": "abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75",
+    "replay_capsule/objects/abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+    "replay_capsule/objects/ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281": "ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281",
+    "replay_capsule/objects/b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33": "b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33",
+    "replay_capsule/objects/b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0": "b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0",
+    "replay_capsule/objects/b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+    "replay_capsule/objects/b6608e2f63a8fa41ee0fdbfeae3615eb02b2f355b56fe548e8f45f9b4071ff9e": "b6608e2f63a8fa41ee0fdbfeae3615eb02b2f355b56fe548e8f45f9b4071ff9e",
+    "replay_capsule/objects/bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f": "bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f",
+    "replay_capsule/objects/c233d7443d1cb736b92e50759a072b55170c717035220a4c7da54cf7549fdf80": "c233d7443d1cb736b92e50759a072b55170c717035220a4c7da54cf7549fdf80",
+    "replay_capsule/objects/c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae": "c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae",
+    "replay_capsule/objects/ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a": "ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a",
+    "replay_capsule/objects/cccb1cd61d9aa6e92150ea08b8765c06491fe4c91acb2be6f908b1bda245a469": "cccb1cd61d9aa6e92150ea08b8765c06491fe4c91acb2be6f908b1bda245a469",
+    "replay_capsule/objects/ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+    "replay_capsule/objects/cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a": "cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a",
+    "replay_capsule/objects/cf66bd5f9ae4b322e350aa014bf17f6812d478d9da90cf0bb20639f87615972a": "cf66bd5f9ae4b322e350aa014bf17f6812d478d9da90cf0bb20639f87615972a",
+    "replay_capsule/objects/d13d24ac3332f77ca969dfbbd27c276dfed3f1a21e58ef843aeff9ba5394538d": "d13d24ac3332f77ca969dfbbd27c276dfed3f1a21e58ef843aeff9ba5394538d",
+    "replay_capsule/objects/d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe": "d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe",
+    "replay_capsule/objects/d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+    "replay_capsule/objects/d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34": "d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34",
+    "replay_capsule/objects/d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+    "replay_capsule/objects/db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e": "db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e",
+    "replay_capsule/objects/de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb": "de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb",
+    "replay_capsule/objects/e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418": "e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418",
+    "replay_capsule/objects/eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae": "eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae",
+    "replay_capsule/objects/ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6": "ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6",
+    "replay_capsule/objects/ebe7564c61babecab657e56f415975b13a8fa64eb2f91ef8fbaf71e2802ada7d": "ebe7564c61babecab657e56f415975b13a8fa64eb2f91ef8fbaf71e2802ada7d",
+    "replay_capsule/objects/efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d": "efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d",
+    "replay_capsule/objects/f0b42478409a1fbfd209af3768501d652f179730df9fc58be393eb19f82a0cc2": "f0b42478409a1fbfd209af3768501d652f179730df9fc58be393eb19f82a0cc2",
+    "replay_capsule/objects/f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f": "f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f",
+    "replay_capsule/objects/f2fbabb97680fee3e1155fb197d75bcb3ceb9e14dc85f7361d23444a21bd9c84": "f2fbabb97680fee3e1155fb197d75bcb3ceb9e14dc85f7361d23444a21bd9c84",
+    "replay_capsule/objects/f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9": "f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9",
+    "replay_capsule/objects/f78c8af076c72e6f312fceb57d6147055541e8895be047e5118bb39ed4c1ea28": "f78c8af076c72e6f312fceb57d6147055541e8895be047e5118bb39ed4c1ea28",
+    "replay_capsule/objects/fa7561454bd8f9071ca032a7ed68803980431b452ab3088cc1e21dbd2d4982e4": "fa7561454bd8f9071ca032a7ed68803980431b452ab3088cc1e21dbd2d4982e4",
+    "replay_capsule/objects/fba645ccc247e0d7f110c311172a87a57c531b9f4d7f574efdd35c0a6832d22f": "fba645ccc247e0d7f110c311172a87a57c531b9f4d7f574efdd35c0a6832d22f",
+    "replay_capsule/objects/fef80469d84211c95123e8e288724622b4c4097af7eb4915e7884e4038d7d191": "fef80469d84211c95123e8e288724622b4c4097af7eb4915e7884e4038d7d191",
+    "replay_capsule/objects/fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6": "fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6",
+    "replay_capsule/objects/fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0": "fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0",
+    "report.md": "97e0255f7ded957f51ec6cf61d0771d620b712a4d5030a7130d4db2122cec177",
+    "risk/check-1.json": "70cf48a6477a0165f43dd32a89d8fe182bf08fd47a92820286ac3dc019515ece",
+    "run_manifest.json": "ca63d50c2a69573ef0f97fa4b7633875ab79cc270d890567efe335f6eecce7de",
+    "schemas/agent-research-report.schema.json": "0ad42b4d84bf45705ace6a48146c901af3f899b20c1691b18a1960bd96cbd44c",
+    "schemas/counter-thesis-report.schema.json": "2e72eb3e12b03da957247a9c1dbfd2e28e36e72d0508e5dfabd331073b86f644"
+  },
+  "codex_execution": {
+    "children": {
+      "runtime_company_analyst": {
+        "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "agent_role": "runtime_company_analyst",
+        "assistant_output_hash": "dcc871fabb80fc9b9ebb769b436973e3ab41257301f005eb74e7f82195948d35",
+        "codex_runtime": "codex-cli/0.153.4",
+        "configured_skills": [
+          {
+            "configured": true,
+            "name": "evidence-grounding",
+            "protocol_bound": true,
+            "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "company-research",
+            "protocol_bound": true,
+            "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "valuation",
+            "protocol_bound": true,
+            "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+            "version": "2.0.0"
+          }
+        ],
+        "final_structured_output_hash": "6334393840faf10b427a9f9379eb2e22fc61ce628668f9edb496d5e5b82d701d",
+        "model": "gpt-5.6-terra",
+        "multi_agent_version": "v2",
+        "observed_tool_calls": [
+          {
+            "arguments_hash": "295dcdd758aa8be73c9e0d119215a8abbdf7dd2c60d2533740be48b2ffe08826",
+            "call_id": "call_exD8RIaM4Vmy279jJt2QpMtg",
+            "ordinal": 18,
+            "tool": "fixture_evidence.query"
+          }
+        ],
+        "parent_session_id": "01a07c4a-bc3c-7c03-a705-f832e5564d01",
+        "raw_fixture_access_attempts": 0,
+        "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+        "role_instructions_loaded": true,
+        "rollout_sha256": "2825319044d69e865aaa69a7142265b2360429de520466ffe1ebdd1cfff102ca",
+        "session_id": "01a07c4b-9ff9-7c80-8660-c55ac1f20cfc",
+        "task_binding": {
+          "agent_matches": true,
+          "binding_method": "protected_dispatch_plus_structured_output",
+          "invocation_id_matches": true,
+          "invocation_id_present": false,
+          "run_id_matches": true,
+          "run_id_present": false,
+          "task_prompt_hash": "1b7a44bc9538256c430b184724a47bb1db8719d8e7468be5a952503b45ea39d6",
+          "task_prompt_present": false,
+          "verified": true
+        },
+        "thread_source": "subagent",
+        "unapproved_tool_calls": 0
+      },
+      "runtime_skeptic": {
+        "agent_resource_sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+        "agent_role": "runtime_skeptic",
+        "assistant_output_hash": "541a555765f563dae7e16e4e38ff9a6a5371e44859a5e5ba1b6478983f37341f",
+        "codex_runtime": "codex-cli/0.153.4",
+        "configured_skills": [
+          {
+            "configured": true,
+            "name": "evidence-grounding",
+            "protocol_bound": true,
+            "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+            "version": "2.0.0"
+          },
+          {
+            "configured": true,
+            "name": "counter-thesis",
+            "protocol_bound": true,
+            "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+            "version": "2.0.0"
+          }
+        ],
+        "final_structured_output_hash": "1b42298acc842b8dfb54e030453170325506eb90ce3390740421c3b8bda2150f",
+        "model": "gpt-5.6-terra",
+        "multi_agent_version": "v2",
+        "observed_tool_calls": [
+          {
+            "arguments_hash": "881aa554c3f6bf79bf377ff0b6ca1c23ace4695634da9e86c37aa9f0ed86f972",
+            "call_id": "call_NlQ1wObMV9h1hvIjLtFapLJa",
+            "ordinal": 12,
+            "tool": "fixture_evidence.query"
+          }
+        ],
+        "parent_session_id": "01a07c4a-bc3c-7c03-a705-f832e5564d01",
+        "raw_fixture_access_attempts": 0,
+        "role_instruction_sha256": "742317a72c7d0fafb6008b6dd761a19f8999ce20c35ee522b18f434486f4c240",
+        "role_instructions_loaded": true,
+        "rollout_sha256": "bbb7309b3b2c2482c2d4fd92a5afe5ca01aa8cbfe7d0050f98b46a6bd258c077",
+        "session_id": "01a07c4b-ee5e-71c0-b190-01f0e381af61",
+        "task_binding": {
+          "agent_matches": true,
+          "binding_method": "protected_dispatch_plus_structured_output",
+          "invocation_id_matches": true,
+          "invocation_id_present": false,
+          "run_id_matches": true,
+          "run_id_present": false,
+          "task_prompt_hash": "b8935bc7aed109ff62884e87f7fe04dc7c16332a54fee894883fc1a24681680a",
+          "task_prompt_present": false,
+          "verified": true
+        },
+        "thread_source": "subagent",
+        "unapproved_tool_calls": 0
+      }
+    },
+    "dispatches": [
+      {
+        "agent": "runtime_company_analyst",
+        "call_id": "call_1KS9UAOkyF3YXU02fo1aNm9t",
+        "child_session_id": "01a07c4b-9ff9-7c80-8660-c55ac1f20cfc",
+        "completion_ordinal": 54,
+        "dispatch_ordinal": 36,
+        "request": {
+          "agent_type": "runtime_company_analyst",
+          "fork_turns": "none",
+          "message_sha256": "6ff8f031617b9da606559694f19e3fa56a16ef40695ec76d86a0745db1582fb9",
+          "protected_message_present": true,
+          "task_name": "company_research"
+        },
+        "request_hash": "6c3fbb0a19c201b1cf1008b79956011f4938564d2ae4fcddecf5b8ee6cc39306",
+        "start_ordinal": 38
+      },
+      {
+        "agent": "runtime_skeptic",
+        "call_id": "call_4Ge9L6RTI9l8rHjZKFm8nVwc",
+        "child_session_id": "01a07c4b-ee5e-71c0-b190-01f0e381af61",
+        "completion_ordinal": 64,
+        "dispatch_ordinal": 42,
+        "request": {
+          "agent_type": "runtime_skeptic",
+          "fork_turns": "none",
+          "message_sha256": "04488e216034635fec556ea3f0f1409805f52e3bac86ad6d35a6ed5001f66935",
+          "protected_message_present": true,
+          "task_name": "independent_skeptic"
+        },
+        "request_hash": "7d51590283afbae5ee30dc1bcbcc5b497f60198bfe9d26553fdc75f3d42e3cb2",
+        "start_ordinal": 44
+      }
+    ],
+    "independent_sessions_proven": true,
+    "parallel_dispatch_proven": true,
+    "parent": {
+      "codex_runtime": "codex-cli/0.153.4",
+      "model": "gpt-5.6-terra",
+      "rollout_sha256": "8656e09659aa0a51bcee3f3fa778cd4f7f407ec976fb5fef1633aa0af8e7cbf4",
+      "session_id": "01a07c4a-bc3c-7c03-a705-f832e5564d01"
+    },
+    "portfolio_council_skill_bound": true,
+    "proof_hash": "9c266972409834ebef3e0fd5d8ee1108af923d2ce09e3432e0e8580ba8df0d1e",
+    "schema_version": "codex-execution-proof/2.0.0",
+    "specialist_topology": [
+      "runtime_company_analyst",
+      "runtime_skeptic"
+    ],
+    "telemetry": {
+      "cache_provenance": "NEW_EXECUTION",
+      "cached_tokens": 406528,
+      "input_tokens": 521151,
+      "latency_ms": 212321,
+      "llm_calls": 16,
+      "model": "gpt-5.6-terra",
+      "output_tokens": 8896,
+      "status": "AVAILABLE",
+      "trigger_reason": "execution_replay"
+    }
+  },
+  "events": [
+    {
+      "stage": "DISCOVERY_PREFLIGHT",
+      "status": "PASSED"
+    },
+    {
+      "allowed_evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "bundle_hash": "29ba4d5ff911cf7fced44f75c391066a5d0d9b549156ba9532525e8c277ce1c5",
+      "excluded_evidence_ids": [],
+      "stage": "EVIDENCE_GATE",
+      "status": "PASSED"
+    },
+    {
+      "agents": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_INVOCATIONS_PREPARED"
+    },
+    {
+      "source_run_id": "rreh-candidate-risk-veto-current-20260907",
+      "stage": "EXECUTION_REPLAY_PREPARED"
+    },
+    {
+      "evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "reports": [
+        "runtime_company_analyst",
+        "runtime_skeptic"
+      ],
+      "stage": "SPECIALIST_REPORTS_VALIDATED"
+    },
+    {
+      "attempt": 1,
+      "input_hash": "6fc7627b7a08dab12efb249cf045bd9370856528593d6f455a53baf846231abf",
+      "policy_version": "risk/reference/1.0.0",
+      "stage": "RISK_ENGINE_STARTED"
+    },
+    {
+      "risk_status": "REJECTED",
+      "stage": "TERMINAL_DECISION_VALIDATED",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    {
+      "eval_hash": "1f8385c8afc7f0039c1e3bf5e50b8b99b89ae4a607be27ff99077e07a76457e2",
+      "stage": "ACTUAL_ARTIFACT_EVAL",
+      "status": "PASSED"
+    }
+  ],
+  "evidence_lineage": {
+    "allowed_evidence_ids": [
+      "ev-risk-price",
+      "ev-risk-revenue"
+    ],
+    "bundle_hash": "29ba4d5ff911cf7fced44f75c391066a5d0d9b549156ba9532525e8c277ce1c5",
+    "conflict_policy_version": "conflict-key/2.0.0",
+    "decision_cutoff": "2026-01-31T23:59:59Z",
+    "excluded_evidence_ids": [],
+    "freshness_policy_version": "freshness/fixture/2.0.0"
+  },
+  "failed_stage": null,
+  "mcp_events": [
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.1",
+      "agent": "runtime_company_analyst",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "d2559cdf370a2e4866d6f85283f4bd081b4940dd02e8fdc31a0b924928a33efb",
+      "invocation_id": "inv_f143f0c9a729f0ef427d64ca",
+      "output_hash": "f7ac7a4ee52aeaa659037017a0b8e23a648d41d1ff47169123fda52eb0425583",
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "tool": "fixture_evidence.query"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "fixture-gate-scoped/2.1.1",
+      "agent": "runtime_skeptic",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "f77949211374eb0fe3eef297201a2555f19ab30af9cc0f4cbd5d686b2a002c83",
+      "invocation_id": "inv_edbbabec5852f3351868ee87",
+      "output_hash": "f7ac7a4ee52aeaa659037017a0b8e23a648d41d1ff47169123fda52eb0425583",
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "tool": "fixture_evidence.query"
+    }
+  ],
+  "risk_lineage": [
+    {
+      "attempt": 1,
+      "error": null,
+      "input_hash": "6fc7627b7a08dab12efb249cf045bd9370856528593d6f455a53baf846231abf",
+      "policy_version": "risk/reference/1.0.0",
+      "result": {
+        "check": {
+          "feasible_bounds": {
+            "SEC-AAA": {
+              "maximum": 0.6,
+              "minimum": 0.0
+            }
+          },
+          "mandate_version": "mandate/fixture/2.0.0",
+          "metric_definition_version": "portfolio-metrics/1.0.0",
+          "policy_version": "risk/reference/1.0.0",
+          "post_trade_metrics": {
+            "average_daily_value": {
+              "SEC-AAA": 10000000.0
+            },
+            "cash": 10000.0,
+            "cash_weight": 0.1,
+            "concentration_hhi": 0.81,
+            "cost_bps": 10.0,
+            "definition_version": "portfolio-metrics/1.0.0",
+            "liquidity_participation": {
+              "SEC-AAA": 0.0
+            },
+            "max_position_weight": 0.9,
+            "position_weights": {
+              "SEC-AAA": 0.9
+            },
+            "sector_exposure": {
+              "Synthetic Technology": 0.9
+            },
+            "simulated_cost": 0.0,
+            "total_value": 100000.0,
+            "trade_notionals": {
+              "SEC-AAA": 0.0
+            },
+            "turnover": 0.0
+          },
+          "pre_trade_metrics": {
+            "average_daily_value": {
+              "SEC-AAA": 10000000.0
+            },
+            "cash": 10000.0,
+            "cash_weight": 0.1,
+            "concentration_hhi": 0.81,
+            "definition_version": "portfolio-metrics/1.0.0",
+            "max_position_weight": 0.9,
+            "position_weights": {
+              "SEC-AAA": 0.9
+            },
+            "sector_exposure": {
+              "Synthetic Technology": 0.9
+            },
+            "total_value": 100000.0
+          },
+          "stage": "FINAL",
+          "status": "REJECTED",
+          "veto_codes": [
+            "POSITION_LIMIT",
+            "LIQUIDITY_LIMIT",
+            "SECTOR_LIMIT"
+          ],
+          "violations": [
+            {
+              "code": "POSITION_LIMIT",
+              "limit": 0.6,
+              "metric": "target_max:SEC-AAA",
+              "observed": 0.9,
+              "policy_rule": "POSITION_LIMIT",
+              "remediable_within_range": false
+            },
+            {
+              "code": "LIQUIDITY_LIMIT",
+              "limit": "0:0.6",
+              "metric": "target_range:SEC-AAA",
+              "observed": "0.9:0.9",
+              "policy_rule": "LIQUIDITY_LIMIT",
+              "remediable_within_range": false
+            },
+            {
+              "code": "SECTOR_LIMIT",
+              "limit": 0.6,
+              "metric": "sector_range:Synthetic Technology",
+              "observed": "0.9:0.9",
+              "policy_rule": "SECTOR_LIMIT",
+              "remediable_within_range": false
+            }
+          ]
+        },
+        "draft_hash": "6fc7627b7a08dab12efb249cf045bd9370856528593d6f455a53baf846231abf",
+        "final_action": "NO_TRADE",
+        "modifications": [],
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "producer": "deterministic_risk_engine",
+        "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+        "schema_version": "native-risk-result/2.0.0",
+        "veto_reason": "RISK_VETO"
+      },
+      "result_hash": "5167a5ea4321406943387cc00ad066775914b6c0511cd7d15d1249e7fea380ed",
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "schema_version": "risk-lineage/2.1.0",
+      "status": "COMPLETED"
+    }
+  ],
+  "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "runtime": {
+    "candidate_version": "0.3.0-candidate.1",
+    "codex_runtime": "codex-cli/0.153.4",
+    "discovery_hash": "75b064414c552416cf5588c4e33749e299680ca908ab0b4de1490c88f43e691c",
+    "execution_replay": {
+      "locked_input_hash": "4bacf14f05d3df171fbbcef99a091022b4e9624d65f658813979056354bd956b",
+      "source_capsule_hash": "99276379200280a71035785ae350b5eb94ad87e2bdc719de6660d99c57848571",
+      "source_run_id": "rreh-candidate-risk-veto-current-20260907"
+    },
+    "model": "gpt-5.6-terra",
+    "replay_capsule": {
+      "manifest_hash": "0e804d0ed9c914f3ac8a72d6b6c7e6fa7ceca2605fdbab6e1931a7f27aa8d506",
+      "object_count": 91,
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/runs/execution-replay-risk-veto/replay_capsule",
+      "root_hash": "34897cc0c703162f38ffd5c4cb261a64680b988a17f95cb5de1a8a5c82f60d96",
+      "schema_version": "replay-capsule/1.0.0"
+    },
+    "runtime_profile": "fixture-council/3.0.0",
+    "trigger_reason": "execution_replay",
+    "version_lock": {
+      "agents": {
+        "runtime-cio": "3.0.0",
+        "runtime-company-analyst": "2.1.0",
+        "runtime-market-catalyst": "1.0.0",
+        "runtime-skeptic": "2.0.0"
+      },
+      "assurance": {
+        "ablation-profiles": "1.0.0",
+        "model-routing-policy": "1.0.0",
+        "promotion-policy": "1.0.0",
+        "regression-set": "1.0.0",
+        "runtime-eval-calibration": "1.0.0",
+        "runtime-eval-grader-agent": "1.0.0",
+        "runtime-eval-grader-skill": "1.0.0",
+        "runtime-eval-rubric": "1.0.0"
+      },
+      "assurance_hashes": {
+        "ablation_profiles": "7e69d2623791ffb6a2a319e68d33c4978ec9b7b8773c2c7db13fbb9c92293d70",
+        "model_routing_policy": "e68f5190f4e13a2d3136f87893b0ae894bfb9dc83124e5f29084567d0be16ff7",
+        "promotion_policy": "3061de135eccc1494a8af61435315bd622c9cd95fed5104e1b66e50c424ec65b",
+        "regression_set": "1946efea07c2337c76551f8fb32d8fbf7a55cc3cef8a2eedb8e855049faef7b7",
+        "runtime_eval_calibration": "d95a5763f08e0450fbf48f01661380bdd12004b2de66f34711e504b013c88627",
+        "runtime_eval_grader_agent": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
+        "runtime_eval_grader_skill": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+        "runtime_eval_rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+      },
+      "candidate_version": "0.3.0-candidate.1",
+      "codex_runtime": "codex-cli/0.153.4",
+      "data_snapshot": "fixture/codex-native/2.0.0",
+      "decision_contract": "council-decision-contract/1.0.0",
+      "manifest_version": "3.0.0",
+      "mcp_adapters": {
+        "fixture-gate-scoped": "2.1.1",
+        "fixture-reference": "1.0.0",
+        "provider-neutral-contracts": "1.0.0"
+      },
+      "model": "gpt-5.6-terra",
+      "resource_hashes": {
+        "cio_agent": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+        "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+        "council_skill": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+        "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+        "plugin": "94a9c8a7a2774583391c079b8313b570d73321adfd10db0d93cf3c29fab48f40",
+        "plugin_mcp": "3c08454f95bc6e3d9f4735212b7f097eb2b518772854c9d87733d093b389da86",
+        "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+        "runtime_profile": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8",
+        "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+      },
+      "risk_policy": "risk/reference/1.0.0",
+      "runtime_profile": "fixture-council/3.0.0",
+      "schemas": {
+        "ablation-report": "1.0.0",
+        "artifact-envelope": "1.0.0",
+        "decision-risk": "1.0.0",
+        "decision-trace": "2.1.0",
+        "evidence": "1.0.0",
+        "execution-replay": "1.0.0",
+        "learning": "1.0.0",
+        "portfolio": "1.0.0",
+        "promotion-gate": "1.0.0",
+        "promotion-input": "1.0.0",
+        "regression-case": "1.0.0",
+        "regression-suite": "1.0.0",
+        "replay-capsule": "1.0.0",
+        "research": "1.0.0",
+        "runtime-artifacts": "2.1.0",
+        "runtime-eval-job": "1.0.0",
+        "semantic-calibration-result": "1.0.0",
+        "semantic-rubric-result": "1.0.0"
+      },
+      "skills": {
+        "catalyst-analysis": "1.0.0",
+        "company-research": "2.0.0",
+        "counter-thesis": "2.0.0",
+        "evidence-grounding": "2.0.0",
+        "portfolio-council": "3.0.0",
+        "valuation": "2.0.0"
+      }
+    }
+  },
+  "schema_version": "decision-trace/2.1.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

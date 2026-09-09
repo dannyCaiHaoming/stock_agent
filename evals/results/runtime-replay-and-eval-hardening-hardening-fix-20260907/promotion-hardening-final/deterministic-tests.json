@@ -1,0 +1,15 @@
+{
+  "schema_version": "deterministic-test-report/1.0.0",
+  "status": "PASS",
+  "command": "/usr/bin/env TMPDIR=/private/tmp/stock-agent-full-final-20260908 python3 -m unittest discover -s tests",
+  "tmpdir": "/private/tmp/stock-agent-full-final-20260908",
+  "exit_code": 0,
+  "tests_run": 267,
+  "assertion_failures": 0,
+  "environment_errors": 0,
+  "raw_result": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/promotion-hardening-final/deterministic-tests-raw.json",
+    "sha256": "431fe55863d7894b5fbaa5e14f91ba5e578631c9addd6480c1cac1b7dde8e01f"
+  },
+  "result_hash": "ab942e20853bab54bdd6387715c4fad117942a26ba6a3636c3076342d89583be"
+}

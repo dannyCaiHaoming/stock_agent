@@ -1,0 +1,62 @@
+{
+  "agent": {
+    "name": "runtime_skeptic",
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/workspaces/execution-replay-normal/product/.codex/agents/runtime_skeptic.toml",
+    "sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+    "version": "2.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/workspaces/execution-replay-normal/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "input_artifact": "inputs/runtime_skeptic.json",
+  "input_hash": "c7c9dff6804dba90b71061aab514527762d970ae5e1436f6c4ea872616be3be4",
+  "instruction_bundle_hash": "7494795d300b52b4d41ef75d6489983ed8d6ae3efe25141dd8e6d55c58d20591",
+  "invocation_id": "inv_7180ff84b08f0671438649fc",
+  "manifest_hash": "30adf55b05715d635a69c2db8758cc965e34a10fd90176d3d838d874a261c16b",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal/schemas/counter-thesis-report.schema.json",
+  "output_schema_hash": "d34b796de0b4ef24f8601256610735c5e6775aabe3868d807e8e7b3f0d372558",
+  "run_id": "rreh-execution-replay-normal-20260907",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "6904e09f04ca25aa381c1a0cc00571ad4c63f33b064a434c86332179b74e8938",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "ca0ef64fc74f01c4f64614aeac2048b64f8e79d56409bc20f48f2f79695da62f",
+      "skill_name": "counter-thesis",
+      "version": "2.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "evidence-grounding",
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/workspaces/execution-replay-normal/product/skills/evidence-grounding/SKILL.md",
+      "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+      "version": "2.0.0"
+    },
+    {
+      "name": "counter-thesis",
+      "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/workspaces/execution-replay-normal/product/skills/counter-thesis/SKILL.md",
+      "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+      "version": "2.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_skeptic.txt",
+  "task_prompt_hash": "af3309e0fca8c7c241aadfcb6654cc3392fffa605ffb3c6728794014bfe4b188",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

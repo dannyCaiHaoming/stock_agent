@@ -1,0 +1,18 @@
+{
+  "artifacts": {},
+  "case_id": "mandatory-no-trade",
+  "executed_operations": [
+    "deterministic_injection",
+    "invariant_evaluation"
+  ],
+  "hashes": {
+    "outcome": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "b47d6bc65747063d1a9cd12c2f383d3e0f9e907839a4382284b21f7dc736d6b5",
+  "run_id": "regression-rreh-hardening-regression-final-20260908-mandatory-no-trade-15d691293960",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:mandatory-no-trade",
+  "status": "PASS"
+}

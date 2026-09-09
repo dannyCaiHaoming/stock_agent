@@ -1,0 +1,98 @@
+{
+  "check": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "mandate_version": "mandate/fixture/2.0.0",
+    "metric_definition_version": "portfolio-metrics/1.0.0",
+    "policy_version": "risk/reference/1.0.0",
+    "post_trade_metrics": {
+      "average_daily_value": {
+        "SEC-AAA": 10000000.0
+      },
+      "cash": 10000.0,
+      "cash_weight": 0.1,
+      "concentration_hhi": 0.81,
+      "cost_bps": 10.0,
+      "definition_version": "portfolio-metrics/1.0.0",
+      "liquidity_participation": {
+        "SEC-AAA": 0.0
+      },
+      "max_position_weight": 0.9,
+      "position_weights": {
+        "SEC-AAA": 0.9
+      },
+      "sector_exposure": {
+        "Synthetic Technology": 0.9
+      },
+      "simulated_cost": 0.0,
+      "total_value": 100000.0,
+      "trade_notionals": {
+        "SEC-AAA": 0.0
+      },
+      "turnover": 0.0
+    },
+    "pre_trade_metrics": {
+      "average_daily_value": {
+        "SEC-AAA": 10000000.0
+      },
+      "cash": 10000.0,
+      "cash_weight": 0.1,
+      "concentration_hhi": 0.81,
+      "definition_version": "portfolio-metrics/1.0.0",
+      "max_position_weight": 0.9,
+      "position_weights": {
+        "SEC-AAA": 0.9
+      },
+      "sector_exposure": {
+        "Synthetic Technology": 0.9
+      },
+      "total_value": 100000.0
+    },
+    "stage": "FINAL",
+    "status": "REJECTED",
+    "veto_codes": [
+      "POSITION_LIMIT",
+      "LIQUIDITY_LIMIT",
+      "SECTOR_LIMIT"
+    ],
+    "violations": [
+      {
+        "code": "POSITION_LIMIT",
+        "limit": 0.6,
+        "metric": "target_max:SEC-AAA",
+        "observed": 0.9,
+        "policy_rule": "POSITION_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "LIQUIDITY_LIMIT",
+        "limit": "0:0.6",
+        "metric": "target_range:SEC-AAA",
+        "observed": "0.9:0.9",
+        "policy_rule": "LIQUIDITY_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "SECTOR_LIMIT",
+        "limit": 0.6,
+        "metric": "sector_range:Synthetic Technology",
+        "observed": "0.9:0.9",
+        "policy_rule": "SECTOR_LIMIT",
+        "remediable_within_range": false
+      }
+    ]
+  },
+  "draft_hash": "a18cdc9e6c8af3099bc51eaec2b201f4ac552b1f3dccc5f5b5c0f67a219bc4a1",
+  "final_action": "NO_TRADE",
+  "modifications": [],
+  "original_action": "NO_TRADE",
+  "policy_version": "risk/reference/1.0.0",
+  "producer": "deterministic_risk_engine",
+  "run_id": "rrh-final-lock-regression-risk-veto-20260908",
+  "schema_version": "native-risk-result/2.0.0",
+  "veto_reason": "RISK_VETO"
+}

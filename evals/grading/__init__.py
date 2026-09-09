@@ -12,6 +12,7 @@ from .reasoning import (
     EvidenceReasoningGrader,
     GraderValidationReport,
 )
+from .calibration import evaluate_calibration
 
 __all__ = [
     "DeterministicGateInput",
@@ -20,6 +21,7 @@ __all__ = [
     "EvidenceReasoningCase",
     "EvidenceReasoningGrade",
     "EvidenceReasoningGrader",
+    "evaluate_calibration",
     "GateCheck",
     "GraderValidationReport",
 ]

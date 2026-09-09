@@ -1,0 +1,13 @@
+{
+  "artifacts": {},
+  "case_id": "insufficient-evidence",
+  "executed_operations": [],
+  "hashes": {},
+  "llm_calls_during_verification": 0,
+  "producer": "missing-runtime-input",
+  "proof_hash": "cdcc1ca7cc8737ffb1250b54973c9204ceb349abc543aa28f97bf8680a0e9199",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-insufficient-evidence-missing",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "none",
+  "status": "FAIL"
+}

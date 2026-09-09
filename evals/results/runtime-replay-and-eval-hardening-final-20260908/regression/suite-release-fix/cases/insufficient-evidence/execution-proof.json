@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/insufficient-evidence/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence"
+  },
+  "case_id": "insufficient-evidence",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "13e53aa74812c0d78ead6c3027d333184c872e32b048765b45f47b5f15e956ac",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "grader_execution_proof": "c5943028d71340b8cdeac8847a39292da9f8334fd02b450a874ddc0752ea82db",
+    "runtime_eval": "48078ebf8b084e0e031af4618c68696a478d48d2ef6e8f8c921210d467d97707",
+    "trace": "04af1fdb59d89d002b05e6145b0ad23c55ed32551fe063664790c0f4fc0ff072",
+    "trace_report": "f01c00afceec716afe8f4607774c4fab29bfde77b93922bad614056131f50c31"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "dea8fac17e6f4aff64608f39a37c8229915ed858ce8d3d5c93d26570f7b13794",
+  "run_id": "rrh-final-insufficient-evidence-20260908",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence --strict-config --json -m gpt-5.6-terra -",
+  "status": "PASS"
+}

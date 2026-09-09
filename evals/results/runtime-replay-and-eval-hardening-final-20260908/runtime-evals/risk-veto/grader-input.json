@@ -1,0 +1,335 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_close_price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: SEC-AAA close price was USD 100 per share, sourced from fixture-market-primary, as of 2026-01-30T21:00:00Z and retrieved at 2026-01-30T21:05:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_ttm_revenue",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: SEC-AAA TTM revenue was USD 1,000,000, sourced from fixture-filing-primary, as of 2025-12-31T00:00:00Z and retrieved at 2026-01-15T13:00:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_research_limit",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "INTERPRETATION: The authorized price and revenue observations alone do not support a company-quality thesis or a valuation conclusion because no profitability, cash-flow, share-count, balance-sheet, growth, competitive-position, or guidance evidence is available."
+        }
+      ],
+      "confidence": 0.25,
+      "confidence_rationale": "Confidence is limited to the two fresh source observations. Evidence is insufficient for an evidence-grounded assessment of business quality, valuation, or downside risks.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "Shares outstanding and market capitalization are unavailable, preventing price-to-sales or equity-value valuation analysis.",
+        "Profitability, free cash flow, debt, liquidity, historical growth, guidance, and competitive evidence are unavailable.",
+        "No counter-thesis evidence is authorized beyond the limited evidence set."
+      ],
+      "invalidation_conditions": [
+        "The price fact is invalidated if fixture-market-primary corrects or supersedes the USD 100 close-price observation as of 2026-01-30T21:00:00Z.",
+        "The revenue fact is invalidated if fixture-filing-primary corrects or supersedes the USD 1,000,000 TTM revenue observation as of 2025-12-31T00:00:00Z.",
+        "Any company thesis requires new authorized evidence covering the identified data gaps."
+      ],
+      "invocation_id": "inv_b4068fdea55d62994bb8df7f",
+      "run_id": "rrh-final-risk-veto-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA; Regression-risk-veto. Authorized evidence establishes a USD 100 close price from fixture-market-primary as of 2026-01-30T21:00:00Z, retrieved 2026-01-30T21:05:00Z, and USD 1,000,000 TTM revenue from fixture-filing-primary as of 2025-12-31T00:00:00Z, retrieved 2026-01-15T13:00:00Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "561d6d7a9c360900d8b58d20c84034d591881ca6eefb4b5412e4fb4a0da0c1d8",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "b5edc402d8f9ccc650ecde3952399d3c01236def713d90626510e1ccb929f5ce",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "5b23dc2ea1c91dd419286b5ff2d2415cc8778d844f40bb772140065dd87a9183",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "The price observation and revenue observation have different as-of dates.",
+        "No evidence explains revenue drivers, durability, margins, or capital intensity."
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "CT-001",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至截止时间的估值指标及其计算口径",
+            "成交量、买卖价差与历史波动率",
+            "可比公司或历史估值区间"
+          ],
+          "statement": "截至截止时间，最新收盘价为100美元，但单一价格观测不能证明估值合理性、流动性、波动风险或价格可持续性。"
+        },
+        {
+          "assumption_ids": [],
+          "challenge_id": "CT-002",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "收入增长率及分部或客户集中度",
+            "毛利率、经营利润率和自由现金流",
+            "收入确认政策及后续期间经营数据"
+          ],
+          "statement": "TTM收入为1,000,000美元，但收入规模本身不能区分增长、一次性确认、利润质量、现金转化或客户集中度等替代解释。"
+        }
+      ],
+      "confidence": 0.82,
+      "confidence_rationale": "对证据缺口及其限制的判断具有较高置信度；对任何更具体的业务或估值结论不具备足够授权证据。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "缺少盈利能力、现金流、资产负债表、估值、流动性和价格波动数据。",
+        "缺少竞争环境、管理层、客户集中度及后续经营表现的证据。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若取得截至决策截止时间的可复核盈利、现金流、估值和流动性证据，且其一致支持相反解释，则上述反证挑战失效。",
+        "若后续证据表明TTM收入具有稳定增长、健康利润率和现金转化，收入质量疑虑将被削弱。"
+      ],
+      "invocation_id": "inv_0610a82f170d58f13df4144a",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-risk-veto-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；Regression-risk-veto；决策截止时间为2026-01-31T23:59:59Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "559cdee1a6307c0b2a471d4ba12cf1df0f9fd1c9ba47f0868ae494266050e3a2",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "c2f717d5e9d6ebccb6769ebb757530e19c97f29be65d1e747f5fe4bd450a1032",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "两项授权证据均标记为FRESH，但覆盖范围仅限收盘价和TTM收入。",
+        "没有足够证据判断价格与基本面之间的关系。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.86,
+      "confidence_rationale": "There is high confidence that the current evidence set is insufficient because both independent reports agree and identify the same material evidence gaps. Confidence in any directional investment thesis is low, so no action is supported.",
+      "conflicts": [],
+      "consensus": [
+        "Both validated specialist reports conclude that the two allowed evidence observations are insufficient for an evidence-grounded company or valuation conclusion.",
+        "Both reports identify missing profitability, cash-flow, valuation, liquidity, growth, and business-quality evidence as material to any actionable conclusion."
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "316b7b13ffb30377550839f84838cb1f7a8089e1876cf1f62164c1f61bdae81a"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "8634fd3773e5db1932c0c5d90460826ddd3cecf4a3f5e6d9f1bea519ea876b28"
+        }
+      ],
+      "counter_thesis": "The single price and revenue observations cannot establish valuation reasonableness, liquidity, volatility, revenue durability, profitability, cash conversion, or balance-sheet resilience.",
+      "current_weight": 0.9,
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "The USD 100 price fact is invalidated if fixture-market-primary corrects or supersedes the observation as of 2026-01-30T21:00:00Z.",
+        "The USD 1,000,000 TTM revenue fact is invalidated if fixture-filing-primary corrects or supersedes the observation as of 2025-12-31T00:00:00Z.",
+        "This no-trade conclusion is invalidated when new authorized, point-in-time evidence materially closes the identified valuation, profitability, cash-flow, liquidity, and business-quality gaps."
+      ],
+      "invocation_id": "inv_afcc7ee74baebcdc681be112",
+      "maximum_notional": null,
+      "no_trade_explanation": "The Gate-scoped evidence and both validated specialist reports do not provide enough information to form a defensible company, valuation, or downside-risk conclusion.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain authorized point-in-time evidence for profitability, free cash flow, debt, liquidity, historical growth, valuation, and trading-risk measures.",
+        "Obtain authorized evidence on revenue durability, competitive position, customer concentration, guidance, and cash conversion, then rerun the full Council."
+      ],
+      "run_id": "rrh-final-risk-veto-20260908",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "4288f4ed65fdfae9e6cf8f1776f89621cd11da5e740aabff73e87bfacfadf7d6",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "The authorized evidence establishes only a USD 100 close price and USD 1,000,000 TTM revenue; it does not support a company-quality, valuation, or downside-risk thesis.",
+      "time_horizon": "Reassess when the identified evidence gaps are closed with point-in-time authorized evidence.",
+      "unresolved_questions": [
+        "What are SEC-AAA's profitability, free cash flow, debt, liquidity, and historical growth through the decision cutoff?",
+        "What are shares outstanding, market capitalization, valuation metrics, trading liquidity, and historical volatility?",
+        "What evidence establishes revenue durability, competitive position, customer concentration, guidance, and cash conversion?"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "counter_thesis": "The single price and revenue observations cannot establish valuation reasonableness, liquidity, volatility, revenue durability, profitability, cash conversion, or balance-sheet resilience.",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "invalidation_conditions": [
+            "The USD 100 price fact is invalidated if fixture-market-primary corrects or supersedes the observation as of 2026-01-30T21:00:00Z.",
+            "The USD 1,000,000 TTM revenue fact is invalidated if fixture-filing-primary corrects or supersedes the observation as of 2025-12-31T00:00:00Z.",
+            "This no-trade conclusion is invalidated when new authorized, point-in-time evidence materially closes the identified valuation, profitability, cash-flow, liquidity, and business-quality gaps."
+          ],
+          "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+          "no_trade_reason": "RISK_VETO",
+          "reevaluation_conditions": [
+            "仅在满足 Risk Engine 可行边界后重新评估。"
+          ],
+          "security_id": "SEC-AAA",
+          "thesis": "The authorized evidence establishes only a USD 100 close price and USD 1,000,000 TTM revenue; it does not support a company-quality, valuation, or downside-risk thesis."
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "REJECTED",
+        "veto_reason": "RISK_VETO",
+        "violations": [
+          {
+            "code": "POSITION_LIMIT",
+            "limit": 0.6,
+            "metric": "target_max:SEC-AAA",
+            "observed": 0.9,
+            "policy_rule": "POSITION_LIMIT",
+            "remediable_within_range": false
+          },
+          {
+            "code": "LIQUIDITY_LIMIT",
+            "limit": "0:0.6",
+            "metric": "target_range:SEC-AAA",
+            "observed": "0.9:0.9",
+            "policy_rule": "LIQUIDITY_LIMIT",
+            "remediable_within_range": false
+          },
+          {
+            "code": "SECTOR_LIMIT",
+            "limit": 0.6,
+            "metric": "sector_range:Synthetic Technology",
+            "observed": "0.9:0.9",
+            "policy_rule": "SECTOR_LIMIT",
+            "remediable_within_range": false
+          }
+        ]
+      },
+      "run_id": "rrh-final-risk-veto-20260908",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-risk-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://risk/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-risk-revenue",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://risk/revenue/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "bundle_hash": "2a35ab18103ab67eb4e066c7c32714517889d93200683e7c01b8f48d35d85c51",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "risk-veto-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "e341d5190821ab1ee77e6c56b6d61c8b2826e8501b88faf5b16b9209ddb8189c",
+      "run_id": "rrh-final-risk-veto-20260908",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rrh-final-risk-veto-20260908",
+  "terminal_state": "SAFE_NO_TRADE"
+}

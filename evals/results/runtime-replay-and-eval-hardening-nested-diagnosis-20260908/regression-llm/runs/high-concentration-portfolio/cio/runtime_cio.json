@@ -1,0 +1,62 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-nested-regression-high-concentration-portfolio-20260908",
+  "invocation_id": "inv_df7fbb8c3a12bcd421892c8a",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "e9e7afcb76cc4a84fbd58287cb7dbc57720de72bc5a82a8a6b07b3b1cfa93dc9"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "935fa8461f18ba478a32312a8844b1b32e031175fe9628872491da916ae2e967"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.9,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得截至决策截止日的可核验补充证据前不形成方向性调整建议。",
+  "thesis": "授权证据仅确认 SEC-AAA 在特定时点的 100 USD/股收盘价及 1,000,000 USD TTM 收入；这些基础事实不足以支持商业质量、增长、盈利、现金流、估值或下行情景的研究结论。",
+  "counter_thesis": "独立反证指出，单一价格和收入记录无法排除流动性、估值支撑、盈利质量、现金转换或基本面恶化风险；该不确定性在当前 0.9 持仓权重和 0.81 集中度 HHI 下具有实质影响。",
+  "consensus": [
+    "两份已验证报告均接受 ev-risk-price 与 ev-risk-revenue 作为受限范围内的基础事实来源。",
+    "两份报告均认为授权证据不足以形成可解释的公司质量、估值或下行情景判断。",
+    "两份报告均识别出需要补充的盈利、现金流、估值、流动性与业务质量证据。"
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "截至决策截止日，SEC-AAA 的收入增长、利润率、自由现金流、净债务和客户集中度如何？",
+    "截至决策截止日，SEC-AAA 的估值、历史价格波动、成交量和流动性是否支持当前高集中度持仓？",
+    "SEC-AAA 的业务模式、竞争地位、催化剂及可观察下行情景是什么？"
+  ],
+  "invalidation_conditions": [
+    "若 fixture-market-primary 更正或替换 2026-01-30T21:00:00Z 的 SEC-AAA 收盘价，当前价格事实不再成立。",
+    "若 fixture-filing-primary 更正或替换截至 2025-12-31T00:00:00Z 的 SEC-AAA TTM 收入，当前收入事实不再成立。",
+    "若获得截至决策截止日的可核验补充证据，能够支持或反驳估值、流动性、盈利质量与下行情景，则本草案的证据不足判断需要重新评估。"
+  ],
+  "confidence": 0.18,
+  "confidence_rationale": "对两项受限基础事实的来源与时间边界具有较高确定性，但对任何方向性研究结论的置信度很低：两名独立专业 Agent 均返回 INSUFFICIENT_EVIDENCE，且现有组合的 0.9 单一持仓权重提高了未观测风险的重要性。",
+  "evidence_refs": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "可用证据只覆盖单一收盘价和 TTM 收入，无法对高集中度持仓所需的估值、流动性、盈利质量、现金流和下行情景作出经证据支持的研究判断，因此不形成执行性动作建议。",
+  "reevaluation_conditions": [
+    "获得截至决策截止日的 SEC-AAA 历史价格、成交量、流动性、估值与可核验下行情景证据。",
+    "获得截至决策截止日的 SEC-AAA 收入增长、利润率、经营现金流、净债务、客户集中度及竞争地位证据。",
+    "确认补充证据的 source_id、as_of 与 retrieved_at，并通过本运行的 Gate-scoped Evidence 校验。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "6606bf6d35a7d713c3e1a4472e15726a77c97cc22d365d66893eea12c99807d0",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

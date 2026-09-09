@@ -1,0 +1,71 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 539136,
+  "cio_conflict_handled": true,
+  "eval_hash": "849ed3a220d373cfafeabd5cf296a2c8c8f970a491682bab377a586ec447648b",
+  "eval_status": "PASS",
+  "evidence_closure": true,
+  "evidence_subset_of_gate": true,
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 587583,
+  "latency_ms": 289766,
+  "llm_calls": 3,
+  "model": "gpt-5.6-terra",
+  "no_future_evidence": true,
+  "output_tokens": 11032,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将唯一价格事实限定为可追溯事实，明确其不足以支持公司研究或估值，并列明数据缺口。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录两份报告的共识、无冲突状态和未决问题，并将其明确连接到不形成仓位意图。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "低置信度与单一价格证据、广泛数据缺口和方向性判断不确定性一致，且未把不足证据转为确定结论。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "NO_TRADE 明确对应唯一授权收盘价不足，并列出基本面、估值和市场状态证据的点时重评条件。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 独立检验单点价格的充分性和代表性，提出具体可证伪缺口及所需的点时证据。",
+      "status": "PASS"
+    }
+  },
+  "specialist_output_valid": true,
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_complete": true,
+  "trace_hash": "356ca949ba2998403778902c34b99fdaaa1ce7351508943b71efa2734ed7eaf9"
+}

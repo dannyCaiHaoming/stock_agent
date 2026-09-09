@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-rrh-release-fix-20260908-dangling-evidence-reference",
+  "expected_terminal_states": [
+    "FAILED_VALIDATION"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/dangling-evidence-reference/run",
+  "run_id": "regression-rrh-release-fix-20260908-dangling-evidence-reference-98ba8eb85851",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "39cd0349c2a7c4e62de1ea19b5b40078e82563e963f94a5b09cc5d09ff26958f",
+    "artifact_replay": "27794789d765be69c45aa5c29a7fba3a9ae92737587e923a01a3614aa8a2b237",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "ab3ed986895b392a50a50abccdc4c5198824d49edee69cb3da14e6bdf00176e6",
+    "semantic_input": "7474d86f8dab77688c10849347393331238a098b30c7e8303f36e611f8e405e4",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "74ee7dcdc2eb30740becb7538fd724886cede6988a61a53f27b6273b6435095a"
+  }
+}

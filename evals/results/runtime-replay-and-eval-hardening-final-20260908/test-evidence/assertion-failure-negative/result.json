@@ -1,0 +1,25 @@
+{
+  "assertion_failures": 1,
+  "command": [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+    "-m",
+    "unittest",
+    "evals.promotion.assertion_failure_fixture.IntentionalPromotionAssertionFailure.test_intentional_assertion_failure"
+  ],
+  "completed_at": "2026-09-08T08:00:11.389624Z",
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "environment_errors": 0,
+  "event": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/test-evidence/assertion-failure-negative/execution-event.json",
+    "sha256": "803bb25d10d259b36711f0ef43f13e70ff28cf50800cae7054ad77ad219c502a"
+  },
+  "event_id": "test-event-bc461296-7a73-4b15-8dea-cd7375f6d5d6",
+  "exit_code": 1,
+  "result_hash": "18f2f77e69ca24c9bf716d5500f8350c54a06e0c2a82f7f85b25575b8d58fbe0",
+  "schema_version": "deterministic-test-report/1.0.0",
+  "started_at": "2026-09-08T08:00:11.329955Z",
+  "status": "FAIL",
+  "test_errors": 0,
+  "tests_run": 1,
+  "tmpdir": "/private/tmp/stock-agent-assertion-failure-negative-20260908"
+}

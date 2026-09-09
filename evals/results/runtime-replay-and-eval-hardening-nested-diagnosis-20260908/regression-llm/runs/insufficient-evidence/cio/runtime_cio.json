@@ -1,0 +1,59 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-nested-regression-insufficient-evidence-20260908",
+  "invocation_id": "inv_6d042f501d81ee01c735d254",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "a26d1f2efa04bd507b4bffd36550de338e0ce861b3018082eee37050685a413d"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "6321b02c4a5068e7b083b66e7c37ca6b41a4e48bd2490dabcdc61d86952f0cb3"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "重新评估前不形成时间限定的投资意图。",
+  "thesis": "已验证资料仅确认 SEC-AAA 在截至日附近的一次收盘价；该事实不足以形成可检验的基本面、估值或催化剂 Thesis。",
+  "counter_thesis": "单一价格观察也无法排除未知不利信息、估值失真或下行风险；两份独立报告均指出缺少检验替代解释所需的证据。",
+  "consensus": [
+    "两份已验证 Specialist 报告均认定授权证据不足以支持公司 Thesis、估值判断或可执行的组合调整。",
+    "双方均以 ev-insufficient-price 确认唯一可用事实为 SEC-AAA 的单点收盘价。"
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "截至决策截止日，SEC-AAA 的收入、盈利、现金流、资本结构和管理层指引如何？",
+    "其估值、可比公司、市场预期与价格历史是否支持或反驳任何投资 Thesis？",
+    "是否存在可核验的竞争、事件、监管、流动性或下行风险证据？"
+  ],
+  "invalidation_conditions": [
+    "若经授权的后续证据修正唯一价格事实，则本草案对该价格事实的依赖失效。",
+    "若取得截至决策截止日且可核验的财务、估值、事件、风险与市场证据，可重新检验本次证据不足结论。"
+  ],
+  "confidence": 0.9,
+  "confidence_rationale": "对 NO_TRADE 的置信度较高，因为两份独立且已验证的报告一致表明，唯一允许 Evidence 仅支持一个新鲜价格事实，不能支撑基本面、估值、催化剂或风险判断。",
+  "evidence_refs": [
+    "ev-insufficient-price"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "关键财务、估值、竞争、事件、风险、价格历史与流动性证据均缺失；仅凭单一收盘价不能形成负责任的研究建议调整。",
+  "reevaluation_conditions": [
+    "获得截至决策截止日、来源与时间完整的财务业绩、现金流、资产负债表与管理层指引。",
+    "获得可核验的估值、同行比较、市场预期、价格历史、成交量和流动性证据。",
+    "获得可核验的竞争、公司事件、监管、宏观与下行风险证据。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "6f4f76990c0228008c8ec510bd92f344b6e9e3018a6e5a2a975aca188975a58e",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

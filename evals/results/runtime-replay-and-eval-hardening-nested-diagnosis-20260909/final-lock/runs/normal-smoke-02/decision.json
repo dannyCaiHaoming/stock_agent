@@ -1,0 +1,59 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.35,
+      "confidence_rationale": "Company Analyst 对单期经营盈利和债务/收入快照形成有限正面观察，但 Independent Skeptic 合理指出现金流、债务条款、扩产执行与估值的关键数据缺口。两份报告没有事实冲突，然而共同缺口对改变当前50%仓位具有实质性影响，故维持低置信度并不形成仓位行动。",
+      "counter_thesis": "单期利润率、债务和收入不能验证现金转换、到期压力或扩产经济性；单点100美元价格也缺乏股本、企业价值、前瞻增长与可比估值背景。若价格已反映未经验证的增长或产能成功，现有资料无法评估其合理性。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "后续披露显示营业利润率显著恶化或转负。",
+        "债务增加、收入下降或再融资压力使债务相对于收入显著上升。",
+        "产能计划延期、取消或缺乏可核验的需求支持。",
+        "新增可核验资料显示流动性、债务到期或利息覆盖弱于当前有限证据所能支持的判断。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "已验证资料支持有限的经营质量与相对杠杆观察，但未提供现金流、债务期限和利息负担、需求与产能执行、或估值锚点。鉴于这些缺口会实质影响任何仓位变更的依据，当前不形成交易意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "取得截至决策截止日的现金、经营现金流、自由现金流、利息覆盖和债务到期资料。",
+        "取得可审计的需求、订单、产能利用率、扩产时间表、资本开支与资金来源资料。",
+        "取得股本、企业价值、前瞻财务预期与可比估值资料，并与当前价格建立可核验的估值关系。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "截至2025-12-31，SEC-AAA披露18% TTM营业利润率、150,000美元总债务和1,000,000美元TTM收入；管理层于2026-01-20维持既定产能计划。这些事实支持经营盈利和相对杠杆有限的初步观察，但不足以构成可执行的估值或现金流判断。",
+      "time_horizon": "在获得下一组可核验证据前不改变当前研究立场。",
+      "unresolved_questions": [
+        "截至决策截止日的现金、经营现金流、自由现金流、利息覆盖和债务到期结构是否支持偿债能力？",
+        "需求、订单、产能利用率、资本开支和融资是否支持既定产能计划的执行与经济性？",
+        "在股本、企业价值、前瞻预期和可比估值资料补充前，100美元价格隐含何种增长与利润率假设？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-lock-normal-smoke-02-20260909",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

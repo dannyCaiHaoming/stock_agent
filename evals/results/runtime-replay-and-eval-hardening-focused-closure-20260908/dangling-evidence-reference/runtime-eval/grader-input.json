@@ -1,0 +1,169 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "injected-claim",
+          "evidence_refs": [
+            "missing-id"
+          ],
+          "kind": "FACT",
+          "statement": "This fixture intentionally references a missing Evidence ID."
+        }
+      ],
+      "confidence": 0.0,
+      "confidence_rationale": "Deterministic negative fixture, not an investment conclusion.",
+      "counter_evidence_refs": [],
+      "data_gaps": [],
+      "invalidation_conditions": [
+        "The validator rejects the payload."
+      ],
+      "invocation_id": "inv_c586292e74e7c0a2b36b141b",
+      "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "Deterministic dangling Evidence injection.",
+      "skill_execution": [
+        {
+          "invocation_hash": "c757cbe1c6f05e77b7aa4192d3d74736e802ac0ec350d3223f71d82d9eab3647",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "bd349a566d38b7e6a332e67f13c0bf659e95ccfe60496dcd9417d3071906774c",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "384851fcca6c9b35bf01eff6a57aa6b95090f04ab15cc9ffdf413ff493bdd58c",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": []
+    },
+    "agents/runtime_skeptic.json": {},
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-debt",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "total_debt",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/debt/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 150000
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "evidence_id": "ev-normal-margin",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "operating_margin_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/margin/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "ratio",
+          "value": 0.18
+        },
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://normal/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-revenue",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/revenue/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "as_of": "2026-01-20T14:00:00Z",
+          "evidence_id": "ev-normal-update",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-20T14:01:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "company_update",
+          "source_id": "fixture-company-release",
+          "source_locator": "fixture://normal/update/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "text",
+          "value": "Management maintained the previously stated capacity plan."
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "bundle_hash": "8b39861cb205f1a4fbf8528ddce3c85609151bd390eab1193135bfc548b9f660",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "normal-research-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "0aa04db91168086dabaec2e69647c59e80b7cac099d6ae07e3bdf63a5928b7fe",
+      "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+      "schema_version": "evidence-gate/2.0.0"
+    },
+    "run_error.json": {
+      "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+      "failed_stage": "SPECIALIST_VALIDATION",
+      "message": "EVIDENCE_CLOSURE_FAILED:missing-id",
+      "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+      "schema_version": "run-error/2.1.0",
+      "terminal_state": "FAILED_VALIDATION"
+    }
+  },
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "run_id": "regression-focused-closure-20260908-dangling-evidence-reference-d7e9374b2aa1",
+  "terminal_state": "FAILED_VALIDATION"
+}

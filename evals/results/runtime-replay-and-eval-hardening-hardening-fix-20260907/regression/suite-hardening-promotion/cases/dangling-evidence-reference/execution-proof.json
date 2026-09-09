@@ -1,0 +1,18 @@
+{
+  "artifacts": {},
+  "case_id": "dangling-evidence-reference",
+  "executed_operations": [
+    "deterministic_injection",
+    "invariant_evaluation"
+  ],
+  "hashes": {
+    "outcome": "5de16440c582fab0f0a09de01f82957ae83111469b60120b11cb50107181e472"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "a88f020c441f6ceb8946f02848f2bbe8290f7391f69a85f4170991182520c85a",
+  "run_id": "regression-rreh-hardening-regression-promotion-20260908-dangling-evidence-reference-98ba8eb85851",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:dangling-evidence-reference",
+  "status": "PASS"
+}

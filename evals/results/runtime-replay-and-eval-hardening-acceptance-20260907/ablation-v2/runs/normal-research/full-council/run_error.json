@@ -1,0 +1,8 @@
+{
+  "code": "NATIVE_EXECUTION_PROOF_FAILED",
+  "failed_stage": "EXECUTION_PROOF",
+  "message": "MCP_EVENT_LOG_MISSING",
+  "run_id": "rreh-ablation-v2-normal-full-council-20260907",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

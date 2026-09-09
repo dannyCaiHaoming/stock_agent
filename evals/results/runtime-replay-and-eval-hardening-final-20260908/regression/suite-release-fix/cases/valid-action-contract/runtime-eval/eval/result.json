@@ -1,0 +1,98 @@
+{
+  "eval_hash": "72eff67fc7c4f44b5f92d7ecc082a50232edea43388e7ded03264af0d8966949",
+  "eval_id": "regression-eval-rrh-release-fix-20260908-valid-action-contract",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "c803ee394e317db944a9a8f02cc5cb42c95cb54d9faaa90c3a74ceee0d208a00",
+    "model": "deterministic-contract-fixture/no-llm",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "410c1792425550263161e07c5e6782b76e06898fd0cfffedda71535393f18605",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 2,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 2
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "a2e8f3926d996b1cac2adce28f6074624ce4d7f55c06fd1e2489f80053a873be",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "COMPLETED",
+      "expected": [
+        "COMPLETED"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "08226c2502422ce62158505875ce98d9f05ef4724e01fcde0e3c0b593e5b25d6",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "a2e8f3926d996b1cac2adce28f6074624ce4d7f55c06fd1e2489f80053a873be",
+    "artifact_replay": "410c1792425550263161e07c5e6782b76e06898fd0cfffedda71535393f18605",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "f5fe6e7c5ae182510dd8aa9eb749ab0af0adc48900ef71019d90a30f3fa9626b",
+    "semantic_input": "c803ee394e317db944a9a8f02cc5cb42c95cb54d9faaa90c3a74ceee0d208a00",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "630c34a066983fb5e103c6c61b7c6130b266662d10fc1781cbc37484ee970471"
+  },
+  "status": "PASS",
+  "terminal_state": "COMPLETED"
+}

@@ -1,0 +1,8 @@
+{
+  "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "message": "[Errno 2] No such file or directory: '/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/analyst-skeptic-strong-conflict/full-council-v2/agents/runtime_company_analyst.json'",
+  "run_id": "rreh-hardening-ablation-conflict-full-council-v2-20260908",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

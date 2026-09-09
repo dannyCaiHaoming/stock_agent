@@ -1,0 +1,62 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-final-high-concentration-portfolio-20260908",
+  "invocation_id": "inv_857f8609bf7a36d0922e49aa",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "1934355be33b81893840a9a83bdfea0c1e9625f394a45f4de0792782427e1959"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "ad3132627c298a0967a582f0182b2af0ebefb9d0d318f75e2e14d37c5a915fad"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.9,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess when cutoff-valid fundamental, valuation, and concentration-risk evidence is available.",
+  "thesis": "The authorized record establishes a fresh USD 100 close price and USD 1,000,000 TTM revenue, but does not establish company quality, valuation, cash generation, or a supportable forward thesis.",
+  "counter_thesis": "The existing 0.90 single-security weight is concentrated relative to the stated 0.60 maximum-position mandate, while the authorized evidence does not quantify downside, liquidity, or the valuation basis needed to determine an evidence-supported response.",
+  "consensus": [
+    "Both validated specialist reports conclude that the two authorized evidence items are insufficient for a company-quality or valuation conclusion.",
+    "Both reports identify missing valuation inputs, financial-quality information, and risk evidence as material decision limits.",
+    "The deterministic portfolio data identifies SEC-AAA at a 0.90 current weight under a 0.60 maximum-position mandate."
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What are point-in-time shares outstanding, market capitalization, enterprise value, debt, cash, and dilution at the decision cutoff?",
+    "What cutoff-valid profitability, free-cash-flow, revenue-quality, business, and competitive evidence supports or refutes a thesis?",
+    "What cutoff-valid volatility, drawdown, liquidity, and security-specific downside evidence bounds the concentrated-position failure path?"
+  ],
+  "invalidation_conditions": [
+    "This insufficiency conclusion must be reassessed if cutoff-valid evidence establishes a reliable valuation basis, durable cash generation, and balance-sheet capacity.",
+    "This concentration-risk assessment must be reassessed if cutoff-valid risk and liquidity evidence demonstrates that the single-security failure path is acceptably bounded under the mandate.",
+    "Any material correction to the authorized price or TTM revenue evidence invalidates the corresponding factual basis."
+  ],
+  "confidence": 0.16,
+  "confidence_rationale": "Confidence is high only that the authorized record is narrow: both specialist reports independently identify the same material evidence gaps, and no mechanical evidence conflict is recorded. That record is insufficient to support a directional action or a target range.",
+  "evidence_refs": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "The validated reports and Gate-scoped evidence do not support a company-quality, valuation, or concentrated-position risk conclusion adequate for a directional portfolio action. No target range or notional is proposed.",
+  "reevaluation_conditions": [
+    "Obtain cutoff-valid capital-structure, valuation, profitability, cash-flow, and balance-sheet evidence.",
+    "Obtain cutoff-valid business, competitive, and revenue-quality evidence.",
+    "Obtain cutoff-valid volatility, drawdown, liquidity, and security-specific downside evidence for the concentrated position."
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "cbf89164e4c262ff4a3a957529cd01e1bc0edb0f33cf38330274719d49e59944",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

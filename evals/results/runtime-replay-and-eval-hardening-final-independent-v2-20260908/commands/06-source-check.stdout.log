@@ -1,0 +1,1 @@
+{"category": "INVALID_OR_INCOMPLETE_RUN", "message": "TRACE_TERMINAL_STATE_INVALID", "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/runs/source-normal", "schema_version": "council-release-gate/1.0.0", "status": "FAILED"}

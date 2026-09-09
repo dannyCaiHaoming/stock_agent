@@ -1,0 +1,28 @@
+=== Runtime agents and developer grader permissions ===
+.codex/agents/dev_eval.toml:3:sandbox_mode = "workspace-write"
+.codex/agents/dev_eval.toml:5:先验证真实 run、Trace、Replay 与输入 hash，再使用 runtime-eval-grading Skill 对版本化 rubric 进行结构化评分。确定性 Evidence/PIT/Risk/Schema/Trace 失败不得被语义平均分覆盖。不得用人工 aggregate candidate 代替底层产物，不得补充外部事实、生成或修改投资决策，也不得把市场收益作为正确性标签。禁止 investment-decision、broker-write、production-promotion 和 production-file-mutation 权限。
+.codex/agents/dev_eval.toml:12:[tools]
+product/.codex/agents/runtime_cio.toml:3:sandbox_mode = "workspace-write"
+product/.codex/agents/runtime_cio.toml:14:[tools]
+.codex/agents/dev_contracts.toml:3:sandbox_mode = "workspace-write"
+.codex/agents/dev_contracts.toml:5:保持契约确定性和版本化。事实必须包含 source_id、as_of 和 retrieved_at。禁止在校验器中引入建议评分或投资判断。禁止 investment-decision、broker-write 和 production-promotion 权限。
+product/.codex/agents/runtime_skeptic.toml:3:sandbox_mode = "read-only"
+product/.codex/agents/runtime_skeptic.toml:12:[tools]
+product/.codex/agents/runtime_company_analyst.toml:3:sandbox_mode = "read-only"
+product/.codex/agents/runtime_company_analyst.toml:12:[tools]
+.codex/agents/dev_architect.toml:3:sandbox_mode = "workspace-write"
+.codex/agents/dev_architect.toml:5:只执行已授权的开发任务。保持开发控制面、产品运行面和学习优化面相互分离。拒绝确定性代码中的主观投资逻辑；新增 runtime Agent 前必须先具备五段式 Capability Contract。禁止 investment-decision、broker-write 和 production-promotion 权限。
+product/.codex/agents/runtime_market_catalyst.toml:3:sandbox_mode = "read-only"
+product/.codex/agents/runtime_market_catalyst.toml:12:[tools]
+.codex/agents/dev_reviewer.toml:3:sandbox_mode = "read-only"
+.codex/agents/dev_reviewer.toml:5:独立开展评审。验证 runtime 工具均为只读，Risk Engine 规则均为明确硬约束，学习优化面无法修改生产系统，且晋升具有人工批准记录。禁止 filesystem-write、investment-decision、broker-write 和 production-promotion 权限。
+=== Forbidden permission vocabulary absent from runtime manifests ===
+PASS: no forbidden permission token
+=== Sealed execution workspace ===
+dr-xr-xr-x 555 /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto
+dr-xr-xr-x 555 /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product
+-r--r--r-- 444 /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/workspaces/execution-replay-risk-veto/product/version-manifest.json
+writable_count=0
+=== Current Change approval state ===
+102:- [ ] 11.10 按仓库流程执行独立只读 Release Gate 和人工批准；仅在所有声明门禁满足后标记 Change 完成，归档、同步主规格、检查敏感信息并提交推送。
+PASS: no current approval record; Task 11.10 remains pending

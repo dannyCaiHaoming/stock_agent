@@ -1,0 +1,58 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.32,
+      "confidence_rationale": "可对已验证静态事实及其证据时点保持有限置信度，但两份独立报告均识别出对需求、现金流、债务条款、执行与估值具有实质性的未解决缺口；不存在机械事实冲突，但证据不足以支持非 NO_TRADE 意图。",
+      "counter_thesis": "维持产能计划不等于需求已获验证或项目将产生经济回报；静态收入、利润率和债务数据无法证明其持续性或在投资后的现金流韧性，单日价格也不能支持估值判断。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "可核验的订单、利用率和投产里程碑显示产能计划按期执行且需求充分承接。",
+        "多期现金流和债务资料显示产能投资后仍具备稳健现金转换与偿债余量。",
+        "完整估值资料显示当前价格未计入可验证经营改善，且该改善获得后续基本面证据确认。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "尽管授权证据新鲜且无机械冲突，关键的需求、现金流、债务条款、产能执行与估值证据均缺失，无法以足够置信度形成或调整 SEC-AAA 的仓位意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "取得截至决策截止日的订单、利用率、客户需求及产能执行证据。",
+        "取得经营现金流、自由现金流、资本开支、净债务、到期结构、利率与契约证据。",
+        "取得股本、企业价值、估值倍数、同业可比、盈利预期及价格历史证据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已验证证据支持截至2025-12-31的TTM收入1,000,000 USD、总债务150,000 USD与18%经营利润率，以及2026-01-20维持产能计划和2026-01-30价格100 USD/股；这些静态事实不足以验证增长质量、现金转换、偿债能力、产能回报或估值。",
+      "time_horizon": "在获得截至决策截止日的可核验证据前维持观察。",
+      "unresolved_questions": [
+        "截至决策截止日，订单、积压、产能利用率和客户需求是否足以支撑既有产能计划？",
+        "产能投资后的经营现金流、自由现金流、净债务、到期结构、利率和契约是否提供充足偿债余量？",
+        "多期利润率、股本结构、企业价值、同业可比及预期现金流是否支持当前价格的估值判断？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-nested-current-lock-normal-04-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

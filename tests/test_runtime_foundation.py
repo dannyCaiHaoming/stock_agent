@@ -8,6 +8,8 @@ from pathlib import Path
 
 from product.runtime import discover_product_resources, load_version_manifest
 from product.runtime.versioning import validate_version_manifest
+from product.runtime.hashing import canonical_hash, file_hash
+from evals.regression.runner import load_regression_set
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,12 +18,13 @@ ROOT = Path(__file__).resolve().parents[1]
 class VersionManifestTests(unittest.TestCase):
     def test_candidate_manifest_locks_native_runtime_versions(self):
         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
-        self.assertEqual("0.2.1-candidate.1", manifest["candidate_version"])
+        self.assertEqual("0.3.0-candidate.1", manifest["candidate_version"])
         self.assertEqual("codex-cli/0.153.4", manifest["codex_runtime"])
         self.assertEqual("gpt-5.6-terra", manifest["model"])
         self.assertIn("fixture-gate-scoped", manifest["mcp_adapters"])
         self.assertIn("runtime-cio", manifest["agents"])
         self.assertEqual(len(manifest["resource_hashes"]), 9)
+        self.assertEqual(len(manifest["assurance_hashes"]), 8)
 
     def test_manifest_fails_closed_for_missing_or_fixture_model(self):
         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
@@ -33,6 +36,24 @@ class VersionManifestTests(unittest.TestCase):
         fixture_model["model"] = "fixture-model/1"
         with self.assertRaises(ValueError):
             validate_version_manifest(fixture_model)
+        missing_assurance = copy.deepcopy(manifest)
+        del missing_assurance["assurance_hashes"]["runtime_eval_rubric"]
+        with self.assertRaises(ValueError):
+            validate_version_manifest(missing_assurance)
+
+    def test_assurance_version_hashes_resolve_to_current_control_plane(self):
+        manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
+        expected = {
+            "model_routing_policy": canonical_hash(json.loads((ROOT / "product" / "model-routing.json").read_text(encoding="utf-8"))),
+            "runtime_eval_rubric": canonical_hash(json.loads((ROOT / "evals" / "grading" / "semantic-rubric-v1.json").read_text(encoding="utf-8"))),
+            "runtime_eval_grader_skill": file_hash(ROOT / ".agents" / "skills" / "runtime-eval-grading" / "SKILL.md"),
+            "runtime_eval_grader_agent": file_hash(ROOT / ".codex" / "agents" / "dev_eval.toml"),
+            "runtime_eval_calibration": canonical_hash(json.loads((ROOT / "evals" / "grading" / "calibration" / "v1" / "labels.json").read_text(encoding="utf-8"))),
+            "regression_set": load_regression_set(ROOT)["set_hash"],
+            "ablation_profiles": canonical_hash(json.loads((ROOT / "evals" / "ablation" / "profiles-v1.json").read_text(encoding="utf-8"))),
+            "promotion_policy": canonical_hash(json.loads((ROOT / "evals" / "promotion" / "policy-v1.json").read_text(encoding="utf-8"))),
+        }
+        self.assertEqual(manifest["assurance_hashes"], expected)
 
 
 class ProductDiscoveryTests(unittest.TestCase):

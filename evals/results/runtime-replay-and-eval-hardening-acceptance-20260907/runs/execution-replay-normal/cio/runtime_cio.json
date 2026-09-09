@@ -1,0 +1,51 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-execution-replay-normal-20260907",
+  "invocation_id": "inv_e6e81a4887f2ccdd654c62c8",
+  "status": "LOW_CONFIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {"agent": "runtime_company_analyst", "output_hash": "8e28bea1f6ae4452f1f625f85728b59bad302dcae50152177de77b3a844ecc32"},
+    {"agent": "runtime_skeptic", "output_hash": "cd9d460b6a0cb71089608e8179de016e8ef383a1047fb72f5b74da18d0dccdaf"}
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得以下可核验证据后重新评估",
+  "thesis": "授权冻结证据显示截至截止日的 TTM 经营利润率为 18%，债务/TTM 收入的确定性比率为 15%，且管理层维持产能计划；这些是初步正面信号，但不足以支持价值或执行判断。",
+  "counter_thesis": "单期利润率、单一价格和未变更的产能计划无法验证盈利持续性、需求、融资、资本开支、现金流或估值下行；因此不能在当前证据集上形成可执行的研究意图。",
+  "consensus": [
+    "两份已验证报告均确认授权证据新鲜且可支持有限的事实陈述。",
+    "两份报告均认为现有证据不足以判断估值、盈利持续性或产能计划的回报与执行。",
+    "两份报告均将缺失的现金流、资本结构、需求和估值数据列为影响结论的关键缺口。"
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "经营利润率和收入增长在多期、不同需求与成本环境下是否可持续？",
+    "产能计划的资本开支、融资、审批、投产时间表、利用率和需求验证为何？",
+    "现金余额、自由现金流、债务期限、利率、契约和净债务情况为何？",
+    "股本、企业价值、估值倍数、可比基准、流动性与下行情景为何？"
+  ],
+  "invalidation_conditions": [
+    "后续披露显示经营利润率显著恶化或收入下滑。",
+    "债务、利息负担或资本开支显著增加且未被经营现金流覆盖。",
+    "产能计划延期、缩减、超支或未获足够需求支持。"
+  ],
+  "confidence": 0.35,
+  "confidence_rationale": "已验证报告的事实均在 Gate 允许范围内，且没有机械字段冲突；然而两份独立报告均为 LOW_CONFIDENCE，关键估值、现金流、债务结构、需求及产能执行证据缺失，不能以当前事实集支持更强结论。",
+  "evidence_refs": ["ev-normal-debt", "ev-normal-margin", "ev-normal-price", "ev-normal-revenue", "ev-normal-update"],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "当前已验证证据只足以描述有限静态事实，无法解决盈利持续性、产能执行、现金流和估值的关键问题；因此不形成研究建议中的仓位变更意图。",
+  "reevaluation_conditions": [
+    "获得多期收入、利润率与现金流数据以及驱动拆分。",
+    "获得债务期限、利率、契约、现金余额和资本开支融资的可核验证据。",
+    "获得产能计划里程碑、需求或订单、利用率与投产进度的可核验证据。",
+    "获得股本、企业价值、估值与下行情景的可核验证据。"
+  ],
+  "skill_execution": [
+    {"invocation_hash": "8f18480b29d459df40ed346f22042f52e887862d57e8a5eda4af11bbe9fcb71b", "skill_name": "portfolio-council", "version": "3.0.0"}
+  ],
+  "advisory_only": true
+}

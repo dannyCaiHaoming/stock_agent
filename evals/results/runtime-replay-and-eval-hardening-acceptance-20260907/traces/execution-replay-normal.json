@@ -1,0 +1,10 @@
+{
+  "failed_stage": null,
+  "report_hash": "9c7dfb19ee058f2dcda21365677cc6ab5fce70fbd2b7462e52f5b3a977807ee4",
+  "run_id": "rreh-execution-replay-normal-20260907",
+  "schema_version": "trace-integrity-report/1.0.0",
+  "source_run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/execution-replay-normal",
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "eec74f4a481c6397b4f0090208b1236e8c3c48e4a39f615b597d0b8ac04bd254"
+}

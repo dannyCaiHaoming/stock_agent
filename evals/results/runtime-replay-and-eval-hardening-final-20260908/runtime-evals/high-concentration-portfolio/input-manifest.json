@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-eval-high-concentration-portfolio-20260908",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio",
+  "run_id": "rrh-final-high-concentration-portfolio-20260908",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "dc8cee979de7fe856e2833cbf08dc905fa28956ab9a239f559b98a8f75faf792",
+    "artifact_replay": "e8bcbb544dc59913b0c976073a79ab7a9b58b7c98e33a5c78dc7122957f2109f",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "9500c8bb36a54dda3d70381739dbbf308f7d9caebd8e1f87762fe6b4a767737f",
+    "semantic_input": "60fa28bb14e61cb6d5889e6bbd9cadb8e14c59d1e56d623d6c24a9d6164f8aae",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "be8a1ba92cb94009a0d3775853b7a09f9366bbd188fb1aece8cc718d591b0428"
+  }
+}

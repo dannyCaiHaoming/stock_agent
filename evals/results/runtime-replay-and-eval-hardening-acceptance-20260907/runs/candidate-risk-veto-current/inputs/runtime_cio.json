@@ -1,0 +1,195 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-risk-price",
+    "ev-risk-revenue"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "10000.0",
+    "cash_weight": "0.1",
+    "concentration_hhi": "0.81",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.9",
+    "position_weights": {
+      "SEC-AAA": "0.9"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.9"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "请基于冻结证据研究组合中的 SEC-AAA，形成仅供建议的结构化决策，并由确定性 Risk Engine 执行最终校验。",
+  "run_id": "rreh-candidate-risk-veto-current-20260907",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "6325c3702f187cf351c662403bc610c9e3b43ec72fac06c886536ea2cc2df21e",
+    "runtime_skeptic": "7f102dba6a79590e29e9990e43cf18d1a56d65b7af7280dd6ebed4ade4ae8bdb"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 收盘价为 100 USD/股；来源 fixture-market-primary，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_revenue",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的 TTM 收入为 1,000,000 USD；来源 fixture-filing-primary，as_of 2025-12-31T00:00:00Z，retrieved_at 2026-01-15T13:00:00Z。"
+        }
+      ],
+      "confidence": 0.25,
+      "confidence_rationale": "两项授权证据均为新鲜且来源可追溯的单点事实，但不足以支撑商业质量、竞争优势或估值结论；因此删除无依据主张并以证据不足结束。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少稀释后股份数、市值或企业价值，无法评估收入倍数或其他估值指标。",
+        "缺少历史收入、盈利能力、自由现金流、资产负债表和业务分部信息，无法形成有依据的商业质量 Thesis。",
+        "缺少同行或行业证据，无法评估竞争地位与相对估值。"
+      ],
+      "invalidation_conditions": [
+        "若 fixture-market-primary 对应的收盘价被更正、在后续核验时不再新鲜，或不再属于 SEC-AAA，则价格事实失效。",
+        "若 fixture-filing-primary 对应的 TTM 收入被重述、更新或不再属于 SEC-AAA，则收入事实失效。"
+      ],
+      "invocation_id": "inv_da0c84cd76ee04b35b9617d2",
+      "run_id": "rreh-candidate-risk-veto-current-20260907",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 的冻结证据研究；仅供建议，覆盖商业质量与估值可得性，不包含组合动作。ev-risk-price 来源 fixture-market-primary，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z；ev-risk-revenue 来源 fixture-filing-primary，as_of 2025-12-31T00:00:00Z，retrieved_at 2026-01-15T13:00:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "272ba469b90d87f9f0a1a083b8c558cb02a3be5c79487a8490a44c21cf636622",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "42628cd9f499c70844f08e2acbc1663025d59c815be568b1ab2d3193baef0986",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "156445d17739a0d5498b632bc29284cccaefa45e67c362d581b757910a0b2c9b",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "价格与收入的观察时点不同，且没有市值、股份数或企业价值，不能将两项直接转化为可解释的估值倍数。",
+        "现有证据没有覆盖收入增长、利润率、现金流、负债、竞争地位、管理层或重大事件。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "A1_价格水平可单独支持正向估值判断"
+          ],
+          "challenge_id": "price-not-valuation",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "截至决策时点的稀释后股数、资本结构、现金与债务数据",
+            "一致口径的估值倍数、盈利或自由现金流预测及可比公司数据"
+          ],
+          "statement": "截至 2026-01-30 的收盘价为 100 USD，但单一价格观察不能证明估值、预期回报或风险收益比；缺少股本、债务、现金及可比估值数据。"
+        },
+        {
+          "assumption_ids": [
+            "A2_TTM营收规模代表经营质量和未来增长"
+          ],
+          "challenge_id": "revenue-scale-not-quality",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "多期营收增长、分部与客户集中度数据",
+            "毛利率、营业利润率、自由现金流、营运资本及收入确认质量数据"
+          ],
+          "statement": "截至 2025-12-31 的 TTM 营收为 1,000,000 USD，但该单点规模数据不能验证增长持续性、盈利质量或现金转换；营收规模也可能与利润率恶化、客户集中或一次性确认并存。"
+        },
+        {
+          "assumption_ids": [
+            "A3_期末营收仍充分代表价格时点的基本面"
+          ],
+          "challenge_id": "timing-and-linkage-gap",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "2026-01-01 至 2026-01-30 的公司披露、指引变更与重大事件证据",
+            "对应期间的市场环境、流动性和证券特有风险证据"
+          ],
+          "statement": "价格证据的 as_of 为 2026-01-30，而营收证据的 as_of 为 2025-12-31；在缺少期间经营更新、市场催化剂和风险事件证据时，无法建立两者之间的有效估值或基本面联系。"
+        }
+      ],
+      "confidence": 0.92,
+      "confidence_rationale": "对证据不足这一反证结论具有较高置信度：授权证据直接且新鲜，但覆盖范围仅限单一价格与单期 TTM 营收，无法支撑或反驳更广泛的估值、盈利质量和前景判断。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "稀释后股数、市值、企业价值、债务、现金与资本结构。",
+        "历史及预测营收、利润率、自由现金流和资产负债表数据。",
+        "公司指引、业绩披露、客户集中度、竞争与监管风险资料。",
+        "决策时点附近的重大事件、流动性、成交量和市场环境证据。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若获得截至 decision_cutoff 的可靠资本结构、盈利和现金流证据，显示估值具备明确安全边际且经营质量稳定，则“估值与回报无法验证”的挑战失效。",
+        "若获得连续期间经营和公司披露证据，显示营收增长、利润率和现金转换稳健且不存在重大集中度或一次性确认风险，则“营收规模不代表经营质量”的挑战失效。",
+        "若获得价格时点前的经营更新和事件证据，能够将基本面变化与市场定价明确关联，则“时点与联结缺口”的挑战失效。"
+      ],
+      "invocation_id": "inv_2082318984b7eb608215b412",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-candidate-risk-veto-current-20260907",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "对 SEC-AAA 进行独立首轮反证研究；仅使用截至 decision_cutoff 前获授权的冻结价格与 TTM 营收证据，不形成组合动作或目标权重。",
+      "skill_execution": [
+        {
+          "invocation_hash": "886bdc5a72a65eb943e33871cd8cf229067ca59aace4430eefca5e758b2215d6",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "bc7b94cbbfe85c41b7719e4c9fc45c4290221f7b1b1549a997ffdcd04dcd5866",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "两项证据均标记为 FRESH，但仅确认价格与单期 TTM 营收事实，未覆盖估值、盈利能力、现金流、竞争格局或风险事件。",
+        "无法判断 2025-12-31 后经营表现是否发生实质变化。",
+        "无法从现有证据判断价格是否已经反映已知基本面或未来预期。"
+      ]
+    }
+  }
+}

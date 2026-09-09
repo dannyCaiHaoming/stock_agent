@@ -1,0 +1,108 @@
+{
+  "children": {
+    "runtime_company_analyst": {
+      "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "agent_role": "runtime_company_analyst",
+      "assistant_output_hash": "81a8d0f4f36793c4f1b0d50c5809c80972d5fa7afba0b2f189cf82a6067189dc",
+      "codex_runtime": "codex-cli/0.153.4",
+      "configured_skills": [
+        {
+          "configured": true,
+          "name": "evidence-grounding",
+          "protocol_bound": true,
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "company-research",
+          "protocol_bound": true,
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "valuation",
+          "protocol_bound": true,
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "final_structured_output_hash": "ffbeb1aebdb7c9f3b6e1ef1e5aa74ebb6743b47edf58945c302c53e419597da8",
+      "model": "gpt-5.6-terra",
+      "multi_agent_version": "v2",
+      "observed_tool_calls": [
+        {
+          "arguments_hash": "1453a35ab0bee3dff376cbc90f40543693389a35aadfb2bf40fab3634d31e72a",
+          "call_id": "call_HFm8MDHy75QrFlwgnRBVe0x0",
+          "ordinal": 18,
+          "tool": "fixture_evidence.query"
+        }
+      ],
+      "parent_session_id": "01a07ee3-f817-72f3-97bc-f7c116c8166d",
+      "raw_fixture_access_attempts": 0,
+      "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+      "role_instructions_loaded": true,
+      "rollout_sha256": "39cd9e62c0e7690cdacba66123732d22a587f475b5fb7c88e503fee8f4893f37",
+      "session_id": "01a07ee5-2317-7e71-b8a8-91ffcec0ec3d",
+      "task_binding": {
+        "agent_matches": true,
+        "binding_method": "protected_dispatch_plus_structured_output",
+        "invocation_id_matches": true,
+        "invocation_id_present": false,
+        "run_id_matches": true,
+        "run_id_present": false,
+        "task_prompt_hash": "c967fc83674351ca40e7c2bdd1fb9d3c922bd84b3deb56a8d758c0400323f67c",
+        "task_prompt_present": false,
+        "verified": true
+      },
+      "thread_source": "subagent",
+      "unapproved_tool_calls": 0
+    }
+  },
+  "dispatches": [
+    {
+      "agent": "runtime_company_analyst",
+      "call_id": "call_j3WoED8oC5TsRLnFiVnP7CLh",
+      "child_session_id": "01a07ee5-2317-7e71-b8a8-91ffcec0ec3d",
+      "completion_ordinal": 48,
+      "dispatch_ordinal": 36,
+      "request": {
+        "agent_type": "runtime_company_analyst",
+        "fork_turns": "none",
+        "message_sha256": "bc489ed8c3a2b8ac408ab722cc1af9e3873101c10de28127662c230f8526772f",
+        "protected_message_present": true,
+        "task_name": "company_research"
+      },
+      "request_hash": "eeabb5965712a991363a148985a6e0e68333b06d590ff712fc1ae0d1d4cb7742",
+      "start_ordinal": 37
+    }
+  ],
+  "first_wait_ordinal": 46,
+  "independent_sessions_proven": true,
+  "parallel_dispatch_proven": true,
+  "parent": {
+    "codex_runtime": "codex-cli/0.153.4",
+    "model": "gpt-5.6-terra",
+    "rollout_sha256": "b6bd4b31f23addf672b7c31259b562dbfaa7987301932ce06a32924213031a3d",
+    "session_id": "01a07ee3-f817-72f3-97bc-f7c116c8166d"
+  },
+  "portfolio_council_skill_bound": true,
+  "proof_hash": "5492db20b1be0b58eb7e49d6e68836f072411a2c6985607fa2f3e3459e6f53d8",
+  "raw_prompt_or_reasoning_retained": false,
+  "schema_version": "codex-execution-proof/2.0.0",
+  "specialist_topology": [
+    "runtime_company_analyst"
+  ],
+  "telemetry": {
+    "cache_provenance": "NEW_EXECUTION",
+    "cached_tokens": 538368,
+    "input_tokens": 595823,
+    "latency_ms": 207523,
+    "llm_calls": 17,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 8140,
+    "status": "AVAILABLE",
+    "trigger_reason": "runtime_ablation"
+  }
+}

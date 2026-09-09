@@ -1,0 +1,113 @@
+{
+  "eval_hash": "c7bc89d727c33df1cf38090f40304321b44dd1edad746126de3f3ce239861afa",
+  "eval_id": "rreh-hardening-ablation-eval-insufficient-cio-only-v3-20260908",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "67ba58135d7c4f8acc498e05313937122e2cff266271b204c8d147c0da4a153b",
+    "input_hash": "c1ef17eacccc5c7f9c4b8f488870637c34c276456ddd0004fbd77a587440862b",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 311296,
+      "input_tokens": 380293,
+      "latency_ms": 143674,
+      "llm_calls": 12,
+      "output_tokens": 4988
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "ffcb20a1a6f2cf06b6d80f2579cf025191ff227069a19bf29fb1af5a83573163",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 1,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 1
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "616f46b955b8b556b685e0ea82fea776390bfb3b1a08aea7cc10ff050956038d",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "COMPLETED",
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "2c9ba2bb019821f6d6b06c206fb9e162ec2a96da6eec3a41bb248fd40a01b6d1",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rreh-hardening-ablation-insufficient-cio-only-v2-20260908",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "No analyst report is present in the frozen CIO-only artifacts.",
+      "status": "NOT_APPLICABLE"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO records no specialist consensus or conflicts, identifies missing specialist reports and unresolved questions, and reflects that limitation in NO_TRADE.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Confidence 0.1 is explicitly tied to the single permitted observation and absence of validated specialist reports.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The sole permitted price observation and absent validated specialist reports support INSUFFICIENT_EVIDENCE; concrete re-evaluation conditions are stated.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "No skeptic report is present in the frozen CIO-only artifacts.",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "616f46b955b8b556b685e0ea82fea776390bfb3b1a08aea7cc10ff050956038d",
+    "artifact_replay": "ffcb20a1a6f2cf06b6d80f2579cf025191ff227069a19bf29fb1af5a83573163",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "d208d1f4a54556f8185b07e5258949a8fce4cc74f1be2cd418acf60448f7a09a",
+    "semantic_input": "c1ef17eacccc5c7f9c4b8f488870637c34c276456ddd0004fbd77a587440862b",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "bb23e800ebee9590db95ea8fbc1966b48decfbb951b6df4840be077004ad7eb2"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

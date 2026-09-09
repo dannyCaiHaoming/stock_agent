@@ -1,0 +1,49 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-ablation-normal-research-cio-only-20260907",
+  "invocation_id": "inv_19f9483a7730e3923db2b698",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Until the identified evidence gaps are resolved",
+  "thesis": "The Gate-scoped record establishes a current 50% portfolio weight and contains fresh revenue, operating-margin, debt, price, and capacity-plan facts, but it does not by itself establish a sufficiently grounded directional portfolio change.",
+  "counter_thesis": "The 18% operating margin and maintained capacity plan could support a constructive interpretation, but that interpretation remains untested without a verified specialist report and the missing valuation, cash-flow, and competitive context.",
+  "consensus": [
+    "No verified Specialist reports participated in this cio-only ablation profile, so no multi-agent consensus is available."
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What valuation and cash-flow evidence supports a change from the existing 50% weight?",
+    "What competitive, demand, and capacity-execution evidence would distinguish a constructive interpretation from downside risk?"
+  ],
+  "invalidation_conditions": [
+    "Reassess this no-trade conclusion if Gate-scoped evidence and verified analysis establish a decision-relevant valuation, cash-flow, or competitive change."
+  ],
+  "confidence": 0.2,
+  "confidence_rationale": "Confidence is low because the available facts are fresh and internally conflict-free but limited in scope, and the cio-only profile contains no verified Specialist report to test the competing interpretation.",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "The frozen evidence is insufficient to justify changing the current position without inventing the absent specialist analysis or missing valuation, cash-flow, and competitive evidence.",
+  "reevaluation_conditions": [
+    "Obtain Gate-scoped, source-attributed evidence covering valuation, cash flow, and competitive or demand conditions, then obtain verified analysis of that evidence."
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "d4549d6f326773416f606c0a3aab87c89484e34c3c88aaf2806c4651f917e2d6",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

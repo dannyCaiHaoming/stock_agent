@@ -1,0 +1,50 @@
+{
+  "agent": {
+    "name": "runtime_cio",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_cio.toml",
+    "sha256": "19af24cba4853ef1bd77c4496210f9a0af04a87ec36d9136bf520f0abc4b54c2",
+    "version": "3.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "input_artifact": "inputs/runtime_cio.json",
+  "input_hash": "885fc7f8040bf6980027a82d090172c6e24edf489add5b3bc1d5b0b3da0254bd",
+  "instruction_bundle_hash": "002db6af869ee9be60e6b08cd334b65e0e9c5e1c5c75fb01d3ee72fe4967de97",
+  "invocation_id": "inv_97c9c72e9825e0d593a9c679",
+  "manifest_hash": "2df033f41878765bed7e42cd15b7b72b45ab58f86aa11e717fe603a0d7c3218e",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/analyst-skeptic-strong-conflict/analyst-cio/schemas/cio-decision-draft.schema.json",
+  "output_schema_hash": "7ffd94816bb26837be52ee175dba0d502a1b69a54fd10eef79e2e9b9f62d3ee1",
+  "run_id": "rreh-ablation-v3-conflict-analyst-cio-20260907",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "9e3826939d084803728cba0695e2a246d741fda4e42182426998a3c9c7830d01",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "portfolio-council",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/portfolio-council/SKILL.md",
+      "sha256": "74f8cd9e37862cb43e207dd9fadcf7b411f93949d59770e711bf7011814a369c",
+      "version": "3.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_cio.txt",
+  "task_prompt_hash": "9c01c9ab01e86a878399ac65b46f231f8680d2325294ab755515cea4882aba2b",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}

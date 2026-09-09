@@ -1,0 +1,264 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-1",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA close price was USD 100 per share as_of 2026-01-30T21:00:00Z, retrieved_at 2026-01-30T21:05:00Z, source_id fixture-market-primary."
+        }
+      ],
+      "confidence": 0.1,
+      "confidence_rationale": "Confidence is limited to the sourced closing-price fact; evidence is insufficient for a company Thesis or valuation interpretation.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "No company business description or operating metrics.",
+        "No financial statements, cash-flow data, debt data, or share-count data.",
+        "No historical price series or valuation inputs.",
+        "No company-specific catalysts, risks, or counter-evidence."
+      ],
+      "invalidation_conditions": [
+        "The reported price fact is invalidated if the cited source is corrected or the security mapping for SEC-AAA changes."
+      ],
+      "invocation_id": "inv_275dd23987bdc1476236f60d",
+      "run_id": "rrh-final-insufficient-evidence-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA; Regression-insufficient-evidence. Authorized evidence provides only a close price from fixture-market-primary, as_of 2026-01-30T21:00:00Z, retrieved_at 2026-01-30T21:05:00Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "c28bcfbe84663afa1cc453414e08d0c545082ab03df264ba7760888b2376c45c",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "7626e1bd573702e85d1b707f73da32ce3c2b2b3df32cfd29865df020bfbeb3a2",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "39949277bdf5ffe3167b13b12fa377cd30e0d2a487fd1628aabc74d3462676e7",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "A single price observation does not establish operating performance, business quality, competitive position, financial condition, or valuation."
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-price-sufficiency"
+          ],
+          "challenge_id": "challenge-price-is-not-thesis-evidence",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "Point-in-time company financial and operating evidence.",
+            "Point-in-time valuation inputs and capital-structure evidence.",
+            "Point-in-time catalyst, risk, and liquidity evidence from independent permitted sources."
+          ],
+          "statement": "The permitted evidence establishes only a fresh USD close price of 100 for SEC-AAA as of 2026-01-30T21:00:00Z. A single price observation cannot distinguish between favorable fundamentals, temporary technical pricing, adverse unobserved developments, valuation risk, or liquidity constraints; it therefore cannot substantiate or falsify a security-level thesis."
+        }
+      ],
+      "confidence": 0.15,
+      "confidence_rationale": "Confidence is low because the sole permitted evidence is a fresh close-price observation and is insufficient for a substantiated counter-thesis.",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "Fundamental financial results and forward operating context.",
+        "Valuation and capital-structure inputs.",
+        "Event, competitive, regulatory, and liquidity evidence."
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "This insufficiency challenge is invalidated only if independent, point-in-time evidence permitted by the Invocation Manifest provides the missing fundamental, valuation, catalyst, risk, and liquidity context."
+      ],
+      "invocation_id": "inv_42e93e34b2aec4aec58d79fd",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-insufficient-evidence-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA; Regression-insufficient-evidence; decision cutoff 2026-01-31T23:59:59Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "5d8c97cf536b1839f86c9dcc65e76c633bf0486d085b26c72d95c4bfbb96795b",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "2e14a9bf1687353135dad806d44c0d438eab7e2edac892105d3a07e52996bf7b",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "No permitted evidence addresses SEC-AAA's business performance, valuation, catalysts, risks, or tradability.",
+        "The observed price alone has no identified explanatory driver within the permitted evidence set."
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.1,
+      "confidence_rationale": "Confidence is limited to the sourced close-price fact. The unanimous specialist finding of material evidence gaps supports deferring any security-level recommendation, not an investment conclusion.",
+      "conflicts": [],
+      "consensus": [
+        "Both validated specialist reports conclude that the sole permitted close-price observation is insufficient for a substantiated security-level thesis or valuation interpretation.",
+        "Both reports identify missing fundamental, valuation, catalyst, risk, and liquidity context as decision-material evidence gaps."
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "a08dcfe8e6f27f51c5dee77965d9466bff1b50d8c4a8e662f8c26f342298a2f7"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "a9955ede8db3be30b4f005627f2e43f61164a87fb7dc67fbcc3544455d02f2c4"
+        }
+      ],
+      "counter_thesis": "The same single price observation cannot distinguish favorable fundamentals from unobserved adverse developments, valuation risk, technical pricing, or liquidity constraints.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "This decision must be reassessed if permitted point-in-time fundamental, valuation, catalyst, risk, and liquidity evidence becomes available.",
+        "The cited close-price fact is invalidated if its source is corrected or the SEC-AAA security mapping changes."
+      ],
+      "invocation_id": "inv_d796c36e8212b6c4dbb98631",
+      "maximum_notional": null,
+      "no_trade_explanation": "The Gate-scoped evidence contains only one close-price observation. The verified specialist reports agree this does not establish business quality, financial condition, valuation, catalysts, risks, or liquidity; therefore no change to the portfolio is supported.",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "Obtain permitted, point-in-time company financial and operating evidence.",
+        "Obtain permitted, point-in-time valuation and capital-structure evidence.",
+        "Obtain permitted, point-in-time catalyst, risk, and liquidity evidence."
+      ],
+      "run_id": "rrh-final-insufficient-evidence-20260908",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "e5a586763c11ff60bd57f94a21bfb6a4281e83e2a6164e32b3c66227ae68eeca",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "The permitted evidence establishes only a USD 100 close price for SEC-AAA and does not support a company-quality, fundamental, or valuation thesis.",
+      "time_horizon": "Reassess only when the identified point-in-time evidence gaps are remedied.",
+      "unresolved_questions": [
+        "What are SEC-AAA's point-in-time operating performance, financial condition, and capital structure?",
+        "What valuation context, catalysts, risks, and liquidity conditions apply at the decision cutoff?"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.1,
+          "confidence_rationale": "Confidence is limited to the sourced close-price fact. The unanimous specialist finding of material evidence gaps supports deferring any security-level recommendation, not an investment conclusion.",
+          "counter_thesis": "The same single price observation cannot distinguish favorable fundamentals from unobserved adverse developments, valuation risk, technical pricing, or liquidity constraints.",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "invalidation_conditions": [
+            "This decision must be reassessed if permitted point-in-time fundamental, valuation, catalyst, risk, and liquidity evidence becomes available.",
+            "The cited close-price fact is invalidated if its source is corrected or the SEC-AAA security mapping changes."
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "The Gate-scoped evidence contains only one close-price observation. The verified specialist reports agree this does not establish business quality, financial condition, valuation, catalysts, risks, or liquidity; therefore no change to the portfolio is supported.",
+          "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+          "reevaluation_conditions": [
+            "Obtain permitted, point-in-time company financial and operating evidence.",
+            "Obtain permitted, point-in-time valuation and capital-structure evidence.",
+            "Obtain permitted, point-in-time catalyst, risk, and liquidity evidence."
+          ],
+          "security_id": "SEC-AAA",
+          "target_weight_range": null,
+          "thesis": "The permitted evidence establishes only a USD 100 close price for SEC-AAA and does not support a company-quality, fundamental, or valuation thesis.",
+          "time_horizon": "Reassess only when the identified point-in-time evidence gaps are remedied.",
+          "unresolved_questions": [
+            "What are SEC-AAA's point-in-time operating performance, financial condition, and capital structure?",
+            "What valuation context, catalysts, risks, and liquidity conditions apply at the decision cutoff?"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rrh-final-insufficient-evidence-20260908",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-insufficient-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://insufficient/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "bundle_hash": "53efb7af1802ef0b2ab010f6dcfa024872ada689d7e582c298256a129a0c4f57",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "insufficient-evidence-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "dc5ebd566dc1540e88c3385f99711c0d210d3b1dc8d61ff2eee8c58a108b78ec",
+      "run_id": "rrh-final-insufficient-evidence-20260908",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rrh-final-insufficient-evidence-20260908",
+  "terminal_state": "SAFE_NO_TRADE"
+}

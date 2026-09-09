@@ -1,0 +1,5 @@
+读取 Invocation Manifest，使用授权只读工具，并只返回符合 CounterThesisReport 2.0.0 的单个 JSON 对象。
+allowed_evidence_ids: ["ev-conflict-margin", "ev-conflict-price", "ev-conflict-revenue-a", "ev-conflict-revenue-b"]
+所有 evidence_refs 与 counter_evidence_refs 只能逐字填写上述集合中的原始 evidence_id。
+禁止在 evidence_id 后拼接 source_id、as_of、retrieved_at、分隔符、来源说明或任何其他文字。
+需要描述来源与时间时，应写入 statement、scope、uncertainties、data_gaps 或其他说明字段，不得污染 evidence_refs。非法引用必须 fail closed，不得自行截断或猜测修复。

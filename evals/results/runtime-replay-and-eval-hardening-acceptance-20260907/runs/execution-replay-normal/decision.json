@@ -1,0 +1,60 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.35,
+      "confidence_rationale": "已验证报告的事实均在 Gate 允许范围内，且没有机械字段冲突；然而两份独立报告均为 LOW_CONFIDENCE，关键估值、现金流、债务结构、需求及产能执行证据缺失，不能以当前事实集支持更强结论。",
+      "counter_thesis": "单期利润率、单一价格和未变更的产能计划无法验证盈利持续性、需求、融资、资本开支、现金流或估值下行；因此不能在当前证据集上形成可执行的研究意图。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "后续披露显示经营利润率显著恶化或收入下滑。",
+        "债务、利息负担或资本开支显著增加且未被经营现金流覆盖。",
+        "产能计划延期、缩减、超支或未获足够需求支持。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "当前已验证证据只足以描述有限静态事实，无法解决盈利持续性、产能执行、现金流和估值的关键问题；因此不形成研究建议中的仓位变更意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得多期收入、利润率与现金流数据以及驱动拆分。",
+        "获得债务期限、利率、契约、现金余额和资本开支融资的可核验证据。",
+        "获得产能计划里程碑、需求或订单、利用率与投产进度的可核验证据。",
+        "获得股本、企业价值、估值与下行情景的可核验证据。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "授权冻结证据显示截至截止日的 TTM 经营利润率为 18%，债务/TTM 收入的确定性比率为 15%，且管理层维持产能计划；这些是初步正面信号，但不足以支持价值或执行判断。",
+      "time_horizon": "在获得以下可核验证据后重新评估",
+      "unresolved_questions": [
+        "经营利润率和收入增长在多期、不同需求与成本环境下是否可持续？",
+        "产能计划的资本开支、融资、审批、投产时间表、利用率和需求验证为何？",
+        "现金余额、自由现金流、债务期限、利率、契约和净债务情况为何？",
+        "股本、企业价值、估值倍数、可比基准、流动性与下行情景为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-execution-replay-normal-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

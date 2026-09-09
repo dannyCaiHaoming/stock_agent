@@ -1,0 +1,89 @@
+{
+  "cache_key": "cad879d54c08c71ab1bbcc7744a4ac8432017a3e18f97d9f9305a394d26cebdc",
+  "case_hash": "2debe88f8e48464f74c5d062e006cb622e8d116b7f66b5b016d1102631c5c7c5",
+  "case_id": "insufficient-evidence",
+  "inputs": {
+    "candidate_hash": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "codex_runtime": "codex-cli/0.153.4",
+    "gate_context_hash": "958e8edd4ed0bff0ef2a62910932220cf75a5a8484adc49208800d698c34bd01",
+    "grader_hash": "39ec08e7cb05791279233759fe3ddd1c135f352e502b6f867c6bc1301cf05b7d",
+    "model": "gpt-5.6-terra",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "runtime_profile_hash": "623c08c6aebfbef68181595d8a00ea03f9ae03928b458a374735ff79e13a05a8"
+  },
+  "outcome": {
+    "action": "NO_TRADE",
+    "agents_run": [
+      "runtime_company_analyst",
+      "runtime_skeptic",
+      "runtime_cio"
+    ],
+    "cached_tokens": 456704,
+    "eval_hash": "48078ebf8b084e0e031af4618c68696a478d48d2ef6e8f8c921210d467d97707",
+    "eval_status": "PASS",
+    "failed_stage": null,
+    "future_leak_count": 0,
+    "input_tokens": 555569,
+    "latency_ms": 231999,
+    "llm_calls": 16,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 10119,
+    "risk_bypassed": false,
+    "risk_status": "APPROVED",
+    "run_id": "rrh-final-insufficient-evidence-20260908",
+    "semantic_dimensions": {
+      "analyst_thesis_grounding": {
+        "evidence_refs": [
+          "claim-1",
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "The analyst labels the supported close-price statement as FACT and cites ev-insufficient-price, while explicitly withholding company, fundamental, and valuation conclusions because the required evidence is absent.",
+        "status": "PASS"
+      },
+      "cio_conflict_handling": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "CIO records the specialists consensus, the absence of artifact conflicts, material unresolved questions, and their effect on NO_TRADE; decision.json consistently records APPROVED risk status and SAFE_NO_TRADE.",
+        "status": "PASS"
+      },
+      "confidence_calibration": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "Analyst, skeptic, and CIO confidence rationales limit confidence to the sourced price fact or the insufficiency conclusion and remain low in the presence of the documented evidence gaps and uncertainty.",
+        "status": "PASS"
+      },
+      "no_trade_reasoning": {
+        "evidence_refs": [
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "The sole allowed close-price fact is explicitly insufficient for a security-level thesis; NO_TRADE and the three point-in-time reevaluation conditions match the stated gaps and SAFE_NO_TRADE.",
+        "status": "PASS"
+      },
+      "skeptic_counter_evidence": {
+        "evidence_refs": [
+          "challenge-price-is-not-thesis-evidence",
+          "ev-insufficient-price"
+        ],
+        "grade": 3,
+        "rationale": "The independent-first-pass skeptic gives a specific, falsifiable insufficiency challenge grounded in the price fact, identifies missing evidence categories, and states what permitted point-in-time evidence would resolve it.",
+        "status": "PASS"
+      }
+    },
+    "terminal_state": "SAFE_NO_TRADE",
+    "trace_hash": "04af1fdb59d89d002b05e6145b0ad23c55ed32551fe063664790c0f4fc0ff072"
+  },
+  "record_hash": "d6bcb4e1e6ae2ae09f314d00c1994f145c110836647e4420b8a74a3a19c0921c",
+  "schema_version": "regression-cache/1.0.0",
+  "source": {
+    "eval_artifact_hash": "3784728011e5a328d17ddb6f51f76f3a3226557f8cf97f8c8e9af435c3312a25",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/insufficient-evidence/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/insufficient-evidence",
+    "run_tree_hash": "bc73623c9edd6dccd4aa63d7cc8b9980707050c6bc5c4dcfb4132b74de563212"
+  }
+}

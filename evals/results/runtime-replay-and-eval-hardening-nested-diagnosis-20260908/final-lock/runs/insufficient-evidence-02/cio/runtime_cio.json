@@ -1,0 +1,58 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-02-20260908",
+  "invocation_id": "inv_91bc26886e6b4b56c9912829",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "54d3e16a1871123e205f66bbdf3ade54acce837f8652bafc2c3b9ffb16e241a6"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "9dcf582f717dae7419ef333e21819e2bfe633085aa83f38f2098bac73b96a20d"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得截至决策截止日的充分授权证据后重新评估。",
+  "thesis": "冻结证据仅支持 SEC-AAA 于授权时点的单一收盘价事实，不能支持公司质量、盈利、现金流、估值、流动性或风险的投资论点。",
+  "counter_thesis": "单一价格观察可能反映未被授权证据覆盖的基本面、流动性或暂时性定价因素；在缺乏经营、财务、估值、价格历史与事件证据时，无法区分这些解释。",
+  "consensus": [
+    "两份已验证报告均确认唯一授权 Evidence 是 SEC-AAA 的单一收盘价，并均判定为 INSUFFICIENT_EVIDENCE。",
+    "两份报告均认为该单一价格不能支持或检验公司 Thesis、估值或持仓风险判断。"
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "截至决策截止日，SEC-AAA 的经营、财务、现金流、资本结构、竞争地位和估值证据为何？",
+    "截至决策截止日，SEC-AAA 的价格历史、波动性、成交流动性、公司事件与风险披露为何？",
+    "现有 50% 权重的持仓风险如何在缺少上述授权证据时被评估？"
+  ],
+  "invalidation_conditions": [
+    "若取得截至决策截止日、可核验且 Gate 允许的经营、财务、估值与竞争证据，当前证据不足结论必须重新评估。",
+    "若取得截至决策截止日、可核验且 Gate 允许的价格历史、流动性、事件与风险披露证据，当前对价格代表性与持仓风险无法判断的结论必须重新评估。"
+  ],
+  "confidence": 0.1,
+  "confidence_rationale": "对单一价格事实的来源与时点有可追溯证据，但两份独立报告一致指出授权证据范围无法支持公司、估值或风险层面的研究判断；因此对任何非 NO_TRADE 行动的置信度不足。",
+  "evidence_refs": [
+    "ev-insufficient-price"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "唯一授权 Evidence 是单一时点收盘价；已验证 Analyst 与 Skeptic 报告一致确认缺少形成或检验投资论点、估值和持仓风险所需的关键 point-in-time 事实。因此不形成任何仓位变动意图。",
+  "reevaluation_conditions": [
+    "补充并通过 Gate 的、截至决策截止日的公司经营、财务、现金流、资本结构、竞争和估值证据。",
+    "补充并通过 Gate 的、截至决策截止日的价格历史、流动性、公司事件与风险披露证据。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "d8d44764f249207250d9bd85fee258d2b61b5b5ab51a3e05512aa63adf36cab4",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

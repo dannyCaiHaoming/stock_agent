@@ -1,0 +1,857 @@
+{
+  "candidate_hash": "ae13c85f3189025de2ea9dcdd3156b3d25c15544802950f9a86e95cf4ad1edb4",
+  "case_results": [
+    {
+      "cache_provenance": {
+        "cache_key": "814382e4a8b7641d085e145f218775780100358f2715b2372ca13299642d3525",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "ce26cefed8fdbd172a5cc0b24e25464164f35f0cf5255b9e5dea0c4a44a4a2c4",
+      "case_id": "normal-research",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 699392,
+        "eval_hash": "7a0ca36299680409541e1a78702c4fba0d1aadb4e1c52984257ee065e7f9d3a5",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 790413,
+        "latency_ms": 272331,
+        "llm_calls": 20,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 13001,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-ablation-v3-normal-full-council-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "c1",
+              "c2",
+              "c3",
+              "c4",
+              "c5",
+              "c6",
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "runtime_company_analyst 明确区分 FACT 与 INTERPRETATION；各事实和有限解释均引用允许 Evidence，并对偿债能力、执行与估值所需的数据缺口作出限制说明。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "runtime_cio 明确记录两份报告的共识、无机械冲突、四项未决问题及其对 NO_TRADE 的影响；decision.json 风险报告确认 APPROVED 且 final_action 为 NO_TRADE。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 0.68、Skeptic 0.38 和 CIO 0.35 的置信度理由均明确限定在允许 Evidence 的覆盖范围，并以关键数据缺口和不确定性约束对方向性结论的置信度。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "runtime_cio 的 INSUFFICIENT_EVIDENCE、NO_TRADE 解释及四项重评条件与 gate.json 的允许证据范围和 decision.json 的 APPROVED SAFE_NO_TRADE 一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "debt-service-coverage-unknown",
+              "margin-quality-and-durability-unknown",
+              "capacity-plan-not-demand-validation",
+              "price-is-not-valuation-evidence",
+              "ev-normal-debt",
+              "ev-normal-margin",
+              "ev-normal-price",
+              "ev-normal-revenue",
+              "ev-normal-update"
+            ],
+            "grade": 3,
+            "rationale": "runtime_skeptic 标记为 INDEPENDENT_FIRST_PASS，对债务服务、利润率质量、产能需求验证和价格解释提出具体可证伪挑战，并列出所需核验材料和失效条件。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "ff223bdc066ceea006d2f563e273fa50a9a07142c77ffa30cf41173ef956030c"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "554d77e489ea0221e46b49400555db90e8f46a8b6a98f54bec296e2bdcd7bafc",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "2debe88f8e48464f74c5d062e006cb622e8d116b7f66b5b016d1102631c5c7c5",
+      "case_id": "insufficient-evidence",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_cio"
+        ],
+        "cached_tokens": 491776,
+        "eval_hash": "ff7a8fdc3dc9a2cb112dc2d385b3eccc3b4f1fc754d2a291e7ee27c40be7405c",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 556296,
+        "latency_ms": 204387,
+        "llm_calls": 15,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 7651,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-ablation-v3-insufficient-analyst-cio-rerun-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "claim-1",
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，同时明确不以该证据支持公司研究或估值 Thesis，且列出数据缺口与失效条件。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 2,
+            "rationale": "CIO 记录已验证 Analyst 的 INSUFFICIENT_EVIDENCE 共识、空冲突、两项未决问题及其对 NO_TRADE 的影响；该拓扑未提供独立 Skeptic 报告。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 2,
+            "rationale": "Analyst 与 CIO 均以 0.1 的低置信度，并将其限定为单一新鲜价格事实及缺失的基本面、竞争和估值证据，方向上与证据不足一致。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "CIO 将 NO_TRADE 明确归因于 Gate 允许证据仅覆盖单一收盘价，列出缺失的基本面、竞争和估值证据，并要求获得 decision_cutoff 前可核验证据后重评；这与 SAFE_NO_TRADE 和风险报告一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [],
+            "grade": null,
+            "rationale": "冻结输入未包含 Skeptic 运行产物；该 analyst-cio-rerun 拓扑中无法评估独立反证质量。",
+            "status": "NOT_APPLICABLE"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "6533e772cae4fe2871b3041dcb5271742a3d80595e0e53cb4c7860d248ffc140"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "42d07a9edbdd9e29a78b1617cf277f68714f9f3fd38d7c5795d1e3b27ab146fe",
+      "case_id": "all-evidence-stale",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_no_trade"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_not_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "future_leak_count_equals"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [],
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "terminal_state": "SAFE_NO_TRADE"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "63d42921f73d77478c9008bdd7ec2f787d01308fe77d57e56230a194a14160ec",
+      "case_id": "future-information-leakage",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "validator_rejects"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "leaked_evidence_ids": [
+          "ev-future-asof",
+          "ev-future-retrieval"
+        ],
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "949eaea43d9bb34ff1e9771711452e86f7629219264c96e4a03b078edb479031",
+        "producer": "fixture",
+        "validator_rejection": "PIT_LEAKAGE"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "54b27629ce21270eb06483432f92aa22d00ed0e3ee1e8ce769fb56a86607a544",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "713a7854021ea1dc7798ea02870df42e2cc3b062ea77b2aa03b6e7c4abc4f102",
+      "case_id": "analyst-skeptic-strong-conflict",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 579584,
+        "eval_hash": "243187caa07c55c7831b2578745a9b07e62e809f9880277afdb06d01b7735556",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 664423,
+        "latency_ms": 263152,
+        "llm_calls": 20,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 12225,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-candidate-conflict-current-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "fact_margin",
+              "fact_price",
+              "fact_revenue_conflict",
+              "interpretation_research_conclusion",
+              "ev-conflict-margin",
+              "ev-conflict-price",
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 明确区分 FACT 与 INTERPRETATION；各事实引用允许 Evidence，且将未解决收入冲突和必要数据缺口作为不形成公司或估值 Thesis 的限制。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-conflict-margin",
+              "ev-conflict-price",
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b"
+            ],
+            "grade": 3,
+            "rationale": "CIO 记录 Specialist 共识、同日收入的未解决冲突、三个未决问题及其对 NO_TRADE 的影响，并与 decision.json 的 APPROVED 风险结果一致。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-conflict-margin",
+              "ev-conflict-price",
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 0.25、Skeptic 0.28 与 CIO 0.20 的有限置信度均明确对应收入冲突、未验证的利润率和价格解释，以及缺失的财务与估值证据。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-conflict-margin",
+              "ev-conflict-price",
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b"
+            ],
+            "grade": 3,
+            "rationale": "CIO 的 EVIDENCE_CONFLICT、NO_TRADE 解释和三项重评条件均对应 gate 中同日收入冲突及已记录的财务和估值证据缺口；decision.json 风险报告为 APPROVED SAFE_NO_TRADE。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "CH-REVENUE-RECONCILIATION",
+              "CH-MARGIN-QUALITY",
+              "CH-PRICE-INTERPRETATION",
+              "ev-conflict-margin",
+              "ev-conflict-price",
+              "ev-conflict-revenue-a",
+              "ev-conflict-revenue-b"
+            ],
+            "grade": 3,
+            "rationale": "INDEPENDENT_FIRST_PASS Skeptic 提出收入可比性、利润率质量和单点价格解释三项具体可证伪挑战，并为每项列出所需核验证据与失效条件。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "7cd825443cd09c2cbe05cd57f990efea536d802e678aee30a1480756a984e1b9"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "98ba8eb85851d79151672ff2ef48c8162f7fc711ecd8a90ac8fcca1e4123231a",
+      "case_id": "dangling-evidence-reference",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "validator_rejects"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "5de16440c582fab0f0a09de01f82957ae83111469b60120b11cb50107181e472",
+        "producer": "fixture",
+        "validator_rejection": "EVIDENCE_CLOSURE_FAILED"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "25c9421d3f02590da18a1a36c2c175c3062a7cac89e88af3cd313c7517aed151",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "6c13288ed0548249c38489ab44a01b8a8823615616ea419b4289290d4004f4fe",
+      "case_id": "risk-veto",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_no_trade"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_veto"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 457728,
+        "eval_hash": "6bbf6d424d3c5637638b9841f8006e18915dde8235991ebdb7a9ebce2db46040",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 529577,
+        "latency_ms": 239567,
+        "llm_calls": 16,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 11499,
+        "risk_bypassed": false,
+        "risk_status": "REJECTED",
+        "run_id": "rreh-candidate-risk-veto-current-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "claim_price",
+              "claim_revenue",
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "runtime_company_analyst 将两项主张标记为 FACT 并分别引用允许 Evidence；其余结论限于这些事实不足以支持商业质量、竞争或估值，且明确列出数据缺口与失效条件。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "runtime_cio 记录两份报告关于证据覆盖限制的共识、无来源冲突和三项未决问题，并据此说明不形成行动建议；decision.json 另明确记录 Risk Engine 对该草案的 RISK_VETO。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 的 0.25 受限于仅两项单点事实；Skeptic 的 0.92 明确限于证据不足结论；CIO 的 0.88 明确限于不形成行动建议，三者均以数据缺口和不确定性校准其结论方向。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "decision.json 将终态记录为 SAFE_NO_TRADE，Risk Report 明确为 RISK_VETO 并列出三项违反；CIO 的证据不足说明及最终仅在满足 Risk Engine 可行边界后重评的条件，均与冻结产物一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "price-not-valuation",
+              "revenue-scale-not-quality",
+              "timing-and-linkage-gap",
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "runtime_skeptic 以 INDEPENDENT_FIRST_PASS 提出价格非估值、收入规模非经营质量及时点联结缺口三项具体挑战，逐项给出所需核验材料和可证伪的失效条件。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "120e61e96d1fe53b7e61dded0655fc87a9cba4098b84e280a75f22786c572f39"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "59d76e879ea25ba0e125105a0f758cfa1f1a20088f191cc404d0f4745ee94206",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "ac4272f0af0a479b5424e74549df8ec9ab02e54a48b8d88d424464d95098c0b9",
+      "case_id": "high-concentration-portfolio",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_skeptic",
+          "runtime_cio"
+        ],
+        "cached_tokens": 457728,
+        "eval_hash": "6bbf6d424d3c5637638b9841f8006e18915dde8235991ebdb7a9ebce2db46040",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 529577,
+        "latency_ms": 239567,
+        "llm_calls": 16,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 11499,
+        "risk_bypassed": false,
+        "risk_status": "REJECTED",
+        "run_id": "rreh-candidate-risk-veto-current-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "claim_price",
+              "claim_revenue",
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "runtime_company_analyst 将两项主张标记为 FACT 并分别引用允许 Evidence；其余结论限于这些事实不足以支持商业质量、竞争或估值，且明确列出数据缺口与失效条件。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "runtime_cio 记录两份报告关于证据覆盖限制的共识、无来源冲突和三项未决问题，并据此说明不形成行动建议；decision.json 另明确记录 Risk Engine 对该草案的 RISK_VETO。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 的 0.25 受限于仅两项单点事实；Skeptic 的 0.92 明确限于证据不足结论；CIO 的 0.88 明确限于不形成行动建议，三者均以数据缺口和不确定性校准其结论方向。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "decision.json 将终态记录为 SAFE_NO_TRADE，Risk Report 明确为 RISK_VETO 并列出三项违反；CIO 的证据不足说明及最终仅在满足 Risk Engine 可行边界后重评的条件，均与冻结产物一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [
+              "price-not-valuation",
+              "revenue-scale-not-quality",
+              "timing-and-linkage-gap",
+              "ev-risk-price",
+              "ev-risk-revenue"
+            ],
+            "grade": 3,
+            "rationale": "runtime_skeptic 以 INDEPENDENT_FIRST_PASS 提出价格非估值、收入规模非经营质量及时点联结缺口三项具体挑战，逐项给出所需核验材料和可证伪的失效条件。",
+            "status": "PASS"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "120e61e96d1fe53b7e61dded0655fc87a9cba4098b84e280a75f22786c572f39"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": "947214c624107f514e69a7f13d185e699b130245a91520b9ebb92221277fd5f0",
+        "reused_from": null,
+        "status": "MISS"
+      },
+      "case_hash": "40fbaae014744a3876e391644bc8289a00c54236f820702e7ff93717f55ab46a",
+      "case_id": "llm-overconfidence",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "terminal_state_in"
+        },
+        {
+          "hard": false,
+          "status": "PASS",
+          "type": "required_semantic_dimensions"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        }
+      ],
+      "llm_required": true,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [
+          "runtime_company_analyst",
+          "runtime_cio"
+        ],
+        "cached_tokens": 491776,
+        "eval_hash": "ff7a8fdc3dc9a2cb112dc2d385b3eccc3b4f1fc754d2a291e7ee27c40be7405c",
+        "eval_status": "PASS",
+        "failed_stage": null,
+        "future_leak_count": 0,
+        "input_tokens": 556296,
+        "latency_ms": 204387,
+        "llm_calls": 15,
+        "model": "gpt-5.6-terra",
+        "output_tokens": 7651,
+        "risk_bypassed": false,
+        "risk_status": "APPROVED",
+        "run_id": "rreh-ablation-v3-insufficient-analyst-cio-rerun-20260907",
+        "semantic_dimensions": {
+          "analyst_thesis_grounding": {
+            "evidence_refs": [
+              "claim-1",
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，同时明确不以该证据支持公司研究或估值 Thesis，且列出数据缺口与失效条件。",
+            "status": "PASS"
+          },
+          "cio_conflict_handling": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 2,
+            "rationale": "CIO 记录已验证 Analyst 的 INSUFFICIENT_EVIDENCE 共识、空冲突、两项未决问题及其对 NO_TRADE 的影响；该拓扑未提供独立 Skeptic 报告。",
+            "status": "PASS"
+          },
+          "confidence_calibration": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 2,
+            "rationale": "Analyst 与 CIO 均以 0.1 的低置信度，并将其限定为单一新鲜价格事实及缺失的基本面、竞争和估值证据，方向上与证据不足一致。",
+            "status": "PASS"
+          },
+          "no_trade_reasoning": {
+            "evidence_refs": [
+              "ev-insufficient-price"
+            ],
+            "grade": 3,
+            "rationale": "CIO 将 NO_TRADE 明确归因于 Gate 允许证据仅覆盖单一收盘价，列出缺失的基本面、竞争和估值证据，并要求获得 decision_cutoff 前可核验证据后重评；这与 SAFE_NO_TRADE 和风险报告一致。",
+            "status": "PASS"
+          },
+          "skeptic_counter_evidence": {
+            "evidence_refs": [],
+            "grade": null,
+            "rationale": "冻结输入未包含 Skeptic 运行产物；该 analyst-cio-rerun 拓扑中无法评估独立反证质量。",
+            "status": "NOT_APPLICABLE"
+          }
+        },
+        "terminal_state": "SAFE_NO_TRADE",
+        "trace_hash": "6533e772cae4fe2871b3041dcb5271742a3d80595e0e53cb4c7860d248ffc140"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "15d6912939602b59785ee31796e6e638595001e8d0b04ddd4b5bfa6cc2ac8247",
+      "case_id": "mandatory-no-trade",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_no_trade"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "must_not_run_agents"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "risk_not_bypassed"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "action": "NO_TRADE",
+        "agents_run": [],
+        "future_leak_count": 0,
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75",
+        "producer": "fixture",
+        "risk_bypassed": false,
+        "terminal_state": "SAFE_NO_TRADE"
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "2b6831c21754aa810c5b21e2387af86162d6ab050bfb4b05480e8cbcfe22bb8b",
+      "case_id": "valid-action-contract",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "valid_action_set"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "forbidden_action"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "forbidden_actions": [
+          "REDUCE"
+        ],
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+        "producer": "fixture",
+        "valid_action_set": [
+          "BUY",
+          "HOLD",
+          "TRIM",
+          "EXIT"
+        ]
+      },
+      "status": "PASS"
+    },
+    {
+      "cache_provenance": {
+        "cache_key": null,
+        "reused_from": null,
+        "status": "NOT_APPLICABLE"
+      },
+      "case_hash": "450613852fb2bfba2462a6e9033215d23a9a9cba0238425e6dfd2a26b6ba11bf",
+      "case_id": "invalid-specialist-output",
+      "invariants": [
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "validator_rejects"
+        },
+        {
+          "hard": true,
+          "status": "PASS",
+          "type": "llm_calls_equal"
+        }
+      ],
+      "llm_required": false,
+      "outcome": {
+        "llm_calls": 0,
+        "not_llm_output": true,
+        "outcome_hash": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+        "producer": "fixture",
+        "validator_rejection": "SCHEMA_INVALID"
+      },
+      "status": "PASS"
+    }
+  ],
+  "reason_codes": [],
+  "schema_version": "regression-suite/1.0.0",
+  "set_hash": "1946efea07c2337c76551f8fb32d8fbf7a55cc3cef8a2eedb8e855049faef7b7",
+  "status": "PASS",
+  "suite_hash": "18c30a07ccfb8d23762c820fc668ae9d2d7888e3e0ec24a02655d006eae334e4",
+  "suite_id": "rreh-regression-first-20260907"
+}

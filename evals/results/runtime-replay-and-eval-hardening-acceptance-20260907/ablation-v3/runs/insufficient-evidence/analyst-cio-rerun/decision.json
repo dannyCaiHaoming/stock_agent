@@ -1,0 +1,50 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.1,
+      "confidence_rationale": "价格事实已由唯一 Gate 允许证据和已验证报告一致支持，但证据范围不足以形成研究判断。",
+      "counter_thesis": "单一新鲜价格可以确认价格事实，却不能替代公司基本面、竞争或估值证据。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若后续授权证据修正或替代该价格数据，价格事实须重新核验。",
+        "在补充公司基本面与估值证据前，不形成公司研究 Thesis。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "现有 Gate-scoped Evidence 仅包含一条收盘价；缺少支持或反证公司研究与估值判断所需的基本面、竞争和估值证据。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得 Gate 允许、可核验且在 decision_cutoff 前的公司基本面、竞争和估值证据后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "唯一允许证据确认 SEC-AAA 在指定时点的收盘价为 100 USD/股，但不足以支持业务质量、竞争地位、盈利能力或估值判断。",
+      "time_horizon": "在获得可核验证据后重新评估",
+      "unresolved_questions": [
+        "SEC-AAA 的收入、利润率、现金流、资产负债表和经营指标如何？",
+        "SEC-AAA 的竞争地位与可核验估值基础为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-ablation-v3-insufficient-analyst-cio-rerun-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

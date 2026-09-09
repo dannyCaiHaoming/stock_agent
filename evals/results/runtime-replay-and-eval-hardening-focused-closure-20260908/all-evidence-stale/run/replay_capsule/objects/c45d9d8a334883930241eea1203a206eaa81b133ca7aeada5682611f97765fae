@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/run-error/2.1.0",
+  "type": "object",
+  "required": ["schema_version", "run_id", "terminal_state", "failed_stage", "code", "message"],
+  "properties": {
+    "schema_version": {"const": "run-error/2.1.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "terminal_state": {"const": "FAILED_VALIDATION"},
+    "failed_stage": {
+      "enum": ["PREFLIGHT", "EVIDENCE_GATE", "SPECIALIST_EXECUTION", "SPECIALIST_VALIDATION", "CIO_SYNTHESIS", "EXECUTION_PROOF", "CIO_VALIDATION", "RISK_ENGINE", "PUBLICATION_VALIDATION"]
+    },
+    "code": {"type": "string", "minLength": 1},
+    "message": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/ablation-report/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ablation_id", "cases", "profiles", "comparability", "metrics", "configuration", "conclusion", "reason_codes", "report_hash"],
+  "properties": {
+    "schema_version": {"const": "ablation-report/1.0.0"},
+    "ablation_id": {"type": "string", "minLength": 1},
+    "cases": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "profiles": {"type": "array", "minItems": 3, "items": {"type": "object"}},
+    "comparability": {"type": "object"},
+    "metrics": {"type": "object"},
+    "configuration": {"type": "object"},
+    "conclusion": {"type": "string", "enum": ["MEASURABLE_GAIN", "NO_MEASURABLE_GAIN", "NEGATIVE_GAIN", "NOT_COMPARABLE"]},
+    "reason_codes": {"type": "array", "items": {"type": "string"}},
+    "report_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

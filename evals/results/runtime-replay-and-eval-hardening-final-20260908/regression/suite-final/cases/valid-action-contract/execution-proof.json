@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/runtime-eval/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/valid-action-contract/run"
+  },
+  "case_id": "valid-action-contract",
+  "executed_operations": [
+    "deterministic_injection",
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "cb70980da668e6a2baa595bb6046a298ad84531cdef0fb2e07f0024f843f31b0",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "deterministic_outcome": "9736fac1a0f3e78d294942d089b80980605d3953eba9d09afb1a6fbc84a8a8e3",
+    "grader_execution_proof": null,
+    "runtime_eval": "d1bf2a0e628f98c42fe1a364d397ca61835b92763a429aa7603dfb6fd89206d9",
+    "trace": "b415f04fe76db2fba1c0da4c0f5936ddfb3d85757699fbe50ded78f6485468e0",
+    "trace_report": "4ed4551d3a37cad1cb543c9c48fd94f71b92b9ac87a87c258fbe4da46f908089"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "b1f855c748e06fed90f8285fe37d8a54e101b173be7f8d07c8d8c9f8d159fa01",
+  "run_id": "regression-rrh-final-regression-20260908-valid-action-contract-2b6831c21754",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:valid-action-contract",
+  "status": "PASS"
+}

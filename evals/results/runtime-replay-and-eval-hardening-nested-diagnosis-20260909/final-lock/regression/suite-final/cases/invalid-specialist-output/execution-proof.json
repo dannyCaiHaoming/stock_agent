@@ -1,0 +1,31 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression/suite-final/cases/invalid-specialist-output/run/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression/suite-final/cases/invalid-specialist-output/runtime-eval/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression/suite-final/cases/invalid-specialist-output/run"
+  },
+  "case_id": "invalid-specialist-output",
+  "executed_operations": [
+    "deterministic_injection",
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "69ad456063eb4aedde77f9f54984be315e18279c26c201e0dce93a837b9e96a8",
+    "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "deterministic_outcome": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+    "grader_execution_proof": null,
+    "regression_injection": "6f0c0b9e8a0919033b76d1d7cea1d25f5fd58101203734350afbe0e7fe71f732",
+    "runtime_eval": "6f07c0ead209ddc3f4a41a4bcc3f5ec14fef8fb95fc2af8f206ecc8154f1f784",
+    "trace": "4c82f7691e8f30812a778a2825132f13b6eb695d7e3ec2eefc52081785586ff3",
+    "trace_report": "a52986f73d4eed6ea040f06eefe3f990c2426140d2ed35c43abe67e05f2ff360"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "07dbde58832813fdf617a92cc988af56d578305c2c233eaf84499bbb4c772972",
+  "run_id": "regression-rrh-final-lock-regression-suite-20260909-invalid-specialist-output-0054b5e5c8f3",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:invalid-specialist-output",
+  "status": "PASS"
+}

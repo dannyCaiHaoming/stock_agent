@@ -1,0 +1,44 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-hardening-ablation-insufficient-cio-only-v2-20260908",
+  "invocation_id": "inv_f48d81357ae8e357bb92f194",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess after additional Gate-allowed company and risk evidence is available.",
+  "thesis": "The Gate-scoped evidence establishes only a fresh close price of USD 100 for SEC-AAA; it does not establish a decision-ready investment thesis.",
+  "counter_thesis": "The single price observation cannot establish business quality, valuation, catalysts, risks, or a justified portfolio change.",
+  "consensus": [],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What company fundamentals, valuation context, and material risks support or challenge the current position?",
+    "What independently verified evidence would justify any change from the current 0.5 portfolio weight?"
+  ],
+  "invalidation_conditions": [
+    "This NO_TRADE conclusion should be revisited when additional Gate-allowed, point-in-time evidence is available."
+  ],
+  "confidence": 0.1,
+  "confidence_rationale": "Confidence in an investment action is low because the permitted evidence set contains only one price observation and no validated specialist reports.",
+  "evidence_refs": [
+    "ev-insufficient-price"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "The permitted evidence set contains only a single close-price observation and no validated specialist reports, which is insufficient to support a portfolio action.",
+  "reevaluation_conditions": [
+    "Obtain additional Gate-allowed, point-in-time evidence covering company fundamentals, valuation context, and material risks.",
+    "Validate any required specialist reports within the same run before reconsidering an action."
+  ],
+  "skill_execution": [
+    {
+      "skill_name": "portfolio-council",
+      "version": "3.0.0",
+      "invocation_hash": "cdc26dd82e0945764854b85a8cdbf2d3117fd74abe0595483c7f8d1756a6ba4d"
+    }
+  ],
+  "advisory_only": true
+}

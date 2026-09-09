@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/high-concentration-portfolio/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/runtime-evals/high-concentration-portfolio/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/high-concentration-portfolio"
+  },
+  "case_id": "high-concentration-portfolio",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "400ec2ff713d87cd16a1eeca0ff2666fa537aa216fa4a474ab9b9b7c61fb02a0",
+    "candidate_version_manifest": "618f746c35c7df17a37a64d4338bbbfc73e3a9875fe6ad9ea56f471b166ac198",
+    "grader_execution_proof": "9be2d83fd820ee22991477f9a0b16c574b63dfc04e5c3e033cccdf9f4171088f",
+    "runtime_eval": "72c71f693353ee26ee5a6e451bf4aec734659e5b75c74719d26b29e64af1cb4b",
+    "trace": "9c0d40cdda8e351d6e0d0585cf547b1b355a2bc7c04055ac6fc0c633e76e8b7f",
+    "trace_report": "255924238048982c9a8c103836bdc0dee807d80f41efabd01824feff30d1bfd1"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "2b4841887c57d02eddaacfc17a3705580ec559d0c0b4fad0207172bc41ea1cfe",
+  "run_id": "rrh-final-lock-regression-high-concentration-portfolio-20260909",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli nested-codex-smoke --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/high-concentration-portfolio",
+  "status": "PASS"
+}

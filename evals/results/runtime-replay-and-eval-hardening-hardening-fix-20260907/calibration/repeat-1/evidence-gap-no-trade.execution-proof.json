@@ -1,0 +1,50 @@
+{
+  "agent": "dev_eval",
+  "agent_hash": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
+  "case_id": "evidence-gap-no-trade",
+  "child_rollout": {
+    "path": "/Users/caihaoming/.codex/sessions/2026/09/07/rollout-2026-09-07T22-12-00-01a07c36-2f13-7492-a0ca-9a540320547f.jsonl",
+    "sha256": "dbc6d66f5eae6612ab4f42373516390103a95b765df72695d44824472126006e"
+  },
+  "completed_at": "2026-09-07T14:14:33.308Z",
+  "execution_events": [
+    {
+      "at": "2026-09-07T14:11:44.045Z",
+      "session_id": "01a07c35-ecb0-7883-8177-1d80ad07997b",
+      "type": "DEV_EVAL_DISPATCHED"
+    },
+    {
+      "at": "2026-09-07T14:14:33.308Z",
+      "session_id": "01a07c36-2f13-7492-a0ca-9a540320547f",
+      "type": "DEV_EVAL_COMPLETED"
+    }
+  ],
+  "input_artifact": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/source/samples.json",
+    "sha256": "4a81de0117fcdf7088842dea5a4835f89b0f7cd2b5ddd04dc190ad303085f183"
+  },
+  "input_hash": "f6b80742867c5094378cb28ec2860744e9519425da9e01f0d1615bdaa85e22af",
+  "model": "gpt-5.6-terra",
+  "output_artifact": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/repeat-1/evidence-gap-no-trade.json",
+    "sha256": "def2c4e9da37a6586b0cf064a0d6dbe81a8289d26263b9053c9c67bdf58edb41"
+  },
+  "output_hash": "3623ff3cba7c68817bff2639f795d9ebaae6680c30cec89262e8d6164ab71823",
+  "parent_rollout": {
+    "path": "/Users/caihaoming/.codex/sessions/2026/09/07/rollout-2026-09-07T22-11-43-01a07c35-ecb0-7883-8177-1d80ad07997b.jsonl",
+    "sha256": "34611ff27affb03e0397164f54993ed5a82137edce6151562f3128710269f07f"
+  },
+  "parent_session_id": "01a07c35-ecb0-7883-8177-1d80ad07997b",
+  "prompt_artifact": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/source/grader-prompt.txt",
+    "sha256": "fc8d31dab3aeb76d51a2aeb35569eead14eea8a3ba0c4e9d774161a5100924d5"
+  },
+  "prompt_hash": "a099d034f5d26576011b0423e3fb289c9da1aaf75a558af4dec7e415bdc283af",
+  "proof_hash": "3668c822d5461d165a28acdd8a842f4eedf2f142ebbaac21e34d2fb0a825e1f1",
+  "repeat": 1,
+  "schema_version": "calibration-grader-execution-proof/1.0.0",
+  "session_id": "01a07c36-2f13-7492-a0ca-9a540320547f",
+  "skill_hash": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+  "started_at": "2026-09-07T14:11:44.045Z",
+  "task_binding_method": "protected_dispatch_plus_parent_input"
+}

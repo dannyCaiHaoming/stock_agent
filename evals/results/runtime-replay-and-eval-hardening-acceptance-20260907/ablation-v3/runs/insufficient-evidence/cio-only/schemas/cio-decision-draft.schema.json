@@ -1,0 +1,353 @@
+{
+  "$id": "portfolio-council/cio-decision-draft/2.1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "enum": [
+              "NO_TRADE"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "maximum_notional": {
+                "const": null
+              },
+              "target_weight_range": {
+                "const": null
+              }
+            }
+          },
+          {
+            "properties": {
+              "no_trade_explanation": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "no_trade_reason": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "reevaluation_conditions": {
+                "minItems": 1,
+                "type": "array"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "enum": [
+              "BUY",
+              "ADD",
+              "HOLD",
+              "TRIM",
+              "EXIT"
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "current_weight": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "security_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "target_weight_range": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "evidence_refs": {
+                "minItems": 1,
+                "type": "array"
+              },
+              "invalidation_conditions": {
+                "minItems": 1,
+                "type": "array"
+              },
+              "thesis": {
+                "minLength": 1,
+                "type": "string"
+              }
+            }
+          },
+          {
+            "properties": {
+              "no_trade_explanation": {
+                "const": null
+              },
+              "no_trade_reason": {
+                "const": null
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "action": {
+      "enum": [
+        "BUY",
+        "ADD",
+        "HOLD",
+        "TRIM",
+        "EXIT",
+        "NO_TRADE"
+      ]
+    },
+    "advisory_only": {
+      "const": true
+    },
+    "agent": {
+      "const": "runtime_cio"
+    },
+    "confidence": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "confidence_rationale": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "conflicts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence_impact": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "conflict_key": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "decision_impact": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "summary": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "unresolved": {
+            "const": true
+          }
+        },
+        "required": [
+          "conflict_key",
+          "evidence_refs",
+          "summary",
+          "unresolved",
+          "decision_impact",
+          "confidence_impact"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "consensus": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "consumed_reports": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "enum": []
+          },
+          "output_hash": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent",
+          "output_hash"
+        ],
+        "type": "object"
+      },
+      "maxItems": 0,
+      "minItems": 0,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "counter_thesis": {
+      "type": "string"
+    },
+    "current_weight": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "evidence_refs": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "invalidation_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "invocation_id": {
+      "type": "string"
+    },
+    "maximum_notional": {
+      "minimum": 0,
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "no_trade_explanation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "no_trade_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reevaluation_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "cio-decision-draft/2.1.0"
+    },
+    "security_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "skill_execution": {
+      "minItems": 1,
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "COMPLETE",
+        "INSUFFICIENT_EVIDENCE",
+        "LOW_CONFIDENCE"
+      ]
+    },
+    "target_weight_range": {
+      "maxItems": 2,
+      "minItems": 2,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "thesis": {
+      "type": "string"
+    },
+    "time_horizon": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "unresolved_questions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "invocation_id",
+    "status",
+    "agent",
+    "consumed_reports",
+    "action",
+    "security_id",
+    "current_weight",
+    "target_weight_range",
+    "maximum_notional",
+    "time_horizon",
+    "thesis",
+    "counter_thesis",
+    "consensus",
+    "conflicts",
+    "unresolved_questions",
+    "invalidation_conditions",
+    "confidence",
+    "confidence_rationale",
+    "evidence_refs",
+    "no_trade_reason",
+    "no_trade_explanation",
+    "reevaluation_conditions",
+    "skill_execution",
+    "advisory_only"
+  ],
+  "type": "object",
+  "x-eval-ablation": {
+    "expected_report_agents": [],
+    "expected_report_agents_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "publishable": false
+  },
+  "x-generated-from": {
+    "contract": "contracts/council-decision-contract.json",
+    "contract_hash": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "contract_version": "council-decision-contract/1.0.0"
+  }
+}

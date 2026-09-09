@@ -1,0 +1,41 @@
+{
+  "checks": [
+    {
+      "child_session_id": "01a07fbd-efa7-7f60-bd02-c86cd1fe9d1a",
+      "eval_hash": "a5993a27092c426443026239e674aa478a0506c4c51f6404d07ce78d9e666beb",
+      "eval_id": "rrh-final-eval-normal-research-20260908",
+      "llm_calls": 11,
+      "model": "gpt-5.6-terra",
+      "name": "source-normal",
+      "parent_session_id": "01a07fbd-92d1-7423-969e-79e6bd523c8c",
+      "proof_hash": "ad39f45d5284dc99dfcd56ee14a80a32ac99e19b030b50c250510fe2b02ce91f",
+      "run_id": "rrh-final-normal-research-20260908",
+      "status": "PASS"
+    },
+    {
+      "child_session_id": "01a07f29-cf44-78c3-90ec-409fdca3f578",
+      "eval_hash": "769fbb5a5e8cb3166cddd2b81ba5791327005396fdc2fc751f0aa6150dfbbac3",
+      "eval_id": "rreh-hardening-regression-eval-risk-veto-current-20260908",
+      "llm_calls": 10,
+      "model": "gpt-5.6-terra",
+      "name": "execution-source-risk-veto",
+      "parent_session_id": "01a07f29-5a43-7f32-a85e-e0cb6afb2991",
+      "proof_hash": "7432c4710e2d4587a1c5c9b6c68956319a6094a4f2df16f04f17f75af9e4dd1e",
+      "run_id": "rreh-candidate-risk-veto-current-20260907",
+      "status": "PASS"
+    },
+    {
+      "child_session_id": "01a07f29-c2d0-7251-af82-5b4a9283e4a7",
+      "eval_hash": "dbdd61c950c540e1c1ea05489ab60024aa93bf16c0a5f6b170cf2d1f5411273a",
+      "eval_id": "rreh-hardening-regression-eval-execution-replay-risk-veto-20260908",
+      "llm_calls": 9,
+      "model": "gpt-5.6-terra",
+      "name": "execution-replay-risk-veto",
+      "parent_session_id": "01a07f29-57f9-75e1-9664-c6c62394cbdc",
+      "proof_hash": "aee6fc946e062397f4395646666726d8affa54d10a2c1d63b841d34da8a999a7",
+      "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

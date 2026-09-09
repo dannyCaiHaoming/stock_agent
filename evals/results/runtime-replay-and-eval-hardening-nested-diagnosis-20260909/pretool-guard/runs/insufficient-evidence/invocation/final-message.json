@@ -1,0 +1,7 @@
+{
+  "message": "rrh-pretool-guard-insufficient-evidence-20260909 — CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "28c1f8a65bd581afc036bf3725d33f3c62a0af16458be0d366c21a39f1d27a55",
+  "present": true,
+  "run_id": "rrh-pretool-guard-insufficient-evidence-20260909",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

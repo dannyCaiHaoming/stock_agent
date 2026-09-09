@@ -1,0 +1,42 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": null,
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_refs": [],
+      "reason": "缺失 Analyst 产物。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_refs": [],
+      "reason": "缺失 Skeptic 产物。"
+    },
+    "cio_conflict_handling": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_refs": [],
+      "reason": "缺失 CIO 综合产物。"
+    },
+    "confidence_calibration": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_refs": ["Decision confidence: 0.05", "Decision rationale: 无 PIT 合格证据，置信度只针对不交易结论。", "Pre-agent gate: PIT 后无可用证据"],
+      "reason": "虽然在 Agent 前安全终止，最终 decision 同时具备 confidence 与 rationale；极低置信度明确限定为不交易结论，和无可用 PIT 证据一致。"
+    },
+    "no_trade_reasoning": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_refs": ["NO_USABLE_EVIDENCE", "Evidence Gate 后无可用事实，不能形成研究判断。", "获得 cutoff 前可验证证据"],
+      "reason": "NO_TRADE 原因、解释与可操作的重评条件均清楚对应 Evidence Gate 的证据缺口。"
+    }
+  },
+  "output_hash": "f13f3a88bfe2b3935de959f905e537d372ec92cb47c19e25bf833e3ee5e7aabc"
+}

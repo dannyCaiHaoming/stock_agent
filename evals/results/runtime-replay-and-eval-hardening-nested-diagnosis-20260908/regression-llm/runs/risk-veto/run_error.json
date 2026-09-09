@@ -1,0 +1,8 @@
+{
+  "code": "RUNTIME_INTEGRITY_FAILED",
+  "failed_stage": "PUBLICATION_VALIDATION",
+  "message": "PROTECTED_RUNTIME_INTEGRITY_CHANGED",
+  "run_id": "rrh-nested-regression-risk-veto-20260908",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

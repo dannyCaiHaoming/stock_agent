@@ -1,0 +1,50 @@
+{
+  "agent": "dev_eval",
+  "agent_hash": "76591d96eb2619f213cb5d79a53980cd25a1b1aa1ad269c25eade8a2f8725735",
+  "case_id": "unsupported-overconfidence",
+  "child_rollout": {
+    "path": "/Users/caihaoming/.codex/sessions/2026/09/07/rollout-2026-09-07T22-17-07-01a07c3a-de28-75e2-bc08-dbc6727f7a95.jsonl",
+    "sha256": "d67ae3f47defdd3883ec38d64a4a2cd888d59beefaf15bc8a210a9405ab5c6f0"
+  },
+  "completed_at": "2026-09-07T14:20:01.438Z",
+  "execution_events": [
+    {
+      "at": "2026-09-07T14:16:36.903Z",
+      "session_id": "01a07c3a-64b9-7e03-b203-9c5dd2ca8cbe",
+      "type": "DEV_EVAL_DISPATCHED"
+    },
+    {
+      "at": "2026-09-07T14:20:01.438Z",
+      "session_id": "01a07c3a-de28-75e2-bc08-dbc6727f7a95",
+      "type": "DEV_EVAL_COMPLETED"
+    }
+  ],
+  "input_artifact": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/source/samples.json",
+    "sha256": "4a81de0117fcdf7088842dea5a4835f89b0f7cd2b5ddd04dc190ad303085f183"
+  },
+  "input_hash": "f6b80742867c5094378cb28ec2860744e9519425da9e01f0d1615bdaa85e22af",
+  "model": "gpt-5.6-terra",
+  "output_artifact": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/repeat-2/unsupported-overconfidence.json",
+    "sha256": "e4d921b764d9701fb0718ea29e525753036418601af5b34d17a8799b4bb69071"
+  },
+  "output_hash": "bebd1cc3217e28a6830c5900865b68550c547a8bf4d3d9c4ab163d06e2911694",
+  "parent_rollout": {
+    "path": "/Users/caihaoming/.codex/sessions/2026/09/07/rollout-2026-09-07T22-16-36-01a07c3a-64b9-7e03-b203-9c5dd2ca8cbe.jsonl",
+    "sha256": "e1c59f4b102c5af7ae162e4aca44e5befd789f66a417e431867f8ea749971c62"
+  },
+  "parent_session_id": "01a07c3a-64b9-7e03-b203-9c5dd2ca8cbe",
+  "prompt_artifact": {
+    "path": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/calibration/source/grader-prompt.txt",
+    "sha256": "fc8d31dab3aeb76d51a2aeb35569eead14eea8a3ba0c4e9d774161a5100924d5"
+  },
+  "prompt_hash": "a099d034f5d26576011b0423e3fb289c9da1aaf75a558af4dec7e415bdc283af",
+  "proof_hash": "425b0312bbee5c65f45d5e81a052d0c3edfd01da77771511be8b52266a1be1d1",
+  "repeat": 2,
+  "schema_version": "calibration-grader-execution-proof/1.0.0",
+  "session_id": "01a07c3a-de28-75e2-bc08-dbc6727f7a95",
+  "skill_hash": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+  "started_at": "2026-09-07T14:16:36.903Z",
+  "task_binding_method": "protected_dispatch_plus_parent_input"
+}

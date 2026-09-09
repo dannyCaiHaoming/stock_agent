@@ -1,0 +1,18 @@
+{
+  "artifacts": {},
+  "case_id": "all-evidence-stale",
+  "executed_operations": [
+    "deterministic_injection",
+    "invariant_evaluation"
+  ],
+  "hashes": {
+    "outcome": "a98299b9ad316b3caf3afeb65552635cde7b158646ebe23726f21b0ec2bc2f75"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "c850d646a4ea1fd143ef10bb2386cb2623d7c4f152c4abb6cf7edac28f02a1a2",
+  "run_id": "regression-rreh-hardening-regression-20260907-all-evidence-stale-42d07a9edbdd",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:all-evidence-stale",
+  "status": "PASS"
+}

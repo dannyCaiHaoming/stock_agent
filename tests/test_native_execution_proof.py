@@ -9,11 +9,13 @@ from pathlib import Path
 
 from product.runtime.execution_proof import (
     ExecutionProofError,
+    build_ephemeral_run_specialist_execution_proof,
     build_run_specialist_execution_proof,
     build_specialist_execution_proof,
     discover_run_rollouts,
     verify_specialist_execution_proof,
 )
+from product.runtime.codex_hook_recorder import minimize_hook_event
 from product.runtime.hashing import canonical_hash
 from product.runtime.invocation import (
     OUTPUT_SCHEMAS,
@@ -109,15 +111,17 @@ class NativeExecutionProofTests(unittest.TestCase):
         raw_fixture_access_agent=None,
         protected_child_input=False,
         protected_message="gAAAA" + "A" * 120,
+        agents=AGENTS,
     ):
         parent_id = "parent-session"
-        call_ids = {agent: f"call-{index}" for index, agent in enumerate(AGENTS, 1)}
-        child_ids = {agent: f"child-{index}" for index, agent in enumerate(AGENTS, 1)}
+        call_ids = {agent: f"call-{index}" for index, agent in enumerate(agents, 1)}
+        child_ids = {agent: f"child-{index}" for index, agent in enumerate(agents, 1)}
         parent = [
-            {"type": "session_meta", "payload": {"id": parent_id, "cli_version": "0.153.4"}},
+            {"timestamp": "2026-09-07T00:00:00Z", "type": "session_meta", "payload": {"id": parent_id, "cli_version": "0.153.4"}},
             {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+            message("user", f"$product:portfolio-council run_id={self.run_id}"),
         ]
-        for index, agent in enumerate(AGENTS):
+        for index, agent in enumerate(agents):
             if second_dispatch_after_wait and index == 1:
                 parent.append(
                     {
@@ -181,7 +185,7 @@ class NativeExecutionProofTests(unittest.TestCase):
                 },
             }
         )
-        for agent in AGENTS:
+        for agent in agents:
             parent.append(
                 {
                     "type": "event_msg",
@@ -197,11 +201,16 @@ class NativeExecutionProofTests(unittest.TestCase):
                     },
                 }
             )
+        parent.append({
+            "timestamp": "2026-09-07T00:00:03Z",
+            "type": "event_msg",
+            "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 100, "cached_input_tokens": 20, "output_tokens": 30}}},
+        })
         parent_path = directory / "parent.jsonl"
         write_jsonl(parent_path, parent)
 
         children = {}
-        for agent in AGENTS:
+        for agent in agents:
             manifest = self.manifests[agent]
             with Path(manifest["agent"]["path"]).open("rb") as handle:
                 instructions = tomllib.load(handle)["developer_instructions"]
@@ -209,6 +218,7 @@ class NativeExecutionProofTests(unittest.TestCase):
             task = f"{self.prompts[agent]} run_id={self.run_id} invocation_id={manifest['invocation_id']}"
             records = [
                 {
+                    "timestamp": "2026-09-07T00:00:00Z",
                     "type": "session_meta",
                     "payload": {
                         "id": child_ids[agent],
@@ -262,6 +272,11 @@ class NativeExecutionProofTests(unittest.TestCase):
                     json.dumps(self._report(agent), sort_keys=True),
                 )
             )
+            records.append({
+                "timestamp": "2026-09-07T00:00:02Z",
+                "type": "event_msg",
+                "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 40, "cached_input_tokens": 10, "output_tokens": 20}}},
+            })
             write_jsonl(
                 child_path,
                 records,
@@ -303,6 +318,10 @@ class NativeExecutionProofTests(unittest.TestCase):
             self.assertTrue(proof["parallel_dispatch_proven"])
             self.assertTrue(proof["independent_sessions_proven"])
             self.assertFalse(proof["raw_prompt_or_reasoning_retained"])
+            self.assertEqual(proof["telemetry"]["status"], "AVAILABLE")
+            self.assertEqual(proof["telemetry"]["input_tokens"], 180)
+            self.assertEqual(proof["telemetry"]["cached_tokens"], 40)
+            self.assertEqual(proof["telemetry"]["latency_ms"], 3000)
             self.assertNotIn(self.prompts[AGENTS[0]], json.dumps(proof))
             self.assertEqual(
                 {item["agent"] for item in proof["dispatches"]}, set(AGENTS)
@@ -327,6 +346,31 @@ class NativeExecutionProofTests(unittest.TestCase):
                     child_rollouts=children,
                     invocation_manifests=self.manifests,
                     task_prompts=self.prompts,
+                )
+
+    def test_zero_and_one_specialist_ablation_topologies_have_native_proof(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index, specialists in enumerate(((), ("runtime_company_analyst",))):
+                case = root / str(index)
+                case.mkdir()
+                parent, children = self._rollouts(case, agents=specialists)
+                proof = build_specialist_execution_proof(
+                    ROOT,
+                    parent_rollout=parent,
+                    child_rollouts=children,
+                    invocation_manifests={name: self.manifests[name] for name in specialists},
+                    task_prompts={name: self.prompts[name] for name in specialists},
+                    specialist_agents=specialists,
+                )
+                self.assertEqual(proof["specialist_topology"], list(specialists))
+                self.assertTrue(proof["portfolio_council_skill_bound"])
+                reports, events = self._reports_and_events()
+                verify_specialist_execution_proof(
+                    proof,
+                    invocation_manifests={name: self.manifests[name] for name in specialists},
+                    reports={name: reports[name] for name in specialists},
+                    mcp_events=events,
                 )
 
     def test_current_codex_protected_dispatch_binds_through_structured_output(self):
@@ -469,6 +513,171 @@ class NativeExecutionProofTests(unittest.TestCase):
             saved = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(saved["proof_hash"], result["proof_hash"])
             self.assertNotIn(self.prompts[AGENTS[0]], output.read_text(encoding="utf-8"))
+
+    def test_ephemeral_hook_proof_uses_public_events_and_distinct_children(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            (run_dir / "invocations").mkdir(parents=True)
+            (run_dir / "prompts").mkdir()
+            (run_dir / "agents").mkdir()
+            (run_dir / "events" / "mcp").mkdir(parents=True)
+            (run_dir / "invocation").mkdir()
+            (run_dir / "run_manifest.json").write_text(
+                json.dumps(
+                    {
+                        "run_id": self.run_id,
+                        "output_dir": str(run_dir),
+                        "run_mode": "PRODUCT_COUNCIL",
+                        "ablation_profile": None,
+                        "model": "gpt-5.6-terra",
+                        "codex_runtime": "codex-cli/0.153.4",
+                        "trigger_reason": "product_council",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            reports, mcp_events = self._reports_and_events()
+            for agent in AGENTS:
+                (run_dir / "invocations" / f"{agent}.json").write_text(
+                    json.dumps(self.manifests[agent]), encoding="utf-8"
+                )
+                (run_dir / "prompts" / f"{agent}.txt").write_text(
+                    self.prompts[agent], encoding="utf-8"
+                )
+                (run_dir / "agents" / f"{agent}.json").write_text(
+                    json.dumps(reports[agent]), encoding="utf-8"
+                )
+            write_jsonl(run_dir / "events" / "mcp" / "events.jsonl", mcp_events)
+            (run_dir / "invocation" / "prompt.txt").write_text(
+                f"$product:portfolio-council\nrun_id={self.run_id}\n",
+                encoding="utf-8",
+            )
+            codex_events = run_dir / "invocation" / "codex-events.jsonl"
+            write_jsonl(
+                codex_events,
+                [
+                    {"type": "thread.started", "thread_id": "parent-session"},
+                    {"type": "turn.started"},
+                    {
+                        "type": "turn.completed",
+                        "usage": {
+                            "input_tokens": 120,
+                            "cached_input_tokens": 20,
+                            "output_tokens": 30,
+                        },
+                    },
+                ],
+            )
+            hook_records = []
+            for index, agent in enumerate(AGENTS, 1):
+                hook_records.append(
+                    minimize_hook_event(
+                        {
+                            "hook_event_name": "SubagentStart",
+                            "session_id": "parent-session",
+                            "turn_id": "turn-1",
+                            "agent_id": f"child-{index}",
+                            "agent_type": agent,
+                            "model": "gpt-5.6-terra",
+                            "cwd": str(ROOT / "product"),
+                            "permission_mode": "dontAsk",
+                        }
+                    )
+                )
+            for index, agent in enumerate(AGENTS, 1):
+                hook_records.append(
+                    minimize_hook_event(
+                        {
+                            "hook_event_name": "SubagentStop",
+                            "session_id": "parent-session",
+                            "turn_id": "turn-1",
+                            "agent_id": f"child-{index}",
+                            "agent_type": agent,
+                            "model": "gpt-5.6-terra",
+                            "cwd": str(ROOT / "product"),
+                            "permission_mode": "dontAsk",
+                            "agent_transcript_path": None,
+                            "stop_hook_active": False,
+                            "last_assistant_message": json.dumps(reports[agent]),
+                        }
+                    )
+                )
+            hook_events = run_dir / "invocation" / "subagent-events.jsonl"
+            write_jsonl(hook_events, hook_records)
+
+            result = build_ephemeral_run_specialist_execution_proof(
+                ROOT,
+                run_dir=run_dir,
+                codex_events_path=codex_events,
+                hook_events_path=hook_events,
+                latency_ms=3210,
+            )
+            proof = json.loads(
+                (run_dir / "events" / "codex" / "specialist-execution-proof.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(result["next_state"], "EXECUTION_PROOF_VERIFIED")
+            self.assertEqual(proof["capture_mode"], "ephemeral_lifecycle_hooks")
+            self.assertEqual(proof["telemetry"]["input_tokens"], 120)
+            self.assertEqual(proof["telemetry"]["latency_ms"], 3210)
+            self.assertEqual(
+                {item["child_session_id"] for item in proof["dispatches"]},
+                {"child-1", "child-2"},
+            )
+            self.assertNotIn("last_assistant_message", json.dumps(proof))
+
+    def test_run_proof_rejects_parent_cross_run_artifact_access(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run_dir = root / "run"
+            (run_dir / "invocations").mkdir(parents=True)
+            (run_dir / "prompts").mkdir()
+            (run_dir / "agents").mkdir()
+            (run_dir / "events" / "mcp").mkdir(parents=True)
+            (run_dir / "run_manifest.json").write_text(
+                json.dumps({"run_id": self.run_id, "output_dir": str(run_dir)}),
+                encoding="utf-8",
+            )
+            reports, events = self._reports_and_events()
+            for agent in AGENTS:
+                (run_dir / "invocations" / f"{agent}.json").write_text(
+                    json.dumps(self.manifests[agent]), encoding="utf-8"
+                )
+                (run_dir / "prompts" / f"{agent}.txt").write_text(
+                    self.prompts[agent], encoding="utf-8"
+                )
+                (run_dir / "agents" / f"{agent}.json").write_text(
+                    json.dumps(reports[agent]), encoding="utf-8"
+                )
+            write_jsonl(run_dir / "events" / "mcp" / "events.jsonl", events)
+            parent, children = self._rollouts(root)
+            records = [json.loads(line) for line in parent.read_text().splitlines()]
+            records.append(
+                {
+                    "type": "response_item",
+                    "payload": {
+                        "type": "custom_tool_call",
+                        "name": "exec",
+                        "call_id": "cross-run-read",
+                        "input": (
+                            "const r = await tools.exec_command({cmd: 'jq . "
+                            f"{ROOT / 'evals' / 'results' / 'other-run' / 'decision.json'}"
+                            "'}); text(r.output);"
+                        ),
+                    },
+                }
+            )
+            write_jsonl(parent, records)
+            with self.assertRaisesRegex(
+                ExecutionProofError, "PARENT_CROSS_RUN_ARTIFACT_ACCESS"
+            ):
+                build_run_specialist_execution_proof(
+                    ROOT,
+                    run_dir=run_dir,
+                    parent_rollout=parent,
+                    child_rollouts=children,
+                )
 
     def test_rollout_discovery_requires_run_binding_and_role_bound_children(self):
         with tempfile.TemporaryDirectory() as directory:

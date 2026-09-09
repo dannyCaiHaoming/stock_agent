@@ -1,0 +1,8 @@
+{
+  "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "message": "SKILL_EXECUTION_PROOF_MISMATCH",
+  "run_id": "rreh-candidate-normal-20260907",
+  "schema_version": "run-error/2.1.0",
+  "terminal_state": "FAILED_VALIDATION"
+}

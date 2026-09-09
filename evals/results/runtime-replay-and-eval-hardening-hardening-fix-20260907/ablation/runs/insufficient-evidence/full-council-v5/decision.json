@@ -1,0 +1,50 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.05,
+      "confidence_rationale": "对唯一授权收盘价事实可作有限核验，但两份 Specialist 的已验证报告一致指出关键基本面、估值、流动性与风险证据缺失，不能形成持仓判断。",
+      "counter_thesis": "独立 Skeptic 指出，将单一收盘价视为持仓合理性的充分依据依赖未验证假设；缺乏价格背景、波动性与下行路径证据。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若唯一收盘价的来源、截至时间或检索时间被更正或发生冲突，应重新核验该事实。",
+        "若获得符合 Gate 与 decision_cutoff 要求的补充证据，当前证据不足结论应重新评估。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "唯一允许证据是一个新鲜的单一收盘价；它不足以支持或反驳持仓的投资依据，因此本 EVAL_ABLATION 运行只能形成 NO_TRADE。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "在 Gate 授权且不晚于 decision_cutoff 的公司基本面、估值、流动性、历史价格与风险事件证据可核验后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "Gate 证据仅证实 SEC-AAA 在单一时点的收盘价为 100 USD/股，不能支持公司质量、估值、催化剂、流动性或风险回报判断。",
+      "time_horizon": "截至下一次获得可核验且在决策截止日前有效的补充证据。",
+      "unresolved_questions": [
+        "SEC-AAA 的基本面、财务表现和竞争地位为何？",
+        "其估值、流动性、历史价格、风险暴露及相关事件证据为何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v5-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

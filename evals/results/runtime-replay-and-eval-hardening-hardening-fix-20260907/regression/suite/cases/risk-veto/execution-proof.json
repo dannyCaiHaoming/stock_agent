@@ -1,0 +1,27 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-risk-veto-current/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/evals/candidate-risk-veto-current/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-risk-veto-current"
+  },
+  "case_id": "risk-veto",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "92819ad5ff09228517d84dd96273616d195c2ee314a0ad69f0c32fd285bc6d35",
+    "grader_execution_proof": "4076fbb6da9f7f69eeaeae7d5e3bf92993639d58d8166816b59dd5e6753ac46a",
+    "runtime_eval": "6bbf6d424d3c5637638b9841f8006e18915dde8235991ebdb7a9ebce2db46040",
+    "trace": "120e61e96d1fe53b7e61dded0655fc87a9cba4098b84e280a75f22786c572f39",
+    "trace_report": "d8b2c7b2dd767c0ba570f9534af78db0fd4330262d235d08fcdf2972e4f1c606"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "3751bd0cba7241912847fec07cec7a47072d565248bc5b2dbdc6ccf0ab68f797",
+  "run_id": "rreh-candidate-risk-veto-current-20260907",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "codex exec -C product --strict-config --json -m gpt-5.6-terra < candidate-risk-veto-current-smoke-prompt",
+  "status": "PASS"
+}

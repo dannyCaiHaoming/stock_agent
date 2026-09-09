@@ -1,0 +1,46 @@
+{
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "27794789d765be69c45aa5c29a7fba3a9ae92737587e923a01a3614aa8a2b237",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 0.0,
+      "contained_violation": true,
+      "detail": "非法 Evidence 引用已在预期阶段 fail-closed，未发布建议。",
+      "referenced": 1,
+      "status": "PASS",
+      "unknown_evidence_ids": [
+        "missing-id"
+      ],
+      "valid": 0
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": false,
+      "pre_risk_failure": true,
+      "risk_attempts": 0,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "39cd0349c2a7c4e62de1ea19b5b40078e82563e963f94a5b09cc5d09ff26958f",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "FAILED_VALIDATION",
+      "expected": [
+        "FAILED_VALIDATION"
+      ],
+      "failed_stage": "SPECIALIST_VALIDATION",
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "8b59428111724611a447cf0dcec932168d2272f9398bece2110509793e98804f",
+      "status": "PASS"
+    }
+  }
+}

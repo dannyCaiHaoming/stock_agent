@@ -1,0 +1,25 @@
+{
+  "action": null,
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic"
+  ],
+  "cio_conflict_handled": false,
+  "eval_status": "PASS",
+  "evidence_closure": true,
+  "evidence_subset_of_gate": true,
+  "failed_stage": "SPECIALIST_VALIDATION",
+  "future_leak_count": 0,
+  "llm_calls": 0,
+  "no_future_evidence": true,
+  "not_llm_output": true,
+  "outcome_hash": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40",
+  "producer": "fixture",
+  "risk_bypassed": false,
+  "risk_status": null,
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-invalid-specialist-output-0054b5e5c8f3",
+  "specialist_output_valid": false,
+  "terminal_state": "FAILED_VALIDATION",
+  "trace_complete": true,
+  "validator_rejection": "SCHEMA_INVALID"
+}

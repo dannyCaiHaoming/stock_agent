@@ -1,0 +1,42 @@
+{
+  "schema_version": "semantic-rubric-result/1.0.0",
+  "eval_id": null,
+  "grader": {
+    "agent": "dev_eval",
+    "model": "gpt-5.6-terra",
+    "grader_version": "runtime-eval-grading/1.0.0"
+  },
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "status": "FAIL",
+      "grade": 0,
+      "claim_evidence_refs": ["Analyst claim: 公司必将高速增长。", "evidence_refs: []"],
+      "reason": "绝对增长判断没有任何证据引用，也没有作为假设作出限定。"
+    },
+    "skeptic_counter_evidence": {
+      "status": "PASS",
+      "grade": 3,
+      "claim_evidence_refs": ["Skeptic challenge: 单一价格事实不能证明增长。", "ev-price", "收入与现金流证据"],
+      "reason": "独立首轮反证具体、可证伪地指出现有价格证据无法支持增长结论，并明确所需补充证据。"
+    },
+    "cio_conflict_handling": {
+      "status": "FAIL",
+      "grade": 0,
+      "claim_evidence_refs": ["CIO consensus: 看多", "CIO conflicts: []", "CIO unresolved_questions: []", "Skeptic challenge: 单一价格事实不能证明增长。"],
+      "reason": "CIO 未记录或处理 Skeptic 已提出的核心证据缺口，未说明该冲突对 BUY 决策的影响。"
+    },
+    "confidence_calibration": {
+      "status": "FAIL",
+      "grade": 0,
+      "claim_evidence_refs": ["CIO confidence: 0.97", "CIO rationale: 采纳 Analyst。", "Analyst evidence_refs: []", "ev-price"],
+      "reason": "极高置信度建立在无证据的增长断言上，且忽略已记录的证据缺口与冲突，方向不一致。"
+    },
+    "no_trade_reasoning": {
+      "status": "NOT_APPLICABLE",
+      "grade": null,
+      "claim_evidence_refs": [],
+      "reason": "最终 action 为 BUY，不适用 NO_TRADE 维度。"
+    }
+  },
+  "output_hash": "3fa0f272c0469ffcb68acacfbfa783061569f561ba6ec2c22238d2aa5178f3c4"
+}

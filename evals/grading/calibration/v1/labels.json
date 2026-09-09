@@ -1,0 +1,38 @@
+{
+  "schema_version": "semantic-calibration-set/1.0.0",
+  "calibration_id": "portfolio-council-semantic-calibration/1.0.0",
+  "agreement_threshold": 0.8,
+  "maximum_repeat_grade_delta": 1,
+  "cases": [
+    {
+      "case_id": "grounded-balanced",
+      "human_labels": {
+        "analyst_thesis_grounding": {"status": "PASS", "grade_min": 2, "grade_max": 3},
+        "skeptic_counter_evidence": {"status": "PASS", "grade_min": 2, "grade_max": 3},
+        "cio_conflict_handling": {"status": "PASS", "grade_min": 2, "grade_max": 3},
+        "confidence_calibration": {"status": "PASS", "grade_min": 2, "grade_max": 3},
+        "no_trade_reasoning": {"status": "NOT_APPLICABLE", "grade_min": null, "grade_max": null}
+      }
+    },
+    {
+      "case_id": "evidence-gap-no-trade",
+      "human_labels": {
+        "analyst_thesis_grounding": {"status": "NOT_APPLICABLE", "grade_min": null, "grade_max": null},
+        "skeptic_counter_evidence": {"status": "NOT_APPLICABLE", "grade_min": null, "grade_max": null},
+        "cio_conflict_handling": {"status": "NOT_APPLICABLE", "grade_min": null, "grade_max": null},
+        "confidence_calibration": {"status": "PASS", "grade_min": 2, "grade_max": 3},
+        "no_trade_reasoning": {"status": "PASS", "grade_min": 2, "grade_max": 3}
+      }
+    },
+    {
+      "case_id": "unsupported-overconfidence",
+      "human_labels": {
+        "analyst_thesis_grounding": {"status": "FAIL", "grade_min": 0, "grade_max": 1},
+        "skeptic_counter_evidence": {"status": "PASS", "grade_min": 2, "grade_max": 3},
+        "cio_conflict_handling": {"status": "FAIL", "grade_min": 0, "grade_max": 1},
+        "confidence_calibration": {"status": "FAIL", "grade_min": 0, "grade_max": 1},
+        "no_trade_reasoning": {"status": "NOT_APPLICABLE", "grade_min": null, "grade_max": null}
+      }
+    }
+  ]
+}

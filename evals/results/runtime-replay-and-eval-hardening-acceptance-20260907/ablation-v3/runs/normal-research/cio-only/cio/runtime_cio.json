@@ -1,0 +1,49 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-ablation-v3-normal-cio-only-20260907",
+  "invocation_id": "inv_e8169966e9165ad0938d765e",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [],
+  "action": "NO_TRADE",
+  "security_id": null,
+  "current_weight": null,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "在获得下列重新评估条件之前不形成持仓调整建议。",
+  "thesis": "Gate 范围内的基础事实显示 SEC-AAA 的 TTM 收入为 1,000,000 美元、营业利润率为 18%、总债务为 150,000 美元，且管理层维持既有产能计划；这些事实本身不足以形成经交叉研究验证的持仓调整依据。",
+  "counter_thesis": "现有证据没有提供估值、现金流、竞争地位或产能计划执行结果的独立验证；cio-only 拓扑也没有已验证的 Specialist 报告可用于检验该解释。",
+  "consensus": [],
+  "conflicts": [],
+  "unresolved_questions": [
+    "在当前价格下，公司相对于其现金流和盈利能力的估值是否具有吸引力？",
+    "维持的产能计划能否按预期执行并转化为可验证的经营成果？",
+    "竞争环境和潜在下行情景会如何影响收入、利润率及资本结构？"
+  ],
+  "invalidation_conditions": [
+    "获得能够验证估值、现金流和产能执行结果的 Gate-allowed 新证据。"
+  ],
+  "confidence": 0.35,
+  "confidence_rationale": "基础事实均为 Gate-allowed 且新鲜，但没有已验证的 Specialist 报告，也缺少评估调整现有权重所需的关键维度，因此仅对不形成调整建议具有低置信度。",
+  "evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "在 cio-only 评估拓扑中，没有已验证的 Specialist 报告；Gate 范围内事实不足以验证估值、现金流、竞争状况和产能计划执行情况，不能负责任地形成持仓调整意图。",
+  "reevaluation_conditions": [
+    "获得 Gate-allowed 的估值、现金流和产能执行证据。",
+    "获得按本次 Invocation 验证的独立研究报告，明确支持或反驳持仓调整理由。"
+  ],
+  "skill_execution": [
+    {
+      "invocation_hash": "bcae1b56c696e9a2625a3ce087dcc06d2c46909f80cc6f7e94f392347f67e326",
+      "skill_name": "portfolio-council",
+      "version": "3.0.0"
+    }
+  ],
+  "advisory_only": true
+}

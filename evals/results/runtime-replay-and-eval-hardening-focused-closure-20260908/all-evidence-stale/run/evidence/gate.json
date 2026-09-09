@@ -1,0 +1,53 @@
+{
+  "allowed_evidence": [],
+  "allowed_evidence_ids": [],
+  "bundle_hash": "3dcb3b0af9e5e00475289231c1b0f14fc6beb83d296a3895fc6c3f2f8b6d336d",
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "conflicts": [],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "excluded": [
+    {
+      "as_of": "2026-02-01T21:00:00Z",
+      "evidence_id": "ev-future-asof",
+      "reason_codes": [
+        "FUTURE_AS_OF",
+        "FUTURE_RETRIEVAL"
+      ],
+      "retrieved_at": "2026-02-01T21:05:00Z",
+      "threshold_days": 7
+    },
+    {
+      "as_of": "2025-12-31T00:00:00Z",
+      "evidence_id": "ev-future-retrieval",
+      "reason_codes": [
+        "FUTURE_RETRIEVAL"
+      ],
+      "retrieved_at": "2026-02-02T13:00:00Z",
+      "threshold_days": 400
+    },
+    {
+      "as_of": "2025-01-01T14:00:00Z",
+      "evidence_id": "ev-stale-update",
+      "reason_codes": [
+        "STALE"
+      ],
+      "retrieved_at": "2025-01-01T14:01:00Z",
+      "threshold_days": 30
+    }
+  ],
+  "excluded_evidence_ids": [
+    "ev-future-asof",
+    "ev-future-retrieval",
+    "ev-stale-update"
+  ],
+  "fixture_id": "future-or-stale-v1",
+  "freshness_policy_version": "freshness/fixture/2.0.0",
+  "input_evidence_ids": [
+    "ev-future-asof",
+    "ev-future-retrieval",
+    "ev-stale-update"
+  ],
+  "input_hash": "bb3ba7a8bdc96d4f919fbf3041911208e0e545ed09cca3099df2de8b3f377d02",
+  "run_id": "regression-focused-closure-20260908-all-evidence-stale-b9647dff76d9",
+  "schema_version": "evidence-gate/2.0.0"
+}

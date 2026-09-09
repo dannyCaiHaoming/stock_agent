@@ -1,0 +1,18 @@
+{
+  "artifacts": {},
+  "case_id": "invalid-specialist-output",
+  "executed_operations": [
+    "deterministic_injection",
+    "invariant_evaluation"
+  ],
+  "hashes": {
+    "outcome": "c61253f7f6f1e57d41e57b331b43af490a86d3c295fcbd99401b306ac2face40"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "1ae9c09177dd90a9d2f0923b12a31538f5a142743d3a38c93e9a2d8b6b7cdcee",
+  "run_id": "regression-rreh-hardening-regression-final-20260908-invalid-specialist-output-450613852fb2",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:invalid-specialist-output",
+  "status": "PASS"
+}

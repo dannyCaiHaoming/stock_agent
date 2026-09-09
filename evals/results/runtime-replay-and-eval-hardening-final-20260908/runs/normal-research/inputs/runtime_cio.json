@@ -1,0 +1,256 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "Regression-normal-research",
+  "run_id": "rrh-final-normal-research-20260908",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "cf0c9e06609bb9239d1c621ccfd991f1046f8c7f8ba7ee876994ee765891f11b",
+    "runtime_skeptic": "00035632889908eb75d815d41f6a4c29405fdf74f2e3cbe8aff52b9289ac336b"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "fixture-query-result:ac660ec40ddb0b37ac991cb0ca65b036996036f00688c22aebe502173c9b46c0",
+        "fixture-calculation:debt_to_revenue_v1:6f9395d7b5309d6033ba1c228a8e795544888fd674ad7524d17f0c8b7eb24ccf"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "c1",
+          "evidence_refs": [
+            "ev-normal-debt"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: Total debt was USD 150,000 as of 2025-12-31T00:00:00Z, from fixture-filing-primary, retrieved 2026-01-15T13:00:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c2",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: TTM operating margin was 0.18 as of 2025-12-31T00:00:00Z, from fixture-filing-primary, retrieved 2026-01-15T13:00:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c3",
+          "evidence_refs": [
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: TTM revenue was USD 1,000,000 as of 2025-12-31T00:00:00Z, from fixture-filing-primary, retrieved 2026-01-15T13:00:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c4",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "FACT",
+          "statement": "FACT: Management maintained its previously stated capacity plan as of 2026-01-20T14:00:00Z, from fixture-company-release, retrieved 2026-01-20T14:01:00Z."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c5",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "INTERPRETATION: The deterministic debt-to-revenue calculation is 0.15, which is consistent with debt being modest relative to the reported revenue base; however, cash, interest expense, maturities, and cash-flow evidence are absent, so balance-sheet resilience cannot be concluded."
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "c6",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "INTERPRETATION: The reported 18% operating margin indicates positive operating profitability in the reported TTM period, but no historical margin series, revenue-growth evidence, or segment data is available to assess durability or trajectory."
+        }
+      ],
+      "confidence": 0.38,
+      "confidence_rationale": "The five authorized items are fresh and internally consistent, and the debt-to-revenue ratio was deterministically calculated from authorized evidence. Confidence is limited because the evidence set lacks time-series operating data, cash-flow and liquidity information, capacity-plan economics, and the valuation inputs required to assess intrinsic value against the observed price.",
+      "counter_evidence_refs": [
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "Cash, net debt, debt maturities, interest expense, liquidity, and operating cash-flow data.",
+        "Historical revenue, margin, volume, pricing, customer concentration, segment, and competitive-position data.",
+        "Shares outstanding, market capitalization, enterprise value, earnings/free-cash-flow metrics, forward estimates, and comparable-company evidence.",
+        "Capacity-plan size, timing, funding, expected returns, utilization, and execution milestones."
+      ],
+      "invalidation_conditions": [
+        "Operating margin materially deteriorates from the reported 0.18 level.",
+        "Debt increases materially relative to revenue, or new liquidity, maturity, or interest-burden evidence indicates balance-sheet stress.",
+        "Capacity-plan execution is delayed, curtailed, inadequately financed, or fails to produce expected demand or economic returns.",
+        "New financial disclosures contradict the reported debt, revenue, or operating-margin figures."
+      ],
+      "invocation_id": "inv_9e8c7e53b3959c22d2838cf0",
+      "run_id": "rrh-final-normal-research-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA; Regression-normal-research; point-in-time cutoff 2026-01-31T23:59:59Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "d67f54b729ac57a401f57cfb82f52bc2320045551eb0dcaebeb59d7bd1aeafd4",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "c960ae309dc996fad23fb52cb7053a4f602b0d36f46bd325313a71fb90b5eb1b",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "432498c3f938ec1f850121c4bbf75c49f6bcd229fe3527046d02b992b068d74d",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "The capacity-plan statement confirms management maintained the plan, not execution, economics, demand support, financing, or returns on the capacity investment.",
+        "The USD 100 closing price was as of 2026-01-30T21:00:00Z from fixture-market-primary and retrieved 2026-01-30T21:05:00Z, but shares outstanding, market capitalization, enterprise value, earnings, free cash flow, and peer benchmarks are unavailable; valuation cannot be assessed.",
+        "Reported financial evidence is as of 2025-12-31T00:00:00Z and does not establish post-period operating performance through the decision cutoff."
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "capacity_plan_is_fundable",
+            "capacity_plan_is_value_accretive"
+          ],
+          "challenge_id": "capacity-funding-risk",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-margin",
+            "ev-normal-update"
+          ],
+          "resolution_evidence_needed": [
+            "Capacity-plan capex schedule, committed funding sources, debt maturities, liquidity, and expected incremental returns."
+          ],
+          "statement": "Maintaining a capacity plan does not establish that expansion is economically funded or value-accretive; the reported $150,000 total debt and 18% TTM operating margin leave financing capacity, capex requirements, and return-on-investment unproven."
+        },
+        {
+          "assumption_ids": [
+            "ttm_margin_is_durable",
+            "capacity_expansion_preserves_margin"
+          ],
+          "challenge_id": "margin-durability-risk",
+          "evidence_refs": [
+            "ev-normal-margin",
+            "ev-normal-update"
+          ],
+          "resolution_evidence_needed": [
+            "Segment or incremental-margin data, capacity utilization, pricing trends, and operating-cost guidance."
+          ],
+          "statement": "An 18% TTM operating margin is a historical aggregate, not evidence that margins will persist through the stated capacity plan; incremental pricing, utilization, and cost behavior are unavailable."
+        },
+        {
+          "assumption_ids": [
+            "observed_price_reflects_attractive_valuation"
+          ],
+          "challenge_id": "valuation-context-gap",
+          "evidence_refs": [
+            "ev-normal-price",
+            "ev-normal-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "Shares outstanding, cash, diluted earnings, free cash flow, valuation multiples, and point-in-time peer context."
+          ],
+          "statement": "The close price of $100 cannot support a valuation conclusion without shares outstanding, enterprise value inputs, cash, earnings or free-cash-flow measures, and comparable valuation context."
+        }
+      ],
+      "confidence": 0.36,
+      "confidence_rationale": "The counter-thesis identifies concrete, non-duplicative downside paths and evidence gaps from the authorized point-in-time records, but lacks the balance-sheet, cash-flow, operating, and valuation inputs needed to assess their magnitude.",
+      "counter_evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "Cash balance and liquidity.",
+        "Debt maturity profile, interest expense, covenants, and refinancing terms.",
+        "Capacity-plan capex, timing, utilization, and expected returns.",
+        "Shares outstanding, profitability below operating margin, free cash flow, and valuation context.",
+        "Revenue growth, customer concentration, competitive conditions, and post-period operating performance."
+      ],
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "Documented liquidity and committed financing fully cover the capacity plan without material leverage or covenant stress.",
+        "Incremental capacity economics demonstrate returns above the relevant cost of capital while preserving or improving margins.",
+        "Point-in-time valuation inputs show the $100 close price is supported by sustainable earnings and free cash flow."
+      ],
+      "invocation_id": "inv_1454ef20f1c3a7aa20e21f22",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-normal-research-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA independent counter-thesis review within Regression-normal-research through 2026-01-31T23:59:59Z.",
+      "skill_execution": [
+        {
+          "invocation_hash": "8431b9e5642e841096fe21d048eb3ee12c6619a4a7b2c834453e6e097a977c90",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "ad53388a98594b2f155a2bb9038b6e9325f5a2f8804c61ee8cd61d04b8db133e",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "LOW_CONFIDENCE",
+      "uncertainties": [
+        "All supplied evidence is fresh under its stated policy, but financial metrics are as of 2025-12-31 while the decision cutoff is 2026-01-31.",
+        "The company update confirms management maintained a capacity plan but gives no size, timing, financing, utilization, or expected-return detail.",
+        "No independent evidence establishes whether debt is material relative to cash flow, liquidity, maturities, or equity value."
+      ]
+    }
+  }
+}

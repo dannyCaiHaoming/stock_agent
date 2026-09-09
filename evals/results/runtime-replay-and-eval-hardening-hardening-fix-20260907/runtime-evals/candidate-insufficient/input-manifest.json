@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rreh-hardening-eval-candidate-insufficient-20260907",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-insufficient",
+  "run_id": "rreh-candidate-insufficient-20260907",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "25bc3c7ce0885d035040bbf22bf535bf26902f3270cd8df49e47f3f68803d2f9",
+    "artifact_replay": "c5ca5f43932a2324f6f061043c1b0e260751d641f4f7246a93963a6f79d8d146",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "3ffcbdd9c3152c8cf23e66a86c56c57cf3e79a6517245415e0e244cf3b308726",
+    "semantic_input": "bb19dae6f5ab50329d682d79d5784d089ccf49b200914e0138d937150d9e616f",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "cf5a7c1e7841fbea65a7cd03c7727abab081feb3d6be90025f463e2fc3c9bf11"
+  }
+}

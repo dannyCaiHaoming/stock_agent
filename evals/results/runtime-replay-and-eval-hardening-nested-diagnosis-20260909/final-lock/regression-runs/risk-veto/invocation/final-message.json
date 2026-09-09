@@ -1,0 +1,7 @@
+{
+  "message": "rrh-final-lock-regression-risk-veto-20260909 — FAILED_VALIDATION: SKILL_EXECUTION_PROOF_MISMATCH.",
+  "message_sha256": "404009628b00a64630fc96ceaf9cc207c6079b9981425701967c7d93d387fedc",
+  "present": true,
+  "run_id": "rrh-final-lock-regression-risk-veto-20260909",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

@@ -1,0 +1,117 @@
+{
+  "eval_hash": "849ed3a220d373cfafeabd5cf296a2c8c8f970a491682bab377a586ec447648b",
+  "eval_id": "rrh-final-lock-eval-llm-overconfidence-20260909",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "f62266085a3ec0c562322581b68e3e0898efe252fa178a3266ba294f37ebbf08",
+    "input_hash": "9b1411d9690443a7b7a432e64817ca3c99bd7a6475ec1d6c94a98c15c81e9a8e",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 184064,
+      "input_tokens": 254380,
+      "latency_ms": 120494,
+      "llm_calls": 9,
+      "output_tokens": 4646
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "2353f0799af6adab2c03166e02039745d35bcb0d9758234d1197eb4b70360b28",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 1,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 1
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "e5b3908f406a7df0f19061aaf1cfb3f13fdc4f60592ac9d487f2ff9c632a1366",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "COMPLETED",
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "7b7d4036f5b0870a414a6e8a032c81b803d753991ae7f209c8d7b9e0a077c507",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将唯一价格事实限定为可追溯事实，明确其不足以支持公司研究或估值，并列明数据缺口。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录两份报告的共识、无冲突状态和未决问题，并将其明确连接到不形成仓位意图。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "低置信度与单一价格证据、广泛数据缺口和方向性判断不确定性一致，且未把不足证据转为确定结论。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "NO_TRADE 明确对应唯一授权收盘价不足，并列出基本面、估值和市场状态证据的点时重评条件。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 独立检验单点价格的充分性和代表性，提出具体可证伪缺口及所需的点时证据。",
+      "status": "PASS"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "e5b3908f406a7df0f19061aaf1cfb3f13fdc4f60592ac9d487f2ff9c632a1366",
+    "artifact_replay": "2353f0799af6adab2c03166e02039745d35bcb0d9758234d1197eb4b70360b28",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "a13b1fc4bd5cfb9f5cb50da9c294e88267879f4d80456810a5a2284ca9870c23",
+    "semantic_input": "9b1411d9690443a7b7a432e64817ca3c99bd7a6475ec1d6c94a98c15c81e9a8e",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "356ca949ba2998403778902c34b99fdaaa1ce7351508943b71efa2734ed7eaf9"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

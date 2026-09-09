@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rreh-hardening-ablation-regrade-mandatory-no-trade-full-council-20260908",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/ablation-v3/runs/mandatory-no-trade/full-council",
+  "run_id": "rreh-ablation-v3-mandatory-full-council-20260907",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "ed4cdbbcee0601a237968c99bb3acdec19f73a0a802d2e9bf0012c228af71eec",
+    "artifact_replay": "30a34d1406623978b24474bff56090a5a1b70c84984d2e660e70b899443f94f6",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "c7d1a9814d6b26a44440f1e1b71fd372216d5cc374af47ec2b7a9ca1b2f58025",
+    "semantic_input": "a73f07c489d19a685291f5636d51a149b0d0b28365796045cac8074757e80896",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "584c5f2ddf9a49c8ab12b88fc72c12a961566f31af0048e91fb9e4c15a022638"
+  }
+}

@@ -1,0 +1,7 @@
+你正在执行 Runtime Eval 语义 Rubric 的人工标签校准，不是在执行投资 Runtime。只读取：
+- /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/samples.json
+- /Users/caihaoming/Documents/stock_agent/evals/grading/semantic-rubric-v1.json
+
+必须启动且只启动一个 agent_type=dev_eval 的独立子 Agent，让它在不知道 human_labels 的前提下，对 samples.json 的三个 case 逐项评分。父线程不得自行评分，也不得改写子 Agent 返回的 status/grade。评分维度固定为 analyst_thesis_grounding、skeptic_counter_evidence、cio_conflict_handling、confidence_calibration、no_trade_reasoning；状态只能 PASS/FAIL/NOT_APPLICABLE，grade 为 0-3 或 null。缺失 Agent/CIO 产物时相应维度应 NOT_APPLICABLE。不要访问外部事实，不要生成投资建议。
+
+子 Agent 返回后，为每个 case 保存一个 JSON 到 /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/calibration/repeat-1/<case_id>.json，结构必须为：schema_version=semantic-rubric-result/1.0.0；eval_id；grader（agent=dev_eval、model=gpt-5.6-terra、grader_version=runtime-eval-grading/1.0.0）；dimensions；output_hash。output_hash 必须是移除 output_hash 后，按仓库 product.runtime.hashing.canonical_hash 计算的值。父线程只允许补充 eval_id、grader 固定身份和 output_hash，不得改变 dimensions。最后列出三个文件路径。

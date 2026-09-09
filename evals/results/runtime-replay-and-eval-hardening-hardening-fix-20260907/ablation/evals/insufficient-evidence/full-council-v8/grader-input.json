@@ -1,0 +1,260 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim-1",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "kind": "FACT",
+          "statement": "FACT：SEC-AAA 收盘价为100 USD/share；source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。"
+        }
+      ],
+      "confidence": 0.98,
+      "confidence_rationale": "对证据不足判断置信度高：授权集合仅包含一项新鲜价格证据，不能支持公司研究或估值主张。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少公司基本面、财务报表、经营指标、估值基准和风险信息。",
+        "缺少可用于形成或反驳公司Thesis的证据；结论为NO_TRADE。"
+      ],
+      "invalidation_conditions": [
+        "若获得经授权且可追溯的公司基本面、估值与风险证据，应重新评估本次证据不足结论。"
+      ],
+      "invocation_id": "inv_e33f3d4c2f706cee134e055a",
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；仅获授权价格证据：source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "22303c13238721b29cd2010335c5e17f7e6b09a51e8d95dbd8a554fa1aa72b97",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "e416f4b8cc91bcafb5294d9262e4908697766b9e2ab2aa1444233b963eb9bcd4",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "f9e62b1a1006caec791a1e436042d1a46486f885d597fba6ed62fc63502ad66d",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一价格观察无法支持对商业质量、盈利能力、竞争地位、催化剂或估值的判断。"
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption-fundamentals-supported",
+            "assumption-valuation-supported",
+            "assumption-risk-profile-supported"
+          ],
+          "challenge_id": "challenge-evidence-sufficiency-001",
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "resolution_evidence_needed": [
+            "具有来源、as_of 与 retrieved_at 的财务与经营表现证据。",
+            "具有来源、as_of 与 retrieved_at 的估值输入及可比依据。",
+            "具有来源、as_of 与 retrieved_at 的业务、竞争、催化剂和风险事件证据。"
+          ],
+          "statement": "授权证据仅确认 SEC-AAA 在 2026-01-30T21:00:00Z 的收盘价为 100 USD，不能支持对商业质量、估值、催化剂、风险暴露或持仓前提的独立验证；任何基于这些未验证前提的正面判断均存在未被排除的失败路径。"
+        }
+      ],
+      "confidence": 0.18,
+      "confidence_rationale": "对“现有授权证据不足以支持独立反证结论”的置信度较高，但对任何具体负面机制均无足够证据，因此整体置信度低。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少收入、利润、现金流、资产负债表及管理层指引证据。",
+        "缺少估值、市场环境、流动性、公司事件和竞争格局证据。",
+        "缺少可验证持仓假设与风险暴露之间关系的证据。"
+      ],
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若获得在决策截止日前有效且可溯源的多维基本面、估值和风险证据，并能直接检验上述未验证前提，则本报告的证据不足挑战应重新评估。"
+      ],
+      "invocation_id": "inv_070502b1d5e0d6cc33685c6e",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA 的独立反证审查；仅限截至 2026-01-31T23:59:59Z 前 Gate 授权的一条价格证据。",
+      "skill_execution": [
+        {
+          "invocation_hash": "18ad19afaa930fd7425b0c818b445010cd5d0e356bf79c38ce3302ebbd9dc30c",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "8995d80165cb089a91c13017dbd50bf5e60be6a83d025b5e385291fdebf83e53",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "单一新鲜收盘价无法解释价格形成原因、趋势、波动性或与内在价值的关系。",
+        "没有可用证据用于区分基本面恶化、估值过高、事件风险或无实质反证。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.94,
+      "confidence_rationale": "对不应基于单一价格观察形成持仓调整意图的判断置信度高；对任何方向性投资判断不具足够证据。",
+      "conflicts": [],
+      "consensus": [
+        "两份已验证报告均将状态标记为 INSUFFICIENT_EVIDENCE。",
+        "授权证据只包含一条新鲜收盘价事实，不能支持公司研究或估值判断。"
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "9f2de99e1837f853222114ce64feab4533a25bc5ec9be28f7c86f2b6ff2f8bd4"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "eee51aaf8545645647570e3da6346a34e2d8c27c9dc644910a57aec731e50af5"
+        }
+      ],
+      "counter_thesis": "独立 Skeptic 指出，单一价格观察无法排除未验证的基本面、估值、催化剂与风险失败路径。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "若获得决策截止日前有效、具 source_id、as_of 与 retrieved_at 的基本面、估值和风险证据，应重新评估本证据不足结论。"
+      ],
+      "invocation_id": "inv_d48fbbf997d0c22a8242c0e1",
+      "maximum_notional": null,
+      "no_trade_explanation": "仅有一条 Gate 授权的新鲜价格证据；经 Company Analyst 与 Independent Skeptic 的已验证报告均确认其不足以支持商业、估值或风险判断，因此不形成持仓调整意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得经 Gate 授权、可追溯且在决策截止日前有效的财务与经营表现证据。",
+        "获得经 Gate 授权、可追溯且在决策截止日前有效的估值、业务、竞争、催化剂和风险事件证据。"
+      ],
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "14fbfe49b9c5414d0512be560115efab4a9a681cce76b7af261860ef335aa283",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "Gate 授权证据仅确认 SEC-AAA 在 2026-01-30T21:00:00Z 的收盘价为 100 USD/share，不能支持商业质量、盈利、估值或风险暴露的可核验 Thesis。",
+      "time_horizon": "不适用；在证据补足前不形成持仓调整意图。",
+      "unresolved_questions": [
+        "截至决策截止日，公司基本面、财务、经营与估值证据为何缺失？",
+        "截至决策截止日，是否存在可追溯的业务、竞争、催化剂及风险事件证据以检验持仓前提？"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.94,
+          "confidence_rationale": "对不应基于单一价格观察形成持仓调整意图的判断置信度高；对任何方向性投资判断不具足够证据。",
+          "counter_thesis": "独立 Skeptic 指出，单一价格观察无法排除未验证的基本面、估值、催化剂与风险失败路径。",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-insufficient-price"
+          ],
+          "invalidation_conditions": [
+            "若获得决策截止日前有效、具 source_id、as_of 与 retrieved_at 的基本面、估值和风险证据，应重新评估本证据不足结论。"
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "仅有一条 Gate 授权的新鲜价格证据；经 Company Analyst 与 Independent Skeptic 的已验证报告均确认其不足以支持商业、估值或风险判断，因此不形成持仓调整意图。",
+          "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+          "reevaluation_conditions": [
+            "获得经 Gate 授权、可追溯且在决策截止日前有效的财务与经营表现证据。",
+            "获得经 Gate 授权、可追溯且在决策截止日前有效的估值、业务、竞争、催化剂和风险事件证据。"
+          ],
+          "security_id": "SEC-AAA",
+          "target_weight_range": null,
+          "thesis": "Gate 授权证据仅确认 SEC-AAA 在 2026-01-30T21:00:00Z 的收盘价为 100 USD/share，不能支持商业质量、盈利、估值或风险暴露的可核验 Thesis。",
+          "time_horizon": "不适用；在证据补足前不形成持仓调整意图。",
+          "unresolved_questions": [
+            "截至决策截止日，公司基本面、财务、经营与估值证据为何缺失？",
+            "截至决策截止日，是否存在可追溯的业务、竞争、催化剂及风险事件证据以检验持仓前提？"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-insufficient-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://insufficient/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "bundle_hash": "8308538daff6e211e39d0f27250490fffa65f835af45a329b05c464156858482",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "insufficient-evidence-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-insufficient-price"
+      ],
+      "input_hash": "dc5ebd566dc1540e88c3385f99711c0d210d3b1dc8d61ff2eee8c58a108b78ec",
+      "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+  "terminal_state": "SAFE_NO_TRADE"
+}

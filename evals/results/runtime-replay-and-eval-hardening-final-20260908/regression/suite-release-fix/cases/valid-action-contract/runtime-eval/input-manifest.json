@@ -1,0 +1,20 @@
+{
+  "authenticity_required": false,
+  "eval_id": "regression-eval-rrh-release-fix-20260908-valid-action-contract",
+  "expected_terminal_states": [
+    "COMPLETED"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-release-fix/cases/valid-action-contract/run",
+  "run_id": "regression-rrh-release-fix-20260908-valid-action-contract-2b6831c21754",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "a2e8f3926d996b1cac2adce28f6074624ce4d7f55c06fd1e2489f80053a873be",
+    "artifact_replay": "410c1792425550263161e07c5e6782b76e06898fd0cfffedda71535393f18605",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "f5fe6e7c5ae182510dd8aa9eb749ab0af0adc48900ef71019d90a30f3fa9626b",
+    "semantic_input": "c803ee394e317db944a9a8f02cc5cb42c95cb54d9faaa90c3a74ceee0d208a00",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "630c34a066983fb5e103c6c61b7c6130b266662d10fc1781cbc37484ee970471"
+  }
+}

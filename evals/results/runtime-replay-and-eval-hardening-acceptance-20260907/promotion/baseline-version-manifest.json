@@ -1,0 +1,50 @@
+{
+  "manifest_version": "2.0.0",
+  "candidate_version": "0.2.1-candidate.1",
+  "codex_runtime": "codex-cli/0.153.4",
+  "model": "gpt-5.6-terra",
+  "runtime_profile": "fixture-council/2.1.0",
+  "decision_contract": "council-decision-contract/1.0.0",
+  "resource_hashes": {
+    "plugin": "f75aee1c19b3046b66b94788b1479ff2930fe702420578074e049fbf115812a3",
+    "plugin_mcp": "22a55d24f1a2a9dd2e1f94604f583d9ecb9d891e53e9132f5f90b60dd9c0064a",
+    "runtime_config": "b4f29167c0893f525224d3d4eff32712f4bbbd54ffa83c9defa6ac22f1eb1140",
+    "runtime_profile": "8f36661023acd80bd954dd07766bd0dac74ca3c079498c83b050e18946078f6f",
+    "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+    "council_skill": "2b84c0c85a7b96c55292bf92b147a9fac8ce990d40ac838859388553038030ae",
+    "cio_agent": "156946f965cdbc769e81239fe2ecc6bea08439520762ce7cb5e63bcf6d69ecf7",
+    "company_agent": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+    "skeptic_agent": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817"
+  },
+  "skills": {
+    "portfolio-council": "2.1.0",
+    "evidence-grounding": "2.0.0",
+    "company-research": "2.0.0",
+    "valuation": "2.0.0",
+    "counter-thesis": "2.0.0",
+    "catalyst-analysis": "1.0.0"
+  },
+  "agents": {
+    "runtime-cio": "2.1.0",
+    "runtime-company-analyst": "2.1.0",
+    "runtime-market-catalyst": "1.0.0",
+    "runtime-skeptic": "2.0.0"
+  },
+  "schemas": {
+    "artifact-envelope": "1.0.0",
+    "evidence": "1.0.0",
+    "portfolio": "1.0.0",
+    "research": "1.0.0",
+    "decision-risk": "1.0.0",
+    "decision-trace": "2.1.0",
+    "runtime-artifacts": "2.1.0",
+    "learning": "1.0.0"
+  },
+  "mcp_adapters": {
+    "provider-neutral-contracts": "1.0.0",
+    "fixture-reference": "1.0.0",
+    "fixture-gate-scoped": "2.1.0"
+  },
+  "risk_policy": "risk/reference/1.0.0",
+  "data_snapshot": "fixture/codex-native/2.0.0"
+}

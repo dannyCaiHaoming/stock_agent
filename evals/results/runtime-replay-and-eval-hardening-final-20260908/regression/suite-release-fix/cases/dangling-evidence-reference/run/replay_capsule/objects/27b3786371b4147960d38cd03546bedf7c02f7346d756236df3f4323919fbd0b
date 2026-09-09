@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/native-council-eval/2.0.0",
+  "type": "object",
+  "required": ["schema_version", "run_id", "fixture_id", "terminal_state", "status", "scope", "checks", "source_hashes", "eval_hash"],
+  "properties": {
+    "schema_version": {"const": "native-council-eval/2.0.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "fixture_id": {"type": "string", "minLength": 1},
+    "terminal_state": {"enum": ["COMPLETED", "SAFE_NO_TRADE"]},
+    "status": {"const": "PASSED"},
+    "scope": {"const": "仅验证结构化正确性、证据血缘、Skeptic 独立非重复贡献、CIO 显式消费与硬风控；不评价市场收益、Alpha 或统计预测能力。"},
+    "checks": {"type": "object", "minProperties": 5},
+    "source_hashes": {
+      "type": "object",
+      "required": ["matrix", "replay", "trace", "decision"],
+      "properties": {
+        "matrix": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "replay": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "trace": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "decision": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "eval_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

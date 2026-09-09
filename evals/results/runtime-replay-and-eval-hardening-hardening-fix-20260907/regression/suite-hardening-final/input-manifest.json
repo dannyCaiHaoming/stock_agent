@@ -1,0 +1,14 @@
+{
+  "candidate_hash": "c4a1b647615c9b77834dff1d6fad52d4f1597c6e6cc7c122425a2c9e7b674943",
+  "run_artifact_hashes": {
+    "analyst-skeptic-strong-conflict": "b45fa6457c5ca29944ad75431a05143de20be04e78b175c965a7be5a6de01e67",
+    "high-concentration-portfolio": "22258035fa8398759ec141b7040906e102f0d092e0d5e6c749784fb5aec019f6",
+    "insufficient-evidence": "64ef56c859936bf866961ecb9bcb8b5ebfacfcf13a59cf719f4c8b939dbe70ae",
+    "llm-overconfidence": "9b58bf165b35d4a08cd922bd60a8180adc3f524b7bd84862fd22989310d9aee2",
+    "normal-research": "f93ba71d27ad38be6cc30b2497a85e74b378e22de31af902cd9cf86546132877",
+    "risk-veto": "1974db1160106fd8731274a32df9a109d60c73bf00efb9dbbda0048d4b050c84"
+  },
+  "schema_version": "regression-input/1.0.0",
+  "set_hash": "1946efea07c2337c76551f8fb32d8fbf7a55cc3cef8a2eedb8e855049faef7b7",
+  "set_id": "portfolio-council-regression/1.0.0"
+}

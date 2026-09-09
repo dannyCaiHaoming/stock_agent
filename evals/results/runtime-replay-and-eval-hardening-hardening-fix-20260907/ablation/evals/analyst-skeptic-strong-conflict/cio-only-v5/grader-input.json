@@ -1,0 +1,236 @@
+{
+  "artifacts": {
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.15,
+      "confidence_rationale": "The evidence is fresh and the factual conflict is explicit, but there are no validated Specialist reports in this cio-only evaluation and no authorized evidence that resolves the revenue discrepancy.",
+      "conflicts": [
+        {
+          "confidence_impact": "Confidence is materially limited because the conflict cannot be reconciled from the authorized evidence.",
+          "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+          "decision_impact": "The conflicting revenue fact prevents a reliable assessment of the research question and therefore precludes an advisory action.",
+          "evidence_refs": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "summary": "Two fresh Gate-allowed sources report incompatible revenue_ttm values of USD 1,000,000 and USD 1,250,000 for SEC-AAA as of 2025-12-31.",
+          "unresolved": true
+        }
+      ],
+      "consensus": [],
+      "consumed_reports": [],
+      "counter_thesis": "One of the two revenue observations may ultimately be authoritative, but the current evidence contains no basis to select either source or quantify the effect of the discrepancy.",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "A verifiable reconciliation or replacement of the conflicting revenue_ttm observations shows that the conflict is no longer material."
+      ],
+      "invocation_id": "inv_5261c5f03706bdecbc4b270e",
+      "maximum_notional": null,
+      "no_trade_explanation": "The authorized evidence contains an unresolved conflict between two revenue_ttm observations for the same security and as_of date. No advisory position change is supported until that conflict is reconciled.",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "Obtain Gate-eligible, verifiable evidence that reconciles the two revenue_ttm observations or establishes one authoritative comparable value."
+      ],
+      "run_id": "rreh-hardening-ablation-conflict-cio-only-v5-20260908",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "ec682105e3b97bb460ad3a38a3eebd9b1e6a4af2f8372be0fd24b0e671fe0a5f",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "The Gate-scoped evidence supports that SEC-AAA had a reported 0.18 operating margin for the period ending 2025-12-31 and a close price of USD 100 on 2026-01-30, but it does not establish one reliable revenue_ttm value for the same reporting period.",
+      "time_horizon": "Until the conflicting revenue evidence is reconciled with verifiable source evidence.",
+      "unresolved_questions": [
+        "Which source, if either, is the authoritative and comparably defined revenue_ttm observation for SEC-AAA as of 2025-12-31?",
+        "What accounts for the USD 250,000 difference between the two authorized revenue observations?"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.15,
+          "confidence_rationale": "The evidence is fresh and the factual conflict is explicit, but there are no validated Specialist reports in this cio-only evaluation and no authorized evidence that resolves the revenue discrepancy.",
+          "counter_thesis": "One of the two revenue observations may ultimately be authoritative, but the current evidence contains no basis to select either source or quantify the effect of the discrepancy.",
+          "current_weight": 0.5,
+          "evidence_refs": [
+            "ev-conflict-margin",
+            "ev-conflict-price",
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "invalidation_conditions": [
+            "A verifiable reconciliation or replacement of the conflicting revenue_ttm observations shows that the conflict is no longer material."
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "The authorized evidence contains an unresolved conflict between two revenue_ttm observations for the same security and as_of date. No advisory position change is supported until that conflict is reconciled.",
+          "no_trade_reason": "EVIDENCE_CONFLICT",
+          "reevaluation_conditions": [
+            "Obtain Gate-eligible, verifiable evidence that reconciles the two revenue_ttm observations or establishes one authoritative comparable value."
+          ],
+          "security_id": "SEC-AAA",
+          "target_weight_range": null,
+          "thesis": "The Gate-scoped evidence supports that SEC-AAA had a reported 0.18 operating margin for the period ending 2025-12-31 and a close price of USD 100 on 2026-01-30, but it does not establish one reliable revenue_ttm value for the same reporting period.",
+          "time_horizon": "Until the conflicting revenue evidence is reconciled with verifiable source evidence.",
+          "unresolved_questions": [
+            "Which source, if either, is the authoritative and comparably defined revenue_ttm observation for SEC-AAA as of 2025-12-31?",
+            "What accounts for the USD 250,000 difference between the two authorized revenue observations?"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rreh-hardening-ablation-conflict-cio-only-v5-20260908",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "evidence_id": "ev-conflict-margin",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "operating_margin_ttm",
+          "source_id": "fixture-filing-source-a",
+          "source_locator": "fixture://conflict/margin/a",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "ratio",
+          "value": 0.18
+        },
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://conflict/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-a",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-source-a",
+          "source_locator": "fixture://conflict/revenue/a",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-conflict-revenue-b",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-16T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-source-b",
+          "source_locator": "fixture://conflict/revenue/b",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1250000
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "bundle_hash": "7bca9bf0082efe70d6980e81602dd20e59363edc7340ab89175c11b8a38ac7b8",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [
+        {
+          "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+          "evidence_ids": [
+            "ev-conflict-revenue-a",
+            "ev-conflict-revenue-b"
+          ],
+          "observations": [
+            {
+              "currency": "USD",
+              "evidence_id": "ev-conflict-revenue-a",
+              "source_id": "fixture-filing-source-a",
+              "unit": "USD",
+              "value": 1000000
+            },
+            {
+              "currency": "USD",
+              "evidence_id": "ev-conflict-revenue-b",
+              "source_id": "fixture-filing-source-b",
+              "unit": "USD",
+              "value": 1250000
+            }
+          ],
+          "reason_code": "INCOMPATIBLE_NORMALIZED_VALUES",
+          "source_ids": [
+            "fixture-filing-source-a",
+            "fixture-filing-source-b"
+          ]
+        }
+      ],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "evidence-conflict-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "input_hash": "8eb2492efc16796982d1c1857889ba382bd629eae3475d156749c51d8bc05890",
+      "run_id": "rreh-hardening-ablation-conflict-cio-only-v5-20260908",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rreh-hardening-ablation-conflict-cio-only-v5-20260908",
+  "terminal_state": "SAFE_NO_TRADE"
+}

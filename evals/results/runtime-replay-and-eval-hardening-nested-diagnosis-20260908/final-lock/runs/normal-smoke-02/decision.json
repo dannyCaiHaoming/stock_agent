@@ -1,0 +1,59 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.35,
+      "confidence_rationale": "报告引用的新鲜点时事实彼此没有机械冲突，且专家对缺口的识别一致；但两份报告均为LOW_CONFIDENCE，关键的现金流、资本结构、经营趋势、产能执行与估值证据缺失，因此不足以形成研究建议意图。",
+      "counter_thesis": "该有限背景不足以支持可行动的判断：收入与利润率缺少趋势和现金流转换证据，债务缺少现金、期限、利率和覆盖信息，产能计划缺少需求、融资、进度及回报验证，单一收盘价也没有股本、企业价值或估值基准。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "后续经授权披露显示经营利润率显著恶化或TTM收入下降。",
+        "后续证据显示债务、利息负担或再融资风险显著高于现有有限证据可反映的水平。",
+        "产能计划被取消、延迟，或其需求、融资或资本回报假设恶化。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "目前已验证的事实只提供历史经营与单一价格观察，无法解决持续性、资本结构、产能执行和估值的关键问题；在这些实质性缺口存在时，不形成任何组合意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得多期收入、利润率、订单/利用率及经营现金流、资本开支和自由现金流的可核验证据。",
+        "获得现金、净债务、到期日、利率、契约、利息费用和偿债覆盖的可核验证据。",
+        "获得产能项目投资额、融资、需求、进度和回报的可核验证据，以及股本、企业价值、估值基准和前瞻假设。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "已验证的冻结证据显示，截至2025-12-31公司报告TTM收入USD 1,000,000、经营利润率18%和总债务USD 150,000，且管理层在2026-01-20维持既有产能计划；这些事实提供有限的经营盈利和计划连续性背景。",
+      "time_horizon": "在获得可核验的经营、现金流、资本结构与估值证据前维持观察。",
+      "unresolved_questions": [
+        "收入增长、利润率持续性、订单/利用率和自由现金流转换是否支持历史经营指标？",
+        "现金、净债务、到期结构、利率、契约和偿债覆盖如何影响资产负债表与再融资风险？",
+        "产能计划的资本开支、融资来源、需求验证、执行里程碑与项目回报是什么？",
+        "在股本、企业价值、现金流预期与可比基准已知后，当前价格的估值与下行保护如何？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rrh-final-lock-normal-smoke-02-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

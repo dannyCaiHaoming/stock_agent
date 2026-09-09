@@ -1,0 +1,67 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 710656,
+  "eval_hash": "d4749929947f19a7d9c575c7cec6cd7f274e5effad5c3eacc8e5ae61f81a7410",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 807412,
+  "latency_ms": 256052,
+  "llm_calls": 20,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 12135,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v8-20260908",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim-1",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将唯一价格陈述标记为 FACT 并引用 ev-insufficient-price，明确该事实不能支持公司研究或估值主张，且列出数据缺口与重新评估条件。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 记录两份 Specialist 对证据不足的共识、无冲突、未决问题及其不形成持仓调整意图的影响，并将其纳入 NO_TRADE 说明。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "各报告明确将高置信度限定于证据不足和不形成方向性判断的结论，同时承认对具体商业质量、估值和风险判断证据不足，方向与不确定性一致。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO 与 decision.json 均将唯一 Gate 授权价格事实判为不足以支持商业、估值或风险判断；INSUFFICIENT_EVIDENCE 的 NO_TRADE 理由、说明及取得可追溯基本面、估值和风险证据后重评的条件一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "challenge-evidence-sufficiency-001",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Skeptic 以 INDEPENDENT_FIRST_PASS 具体说明单一价格不能独立验证的前提与未排除失败路径，列出可检验的数据缺口、所需证据和失效条件。",
+      "status": "PASS"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "9b5c91b27fc99409b0554a5d3703ec0bc045bbd644f840e382f9c3e9ac3db991"
+}

@@ -1,0 +1,59 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rrh-final-lock-regression-insufficient-evidence-20260909",
+  "invocation_id": "inv_78ee2d1bb385869cc8975fed",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "8183a7a42745c030dacac99483ae912af58bb5de1fe01dd4cbdd3d967caeee3d"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "cbec7990328c955cbfaa9358fb62000fdde1fff2e9d6fda157b1be1f48f29df7"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess only after authorized, point-in-time evidence resolves the identified gaps.",
+  "thesis": "The sole authorized fact is a fresh SEC-AAA closing-price observation; it does not support a company-quality, valuation, or catalyst thesis.",
+  "counter_thesis": "No independent counter-thesis can be substantively tested because the authorized evidence set contains no fundamentals, valuation context, market history, or event evidence.",
+  "consensus": [
+    "Both validated Specialist reports classify the available evidence as insufficient for a company-level research conclusion.",
+    "Both reports treat the single authorized closing-price observation as factual but inadequate for a thesis, valuation assessment, or decision rationale."
+  ],
+  "conflicts": [],
+  "unresolved_questions": [
+    "What were SEC-AAA's revenue, profitability, cash-flow, balance-sheet, and operating trends as of the decision cutoff?",
+    "What valuation context, peer comparison, historical price and liquidity data, and relevant company or industry events would support or challenge a research thesis?",
+    "Does any authorized evidence establish material risks, catalysts, competitive position, or management guidance?"
+  ],
+  "invalidation_conditions": [
+    "The limited price observation becomes unreliable if its authorized source corrects, restates, or supersedes it.",
+    "This insufficient-evidence conclusion must be reassessed when authorized, traceable fundamental, valuation, event, or risk evidence becomes available."
+  ],
+  "confidence": 0.12,
+  "confidence_rationale": "Confidence is high that the cited price observation exists, but very low that it can support an investment thesis; the independent Specialist reports agree on the material evidence gaps.",
+  "evidence_refs": [
+    "ev-insufficient-price"
+  ],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "The Gate permits only one fresh closing-price observation. The validated Analyst and independent Skeptic reports agree that it cannot establish business quality, valuation, risks, catalysts, or a defensible thesis, so no research recommendation can be formed.",
+  "reevaluation_conditions": [
+    "Obtain authorized, point-in-time company financial and operating evidence.",
+    "Obtain authorized valuation, peer, historical market, liquidity, event, and risk evidence directly relevant to the research question.",
+    "Re-run the Council after the additional evidence is Gate-validated and traceable."
+  ],
+  "skill_execution": [
+    {
+      "skill_name": "portfolio-council",
+      "version": "3.0.0",
+      "invocation_hash": "448d2d7a22bdfba229a4f6d91c5dad262de378f1233896901327df151fea068b"
+    }
+  ],
+  "advisory_only": true
+}

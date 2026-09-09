@@ -1,0 +1,139 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "Regression deterministic injection: valid-action-contract",
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-valid-action-contract-acd3c70a183b",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "7b02f0acf7c0e91df43864c460332c9c8320e09f8d3a7009d8f68f5d8506f05d",
+    "runtime_skeptic": "a1eda4b65c43f7a91ec0116c1df0e7056efc184d2075cba09f1610c3e89c4f94"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "contract-claim-1",
+          "evidence_refs": [
+            "ev-normal-debt"
+          ],
+          "kind": "FACT",
+          "statement": "引用的 Evidence 已通过当前运行的 PIT Gate。"
+        }
+      ],
+      "confidence": 0.5,
+      "confidence_rationale": "置信度只描述契约夹具的证据闭包，不表达投资观点。",
+      "counter_evidence_refs": [
+        "ev-normal-margin"
+      ],
+      "data_gaps": [],
+      "invalidation_conditions": [
+        "任一契约或 Evidence 版本发生变化。"
+      ],
+      "invocation_id": "inv_1138af839d8094d189332842",
+      "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-valid-action-contract-acd3c70a183b",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "确定性 action 契约夹具；不构成投资结论。",
+      "skill_execution": [
+        {
+          "invocation_hash": "91c43903b168c20876bd047fa39575c1672a8f5c7b9dd9fb90ea0ef0affa1d4c",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "74b71a98e9964ed6712eb21919dec0980bfc1bccdb85ed1ee1e1bd64404f6b10",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "58a7ecb1ac39559c9c988834bf9604a7868d6aa9e6d7887b2e2e073a2eb1a95c",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "本案例只验证结构化 action 与 Risk 边界。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [],
+          "challenge_id": "contract-challenge-1",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "resolution_evidence_needed": [
+            "Risk Engine 的实际 lineage"
+          ],
+          "statement": "合法 Schema 不代表可以绕过确定性 Risk Engine。"
+        }
+      ],
+      "confidence": 0.5,
+      "confidence_rationale": "仅用于证明独立报告及 Evidence 闭包。",
+      "counter_evidence_refs": [
+        "ev-normal-debt"
+      ],
+      "data_gaps": [],
+      "evidence_refs": [
+        "ev-normal-margin"
+      ],
+      "invalidation_conditions": [
+        "Risk lineage 缺失或契约校验失败。"
+      ],
+      "invocation_id": "inv_5f82c627524d767e65ee2b9a",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-valid-action-contract-acd3c70a183b",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "确定性 action 契约夹具的独立边界检查。",
+      "skill_execution": [
+        {
+          "invocation_hash": "966a1684cbe7368dbed9b875deab644455584b3bb6137c178d0d585cec439f27",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "e8a9425163aff804cf5cbd8491cc0ba3936a27988590253f99217ad1d8a65838",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "本案例不评价证券方向。"
+      ]
+    }
+  }
+}

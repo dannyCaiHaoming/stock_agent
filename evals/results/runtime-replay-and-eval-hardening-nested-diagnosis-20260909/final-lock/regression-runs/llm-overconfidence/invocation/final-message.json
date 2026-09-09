@@ -1,0 +1,7 @@
+{
+  "message": "rrh-final-lock-regression-llm-overconfidence-20260909 — CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION",
+  "message_sha256": "a0d3aad8ba3f863f00b2cdfc1cf900bc044d6d594e1306b43dc309d7a782bca1",
+  "present": true,
+  "run_id": "rrh-final-lock-regression-llm-overconfidence-20260909",
+  "schema_version": "nested-codex-final-message/1.0.0"
+}

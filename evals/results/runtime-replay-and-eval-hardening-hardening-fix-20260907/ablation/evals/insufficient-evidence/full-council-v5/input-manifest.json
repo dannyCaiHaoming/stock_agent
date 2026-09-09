@@ -1,0 +1,20 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rreh-hardening-ablation-eval-insufficient-full-council-v5-20260908",
+  "expected_terminal_states": [
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-hardening-fix-20260907/ablation/runs/insufficient-evidence/full-council-v5",
+  "run_id": "rreh-hardening-ablation-insufficient-full-council-v5-20260908",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "238249f6ea0ee32378cade44bf71b530f5e61ec7837a26d7c3ac2f8983f36a1e",
+    "artifact_replay": "c9af445b9d8c0e5538d64194e5397f8a7902183fc6d79a09895e4f0da6020b26",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "f562475bd77c0f8de8314b41a1ef19c394218f15833098272e1d3937b3928327",
+    "semantic_input": "931a50fd8f66ee6899bd03cf18cddebfb8202fc7d83dffbe5fab59958e1c6136",
+    "semantic_output_schema": "6700865fa4aa9a552f1aadc7e8d670d87edc01305b3e1d1ce2f821c695c41832",
+    "trace": "c1ff86642d5f0516e092fe1532f44b07c8b2e3de05d27f462d2c3f774c6bf6ee"
+  }
+}

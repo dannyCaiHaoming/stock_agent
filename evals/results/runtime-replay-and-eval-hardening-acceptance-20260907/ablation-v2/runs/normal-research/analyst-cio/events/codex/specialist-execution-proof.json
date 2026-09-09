@@ -1,0 +1,114 @@
+{
+  "children": {
+    "runtime_company_analyst": {
+      "agent_resource_sha256": "d779564301a0a0f489f4a6aa3926b9cc47c047103c4b8cb26f5876c6266d692f",
+      "agent_role": "runtime_company_analyst",
+      "assistant_output_hash": "31743f8bf35fb2242a0dabf212e9c8af601b87e8c89752f8a88c6c5fec6c3ec9",
+      "codex_runtime": "codex-cli/0.153.4",
+      "configured_skills": [
+        {
+          "configured": true,
+          "name": "evidence-grounding",
+          "protocol_bound": true,
+          "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "company-research",
+          "protocol_bound": true,
+          "sha256": "1c7b7e40577b3189a9bb63faac4a6217101517a119b0e693b6219199cf143245",
+          "version": "2.0.0"
+        },
+        {
+          "configured": true,
+          "name": "valuation",
+          "protocol_bound": true,
+          "sha256": "ce3b839cac2e932f69e5cadcd45925a6d8a4ab13bea788fe9f0c7e0b881ed581",
+          "version": "2.0.0"
+        }
+      ],
+      "final_structured_output_hash": "21e1db6e415bb20a6e08914e1bf6cef17932923d8140331ebb79869a3d749c4b",
+      "model": "gpt-5.6-terra",
+      "multi_agent_version": "v2",
+      "observed_tool_calls": [
+        {
+          "arguments_hash": "f4586404da6a84d8887a83f68757fa8c3fdc6112608e2251298195172afbe32c",
+          "call_id": "call_nfRRAF3gyTHni8hCdcOzYV9N",
+          "ordinal": 18,
+          "tool": "fixture_evidence.query"
+        },
+        {
+          "arguments_hash": "83daa0cf7b14e50b16434fcd8d2e6be88c4b3b8be76800dfb897933ef128292b",
+          "call_id": "call_PbFUySgrZMK0uW6PkU16TdwO",
+          "ordinal": 25,
+          "tool": "fixture_math.calculate"
+        }
+      ],
+      "parent_session_id": "01a07aee-657d-7fe3-982c-45b03667507a",
+      "raw_fixture_access_attempts": 0,
+      "role_instruction_sha256": "ed9985c8c29908701bca4241457b4c160dfdcbf19bc9e3e3412445f9e940e6bd",
+      "role_instructions_loaded": true,
+      "rollout_sha256": "827e73489b3792dfe84e2defadbf1171459a0ebc3239d02403c2f810c64901bc",
+      "session_id": "01a07aef-4684-74f3-b56c-9fe75015a3fa",
+      "task_binding": {
+        "agent_matches": true,
+        "binding_method": "protected_dispatch_plus_structured_output",
+        "invocation_id_matches": true,
+        "invocation_id_present": false,
+        "run_id_matches": true,
+        "run_id_present": false,
+        "task_prompt_hash": "ccd1bef87a035a54bad9c934c87695bc7acf3a871f102c2fa45afa9cc516cc41",
+        "task_prompt_present": false,
+        "verified": true
+      },
+      "thread_source": "subagent",
+      "unapproved_tool_calls": 0
+    }
+  },
+  "dispatches": [
+    {
+      "agent": "runtime_company_analyst",
+      "call_id": "call_1GqaBZMzChu7UfadaD9KUFCc",
+      "child_session_id": "01a07aef-4684-74f3-b56c-9fe75015a3fa",
+      "completion_ordinal": 41,
+      "dispatch_ordinal": 31,
+      "request": {
+        "agent_type": "runtime_company_analyst",
+        "fork_turns": "none",
+        "message_sha256": "aa2d248c6fab755cac9d8822feca1b21b4ade509d76d3bbc10c071b2794aa507",
+        "protected_message_present": true,
+        "task_name": "company_research"
+      },
+      "request_hash": "574735fd6ad935e1694a8fc5f73bbae0e14636ecd28b83267bf10eab024b2997",
+      "start_ordinal": 32
+    }
+  ],
+  "first_wait_ordinal": 39,
+  "independent_sessions_proven": true,
+  "parallel_dispatch_proven": true,
+  "parent": {
+    "codex_runtime": "codex-cli/0.153.4",
+    "model": "gpt-5.6-terra",
+    "rollout_sha256": "f8c0082a6f4825402520352ade68ac756ef2e347c89e2a55a9998dd2762a147f",
+    "session_id": "01a07aee-657d-7fe3-982c-45b03667507a"
+  },
+  "portfolio_council_skill_bound": true,
+  "proof_hash": "b9bec966f6905c76d67f3e21759235fbb11f856e48447cab3a2538ffb214b5b8",
+  "raw_prompt_or_reasoning_retained": false,
+  "schema_version": "codex-execution-proof/2.0.0",
+  "specialist_topology": [
+    "runtime_company_analyst"
+  ],
+  "telemetry": {
+    "cache_provenance": "NEW_EXECUTION",
+    "cached_tokens": 571392,
+    "input_tokens": 641213,
+    "latency_ms": 211372,
+    "llm_calls": 16,
+    "model": "gpt-5.6-terra",
+    "output_tokens": 7866,
+    "status": "AVAILABLE",
+    "trigger_reason": "ablation:normal-research:analyst-cio"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "authenticity_required": true,
+  "eval_id": "rrh-final-lock-eval-risk-veto-20260909",
+  "expected_terminal_states": [
+    "COMPLETED",
+    "SAFE_NO_TRADE"
+  ],
+  "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-nested-diagnosis-20260909/final-lock/regression-runs/risk-veto-retry-01",
+  "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+  "schema_version": "runtime-eval-input/1.0.0",
+  "source_hashes": {
+    "artifact_matrix": "b70f91cd5d538c51dfa05b02a3d0a945f98b72e08821bf9764c7b475a2ad571e",
+    "artifact_replay": "52f2dd3fa012010bf406b26a3c337b6168aa46378921dd1dcabf9beacf6afb70",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "040a84bc618911c06524e6c752b62a88aaa182864a96ee916670acc9a8223111",
+    "semantic_input": "2a563310d4ff86b08cdc96483e8e84527a06f387899089220b98faadc638b901",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "d2968692c83fe7e4c111126c98ddb3445ab85281677eff5a914c50c3a1eb30f2"
+  }
+}

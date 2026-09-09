@@ -1,0 +1,37 @@
+# Runtime Eval 报告
+
+- Eval ID：`rreh-eval-candidate-conflict-current-20260907`
+- Run ID：`rreh-candidate-conflict-current-20260907`
+- 终态：`SAFE_NO_TRADE`
+- 结果：`PASS`
+
+## 硬门禁
+
+- artifact_replay: `PASS`
+- evidence_closure: `PASS`
+- pit_leakage: `PASS`
+- risk_bypass: `PASS`
+- schema_and_artifacts: `PASS`
+- terminal_contract: `PASS`
+- trace_completeness: `PASS`
+
+## 语义 Rubric
+
+- analyst_thesis_grounding: `PASS` / grade=3 — Analyst 明确区分 FACT 与 INTERPRETATION；各事实引用允许 Evidence，且将未解决收入冲突和必要数据缺口作为不形成公司或估值 Thesis 的限制。
+- cio_conflict_handling: `PASS` / grade=3 — CIO 记录 Specialist 共识、同日收入的未解决冲突、三个未决问题及其对 NO_TRADE 的影响，并与 decision.json 的 APPROVED 风险结果一致。
+- confidence_calibration: `PASS` / grade=3 — Analyst 0.25、Skeptic 0.28 与 CIO 0.20 的有限置信度均明确对应收入冲突、未验证的利润率和价格解释，以及缺失的财务与估值证据。
+- no_trade_reasoning: `PASS` / grade=3 — CIO 的 EVIDENCE_CONFLICT、NO_TRADE 解释和三项重评条件均对应 gate 中同日收入冲突及已记录的财务和估值证据缺口；decision.json 风险报告为 APPROVED SAFE_NO_TRADE。
+- skeptic_counter_evidence: `PASS` / grade=3 — INDEPENDENT_FIRST_PASS Skeptic 提出收入可比性、利润率质量和单点价格解释三项具体可证伪挑战，并为每项列出所需核验证据与失效条件。
+
+## Grader Lineage
+
+- Agent：`dev_eval`
+- Model：`gpt-5.6-terra`
+- Prompt hash：`937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de`
+- Rubric hash：`8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f`
+- Input hash：`3778dfcecc2c9c92827b2dfa37408f02c0fad217055298149e6678dd1c8baab5`
+- Execution proof hash：`ee81656c17d484bb999bf01a7f2dd911855a15df96c27443ab1a59542b7add34`
+
+## Reason Codes
+
+- 无

@@ -1,0 +1,243 @@
+{
+  "agent": "runtime_cio",
+  "allowed_evidence_ids": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "evidence_access": "fixture_evidence.query",
+  "evidence_references": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "mechanical_conflicts": [],
+  "portfolio_metrics": {
+    "average_daily_value": {
+      "SEC-AAA": "10000000"
+    },
+    "cash": "50000.0",
+    "cash_weight": "0.5",
+    "concentration_hhi": "0.25",
+    "definition_version": "portfolio-metrics/1.0.0",
+    "max_position_weight": "0.5",
+    "position_weights": {
+      "SEC-AAA": "0.5"
+    },
+    "sector_exposure": {
+      "Synthetic Technology": "0.5"
+    },
+    "total_value": "100000"
+  },
+  "research_question": "Regression normal-research：验证真实 Codex Council 的结构化研究、风险与终态不变量。",
+  "run_id": "rrh-final-lock-regression-normal-research-20260909",
+  "validated_report_hashes": {
+    "runtime_company_analyst": "338615fad9316dedd85a8b9696b51ebf6940ef0eaa024f9890f9c6d56949cbd0",
+    "runtime_skeptic": "0ec0819d1cd1e754134e1cf18fda14e8ad63fac81846a866b27a2f08b7c95caa"
+  },
+  "validated_reports": {
+    "runtime_company_analyst": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [
+        "fixture-calculation:company_analyst_debt_to_revenue_20260909:6f9395d7b5309d6033ba1c228a8e795544888fd674ad7524d17f0c8b7eb24ccf"
+      ],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_revenue",
+          "evidence_refs": [
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "事实：TTM revenue 为 USD 1,000,000；evidence_id=ev-normal-revenue，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_margin",
+          "evidence_refs": [
+            "ev-normal-margin"
+          ],
+          "kind": "FACT",
+          "statement": "事实：TTM operating margin 为 0.18；evidence_id=ev-normal-margin，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_debt_and_ratio",
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "事实：total debt 为 USD 150,000；evidence_id=ev-normal-debt，source_id=fixture-filing-primary，as_of=2025-12-31T00:00:00Z，retrieved_at=2026-01-15T13:00:00Z。确定性计算显示 debt/revenue 为 0.15，使用 ev-normal-debt 为分子、ev-normal-revenue 为分母。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_update",
+          "evidence_refs": [
+            "ev-normal-update"
+          ],
+          "kind": "FACT",
+          "statement": "事实：管理层维持此前披露的产能计划；evidence_id=ev-normal-update，source_id=fixture-company-release，as_of=2026-01-20T14:00:00Z，retrieved_at=2026-01-20T14:01:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_business_interpretation",
+          "evidence_refs": [
+            "ev-normal-margin",
+            "ev-normal-debt",
+            "ev-normal-revenue",
+            "ev-normal-update"
+          ],
+          "kind": "INTERPRETATION",
+          "statement": "解释：18% 的 TTM 经营利润率与 0.15 的 debt/revenue 比率共同表明，截至各自披露时点，公司具备盈利能力且债务规模相对其收入不高；但现有证据不足以判断利润的可持续性、竞争壁垒或未来产能回报。"
+        }
+      ],
+      "confidence": 0.68,
+      "confidence_rationale": "核心财务数值来自新鲜的主文件类 fixture 证据，且债务收入比由确定性工具计算；但估值与商业质量所需的关键数据缺失，因此仅对事实与有限解释保持中等置信度。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少股数或市值，无法将 USD 100 的股价转换为企业或股权估值倍数。",
+        "缺少现金、净债务、利息负担、债务到期结构和流动性数据。",
+        "缺少收入增长、利润率趋势、自由现金流、资本开支、产能规模和预期回报数据。",
+        "缺少产品、客户集中度、竞争地位及行业需求的证据。"
+      ],
+      "invalidation_conditions": [
+        "若后续可靠证据显示经营利润率显著低于 18% 或收入明显下降，则当前关于盈利能力的解释失效。",
+        "若后续可靠证据显示债务、或有负债或流动性压力显著高于已披露的 USD 150,000，则当前关于相对债务负担的解释失效。",
+        "若管理层撤回、推迟或无法融资执行产能计划，则该更新不再支持产能计划延续的事实表述。"
+      ],
+      "invocation_id": "inv_d55eb1a631a79ca567927e79",
+      "run_id": "rrh-final-lock-regression-normal-research-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA 的点时公司基本面与有限估值证据研究；决策截止为 2026-01-31T23:59:59Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "da8a171cd685303f6649315924a9b4cf2bb8a93ba56f2980c66f5146a9ab6f78",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "46d3b6919e441237115dc7c9706bf3b5693c3cf17f9cad40099cf75bdcb57285",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "b08052277adb384ca75f56f6df33844bdb72263613eb48bda8aacddf851ffac8",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "收盘价为 USD 100；evidence_id=ev-normal-price，source_id=fixture-market-primary，as_of=2026-01-30T21:00:00Z，retrieved_at=2026-01-30T21:05:00Z。但未提供稀释后股数、市值、现金、自由现金流、每股盈利或可比估值，无法形成估值结论。",
+        "“维持产能计划”不等同于已执行、已融资或将产生预期回报。",
+        "收入、利润率和债务均为单一 TTM/期末观测，缺乏历史趋势与同业背景。"
+      ]
+    },
+    "runtime_skeptic": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "assumption_operating_quality_is_durable"
+          ],
+          "challenge_id": "challenge_margin_durability",
+          "evidence_refs": [
+            "ev-normal-margin",
+            "ev-normal-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "多期收入增长、毛利率和经营利润率趋势",
+            "成本结构、客户集中度及竞争动态资料"
+          ],
+          "statement": "截至 2025-12-31 的 18% TTM 经营利润率仅为单期截面，不能证明利润率可持续；收入和利润率均缺少历史趋势、成本构成及竞争压力证据。"
+        },
+        {
+          "assumption_ids": [
+            "assumption_capacity_plan_creates_value",
+            "assumption_balance_sheet_supports_plan"
+          ],
+          "challenge_id": "challenge_capacity_execution_and_financing",
+          "evidence_refs": [
+            "ev-normal-update",
+            "ev-normal-debt"
+          ],
+          "resolution_evidence_needed": [
+            "产能项目里程碑、预算、投产时间和实际利用率",
+            "现金余额、债务到期表、利息负担及自由现金流预测"
+          ],
+          "statement": "2026-01-20 的公司更新仅称管理层维持既有产能计划，无法验证该计划的执行进度、资本开支规模、预期回报或融资需求；截至 2025-12-31 的 150,000 USD 总债务也缺少现金、到期结构和偿债能力背景。"
+        },
+        {
+          "assumption_ids": [
+            "assumption_market_price_reflects_favorable_risk_reward"
+          ],
+          "challenge_id": "challenge_price_interpretation",
+          "evidence_refs": [
+            "ev-normal-price",
+            "ev-normal-update"
+          ],
+          "resolution_evidence_needed": [
+            "稀释后股数、盈利和自由现金流数据",
+            "可比公司估值、历史估值区间及事件预期"
+          ],
+          "statement": "2026-01-30 的 100 USD 收盘价本身不说明估值合理性或市场是否已计入产能计划；缺少股本、盈利、现金流、同业估值与催化剂预期。"
+        }
+      ],
+      "confidence": 0.72,
+      "confidence_rationale": "证据在截止日前均为新鲜且来源链完整，足以识别经营持续性、产能执行和估值解释的实质缺口；但可用数据为有限截面，无法量化这些风险发生概率或影响幅度。",
+      "counter_evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-update"
+      ],
+      "data_gaps": [
+        "缺少历史财务序列和分部经营数据。",
+        "缺少现金、债务期限、利息、资本开支及自由现金流数据。",
+        "缺少股本、估值基准、行业竞争、客户需求和产能利用率数据。"
+      ],
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "若后续披露显示收入或经营利润率显著弱于当前 TTM 水平，经营质量持续性假设应失效。",
+        "若产能计划出现延期、超支、低利用率或需要不利融资，产能扩张价值假设应失效。",
+        "若补充的现金流、债务期限或估值数据与乐观风险回报解释不一致，该解释应失效。"
+      ],
+      "invocation_id": "inv_a90a2dbe8312bf43ff21f746",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-lock-regression-normal-research-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；研究范围为 Regression normal-research，决策截止时间为 2026-01-31T23:59:59Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "babdbf88a28e64b779043e7d86641d7da736d95ac8a5db7ce5138d5893072982",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "3721eef7af9ff2e1ec46331e0c49ce7aac315e0112d85479451a3767ca09eeeb",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "所获经营和财务指标均主要截至 2025-12-31，无法确认决策截止日前的后续经营变化。",
+        "产能计划被维持不等于项目按预算、按进度或按预期回报执行。"
+      ]
+    }
+  }
+}

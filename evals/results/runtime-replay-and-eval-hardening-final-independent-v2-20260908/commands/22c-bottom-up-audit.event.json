@@ -1,0 +1,17 @@
+{
+  "schema_version": "independent-command-event/1.0.0",
+  "label": "22c-bottom-up-audit",
+  "command": [
+    "python3",
+    "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-independent-v2-20260908/_bottom_up_audit.py"
+  ],
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "tmpdir": "/private/tmp/stock-agent-final-independent-v2-20260908",
+  "started_at": "2026-09-08T13:11:47.550655+00:00",
+  "ended_at": "2026-09-08T13:11:47.656566+00:00",
+  "exit_code": 0,
+  "stdout_sha256": "bad695ef864114b5c41ce64ad217d49d7384f1912921323de1bc5f2c883ff97f",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdin_path": null,
+  "stdin_sha256": null
+}

@@ -1,0 +1,58 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b",
+        "ev-conflict-margin",
+        "ev-conflict-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 区分收入事实与冲突解释；两项互斥收入支持冲突结论，并明确利润率和价格不足以解决该冲突。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确记录共识、未解决冲突、两个未决问题及其对商业质量、估值和方向性结论的阻断影响。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 与 CIO 均将信心限制在冲突识别，而未延展至商业、估值或方向性结论，符合冲突和数据缺口。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "grade": 3,
+      "rationale": "NO_TRADE 明确归因于同一 as_of 的未解决收入冲突，并给出在获得来源优先级、口径及修订信息后重评的条件。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [],
+      "grade": null,
+      "rationale": "该 ablation 仅含 runtime_company_analyst；冻结输入没有 Skeptic 报告，无法评分。",
+      "status": "NOT_APPLICABLE"
+    }
+  },
+  "eval_id": "rreh-hardening-ablation-eval-conflict-analyst-cio-v4-20260908",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "5b87faa9626aeebd0b896d5f66d0aa3de6aece156eaf6e0be50e2105f88a839d",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "94a3a8c4157e56f85c005a52e3d202766d0c3ca211b6b420fd06ec657fa9ed1c",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

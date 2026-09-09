@@ -1,0 +1,59 @@
+{
+  "dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The Analyst identifies only the two cited facts and explicitly limits its conclusion to insufficient evidence, distinguishing unavailable analysis from supported facts.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The CIO records Specialist consensus, no mechanical conflicts, unresolved questions, and explains the resulting insufficient-evidence decision impact.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The confidence rationales limit substantive conclusions to the sparse evidence while separating confidence in identified evidence gaps from company-level inference.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The final decision records RISK_VETO, the concrete breached bounds, and a re-evaluation condition tied to the Risk Engine feasible boundary.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "The independent Skeptic cites the authorized records, specifies concentration and post-period uncertainty, and states concrete evidence needed to resolve each challenge.",
+      "status": "PASS"
+    }
+  },
+  "eval_id": "rrh-final-lock-eval-high-concentration-portfolio-20260909",
+  "grader": {
+    "agent": "dev_eval",
+    "input_hash": "465da2c9f61523601ee4daf3e2fb891e37e6166cb3f42235d12d04520224e6a4",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f"
+  },
+  "output_hash": "063c73116ff9119805eeb1baed51c2dd62be4978014c79b30848b679c1cfe412",
+  "schema_version": "semantic-rubric-result/1.0.0"
+}

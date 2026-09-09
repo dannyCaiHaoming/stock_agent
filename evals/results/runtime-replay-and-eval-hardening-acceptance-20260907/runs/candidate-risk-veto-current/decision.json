@@ -1,0 +1,66 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "counter_thesis": "单一价格与单期 TTM 收入无法建立估值、盈利质量或基本面与价格的有效联系，且没有资本结构、盈利、现金流、增长、竞争或期间事件证据。",
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若价格或 TTM 收入的来源记录被更正、更新、不再新鲜或不再对应 SEC-AAA，则本草案所依赖的事实失效。",
+        "若取得截至 decision_cutoff 的可靠资本结构、盈利、现金流、连续经营与事件资料，能够验证估值和基本面联系，则本次证据不足结论应重新评估。"
+      ],
+      "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+      "no_trade_reason": "RISK_VETO",
+      "reevaluation_conditions": [
+        "仅在满足 Risk Engine 可行边界后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "thesis": "授权证据仅确认 SEC-AAA 在 2026-01-30 的收盘价为 100 USD/股及截至 2025-12-31 的 TTM 收入为 1,000,000 USD；它们不足以支持商业质量、估值或预期回报判断。"
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "REJECTED",
+    "veto_reason": "RISK_VETO",
+    "violations": [
+      {
+        "code": "POSITION_LIMIT",
+        "limit": 0.6,
+        "metric": "target_max:SEC-AAA",
+        "observed": 0.9,
+        "policy_rule": "POSITION_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "LIQUIDITY_LIMIT",
+        "limit": "0:0.6",
+        "metric": "target_range:SEC-AAA",
+        "observed": "0.9:0.9",
+        "policy_rule": "LIQUIDITY_LIMIT",
+        "remediable_within_range": false
+      },
+      {
+        "code": "SECTOR_LIMIT",
+        "limit": 0.6,
+        "metric": "sector_range:Synthetic Technology",
+        "observed": "0.9:0.9",
+        "policy_rule": "SECTOR_LIMIT",
+        "remediable_within_range": false
+      }
+    ]
+  },
+  "run_id": "rreh-candidate-risk-veto-current-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

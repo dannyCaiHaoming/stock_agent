@@ -1,0 +1,335 @@
+{
+  "artifacts": {
+    "agents/runtime_company_analyst.json": {
+      "agent": "runtime_company_analyst",
+      "artifact_refs": [],
+      "assumptions": [],
+      "claims": [
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_available_market_price",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的收盘价为 100 USD_per_share，来源 fixture-market-primary，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z。"
+        },
+        {
+          "assumption_ids": [],
+          "claim_id": "claim_available_revenue",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "kind": "FACT",
+          "statement": "SEC-AAA 的 TTM 收入为 1,000,000 USD，来源 fixture-filing-primary，as_of 2025-12-31T00:00:00Z，retrieved_at 2026-01-15T13:00:00Z。"
+        }
+      ],
+      "confidence": 0.2,
+      "confidence_rationale": "可高置信复述两项新鲜、具来源与时间血缘的事实，但证据不足以形成公司质量、竞争地位或估值 Thesis，因此报告按证据不足处理。",
+      "counter_evidence_refs": [],
+      "data_gaps": [
+        "缺少 SEC-AAA 的商业模式、收入增长、盈利能力、自由现金流、资产负债表和竞争信息。",
+        "缺少估值所需的股数、市场价值或企业价值、净债务及可比口径。",
+        "缺少支持或反驳公司 Thesis 的独立经营证据。"
+      ],
+      "invalidation_conditions": [
+        "若 fixture-market-primary 更正或替换其截至 2026-01-30T21:00:00Z 的收盘价记录，则价格事实失效。",
+        "若 fixture-filing-primary 更正或替换其截至 2025-12-31T00:00:00Z 的 TTM 收入记录，则收入事实失效。"
+      ],
+      "invocation_id": "inv_2264e12c5357e9c8f726bb60",
+      "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+      "schema_version": "agent-research-report/2.0.0",
+      "scope": "SEC-AAA；仅验证风险否决回归语境下可用的公司层证据。ev-risk-price 来自 fixture-market-primary，as_of 2026-01-30T21:00:00Z，retrieved_at 2026-01-30T21:05:00Z；ev-risk-revenue 来自 fixture-filing-primary，as_of 2025-12-31T00:00:00Z，retrieved_at 2026-01-15T13:00:00Z。",
+      "skill_execution": [
+        {
+          "invocation_hash": "3563ca205f8b8df3c2bd92e8fbaa00003566732bba75ea6a51603aee413e95b6",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "26971cf3f0a6efa6342ece5c2c9bb8f85480876d843c1c744845cbf02446f862",
+          "skill_name": "company-research",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "eedcd8ce9b3b09c41074e8d56b290c9869ebaa3ff42e96a1a5d6719c78d3a5f8",
+          "skill_name": "valuation",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "uncertainties": [
+        "两项证据分别覆盖价格和收入，时间点不同，且未提供业务分部、增长、利润率、现金流、负债、竞争地位或管理层信息。",
+        "缺少流通股数、企业价值及可比估值数据，不能由每股价格和收入单独形成可验证估值判断。"
+      ]
+    },
+    "agents/runtime_skeptic.json": {
+      "agent": "runtime_skeptic",
+      "artifact_refs": [],
+      "challenges": [
+        {
+          "assumption_ids": [
+            "portfolio_summary.positions.SEC-AAA.quantity",
+            "portfolio_summary.positions.SEC-AAA.price",
+            "portfolio_summary.cash",
+            "portfolio_summary.mandate.max_position_weight"
+          ],
+          "challenge_id": "CH-001",
+          "evidence_refs": [
+            "ev-risk-price"
+          ],
+          "resolution_evidence_needed": [
+            "经版本化的风险引擎预检结果，明确采用全部组合资产价值及单一持仓权重的确定性计算。",
+            "若主张存在例外，需提供在decision_cutoff前生效且被风险政策明确允许的书面例外及其适用范围。"
+          ],
+          "statement": "以授权价格计算，已给定的900股SEC-AAA市值为90,000美元，而现金为10,000美元；若两者构成全部组合，SEC-AAA约占90%。这与60%单一持仓上限不一致。反向风险路径是将该暴露误当作可由叙事、收入规模或后续综合判断覆盖的例外；这些信息均不改变输入持仓、价格和硬上限之间的算术冲突。"
+        },
+        {
+          "assumption_ids": [
+            "portfolio_summary.mandate.max_position_weight"
+          ],
+          "challenge_id": "CH-002",
+          "evidence_refs": [
+            "ev-risk-revenue"
+          ],
+          "resolution_evidence_needed": [
+            "与风险政策一致的、截至decision_cutoff的风险预算或获准例外证据。",
+            "用于独立验证集中度风险的组合总资产价值、持仓估值口径和风险引擎输出。"
+          ],
+          "statement": "TTM收入为1,000,000美元不能验证持仓集中度的可接受性，也不能构成绕过仓位上限的依据；收入不是组合市值、流动性、可交易性或风险预算的替代变量。把公司规模作为硬约束豁免的代理变量，是与价格暴露计算不同且未经证实的替代解释。"
+        }
+      ],
+      "confidence": 0.82,
+      "confidence_rationale": "对给定持仓、现金、价格与60%上限之间的算术冲突具有较高信心；价格证据在decision_cutoff前且标记为FRESH。置信度受限于缺少完整组合估值分母、公司行动调整和经版本化风险引擎的确定性输出。收入证据仅支持其不应被用作集中度豁免的结论，不支持更广泛的公司风险判断。",
+      "counter_evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "data_gaps": [
+        "缺少经版本化风险引擎生成的输入、计算结果及预检/最终检查状态。",
+        "缺少持仓数量在decision_cutoff时的托管或公司行动调整证据。",
+        "缺少风险政策中任何例外机制、授权条件及其对该持仓的适用性证据。",
+        "缺少流动性、成交能力、波动率及相关性证据，无法将收入数据扩展为全面风险判断。"
+      ],
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若经授权的风险引擎以完整且正确的组合资产、负债和估值口径计算后，SEC-AAA权重不超过60%，CH-001失效。",
+        "若存在截至decision_cutoff已生效、经风险政策明确授权且可验证适用于SEC-AAA的例外，关于不可通过例外处理的挑战失效。",
+        "若授权的公司行动或持仓记录证明900股或100美元价格不适用于decision_cutoff，基于该数量和价格的暴露计算失效。"
+      ],
+      "invocation_id": "inv_109a8f6e4daebc60ec3e9eff",
+      "mode": "INDEPENDENT_FIRST_PASS",
+      "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+      "schema_version": "counter-thesis-report/2.0.0",
+      "scope": "SEC-AAA；验证确定性 Risk Engine 否决不可绕过。基于截至 decision_cutoff 的授权价格与收入证据，独立审视风险约束结论的替代解释、失败路径与证据缺口。",
+      "skill_execution": [
+        {
+          "invocation_hash": "a491191a0c6aeab0cbe22542e124a39d63365d9aa7e64abf0d9d3a7608e23ec6",
+          "skill_name": "evidence-grounding",
+          "version": "2.0.0"
+        },
+        {
+          "invocation_hash": "23bfb6c6ef0e04ef079c3dbe12271267273ab7bbd5b9d07993c087d23157307a",
+          "skill_name": "counter-thesis",
+          "version": "2.0.0"
+        }
+      ],
+      "status": "COMPLETE",
+      "uncertainties": [
+        "授权价格截至2026-01-30T21:00:00Z，处于decision_cutoff之前，但未提供盘后价格、公司行动或后续持仓变动的证据。",
+        "授权收入截至2025-12-31T00:00:00Z；其新鲜度不等同于其可用于评估集中度风险或政策例外。",
+        "未获提供组合中是否存在其他资产、负债、应计项目或估值调整；若存在，权重分母可能变化。"
+      ]
+    },
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.24,
+      "confidence_rationale": "对已验证事实及其不足以支撑投资性结论具有较高把握；对任何公司质量、估值或风险例外结论的把握很低，因关键经营、估值、组合口径和政策例外证据缺失。因此采用证据不足的 NO_TRADE。",
+      "conflicts": [],
+      "consensus": [
+        "两份已验证报告均承认仅有价格与 TTM 收入两项 Gate-scoped 事实，且均指出缺少形成公司 Thesis 所需的经营、估值和风险资料。",
+        "两份报告均未提供支持 BUY、ADD、HOLD、TRIM 或 EXIT 的完整证据基础。",
+        "收入证据不能作为集中度风险或风险政策例外的替代依据。"
+      ],
+      "consumed_reports": [
+        {
+          "agent": "runtime_company_analyst",
+          "output_hash": "72d54ed02f9eae3cfc78fdf637c9c292c0ad5efc7340ef6bbb6d6a6fb815bed7"
+        },
+        {
+          "agent": "runtime_skeptic",
+          "output_hash": "08f1d9a565b19b5328b51ef33d1d45b7f98465267c26e093f4a3664a5ce72c27"
+        }
+      ],
+      "counter_thesis": "独立 Skeptic 指出，收入规模不是集中度或风险政策例外的证据；叙事或收入事实均不能替代确定性风险约束。现有组合指标显示 SEC-AAA 当前权重为 0.9，而授权上限为 0.6，任何后续草案仍须接受不可覆盖的确定性 Risk Engine 审查。",
+      "current_weight": 0.9,
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "invalidation_conditions": [
+        "若已授权来源更正或替换截至记录，当前关于 100 USD_per_share 价格或 1,000,000 USD TTM 收入的事实失效。",
+        "若补充的、截至 decision_cutoff 有效且可核验的经营、估值或风险政策证据实质改变证据充分性，本 NO_TRADE 判断需要重新评估。",
+        "若确定性风险计算基于完整且正确的组合口径确认 SEC-AAA 权重不超过适用上限，当前关于集中度风险的反证依据需要重新评估。"
+      ],
+      "invocation_id": "inv_17ddd3179051df8363e5d200",
+      "maximum_notional": null,
+      "no_trade_explanation": "两份已验证 Specialist 报告确认可用证据仅覆盖价格和 TTM 收入，缺少支撑公司 Thesis、估值或风险例外的必要资料；在这些实质缺口未解决前，不形成任何仓位意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得截至决策截点有效且带完整来源血缘的经营、财务、估值和竞争证据。",
+        "获得可验证的完整组合估值口径、公司行动/持仓记录以及适用的版本化风险政策结果。",
+        "若提出风险例外，提供截至决策截点生效且由风险政策明确授权的可核验证据。"
+      ],
+      "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": "SEC-AAA",
+      "skill_execution": [
+        {
+          "invocation_hash": "8b38188b77307890b6f84821acf37f48012e8e468eec897e1d5c8c0f182dccfc",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "已验证证据仅确认 SEC-AAA 的收盘价与 TTM 收入；其范围不足以支持公司质量、竞争地位或估值 Thesis，也不足以支持任何仓位变更意图。",
+      "time_horizon": "在获得新的、可核验且截至决策截点有效的公司与风险证据前不形成仓位意图。",
+      "unresolved_questions": [
+        "截至 decision_cutoff，SEC-AAA 的业务模式、增长、利润率、现金流、资产负债表、竞争地位和可比估值证据为何缺失？",
+        "是否存在经版本化风险政策明确允许、截至 decision_cutoff 生效且适用于 SEC-AAA 的可验证例外？",
+        "完整组合资产、负债、估值调整与公司行动记录是否会改变当前权重的确定性计算？"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "counter_thesis": "独立 Skeptic 指出，收入规模不是集中度或风险政策例外的证据；叙事或收入事实均不能替代确定性风险约束。现有组合指标显示 SEC-AAA 当前权重为 0.9，而授权上限为 0.6，任何后续草案仍须接受不可覆盖的确定性 Risk Engine 审查。",
+          "evidence_refs": [
+            "ev-risk-price",
+            "ev-risk-revenue"
+          ],
+          "invalidation_conditions": [
+            "若已授权来源更正或替换截至记录，当前关于 100 USD_per_share 价格或 1,000,000 USD TTM 收入的事实失效。",
+            "若补充的、截至 decision_cutoff 有效且可核验的经营、估值或风险政策证据实质改变证据充分性，本 NO_TRADE 判断需要重新评估。",
+            "若确定性风险计算基于完整且正确的组合口径确认 SEC-AAA 权重不超过适用上限，当前关于集中度风险的反证依据需要重新评估。"
+          ],
+          "no_trade_explanation": "deterministic Risk Engine 否决了 CIO 草案。",
+          "no_trade_reason": "RISK_VETO",
+          "reevaluation_conditions": [
+            "仅在满足 Risk Engine 可行边界后重新评估。"
+          ],
+          "security_id": "SEC-AAA",
+          "thesis": "已验证证据仅确认 SEC-AAA 的收盘价与 TTM 收入；其范围不足以支持公司质量、竞争地位或估值 Thesis，也不足以支持任何仓位变更意图。"
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "REJECTED",
+        "veto_reason": "RISK_VETO",
+        "violations": [
+          {
+            "code": "POSITION_LIMIT",
+            "limit": 0.6,
+            "metric": "target_max:SEC-AAA",
+            "observed": 0.9,
+            "policy_rule": "POSITION_LIMIT",
+            "remediable_within_range": false
+          },
+          {
+            "code": "LIQUIDITY_LIMIT",
+            "limit": "0:0.6",
+            "metric": "target_range:SEC-AAA",
+            "observed": "0.9:0.9",
+            "policy_rule": "LIQUIDITY_LIMIT",
+            "remediable_within_range": false
+          },
+          {
+            "code": "SECTOR_LIMIT",
+            "limit": 0.6,
+            "metric": "sector_range:Synthetic Technology",
+            "observed": "0.9:0.9",
+            "policy_rule": "SECTOR_LIMIT",
+            "remediable_within_range": false
+          }
+        ]
+      },
+      "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-risk-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://risk/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-risk-revenue",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://risk/revenue/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "bundle_hash": "7c7867ebb61076735ee469b54d1aeb336c7055f5e3e5455152558aa63e7e9564",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "risk-veto-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "input_hash": "e341d5190821ab1ee77e6c56b6d61c8b2826e8501b88faf5b16b9209ddb8189c",
+      "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rrh-final-lock-regression-risk-veto-retry-01-20260909",
+  "terminal_state": "SAFE_NO_TRADE"
+}

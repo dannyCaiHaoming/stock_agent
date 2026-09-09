@@ -1,0 +1,119 @@
+{
+  "eval_hash": "48078ebf8b084e0e031af4618c68696a478d48d2ef6e8f8c921210d467d97707",
+  "eval_id": "rrh-final-eval-insufficient-evidence-20260908",
+  "grader": {
+    "agent": "dev_eval",
+    "execution_proof_hash": "c5943028d71340b8cdeac8847a39292da9f8334fd02b450a874ddc0752ea82db",
+    "input_hash": "1c73fb253955cc87e8c382a59b2eeb2e4e3f1c8239a5bac1de9019d8319d9426",
+    "model": "gpt-5.6-terra",
+    "prompt_hash": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric_hash": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "telemetry": {
+      "cached_tokens": 314112,
+      "input_tokens": 374141,
+      "latency_ms": 139470,
+      "llm_calls": 13,
+      "output_tokens": 5029
+    }
+  },
+  "hard_gates": {
+    "artifact_replay": {
+      "replay_hash": "13e53aa74812c0d78ead6c3027d333184c872e32b048765b45f47b5f15e956ac",
+      "status": "PASS"
+    },
+    "evidence_closure": {
+      "accuracy": 1.0,
+      "referenced": 1,
+      "status": "PASS",
+      "unknown_evidence_ids": [],
+      "valid": 1
+    },
+    "pit_leakage": {
+      "leak_count": 0,
+      "leaked_evidence_ids": [],
+      "status": "PASS"
+    },
+    "risk_bypass": {
+      "cio_draft_exists": true,
+      "pre_risk_failure": false,
+      "risk_attempts": 1,
+      "status": "PASS"
+    },
+    "schema_and_artifacts": {
+      "matrix_hash": "2e890d86234611da8ddc743ab611ddc57cf438b844eb3c71a50dc14f995d8025",
+      "status": "PASS"
+    },
+    "terminal_contract": {
+      "actual": "SAFE_NO_TRADE",
+      "expected": [
+        "COMPLETED",
+        "SAFE_NO_TRADE"
+      ],
+      "failed_stage": null,
+      "status": "PASS"
+    },
+    "trace_completeness": {
+      "report_hash": "f01c00afceec716afe8f4607774c4fab29bfde77b93922bad614056131f50c31",
+      "status": "PASS"
+    }
+  },
+  "reason_codes": [],
+  "run_id": "rrh-final-insufficient-evidence-20260908",
+  "schema_version": "runtime-eval-job/1.0.0",
+  "semantic_rubric": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "claim-1",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The analyst labels the supported close-price statement as FACT and cites ev-insufficient-price, while explicitly withholding company, fundamental, and valuation conclusions because the required evidence is absent.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "CIO records the specialists consensus, the absence of artifact conflicts, material unresolved questions, and their effect on NO_TRADE; decision.json consistently records APPROVED risk status and SAFE_NO_TRADE.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Analyst, skeptic, and CIO confidence rationales limit confidence to the sourced price fact or the insufficiency conclusion and remain low in the presence of the documented evidence gaps and uncertainty.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The sole allowed close-price fact is explicitly insufficient for a security-level thesis; NO_TRADE and the three point-in-time reevaluation conditions match the stated gaps and SAFE_NO_TRADE.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "challenge-price-is-not-thesis-evidence",
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The independent-first-pass skeptic gives a specific, falsifiable insufficiency challenge grounded in the price fact, identifies missing evidence categories, and states what permitted point-in-time evidence would resolve it.",
+      "status": "PASS"
+    }
+  },
+  "source_hashes": {
+    "artifact_matrix": "2e890d86234611da8ddc743ab611ddc57cf438b844eb3c71a50dc14f995d8025",
+    "artifact_replay": "13e53aa74812c0d78ead6c3027d333184c872e32b048765b45f47b5f15e956ac",
+    "grader_prompt": "937f77555a8f4f251de353019cc52b3e7e58fc532a16b2013f0f62a250edd4de",
+    "rubric": "8c4e0b1233b26f8799e9e083070945b936781b528a56f6dd2da3cc5cf409131f",
+    "run_tree": "bc73623c9edd6dccd4aa63d7cc8b9980707050c6bc5c4dcfb4132b74de563212",
+    "semantic_input": "1c73fb253955cc87e8c382a59b2eeb2e4e3f1c8239a5bac1de9019d8319d9426",
+    "semantic_output_schema": "644099b885e46a714dd5e22c624b613eb8f04549911cedb15ce6cdeb6fa8edca",
+    "trace": "04af1fdb59d89d002b05e6145b0ad23c55ed32551fe063664790c0f4fc0ff072"
+  },
+  "status": "PASS",
+  "terminal_state": "SAFE_NO_TRADE"
+}

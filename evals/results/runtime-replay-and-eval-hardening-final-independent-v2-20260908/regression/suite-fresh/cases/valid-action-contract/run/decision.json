@@ -1,0 +1,50 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "HOLD",
+      "confidence": 0.5,
+      "confidence_rationale": "仅表达对契约闭包的有限确定性。",
+      "counter_thesis": "契约合法不能替代 Risk Engine 的确定性校验。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin"
+      ],
+      "invalidation_conditions": [
+        "契约、Evidence 或 Risk Policy 任一发生变化。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": null,
+      "no_trade_reason": null,
+      "reevaluation_conditions": [],
+      "security_id": "SEC-AAA",
+      "target_weight_range": [
+        0.5,
+        0.5
+      ],
+      "thesis": "该输出只验证合法 action 能经过完整 Runtime 与 Risk Engine。",
+      "time_horizon": "确定性契约验收周期",
+      "unresolved_questions": [
+        "本夹具不生成主观投资判断。"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "HOLD",
+    "original_action": "HOLD",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "regression-rrh-final-independent-v2-current-lock-fresh-20260908-valid-action-contract-acd3c70a183b",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "COMPLETED"
+}

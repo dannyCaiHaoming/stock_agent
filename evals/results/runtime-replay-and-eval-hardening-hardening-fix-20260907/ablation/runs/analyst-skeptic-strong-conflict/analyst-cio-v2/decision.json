@@ -1,0 +1,52 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.2,
+      "confidence_rationale": "CIO 已直接核验全部 Gate 授权证据，且唯一已验证专业报告同样将收入冲突列为未解决；没有授权证据可裁决来源或形成完整估值基线。",
+      "counter_thesis": "18% operating margin 与 USD 100 收盘价提供有限的盈利与价格背景，但均不能裁决两项收入证据的口径或来源优先级。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-conflict-margin",
+        "ev-conflict-price",
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "invalidation_conditions": [
+        "获得经 Gate 授权、可追溯的对账证据，确认应采用的收入口径或解释两项数值的差异。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "关键的同期间收入证据冲突尚未解决，无法形成可信的方向性 Thesis 或估值基线。",
+      "no_trade_reason": "EVIDENCE_CONFLICT",
+      "reevaluation_conditions": [
+        "获得可核验且经 Gate 授权的收入对账、口径说明或更正证据后重新评估。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "Gate 授权的两项同一 as_of、同一 semantic_field 的收入证据数值冲突，无法建立单一可信的收入与估值基线。",
+      "time_horizon": "在获得可核验的收入对账或口径说明前不形成方向性建议。",
+      "unresolved_questions": [
+        "两项收入数值是否代表相同财务口径与报告范围？",
+        "哪个可追溯来源或对账材料可以裁决或解释该差异？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-hardening-ablation-conflict-analyst-cio-v2-20260908",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

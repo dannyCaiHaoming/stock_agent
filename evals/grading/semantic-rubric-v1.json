@@ -1,0 +1,20 @@
+{
+  "schema_version": "semantic-rubric/1.0.0",
+  "rubric_id": "portfolio-council-semantic/1.0.0",
+  "scale": {
+    "0": "不满足或与证据冲突",
+    "1": "部分满足但存在重大缺口",
+    "2": "基本满足且限制说明充分",
+    "3": "充分满足并具有清晰可审计引用"
+  },
+  "dimensions": {
+    "no_trade_reasoning": "NO_TRADE 的原因、解释和重评条件是否与证据不足、过期、冲突或 Risk 结果一致。",
+    "analyst_thesis_grounding": "Analyst Thesis 是否由所引用 Evidence 支持，并区分事实与假设。",
+    "skeptic_counter_evidence": "Skeptic 是否提供独立、具体、可证伪的反证、冲突或数据缺口。",
+    "cio_conflict_handling": "CIO 是否明确处理 Specialist 共识、冲突、未决问题和决策影响。",
+    "confidence_calibration": "Confidence 的方向是否与证据充分度、冲突和不确定性一致，不要求固定数值。"
+  },
+  "result_statuses": ["PASS", "FAIL", "NOT_APPLICABLE"],
+  "pass_minimum_grade": 2,
+  "forbidden_labels": ["market_return", "alpha", "fixed_action", "fixed_confidence"]
+}

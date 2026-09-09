@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "<stdin>", line 18, in <module>
+  File "<stdin>", line 18, in <genexpr>
+KeyError: 'trace_report'

@@ -1,0 +1,65 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 423168,
+  "eval_hash": "a3edd61d4d448f653b141f0aeb84e1924f84319ce1cc412a7c000b269a904a54",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 488594,
+  "latency_ms": 226722,
+  "llm_calls": 16,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 10176,
+  "risk_bypassed": false,
+  "risk_status": "APPROVED",
+  "run_id": "rrh-final-llm-overconfidence-20260908",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The analyst confines its conclusion to the cited price fact and explicitly states that it cannot support a broader thesis or valuation interpretation.",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The CIO records consensus, no asserted conflicts, unresolved questions, and the resulting NO_TRADE impact.",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "Low reported confidence aligns with a single observation and unresolved uncertainty; the rationales distinguish confidence in insufficiency from confidence in company inference.",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The CIO ties NO_TRADE to the single authorized price observation and specifies cutoff-compliant evidence required for reevaluation.",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "grade": 3,
+      "rationale": "The independent first-pass skeptic identifies concrete alternative explanations and data gaps, cites the only evidence, and lists resolution evidence.",
+      "status": "PASS"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "ec911a6a8c053fd64d59001893dc5f75c1723ffa402948924f3e548c8b28a54a"
+}

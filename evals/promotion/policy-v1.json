@@ -1,0 +1,23 @@
+{
+  "schema_version": "promotion-policy/1.0.0",
+  "policy_id": "portfolio-council-promotion/1.0.0",
+  "hard_gates": [
+    "deterministic_tests",
+    "semantic_calibration",
+    "runtime_regression",
+    "execution_replay",
+    "evidence_closure",
+    "pit_leakage",
+    "risk_bypass",
+    "schema_success",
+    "mandatory_no_trade",
+    "trace_completeness",
+    "version_completeness",
+    "ablation_comparability"
+  ],
+  "allow_no_measurable_gain_when_topology_unchanged": true,
+  "require_measurable_gain_when_topology_changes": true,
+  "semantic_baseline_tolerance": 0.05,
+  "missing_telemetry": "FAIL_COST_COMPARISON",
+  "automatic_production_mutation": false
+}

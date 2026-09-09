@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runtime-evals/high-concentration-portfolio/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio"
+  },
+  "case_id": "high-concentration-portfolio",
+  "executed_operations": [
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "e8bcbb544dc59913b0c976073a79ab7a9b58b7c98e33a5c78dc7122957f2109f",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "grader_execution_proof": "d54631f4b5037e8bca0ce3d351f1598fd47ed0a34eec1c47a4c90b19172702e0",
+    "runtime_eval": "e1a6369defa3c5f445fb2049e43b95efb2a985a38ab76605ccf2a5cf572dd5a9",
+    "trace": "be8a1ba92cb94009a0d3775853b7a09f9366bbd188fb1aece8cc718d591b0428",
+    "trace_report": "914fd7d5a5aadb5241d84f5cb27e1865e4732781175c0e508f857dca978e1e11"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "codex-native-runtime",
+  "proof_hash": "41dd1bc16d1429ff8eb1cbeb3a97158bf2dfe4fbdb5cebc663ef93662f57d1c5",
+  "run_id": "rrh-final-high-concentration-portfolio-20260908",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "python3 -m product.runtime.cli smoke-prompt --repo /Users/caihaoming/Documents/stock_agent --run-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio | codex exec -C /Users/caihaoming/Documents/stock_agent/product --add-dir /Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/runs/high-concentration-portfolio --strict-config --json -m gpt-5.6-terra -",
+  "status": "PASS"
+}

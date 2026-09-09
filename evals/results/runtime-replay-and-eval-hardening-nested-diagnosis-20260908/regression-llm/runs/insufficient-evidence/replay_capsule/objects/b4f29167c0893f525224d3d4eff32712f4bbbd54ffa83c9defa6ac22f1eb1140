@@ -1,0 +1,14 @@
+[agents]
+max_threads = 3
+
+[agents.runtime_company_analyst]
+description = "Fixture Council 的只读公司研究专家。"
+config_file = "agents/runtime_company_analyst.toml"
+
+[agents.runtime_skeptic]
+description = "Fixture Council 的只读独立反证专家。"
+config_file = "agents/runtime_skeptic.toml"
+
+[agents.runtime_cio]
+description = "Fixture Council 主线程 CIO 的结构化综合协议。"
+config_file = "agents/runtime_cio.toml"

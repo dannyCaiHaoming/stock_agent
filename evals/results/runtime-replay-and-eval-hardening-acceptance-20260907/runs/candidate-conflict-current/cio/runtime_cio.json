@@ -1,0 +1,76 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-candidate-conflict-current-20260907",
+  "invocation_id": "inv_95f5c6ee9e212cba9fd05f90",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "de9c09c78b343c4f9b98948c8913aad04e638c6d373f0caabf84e7816d702217"
+    },
+    {
+      "agent": "runtime_skeptic",
+      "output_hash": "b14eb591cbd71039290aa072f0eacc6db062cf11962860e41240797a996cdfb5"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": "SEC-AAA",
+  "current_weight": 0.5,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "Reassess only after the specified reconciliations are available as of the decision cutoff.",
+  "thesis": "The available reports identify a reported 18% operating margin and a USD 100 close price, but they do not establish a reliable business-quality or valuation thesis because the revenue basis is unresolved and essential supporting evidence is absent.",
+  "counter_thesis": "The independent skeptic finds that the revenue discrepancy may reflect incomparability or error, the margin may not be durable or aligned with a reconciled revenue denominator, and a single price observation does not validate valuation or market interpretation.",
+  "consensus": [
+    "Both validated specialist reports classify the evidence as insufficient for a supported company conclusion.",
+    "Both reports identify the same-date revenue observations as unresolved and material to interpreting profitability and valuation.",
+    "Both reports identify missing financial-quality, valuation, and market-context evidence."
+  ],
+  "conflicts": [
+    {
+      "conflict_key": "sec-aaa|revenue_ttm|2025-12-31T00:00:00+00:00",
+      "evidence_refs": [
+        "ev-conflict-revenue-a",
+        "ev-conflict-revenue-b"
+      ],
+      "summary": "Two authorized fresh observations report incompatible TTM revenue values of USD 1,000,000 and USD 1,250,000 for the same as-of date; no authorized tie-breaker or reconciliation is available.",
+      "unresolved": true,
+      "decision_impact": "The revenue base cannot support a reliable assessment of revenue scale, margin dollars, business trajectory, or valuation.",
+      "confidence_impact": "The unresolved 25% discrepancy materially reduces confidence and prevents selection of either observation."
+    }
+  ],
+  "unresolved_questions": [
+    "Which reported revenue value is applicable after confirming definition, consolidation scope, currency treatment, and revision status?",
+    "Is the reported operating margin derived from the reconciled revenue denominator and recurring operating items?",
+    "What point-in-time financial statements, share-count or enterprise-value inputs, price history, liquidity evidence, and valuation assumptions support a decision?"
+  ],
+  "invalidation_conditions": [
+    "This NO_TRADE conclusion is invalidated only if authoritative, point-in-time evidence reconciles the revenue observations and establishes the applicable comparable revenue base.",
+    "Any future business-quality conclusion requires same-basis financial statements sufficient to test earnings quality, leverage, liquidity, cash flow, and the sustainability of operating margin.",
+    "Any future valuation conclusion requires point-in-time valuation inputs and market-context evidence consistent with reconciled financial data."
+  ],
+  "confidence": 0.2,
+  "confidence_rationale": "The evidence reliably establishes that a material conflict exists, and both independent reports converge on insufficient evidence; however, no authorized reconciliation resolves the central revenue input and key financial and valuation context is unavailable.",
+  "evidence_refs": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "no_trade_reason": "EVIDENCE_CONFLICT",
+  "no_trade_explanation": "A material, unresolved conflict in same-date TTM revenue evidence, combined with missing financial-quality and valuation inputs, prevents a supportable advisory recommendation.",
+  "reevaluation_conditions": [
+    "Obtain authoritative, decision-cutoff-compliant reconciliation of the two revenue observations, including definition, consolidation scope, currency treatment, and revision status.",
+    "Obtain same-basis financial statements and operating-margin support sufficient to assess earnings quality and durability.",
+    "Obtain point-in-time valuation and market-context inputs that can be tied to reconciled financial data."
+  ],
+  "skill_execution": [
+    {
+      "skill_name": "portfolio-council",
+      "version": "3.0.0",
+      "invocation_hash": "7118a1b6d4e1c58ed8a69d62a6be1a014694048ed8f71ed520b8e8e6865aa327"
+    }
+  ],
+  "advisory_only": true
+}

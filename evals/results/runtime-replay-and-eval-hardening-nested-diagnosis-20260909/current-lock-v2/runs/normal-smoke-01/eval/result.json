@@ -1,0 +1,26 @@
+{
+  "checks": {
+    "actual_council_risk_passage": "PASSED",
+    "advisory_only": "PASSED",
+    "artifact_matrix": "PASSED",
+    "artifact_replay": "PASSED",
+    "native_agent_skill_mcp_authenticity": "PASSED",
+    "no_fixed_investment_outcome": "PASSED",
+    "normal_full_chain": "PASSED",
+    "skeptic_independent_contribution": "PASSED",
+    "trace_lineage": "PASSED"
+  },
+  "eval_hash": "e612de31b84d80ae7bc22abc9211b3cb1d976e2ffe76a4fa22e6dfdc3081bb50",
+  "fixture_id": "normal-research-v1",
+  "run_id": "rrh-current-lock-v2-normal-smoke-01-20260909",
+  "schema_version": "native-council-eval/2.0.0",
+  "scope": "仅验证结构化正确性、证据血缘、Skeptic 独立非重复贡献、CIO 显式消费与硬风控；不评价市场收益、Alpha 或统计预测能力。",
+  "source_hashes": {
+    "decision": "196be091c9f339152ea56e53bb56c07fd9fdfdeb2948e1b288d4bc36c5c35887",
+    "matrix": "eef8d5411e7ce89b2be6e2acaec1fd6bddf13ece5c82b81010d39270e2d60b6a",
+    "replay": "84891dc0474bafec0e0fdf9449eb82665d9ca41dfc2053c579bbc063c38f1549",
+    "trace": "33e20839058f8a32eb40b265d45b71e8ae56ae8703e77b33ed45a25f03dffc36"
+  },
+  "status": "PASSED",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": "cio-decision-draft/2.1.0",
+  "run_id": "rreh-ablation-normal-research-analyst-cio-20260907",
+  "invocation_id": "inv_a2a015bb9b091c826484cb21",
+  "status": "INSUFFICIENT_EVIDENCE",
+  "agent": "runtime_cio",
+  "consumed_reports": [
+    {
+      "agent": "runtime_company_analyst",
+      "output_hash": "dcf6452cd6c017c73d75266df5d35c8fa94cd46b799b92d7f830167b29d98f17"
+    }
+  ],
+  "action": "NO_TRADE",
+  "security_id": null,
+  "current_weight": null,
+  "target_weight_range": null,
+  "maximum_notional": null,
+  "time_horizon": "不适用；在取得可核验的 Gate-scoped 证据后重新评估。",
+  "thesis": "已验证的唯一 Analyst 报告未能通过授权 MCP 取得任何证据，因而未形成可综合的公司质量或估值 Thesis。",
+  "counter_thesis": "没有已验证的相反研究结论；这不是正面或负面商业判断。",
+  "consensus": [],
+  "conflicts": [],
+  "unresolved_questions": [
+    "为何授权的 fixture_evidence.query 在 Analyst 隔离会话中未暴露，以及何时能够取得 Gate-scoped 证据。",
+    "在可查询证据恢复后，收入、利润率、债务、价格和公司更新是否支持或反驳任何 Thesis。"
+  ],
+  "invalidation_conditions": [
+    "一旦获得并验证与本次 run 绑定的 Gate-scoped 证据，本次证据不足结论须重新评估。"
+  ],
+  "confidence": 0.0,
+  "confidence_rationale": "唯一已验证报告状态为 INSUFFICIENT_EVIDENCE、无 claims 且置信度为零；CIO 授权的空 Evidence 查询被适配器以 EMPTY_EVIDENCE_QUERY 拒绝，因此没有可用于投资判断的事实。",
+  "evidence_refs": [],
+  "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+  "no_trade_explanation": "本 EVAL_ABLATION 运行没有可供 CIO 消费的 Gate-scoped Evidence，且唯一 Specialist 报告未形成事实主张；因此只能形成研究评估用的 NO_TRADE。",
+  "reevaluation_conditions": [
+    "恢复并成功记录本次 Invocation 授权的 fixture_evidence.query 返回。",
+    "重新验证 Specialist 报告的证据闭环后再综合。"
+  ],
+  "skill_execution": [
+    {
+      "skill_name": "portfolio-council",
+      "version": "3.0.0",
+      "invocation_hash": "c21a0e7b1906990eae6a641c40cb83a17c83eba918c16d96d4460baaa44245a8"
+    }
+  ],
+  "advisory_only": true
+}

@@ -1,0 +1,218 @@
+{
+  "artifacts": {
+    "cio/runtime_cio.json": {
+      "action": "NO_TRADE",
+      "advisory_only": true,
+      "agent": "runtime_cio",
+      "confidence": 0.35,
+      "confidence_rationale": "基础事实均为 Gate-allowed 且新鲜，但没有已验证的 Specialist 报告，也缺少评估调整现有权重所需的关键维度，因此仅对不形成调整建议具有低置信度。",
+      "conflicts": [],
+      "consensus": [],
+      "consumed_reports": [],
+      "counter_thesis": "现有证据没有提供估值、现金流、竞争地位或产能计划执行结果的独立验证；cio-only 拓扑也没有已验证的 Specialist 报告可用于检验该解释。",
+      "current_weight": null,
+      "evidence_refs": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "invalidation_conditions": [
+        "获得能够验证估值、现金流和产能执行结果的 Gate-allowed 新证据。"
+      ],
+      "invocation_id": "inv_e8169966e9165ad0938d765e",
+      "maximum_notional": null,
+      "no_trade_explanation": "在 cio-only 评估拓扑中，没有已验证的 Specialist 报告；Gate 范围内事实不足以验证估值、现金流、竞争状况和产能计划执行情况，不能负责任地形成持仓调整意图。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得 Gate-allowed 的估值、现金流和产能执行证据。",
+        "获得按本次 Invocation 验证的独立研究报告，明确支持或反驳持仓调整理由。"
+      ],
+      "run_id": "rreh-ablation-v3-normal-cio-only-20260907",
+      "schema_version": "cio-decision-draft/2.1.0",
+      "security_id": null,
+      "skill_execution": [
+        {
+          "invocation_hash": "bcae1b56c696e9a2625a3ce087dcc06d2c46909f80cc6f7e94f392347f67e326",
+          "skill_name": "portfolio-council",
+          "version": "3.0.0"
+        }
+      ],
+      "status": "INSUFFICIENT_EVIDENCE",
+      "target_weight_range": null,
+      "thesis": "Gate 范围内的基础事实显示 SEC-AAA 的 TTM 收入为 1,000,000 美元、营业利润率为 18%、总债务为 150,000 美元，且管理层维持既有产能计划；这些事实本身不足以形成经交叉研究验证的持仓调整依据。",
+      "time_horizon": "在获得下列重新评估条件之前不形成持仓调整建议。",
+      "unresolved_questions": [
+        "在当前价格下，公司相对于其现金流和盈利能力的估值是否具有吸引力？",
+        "维持的产能计划能否按预期执行并转化为可验证的经营成果？",
+        "竞争环境和潜在下行情景会如何影响收入、利润率及资本结构？"
+      ]
+    },
+    "decision.json": {
+      "advisory_only": true,
+      "decisions": [
+        {
+          "action": "NO_TRADE",
+          "confidence": 0.35,
+          "confidence_rationale": "基础事实均为 Gate-allowed 且新鲜，但没有已验证的 Specialist 报告，也缺少评估调整现有权重所需的关键维度，因此仅对不形成调整建议具有低置信度。",
+          "counter_thesis": "现有证据没有提供估值、现金流、竞争地位或产能计划执行结果的独立验证；cio-only 拓扑也没有已验证的 Specialist 报告可用于检验该解释。",
+          "current_weight": null,
+          "evidence_refs": [
+            "ev-normal-debt",
+            "ev-normal-margin",
+            "ev-normal-price",
+            "ev-normal-revenue",
+            "ev-normal-update"
+          ],
+          "invalidation_conditions": [
+            "获得能够验证估值、现金流和产能执行结果的 Gate-allowed 新证据。"
+          ],
+          "maximum_notional": null,
+          "no_trade_explanation": "在 cio-only 评估拓扑中，没有已验证的 Specialist 报告；Gate 范围内事实不足以验证估值、现金流、竞争状况和产能计划执行情况，不能负责任地形成持仓调整意图。",
+          "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+          "reevaluation_conditions": [
+            "获得 Gate-allowed 的估值、现金流和产能执行证据。",
+            "获得按本次 Invocation 验证的独立研究报告，明确支持或反驳持仓调整理由。"
+          ],
+          "security_id": null,
+          "target_weight_range": null,
+          "thesis": "Gate 范围内的基础事实显示 SEC-AAA 的 TTM 收入为 1,000,000 美元、营业利润率为 18%、总债务为 150,000 美元，且管理层维持既有产能计划；这些事实本身不足以形成经交叉研究验证的持仓调整依据。",
+          "time_horizon": "在获得下列重新评估条件之前不形成持仓调整建议。",
+          "unresolved_questions": [
+            "在当前价格下，公司相对于其现金流和盈利能力的估值是否具有吸引力？",
+            "维持的产能计划能否按预期执行并转化为可验证的经营成果？",
+            "竞争环境和潜在下行情景会如何影响收入、利润率及资本结构？"
+          ]
+        }
+      ],
+      "risk_report": {
+        "feasible_bounds": {
+          "SEC-AAA": {
+            "maximum": 0.6,
+            "minimum": 0.0
+          }
+        },
+        "final_action": "NO_TRADE",
+        "original_action": "NO_TRADE",
+        "policy_version": "risk/reference/1.0.0",
+        "status": "APPROVED",
+        "veto_reason": null,
+        "violations": []
+      },
+      "run_id": "rreh-ablation-v3-normal-cio-only-20260907",
+      "schema_version": "final-decision/2.0.0",
+      "terminal_state": "SAFE_NO_TRADE"
+    },
+    "evidence/gate.json": {
+      "allowed_evidence": [
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-debt",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "total_debt",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/debt/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 150000
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "evidence_id": "ev-normal-margin",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "operating_margin_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/margin/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "ratio",
+          "value": 0.18
+        },
+        {
+          "as_of": "2026-01-30T21:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-price",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-30T21:05:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "close_price",
+          "source_id": "fixture-market-primary",
+          "source_locator": "fixture://normal/price/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD_per_share",
+          "value": 100
+        },
+        {
+          "as_of": "2025-12-31T00:00:00Z",
+          "currency": "USD",
+          "evidence_id": "ev-normal-revenue",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-15T13:00:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "revenue_ttm",
+          "source_id": "fixture-filing-primary",
+          "source_locator": "fixture://normal/revenue/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "USD",
+          "value": 1000000
+        },
+        {
+          "as_of": "2026-01-20T14:00:00Z",
+          "evidence_id": "ev-normal-update",
+          "freshness_policy_version": "freshness/fixture/2.0.0",
+          "freshness_status": "FRESH",
+          "retrieved_at": "2026-01-20T14:01:00Z",
+          "security_id": "SEC-AAA",
+          "semantic_field": "company_update",
+          "source_id": "fixture-company-release",
+          "source_locator": "fixture://normal/update/1",
+          "source_type": "fixture",
+          "source_version": "1",
+          "unit": "text",
+          "value": "Management maintained the previously stated capacity plan."
+        }
+      ],
+      "allowed_evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "bundle_hash": "2851fa7c0beef0da9cb4c99e89140499e34942067ddf180216b754dde26930a2",
+      "conflict_policy_version": "conflict-key/2.0.0",
+      "conflicts": [],
+      "decision_cutoff": "2026-01-31T23:59:59Z",
+      "excluded": [],
+      "excluded_evidence_ids": [],
+      "fixture_id": "normal-research-v1",
+      "freshness_policy_version": "freshness/fixture/2.0.0",
+      "input_evidence_ids": [
+        "ev-normal-debt",
+        "ev-normal-margin",
+        "ev-normal-price",
+        "ev-normal-revenue",
+        "ev-normal-update"
+      ],
+      "input_hash": "0aa04db91168086dabaec2e69647c59e80b7cac099d6ae07e3bdf63a5928b7fe",
+      "run_id": "rreh-ablation-v3-normal-cio-only-20260907",
+      "schema_version": "evidence-gate/2.0.0"
+    }
+  },
+  "failed_stage": null,
+  "run_id": "rreh-ablation-v3-normal-cio-only-20260907",
+  "terminal_state": "SAFE_NO_TRADE"
+}

@@ -1,0 +1,30 @@
+{
+  "artifacts": {
+    "decision_trace": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run/decision_trace.json",
+    "eval_result": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/runtime-eval/eval/result.json",
+    "run_dir": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-final-20260908/regression/suite-final/cases/future-information-leakage/run"
+  },
+  "case_id": "future-information-leakage",
+  "executed_operations": [
+    "deterministic_injection",
+    "trace_integrity_report",
+    "artifact_replay",
+    "runtime_eval_verify"
+  ],
+  "hashes": {
+    "artifact_replay": "842d9adb8af9e380655e0e6476910fab9b7e54b2c6f415b1575a9cbd4be72fd5",
+    "candidate_version_manifest": "ecc5578a0116d1ef0220cbaa5698a4bc6aabe7bbc8aa425b7244d5beaa925017",
+    "deterministic_outcome": "949eaea43d9bb34ff1e9771711452e86f7629219264c96e4a03b078edb479031",
+    "grader_execution_proof": null,
+    "runtime_eval": "dee8dc6d158069fbed29eaf7393a45649880883313f861feb294d08252780311",
+    "trace": "f8a7a3cbef56bd6d9ad6af022c609efc1a94542adcf53ca034bb45391abaf444",
+    "trace_report": "a422508d7be8988a9551221ab09a6d0927b31191f5543095b16d357d444527ba"
+  },
+  "llm_calls_during_verification": 0,
+  "producer": "deterministic-injection",
+  "proof_hash": "2db1b30872dacb6dc321480dc3b82da58a340675b1d5441a16b81005dc1591d7",
+  "run_id": "regression-rrh-final-regression-20260908-future-information-leakage-63d42921f73d",
+  "schema_version": "regression-case-execution-proof/1.0.0",
+  "source_command": "execute_deterministic_case:future-information-leakage",
+  "status": "PASS"
+}

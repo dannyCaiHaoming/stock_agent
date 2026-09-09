@@ -1,0 +1,70 @@
+{
+  "action": "NO_TRADE",
+  "agents_run": [
+    "runtime_company_analyst",
+    "runtime_skeptic",
+    "runtime_cio"
+  ],
+  "cached_tokens": 406528,
+  "eval_hash": "dbdd61c950c540e1c1ea05489ab60024aa93bf16c0a5f6b170cf2d1f5411273a",
+  "eval_status": "PASS",
+  "failed_stage": null,
+  "future_leak_count": 0,
+  "input_tokens": 521151,
+  "latency_ms": 212321,
+  "llm_calls": 16,
+  "model": "gpt-5.6-terra",
+  "output_tokens": 8896,
+  "risk_bypassed": false,
+  "risk_status": "REJECTED",
+  "run_id": "rreh-hardening-execution-replay-risk-veto-20260907",
+  "semantic_dimensions": {
+    "analyst_thesis_grounding": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 将两项主张限定为有引用的价格和 TTM 收入事实，并明确区分其余商业质量、估值和风险判断所需的证据缺口。",
+      "status": "PASS"
+    },
+    "cio_conflict_handling": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "CIO 明确记录两份报告的共识、无机械证据冲突及未决问题，并将其影响限定为不形成方向性建议；最终 Risk Veto 亦被保留。",
+      "status": "PASS"
+    },
+    "confidence_calibration": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Analyst 的低置信度对应证据不足；Skeptic 与 CIO 的较高置信度均明确限定为对证据不足结论的置信度，而非对证券基本面的方向性判断。",
+      "status": "PASS"
+    },
+    "no_trade_reasoning": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "最终决策明确由 Risk Engine 的 RISK_VETO 触发 NO_TRADE，并列出可行边界后重评条件；CIO 的证据不足理由亦与冻结证据范围一致。",
+      "status": "PASS"
+    },
+    "skeptic_counter_evidence": {
+      "evidence_refs": [
+        "ev-risk-price",
+        "ev-risk-revenue"
+      ],
+      "grade": 3,
+      "rationale": "Independent First Pass 针对单点价格和单期收入提出具体、可证伪的限制，并列明解决各限制所需的冻结证据。",
+      "status": "PASS"
+    }
+  },
+  "terminal_state": "SAFE_NO_TRADE",
+  "trace_hash": "36fd5f01fad90feaf3bf4001518b531ca18c8bc45b09a5a59b0398613df625ad"
+}

@@ -1,0 +1,69 @@
+{
+  "check": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "mandate_version": "mandate/fixture/2.0.0",
+    "metric_definition_version": "portfolio-metrics/1.0.0",
+    "policy_version": "risk/reference/1.0.0",
+    "post_trade_metrics": {
+      "average_daily_value": {
+        "SEC-AAA": 10000000.0
+      },
+      "cash": 50000.0,
+      "cash_weight": 0.5,
+      "concentration_hhi": 0.25,
+      "cost_bps": 10.0,
+      "definition_version": "portfolio-metrics/1.0.0",
+      "liquidity_participation": {
+        "SEC-AAA": 0.0
+      },
+      "max_position_weight": 0.5,
+      "position_weights": {
+        "SEC-AAA": 0.5
+      },
+      "sector_exposure": {
+        "Synthetic Technology": 0.5
+      },
+      "simulated_cost": 0.0,
+      "total_value": 100000.0,
+      "trade_notionals": {
+        "SEC-AAA": 0.0
+      },
+      "turnover": 0.0
+    },
+    "pre_trade_metrics": {
+      "average_daily_value": {
+        "SEC-AAA": 10000000.0
+      },
+      "cash": 50000.0,
+      "cash_weight": 0.5,
+      "concentration_hhi": 0.25,
+      "definition_version": "portfolio-metrics/1.0.0",
+      "max_position_weight": 0.5,
+      "position_weights": {
+        "SEC-AAA": 0.5
+      },
+      "sector_exposure": {
+        "Synthetic Technology": 0.5
+      },
+      "total_value": 100000.0
+    },
+    "stage": "FINAL",
+    "status": "APPROVED",
+    "veto_codes": [],
+    "violations": []
+  },
+  "draft_hash": "46c2013f3931cdcb2bc91b9454f7d68e016d951e275a023d6e335a84e8e5374a",
+  "final_action": "NO_TRADE",
+  "modifications": [],
+  "original_action": "NO_TRADE",
+  "policy_version": "risk/reference/1.0.0",
+  "producer": "deterministic_risk_engine",
+  "run_id": "rrh-final-lock-regression-normal-research-20260908",
+  "schema_version": "native-risk-result/2.0.0",
+  "veto_reason": null
+}

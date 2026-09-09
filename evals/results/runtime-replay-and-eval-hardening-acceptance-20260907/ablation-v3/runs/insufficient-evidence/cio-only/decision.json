@@ -1,0 +1,51 @@
+{
+  "advisory_only": true,
+  "decisions": [
+    {
+      "action": "NO_TRADE",
+      "confidence": 0.05,
+      "confidence_rationale": "对不采取行动的置信度来自证据范围：唯一允许事实不足以支撑方向性判断，且 cio-only 拓扑中不存在可消费的已验证 Specialist 报告。",
+      "counter_thesis": "单一价格观察未提供足以反驳或验证任何投资 Thesis 的基本面、估值、流动性趋势或独立反证。",
+      "current_weight": 0.5,
+      "evidence_refs": [
+        "ev-insufficient-price"
+      ],
+      "invalidation_conditions": [
+        "获得可核验且在 decision_cutoff 内的基本面、估值、催化剂和风险证据后，应重新评估本次证据不足结论。"
+      ],
+      "maximum_notional": null,
+      "no_trade_explanation": "仅有一项 Gate-scoped 的价格事实，缺少形成或检验投资 Thesis 所需的关键证据，因此不形成行动意见。",
+      "no_trade_reason": "INSUFFICIENT_EVIDENCE",
+      "reevaluation_conditions": [
+        "获得 Gate-allowed、可核验且时点合格的基本面和估值证据。",
+        "获得可核验的催化剂、风险与独立反证材料后重新运行综合。"
+      ],
+      "security_id": "SEC-AAA",
+      "target_weight_range": null,
+      "thesis": "Gate-scoped Evidence 仅确认 SEC-AAA 在 2026-01-30 的新鲜收盘价为 100 USD，不能单独支持商业质量、估值、催化剂或风险判断。",
+      "time_horizon": "在获得可核验的补充证据前不形成行动意见。",
+      "unresolved_questions": [
+        "SEC-AAA 的业务质量、竞争地位和盈利能力如何？",
+        "相对内在价值或可比估值的依据是什么？",
+        "是否存在可核验的催化剂、下行风险、流动性变化或独立反证？"
+      ]
+    }
+  ],
+  "risk_report": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "run_id": "rreh-ablation-v3-insufficient-cio-only-20260907",
+  "schema_version": "final-decision/2.0.0",
+  "terminal_state": "SAFE_NO_TRADE"
+}

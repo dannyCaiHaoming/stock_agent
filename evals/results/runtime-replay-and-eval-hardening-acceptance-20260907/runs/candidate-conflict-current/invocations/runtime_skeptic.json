@@ -1,0 +1,61 @@
+{
+  "agent": {
+    "name": "runtime_skeptic",
+    "path": "/Users/caihaoming/Documents/stock_agent/product/.codex/agents/runtime_skeptic.toml",
+    "sha256": "7256d408f2f135debaeb47b6cd3e8f781183c9d7f50607bd0ff48933ffe26817",
+    "version": "2.0.0"
+  },
+  "codex_runtime": "codex-cli/0.153.4",
+  "decision_contract": {
+    "path": "/Users/caihaoming/Documents/stock_agent/product/contracts/council-decision-contract.json",
+    "sha256": "469f7b4c805aa0271265201b65829a52c93b20c1e842c1183edfc355f9880fa7",
+    "version": "council-decision-contract/1.0.0"
+  },
+  "evidence_ids": [
+    "ev-conflict-margin",
+    "ev-conflict-price",
+    "ev-conflict-revenue-a",
+    "ev-conflict-revenue-b"
+  ],
+  "input_artifact": "inputs/runtime_skeptic.json",
+  "input_hash": "3167655e63bd0010f9e91b992702414f2ead3d8ec542a7a786b63db98553d893",
+  "instruction_bundle_hash": "d4fab576d45f0ab986461c0089af4cd74f529dcc8f55a0f3ec4e5a42de67d096",
+  "invocation_id": "inv_c6b96b92d8d6d8008e578b13",
+  "manifest_hash": "075a367ac36113a6a914ca04777d3ae76f7d6b95937b1bdecc2de3c407d82433",
+  "model": "gpt-5.6-terra",
+  "output_schema": "/Users/caihaoming/Documents/stock_agent/evals/results/runtime-replay-and-eval-hardening-acceptance-20260907/runs/candidate-conflict-current/schemas/counter-thesis-report.schema.json",
+  "output_schema_hash": "ac0b122953604d5c98dfda2ad37cc00ae386883069d1e553f6800b9be51882ea",
+  "run_id": "rreh-candidate-conflict-current-20260907",
+  "schema_version": "invocation-manifest/2.1.0",
+  "skill_execution": [
+    {
+      "invocation_hash": "103ed4f4fd42d9bb87922e6587217f87fbd9259619a44b3c12931ca4e8e9b013",
+      "skill_name": "evidence-grounding",
+      "version": "2.0.0"
+    },
+    {
+      "invocation_hash": "16b52e392f0fbca9295432ec7dcc3412d3cc815990461ec285329c394693e115",
+      "skill_name": "counter-thesis",
+      "version": "2.0.0"
+    }
+  ],
+  "skills": [
+    {
+      "name": "evidence-grounding",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/evidence-grounding/SKILL.md",
+      "sha256": "7b1581a5b46374e86990b4598949a72f428713726b77f078970c8c8a6662abee",
+      "version": "2.0.0"
+    },
+    {
+      "name": "counter-thesis",
+      "path": "/Users/caihaoming/Documents/stock_agent/product/skills/counter-thesis/SKILL.md",
+      "sha256": "007b2219891e2bdd193f0854c49cc9d1c34314bb72a9a14a1b14ae2905b38845",
+      "version": "2.0.0"
+    }
+  ],
+  "task_prompt_artifact": "prompts/runtime_skeptic.txt",
+  "task_prompt_hash": "70c48cda5bf1384d7fa09d71aba4858cf27d8ed0e0b4b61e3437541f6393125d",
+  "tool_permissions": [
+    "fixture_evidence.query"
+  ]
+}
