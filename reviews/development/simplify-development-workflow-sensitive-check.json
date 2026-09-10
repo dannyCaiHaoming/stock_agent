@@ -1,0 +1,9 @@
+{
+  "command": "rg -n 'PRIVATE KEY|sk-[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|Bearer [A-Za-z0-9._-]+|password\\s*[:=]\\s*[\"\\x27][^\"\\x27]+|dannycaihaoming@' AGENTS.md docs/development/workflow.md docs/development/environment.md .codex/agents/dev_reviewer.toml .codex/config.toml tests/test_development_workflow.py reviews/development/simplify-development-workflow-* openspec/changes/simplify-development-workflow",
+  "chunk_id": "7ff8dd",
+  "wall_time_seconds": 0.000002333,
+  "exit_code": 1,
+  "original_token_count": 0,
+  "output": "",
+  "note": "exit_code=1 表示无匹配，不是扫描失败；仅常见凭证/私人邮箱模式检查，不保证检出所有敏感信息。共享测试的本次增量在 checks.json 中纳入扫描。"
+}

@@ -59,9 +59,11 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 
 ## 模型与消耗
 
-模型偏好的权威来源为 [model-routing.json](../../product/model-routing.json)：普通开发、重复 Runtime、重大疑难分析分别使用其中对应值；不要在这里维护第二份 ID 清单。
+保留 Sol 常规开发、Astra 复杂分析、Terra 产品开发期 LLM 测试的既有分工与成本控制。用户明确选择主开发会话模型时尊重其选择，不额外要求产品 `dispute_id` 或批准凭证，也不要求根开发默认模型等于产品 `development_default`。开发子 Agent 继续按职责和已有配置选模；Reviewer 使用其实际生效配置，不承诺跟随主会话自动切换，未观测到实际模型时标未确认。
 
-模型由本机支持的配置或显式 `--model` 参数选择，而非 Prompt 自动切换。记录请求模型、配置来源及运行中实际模型；未知时标未确认，不把帮助包含 `--model` 当账户模型可用证明。Desktop 当前会话若无法由仓库配置改变，明确告知用户选择，不声称切换成功。重大争议升级保留原策略所需的争议 ID 和人工批准。
+产品路由的权威来源仍为 [model-routing.json](../../product/model-routing.json)，产品、重复 Runtime 和真实 Runtime Eval 保持已有模型、预算、路由校验及运行锁。显式调用产品 `architecture_dispute` 路由仍需原争议 ID 和人工批准；该条件不反向约束手动开发选模。本 Change 不删除或修改任何既有模型配置，不建立自动路由。
+
+模型由本机支持的配置或显式 `--model` 参数选择，而非 Prompt 自动切换。记录请求模型、配置来源及运行中实际模型；未知时标未确认，不把帮助包含 `--model` 当账户模型可用证明。Desktop 当前会话若无法由仓库配置改变，明确告知用户选择，不声称切换成功。
 
 未变输入复用已验证缓存；真实运行次数按当前 Change 明确预算执行。失败保留事件并先定位，不重复调用 LLM 猜原因。
 
@@ -73,4 +75,4 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 
 指定失败 run 时读取 `invocation/prompt.txt`、invocation/environment manifest、Codex/Hook 事件、stderr、process-result 和终态产物，输出 FIRST_DIVERGENCE、ROOT_CAUSE 或证据不足。Codex 退出码为零不等于 Council 完成：仍须检查 Skill、Specialist、CIO、Risk、终态和场景要求的 decision/report/trace/eval。合法前置终止按原契约标阶段不适用，不伪造执行。
 
-诊断默认不重跑、不修复、不归档、不推送。报告仅保留白名单字段、必要路径及 hash，不复制全局配置、Token 或用户消息。遇范围外问题只记录；验收升级需按 [开发流程](workflow.md) 请求批准。
+仅诊断任务默认不重跑、不修复、不归档、不推送；已获 apply 授权的普通错误在范围内自行修复并做限定检查，不能把诊断规则当作逐步停点，也不自动启动产品或扩大模型预算。报告仅保留白名单字段、必要路径及 hash，不复制全局配置、Token 或用户消息。遇范围外问题只记录；验收升级需按 [开发流程](workflow.md) 请求批准。

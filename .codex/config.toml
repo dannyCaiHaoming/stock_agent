@@ -16,7 +16,7 @@ description = "真实 Runtime 产物的独立语义评分、回归和消融验�
 config_file = "agents/dev_eval.toml"
 
 [agents.dev_reviewer]
-description = "权限、架构边界、回归结果和晋升证据的只读评审。"
+description = "按日常差异、Change 验收或候选晋升目的开展只读复核。"
 config_file = "agents/dev_reviewer.toml"
 
 [sandbox_workspace_write]

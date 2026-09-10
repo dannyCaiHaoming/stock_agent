@@ -6,6 +6,7 @@
 
 - 开发任务不充当 CIO；产品分析仅在有效组合输入与 `portfolio-council` 调用下应用 [product/AGENTS.md](product/AGENTS.md)，不执行开发归档、Git 提交或推送。
 - 行为变更使用 OpenSpec：先 propose/update，再显式 apply；实施前阅读当前 Proposal、Specs、Design、Tasks。
+- 已获 apply 授权后持续推进范围内实现、普通错误修复和聚焦检查，阶段汇报后继续；只有真实阻断或人工完成批准才暂停相应工作，不突破权限、范围或模型预算。
 - 开发自检在当前 Codex 环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。
 - 真实 Smoke 与 Execution Replay 仅从宿主 Terminal 使用 [宿主 launcher](scripts/run-product-smoke.sh)；重放使用 `--prepared-run`，准备及收尾见运行手册。底层 `python3 -m product.runtime.cli` 仅为内部实现及确定性工具入口，不另造编排后端、不绕过宿主入口直接启动模型。
 - 独立复核默认读取差异、规格与已有证据；缺证据只提出具体宿主补跑需求，不自行启动产品或额外沙箱。旧 review/probe/preflight 启动入口已退役。
@@ -25,7 +26,7 @@
 - 所有承载事实的契约都必须包含 `source_id`、`as_of` 和 `retrieved_at`。
 - 所有运行时能力都必须包含 Input、Tool/Data、Skill/Reasoning、Structured Output 和 Eval。
 - 候选版本必须锁定模型、Skill、Agent、Schema、MCP Adapter、Risk Policy 和数据版本。
-- 每次实现一个能力纵向切片，按任务验证后才勾选完成。迭代先聚焦测试，复用仍适用的证据；晋升前必须通过 OpenSpec、完整确定性测试、Eval/Regression、架构评审及人工批准。Change 完成不代表 Promotion PASS。
+- 日常开发按纵向切片做聚焦验证，验证后才勾选；Change 按既定 Specs/Tasks、独立复核和人工批准收尾；晋升另需版本锁、OpenSpec、完整确定性测试、Eval/Regression 和架构评审及人工批准。复用有效证据，不把发布级检查作为每步前置；Change 完成不代表 Promotion PASS。
 - 测试/复核必须保护源码并允许指定产物和临时目录写入；实际权限不足即报告最小授权需求，不自动提权或关闭沙箱。配置存在和事后 hash 均不能代替权限或实际加载证明。
 - 禁止提交凭据、私人会话数据库及无关用户消息；发现疑似敏感信息、未审阅变更或校验失败时停止相关发布并报告。
 - 仅开发收尾：每次 Change 成功归档后，按已批准范围提交归档、主规格同步及相关实现并推送至 `https://github.com/dannyCaiHaoming/stock_agent.git`；校验失败、测试失败或敏感信息未处理时不得推送。详见开发流程。

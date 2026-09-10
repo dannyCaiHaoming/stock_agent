@@ -370,11 +370,9 @@ class RetiredSandboxEntryTests(unittest.TestCase):
 
 
 class ModelConfigurationTests(unittest.TestCase):
-    def test_effective_development_defaults_match_canonical_policy(self):
+    def test_runtime_eval_model_matches_product_policy(self):
         policy = load_model_routing(ROOT / "product")
-        config = tomllib.loads((ROOT / ".codex" / "config.toml").read_text())
         evaluation = tomllib.loads((ROOT / ".codex" / "agents" / "dev_eval.toml").read_text())
-        self.assertEqual(config["model"], policy["development_default"])
         self.assertEqual(evaluation["model"], policy["runtime_repeated"])
 
     def test_dispute_model_cannot_be_selected_without_authorization(self):
