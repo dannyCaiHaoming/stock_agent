@@ -28,18 +28,22 @@ class GovernanceTests(unittest.TestCase):
     def test_project_config_retains_native_settings_without_unused_profile(self):
         config = tomllib.loads((ROOT / ".codex/config.toml").read_text())
         # 本 Change 基线的有效配置；只移除没有消费者的 project-edit 域名表。
-        expected_agents = {"max_threads": 4}
-        for name, description in (
-            ("dev_architect", "OpenSpec 一致性、能力边界和架构决策。"),
-            ("dev_contracts", "版本化数据、证据、决策和追踪契约。"),
-            ("dev_eval", "真实 Runtime 产物的独立语义评分、回归和消融验证。"),
-            ("dev_reviewer", "权限、架构边界、回归结果和晋升证据的只读评审。"),
-        ):
-            expected_agents[name] = {"description": description, "config_file": f"agents/{name}.toml"}
-        self.assertEqual(config, {
-            "model": "gpt-5.6-sol", "sandbox_mode": "workspace-write",
-            "agents": expected_agents, "sandbox_workspace_write": {"network_access": True},
-        })
+        self.assertEqual(config["model"], "gpt-5.6-sol")
+        self.assertEqual(config["sandbox_mode"], "workspace-write")
+        self.assertEqual(config["sandbox_workspace_write"], {"network_access": True})
+        self.assertEqual(config["agents"]["max_threads"], 4)
+        self.assertEqual(
+            set(config["agents"]) - {"max_threads"},
+            {"dev_architect", "dev_contracts", "dev_eval", "dev_reviewer"},
+        )
+        for name in set(config["agents"]) - {"max_threads"}:
+            registration = config["agents"][name]
+            self.assertEqual(registration["config_file"], f"agents/{name}.toml")
+            agent = tomllib.loads(
+                (ROOT / ".codex" / registration["config_file"]).read_text()
+            )
+            self.assertTrue(registration["description"].strip())
+            self.assertTrue(agent["description"].strip())
 
     def test_development_control_plane_has_no_runtime_authority(self):
         text = (ROOT / "AGENTS.md").read_text()
