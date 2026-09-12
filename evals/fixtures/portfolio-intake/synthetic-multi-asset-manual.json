@@ -1,0 +1,36 @@
+{
+  "draft_id": "draft-synthetic-multi-asset",
+  "portfolio_scope": "USER_DEFINED_PORTFOLIO",
+  "portfolio_complete": true,
+  "as_of": "2026-09-11T20:00:00+08:00",
+  "retrieved_at": "2026-09-11T20:01:00+08:00",
+  "base_currency": "USD",
+  "cash": 2500.0,
+  "synthetic": true,
+  "positions": [
+    {"position_id": "stock-aapl", "ticker": "AAPL", "asset_type": "COMMON_STOCK", "quantity": 5, "cost_basis": 180.0},
+    {"position_id": "etf-soxl", "ticker": "SOXL", "asset_type": "ETF", "quantity": 2, "cost_basis": 120.0},
+    {
+      "position_id": "option-soxl-put-short",
+      "ticker": "SOXL",
+      "asset_type": "OPTION",
+      "quantity": -1,
+      "cost_basis": 1.75,
+      "option_contract": {
+        "underlying_ticker": "SOXL", "option_type": "PUT", "expiration_date": "2026-09-18",
+        "strike": 98.0, "contract_multiplier": 100, "contract_symbol": "SOXL260918P00098000"
+      }
+    },
+    {
+      "position_id": "option-aapl-call-long",
+      "ticker": "AAPL",
+      "asset_type": "OPTION",
+      "quantity": 1,
+      "cost_basis": 3.2,
+      "option_contract": {
+        "underlying_ticker": "AAPL", "option_type": "CALL", "expiration_date": "2026-12-18",
+        "strike": 220.0, "contract_multiplier": 100, "contract_symbol": null
+      }
+    }
+  ]
+}

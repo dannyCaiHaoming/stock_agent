@@ -1,0 +1,18 @@
+{
+  "schema_version": "portfolio-intake-fixtures/2.0.0",
+  "synthetic_only": true,
+  "cases": [
+    {"case_id": "manual-input", "proof": "synthetic-manual-ten-positions.json", "expected": "可创建 Draft"},
+    {"case_id": "clear-screenshot", "proof": "synthetic-account-page.png", "expected": "只提取可见事实"},
+    {"case_id": "missing-cash", "proof": "synthetic-screenshot-observation.json", "expected": "cash 保持 null 并阻止确认"},
+    {"case_id": "broker-missing-page", "proof": "tests/test_portfolio_intake.py", "expected": "BROKER_ACCOUNT 完整性校验失败"},
+    {"case_id": "user-defined-complete", "proof": "tests/test_portfolio_intake.py", "expected": "按声明集合确认"},
+    {"case_id": "multi-source-conflict", "proof": "tests/test_portfolio_intake.py", "expected": "保留 candidates 并阻止确认"},
+    {"case_id": "ten-positions", "proof": "synthetic-manual-ten-positions.json", "expected": "全部进入 Handoff 和研究计划"},
+    {"case_id": "duplicate-security", "proof": "tests/test_portfolio_intake.py", "expected": "fail-closed"},
+    {"case_id": "unsupported-asset", "proof": "tests/test_portfolio_intake.py", "expected": "显式列出且阻止确认"},
+    {"case_id": "multi-asset-manual", "proof": "synthetic-multi-asset-manual.json", "expected": "普通股、ETF、Long/Short Option 全部保留并声明能力缺口"},
+    {"case_id": "truncated-option", "proof": "tests/test_portfolio_intake.py", "expected": "不可见期权身份保持 MISSING 并阻止 Handoff"},
+    {"case_id": "duplicate-option", "proof": "tests/test_portfolio_intake.py", "expected": "同一期权合约重复时 fail-closed"}
+  ]
+}

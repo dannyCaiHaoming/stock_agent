@@ -1,0 +1,41 @@
+{
+  "schema_version": "development-test-result/1.0.0",
+  "change_id": "establish-portfolio-intake",
+  "executed_at": "2026-09-12T08:45:08+08:00",
+  "status": "PASSED",
+  "tests_run": 63,
+  "execution_breakdown": {
+    "current_snapshot_focused_and_skill_tests": 36,
+    "reused_unaffected_demo_regression_tests": 27
+  },
+  "commands": [
+    "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.test_portfolio_intake -v",
+    "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.test_product_config.SkillConfigTests -v",
+    "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.test_agent_package_demo tests.test_agent_package_demo_workflow -v",
+    "openspec validate establish-portfolio-intake --strict",
+    "python3 -m product.intake.cli validate-handoff --handoff reviews/development/portfolio-intake-synthetic-example/portfolio-handoff.json --draft reviews/development/portfolio-intake-synthetic-example/portfolio-draft-confirmable.json"
+  ],
+  "checks": {
+    "portfolio_intake_tests": "PASSED",
+    "skill_discovery_and_frontmatter": "PASSED",
+    "existing_demo_regression": "PASSED",
+    "openspec_strict_validate": "PASSED",
+    "synthetic_handoff_validation": "PASSED",
+    "multi_asset_stock_etf_options": "PASSED",
+    "signed_non_zero_quantities": "PASSED",
+    "capability_gap_fail_closed": "PASSED",
+    "same_private_screenshot_retest": "PASSED_WITH_EXPECTED_CONFIRMATION_BLOCK",
+    "private_evidence_id": "stock-agent-portfolio-intake-v2.8oAagv",
+    "research_llm_started": false,
+    "portfolio_council_started": false
+  },
+  "source_hashes": {
+    "product/intake/service.py": "505db3a8d847c6703fb1d3eb8e2843d10b95127872705fbc83f5e746ab626033",
+    "product/intake/cli.py": "d22befe5938d26232b4b1b265e3f6e5bc70f61b961b313c6563d950766a9874e",
+    "product/schemas/intake/portfolio-draft.schema.json": "30cb9695c76fb289a4068ac67543830609b0d03f8f93250229d315499f1d6c34",
+    "product/schemas/intake/portfolio-handoff.schema.json": "339f6b8961858e4ea42c10eb69234560e954c0e3a984d92e727a916fdb9135b5",
+    "product/skills/portfolio-intake/SKILL.md": "e92ff17a0f64756949a500072e6e4a61b91f8524ff074901c22ad220906371f8",
+    "tests/test_portfolio_intake.py": "2603756d64a4dc5d51176cbc0632796d2ac47b6fe0c7ec9daa974b90348cae30",
+    "evals/fixtures/portfolio-intake/synthetic-multi-asset-manual.json": "d69ca38443d0f6f0d6f59a98d5cb2ac203fd8081b39c928aa0beedf6b5dad655"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "capability_gaps": [],
+  "council_readiness": "READY",
+  "portfolio": {
+    "as_of": "2026-09-11T20:00:00+08:00",
+    "base_currency": "USD",
+    "benchmark_id": "SP500",
+    "cash": 2500.0,
+    "holding_horizon": "12-24 months",
+    "mandate_artifact_id": "mandate:us-equity-long-only-v1",
+    "positions": [
+      {
+        "asset_type": "COMMON_STOCK",
+        "cost_basis": 181.25,
+        "market": "US",
+        "option_contract": null,
+        "quantity": 12,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:AAPL",
+        "source_refs": [
+          "source-synthetic-screenshot"
+        ],
+        "ticker": "AAPL"
+      },
+      {
+        "asset_type": "COMMON_STOCK",
+        "cost_basis": 176.8,
+        "market": "US",
+        "option_contract": null,
+        "quantity": 6,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:AMZN",
+        "source_refs": [
+          "source-synthetic-screenshot"
+        ],
+        "ticker": "AMZN"
+      },
+      {
+        "asset_type": "COMMON_STOCK",
+        "cost_basis": 164.3,
+        "market": "US",
+        "option_contract": null,
+        "quantity": 10,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:GOOGL",
+        "source_refs": [
+          "source-synthetic-screenshot"
+        ],
+        "ticker": "GOOGL"
+      },
+      {
+        "asset_type": "COMMON_STOCK",
+        "cost_basis": 392.1,
+        "market": "US",
+        "option_contract": null,
+        "quantity": 8,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:MSFT",
+        "source_refs": [
+          "source-synthetic-screenshot"
+        ],
+        "ticker": "MSFT"
+      },
+      {
+        "asset_type": "COMMON_STOCK",
+        "cost_basis": 118.4,
+        "market": "US",
+        "option_contract": null,
+        "quantity": 20,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:NVDA",
+        "source_refs": [
+          "source-synthetic-screenshot"
+        ],
+        "ticker": "NVDA"
+      }
+    ],
+    "research_question": "解释全部持仓应继续持有、减仓或暂不操作的依据"
+  },
+  "portfolio_hash": "8206efa60c564d538bdadc87a5d76cb040b342a8c76aaf19dcb298ad46cd0ebc",
+  "research_plan": {
+    "batch_size": 3,
+    "completed": 0,
+    "failed": 0,
+    "items": [
+      {
+        "batch_index": 1,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:AAPL",
+        "status": "PENDING"
+      },
+      {
+        "batch_index": 1,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:AMZN",
+        "status": "PENDING"
+      },
+      {
+        "batch_index": 1,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:GOOGL",
+        "status": "PENDING"
+      },
+      {
+        "batch_index": 2,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:MSFT",
+        "status": "PENDING"
+      },
+      {
+        "batch_index": 2,
+        "required_capability": "company-research",
+        "security_id": "US:COMMON_STOCK:NVDA",
+        "status": "PENDING"
+      }
+    ],
+    "pending": 5,
+    "total": 5
+  },
+  "schema_version": "portfolio-council-input/2.0.0",
+  "source_handoff_hash": "2548523b51c1109600a137e3834d0209d98e33d07ab4b5dbf22066e3d30b5128",
+  "source_handoff_id": "handoff-draft-synthetic-screenshot"
+}

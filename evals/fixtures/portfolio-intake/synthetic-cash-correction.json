@@ -1,0 +1,19 @@
+{
+  "source_item": {
+    "source_id": "source-synthetic-correction",
+    "source_type": "USER_CORRECTION",
+    "as_of": "2026-09-11T20:03:00+08:00",
+    "retrieved_at": "2026-09-11T20:03:00+08:00",
+    "content_hash": "736f981f7d66ec0d90930e6ac64d90d08b87bfc62096a97369979a3f9ff4d796",
+    "external_ref": null,
+    "synthetic": true,
+    "coverage_status": "COMPLETE"
+  },
+  "corrections": [
+    {
+      "path": "cash",
+      "value": 2500.0,
+      "note": "合成用户补充：现金为 USD 2,500"
+    }
+  ]
+}

@@ -13,6 +13,7 @@ EVALS_ROOT = ROOT / "evals" / "capabilities"
 
 SKILL_NAMES = {
     "portfolio-council",
+    "portfolio-intake",
     "evidence-grounding",
     "company-research",
     "valuation",
@@ -71,7 +72,7 @@ class SkillConfigTests(unittest.TestCase):
             self.assertEqual(fields.get("name"), skill_name)
             expected_version = (
                 "1.0.0"
-                if skill_name == "catalyst-analysis"
+                if skill_name in {"catalyst-analysis", "portfolio-intake"}
                 else "3.0.0"
                 if skill_name == "portfolio-council"
                 else "2.0.0"

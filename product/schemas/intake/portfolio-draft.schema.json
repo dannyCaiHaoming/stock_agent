@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-draft/2.0.0",
+  "title": "PortfolioDraft",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "draft_id",
+    "portfolio_scope",
+    "portfolio_complete",
+    "account_ref",
+    "source_items",
+    "portfolio_as_of",
+    "base_currency",
+    "cash",
+    "positions",
+    "unsupported_assets",
+    "unresolved_fields",
+    "draft_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "portfolio-draft/2.0.0"},
+    "draft_id": {"type": "string", "minLength": 1},
+    "portfolio_scope": {
+      "type": "string",
+      "enum": ["BROKER_ACCOUNT", "USER_DEFINED_PORTFOLIO"]
+    },
+    "portfolio_complete": {"type": "boolean"},
+    "account_ref": {"type": ["string", "null"]},
+    "source_items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "source_type",
+          "as_of",
+          "retrieved_at",
+          "content_hash",
+          "external_ref",
+          "synthetic",
+          "coverage_status"
+        ],
+        "properties": {
+          "source_id": {"type": "string", "minLength": 1},
+          "source_type": {
+            "type": "string",
+            "enum": ["SCREENSHOT", "MANUAL", "USER_CORRECTION"]
+          },
+          "as_of": {"type": "string", "minLength": 1},
+          "retrieved_at": {"type": "string", "minLength": 1},
+          "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "external_ref": {"type": ["string", "null"]},
+          "synthetic": {"type": "boolean"},
+          "coverage_status": {
+            "type": "string",
+            "enum": ["COMPLETE", "PARTIAL", "UNKNOWN"]
+          }
+        }
+      }
+    },
+    "portfolio_as_of": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "status", "source_refs", "candidates", "note"],
+      "properties": {
+        "value": {"type": ["string", "null"]},
+        "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+        "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "candidates": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": ["string", "null"]}
+      }
+    },
+    "base_currency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "status", "source_refs", "candidates", "note"],
+      "properties": {
+        "value": {"type": ["string", "null"]},
+        "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+        "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "candidates": {"type": "array", "items": {"type": "string"}},
+        "note": {"type": ["string", "null"]}
+      }
+    },
+    "cash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "status", "source_refs", "candidates", "note"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+        "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "candidates": {"type": "array", "items": {"type": "number"}},
+        "note": {"type": ["string", "null"]}
+      }
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["position_id", "ticker", "market", "asset_type", "quantity", "cost_basis", "option_contract"],
+        "properties": {
+          "position_id": {"type": "string", "minLength": 1},
+          "ticker": {
+            "type": "object", "additionalProperties": false,
+            "required": ["value", "status", "source_refs", "candidates", "note"],
+            "properties": {
+              "value": {"type": ["string", "null"]},
+              "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+              "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+              "candidates": {"type": "array", "items": {"type": "string"}},
+              "note": {"type": ["string", "null"]}
+            }
+          },
+          "market": {
+            "type": "object", "additionalProperties": false,
+            "required": ["value", "status", "source_refs", "candidates", "note"],
+            "properties": {
+              "value": {"type": ["string", "null"]},
+              "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+              "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+              "candidates": {"type": "array", "items": {"type": "string"}},
+              "note": {"type": ["string", "null"]}
+            }
+          },
+          "asset_type": {
+            "type": "object", "additionalProperties": false,
+            "required": ["value", "status", "source_refs", "candidates", "note"],
+            "properties": {
+              "value": {"type": ["string", "null"]},
+              "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+              "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+              "candidates": {"type": "array", "items": {"type": "string"}},
+              "note": {"type": ["string", "null"]}
+            }
+          },
+          "quantity": {
+            "type": "object", "additionalProperties": false,
+            "required": ["value", "status", "source_refs", "candidates", "note"],
+            "properties": {
+              "value": {"type": ["number", "null"]},
+              "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+              "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+              "candidates": {"type": "array", "items": {"type": "number"}},
+              "note": {"type": ["string", "null"]}
+            }
+          },
+          "cost_basis": {
+            "type": "object", "additionalProperties": false,
+            "required": ["value", "status", "source_refs", "candidates", "note"],
+            "properties": {
+              "value": {"type": ["number", "null"]},
+              "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+              "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+              "candidates": {"type": "array", "items": {"type": "number"}},
+              "note": {"type": ["string", "null"]}
+            }
+          },
+          "option_contract": {
+            "oneOf": [
+              {"type": "null"},
+              {
+                "type": "object", "additionalProperties": false,
+                "required": ["underlying_ticker", "option_type", "expiration_date", "strike", "contract_multiplier", "contract_symbol"],
+                "properties": {
+                  "underlying_ticker": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["value", "status", "source_refs", "candidates", "note"],
+                    "properties": {
+                      "value": {"type": ["string", "null"]},
+                      "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+                      "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+                      "candidates": {"type": "array", "items": {"type": "string"}},
+                      "note": {"type": ["string", "null"]}
+                    }
+                  },
+                  "option_type": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["value", "status", "source_refs", "candidates", "note"],
+                    "properties": {
+                      "value": {"type": ["string", "null"]},
+                      "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+                      "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+                      "candidates": {"type": "array", "items": {"type": "string"}},
+                      "note": {"type": ["string", "null"]}
+                    }
+                  },
+                  "expiration_date": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["value", "status", "source_refs", "candidates", "note"],
+                    "properties": {
+                      "value": {"type": ["string", "null"]},
+                      "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+                      "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+                      "candidates": {"type": "array", "items": {"type": "string"}},
+                      "note": {"type": ["string", "null"]}
+                    }
+                  },
+                  "strike": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["value", "status", "source_refs", "candidates", "note"],
+                    "properties": {
+                      "value": {"type": ["number", "null"]},
+                      "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+                      "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+                      "candidates": {"type": "array", "items": {"type": "number"}},
+                      "note": {"type": ["string", "null"]}
+                    }
+                  },
+                  "contract_multiplier": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["value", "status", "source_refs", "candidates", "note"],
+                    "properties": {
+                      "value": {"type": ["number", "null"]},
+                      "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+                      "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+                      "candidates": {"type": "array", "items": {"type": "number"}},
+                      "note": {"type": ["string", "null"]}
+                    }
+                  },
+                  "contract_symbol": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["value", "status", "source_refs", "candidates", "note"],
+                    "properties": {
+                      "value": {"type": ["string", "null"]},
+                      "status": {"type": "string", "enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+                      "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+                      "candidates": {"type": "array", "items": {"type": "string"}},
+                      "note": {"type": ["string", "null"]}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"asset_type": {"properties": {"value": {"const": "OPTION"}}}}},
+            "then": {"properties": {"option_contract": {"type": "object"}}},
+            "else": {"properties": {"option_contract": {"type": "null"}}}
+          }
+        ]
+      }
+    },
+    "unsupported_assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "reason", "source_refs"],
+        "properties": {
+          "label": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1},
+          "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+        }
+      }
+    },
+    "unresolved_fields": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "draft_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

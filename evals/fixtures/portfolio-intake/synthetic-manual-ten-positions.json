@@ -1,0 +1,24 @@
+{
+  "draft_id": "draft-synthetic-manual-ten",
+  "portfolio_scope": "USER_DEFINED_PORTFOLIO",
+  "portfolio_complete": true,
+  "account_ref": null,
+  "source_id": "source-synthetic-manual-ten",
+  "as_of": "2026-09-11T20:00:00+08:00",
+  "retrieved_at": "2026-09-11T20:01:00+08:00",
+  "base_currency": "USD",
+  "cash": 1500.0,
+  "synthetic": true,
+  "positions": [
+    {"ticker": "AAPL", "quantity": 12, "cost_basis": 181.25},
+    {"ticker": "MSFT", "quantity": 8, "cost_basis": 392.10},
+    {"ticker": "NVDA", "quantity": 20, "cost_basis": 118.40},
+    {"ticker": "AMZN", "quantity": 6, "cost_basis": 176.80},
+    {"ticker": "GOOGL", "quantity": 10, "cost_basis": 164.30},
+    {"ticker": "META", "quantity": 4, "cost_basis": 505.00},
+    {"ticker": "AVGO", "quantity": 7, "cost_basis": 158.20},
+    {"ticker": "COST", "quantity": 3, "cost_basis": 890.00},
+    {"ticker": "JPM", "quantity": 9, "cost_basis": 214.00},
+    {"ticker": "BRK.B", "quantity": 5, "cost_basis": null}
+  ]
+}
