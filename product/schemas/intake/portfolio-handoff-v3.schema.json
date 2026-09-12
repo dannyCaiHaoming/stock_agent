@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-handoff/3.0.0",
+  "title": "PortfolioHandoffV3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "handoff_id", "draft_id", "draft_hash", "advisory_only",
+    "confirmation", "portfolio_scope", "source_items", "account_snapshot", "portfolio",
+    "reported_totals", "reconciliation", "field_lineage", "derived_lineage",
+    "unknown_fields", "portfolio_hash", "handoff_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "portfolio-handoff/3.0.0"},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "draft_id": {"type": "string", "minLength": 1},
+    "draft_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "advisory_only": {"const": true},
+    "confirmation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["confirmed", "confirmed_at", "draft_hash"],
+      "properties": {
+        "confirmed": {"const": true},
+        "confirmed_at": {"type": "string", "minLength": 1},
+        "draft_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "portfolio_scope": {"enum": ["BROKER_ACCOUNT", "USER_DEFINED_PORTFOLIO"]},
+    "source_items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+    "account_snapshot": {"$ref": "#/$defs/accountSnapshot"},
+    "portfolio": {
+      "type": "object", "additionalProperties": false,
+      "required": ["as_of", "base_currency", "positions"],
+      "properties": {
+        "as_of": {"type": "string", "minLength": 1},
+        "base_currency": {"const": "USD"},
+        "positions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/position"}}
+      }
+    },
+    "reported_totals": {"type": "array", "items": {"$ref": "#/$defs/reportedTotal"}},
+    "reconciliation": {"$ref": "#/$defs/reconciliation"},
+    "field_lineage": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/fieldLineage"}},
+    "derived_lineage": {"type": "array", "items": {"$ref": "#/$defs/derivedLineage"}},
+    "unknown_fields": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "source_type", "as_of", "retrieved_at", "content_hash", "external_ref", "synthetic", "coverage_status"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "source_type": {"enum": ["SCREENSHOT", "MANUAL", "USER_CORRECTION", "BROKER_READ_ONLY_API", "BROKER_STATEMENT"]},
+        "as_of": {"type": "string", "minLength": 1},
+        "retrieved_at": {"type": "string", "minLength": 1},
+        "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "external_ref": {"type": ["string", "null"]},
+        "synthetic": {"type": "boolean"},
+        "coverage_status": {"enum": ["COMPLETE", "PARTIAL", "UNKNOWN"]}
+      }
+    },
+    "accountSnapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "account_type", "account_ref", "base_currency", "as_of", "net_liquidation_value",
+        "securities_value", "cash_balance", "available_funds", "buying_power", "margin_used",
+        "initial_margin_requirement", "maintenance_margin_requirement", "excess_liquidity",
+        "margin_utilization_ratio", "broker_reported_fields", "unknown_fields"
+      ],
+      "properties": {
+        "account_type": {"enum": ["CASH", "MARGIN", "UNKNOWN"]},
+        "account_ref": {"type": ["string", "null"]},
+        "base_currency": {"const": "USD"},
+        "as_of": {"type": "string", "minLength": 1},
+        "net_liquidation_value": {"type": ["number", "null"]},
+        "securities_value": {"type": ["number", "null"]},
+        "cash_balance": {"type": "number"},
+        "available_funds": {"type": ["number", "null"]},
+        "buying_power": {"type": ["number", "null"]},
+        "margin_used": {"type": ["number", "null"]},
+        "initial_margin_requirement": {"type": ["number", "null"]},
+        "maintenance_margin_requirement": {"type": ["number", "null"]},
+        "excess_liquidity": {"type": ["number", "null"]},
+        "margin_utilization_ratio": {"type": ["number", "null"]},
+        "broker_reported_fields": {"type": "array", "items": {"$ref": "#/$defs/brokerField"}},
+        "unknown_fields": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "brokerField": {
+      "type": "object", "additionalProperties": false,
+      "required": ["label", "value", "currency", "source_refs", "normalized_meaning"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "value": {},
+        "currency": {"type": ["string", "null"]},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "normalized_meaning": {"type": ["string", "null"]}
+      }
+    },
+    "position": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "position_id", "security_id", "display_symbol", "display_name", "market", "asset_type",
+        "identity_status", "canonical_security_id", "quantity", "quantity_unit", "available_quantity",
+        "average_cost_price", "quote_price", "quote_unit", "market_value", "unrealized_pnl_amount",
+        "unrealized_pnl_percent", "currency", "option_contract", "source_refs"
+      ],
+      "properties": {
+        "position_id": {"type": "string", "minLength": 1},
+        "security_id": {"type": "string", "minLength": 1},
+        "display_symbol": {"type": "string", "minLength": 1},
+        "display_name": {"type": ["string", "null"]},
+        "market": {"const": "US"},
+        "asset_type": {"enum": ["COMMON_STOCK", "ETF", "OPTION"]},
+        "identity_status": {"enum": ["OBSERVED", "USER_CONFIRMED", "RESOLVED"]},
+        "canonical_security_id": {"type": ["string", "null"]},
+        "quantity": {"type": "number", "not": {"const": 0}},
+        "quantity_unit": {"enum": ["SHARE", "CONTRACT"]},
+        "available_quantity": {"type": ["number", "null"]},
+        "average_cost_price": {"type": ["number", "null"], "minimum": 0},
+        "quote_price": {"type": ["number", "null"], "minimum": 0},
+        "quote_unit": {"type": ["string", "null"], "enum": ["PER_SHARE", "PER_UNDERLYING_UNIT", null]},
+        "market_value": {"type": ["number", "null"]},
+        "unrealized_pnl_amount": {"type": ["number", "null"]},
+        "unrealized_pnl_percent": {"type": ["number", "null"]},
+        "currency": {"const": "USD"},
+        "option_contract": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/optionContract"}]},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"asset_type": {"const": "OPTION"}}},
+          "then": {"properties": {"quantity_unit": {"const": "CONTRACT"}, "quote_unit": {"enum": ["PER_UNDERLYING_UNIT", null]}, "option_contract": {"type": "object"}}},
+          "else": {"properties": {"quantity_unit": {"const": "SHARE"}, "quote_unit": {"enum": ["PER_SHARE", null]}, "option_contract": {"type": "null"}}}
+        }
+      ]
+    },
+    "optionContract": {
+      "type": "object", "additionalProperties": false,
+      "required": ["underlying_symbol", "option_type", "expiration_date", "strike", "contract_multiplier", "raw_contract_symbol", "adjustment_status"],
+      "properties": {
+        "underlying_symbol": {"type": "string", "minLength": 1},
+        "option_type": {"enum": ["CALL", "PUT"]},
+        "expiration_date": {"type": "string", "minLength": 1},
+        "strike": {"type": "number", "exclusiveMinimum": 0},
+        "contract_multiplier": {"type": "integer", "minimum": 1},
+        "raw_contract_symbol": {"type": ["string", "null"]},
+        "adjustment_status": {"enum": ["STANDARD", "ADJUSTED", "UNKNOWN"]}
+      }
+    },
+    "reportedTotal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field", "value", "currency", "row_id", "source_refs"],
+      "properties": {
+        "field": {"type": "string"}, "value": {"type": "number"}, "currency": {"type": "string"},
+        "row_id": {"type": "string"}, "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "reconciliation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "reported_value", "calculated_value", "difference", "tolerance", "components", "formula_id", "formula_version"],
+      "properties": {
+        "status": {"enum": ["RECONCILED", "UNRECONCILED", "NOT_EVALUATED"]},
+        "reported_value": {"type": ["number", "null"]}, "calculated_value": {"type": ["number", "null"]},
+        "difference": {"type": ["number", "null"]}, "tolerance": {"type": "number", "minimum": 0},
+        "components": {"type": "array", "items": {"type": "string"}},
+        "formula_id": {"type": "string"}, "formula_version": {"type": "string"}
+      }
+    },
+    "fieldLineage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field_path", "source_refs"],
+      "properties": {
+        "field_path": {"type": "string", "minLength": 1},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "derivedLineage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field_path", "formula_id", "formula_version", "parent_fields", "source_refs"],
+      "properties": {
+        "field_path": {"type": "string", "minLength": 1}, "formula_id": {"type": "string", "minLength": 1},
+        "formula_version": {"type": "string", "minLength": 1},
+        "parent_fields": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  }
+}

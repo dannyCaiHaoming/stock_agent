@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-draft/3.0.0",
+  "title": "PortfolioDraftV3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "draft_id", "portfolio_scope", "portfolio_complete",
+    "account_ref", "source_items", "account_snapshot", "rows", "positions",
+    "unsupported_assets", "unresolved_fields", "reported_totals",
+    "reconciliation", "derived_lineage", "draft_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "portfolio-draft/3.0.0"},
+    "draft_id": {"type": "string", "minLength": 1},
+    "portfolio_scope": {"enum": ["BROKER_ACCOUNT", "USER_DEFINED_PORTFOLIO"]},
+    "portfolio_complete": {"type": "boolean"},
+    "account_ref": {"type": ["string", "null"]},
+    "source_items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+    "account_snapshot": {"$ref": "#/$defs/accountObservation"},
+    "rows": {"type": "array", "items": {"$ref": "#/$defs/row"}},
+    "positions": {"type": "array", "items": {"$ref": "#/$defs/positionObservation"}},
+    "unsupported_assets": {"type": "array", "items": {"$ref": "#/$defs/unsupportedAsset"}},
+    "unresolved_fields": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "reported_totals": {"type": "array", "items": {"$ref": "#/$defs/reportedTotal"}},
+    "reconciliation": {"$ref": "#/$defs/reconciliation"},
+    "derived_lineage": {"type": "array", "items": {"$ref": "#/$defs/derivedLineage"}},
+    "draft_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "source_type", "as_of", "retrieved_at", "content_hash", "external_ref", "synthetic", "coverage_status"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "source_type": {"enum": ["SCREENSHOT", "MANUAL", "USER_CORRECTION", "BROKER_READ_ONLY_API", "BROKER_STATEMENT"]},
+        "as_of": {"type": "string", "minLength": 1},
+        "retrieved_at": {"type": "string", "minLength": 1},
+        "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "external_ref": {"type": ["string", "null"]},
+        "synthetic": {"type": "boolean"},
+        "coverage_status": {"enum": ["COMPLETE", "PARTIAL", "UNKNOWN"]}
+      }
+    },
+    "fact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value", "status", "source_refs", "candidates", "note"],
+      "properties": {
+        "value": {},
+        "status": {"enum": ["EXTRACTED", "USER_SUPPLIED", "MISSING", "AMBIGUOUS", "CONFLICTING"]},
+        "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "candidates": {"type": "array"},
+        "note": {"type": ["string", "null"]}
+      }
+    },
+    "accountObservation": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "account_type", "base_currency", "as_of", "net_liquidation_value",
+        "securities_value", "cash_balance", "available_funds", "buying_power",
+        "margin_used", "initial_margin_requirement", "maintenance_margin_requirement",
+        "excess_liquidity", "margin_utilization_ratio", "broker_reported_fields"
+      ],
+      "properties": {
+        "account_type": {"$ref": "#/$defs/fact"},
+        "base_currency": {"$ref": "#/$defs/fact"},
+        "as_of": {"$ref": "#/$defs/fact"},
+        "net_liquidation_value": {"$ref": "#/$defs/fact"},
+        "securities_value": {"$ref": "#/$defs/fact"},
+        "cash_balance": {"$ref": "#/$defs/fact"},
+        "available_funds": {"$ref": "#/$defs/fact"},
+        "buying_power": {"$ref": "#/$defs/fact"},
+        "margin_used": {"$ref": "#/$defs/fact"},
+        "initial_margin_requirement": {"$ref": "#/$defs/fact"},
+        "maintenance_margin_requirement": {"$ref": "#/$defs/fact"},
+        "excess_liquidity": {"$ref": "#/$defs/fact"},
+        "margin_utilization_ratio": {"$ref": "#/$defs/fact"},
+        "broker_reported_fields": {"type": "array", "items": {"$ref": "#/$defs/brokerField"}}
+      }
+    },
+    "brokerField": {
+      "type": "object", "additionalProperties": false,
+      "required": ["label", "value", "currency", "source_refs", "normalized_meaning"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "value": {},
+        "currency": {"type": ["string", "null"]},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "normalized_meaning": {"type": ["string", "null"]}
+      }
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["display_symbol", "display_name", "market", "asset_type", "identity_status", "canonical_security_id", "candidates"],
+      "properties": {
+        "display_symbol": {"$ref": "#/$defs/fact"},
+        "display_name": {"$ref": "#/$defs/fact"},
+        "market": {"$ref": "#/$defs/fact"},
+        "asset_type": {"$ref": "#/$defs/fact"},
+        "identity_status": {"enum": ["OBSERVED", "USER_CONFIRMED", "RESOLVED", "AMBIGUOUS"]},
+        "canonical_security_id": {"type": ["string", "null"]},
+        "candidates": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "optionObservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["underlying_symbol", "option_type", "expiration_date", "strike", "contract_multiplier", "raw_contract_symbol", "adjustment_status"],
+      "properties": {
+        "underlying_symbol": {"$ref": "#/$defs/fact"},
+        "option_type": {"$ref": "#/$defs/fact"},
+        "expiration_date": {"$ref": "#/$defs/fact"},
+        "strike": {"$ref": "#/$defs/fact"},
+        "contract_multiplier": {"$ref": "#/$defs/fact"},
+        "raw_contract_symbol": {"$ref": "#/$defs/fact"},
+        "adjustment_status": {"$ref": "#/$defs/fact"}
+      }
+    },
+    "positionObservation": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "position_id", "identity", "quantity", "quantity_unit", "available_quantity",
+        "average_cost_price", "quote_price", "quote_unit", "market_value",
+        "unrealized_pnl_amount", "unrealized_pnl_percent", "currency", "option_contract"
+      ],
+      "properties": {
+        "position_id": {"type": "string", "minLength": 1},
+        "identity": {"$ref": "#/$defs/identity"},
+        "quantity": {"$ref": "#/$defs/fact"},
+        "quantity_unit": {"$ref": "#/$defs/fact"},
+        "available_quantity": {"$ref": "#/$defs/fact"},
+        "average_cost_price": {"$ref": "#/$defs/fact"},
+        "quote_price": {"$ref": "#/$defs/fact"},
+        "quote_unit": {"$ref": "#/$defs/fact"},
+        "market_value": {"$ref": "#/$defs/fact"},
+        "unrealized_pnl_amount": {"$ref": "#/$defs/fact"},
+        "unrealized_pnl_percent": {"$ref": "#/$defs/fact"},
+        "currency": {"$ref": "#/$defs/fact"},
+        "option_contract": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/optionObservation"}]}
+      }
+    },
+    "row": {
+      "type": "object", "additionalProperties": false,
+      "required": ["row_id", "row_type", "label", "position_id", "reported_field", "reported_value", "currency", "source_refs", "note"],
+      "properties": {
+        "row_id": {"type": "string", "minLength": 1},
+        "row_type": {"type": ["string", "null"], "enum": ["ACCOUNT_TOTAL", "ASSET_CLASS_SUBTOTAL", "POSITION", "CASH_BALANCE", null]},
+        "label": {"type": "string", "minLength": 1},
+        "position_id": {"type": ["string", "null"]},
+        "reported_field": {"type": ["string", "null"]},
+        "reported_value": {"type": ["number", "null"]},
+        "currency": {"type": ["string", "null"]},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "note": {"type": ["string", "null"]}
+      }
+    },
+    "reportedTotal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field", "value", "currency", "row_id", "source_refs"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1},
+        "value": {"type": "number"},
+        "currency": {"type": "string", "minLength": 1},
+        "row_id": {"type": "string", "minLength": 1},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "reconciliation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "reported_value", "calculated_value", "difference", "tolerance", "components", "formula_id", "formula_version"],
+      "properties": {
+        "status": {"enum": ["RECONCILED", "UNRECONCILED", "NOT_EVALUATED"]},
+        "reported_value": {"type": ["number", "null"]},
+        "calculated_value": {"type": ["number", "null"]},
+        "difference": {"type": ["number", "null"]},
+        "tolerance": {"type": "number", "minimum": 0},
+        "components": {"type": "array", "items": {"type": "string"}},
+        "formula_id": {"type": "string", "minLength": 1},
+        "formula_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "unsupportedAsset": {
+      "type": "object", "additionalProperties": false,
+      "required": ["label", "reason", "source_refs"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "derivedLineage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field_path", "formula_id", "formula_version", "parent_fields", "source_refs"],
+      "properties": {
+        "field_path": {"type": "string", "minLength": 1},
+        "formula_id": {"type": "string", "minLength": 1},
+        "formula_version": {"type": "string", "minLength": 1},
+        "parent_fields": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  }
+}

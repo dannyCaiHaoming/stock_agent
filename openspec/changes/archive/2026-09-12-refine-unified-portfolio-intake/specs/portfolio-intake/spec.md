@@ -1,10 +1,4 @@
-# portfolio-intake Specification
-
-## Purpose
-
-定义面向用户的持仓摄取与确认能力，使任意数量的普通股、ETF 与上市期权截图或手工持仓能够安全转换为可追溯的标准组合输入，并将所有输入证券保留为后续研究对象。
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Intake 必须统一表达账户资金与保证金快照
 `PortfolioDraft v3` 与 `PortfolioHandoff v3` SHALL 使用一个 `account_snapshot` 表达账户层事实，至少支持账户类型、基础币种、证券市值、净清算价值、现金余额、可用资金、购买力、保证金占用、初始保证金要求、维持保证金要求、超额流动性和保证金使用率。现金余额、可用资金、购买力和保证金字段 MUST 相互独立，不得合并为同一个 `cash` 值。
@@ -96,6 +90,8 @@ Draft 与 Handoff 中每个账户、持仓和期权规范字段 MUST 通过字�
 - **WHEN** 一个声称为 v3 的 Handoff 仍包含能力状态、研究计划、研究问题或持有期限
 - **THEN** v3 Schema 校验失败，不能把混合契约交给下游
 
+## MODIFIED Requirements
+
 ### Requirement: portfolio-intake 必须是独立产品 Skill
 系统 SHALL 提供单一 `portfolio-intake` Skill，接受一张或多张持仓截图、手工描述或两者组合，统一识别账户快照、普通股、ETF 和上市期权，并输出 `PortfolioDraft`、集中澄清问题或已确认 `PortfolioHandoff`。系统 MUST NOT 为股票、ETF、期权、现金或保证金分别创建输入 Agent；该 Skill MUST NOT 研究证券、生成买卖动作、充当 CIO、判断下游 Agent 可用性、调用研究 Agent 或自动启动 `portfolio-council`。
 
@@ -122,28 +118,6 @@ Draft 与 Handoff 中每个账户、持仓和期权规范字段 MUST 通过字�
 - **WHEN** 用户纠正模型提取的持仓数量
 - **THEN** Draft 保留原提取与用户修订来源，更新 hash，并使旧确认失效
 
-### Requirement: 组合完整性必须基于用户声明的范围
-Draft 与 Handoff MUST 声明 `portfolio_scope` 为 `BROKER_ACCOUNT` 或 `USER_DEFINED_PORTFOLIO`。`portfolio_complete` 只表示当前声明范围完整；系统不得把券商列表的一页伪装成完整账户，也不得强迫用户定义的组合证明整个券商账户完整。
-
-#### Scenario: 券商截图还有下一页
-- **WHEN** 用户声明 `BROKER_ACCOUNT` 且截图显示仍有未展示持仓
-- **THEN** Draft 保持不完整，不能生成 Handoff
-
-#### Scenario: 用户声明自定义组合
-- **WHEN** 用户明确确认当前输入就是要分析的 `USER_DEFINED_PORTFOLIO`
-- **THEN** 完整性按该输入集合判断，并在 Handoff 中保留范围限制
-
-### Requirement: 所有输入持仓都必须是研究对象
-Portfolio 与 Handoff Schema MUST NOT 设置持仓数量业务上限。Handoff MUST 完整保存用户确认范围内的全部 Position；不得截断、抽样、只取前三只或要求用户另选重点标的。是否将这些 Position 全部纳入某次研究由独立 `CouncilRequest` 声明，改变研究请求不得改变 Handoff 或要求重新确认账户状态。
-
-#### Scenario: 输入十只股票
-- **WHEN** 用户确认包含十只证券的组合
-- **THEN** Handoff 完整保留十只且不包含下游研究选择；引用该 Handoff 的 `CouncilRequest` 可声明十只全部为研究对象
-
-#### Scenario: 实现存在固定数量上限
-- **WHEN** Schema、Skill 或交接器试图因持仓数量超过固定值而删除或拒绝合法持仓
-- **THEN** 验收失败；资源控制只能由后续 Council 透明分批，不能改变已确认 Handoff
-
 ### Requirement: Intake 必须区分普通股、ETF 与期权
 Draft 与 Handoff MUST 使用可辨别资产结构支持 `COMMON_STOCK`、`ETF` 与 `OPTION`，但资产类型只描述用户持有的证券事实，不声明下游 Research Capability。ETF MUST 保留其自身证券身份，不得伪装为普通股；期权 MUST 保留标的证券、`CALL/PUT`、到期日、执行价、合约乘数、可选原始合约标识及带符号数量。数量为零 MUST 被拒绝；负数 MUST 表示已有空头仓位而不是输入错误或新增交易授权。
 
@@ -158,17 +132,6 @@ Draft 与 Handoff MUST 使用可辨别资产结构支持 `COMMON_STOCK`、`ETF` 
 #### Scenario: 期权标识被截断
 - **WHEN** 截图只显示部分合约标识或无法确定执行价
 - **THEN** Draft 将对应字段标记为缺失或歧义并集中请求用户确认，不得猜测后生成 Handoff
-
-### Requirement: 用户只需对当前 Draft 做一次集中确认
-系统 MUST 汇总所有缺失和冲突后一次性向用户澄清，并展示完整确认摘要。只有用户明确确认当前 Draft hash、组合范围和全部持仓后才能生成 Handoff；普通“继续”、上传图片或请求研究不得视为确认。确认后任何事实变化 MUST 要求重新确认。
-
-#### Scenario: 用户确认完整摘要
-- **WHEN** 用户明确确认当前 Draft 内容和声明范围无误
-- **THEN** Handoff 内嵌确认时间、Draft hash 和 `advisory_only: true`
-
-#### Scenario: 确认后修改持仓
-- **WHEN** 用户修改任何持仓或现金字段
-- **THEN** 旧 Handoff 不再有效，系统返回新 Draft 等待一次新确认
 
 ### Requirement: Handoff 前必须进行最小确定性校验
 系统 MUST 校验非零带符号数量及单位、明确现金余额、基础币种、资产辨别与身份状态、期权身份和乘数、重复证券、组合范围、字段级来源闭合和确认 hash。现金未知不等于零；平均成本、可用数量、可见报价、市值、盈亏、可用资金、购买力及保证金字段 MAY 缺失且不得单独阻断输入确认。歧义证券、无法完整识别的期权合约或悬空 lineage MUST 明确列出并阻断 Handoff，不得静默删除。
@@ -192,16 +155,20 @@ Intake SHALL 如实表示用户已有普通股、ETF、期权与空头仓位，�
 - **WHEN** 有效 Handoff 包含期权而当前候选版本没有对应研究能力
 - **THEN** Intake 仍生成中立且完整的 Handoff；是否能够研究该期权由后续 Council 判断，Intake 不删除持仓也不伪造能力状态
 
+### Requirement: 所有输入持仓都必须是研究对象
+Portfolio 与 Handoff Schema MUST NOT 设置持仓数量业务上限。Handoff MUST 完整保存用户确认范围内的全部 Position；不得截断、抽样、只取前三只或要求用户另选重点标的。是否将这些 Position 全部纳入某次研究由独立 `CouncilRequest` 声明，改变研究请求不得改变 Handoff 或要求重新确认账户状态。
+
+#### Scenario: 输入十只股票
+- **WHEN** 用户确认包含十只证券的组合
+- **THEN** Handoff 完整保留十只且不包含下游研究选择；引用该 Handoff 的 `CouncilRequest` 可声明十只全部为研究对象
+
+#### Scenario: 实现存在固定数量上限
+- **WHEN** Schema、Skill 或交接器试图因持仓数量超过固定值而删除或拒绝合法持仓
+- **THEN** 验收失败；资源控制只能由后续 Council 透明分批，不能改变已确认 Handoff
+
 ### Requirement: PortfolioHandoff 必须兼容 Council 输入边界
 `PortfolioHandoff v3` SHALL 只包含确认后的完整多资产 Portfolio、规范化 `account_snapshot`、Portfolio 声明范围、字段级来源 lineage、Draft hash、确认记录和完整性/勾稽状态。它 MUST 能在不读取 Research Agent 配置、不启动 Council 的情况下单独验证，并不得包含 Research Capability、Council readiness、研究计划、研究问题、持有期限、研究范围、benchmark、Mandate、截图推导的市场 Evidence、Thesis、动作或订单指令。
 
 #### Scenario: 独立验证 Handoff
 - **WHEN** 确认后的 v3 Handoff 提交给交接校验器
 - **THEN** 校验器确认 Portfolio 与全部输入证券一致、数量和价格单位明确、账户字段零值和未知值可区分、字段级来源闭合且确认有效，不读取研究请求、Research Agent 或调用研究 LLM
-
-### Requirement: 私人持仓不得进入仓库
-真实截图、账户标识、私人 Draft 和 Handoff MUST 保存在仓库外。仓库内只允许通用实现、Schema、合成样例和脱敏验证记录；不得保存完整账户号、凭证或真实持仓。
-
-#### Scenario: 使用真实截图
-- **WHEN** 用户执行真实持仓 Intake
-- **THEN** 原图与私人产物只写入外置目录，Git 工作区不出现其内容

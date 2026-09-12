@@ -8,15 +8,23 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
-from .service import (
+from product.council.intake_planning import (
+    CouncilPlanningError,
+    build_council_request,
+    build_research_plan,
+    validate_council_request,
+)
+
+from .service import IntakeValidationError as IntakeV2ValidationError
+from .service import validate_draft as validate_draft_v2
+from .service import validate_handoff as validate_handoff_v2
+from .v3 import (
     REPO_ROOT,
-    IntakeValidationError,
+    IntakeV3ValidationError,
     apply_corrections,
-    build_council_portfolio_input,
     build_draft,
     build_handoff,
     build_manual_draft,
-    build_risk_input,
     render_draft_summary,
     validate_draft,
     validate_handoff,
@@ -26,7 +34,7 @@ from .service import (
 def _read_json(path: str) -> dict[str, Any]:
     value = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(value, dict):
-        raise IntakeValidationError("INTAKE_JSON_OBJECT_REQUIRED")
+        raise IntakeV3ValidationError("INTAKE_JSON_OBJECT_REQUIRED")
     return value
 
 
@@ -48,7 +56,7 @@ def _contains_private_source(value: Mapping[str, Any]) -> bool:
 def _write_json(path_value: str, value: Mapping[str, Any]) -> None:
     path = Path(path_value).expanduser().resolve()
     if _contains_private_source(value) and _is_inside_repo(path):
-        raise IntakeValidationError("INTAKE_PRIVATE_ARTIFACT_INSIDE_REPO")
+        raise IntakeV3ValidationError("INTAKE_PRIVATE_ARTIFACT_INSIDE_REPO")
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("x", encoding="utf-8") as handle:
         json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
@@ -79,11 +87,6 @@ def _parser() -> argparse.ArgumentParser:
     confirm.add_argument("--draft", required=True)
     confirm.add_argument("--output", required=True)
     confirm.add_argument("--confirmed-at", required=True)
-    confirm.add_argument("--holding-horizon", required=True)
-    confirm.add_argument("--research-question", required=True)
-    confirm.add_argument("--benchmark-id", default="SP500")
-    confirm.add_argument("--mandate-artifact-id", default="mandate:us-equity-long-only-v1")
-    confirm.add_argument("--batch-size", type=int, default=5)
     confirm.add_argument(
         "--explicit-confirmation",
         choices=["CONFIRM_PORTFOLIO"],
@@ -91,17 +94,30 @@ def _parser() -> argparse.ArgumentParser:
         help="仅在用户明确确认当前 draft_hash 后传入",
     )
 
-    validate = commands.add_parser("validate-handoff", help="独立校验 Handoff")
+    validate = commands.add_parser("validate-handoff", help="独立校验 Handoff；历史 v2 必须显式选择")
     validate.add_argument("--handoff", required=True)
     validate.add_argument("--draft")
+    validate.add_argument("--schema-version", choices=["v2", "v3"], default="v3")
 
-    risk = commands.add_parser("risk-input", help="生成绑定完整组合的 Risk 前置输入")
-    risk.add_argument("--handoff", required=True)
-    risk.add_argument("--output", required=True)
+    request = commands.add_parser("council-request", help="为已确认 Handoff 创建独立研究请求")
+    request.add_argument("--handoff", required=True)
+    request.add_argument("--output", required=True)
+    request.add_argument("--request-id", required=True)
+    request.add_argument("--research-question", required=True)
+    request.add_argument("--holding-horizon", required=True)
+    request.add_argument("--benchmark-id", default="SP500")
+    request.add_argument("--mandate-artifact-id", default="mandate:advisory-only-v1")
+    request.add_argument("--constraints")
 
-    council = commands.add_parser("council-input", help="生成保留完整多资产组合的 Council 输入")
+    validate_request = commands.add_parser("validate-council-request", help="校验 CouncilRequest 绑定")
+    validate_request.add_argument("--handoff", required=True)
+    validate_request.add_argument("--request", required=True)
+
+    council = commands.add_parser("council-plan", help="生成零 Agent/LLM 的全持仓规划")
     council.add_argument("--handoff", required=True)
+    council.add_argument("--request", required=True)
     council.add_argument("--output", required=True)
+    council.add_argument("--batch-size", type=int, default=5)
     return parser
 
 
@@ -116,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
             correction_package = _read_json(args.corrections)
             corrections = correction_package.get("corrections")
             if not isinstance(corrections, list):
-                raise IntakeValidationError("INTAKE_CORRECTIONS_REQUIRED")
+                raise IntakeV3ValidationError("INTAKE_CORRECTIONS_REQUIRED")
             value = apply_corrections(
                 _read_json(args.draft),
                 correction_source=correction_package.get("source_item", {}),
@@ -130,25 +146,45 @@ def main(argv: list[str] | None = None) -> int:
                 _read_json(args.draft),
                 confirmed=args.explicit_confirmation == "CONFIRM_PORTFOLIO",
                 confirmed_at=args.confirmed_at,
-                holding_horizon=args.holding_horizon,
-                research_question=args.research_question,
-                benchmark_id=args.benchmark_id,
-                mandate_artifact_id=args.mandate_artifact_id,
-                batch_size=args.batch_size,
             )
             _write_json(args.output, value)
         elif args.command == "validate-handoff":
             handoff = _read_json(args.handoff)
             draft = _read_json(args.draft) if args.draft else None
-            validate_handoff(handoff, source_draft=draft)
+            if args.schema_version == "v2":
+                validate_handoff_v2(handoff, source_draft=draft)
+            else:
+                validate_handoff(handoff, source_draft=draft)
             print(json.dumps({"status": "PASSED", "handoff_hash": handoff["handoff_hash"]}))
-        elif args.command == "risk-input":
-            _write_json(args.output, build_risk_input(_read_json(args.handoff)))
-        elif args.command == "council-input":
-            _write_json(args.output, build_council_portfolio_input(_read_json(args.handoff)))
+        elif args.command == "council-request":
+            constraints = _read_json(args.constraints) if args.constraints else {}
+            value = build_council_request(
+                _read_json(args.handoff), request_id=args.request_id,
+                research_question=args.research_question, holding_horizon=args.holding_horizon,
+                benchmark_id=args.benchmark_id, mandate_artifact_id=args.mandate_artifact_id,
+                constraints=constraints,
+            )
+            _write_json(args.output, value)
+        elif args.command == "validate-council-request":
+            request = _read_json(args.request)
+            validate_council_request(request, handoff=_read_json(args.handoff))
+            print(json.dumps({"status": "PASSED", "request_hash": request["request_hash"]}))
+        elif args.command == "council-plan":
+            _write_json(
+                args.output,
+                build_research_plan(
+                    _read_json(args.handoff), _read_json(args.request), batch_size=args.batch_size
+                ),
+            )
         else:  # pragma: no cover - argparse owns this branch
-            raise IntakeValidationError("INTAKE_COMMAND_UNKNOWN")
-    except (IntakeValidationError, json.JSONDecodeError, OSError) as exc:
+            raise IntakeV3ValidationError("INTAKE_COMMAND_UNKNOWN")
+    except (
+        IntakeV3ValidationError,
+        IntakeV2ValidationError,
+        CouncilPlanningError,
+        json.JSONDecodeError,
+        OSError,
+    ) as exc:
         print(str(exc), file=sys.stderr)
         return 2
     return 0

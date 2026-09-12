@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "council-research-plan/1.0.0",
+  "title": "CouncilResearchPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "planning_only", "handoff_id", "handoff_hash", "portfolio_hash",
+    "request_id", "request_hash", "total", "pending", "batch_size", "coverage_status",
+    "capability_status", "capability_gaps", "items", "agent_invocations", "llm_invocations", "plan_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "council-research-plan/1.0.0"},
+    "planning_only": {"const": true},
+    "handoff_id": {"type": "string"}, "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "request_id": {"type": "string"}, "request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "total": {"type": "integer", "minimum": 1}, "pending": {"type": "integer", "minimum": 1},
+    "batch_size": {"type": "integer", "minimum": 1},
+    "coverage_status": {"const": "ALL_INPUT_POSITIONS"},
+    "capability_status": {"enum": ["READY", "CAPABILITY_GAP"]},
+    "capability_gaps": {"type": "array", "items": {"enum": ["company-research", "etf-research", "options-research"]}, "uniqueItems": true},
+    "items": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["security_id", "asset_type", "required_capability", "capability_status", "batch_index"],
+        "properties": {
+          "security_id": {"type": "string"}, "asset_type": {"enum": ["COMMON_STOCK", "ETF", "OPTION"]},
+          "required_capability": {"enum": ["company-research", "etf-research", "options-research"]},
+          "capability_status": {"enum": ["AVAILABLE", "MISSING"]}, "batch_index": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "agent_invocations": {"const": 0}, "llm_invocations": {"const": 0},
+    "plan_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

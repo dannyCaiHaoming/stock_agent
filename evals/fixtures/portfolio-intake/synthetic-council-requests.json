@@ -1,0 +1,38 @@
+{
+  "schema_version": "council-request-examples/1.0.0",
+  "synthetic_only": true,
+  "handoff_hash": "08f279ecfe539e2f592ebe91d0a976b610f6bda1f273f884af2d294a8ec51501",
+  "portfolio_hash": "c532af3e177801d92ae0fabb383c511457fb816f03b93a83e0f5e709e9fc1f87",
+  "requests": [
+    {
+      "schema_version": "council-request/1.0.0",
+      "request_id": "synthetic-hold-review",
+      "handoff_id": "handoff-draft-synthetic-multi-asset-v3",
+      "handoff_hash": "08f279ecfe539e2f592ebe91d0a976b610f6bda1f273f884af2d294a8ec51501",
+      "portfolio_hash": "c532af3e177801d92ae0fabb383c511457fb816f03b93a83e0f5e709e9fc1f87",
+      "research_question": "为什么继续持有、减仓或暂不操作？",
+      "holding_horizon": "6-12 months",
+      "research_scope": "ALL_INPUT_POSITIONS",
+      "research_security_ids": ["US:COMMON_STOCK:AAPL", "US:COMMON_STOCK:MSFT", "US:ETF:SOXL", "US:OPTION:SOXL:2026-09-18:98:PUT"],
+      "benchmark_id": "SP500",
+      "mandate_artifact_id": "mandate:advisory-only-v1",
+      "constraints": {},
+      "request_hash": "4e16e1ee8da088a1091360c80eab76dd30141103daaf3f4db25a3ba00bd8a17c"
+    },
+    {
+      "schema_version": "council-request/1.0.0",
+      "request_id": "synthetic-risk-review",
+      "handoff_id": "handoff-draft-synthetic-multi-asset-v3",
+      "handoff_hash": "08f279ecfe539e2f592ebe91d0a976b610f6bda1f273f884af2d294a8ec51501",
+      "portfolio_hash": "c532af3e177801d92ae0fabb383c511457fb816f03b93a83e0f5e709e9fc1f87",
+      "research_question": "未来三个月的主要持仓风险是什么？",
+      "holding_horizon": "3 months",
+      "research_scope": "ALL_INPUT_POSITIONS",
+      "research_security_ids": ["US:COMMON_STOCK:AAPL", "US:COMMON_STOCK:MSFT", "US:ETF:SOXL", "US:OPTION:SOXL:2026-09-18:98:PUT"],
+      "benchmark_id": "SP500",
+      "mandate_artifact_id": "mandate:advisory-only-v1",
+      "constraints": {},
+      "request_hash": "5d8520f1e5e029d2d3c7478e0493446f1f2f7d3e1e554b8699e591548f3f1374"
+    }
+  ]
+}

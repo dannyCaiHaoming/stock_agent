@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "council-request/1.0.0",
+  "title": "CouncilRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "request_id", "handoff_id", "handoff_hash", "portfolio_hash",
+    "research_question", "holding_horizon", "research_scope", "research_security_ids",
+    "benchmark_id", "mandate_artifact_id", "constraints", "request_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "council-request/1.0.0"},
+    "request_id": {"type": "string", "minLength": 1},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "research_question": {"type": "string", "minLength": 1},
+    "holding_horizon": {"type": "string", "minLength": 1},
+    "research_scope": {"const": "ALL_INPUT_POSITIONS"},
+    "research_security_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "benchmark_id": {"type": "string", "minLength": 1},
+    "mandate_artifact_id": {"type": "string", "minLength": 1},
+    "constraints": {"type": "object"},
+    "request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

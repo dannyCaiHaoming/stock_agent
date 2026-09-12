@@ -124,6 +124,31 @@
   ],
   "capabilities": [
     {
+      "capability_id": "portfolio-intake",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["portfolio_scope", "portfolio_complete", "source_items", "account_snapshot", "positions"]
+        },
+        "tool_data": {
+          "read_only_tools": ["portfolio_source.query"],
+          "deterministic_calculations": ["schema_validation", "field_lineage_closure", "account_reconciliation", "hash_binding"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/portfolio-intake",
+          "responsibilities": ["screenshot_interpretation", "row_classification", "uncertainty_preservation", "centralized_clarification"]
+        },
+        "structured_output": {
+          "artifact": "PortfolioHandoff/3.0.0",
+          "required": ["account_snapshot", "portfolio", "field_lineage", "reconciliation", "confirmation"]
+        },
+        "eval": {
+          "fixtures": ["../fixtures/portfolio-intake/case-manifest.json"],
+          "acceptance": ["all_positions_preserved", "field_lineage_closed", "summary_rows_not_positions", "no_research_or_agent_invocation"]
+        }
+      }
+    },
+    {
       "capability_id": "portfolio-council",
       "production": true,
       "contract": {

@@ -1,36 +1,70 @@
 {
-  "draft_id": "draft-synthetic-multi-asset",
+  "draft_id": "draft-synthetic-multi-asset-v3",
   "portfolio_scope": "USER_DEFINED_PORTFOLIO",
   "portfolio_complete": true,
   "as_of": "2026-09-11T20:00:00+08:00",
   "retrieved_at": "2026-09-11T20:01:00+08:00",
-  "base_currency": "USD",
-  "cash": 2500.0,
   "synthetic": true,
+  "account_snapshot": {
+    "account_type": "MARGIN",
+    "base_currency": "USD",
+    "as_of": "2026-09-11T20:00:00+08:00",
+    "net_liquidation_value": 11800.0,
+    "securities_value": 1800.0,
+    "cash_balance": 10000.0,
+    "available_funds": 8500.0,
+    "buying_power": 17000.0,
+    "margin_used": null,
+    "initial_margin_requirement": null,
+    "maintenance_margin_requirement": null,
+    "excess_liquidity": null,
+    "margin_utilization_ratio": null,
+    "broker_reported_fields": [
+      {"label": "保证金水平", "value": "未展示定义", "currency": null, "source_refs": ["source-manual"], "normalized_meaning": null}
+    ]
+  },
+  "reported_rows": [
+    {"row_id": "row-account-total", "row_type": "ACCOUNT_TOTAL", "label": "账户总资产", "reported_field": "net_liquidation_value", "reported_value": 11800.0, "currency": "USD"},
+    {"row_id": "row-securities-subtotal", "row_type": "ASSET_CLASS_SUBTOTAL", "label": "证券市值小计", "reported_field": "securities_value", "reported_value": 1800.0, "currency": "USD"},
+    {"row_id": "row-cash", "row_type": "CASH_BALANCE", "label": "USD 现金", "reported_field": "cash_balance", "reported_value": 10000.0, "currency": "USD"}
+  ],
   "positions": [
-    {"position_id": "stock-aapl", "ticker": "AAPL", "asset_type": "COMMON_STOCK", "quantity": 5, "cost_basis": 180.0},
-    {"position_id": "etf-soxl", "ticker": "SOXL", "asset_type": "ETF", "quantity": 2, "cost_basis": 120.0},
     {
-      "position_id": "option-soxl-put-short",
-      "ticker": "SOXL",
-      "asset_type": "OPTION",
-      "quantity": -1,
-      "cost_basis": 1.75,
+      "position_id": "stock-aapl", "display_symbol": "AAPL", "display_name": "Apple Inc.",
+      "asset_type": "COMMON_STOCK", "identity_status": "USER_CONFIRMED",
+      "quantity": 5, "quantity_unit": "SHARE", "available_quantity": 5,
+      "average_cost_price": 180.0, "quote_price": 200.0, "quote_unit": "PER_SHARE",
+      "market_value": 1000.0, "unrealized_pnl_amount": 100.0, "unrealized_pnl_percent": 11.11,
+      "currency": "USD"
+    },
+    {
+      "position_id": "etf-soxl", "display_symbol": "SOXL", "display_name": "Direxion Daily Semiconductor Bull 3X Shares",
+      "asset_type": "ETF", "identity_status": "USER_CONFIRMED",
+      "quantity": 2, "quantity_unit": "SHARE", "available_quantity": 2,
+      "average_cost_price": 123.79, "quote_price": 125.0, "quote_unit": "PER_SHARE",
+      "market_value": 250.0, "unrealized_pnl_amount": 2.42, "unrealized_pnl_percent": 0.98,
+      "currency": "USD"
+    },
+    {
+      "position_id": "option-soxl-put-short", "display_symbol": "SOXL", "display_name": "SOXL PUT",
+      "asset_type": "OPTION", "identity_status": "USER_CONFIRMED",
+      "quantity": -1, "quantity_unit": "CONTRACT", "available_quantity": -1,
+      "average_cost_price": 1.75, "quote_price": 0.66, "quote_unit": "PER_UNDERLYING_UNIT",
+      "market_value": -66.0, "unrealized_pnl_amount": 109.0, "unrealized_pnl_percent": 62.29,
+      "currency": "USD",
       "option_contract": {
-        "underlying_ticker": "SOXL", "option_type": "PUT", "expiration_date": "2026-09-18",
-        "strike": 98.0, "contract_multiplier": 100, "contract_symbol": "SOXL260918P00098000"
+        "underlying_symbol": "SOXL", "option_type": "PUT", "expiration_date": "2026-09-18",
+        "strike": 98.0, "contract_multiplier": 100, "raw_contract_symbol": "SOXL260918P00098000",
+        "adjustment_status": "STANDARD"
       }
     },
     {
-      "position_id": "option-aapl-call-long",
-      "ticker": "AAPL",
-      "asset_type": "OPTION",
-      "quantity": 1,
-      "cost_basis": 3.2,
-      "option_contract": {
-        "underlying_ticker": "AAPL", "option_type": "CALL", "expiration_date": "2026-12-18",
-        "strike": 220.0, "contract_multiplier": 100, "contract_symbol": null
-      }
+      "position_id": "stock-msft", "display_symbol": "MSFT", "display_name": "Microsoft Corporation",
+      "asset_type": "COMMON_STOCK", "identity_status": "USER_CONFIRMED",
+      "quantity": 1, "quantity_unit": "SHARE", "available_quantity": 1,
+      "average_cost_price": null, "quote_price": 616.0, "quote_unit": "PER_SHARE",
+      "market_value": 616.0, "unrealized_pnl_amount": null, "unrealized_pnl_percent": null,
+      "currency": "USD"
     }
   ]
 }

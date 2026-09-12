@@ -1,27 +1,39 @@
 # 持仓输入使用说明
 
-`portfolio-intake` 用于把截图或手工持仓转换为可确认的组合输入。它只处理输入，不研究股票，也不会自动启动投资委员会。
+`portfolio-intake` 是多 Agent 投研系统的统一输入能力。股票、ETF、上市期权以及账户现金、可用资金、购买力和保证金信息均由同一个 Skill 处理；系统不为不同资产创建 Intake Agent。
 
-## 使用流程
+## 输入流程
 
-1. 用户声明输入代表完整券商账户，或一个完整的自定义组合。
-2. Codex 读取截图中的可见事实；无法确认的值保留为缺失、歧义或冲突。
-3. Skill 展示中文 Draft 摘要，并一次性询问所有必要补充。
-4. 用户明确确认当前草稿后，生成 `PortfolioHandoff`。
-5. Handoff 内的每个普通股、ETF 和上市期权都进入全持仓研究计划；不存在持仓数量上限，也不存在“只研究前三只”或焦点子集。
+1. 用户声明截图或手工输入代表完整券商账户，或一个完整自定义组合。
+2. Codex 读取可见事实，并把账户总计、资产小计、真实持仓和现金行分开。
+3. Skill 生成 `PortfolioDraft v3`，展示账户摘要、全部持仓、勾稽状态和集中澄清项。
+4. 用户明确确认当前 `draft_hash` 后，生成中立 `PortfolioHandoff v3`。
+5. Intake 到此停止，不自动研究证券或启动 Portfolio Council。
 
-成本可以缺失。现金未知必须继续显示为未知，不能替换为零。完整券商账户若存在缺页，不允许确认；用户自定义组合则以用户明确声明的集合为完整范围。
+组合没有持仓数量上限。总计和小计不会作为 Position 重复入仓。平均成本、报价、盈亏、可用资金、购买力和保证金可以未知；基础币种、现金余额、非零数量与单位、证券身份、期权必需字段和来源闭合是确认底线。
 
-## 隐私
+## 单位与勾稽
 
-真实截图、账户原文和持仓产物保存在仓库外的运行目录。仓库只保存合成样例。账户引用必须脱敏，完整账号、凭据和真实持仓不得提交 Git。
+股票和 ETF 数量使用 `SHARE`，期权数量使用 `CONTRACT`。期权报价按每标的单位保存，并与 `contract_multiplier` 分开；一份空头 Put 的 `0.66` 报价、`100` 乘数和 `-1` 数量对应 `-66 USD` 带符号市值，而不是 `-0.66 USD`。
+
+系统在组成项充分时用现金加带符号持仓市值勾稽账户总值。差异超出容差时输出 `UNRECONCILED`，不会为了对平而修改持仓；组成不足时输出 `NOT_EVALUATED`。
+
+## 来源与身份
+
+每个规范化字段都保留直接来源；来源包含 `source_id`、`as_of`、`retrieved_at` 和内容 hash。用户修订只改变对应字段，并使旧确认失效。券商自定义字段在无法证明含义时保留原标签，不猜测成统一保证金指标。
+
+证券身份可以是观察到、用户确认、已解析或歧义。歧义证券和无法排除调整合约歧义的期权不能生成 Handoff。
+
+协议预留 `BROKER_READ_ONLY_API` 和 `BROKER_STATEMENT` 来源类型，但这不表示已经接入 Tiger 或其他券商，也不会请求账户凭据。
 
 ## 与 Portfolio Council 的关系
 
-`PortfolioHandoff` 是后续 Council 的输入边界，但 Intake 完成后默认停止。只有用户另行调用 `portfolio-council`，系统才会进入 Evidence、专业 Agent、CIO 和 Risk 链路。
+`PortfolioHandoff v3` 只保存确认后的账户和持仓状态，不包含研究问题、期限、benchmark、Mandate、下游能力或计划。
 
-确定性 `council-input` 转换器生成版本化的多资产 Council 输入；它只验证和转换组合，不获取 Evidence，也不启动研究。
+用户准备研究时，再针对同一 Handoff 创建独立 `CouncilRequest`。研究问题改变只会产生新的 Request，不会改变 Handoff 或要求重新确认持仓。当前请求范围固定为 `ALL_INPUT_POSITIONS`。
 
-输入契约接受美股普通股、ETF 和上市期权。期权保留标的、CALL/PUT、到期日、执行价、合约乘数、可选原始合约标识和带符号数量；截图中不可见或被截断的身份字段必须等待用户补充，不得猜测。债券、共同基金、加密资产或无法识别的证券仍明确列入未识别资产。
+Council 的最小确定性规划接缝负责把普通股、ETF 和期权映射到对应 Research Capability，并明确报告能力缺口。Handoff 完成不代表 ETF Research、Options Research 或多资产 Risk 已经可用；规划输出也不代表真实研究已经执行。
 
-当前 Agent Package 只有 `company-research`。因此含 ETF 或期权的完整 Handoff 会保留所有资产，同时输出 `CAPABILITY_GAP`（缺少 `etf-research` 或 `options-research`），不会把它们错误交给 Company Analyst。Risk 前置输入同样保留完整组合并标记需要多资产 Risk Policy；输入层支持不等于研究、交易或风险能力已经开放。
+## 隐私
+
+真实截图、完整账户号和真实 Draft/Handoff 必须保存在仓库外。仓库仅保存合成样例。账户引用必须脱敏，真实持仓、凭据和私人账户资料不得提交 Git。
