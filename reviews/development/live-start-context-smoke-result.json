@@ -1,0 +1,218 @@
+{
+  "evidence_id": "live-start-context-smoke-2026-09-10",
+  "run_id": "live-ea56970a-e572-4c6d-8708-86d372bd3546",
+  "run_dir": "/private/tmp/stock-agent-start-context-smoke.AErH4g/run/batch/runs/live-ea56970a-e572-4c6d-8708-86d372bd3546",
+  "candidate_lock_hash": "e29b183434be9d7941439e42e122f22283906ae9c4e30635d86f0bca8c96cbf8",
+  "source_snapshot_hash": "fc154fac8e605a637eeedcd8e6c49d1703ee040b7d8a6ac965483823dbe6621a",
+  "parent_session_id": "01a08bee-2bea-7d20-bcc2-cdf5d1b0e0fc",
+  "artifacts": {
+    "run_manifest.json": {
+      "sha256": "e860c4ad53a0e52c30d9a3c80cfd0f706a17c1dfd4b6fda4e94aa7d4d20669d2",
+      "bytes": 50429
+    },
+    "decision_trace.json": {
+      "sha256": "312d71b34fff6a9882e119347a2b41409045a72ec12d986bbc96427c68611c84",
+      "bytes": 36506
+    },
+    "evidence/gate.json": {
+      "sha256": "10f9779e8f5077edf0f21d0d66c294bc6764ab1901e753279f8638ccfb93875a",
+      "bytes": 565368
+    },
+    "invocation/prompt.txt": {
+      "sha256": "71f1b43b2744c99c13dac207012b0ed3c1fb375e699a89680481d1656e96f347",
+      "bytes": 9097
+    },
+    "invocation/invocation-manifest.json": {
+      "sha256": "a0b43c7e515d29584db8aa8589a20d40e801a10bab49b93ee82cc6962cc448c1",
+      "bytes": 2689
+    },
+    "invocation/environment-manifest.json": {
+      "sha256": "59dd37ec9972378d4267ba8eb0ec6b89775f2478e0b7d365df7ef126ac0ebc79",
+      "bytes": 18912
+    },
+    "invocation/codex-events.jsonl": {
+      "sha256": "ba952f99122dce44edd6e440b01b936a9ba3f6017cbaf6f0f93f0635e16c799e",
+      "bytes": 855413
+    },
+    "invocation/codex-stderr.log": {
+      "sha256": "0b126668b58324760ed7f555d2ca816de461075d8b2aa96f97c371e41da82af5",
+      "bytes": 4121
+    },
+    "invocation/final-message.json": {
+      "sha256": "d456418f26e49b4bbd18013baf7e6eafbbac3a3a5fcccb16cc10e5015c8084c7",
+      "bytes": 331
+    },
+    "invocation/process-result.json": {
+      "sha256": "c2c2095838813afbb01772e3a3c27ff470d23dd7453ecf860d53e9b5e3c30504",
+      "bytes": 15424
+    },
+    "invocation/subagent-dispatches.jsonl": {
+      "sha256": "1a2abbea576a2280f23239a1f9ba55122482d71a9d526a347b062b7d729a8d77",
+      "bytes": 16140
+    },
+    "invocation/subagent-events.jsonl": {
+      "status": "MISSING"
+    },
+    "agents/runtime_company_analyst.json": {
+      "status": "MISSING"
+    },
+    "agents/runtime_skeptic.json": {
+      "status": "MISSING"
+    },
+    "cio/runtime_cio.json": {
+      "status": "MISSING"
+    },
+    "decision.json": {
+      "status": "MISSING"
+    },
+    "report.md": {
+      "status": "MISSING"
+    },
+    "eval/result.json": {
+      "status": "MISSING"
+    }
+  },
+  "process_result": {
+    "status": "FAILED",
+    "codex_exit_code": 0,
+    "failure_code": "SKILL_LOAD_PROOF_MISSING",
+    "first_missing_stage": "SKILL_LOAD_PROOF_MISSING",
+    "elapsed_seconds": 162.05,
+    "source_integrity_unchanged": true,
+    "timed_out": false
+  },
+  "dispatch_rejections": [
+    {
+      "agent_type": "runtime_company_analyst",
+      "cwd": "/Users/caihaoming/Documents/stock_agent/product",
+      "decision": "DENY_DISPATCH_CONTRACT",
+      "dispatch_binding": {
+        "actual_message_hash": "d23c811717969e860ff96ae459212de61d43c8ac3fff0a9362e5a099979223a6",
+        "contract_version": "subagent-start-context/1.0.0",
+        "expected_message_hash": "13c366199163845ba9302cb40804d7187b5d8904203967b7f0930ee104eabbc5",
+        "matched": false
+      },
+      "event_hash": "57710ad81c045e7d310391fda1cdeb2f337ed580b4f82bdc373d1c0fc370780e",
+      "fork_turns": "none",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.6-terra",
+      "observed_at": "2026-09-10T15:28:54.047583Z",
+      "parent_session_id": "01a08bee-2bea-7d20-bcc2-cdf5d1b0e0fc",
+      "permission_mode": "bypassPermissions",
+      "raw_prompt_or_reasoning_retained": false,
+      "recorder_version": "codex-subagent-hook-recorder/1.5.0",
+      "schema_version": "codex-subagent-dispatch/1.0.0",
+      "task_name": "company_research",
+      "tool_name": "collaborationspawn_agent",
+      "tool_use_id": "call_jgCnx20vLwlazb832kXYRZyg",
+      "turn_id": "01a08bee-2c8a-76d2-aeb6-af23d3a707ad"
+    },
+    {
+      "agent_type": "runtime_company_analyst",
+      "cwd": "/Users/caihaoming/Documents/stock_agent/product",
+      "decision": "DENY_DISPATCH_CONTRACT",
+      "dispatch_binding": {
+        "actual_message_hash": "ab42496e416ccc679cfc1d7504e805aae3db18e30bae45d0f4885ccc7a53b41e",
+        "contract_version": "subagent-start-context/1.0.0",
+        "expected_message_hash": "13c366199163845ba9302cb40804d7187b5d8904203967b7f0930ee104eabbc5",
+        "matched": false
+      },
+      "event_hash": "6f9cce9f8ebb2596db78696fec6c78b5f7bc1aff1c02a8c5d8d0cd7128ea12e2",
+      "fork_turns": "none",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.6-terra",
+      "observed_at": "2026-09-10T15:29:08.789314Z",
+      "parent_session_id": "01a08bee-2bea-7d20-bcc2-cdf5d1b0e0fc",
+      "permission_mode": "bypassPermissions",
+      "raw_prompt_or_reasoning_retained": false,
+      "recorder_version": "codex-subagent-hook-recorder/1.5.0",
+      "schema_version": "codex-subagent-dispatch/1.0.0",
+      "task_name": "company_research",
+      "tool_name": "collaborationspawn_agent",
+      "tool_use_id": "call_uOliTuv6H2zndRmxvdkRCCtS",
+      "turn_id": "01a08bee-2c8a-76d2-aeb6-af23d3a707ad"
+    },
+    {
+      "agent_type": "runtime_skeptic",
+      "cwd": "/Users/caihaoming/Documents/stock_agent/product",
+      "decision": "DENY_DISPATCH_CONTRACT",
+      "dispatch_binding": {
+        "actual_message_hash": "2e8ceb6038d28700e158a84441f0491aea83640a71285ed6dd031e41e63fc898",
+        "contract_version": "subagent-start-context/1.0.0",
+        "expected_message_hash": "08ff5b86a46a604b3c86a0f96c90f491f72aac59f01727164dfa9b50c1b67cdd",
+        "matched": false
+      },
+      "event_hash": "eea82b25c018e58460c424a93da9a8e12ee991d9571018a0d2b992d06023fc95",
+      "fork_turns": "none",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.6-terra",
+      "observed_at": "2026-09-10T15:29:14.111388Z",
+      "parent_session_id": "01a08bee-2bea-7d20-bcc2-cdf5d1b0e0fc",
+      "permission_mode": "bypassPermissions",
+      "raw_prompt_or_reasoning_retained": false,
+      "recorder_version": "codex-subagent-hook-recorder/1.5.0",
+      "schema_version": "codex-subagent-dispatch/1.0.0",
+      "task_name": "independent_skeptic",
+      "tool_name": "collaborationspawn_agent",
+      "tool_use_id": "call_o0ZPyOEIdUonjxfYZZvis6sw",
+      "turn_id": "01a08bee-2c8a-76d2-aeb6-af23d3a707ad"
+    },
+    {
+      "agent_type": "runtime_company_analyst",
+      "cwd": "/Users/caihaoming/Documents/stock_agent/product",
+      "decision": "DENY_DISPATCH_CONTRACT",
+      "dispatch_binding": {
+        "actual_message_hash": "2a572e10cba5af18b99d5b46c60b274ec7d89888e63ced6e1f67efa17e0999aa",
+        "contract_version": "subagent-start-context/1.0.0",
+        "expected_message_hash": "13c366199163845ba9302cb40804d7187b5d8904203967b7f0930ee104eabbc5",
+        "matched": false
+      },
+      "event_hash": "605be3cf80da16454a9cdc86c84c2b13addc26f31e08345d80f28c889b930a15",
+      "fork_turns": "none",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.6-terra",
+      "observed_at": "2026-09-10T15:29:25.059651Z",
+      "parent_session_id": "01a08bee-2bea-7d20-bcc2-cdf5d1b0e0fc",
+      "permission_mode": "bypassPermissions",
+      "raw_prompt_or_reasoning_retained": false,
+      "recorder_version": "codex-subagent-hook-recorder/1.5.0",
+      "schema_version": "codex-subagent-dispatch/1.0.0",
+      "task_name": "company_research",
+      "tool_name": "collaborationspawn_agent",
+      "tool_use_id": "call_DRGI3y7CAZyAGUs4SJgAK5Y6",
+      "turn_id": "01a08bee-2c8a-76d2-aeb6-af23d3a707ad"
+    },
+    {
+      "agent_type": "runtime_skeptic",
+      "cwd": "/Users/caihaoming/Documents/stock_agent/product",
+      "decision": "DENY_DISPATCH_CONTRACT",
+      "dispatch_binding": {
+        "actual_message_hash": "bdbe9d4e6d5f0ec70297ab700a4eef72c4015a5c3c85d60a0a52ad0cdd3de9a7",
+        "contract_version": "subagent-start-context/1.0.0",
+        "expected_message_hash": "08ff5b86a46a604b3c86a0f96c90f491f72aac59f01727164dfa9b50c1b67cdd",
+        "matched": false
+      },
+      "event_hash": "b40f697924bc1f24e8864c5932aef9eba4e185cc11edebc22a20d42ed4668ebb",
+      "fork_turns": "none",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.6-terra",
+      "observed_at": "2026-09-10T15:29:30.088554Z",
+      "parent_session_id": "01a08bee-2bea-7d20-bcc2-cdf5d1b0e0fc",
+      "permission_mode": "bypassPermissions",
+      "raw_prompt_or_reasoning_retained": false,
+      "recorder_version": "codex-subagent-hook-recorder/1.5.0",
+      "schema_version": "codex-subagent-dispatch/1.0.0",
+      "task_name": "independent_skeptic",
+      "tool_name": "collaborationspawn_agent",
+      "tool_use_id": "call_fm7PjXUoS797eByHzm8mDBCD",
+      "turn_id": "01a08bee-2c8a-76d2-aeb6-af23d3a707ad"
+    }
+  ],
+  "public_events": 38,
+  "terminal_state": null,
+  "host_exit_code": 5,
+  "child_launcher_exit_code": 7,
+  "qualification": "FAILED; no real Specialist/CIO/Risk/Eval proof; no repeat authorized",
+  "message_serialization_check": "{\"tool_use_id\": \"call_jgCnx20vLwlazb832kXYRZyg\", \"agent\": \"runtime_company_analyst\", \"actual_message_hash\": \"d23c811717969e860ff96ae459212de61d43c8ac3fff0a9362e5a099979223a6\", \"known_serialization_matches\": []}\n{\"tool_use_id\": \"call_uOliTuv6H2zndRmxvdkRCCtS\", \"agent\": \"runtime_company_analyst\", \"actual_message_hash\": \"ab42496e416ccc679cfc1d7504e805aae3db18e30bae45d0f4885ccc7a53b41e\", \"known_serialization_matches\": []}\n{\"tool_use_id\": \"call_o0ZPyOEIdUonjxfYZZvis6sw\", \"agent\": \"runtime_skeptic\", \"actual_message_hash\": \"2e8ceb6038d28700e158a84441f0491aea83640a71285ed6dd031e41e63fc898\", \"known_serialization_matches\": []}\n{\"tool_use_id\": \"call_DRGI3y7CAZyAGUs4SJgAK5Y6\", \"agent\": \"runtime_company_analyst\", \"actual_message_hash\": \"2a572e10cba5af18b99d5b46c60b274ec7d89888e63ced6e1f67efa17e0999aa\", \"known_serialization_matches\": []}\n{\"tool_use_id\": \"call_fm7PjXUoS797eByHzm8mDBCD\", \"agent\": \"runtime_skeptic\", \"actual_message_hash\": \"bdbe9d4e6d5f0ec70297ab700a4eef72c4015a5c3c85d60a0a52ad0cdd3de9a7\", \"known_serialization_matches\": []}\n",
+  "command_redacted": "env PATH=\"<locked-live-venv>/bin:$PATH\" LIVE_SOURCE_ACCESS_FILE=\"<external-approved-source-file>\" SEC_USER_AGENT=\"[REDACTED]\" LIVE_CACHE_ROOT=\"<existing-external-cache>\" bash scripts/run-product-smoke.sh --profile live-us-equity --portfolio \"<external-approved-portfolio>\" /private/tmp/stock-agent-start-context-smoke.AErH4g/run"
+}

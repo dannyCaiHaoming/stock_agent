@@ -663,6 +663,37 @@ class NativeExecutionProofTests(unittest.TestCase):
             )
             self.assertNotIn("last_assistant_message", json.dumps(proof))
 
+            # 新草案只剥离技术字段；独立原始 hash 和封装内容都重验。
+            manifest_path = run_dir / "run_manifest.json"
+            run = json.loads(manifest_path.read_text())
+            run["specialist_output_delivery"] = "native-research-draft/1.0.0"
+            manifest_path.write_text(json.dumps(run))
+            for event in hook_records:
+                if event["hook_event_name"] != "SubagentStop":
+                    continue
+                agent = event["agent_type"]
+                raw = {k: v for k, v in reports[agent].items() if k != "skill_execution"}
+                (run_dir / "agents" / f"{agent}.native.json").write_text(json.dumps(raw))
+                event["final_structured_output_hash"] = canonical_hash(raw)
+                event["output_capture"] = {"version": run["specialist_output_delivery"], "status": "SAVED",
+                    "path": f"agents/{agent}.json", "output_hash": canonical_hash(reports[agent]),
+                    "raw_path": f"agents/{agent}.native.json", "raw_output_hash": canonical_hash(raw)}
+                event.pop("event_hash")
+                event["event_hash"] = canonical_hash(event)
+            write_jsonl(hook_events, hook_records)
+            # 同一临时夹具转换为新契约，删除的仅是本测试刚生成的旧证明。
+            (run_dir / "events" / "codex" / "specialist-execution-proof.json").unlink()
+            result = build_ephemeral_run_specialist_execution_proof(ROOT, run_dir=run_dir,
+                codex_events_path=codex_events, hook_events_path=hook_events, latency_ms=3210)
+            self.assertEqual(result["next_state"], "EXECUTION_PROOF_VERIFIED")
+            path = run_dir / "agents" / f"{AGENTS[0]}.native.json"
+            raw = json.loads(path.read_text())
+            raw["confidence"] = 0.012345
+            path.write_text(json.dumps(raw))
+            with self.assertRaisesRegex(ValueError, "NATIVE_ENVELOPE_MISMATCH"):
+                build_ephemeral_run_specialist_execution_proof(ROOT, run_dir=run_dir,
+                    codex_events_path=codex_events, hook_events_path=hook_events, latency_ms=3210)
+
     def test_run_proof_rejects_parent_cross_run_artifact_access(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

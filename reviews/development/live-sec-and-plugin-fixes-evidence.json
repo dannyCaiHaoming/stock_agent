@@ -1,0 +1,165 @@
+{
+  "schema_version": "development-fix-evidence/1.0.0",
+  "change": "us-equity-live-advisory-slice",
+  "scope": "HTTPS 信任链与 SEC 实际响应解析；不是完整 Change 验收或 Promotion 证明",
+  "tls_focused_tests": {
+    "cmd": "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B -m unittest tests.test_live_tls tests.test_live_nasdaq tests.test_live_sec_client tests.test_live_eastmoney_transport tests.test_live_collection tests.test_live_profile tests.test_live_admission -v",
+    "result": {
+      "chunk_id": "777269",
+      "wall_time_seconds": 1.3378471250000001,
+      "exit_code": 0,
+      "original_token_count": 2300,
+      "output": "test_sec_and_backup_actual_openers_verify_certificates (tests.test_live_tls.LiveTlsTests.test_sec_and_backup_actual_openers_verify_certificates) ... ok\ntest_sec_tls_failure_is_sanitized_sticky_and_not_retried (tests.test_live_tls.LiveTlsTests.test_sec_tls_failure_is_sanitized_sticky_and_not_retried) ... ok\ntest_cache_future_not_retried (tests.test_live_nasdaq.NasdaqTests.test_cache_future_not_retried) ... ok\ntest_cache_preserves_original_observation (tests.test_live_nasdaq.NasdaqTests.test_cache_preserves_original_observation) ... ok\ntest_completion_summary_tampering_rejected (tests.test_live_nasdaq.NasdaqTests.test_completion_summary_tampering_rejected) ... ok\ntest_default_partial_not_full_universe (tests.test_live_nasdaq.NasdaqTests.test_default_partial_not_full_universe) ... ok\ntest_denial_stops_sticky_no_retry (tests.test_live_nasdaq.NasdaqTests.test_denial_stops_sticky_no_retry) ... ok\ntest_empty_duplicate_changed_total (tests.test_live_nasdaq.NasdaqTests.test_empty_duplicate_changed_total) ... ok\ntest_forged_lineage_and_historical_time_fail (tests.test_live_nasdaq.NasdaqTests.test_forged_lineage_and_historical_time_fail) ... ok\ntest_https_context_loads_locked_ca_and_keeps_verification (tests.test_live_nasdaq.NasdaqTests.test_https_context_loads_locked_ca_and_keeps_verification) ... ok\ntest_invalid_payload_and_timeout_not_complete (tests.test_live_nasdaq.NasdaqTests.test_invalid_payload_and_timeout_not_complete) ... ok\ntest_no_authority_or_wrong_role_no_calls (tests.test_live_nasdaq.NasdaqTests.test_no_authority_or_wrong_role_no_calls) ... ok\ntest_page_and_row_budget (tests.test_live_nasdaq.NasdaqTests.test_page_and_row_budget) ... ok\ntest_pagination_and_original_evidence (tests.test_live_nasdaq.NasdaqTests.test_pagination_and_original_evidence) ... ok\ntest_raw_hash_mutation_rejected (tests.test_live_nasdaq.NasdaqTests.test_raw_hash_mutation_rejected) ... ok\ntest_read_and_scope_limits (tests.test_live_nasdaq.NasdaqTests.test_read_and_scope_limits) ... ok\ntest_real_opener_receives_verified_context_and_no_redirect_handler (tests.test_live_nasdaq.NasdaqTests.test_real_opener_receives_verified_context_and_no_redirect_handler) ... ok\ntest_repeated_page_and_symbol_aliases_not_silently_merged (tests.test_live_nasdaq.NasdaqTests.test_repeated_page_and_symbol_aliases_not_silently_merged) ... ok\ntest_request_budget_stops_before_next_page (tests.test_live_nasdaq.NasdaqTests.test_request_budget_stops_before_next_page) ... ok\ntest_transport_error_categories_survive_without_private_messages (tests.test_live_nasdaq.NasdaqTests.test_transport_error_categories_survive_without_private_messages) ... ok\ntest_budget_and_partial_failure (tests.test_live_sec_client.SecClientTests.test_budget_and_partial_failure) ... ok\ntest_cache_corruption_fail_closed (tests.test_live_sec_client.SecClientTests.test_cache_corruption_fail_closed) ... ok\ntest_cache_hit_preserves_timestamp_and_refresh_appends (tests.test_live_sec_client.SecClientTests.test_cache_hit_preserves_timestamp_and_refresh_appends) ... ok\ntest_endpoint_restriction (tests.test_live_sec_client.SecClientTests.test_endpoint_restriction) ... ok\ntest_fetch_parse_document_chain (tests.test_live_sec_client.SecClientTests.test_fetch_parse_document_chain) ... ok\ntest_history_page_raw_provenance_and_budget (tests.test_live_sec_client.SecClientTests.test_history_page_raw_provenance_and_budget) ... ok\ntest_history_wrong_issuer_name_rejected_before_request (tests.test_live_sec_client.SecClientTests.test_history_wrong_issuer_name_rejected_before_request) ... ok\ntest_permission_errors_no_retry (tests.test_live_sec_client.SecClientTests.test_permission_errors_no_retry) ... ok\ntest_rate_limit_and_timeout_are_bounded (tests.test_live_sec_client.SecClientTests.test_rate_limit_and_timeout_are_bounded) ... ok\ntest_repo_cache_rejected (tests.test_live_sec_client.SecClientTests.test_repo_cache_rejected) ... ok\ntest_request_spacing_and_stale_cache (tests.test_live_sec_client.SecClientTests.test_request_spacing_and_stale_cache) ... ok\ntest_retry_after_not_truncated_or_guessed (tests.test_live_sec_client.SecClientTests.test_retry_after_not_truncated_or_guessed) ... ok\ntest_selected_disclosures_include_bound_earnings_attachment (tests.test_live_sec_client.SecClientTests.test_selected_disclosures_include_bound_earnings_attachment) ... ok\ntest_ticker_map_read_through_verified_cache (tests.test_live_sec_client.SecClientTests.test_ticker_map_read_through_verified_cache) ... ok\ntest_access_denials_sticky_without_retry (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_access_denials_sticky_without_retry) ... ok\ntest_actual_sdk_scoped_globals_no_network (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_actual_sdk_scoped_globals_no_network) ... ok\ntest_bounded_before_send_and_raw_lineage (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_bounded_before_send_and_raw_lineage) ... ok\ntest_client_drift_rejected_before_sdk_import (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_client_drift_rejected_before_sdk_import) ... ok\ntest_html_challenge_and_empty_response (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_html_challenge_and_empty_response) ... ok\ntest_invalid_payload_rejected_not_sliced_away (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_invalid_payload_rejected_not_sliced_away) ... ok\ntest_invalid_scope (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_invalid_scope) ... ok\ntest_request_drift_and_private_fields_rejected_before_send (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_request_drift_and_private_fields_rejected_before_send) ... ok\ntest_retry_budget_rate_and_count (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_retry_budget_rate_and_count) ... ok\ntest_size_limit_during_read (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_size_limit_during_read) ... ok\ntest_timeout_is_bounded_and_unexpected_exception_redacted (tests.test_live_eastmoney_transport.EastmoneyTransportTests.test_timeout_is_bounded_and_unexpected_exception_redacted) ... ok\ntest_collection_freezes_after_requests_and_binds_identity_raw_objects (tests.test_live_collection.LiveCollectionTests.test_collection_freezes_after_requests_and_binds_identity_raw_objects) ... ok\ntest_paused_access_does_not_create_client_or_output (tests.test_live_collection.LiveCollectionTests.test_paused_access_does_not_create_client_or_output) ... ok\ntest_routed_backup_collection_freeze_prepare (tests.test_live_collection.LiveCollectionTests.test_routed_backup_collection_freeze_prepare) ... ok\ntest_routed_primary_collection_freeze_prepare (tests.test_live_collection.LiveCollectionTests.test_routed_primary_collection_freeze_prepare) ... ok\ntest_defaults_remain_fixture_and_live_explicit (tests.test_live_profile.LiveProfileTests.test_defaults_remain_fixture_and_live_explicit) ... ok\ntest_live_discovery_lock_does_not_modify_fixture_manifest (tests.test_live_profile.LiveProfileTests.test_live_discovery_lock_does_not_modify_fixture_manifest) ... ok\ntest_live_execution_proof_does_not_accept_another_query_server (tests.test_live_profile.LiveProfileTests.test_live_execution_proof_does_not_accept_another_query_server) ... ok\ntest_live_invocation_binds_source_and_rejects_rehashed_permissions (tests.test_live_profile.LiveProfileTests.test_live_invocation_binds_source_and_rejects_rehashed_permissions) ... ok\ntest_live_mcp_stdio_starts_without_provider_requests (tests.test_live_profile.LiveProfileTests.test_live_mcp_stdio_starts_without_provider_requests) ... ok\ntest_profile_cannot_change_topology_tools_or_schema_path (tests.test_live_profile.LiveProfileTests.test_profile_cannot_change_topology_tools_or_schema_path) ... ok\ntest_approved_unverified_passes_without_fabricated_authorized (tests.test_live_admission.AdmissionTests.test_approved_unverified_passes_without_fabricated_authorized) ... ok\ntest_current_collector_rejects_legacy_and_bad_v4_before_clients (tests.test_live_admission.AdmissionTests.test_current_collector_rejects_legacy_and_bad_v4_before_clients) ... ok\ntest_current_sec_denial_does_not_retry_or_send_next_request (tests.test_live_admission.AdmissionTests.test_current_sec_denial_does_not_retry_or_send_next_request) ... ok\ntest_each_provider_uses_canonical_admission_before_io (tests.test_live_admission.AdmissionTests.test_each_provider_uses_canonical_admission_before_io) ... ok\ntest_legacy_status_not_reinterpreted (tests.test_live_admission.AdmissionTests.test_legacy_status_not_reinterpreted) ... ok\ntest_missing_unknown_paused_denied_scope_hash_and_future_fail (tests.test_live_admission.AdmissionTests.test_missing_unknown_paused_denied_scope_hash_and_future_fail) ... ok\ntest_request_boundaries_use_same_contract_and_denial_stays_sticky (tests.test_live_admission.AdmissionTests.test_request_boundaries_use_same_contract_and_denial_stays_sticky) ... ok\ntest_v4_gate_revalidates_approval_even_with_rehashed_snapshot (tests.test_live_admission.AdmissionTests.test_v4_gate_revalidates_approval_even_with_rehashed_snapshot) ... ok\n\n----------------------------------------------------------------------\nRan 63 tests in 1.268s\n\nOK\n"
+    }
+  },
+  "sec_parser_tests": {
+    "command": "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B -m unittest tests.test_live_sec tests.test_live_security_metadata tests.test_live_collection tests.test_live_sec_client tests.test_live_tls -v",
+    "tool_chunk_id": "13a8d3",
+    "exit_code": 0,
+    "tests": 40,
+    "skipped": 0,
+    "result": "OK"
+  },
+  "real_response_reparse": {
+    "tool_chunk_id": "907907",
+    "parsed_filings": 1001,
+    "xsl_documents": 801,
+    "raw_sha256": "a3c63734704fd42fbf01c9d0eb017ecb2d197d12b25b6145ab5e87f6b4752256"
+  },
+  "runs": [
+    {
+      "path": "/private/tmp/stock-agent-live-single.9053mW",
+      "result": "SEC_DOCUMENT_INVALID",
+      "stage": "SEC_COMPANY_COLLECTION",
+      "llm_started": false,
+      "upstream": {
+        "yahoo": "SUCCEEDED",
+        "sec_submissions_http": 200
+      }
+    },
+    {
+      "path": "/private/tmp/stock-agent-live-sec-path.swtWd3",
+      "command": "env PATH=\"/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin:$PATH\" LIVE_SOURCE_ACCESS_FILE=\"/private/tmp/stock-agent-live-approved.GNswDM/source-access.json\" SEC_USER_AGENT=\"StockAgent personal research <SEC_CONTACT_EMAIL>\" LIVE_CACHE_ROOT=\"/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/cache\" bash scripts/run-product-smoke.sh --profile live-us-equity --portfolio \"/private/tmp/stock-agent-live-approved.GNswDM/portfolio.json\" \"/private/tmp/stock-agent-live-sec-path.swtWd3/run\" > \"/private/tmp/stock-agent-live-sec-path.swtWd3/host-stdout.log\" 2> \"/private/tmp/stock-agent-live-sec-path.swtWd3/host-stderr.log\"",
+      "result": "SEC_COMMON_STOCK_NOT_VERIFIED",
+      "stage": "SEC_YAHOO_IDENTITY_BINDING",
+      "llm_started": false,
+      "annual_report_raw_sha256": "4bcf2da2871acc19e32c5a62f36f6d83d6aae03cdc4aaa9a86a9a21ee8223f02"
+    },
+    {
+      "path": "/private/tmp/stock-agent-live-sec-identity.1l1LBQ",
+      "command": "env PATH=\"/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin:$PATH\" LIVE_SOURCE_ACCESS_FILE=\"/private/tmp/stock-agent-live-approved.GNswDM/source-access.json\" SEC_USER_AGENT=\"StockAgent personal research <SEC_CONTACT_EMAIL>\" LIVE_CACHE_ROOT=\"/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/cache\" bash scripts/run-product-smoke.sh --profile live-us-equity --portfolio \"/private/tmp/stock-agent-live-approved.GNswDM/portfolio.json\" \"/private/tmp/stock-agent-live-sec-identity.1l1LBQ/run\" > \"/private/tmp/stock-agent-live-sec-identity.1l1LBQ/host-stdout.log\" 2> \"/private/tmp/stock-agent-live-sec-identity.1l1LBQ/host-stderr.log\"",
+      "result": "FAILED_VALIDATION",
+      "run_id": "live-da7d3d9e-feec-4ebb-b742-11fbd781506c",
+      "snapshot_hash": "753be8d2cbc97ac39beb15f6398c6d135fc5b10fb8a8d8954efb031f54de9da5",
+      "batch_manifest_hash": "1ea713fc0c7b0ee7c8c948ed025f6b96a053c6a35d4f44e616c6a1c2a0df4662",
+      "failure_code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+      "validation_error": "UNGROUNDED_CHALLENGE",
+      "llm_started": true,
+      "source_integrity_unchanged": true,
+      "root_cause": "已安装 product@stock-agent-local 0.3.0+codex.20260908020500 只有 fixture_runtime；双专业报告实际声明 LIVE_EVIDENCE_QUERY_UNAVAILABLE。后续严格校验拒绝无证据反证。"
+    }
+  ],
+  "limits": [
+    "不放宽实际 HTTP 拒绝、下载 URL、预算、身份歧义、PIT 或 Risk",
+    "原始私密状态保留仓库外，不复制 cookie/会话/认证",
+    "63 项测试先于 SEC 解析修改，40 项测试覆盖此后受影响解析接缝"
+  ],
+  "installed_mcp": {
+    "status": "PASSED",
+    "scope": "installed MCP deterministic query; not Agent/LLM proof",
+    "command": [
+      "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python",
+      "-B",
+      "-m",
+      "runtime.live_mcp"
+    ],
+    "cwd": "/Users/caihaoming/.codex/plugins/cache/stock-agent-local/product/0.3.0+codex.20260910113002",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "tools/call",
+      "params": {
+        "name": "query",
+        "arguments": {
+          "run_dir": "/private/tmp/stock-agent-live-sec-identity.1l1LBQ/installed-mcp-fixed/runs/live-760a1202-6123-422d-b61a-c473394f3fc0",
+          "run_id": "live-760a1202-6123-422d-b61a-c473394f3fc0",
+          "agent": "runtime_company_analyst",
+          "invocation_id": "inv_d47acd0eea11adc9f6586fab",
+          "evidence_ids": [
+            "ev-live-derived-4dda30b126f348e97936c5610b038476ae2090e1516f166930c0f9bd2ca90854"
+          ]
+        }
+      }
+    },
+    "input_sha256": "cf98e97b9f13eadea459a3e042b24be731d8af4e8b2f1fbcd934f8b6b4ca9733",
+    "stdout": "{\"id\":1,\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"text\":\"{\\\"adapter_version\\\":\\\"live-gate-scoped/1.0.0\\\",\\\"evidence\\\":[{\\\"as_of\\\":\\\"2026-03-31T00:00:00Z\\\",\\\"currency\\\":\\\"USD\\\",\\\"evidence_id\\\":\\\"ev-live-derived-4dda30b126f348e97936c5610b038476ae2090e1516f166930c0f9bd2ca90854\\\",\\\"freshness_policy_version\\\":\\\"live-freshness/1.0.0\\\",\\\"freshness_status\\\":\\\"FRESH\\\",\\\"kind\\\":\\\"derived\\\",\\\"metadata\\\":{\\\"as_of\\\":\\\"2026-03-31T00:00:00Z\\\",\\\"calculation_version\\\":\\\"sec-comparison/1.0.0\\\",\\\"comparison_policy\\\":\\\"same-context/nonoverlapping-calendar-anniversary/1.0.0\\\",\\\"decimal_precision\\\":34,\\\"evidence_id\\\":\\\"ev-sec-derived-bf90b966a7c8395cc6b44a24fcd59754d4d1881293ecda9040557748e212b3e1\\\",\\\"formula\\\":{\\\"absolute_change\\\":\\\"current-prior\\\",\\\"percent_change\\\":\\\"(current-prior)/prior*100; prior>0\\\"},\\\"parent_hashes\\\":[\\\"263c9410db3a08bbbc2a42b49d789ed6228029b30c5b658f46559615b4225dfa\\\",\\\"cd07f6544b87c6457241eb443332d32431a3d4872e982b84a5cf52b77f9bbc4d\\\"],\\\"parent_ids\\\":[\\\"ev-sec-da24b12cbe0c4373609a37b7a2ab8c437998428402fe4b6b3c41ce6f6113948c\\\",\\\"ev-sec-4826087dc6896bae93626293c0623a8a55d6236f9ced520d647b64ccfafd5952\\\"],\\\"percentage_unavailable_reason\\\":null,\\\"periods\\\":[{\\\"period_end\\\":\\\"2026-03-31\\\",\\\"period_start\\\":null},{\\\"period_end\\\":\\\"2025-03-31\\\",\\\"period_start\\\":null}],\\\"published_at\\\":\\\"2026-04-29T20:06:24Z\\\",\\\"raw_hash_policy\\\":\\\"aggregate_parent_raw_hashes\\\",\\\"retrieved_at\\\":\\\"2026-09-10T11:13:33.434028Z\\\",\\\"security_id\\\":\\\"MSFT\\\",\\\"semantic_field\\\":\\\"year_over_year_comparison\\\",\\\"source_id\\\":\\\"derived-sec-comparison\\\",\\\"source_locator\\\":\\\"parent_evidence\\\",\\\"tag\\\":\\\"LongTermDebtNoncurrent\\\",\\\"unit\\\":\\\"USD\\\",\\\"value\\\":{\\\"absolute_change\\\":\\\"-8459000000\\\",\\\"percent_change\\\":\\\"-21.21006970563161325911438744295672\\\"}},\\\"parent_hashes\\\":[\\\"32f798e0bf3f190b56ea83074e4c04e66d1873ce56017aa84894d9a283393aae\\\",\\\"222d271b309c70471d4b172a797e50c8073baf537dd67fe7e3323fab0cecefcf\\\"],\\\"parent_ids\\\":[\\\"ev-sec-da24b12cbe0c4373609a37b7a2ab8c437998428402fe4b6b3c41ce6f6113948c\\\",\\\"ev-sec-4826087dc6896bae93626293c0623a8a55d6236f9ced520d647b64ccfafd5952\\\"],\\\"published_at\\\":\\\"2026-04-29T20:06:24Z\\\",\\\"published_at_policy\\\":\\\"maximum_parent_publication\\\",\\\"raw_content_hash\\\":\\\"5d42a9bf8fde4d3ebd67a9ebbaa22bec06518fee251b4707597b866fff529a36\\\",\\\"retrieved_at\\\":\\\"2026-09-10T11:13:33.434028Z\\\",\\\"schema_version\\\":\\\"live-fact/1.0.0\\\",\\\"security_id\\\":\\\"MSFT\\\",\\\"semantic_field\\\":\\\"year_over_year_comparison\\\",\\\"source_id\\\":\\\"derived-sec-comparison\\\",\\\"source_locator\\\":\\\"parent_evidence\\\",\\\"source_type\\\":\\\"derived\\\",\\\"source_version\\\":\\\"sec-comparison/1.0.0\\\",\\\"unit\\\":\\\"USD\\\",\\\"usage\\\":\\\"current\\\",\\\"value\\\":{\\\"absolute_change\\\":\\\"-8459000000\\\",\\\"percent_change\\\":\\\"-21.21006970563161325911438744295672\\\"}}],\\\"result_hash\\\":\\\"d25c9ad741a9279cb04231cebe56a7186a5f97b12a63816a248eb676db7c4b9f\\\",\\\"run_id\\\":\\\"live-760a1202-6123-422d-b61a-c473394f3fc0\\\"}\",\"type\":\"text\"}],\"isError\":false,\"structuredContent\":{\"adapter_version\":\"live-gate-scoped/1.0.0\",\"evidence\":[{\"as_of\":\"2026-03-31T00:00:00Z\",\"currency\":\"USD\",\"evidence_id\":\"ev-live-derived-4dda30b126f348e97936c5610b038476ae2090e1516f166930c0f9bd2ca90854\",\"freshness_policy_version\":\"live-freshness/1.0.0\",\"freshness_status\":\"FRESH\",\"kind\":\"derived\",\"metadata\":{\"as_of\":\"2026-03-31T00:00:00Z\",\"calculation_version\":\"sec-comparison/1.0.0\",\"comparison_policy\":\"same-context/nonoverlapping-calendar-anniversary/1.0.0\",\"decimal_precision\":34,\"evidence_id\":\"ev-sec-derived-bf90b966a7c8395cc6b44a24fcd59754d4d1881293ecda9040557748e212b3e1\",\"formula\":{\"absolute_change\":\"current-prior\",\"percent_change\":\"(current-prior)/prior*100; prior>0\"},\"parent_hashes\":[\"263c9410db3a08bbbc2a42b49d789ed6228029b30c5b658f46559615b4225dfa\",\"cd07f6544b87c6457241eb443332d32431a3d4872e982b84a5cf52b77f9bbc4d\"],\"parent_ids\":[\"ev-sec-da24b12cbe0c4373609a37b7a2ab8c437998428402fe4b6b3c41ce6f6113948c\",\"ev-sec-4826087dc6896bae93626293c0623a8a55d6236f9ced520d647b64ccfafd5952\"],\"percentage_unavailable_reason\":null,\"periods\":[{\"period_end\":\"2026-03-31\",\"period_start\":null},{\"period_end\":\"2025-03-31\",\"period_start\":null}],\"published_at\":\"2026-04-29T20:06:24Z\",\"raw_hash_policy\":\"aggregate_parent_raw_hashes\",\"retrieved_at\":\"2026-09-10T11:13:33.434028Z\",\"security_id\":\"MSFT\",\"semantic_field\":\"year_over_year_comparison\",\"source_id\":\"derived-sec-comparison\",\"source_locator\":\"parent_evidence\",\"tag\":\"LongTermDebtNoncurrent\",\"unit\":\"USD\",\"value\":{\"absolute_change\":\"-8459000000\",\"percent_change\":\"-21.21006970563161325911438744295672\"}},\"parent_hashes\":[\"32f798e0bf3f190b56ea83074e4c04e66d1873ce56017aa84894d9a283393aae\",\"222d271b309c70471d4b172a797e50c8073baf537dd67fe7e3323fab0cecefcf\"],\"parent_ids\":[\"ev-sec-da24b12cbe0c4373609a37b7a2ab8c437998428402fe4b6b3c41ce6f6113948c\",\"ev-sec-4826087dc6896bae93626293c0623a8a55d6236f9ced520d647b64ccfafd5952\"],\"published_at\":\"2026-04-29T20:06:24Z\",\"published_at_policy\":\"maximum_parent_publication\",\"raw_content_hash\":\"5d42a9bf8fde4d3ebd67a9ebbaa22bec06518fee251b4707597b866fff529a36\",\"retrieved_at\":\"2026-09-10T11:13:33.434028Z\",\"schema_version\":\"live-fact/1.0.0\",\"security_id\":\"MSFT\",\"semantic_field\":\"year_over_year_comparison\",\"source_id\":\"derived-sec-comparison\",\"source_locator\":\"parent_evidence\",\"source_type\":\"derived\",\"source_version\":\"sec-comparison/1.0.0\",\"unit\":\"USD\",\"usage\":\"current\",\"value\":{\"absolute_change\":\"-8459000000\",\"percent_change\":\"-21.21006970563161325911438744295672\"}}],\"result_hash\":\"d25c9ad741a9279cb04231cebe56a7186a5f97b12a63816a248eb676db7c4b9f\",\"run_id\":\"live-760a1202-6123-422d-b61a-c473394f3fc0\"}}}\n",
+    "stdout_sha256": "d84c4fd3846552ed3a44c63d3a6486eb59e4c57a8a1decf70aa6b4fd0bc4412b",
+    "stderr": "",
+    "returncode": 0,
+    "source_hashes": {
+      "product/mcp/live/tls.py": "0d0c90ee8e2b793d71e557f6a777c90f47ee07f243fb97a56a30b3ad80464e04",
+      "product/mcp/live/nasdaq.py": "e22b5baaab1d7df458bfe0c8e8da3967fa489587d0a39b1f6d1e0e4c02441909",
+      "product/mcp/live/sec.py": "f03b7f259817dbe7c29115c7bf4131a9d0d22440f0b8b2bf34d03ab1c47410d2",
+      "product/mcp/live/sec_client.py": "08bd8c7f66f022c7016a10598463c4e32f1986418dd8f57dbb68b4f1e3316632",
+      "product/mcp/live/security_metadata.py": "9ad32d90d6a5cf709e57334f8c4a7b0bb47d3e36536559393e38b0e920f32e93",
+      "product/mcp/live/eastmoney_transport.py": "2f3268f64cb414ed2c2bbcb03452c50ef8fc233934f7074fece370743cc3d3c5",
+      "product/mcp/live/contracts.py": "cffb045a129f932d3c6e9872b986979059d9d05dfedfbac3ecd43e612ac50468",
+      "product/mcp/live/personal-research-approval.json": "6c5d0538b4236b41dd16728d2549b909ca9e0e3a3dd128babf693fd780d59453",
+      "product/.codex-plugin/plugin.json": "1602498ea8223c330cfc2164e877bd48e454c680c76b045efe6b6b8d157e7a65",
+      "product/.mcp.json": "878ecdd13d2dc6ba633c9483ac13b02f8afd6b79cd4b345d0f2b73e4e81354de",
+      "product/version-manifest.json": "6c4afdfa4f95104b3ea45108abc782935741d881a02a745f8331fd7fc86d9eb0",
+      "product/runtime/discovery.py": "14cee14ba08e52dba69b2282a6dd3b4dc0a09a70f683c4ae4c622e2b9d7bc93f",
+      "product/skills/portfolio-council/references/live-us-equity.md": "9a9a195301840290c6d4c82ed0faa282ae95df4ec092c03f1ce5d70bde8ca5c9",
+      "tests/test_live_sec.py": "93409f9b42ff9cb9c00d409be28fe1f359e679656131b72fa3788a5b30279c6c",
+      "tests/test_live_security_metadata.py": "602039c9c4dcd9de75094eb49a13dc72d8496ff7a11e2457ba6f3c4f858820c4",
+      "tests/test_live_tls.py": "80cdb4fda61bfe98988ff0ba9edd554bd95ce2caf837eff7e9aaf82a8fc50c65",
+      "tests/test_live_admission.py": "8931b6bc314639740ba6e33ad171e0474ec97ee9337819ff10a9f259e724e46f"
+    },
+    "installed_hashes": {
+      ".codex-plugin/plugin.json": "1602498ea8223c330cfc2164e877bd48e454c680c76b045efe6b6b8d157e7a65",
+      ".mcp.json": "878ecdd13d2dc6ba633c9483ac13b02f8afd6b79cd4b345d0f2b73e4e81354de",
+      "runtime/live_mcp.py": "0786c9ee818315779bfbd201b78e207a0e17f46fec884ee104438fd6797c4945",
+      "mcp/live/contracts.py": "cffb045a129f932d3c6e9872b986979059d9d05dfedfbac3ecd43e612ac50468",
+      "mcp/live/personal-research-approval.json": "6c5d0538b4236b41dd16728d2549b909ca9e0e3a3dd128babf693fd780d59453"
+    }
+  },
+  "packaging_failure": {
+    "cmd": "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B - <<'PY'\nimport json, subprocess, sys\nfrom pathlib import Path\nrun=Path(\"/private/tmp/stock-agent-live-sec-identity.1l1LBQ/installed-mcp-seam/runs/live-fed42526-f428-4515-b82b-4fb329b69bc0\")\nmanifest=json.loads((run/\"invocations/runtime_company_analyst.json\").read_text())\ngate=json.loads((run/\"evidence/gate.json\").read_text())\nrequest={\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"query\",\"arguments\":{\"run_dir\":str(run),\"run_id\":manifest[\"run_id\"],\"agent\":\"runtime_company_analyst\",\"invocation_id\":manifest[\"invocation_id\"],\"evidence_ids\":gate[\"allowed_evidence_ids\"][:1]}}}\nresult=subprocess.run([sys.executable,\"-B\",\"-m\",\"runtime.live_mcp\"],cwd=\"/Users/caihaoming/.codex/plugins/cache/stock-agent-local/product/0.3.0+codex.20260910112337\",input=json.dumps(request)+\"\\n\",text=True,capture_output=True,timeout=30)\nprint(json.dumps({\"returncode\":result.returncode,\"stdout\":result.stdout[:1800],\"stderr\":result.stderr[-2400:]}))\nPY",
+    "result": {
+      "chunk_id": "72a4c1",
+      "wall_time_seconds": 0.018618208,
+      "exit_code": 0,
+      "original_token_count": 625,
+      "output": "{\"returncode\": 1, \"stdout\": \"\", \"stderr\": \"oming/.codex/plugins/cache/stock-agent-local/product/0.3.0+codex.20260910112337/runtime/fixture_mcp.py\\\", line 341, in query\\n    tools = self._bound_tools(\\n        run_dir=run_dir,\\n    ...<3 lines>...\\n        },\\n    )\\n  File \\\"/Users/caihaoming/.codex/plugins/cache/stock-agent-local/product/0.3.0+codex.20260910112337/runtime/live_mcp.py\\\", line 82, in _bound_tools\\n    portfolio, snapshot, gate, calendar = load_live_run_context(root, run)\\n                                          ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^\\n  File \\\"/Users/caihaoming/.codex/plugins/cache/stock-agent-local/product/0.3.0+codex.20260910112337/runtime/live_context.py\\\", line 136, in load_live_run_context\\n    validate_contract(\\\"snapshot\\\", snapshot)\\n    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/Users/caihaoming/.codex/plugins/cache/stock-agent-local/product/0.3.0+codex.20260910112337/mcp/live/contracts.py\\\", line 142, in validate_contract\\n    require_source_admission(access, at=value[\\\"request_started_at\\\"])\\n    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/Users/caihaoming/.codex/plugins/cache/stock-agent-local/product/0.3.0+codex.20260910112337/mcp/live/contracts.py\\\", line 170, in require_source_admission\\n    expected = json.loads((SCHEMAS.parents[2] / \\\"docs/data/personal-research-approval.json\\\").read_text(encoding=\\\"utf-8\\\"))\\n                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^\\n  File \\\"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py\\\", line 546, in read_text\\n    return PathBase.read_text(self, encoding, errors, newline)\\n           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py\\\", line 632, in read_text\\n    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:\\n         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py\\\", line 537, in open\\n    return io.open(self, mode, buffering, encoding, errors, newline)\\n           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nFileNotFoundError: [Errno 2] No such file or directory: '/Users/caihaoming/.codex/plugins/cache/stock-agent-local/product/docs/data/personal-research-approval.json'\\n\"}\n"
+    }
+  },
+  "additional_tests": [
+    {
+      "command": "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B -m unittest tests.test_product_config tests.test_live_profile tests.test_live_host_entry -v",
+      "tool_chunk_id": "2deac0",
+      "tests": 22,
+      "exit_code": 0,
+      "result": "OK",
+      "scope": "插件 manifest 更新后；批准记录随包修复前"
+    },
+    {
+      "command": "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B -m unittest tests.test_live_admission tests.test_live_profile tests.test_live_collection -v",
+      "tool_chunk_id": "f75b78",
+      "tests": 20,
+      "exit_code": 0,
+      "result": "OK",
+      "scope": "批准记录随包资源、原批准一致性、缺失/篡改拒绝与采集/MCP 接缝"
+    },
+    {
+      "tool_chunk_id": "eefae2",
+      "result": "Skill is valid!",
+      "exit_code": 0
+    },
+    {
+      "tool_chunk_id": "1e86c6",
+      "result": "Plugin validation passed",
+      "exit_code": 0
+    }
+  ],
+  "validator_environment": "最初 validator 因缺 PyYAML 未执行；最终使用外置 /private/tmp/stock-agent-plugin-validation.bp8Ssl/deps 的 PyYAML 6.0.2，通过 PYTHONPATH 仅供开发校验，不修改 live 依赖锁。"
+}

@@ -69,6 +69,59 @@ def discover_eval_rollouts(sessions_root: Path, *, eval_dir: Path, eval_id: str)
     return matches[0]
 
 
+def normalize_native_grade(final, manifest, *, model):
+    """Envelope real LLM grades with runtime metadata; never repair a legacy result."""
+    if manifest.get("semantic_output_delivery") != "native-draft/1.0.0":
+        return final
+    if (set(final) != {"schema_version", "eval_id", "dimensions"}
+            or final["schema_version"] != "semantic-rubric-draft/1.0.0"
+            or final["eval_id"] != manifest["eval_id"] or model != "gpt-5.6-terra"):
+        raise EvalExecutionProofError("EVAL_NATIVE_DRAFT_INVALID")
+    hashes = manifest["source_hashes"]
+    value = {"schema_version": "semantic-rubric-result/1.0.0", "eval_id": final["eval_id"],
+             "dimensions": final["dimensions"], "grader": {"agent": "dev_eval", "model": model,
+             "prompt_hash": hashes["grader_prompt"], "rubric_hash": hashes["rubric"],
+             "input_hash": hashes["semantic_input"]}}
+    value["output_hash"] = canonical_hash(value)
+    from .runtime_eval import validate_semantic_result
+    return validate_semantic_result(value, eval_id=manifest["eval_id"], input_manifest=manifest)
+
+
+def _native_manifest_read(records, path):
+    """Bind the frozen hashes to an actual child tool result, not generated text."""
+    expected = path.read_text(encoding="utf-8").strip()
+    calls = set()
+    for record in records:
+        payload = record.get("payload", {})
+        if payload.get("type") in {"function_call", "custom_tool_call"}:
+            if str(path) in str(payload.get("arguments", payload.get("input", ""))):
+                calls.add(payload.get("call_id"))
+        if payload.get("type") in {"function_call_output", "custom_tool_call_output"} and payload.get("call_id") in calls:
+            output = payload.get("output", "")
+            text = output if isinstance(output, str) else "\n".join(str(x.get("text", "")) for x in output if isinstance(x, dict))
+            if expected in text:
+                return True
+    return False
+
+
+def collect_native_eval_output(repository_root, *, eval_dir, semantic_result_path, parent_rollout, child_rollout):
+    manifest = _read(eval_dir / "input-manifest.json")
+    if manifest.get("semantic_output_delivery") != "native-draft/1.0.0":
+        raise EvalExecutionProofError("EVAL_NATIVE_COLLECTION_NOT_ENABLED")
+    records = _load_jsonl(child_rollout)
+    final = _final_structured_output(records, agent_name="dev_eval")
+    value = normalize_native_grade(final, manifest, model=_turn_context(records).get("model"))
+    if semantic_result_path.resolve() != (eval_dir / "semantic-result.json").resolve():
+        raise EvalExecutionProofError("EVAL_NATIVE_OUTPUT_PATH_INVALID")
+    # Preserve the raw draft separately. No overwrite or silent legacy hash fix.
+    for path, content in ((eval_dir / "semantic-native-draft.json", final), (semantic_result_path, value)):
+        with path.open("x", encoding="utf-8") as stream:
+            json.dump(content, stream, ensure_ascii=False, sort_keys=True, indent=2)
+            stream.write("\n")
+    return build_eval_execution_proof(repository_root, eval_dir=eval_dir, semantic_result_path=semantic_result_path,
+                                     parent_rollout=parent_rollout, child_rollout=child_rollout)
+
+
 def build_eval_execution_proof(
     repository_root: Path,
     *,
@@ -119,6 +172,7 @@ def build_eval_execution_proof(
         str(manifest["source_hashes"]["semantic_input"]),
     ]
     final = _final_structured_output(child_records, agent_name="dev_eval")
+    final = normalize_native_grade(final, manifest, model=child_context.get("model"))
     plaintext_binding = all(item in child_user for item in required_bindings)
     protected_binding = _is_protected_dispatch_message(arguments.get("message")) and (
         final.get("eval_id") == manifest["eval_id"]
@@ -126,6 +180,9 @@ def build_eval_execution_proof(
         and final.get("grader", {}).get("rubric_hash") == manifest["source_hashes"]["rubric"]
         and final.get("grader", {}).get("input_hash") == manifest["source_hashes"]["semantic_input"]
     )
+    if manifest.get("semantic_output_delivery") == "native-draft/1.0.0":
+        if not _native_manifest_read(child_records, eval_dir / "input-manifest.json"):
+            raise EvalExecutionProofError("EVAL_NATIVE_MANIFEST_READ_MISSING")
     if not plaintext_binding and not protected_binding:
         raise EvalExecutionProofError("EVAL_GRADER_TASK_BINDING_MISSING")
     if canonical_hash(final) != canonical_hash(semantic):

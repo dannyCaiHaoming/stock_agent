@@ -1,0 +1,55 @@
+{
+  "change": "us-equity-live-advisory-slice",
+  "actual_command": "env PATH=\"/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin:$PATH\" LIVE_SOURCE_ACCESS_FILE=\"/private/tmp/stock-agent-live-approved.GNswDM/source-access.json\" SEC_USER_AGENT=\"StockAgent personal research <SEC_CONTACT_REDACTED>\" LIVE_CACHE_ROOT=\"/private/tmp/stock-agent-live-approved.GNswDM/cache\" bash scripts/run-product-smoke.sh --profile live-us-equity --portfolio \"/private/tmp/stock-agent-live-approved.GNswDM/portfolio.json\" \"/private/tmp/stock-agent-live-approved.GNswDM/single\"",
+  "private_values": "SEC 联系身份仅以环境变量传入宿主，不写入公开记录",
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "input": {
+    "portfolio": "/private/tmp/stock-agent-live-approved.GNswDM/portfolio.json",
+    "portfolio_sha256": "2ca8217e5e46b4159292dec23e8fffb0ea93d355ad4f4bd367338f46ed490a04",
+    "source_access": "/private/tmp/stock-agent-live-approved.GNswDM/source-access.json",
+    "source_access_sha256": "fef09ca5f3d538ee8ad5700c2ab01f1c4d0a17f7fa148004ca95825238f889ac",
+    "synthetic_portfolio": true
+  },
+  "output": {
+    "collection_error": "/private/tmp/stock-agent-live-approved.GNswDM/single/data/collection-error.json",
+    "sha256": "71290838e58d3a38053bc40eeb697575b5d6681df0b7eb403d3df25bec2a1949"
+  },
+  "process": {
+    "chunk_id": "cde8d8",
+    "wall_time_seconds": 0.000001625,
+    "exit_code": 2,
+    "original_token_count": 31,
+    "output": "{\"status\": \"FAILED\", \"failure_type\": \"ValueError\", \"command\": \"collect-live\", \"failure_code\": \"NASDAQ_TRANSPORT_FAILURE\"}\n"
+  },
+  "collection_error": {
+    "collection_version": "live-collection/3.0.0",
+    "completed_at": "2026-09-10T09:56:54.245188Z",
+    "events": [
+      {
+        "completed_at": "2026-09-10T09:56:54.238430Z",
+        "failure_code": "NASDAQ_TRANSPORT_FAILURE",
+        "provider": "nasdaq",
+        "query": {
+          "limit": 200,
+          "offset": 0
+        },
+        "request_number": 1,
+        "started_at": "2026-09-10T09:56:53.550211Z"
+      }
+    ],
+    "failed_stage": "NASDAQ_UNIVERSE",
+    "failure_code": "NASDAQ_TRANSPORT_FAILURE",
+    "failure_type": "ValueError",
+    "source_selections": [],
+    "status": "FAILED"
+  },
+  "runtime_status": {
+    "nasdaq": "FAILED_TRANSPORT",
+    "yahoo": "NOT_STARTED",
+    "eastmoney": "NOT_STARTED",
+    "sec": "NOT_STARTED",
+    "council": "NOT_STARTED",
+    "llm_calls": 0
+  },
+  "interpretation": "已通过当前个人研究配置检查；NASDAQ 首次目录请求失败。错误包装未保留 URLError 底层类型，不能断言 DNS/TLS/代理或上游拒绝。未重试、未切源、未修改代理。"
+}

@@ -73,12 +73,26 @@ def _semantic_input(run_dir: Path, trace: Mapping[str, Any]) -> dict[str, Any]:
         path = run_dir / relative
         if path.is_file():
             artifacts[relative] = _read_object(path)
+    manifest = _read_object(run_dir / "run_manifest.json")
+    if manifest.get("source_mode") == "live":
+        for relative in ("audit/live/portfolio.json", "inputs/runtime_cio.json"):
+            if (run_dir / relative).is_file():
+                artifacts[relative] = _read_object(run_dir / relative)
     return {
         "run_id": trace["run_id"],
         "terminal_state": trace["terminal_state"],
         "failed_stage": trace["failed_stage"],
         "artifacts": artifacts,
     }
+
+
+def _rubric_path(repository_root: Path, run_dir: Path) -> Path:
+    manifest = _read_object(run_dir / "run_manifest.json")
+    mode = manifest.get("source_mode", "fixture")
+    if mode not in ("fixture", "live"):
+        raise RuntimeEvalError("EVAL_SOURCE_MODE_UNKNOWN")
+    name = "live-us-equity-rubric-v1.json" if mode == "live" else "semantic-rubric-v1.json"
+    return repository_root.resolve() / "evals/grading" / name
 
 
 def _future_injection_check(
@@ -214,6 +228,11 @@ def _pit_and_evidence_checks(
         if isinstance(item, Mapping)
         and (str(item.get("as_of", "")) > cutoff or str(item.get("retrieved_at", "")) > cutoff)
     )
+    if gate.get("source_mode") == "live":
+        from product.mcp.provenance import parse_timestamp
+        leaked = sorted(str(item["evidence_id"]) for item in allowed_records
+                        if any(parse_timestamp(item[field]) > parse_timestamp(cutoff)
+                               for field in ("as_of", "published_at", "retrieved_at")))
     injection = _future_injection_check(run_dir, trace=trace, gate=gate)
     injection_invalid = injection.get("injection_verified") is False
     pit = {
@@ -302,6 +321,16 @@ def _hard_gates_for_run(
     return hard_gates, integrity, replay
 
 
+def semantic_output_schema(repository_root: Path, *, native_draft: bool = False) -> dict[str, Any]:
+    schema = _read_object(repository_root / "product/schemas/runtime/semantic-rubric-result.schema.json")
+    if native_draft:
+        schema["$id"] = "portfolio-council/semantic-rubric-draft/1.0.0"
+        schema["required"] = ["schema_version", "eval_id", "dimensions"]
+        schema["properties"] = {k: schema["properties"][k] for k in schema["required"]}
+        schema["properties"]["schema_version"] = {"const": "semantic-rubric-draft/1.0.0"}
+    return schema
+
+
 def prepare_eval_job(
     repository_root: Path,
     *,
@@ -323,16 +352,20 @@ def prepare_eval_job(
     )
     matrix = validate_artifact_matrix(run_dir, require_eval=False)
     semantic_input = _semantic_input(run_dir, trace)
-    rubric_path = repository_root.resolve() / "evals" / "grading" / "semantic-rubric-v1.json"
+    rubric_path = _rubric_path(repository_root, run_dir)
     rubric = _read_object(rubric_path)
     prompt = (
         "你是开发控制面的 dev_eval，不是投资决策 Agent。仅根据输入产物和 rubric 对五个维度评分。"
         "不得创造新事实、不得更改投资动作、不得使用市场结果。输出 semantic-rubric-result/1.0.0 JSON。"
     )
-    semantic_schema = _read_object(
-        repository_root.resolve() / "product" / "schemas" / "runtime" / "semantic-rubric-result.schema.json"
-    )
     run_manifest = _read_object(run_dir / "run_manifest.json")
+    native_draft = run_manifest.get("source_mode") == "live"
+    semantic_schema = semantic_output_schema(repository_root.resolve(), native_draft=native_draft)
+    if native_draft:
+        prompt = ("你是开发控制面的 dev_eval，只依据冻结输入和 rubric 对五维度评分。"
+                  "只输出 semantic-rubric-draft/1.0.0 JSON，字段为 schema_version、eval_id、dimensions。"
+                  "评分、理由、引用由你生成；不输出 grader 或 output_hash，这些由运行层根据真实会话计算。"
+                  "不得创造新事实、更改投资动作或使用市场结果。")
     input_manifest = {
         "schema_version": "runtime-eval-input/1.0.0",
         "eval_id": eval_id,
@@ -351,6 +384,8 @@ def prepare_eval_job(
             "semantic_output_schema": canonical_hash(semantic_schema),
         },
     }
+    if native_draft:
+        input_manifest["semantic_output_delivery"] = "native-draft/1.0.0"
     eval_dir.mkdir(parents=True)
     _write_json(eval_dir / "input-manifest.json", input_manifest)
     _write_json(eval_dir / "deterministic.json", {"hard_gates": hard_gates})
@@ -422,6 +457,21 @@ def build_eval_smoke_prompt(
     eval_dir = eval_dir.resolve()
     manifest = _read_object(eval_dir / "input-manifest.json")
     hashes = manifest["source_hashes"]
+    rubric_path = _rubric_path(repository_root, Path(manifest["run_dir"]))
+    if manifest.get("semantic_output_delivery") == "native-draft/1.0.0":
+        return f"""$runtime-eval-grading
+你是开发评分协调线程，不是 CIO；禁止修改产品或源 Run，不启动 Council。
+只启动一次独立子 Agent：agent_type=dev_eval、task_name=semantic_grading、fork_turns=none。
+子任务必须包含 eval_id={manifest['eval_id']}、eval_dir={eval_dir}、grader_prompt_hash={hashes['grader_prompt']}、rubric_hash={hashes['rubric']}、semantic_input_hash={hashes['semantic_input']}。
+要求完整读取 {eval_dir}/grader-prompt.txt、grader-input.json、semantic-output-schema.json 和 {rubric_path}，应用 runtime-eval-grading。
+必须把以下要求逐字放入 dev_eval 子任务消息：你（子 Agent）在评分前单独完整读取并输出 {eval_dir}/input-manifest.json，使用绝对路径且输出不得截断；不可仅 jq 选择字段或比较 hash，父线程读取不能代替。协调线程不得自行完成这一步后省略子任务要求。用于运行层验证真实输入绑定，不要求模型复制 hash。
+本 Job 使用 semantic-rubric-draft/1.0.0，而不是历史 v1 完整结果；只返回 schema_version、eval_id、dimensions，五维评分/理由/引用不变。禁止生成或转抄任何证明 hash，禁止自行写结果文件。
+等待该子 Agent 完成后，不转抄其 JSON，直接执行：
+python3 -B -m product.runtime.cli eval-execution-proof --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))} --sessions-root {sessions_root_argument(sessions_root)} --collect-native-output
+成功后执行：
+python3 -B -m product.runtime.cli eval-finalize --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))}
+失败如实停止，禁止重评、修分、手工补 hash 或重写文件。
+"""
     return f"""$runtime-eval-grading
 
 你是 Runtime Eval 的开发控制面协调线程，不是投资决策者。只处理 `{eval_dir}` 中已冻结的 Eval 输入，不补充外部事实，不修改源 Run 或产品文件。
@@ -434,7 +484,7 @@ def build_eval_smoke_prompt(
 - semantic_input_hash: `{hashes['semantic_input']}`
 - semantic_output_schema_hash: `{hashes['semantic_output_schema']}`
 
-要求子 Agent 完整读取 `grader-prompt.txt`、`grader-input.json`、`semantic-output-schema.json` 与 `{repository_root / 'evals' / 'grading' / 'semantic-rubric-v1.json'}`，应用 runtime-eval-grading Skill，只返回一个符合 Schema 的 JSON 对象。grader.agent 必须为 dev_eval，grader.model 必须为 gpt-5.6-terra，并逐字复制上述三个 lineage hash。不得生成投资建议或隐藏推理。
+要求子 Agent 完整读取 `grader-prompt.txt`、`grader-input.json`、`semantic-output-schema.json` 与 `{rubric_path}`，应用 runtime-eval-grading Skill，只返回一个符合 Schema 的 JSON 对象。grader.agent 必须为 dev_eval，grader.model 必须为 gpt-5.6-terra，并逐字复制上述三个 lineage hash。不得生成投资建议或隐藏推理。
 `input-manifest.json` 中的 source_hashes 是 Runtime 按 canonical JSON/契约算法生成并已确定性验证的 lineage 值，不等同于文件字节 `sha256sum`。只核对上述值与 manifest 完全相同；禁止将其按文件字节哈希重新解释后误报完整性失败。
 
 收到结果后原样保存为 `{eval_dir / 'semantic-result.json'}`，然后运行：
@@ -604,10 +654,8 @@ def verify_runtime_eval_job(
     if deterministic != {"hard_gates": hard_gates}:
         raise RuntimeEvalError("EVAL_DETERMINISTIC_RESULT_MISMATCH")
     matrix = validate_artifact_matrix(run_dir, require_eval=False)
-    rubric = _read_object(repository_root / "evals" / "grading" / "semantic-rubric-v1.json")
-    schema = _read_object(
-        repository_root / "product" / "schemas" / "runtime" / "semantic-rubric-result.schema.json"
-    )
+    rubric = _read_object(_rubric_path(repository_root, run_dir))
+    schema = semantic_output_schema(repository_root, native_draft=input_manifest.get("semantic_output_delivery") == "native-draft/1.0.0")
     prompt = (eval_dir / "grader-prompt.txt").read_text(encoding="utf-8").rstrip("\n")
     expected_hashes = {
         "trace": integrity["trace_hash"],

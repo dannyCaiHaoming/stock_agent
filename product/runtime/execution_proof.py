@@ -263,6 +263,11 @@ def _logical_tool_name(call: Mapping[str, Any], allowed_tools: set[str]) -> str 
     searchable = f"{namespace}.{name}".casefold().replace("__", ".")
     for logical_name in allowed_tools:
         _, tool = logical_name.casefold().split(".", 1)
+        if logical_name.startswith("live_"):
+            if not searchable.endswith("." + tool) or not (
+                "live_runtime." in searchable or logical_name.casefold() in searchable
+            ):
+                continue
         if tool in searchable:
             return logical_name
     return None
@@ -861,8 +866,28 @@ def build_ephemeral_run_specialist_execution_proof(
             or output_binding.get("agent") != agent_name
         ):
             raise ExecutionProofError(f"CHILD_TASK_BINDING_MISSING:{agent_name}")
-        if stop.get("final_structured_output_hash") != canonical_hash(report):
+        raw_output = report
+        delivery = run_manifest.get("specialist_output_delivery")
+        if delivery == "native-research-draft/1.0.0":
+            from .invocation import envelope_specialist_draft
+            raw_path = run_dir / "agents" / f"{agent_name}.native.json"
+            if raw_path.is_symlink() or not raw_path.is_file():
+                raise ExecutionProofError(f"SPECIALIST_NATIVE_DRAFT_MISSING:{agent_name}")
+            raw_output = json.loads(raw_path.read_text(encoding="utf-8"))
+            if envelope_specialist_draft(raw_output, manifest, model=stop.get("model")) != report:
+                raise ExecutionProofError(f"SPECIALIST_NATIVE_ENVELOPE_MISMATCH:{agent_name}")
+            capture = stop.get("output_capture", {})
+            if (capture.get("raw_output_hash") != canonical_hash(raw_output)
+                    or capture.get("raw_path") != f"agents/{agent_name}.native.json"):
+                raise ExecutionProofError(f"SPECIALIST_NATIVE_DRAFT_HASH_MISMATCH:{agent_name}")
+        if stop.get("final_structured_output_hash") != canonical_hash(raw_output):
             raise ExecutionProofError(f"CHILD_REPORT_OUTPUT_HASH_MISMATCH:{agent_name}")
+        if delivery in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}:
+            capture = stop.get("output_capture", {})
+            if (capture.get("status") != "SAVED" or capture.get("version") != delivery
+                    or capture.get("output_hash") != canonical_hash(report)
+                    or capture.get("path") != f"agents/{agent_name}.json"):
+                raise ExecutionProofError(f"SPECIALIST_NATIVE_CAPTURE_MISSING:{agent_name}")
 
         agent_path = Path(str(manifest["agent"]["path"])).resolve()
         product_root = (repository_root / "product").resolve()
@@ -961,8 +986,17 @@ def build_ephemeral_run_specialist_execution_proof(
                 "task_prompt_hash": manifest["task_prompt_hash"],
             },
             "assistant_output_hash": stop.get("assistant_message_sha256"),
-            "final_structured_output_hash": stop.get("final_structured_output_hash"),
+            "final_structured_output_hash": canonical_hash(report),
+            **({"raw_final_structured_output_hash": stop.get("final_structured_output_hash")}
+               if delivery == "native-research-draft/1.0.0" else {}),
         }
+        if run_manifest.get("source_mode") == "live":
+            from .invocation import verify_specialist_start_binding
+            try:
+                children[agent_name]["start_context_binding"] = verify_specialist_start_binding(
+                    repository_root, run_dir, agent_name, report=report, parent_session_id=parent_session_id)
+            except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+                raise ExecutionProofError(f"START_CONTEXT_PROOF_INVALID:{agent_name}:{exc}") from exc
 
     prompt_path = run_dir / "invocation" / "prompt.txt"
     prompt_text = prompt_path.read_text(encoding="utf-8")

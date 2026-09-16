@@ -11,6 +11,14 @@
 
 发现需要增加验收范围、修改既定规格或接受例外时，先说明原因和安全影响并请求批准，不静默降低门禁。原始证据不格式化、不补写；若格式检查命中其空白，需要明确分类和人工批准，不能豁免源码问题。
 
+## Agent Package Milestone 0
+
+零 LLM 装配 Demo 只通过显式 `python3 scripts/council-dev.py demo ...` 启动，用于观察 Agent Request/Response、Dispatch、PIT、只读 Tool Port、Risk 和最终报告的数据流。默认 `self-check` 不启动该 Demo；真实产品 Smoke 仍只能使用宿主 launcher。
+
+Demo 验收只运行受影响的确定性测试和一次全链路合成演示。Runtime Eval、Execution Replay、Regression、Calibration、Ablation 与 Promotion 的源码和显式入口继续保留，但普通实现、Demo、差异复核或归档准备不得自动调用。Demo PASS 只证明装配和契约，不证明真实 LLM、Skill 推理、Subagent、主线程 CIO、live 研究或候选晋升。
+
+apply 获批后，范围内实施、普通错误修复和聚焦检查持续推进；只有权限升级、破坏性操作、外部付费或凭证、范围/安全契约变化及真实阻断才中途暂停。最终归档和推送仍需要一次明确人工完成批准。
+
 ## 三层检查
 
 - 日常开发：纵向切片使用任务声明的受影响聚焦验证，保留输入、实际命令、输出和完整 hash；验证不完整不勾选。不把 Change 收尾、完整产品运行或发布级证明作为每步前置。

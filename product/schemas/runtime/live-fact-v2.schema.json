@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Live fact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "evidence_id",
+    "security_id",
+    "semantic_field",
+    "value",
+    "unit",
+    "currency",
+    "source_id",
+    "source_type",
+    "source_locator",
+    "source_version",
+    "as_of",
+    "published_at",
+    "published_at_policy",
+    "retrieved_at",
+    "raw_content_hash",
+    "kind",
+    "usage",
+    "metadata",
+    "parent_ids",
+    "parent_hashes"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "live-fact/2.0.0"
+    },
+    "evidence_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "security_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "semantic_field": {
+      "type": "string",
+      "minLength": 1
+    },
+    "value": {},
+    "unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "currency": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "sec",
+        "eastmoney",
+        "derived"
+      ]
+    },
+    "source_locator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "as_of": {
+      "type": "string",
+      "minLength": 20
+    },
+    "published_at": {
+      "type": "string",
+      "minLength": 20
+    },
+    "published_at_policy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retrieved_at": {
+      "type": "string",
+      "minLength": 20
+    },
+    "raw_content_hash": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "financial",
+        "disclosure",
+        "price",
+        "derived"
+      ]
+    },
+    "usage": {
+      "type": "string",
+      "enum": [
+        "current",
+        "comparison"
+      ]
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "parent_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "parent_hashes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "[a-f0-9]{64}"
+      }
+    }
+  }
+}

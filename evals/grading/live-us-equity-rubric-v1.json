@@ -1,0 +1,15 @@
+{
+  "schema_version": "semantic-rubric/1.0.0",
+  "rubric_id": "live-us-equity-semantic/1.0.0",
+  "scale": {"0": "不满足或与证据冲突", "1": "部分满足但存在重大缺口", "2": "基本满足且限制说明充分", "3": "充分满足并具有清晰可审计引用"},
+  "dimensions": {
+    "no_trade_reasoning": "判断 NO_TRADE 的具体原因和可观察重评条件是否与公司证据、风险、持仓和期限对应；有具体研究后的 NO_TRADE 可通过，不要求产生交易。空泛暂不操作不代表研究能力通过。非 NO_TRADE 按既有规则说明不适用。",
+    "analyst_thesis_grounding": "核对实际公司证据：合格价格、至少两期可比业绩与披露文本，引用真实段落和 Evidence ID。缺少此基础时，不得把数据不足的安全终态判定为正常研究能力通过，本维度不能 PASS。材料充分时检查事实→假设→投资影响，财务期间/单位不可混用，不以字数判断质量。",
+    "skeptic_counter_evidence": "至少一个公司特定反证或证据缺口，说明其投资影响与可验证方式；不是复述 Analyst，不强造事实或分歧。引用支持它的 Evidence ID，区分未知信息与不利事实。",
+    "cio_conflict_handling": "核对实际专业报告：有分歧说明保留内容与取舍，无分歧说明共识依据，不强造冲突。建议必须联系完整持仓和输入期限，失效/重评条件必须可观察，不把逐股建议拼成联合交易计划。",
+    "confidence_calibration": "置信度方向与来源覆盖、时效、可比期间、反证和未决冲突是否基本一致；不给固定置信度或固定股票动作作为答案。缺少研究基础仍高置信度，应说明问题。"
+  },
+  "result_statuses": ["PASS", "FAIL", "NOT_APPLICABLE"],
+  "pass_minimum_grade": 2,
+  "forbidden_labels": ["market_return", "alpha", "fixed_action", "fixed_confidence"]
+}

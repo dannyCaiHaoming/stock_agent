@@ -41,3 +41,18 @@ def select_model(
         if not dispute_id or human_approval_artifact is None or not human_approval_artifact.is_file():
             raise ValueError("ASTRA_APPROVAL_MISSING")
     return str(policy[route])
+
+
+def select_product_runtime_model(
+    product_root: Path, *, requested_model: str | None,
+    default_route: str = "runtime_repeated",
+) -> str:
+    """Resolve an explicit product-run model without changing global routing policy."""
+
+    policy = load_model_routing(product_root)
+    if requested_model is None:
+        return select_model(product_root, route=default_route)
+    supported = {str(policy[route]) for route in ROUTES}
+    if requested_model not in supported:
+        raise ValueError(f"PRODUCT_RUNTIME_MODEL_UNSUPPORTED:{requested_model}")
+    return requested_model

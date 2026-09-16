@@ -97,3 +97,73 @@
 #### Scenario: Specialist 引用不存在的 ID
 - **WHEN** Specialist 输出不在当前 Gate 允许集合中的 Evidence ID
 - **THEN** Schema 或严格 Evidence Closure Validator fail closed，不得进入 CIO 综合
+
+### Requirement: Demo Adapter 只能验证角色契约而不能声明研究能力
+在显式 `DEMO_SCAFFOLD` Profile 中，专业 Agent MAY 由确定性 Demo Adapter 生成固定但输入相关的示例响应，以验证角色边界、只读 Tool Port、结构化输出和上下游传递。响应 MUST 标记 `producer_type: deterministic_demo`、`llm_used: false` 与 `skill_reasoning_executed: false`，不得声明 Skill 已参与推理、不得作为 Thesis 质量、真实 Agent 独立上下文或投资结论的验收证据。
+
+#### Scenario: Demo Specialist 返回示例研究
+- **WHEN** 合法 Demo 输入调用 Company Analyst 或 Independent Skeptic Adapter
+- **THEN** 返回符合 Demo 契约的角色响应并引用输入中的合法 Evidence，同时明确其内容只用于链路演示
+
+#### Scenario: Demo 响应声称真实 Skill 推理
+- **WHEN** Demo 响应将自身标记为真实 LLM 或声称已执行专业 Skill 推理
+- **THEN** Demo 校验失败，不把该响应传给 CIO
+
+### Requirement: Agent 独立调用与链路调用必须使用同一输入输出契约
+同一 Demo Agent 在独立调用和完整链路调用中 MUST 使用相同的请求、只读 Tool Port 与响应 Schema。完整链路不得依赖仅在编排器内部可见、单独调用时无法提供的隐藏业务字段。
+
+#### Scenario: 独立调用结果进入下游
+- **WHEN** 开发者单独调用 Specialist 并将其合法响应交给 CIO Demo 入口
+- **THEN** CIO 能按同一契约消费该响应，无需人工改写字段
+
+### Requirement: Demo Specialist 必须保留真实角色的语义边界
+Company Analyst Demo 输出 MUST 包含示例 Claims、Assumptions、Counter Evidence、Uncertainties、Data Gaps、Invalidation Conditions 和 Confidence Rationale，且 MUST NOT 输出组合动作。Independent Skeptic Demo 输出 MUST 包含 Challenges、Alternative Explanations 或 Failure Paths、Evidence References、Uncertainties、Data Gaps、Invalidation Conditions 和 Confidence Rationale，且 MUST NOT 读取 Analyst 输出或选择最终组合动作。示例内容 MUST 来自明确的 synthetic fixture，而不是 Python 投资判断分支。
+
+#### Scenario: Analyst 与 Skeptic 各自响应
+- **WHEN** 两个 Demo Specialist 分别接收同一 Gate 合格 Evidence 集合
+- **THEN** 两者返回不同角色语义的结构化报告，且 Analyst 不能代替 CIO、Skeptic 不能仅复制 Analyst 或制造无依据反对意见
+
+### Requirement: Company Analyst 必须执行普通股专属研究协议
+当研究对象为已持有普通股时，Company Analyst MUST 在同一独立上下文中加载并应用版本化 `evidence-grounding`、`company-research`、`valuation` 和公司级 `catalyst-analysis`，输出符合 `EquityResearchReport` 的公司专属研究。Skill 的实际绑定、输入和产物关联 MUST 可验证；仅在报告中自报 Skill 名称不得视为执行。
+
+#### Scenario: 审计普通股 Analyst 调用
+- **WHEN** 评审者检查一次真实普通股研究 Invocation
+- **THEN** Agent 定义、四项 Skill、允许 Evidence、确定性计算结果、模型和最终 `EquityResearchReport` 具有同一运行绑定和可验证执行记录
+
+#### Scenario: Catalyst Evidence 不足
+- **WHEN** Agent 已加载 `catalyst-analysis` 但当前 Evidence 不包含可靠公司事件
+- **THEN** 报告保留公司催化剂数据缺口，不得把 Skill 已加载伪装为已有催化剂结论
+
+### Requirement: 普通股专属报告必须兼容既有 Specialist 边界
+`EquityResearchReport` SHALL 保留既有 Specialist 对状态、事实/解释/假设、Evidence References、反证、不确定性、数据缺口、失效条件、置信度、Skill 执行和 Artifact References 的语义，并以普通股专属区块扩充，而不是绕过既有 Evidence Closure、PIT、Agent 隔离或下游验证。历史 `AgentResearchReport` 版本及历史运行包 MUST 保持可验证。
+
+Company Analyst 报告只交给允许消费它的下游 CIO，第一轮 Skeptic MUST NOT 读取报告、摘要或派生结论。本 Change SHALL 只验证这些下游接缝兼容，不要求启动真实 Skeptic/CIO 或升级其研究能力。技术元数据 SHALL 根据实际执行封装，不要求模型复制 hash。
+
+普通使用 MUST NOT 为报告交接隐式启动评分模型；实际语义评分由显式验收或用户请求触发，未评分显示未评估，不等于质量通过。结构化 JSON 的有效性与 Markdown 同源一致性 SHALL 分别检查：非法 JSON 不得消费，仅渲染错误不得触发自动重新研究；错误 Markdown 不得作为有效报告，修正版从原 JSON 生成并保留原始差异。
+
+#### Scenario: 第一轮 Skeptic 输入隔离
+- **WHEN** 下游构造第一轮 Skeptic 输入
+- **THEN** 输入不含 EquityResearchReport 或其派生结论，只使用自身许可 Evidence 和研究上下文
+
+#### Scenario: CIO 消费新版报告
+- **WHEN** 新版 Company Analyst 报告通过普通股专属 Schema 与既有 Specialist 安全校验
+- **THEN** CIO 获得完整研究报告，并可从摘要追溯正文、假设、反证、计算和失效条件；无需依赖自然语言转抄或旧报告字段猜测，置信度仅解释为资料对研究判断的支持程度
+
+#### Scenario: 历史报告被重验
+- **WHEN** Artifact Replay 验证本 Change 之前的 `AgentResearchReport` 运行包
+- **THEN** 系统继续按该历史包锁定的 Schema 和 Skill 版本验证，不要求补写新版普通股字段
+
+### Requirement: 公司专业输出不得替代其他方向的研究
+Company Analyst SHALL 深入公司基本面、财务、估值与公司事件，不承担整套技术图形、板块轮动、宏观、期权或资金流研究。相关专业方向 SHALL 先以 Capability 描述，MUST NOT 每个指标或方向预建一个 Agent。报告 SHALL 保留其公司判断的显式假设、反证机制及具体观察条件，标明本阶段未研究的方向；后续 CIO 消费完整报告及可解析的证据和计算引用。第一轮 Skeptic 的隔离要求不变，本轮不增加真实下游调用。
+
+#### Scenario: 公司研究完成但交易时点未分析
+- **WHEN** Analyst 已形成公司特定的基本面判断
+- **THEN** 报告可作为后续综合材料，但不得据此输出最佳买卖时点或声称完成资金、图形与期权研究
+
+#### Scenario: 首版公司研究与机构深度报告的区别
+- **WHEN** 当前资料支持公司关键问题但不足以进行产业调研或完整估值建模
+- **THEN** Company Analyst 仍解释判断、依据、因果链、反面因素和改变判断的条件，额外深度需求进入带资料依赖的 TODO，不把公司基础分析推迟给 CIO 或新增同职责 Agent
+
+#### Scenario: 继续深化现有公司研究能力
+- **WHEN** 用户要求改善报告准确性、经营驱动、反证、条件情景与中文可读性
+- **THEN** 在现有 Company Analyst、四项 Skills 与同源报告内实施，区分事实准确性和研究深度；潜在风险不冒充现实反证，完整模型及额外资料研究仍按 TODO 管理，不新增 Agent 或默认调用下游

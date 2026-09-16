@@ -1,0 +1,83 @@
+{
+  "schema_version": "development-evidence/1.0.0",
+  "change": "us-equity-live-advisory-slice",
+  "batch_dir": "/private/tmp/stock-agent-three-dedup.wQ7Oed/smoke/batch",
+  "batch_id": "live-batch-68af4c06-dc41-4786-b6a6-b19dbc88372d",
+  "protected_snapshot_hash": "fbda26463b33f9c8623c1cde48e96ac69228c761cc4aeb2abaee139e86914262",
+  "snapshot_scope": "existing integrity_snapshot; not whole-worktree or enforced read-only proof",
+  "runtime_result_sha256": "8cf46a5736bc585afaeb6c0af46287c61806683b9d4dd1b103f5d95a751d54f9",
+  "smoke_exit_code": 5,
+  "runs": {
+    "live-b45a63b0-7eab-46c8-a293-d79159a5a5a3": {
+      "process_status": "PASSED",
+      "source_integrity_unchanged": true,
+      "run_manifest_hash": "437367cc55ddcf0194ac1c7fbde9f6f3d8613c18c7fde76b2fbf835b165cf0be",
+      "files": {
+        "decision.json": "c490dc7dfdce536e3da6423096a3b7c17082048509355fb801c634d6be311e05",
+        "report.md": "3b1a8982f9038e86ff58d2cef1edfb2d389df09058a837bdb9ac8c7c1560fc8d",
+        "decision_trace.json": "02524d84a00c9a4f93db20bc837066ca4218352a153c520da2d1aa89efe57c7e",
+        "eval/result.json": "3c0bf5d760ba5b54883e906acb37b7c9ae09d478f78c1df1f95774dee2130a73",
+        "invocation/process-result.json": "40616a1ad5603f29c637e9fec9cd79d2975b12c0841c8f597fd6e57cf7def6c2",
+        "invocation/subagent-events.jsonl": "e9ef185265867843c295b20aac03f05df57ce3162e500e10cfdf72cd1ea6a318"
+      }
+    },
+    "live-ad213561-abc2-4c41-aa36-a2ba2ccd82bf": {
+      "process_status": "FAILED",
+      "source_integrity_unchanged": true,
+      "run_manifest_hash": "d8b3f8b902d4b43d45ad7be8516a85ef3c71d4ed97816fe95f7f4c8593eec87e",
+      "files": {
+        "decision_trace.json": "dece99a569e52dc44fcb0f758ac49e74d1fd06afa7ffc165b3fbde5e095b0113",
+        "run_error.json": "64df96d43e065c049b94e73fbab565600ce927050236a26e3bc12be9407eb1d7",
+        "invocation/process-result.json": "fffb9a938e1566f16ce2ae5b94a4137ce8681ab9f39c1c74f55c1d0b424ebe08",
+        "invocation/subagent-events.jsonl": "da9507468287abf4a013091f774f7e54b907cbd38eea1c223db47cc57fe3215b"
+      }
+    },
+    "live-fa9e96dc-8b4d-46e8-92ce-1fd102f9349d": {
+      "process_status": "PASSED",
+      "source_integrity_unchanged": true,
+      "run_manifest_hash": "2d6fececc04d76841c2f9efe39ab136d171fb618cab714e58d44e7a090be6472",
+      "files": {
+        "decision.json": "eef05fd4a4d8565eba6dd8794a92b94c984513c38edea3964713e167be037b02",
+        "report.md": "56786b825abce118f7eabf67599fd2364d5402c9c0fcae706a002c30125a47a3",
+        "decision_trace.json": "220c23734d6a94d9b734db9cb9041996f38c50a6774fa9a038507c2353213c91",
+        "eval/result.json": "1164aa8833c3c06e27daaef56a59502cc6d70d57356e618425ba8eb8907610b8",
+        "invocation/process-result.json": "c38cbf25e9f6267150905af2ac806cef60f53459bc068151c7c9f6e73287c59a",
+        "invocation/subagent-events.jsonl": "bfc8553763f23f1e2c69e79b831fd736bf714f6a12dd3a73818d1ca92a087d72"
+      }
+    }
+  },
+  "semantic_eval": {
+    "AAPL": {
+      "status": "FAIL",
+      "eval_dir": "/private/tmp/stock-agent-three-dedup.wQ7Oed/semantic-aapl",
+      "reason": "SEMANTIC_RUBRIC_FAILED:analyst_thesis_grounding",
+      "eval_hash": "ede5b69f52e39a49adf6178f50ee222c86c385a1afe32671d92f36a695022b16",
+      "execution_proof_hash": "ed4dd3c829c6bfad0d068758c6cb2bef20f577ae1ffa2bf6fc46cc3abed9c90f",
+      "underlying_reverification": "PASS"
+    },
+    "NVDA": {
+      "status": "INVALID_OUTPUT",
+      "eval_dir": "/private/tmp/stock-agent-three-dedup.wQ7Oed/semantic-nvda",
+      "coordinator_failure": "EVAL_PROOF_INPUT_INVALID:semantic-result.json",
+      "recovered_original": "semantic-result-from-session.json",
+      "original_recovery_method": "existing _final_structured_output from actual independent dev_eval session; malformed saved file retained",
+      "original_output_canonical_hash": "e0b45478efce99b053d98cfb9850fe5a92036202e9dcdf53932878804836d647",
+      "execution_proof_hash": "8abc691ca754bfeaab9ff7efa39c62a70a7f4e1fe8e8c1cd96226aac98099d2e",
+      "finalize_exit_code": 6,
+      "failure": "SEMANTIC_OUTPUT_HASH_INVALID",
+      "regraded": false,
+      "score_or_hash_modified": false
+    },
+    "MSFT": {
+      "status": "NOT_RUN",
+      "reason": "SPECIALIST_VALIDATION_FAILED"
+    }
+  },
+  "task_5_3": "INCOMPLETE",
+  "summary": {
+    "path": "/private/tmp/stock-agent-three-dedup.wQ7Oed/summary/summary.json",
+    "status": "FAILED",
+    "exit_code": 5,
+    "summary_hash": "ab241b9714680cd56ded54c06aeae3a7dcba8a3c59dda591d403e135fc02539f"
+  }
+}

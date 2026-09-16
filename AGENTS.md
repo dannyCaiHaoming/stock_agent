@@ -1,6 +1,6 @@
 # 开发控制面
 
-本仓库实现仅供研究建议使用的组合投研系统。默认用中文沟通和编写文档；代码标识符、模型名及协议字段保留英文。
+本仓库实现仅供研究建议使用的组合投研系统。默认用中文沟通和编写文档；OpenSpec 生成的 Proposal、Specs、Design、Tasks、验收和归档记录也应优先使用中文。代码标识符、模型名、协议字段、命令、路径及难以准确翻译的专业术语保留英文。
 
 ## 适用范围与入口
 
@@ -8,9 +8,14 @@
 - 行为变更使用 OpenSpec：先 propose/update，再显式 apply；实施前阅读当前 Proposal、Specs、Design、Tasks。
 - 已获 apply 授权后持续推进范围内实现、普通错误修复和聚焦检查，阶段汇报后继续；只有真实阻断或人工完成批准才暂停相应工作，不突破权限、范围或模型预算。
 - 开发自检在当前 Codex 环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。
+- Agent Package Milestone 0 使用显式 `python3 scripts/council-dev.py demo run ...` 运行零 LLM 合成装配演示；它不属于真实产品 Smoke，不证明 Skill 推理、Codex Subagent、主线程 CIO 或候选晋升。Demo 完成后，产品开发优先级回到真实单股研究闭环。
 - 真实 Smoke 与 Execution Replay 仅从宿主 Terminal 使用 [宿主 launcher](scripts/run-product-smoke.sh)；重放使用 `--prepared-run`，准备及收尾见运行手册。底层 `python3 -m product.runtime.cli` 仅为内部实现及确定性工具入口，不另造编排后端、不绕过宿主入口直接启动模型。
 - 独立复核默认读取差异、规格与已有证据；缺证据只提出具体宿主补跑需求，不自行启动产品或额外沙箱。旧 review/probe/preflight 启动入口已退役。
 - 实施、验收或归档时读取 [开发流程](docs/development/workflow.md)；配置、路径、权限或启动排障时读取 [开发环境](docs/development/environment.md)；实际运行/重放/Eval 时读取 [运行手册](reviews/runtime/runtime-replay-eval-runbook.md) 的对应章节。无关专项文档不必全部加载。
+
+- 涉及产品方向、Capability 优先级或是否扩大工程基础设施时，
+  先读取 `PRODUCT.md`；若工程优化不能直接解除当前产品交付阻断，
+  默认继续当前产品 Capability，而不是扩建基础设施。
 
 ## 职责边界
 
@@ -27,6 +32,7 @@
 - 所有运行时能力都必须包含 Input、Tool/Data、Skill/Reasoning、Structured Output 和 Eval。
 - 候选版本必须锁定模型、Skill、Agent、Schema、MCP Adapter、Risk Policy 和数据版本。
 - 日常开发按纵向切片做聚焦验证，验证后才勾选；Change 按既定 Specs/Tasks、独立复核和人工批准收尾；晋升另需版本锁、OpenSpec、完整确定性测试、Eval/Regression 和架构评审及人工批准。复用有效证据，不把发布级检查作为每步前置；Change 完成不代表 Promotion PASS。
+- Runtime Eval、Execution Replay、Regression、Calibration、Ablation 与 Promotion 只能由对应的显式维护或晋升任务触发；普通开发、自检、Demo、差异复核和归档准备不得隐式启动，也不得把“未运行”伪造成 PASS。
 - 测试/复核必须保护源码并允许指定产物和临时目录写入；实际权限不足即报告最小授权需求，不自动提权或关闭沙箱。配置存在和事后 hash 均不能代替权限或实际加载证明。
 - 禁止提交凭据、私人会话数据库及无关用户消息；发现疑似敏感信息、未审阅变更或校验失败时停止相关发布并报告。
 - 仅开发收尾：每次 Change 成功归档后，按已批准范围提交归档、主规格同步及相关实现并推送至 `https://github.com/dannyCaiHaoming/stock_agent.git`；校验失败、测试失败或敏感信息未处理时不得推送。详见开发流程。

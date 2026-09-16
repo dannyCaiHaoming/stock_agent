@@ -1,0 +1,33 @@
+{
+  "schema_version": "common-stock-research-contract-cases/1.0.0",
+  "cases": [
+    {
+      "case_id": "two-common-stocks",
+      "expected_invariants": [
+        "TWO_INDEPENDENT_INVOCATIONS",
+        "EVIDENCE_CLOSURE",
+        "NO_PORTFOLIO_ACTION"
+      ]
+    },
+    {
+      "case_id": "mixed-assets",
+      "expected_invariants": [
+        "ALL_POSITIONS_RETAINED",
+        "UNSUPPORTED_ASSETS_EXPLICIT",
+        "PARTIAL_RESEARCH_ONLY"
+      ]
+    },
+    {
+      "case_id": "invalid-reference",
+      "expected_invariants": [
+        "FAIL_CLOSED_ON_NON_CANONICAL_OR_UNKNOWN_EVIDENCE"
+      ]
+    },
+    {
+      "case_id": "empty-content",
+      "expected_invariants": [
+        "SCHEMA_MAY_PASS_BUT_SEMANTIC_EVAL_FAILS"
+      ]
+    }
+  ]
+}

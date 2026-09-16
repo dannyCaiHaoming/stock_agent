@@ -19,7 +19,14 @@ SKILL_NAMES = {
     "valuation",
     "counter-thesis",
     "catalyst-analysis",
+    "technical-structure",
+    "research-report-analysis",
+    "industry-comparison",
+    "macro-market-analysis",
+    "ownership-disclosure",
+    "options-market-structure",
 }
+CAPABILITY_NAMES = SKILL_NAMES | {"common-stock-holding-analysis"}
 AGENT_NAMES = {
     "runtime_cio",
     "runtime_company_analyst",
@@ -46,7 +53,10 @@ EXPECTED_STATUS = {
     "missing_evidence": "INSUFFICIENT_EVIDENCE",
     "low_confidence": "LOW_CONFIDENCE",
 }
-READ_ONLY_TOOL_VERBS = {"lookup", "query", "calculate"}
+READ_ONLY_TOOL_VERBS = {
+    "lookup", "query", "calculate", "read", "collect_selected",
+    "research_search", "research_fetch",
+}
 
 
 def load_json(path: Path):
@@ -70,13 +80,21 @@ class SkillConfigTests(unittest.TestCase):
                 for key, value in [line.split(":", 1)]
             }
             self.assertEqual(fields.get("name"), skill_name)
-            expected_version = (
-                "1.0.0"
-                if skill_name in {"catalyst-analysis", "portfolio-intake"}
-                else "3.0.0"
-                if skill_name == "portfolio-council"
-                else "2.0.0"
-            )
+            expected_version = {
+                "portfolio-intake": "1.0.0",
+                "portfolio-council": "3.4.1",
+                "evidence-grounding": "2.1.0",
+                "company-research": "2.7.2",
+                "valuation": "2.4.0",
+                "counter-thesis": "2.0.0",
+                "catalyst-analysis": "1.3.0",
+                "technical-structure": "1.1.0",
+                "research-report-analysis": "1.2.0",
+                "industry-comparison": "1.3.0",
+                "macro-market-analysis": "1.0.0",
+                "ownership-disclosure": "1.0.0",
+                "options-market-structure": "1.0.0",
+            }[skill_name]
             self.assertNotRegex(frontmatter, r"(?m)^version:")
             self.assertRegex(
                 frontmatter,
@@ -128,11 +146,19 @@ class RuntimeAgentConfigTests(unittest.TestCase):
                 "evidence-grounding",
                 "company-research",
                 "valuation",
+                "catalyst-analysis",
+                "research-report-analysis",
             },
             "runtime_skeptic": {"evidence-grounding", "counter-thesis"},
             "runtime_market_catalyst": {
                 "evidence-grounding",
                 "catalyst-analysis",
+                "technical-structure",
+                "research-report-analysis",
+                "industry-comparison",
+                "macro-market-analysis",
+                "ownership-disclosure",
+                "options-market-structure",
             },
         }
         for agent, config in self.configs.items():
@@ -173,9 +199,9 @@ class RuntimeAgentConfigTests(unittest.TestCase):
                 for name in profile
             },
             {
-                "runtime_cio": "3.0.0",
-                "runtime_company_analyst": "2.1.0",
-                "runtime_skeptic": "2.0.0",
+                "runtime_cio": "3.1.0",
+                "runtime_company_analyst": "3.0.18",
+                "runtime_skeptic": "2.1.0",
             },
         )
         self.assertEqual({config["name"] for config in profile.values()}, FIXTURE_COUNCIL_AGENTS)
@@ -213,7 +239,7 @@ class CapabilityRegistryTests(unittest.TestCase):
 
         capabilities = self.registry["capabilities"]
         self.assertEqual(
-            {item["capability_id"] for item in capabilities}, SKILL_NAMES
+            {item["capability_id"] for item in capabilities}, CAPABILITY_NAMES
         )
         for capability in capabilities:
             self.assertTrue(capability["production"])

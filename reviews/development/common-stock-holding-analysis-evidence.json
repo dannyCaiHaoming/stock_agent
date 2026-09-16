@@ -1,0 +1,643 @@
+{
+  "schema_version": "common-stock-holding-analysis-verification/1.2.0",
+  "change": "establish-common-stock-holding-analysis",
+  "run_id": "common-stock-C4AC132C-EC4B-40DC-8D0D-C49B73C84CAD",
+  "scope": "COMMON_STOCK_RESEARCH_ONLY",
+  "deterministic_tests": {"status": "PASS", "count": 129},
+  "openspec_strict_validate": "PASS",
+  "real_research": {
+    "status": "EXECUTION_AND_EVAL_PASS_WITH_CAPTURED_STATUS_AGGREGATION_DEFECT",
+    "run_dir": "/private/tmp/stock-agent-common-stock-acceptance-run-v12",
+    "execution_proof_hash": "70358cef3dcc85d4fc9543c5229b3295fc9fe8755bc5b9ae9e6ae5b61bc51598",
+    "parallel_overlap": true,
+    "agent": {"name": "runtime_company_analyst", "version": "3.0.6", "content_hash": "c03716c992c2a642e4bd96c54473476ce707c8a2f1e1ec3454a8aeaa09514768"},
+    "gate_hash": "fac4caa59e4156a01e4c3a0033dfc77be6f743467452bf69be18648152a6f7bb",
+    "portfolio_hash": "233af21c15d88123ecb9da81294e094cb76c7c0ef83b46053c6fe2ad3bd2c385",
+    "reports": {
+      "US:COMMON_STOCK:AAPL": "5ad12a3a43c0f6bd44d91eec19b68a76e66fc2ce797c41169bad52c9f0b6a8a6",
+      "US:COMMON_STOCK:MSFT": "26ec116276ea98cdbc20badbea7b4c556a2d1936449654655efa11880135d791"
+    }
+  },
+  "focused_eval": {
+    "agent_config_hash": "3b38cef3716234827c074dd0e2ef4196b301beb70ddce2484c304aa289a4b1fe",
+    "skill_hash": "f3ae47051732109a6417d75da2ea5b1eab91011332b696034735d8e34fbc5f0c",
+    "model": "gpt-5.6-terra",
+    "results": {
+      "eval-common-stock-aapl-v12-v2": {"status": "PASS", "result_hash": "9a1d332aa910219df8f8415e289aceb8028fec65c35e5bd7160bfb9c6fb87b31", "artifact_sha256": "50c155f387ea4ffbc9d1cd0478541a2fe70ed0335328b92d1e62eb725515d5e7", "historical_launcher_failure": "COMMON_STOCK_EVAL_DIMENSIONS_INVALID", "current_revalidation": "PASS"},
+      "eval-common-stock-msft-v12-v2": {"status": "PASS", "result_hash": "1263ab0e6a7cc0771143f97f2348374fb7fbc830851fae086c00b933b60ae616", "artifact_sha256": "c02eb7eaf21b702d8b8346c0ec24ae589a0f4fa0e20ec404547f629836a63645", "launcher_status": "PASSED"}
+    }
+  },
+  "current_confirmed_handoff_increment": {
+    "privacy": "SECURITY_DETAILS_AND_ACCOUNT_FACTS_EXTERNAL_ONLY",
+    "run_id": "host-common-stock-24e1ccd6-c5d6-4da1-be6d-404273f84eeb",
+    "run_dir": "/private/tmp/stock-agent-common-stock-current-handoff-20260913-c/run",
+    "status": "PASS",
+    "stage_status": "PARTIAL_RESEARCH",
+    "model": {"parent": "gpt-5.6-terra", "company_analyst": "gpt-5.6-terra", "focused_eval": "gpt-5.6-terra"},
+    "data": {
+      "snapshot_hash": "1568063daf8f28fffea23c0941b8dc880c3bd2b5c7fffec20e2687cfb30dfa2e",
+      "snapshot_file_sha256": "9cf729b7fe0e83f51d3ac3f73cb65b66356804a48c3e629dcbbaaa46eb018662",
+      "data_preparation_sha256": "a59d98508a21ba49c47723c905eab304a3318e590fb409b7bdbc7349ac33b2dd",
+      "gate_sha256": "bacc4d7e1f3b666783880d4ea55ec1085683561ea1ddb816040920eb309c152e"
+    },
+    "execution": {
+      "company_report_count": 3,
+      "parallel_overlap": true,
+      "execution_proof_hash": "5d247a41fe2adfdd0efed7f7d285e47bd0bead1252f966e1827063819677e751",
+      "execution_proof_sha256": "8582f791cffb01a6ecd310fc7e909d109fbd769816906538ca1a6e90c674d897",
+      "process_result_sha256": "58f4b3a971c38d97aa40a350802f6eb15d89f0828bac8fb4264df2e963f9f573",
+      "source_integrity_unchanged": true
+    },
+    "reports": {
+      "count": 3,
+      "json_sha256": ["ee09d79df18274630e68d136f7af8a1e7596949dbb5d4808bd2eec6ec7a4fd71", "c1f2f0ade68103f77c4745c682d55396a58e743c2a82f860f2c61f0578072d5a", "68f263232ac0da48b00849e765da7597b3575b34a714aeb8c052a9194c76c49f"],
+      "markdown_sha256": ["f6123f44bc483e3b9e916688954db04d9af034fd449b6cf35b2ced46467996b8", "128d3af4796296b74bc1098f3534ccfe22c10aeec1f648c58836602a6e0d4677", "0fe980d987fa084cb1fc108e2ac9cb582395f20829385ff044247b8ef4b5930a"],
+      "persisted_pair_validation": "PASS"
+    },
+    "focused_eval": {
+      "count": 3,
+      "status": "PASS",
+      "minimum_dimension_grade": 2,
+      "result_hashes": ["dd61b210f6ee007260831f27accdf3c16adc002f09f1b3058a53de90282f9a55", "583497185d2c03cf5ac026216e4bc549c17840c9fa0978a572cf133372d66bd5", "734bd4adf1c98805b1fec6ea25682626ee7ea1e23aaba6710bff2449227f22b3"],
+      "coverage_binding": "PASS"
+    },
+    "coverage": {
+      "coverage_hash": "c85b461b55e6b30b0e39a32be03a5e2b76f2c58d0fd5f2ff608e04b7ae419c12",
+      "coverage_sha256": "61cd45a4f1be5dba2864e9aae8d1487181b9f88003b904b9d6b4a9ca9a60fd5c",
+      "common_stock_researched": 3,
+      "unsupported_assets_preserved": 2,
+      "complete_portfolio_decision": false,
+      "captured_status_aggregation": "KNOWN_DEFECT_LOW_CONFIDENCE_RECORDED_AS_VALID_RESEARCH",
+      "captured_artifact_preserved": true,
+      "source_fix": "REPORT_STATUS_TO_RESEARCH_STATUS_MAPPING",
+      "source_fix_test": "PASS"
+    },
+    "focused_tests": {"status": "PASS", "passed": 109, "skipped": 1},
+    "reviewer_followup_tests": {"status": "PASS", "passed": 20, "scope": "status aggregation, focused Eval contracts, exact exchange aliases"},
+    "source_lock": {
+      "runtime_company_analyst": "9201b6e47b853169330bb32e77555cc08786dd72ec55c326b8641286c12273e5",
+      "evidence_grounding": "6a96be50b82c73da7383a94708275a9bb14b369d828ff4f0277a21df41443c63",
+      "company_research": "2bd57a8fe5bd6c1abafeb76f41d3ea41c62197d8618a3382772d23b44017f293",
+      "valuation": "7087023fca1ead433490fbebd3fb7e5cbd8f24aad91d344e33f004828d4aa8be",
+      "catalyst_analysis": "e2fdc5ca5191a6a3b42cc3c66633467ac67c43b73143e25df4e1a6d2a5b34781",
+      "rubric": "191dd8fdc34a59eb251179b2bc1b6db6103ba3c6270058cd6e668cce2eff0c6d",
+      "runtime_profile": "f770f56fb892678ba9e54388b5ea93e1a5bbd5d52d6daa1799140db024cbdf7f",
+      "version_manifest": "9f5834f9486f66b9be56269792c11ee486893061d104696f818e22c566cc4708",
+      "common_stock_stage": "3bebfa3a5a37ed553bad2ce35bbf61af150d3bc4e8a9cdaff4bd28178ae4ecee",
+      "status_mapping_test_file": "a24d8fccea05c38e4077fbc3151731e3a799ca59e131bc17da2f46355a99708d",
+      "security_metadata": "5416c29621afe4a082fd81df9a3eb20ba99659720991be2460c5cafdc0a55290",
+      "lock_algorithm": "SHA-256 of each named file; no aggregate untracked diff claim"
+    }
+  },
+  "historical_pair_revalidation": {
+    "historical_aapl_markdown": "RESEARCH_OUTPUT_MARKDOWN_MISMATCH",
+    "historical_json_validity_unchanged": true,
+    "current_json_sha256": "5ad12a3a43c0f6bd44d91eec19b68a76e66fc2ce797c41169bad52c9f0b6a8a6",
+    "current_markdown_sha256": "922a88ad857fb08031bc1e06a110671ecf548954f484b0aa1bd3b6224cb2e893",
+    "modification_history": "UNVERIFIED_NO_PRECHANGE_MARKDOWN_HASH",
+    "modified_by_this_fix": false,
+    "llm_rerun": false
+  },
+  "depth_followup": {
+    "run_id": "host-common-stock-06318d6c-523c-4019-944f-6a6d8f3f8d38",
+    "run_dir": "/private/tmp/stock-agent-common-stock-depth-v24-output.9VNaJw/run",
+    "status": "PARTIAL_EVIDENCE_SUPERSEDED_BY_PERIOD_FIX",
+    "stage_status": "PARTIAL_RESEARCH",
+    "completed_reports": 3,
+    "parallel_overlap": true,
+    "low_confidence_reports": 1,
+    "complete_portfolio_decision": false,
+    "execution_proof_hash": "ab6442b6feca55592a99f3a427c3b04d7da8d5b191a255fc3a9498f0d6effb9f",
+    "execution_proof_sha256": "13ea28425dcf6c0c9b8b8f39fb71d5972c52cf0ef112290211d35d2e535a238b",
+    "gate_sha256": "539a4fda2fed611281ff7b45287e76b4bb94f8a509836b6718ace9978b22efd7",
+    "coverage_sha256": "56fc650032dc0513c4d56e8947858d45f5b43e8a143af3eff1739ad517a64884",
+    "agent": {
+      "name": "runtime_company_analyst",
+      "version": "3.0.8",
+      "content_hash": "1158a35c657e4b597bdc4487b02e038c604b4417f565d5b560a3b238a531c96c"
+    },
+    "skills": {
+      "company-research": {
+        "version": "2.4.0",
+        "content_hash": "922f5b41643a45212847febf371ea377fc3ddc460a0c65644bfc2e8fece10778"
+      },
+      "valuation": {
+        "version": "2.3.0",
+        "content_hash": "b725c6e9ee26f38257f9196e49f8696c80b473b46b39edf2684d4a4083fb29a5"
+      }
+    },
+    "rubric": {
+      "id": "common-stock-research-semantic/1.3.0",
+      "sha256": "48bee4c568d13774808c9625085392f6ecb8c97f612e5ccce1033cdac2e41476"
+    },
+    "report_json_sha256": [
+      "f32bb5e5fd0b378fbf5c8179a31fece219964c3b0c2188f15f751f239f28a629",
+      "ff7e35dd48df32636488f0bb8ef520eecd4f629e8c840b0e3c790116224440da",
+      "f865d62c4361f773f5f3f9effda00c3cc88579fad4d846ade2154247fb52bd99"
+    ],
+    "report_markdown_sha256": [
+      "c3ef0a0e50a1e24ed4c971d2490d4af70801407a00c032d558607fe395f362bb",
+      "15837ec243aed1414f48cd66ec4e4d89a86cf7e19723451ae1cc0ac8fd5651e1",
+      "2413d1ccc7ffdef4a71436bb4c8158ebd1b12377ad5f959286105332d7fc8a8d"
+    ],
+    "focused_eval": {
+      "status": "PASS",
+      "count": 3,
+      "minimum_dimension_grade": 2,
+      "result_hashes": [
+        "100f677bc19ce9a2fd2237e55c7eea6b5c0aa2ccdae94af37f63e2501693b81b",
+        "df17fb0dc6408206c5c815e62c51b76ca1d33f5dcb5ed68947c79dd46f588dc5",
+        "fc7fbb772d35fcfac55a297079dd332c9b38216c7f4bfbbfc603220c116e0753"
+      ]
+    },
+    "scope": "TWO_UNAFFECTED_REPORTS_AND_DEFECT_DISCOVERY_NO_FULL_COUNCIL"
+  },
+  "period_fix_followup": {
+    "run_id": "host-common-stock-22233166-affa-4ba8-9011-701bc9b85401",
+    "run_dir": "/private/tmp/stock-agent-common-stock-period-fix-output.XRBpno/run",
+    "status": "PARTIAL_EVIDENCE_SUPERSEDED_BY_FINAL_PERIOD_FIX",
+    "stage_status": "PARTIAL_RESEARCH",
+    "completed_reports": 3,
+    "parallel_overlap": true,
+    "complete_portfolio_decision": false,
+    "scope": "FIRST_PERIOD_FIX_ATTEMPT_WITH_REMAINING_CASH_FLOW_MISMATCH",
+    "agent": {
+      "name": "runtime_company_analyst",
+      "version": "3.0.9",
+      "content_hash": "0bdf2222062990acfecbe94b40e91d207e75b8e273b6b62afbbb9c29695fffef"
+    },
+    "skills": {
+      "company-research": {
+        "version": "2.5.0",
+        "content_hash": "f88e3903a028623040a268f7086795faf5bf4585e49550809a3981974dd868d2"
+      },
+      "valuation": {
+        "version": "2.3.0",
+        "content_hash": "b725c6e9ee26f38257f9196e49f8696c80b473b46b39edf2684d4a4083fb29a5"
+      }
+    },
+    "rubric": {
+      "id": "common-stock-research-semantic/1.4.0",
+      "sha256": "862a05662bbbf1e3ed3c55cf65373de4c75bd5a20659dbfaa31b3682fc55c408"
+    },
+    "execution_proof_hash": "a078aa5dbbc460b601798cd88ac1f48225ab8b24ff19542286c18524243d4033",
+    "execution_proof_sha256": "30a3ee024e5b5f1ea4f71291d4f8f1eb38b1f2bd242c6b89b86172dbf25d6e93",
+    "coverage_sha256": "5011f1052b63ec65411b68043e5a4622fa783a9f7fe04d900dcca49d1d81333a",
+    "affected_report": {
+      "status": "LOW_CONFIDENCE",
+      "json_sha256": "70b87960d9dada39df44dc46e5f4da1522c42a08c3c16788fec84da83671052a",
+      "markdown_sha256": "0bb8e51debce8d9c915f7a9e9bd63581720309f7c49fa3ef2a3b8dbe840ec3e2",
+      "per_fact_periods_distinguished": false
+    },
+    "focused_eval": {
+      "eval_id": "eval-period-fix-v1",
+      "status": "PASS_BUT_SEMANTIC_LEAK_NOT_DETECTED",
+      "minimum_dimension_grade": 2,
+      "comparable_financial_analysis_grade": 3,
+      "result_hash": "3abff7eb11b156a708a29ca1277af86d79f1c14edb9a0c4c8cd6fd2c12632e86",
+      "artifact_sha256": "8e1ab9151605514d3b146fb9e61171ecb9d0fac59179d5c2b11ceaca037a2df8"
+    }
+  },
+  "final_period_fix_followup": {
+    "run_id": "host-common-stock-224452dc-f0d3-4862-82c2-bd13fed35d92",
+    "run_dir": "/private/tmp/stock-agent-common-stock-period-fix2-output.uUDrtR/run",
+    "status": "PASS",
+    "stage_status": "PARTIAL_RESEARCH",
+    "completed_reports": 3,
+    "parallel_overlap": true,
+    "complete_portfolio_decision": false,
+    "scope": "FINAL_PER_EVIDENCE_PERIOD_FIX_WITH_SINGLE_AFFECTED_EVAL",
+    "agent": {
+      "name": "runtime_company_analyst",
+      "version": "3.0.10",
+      "content_hash": "30444a5337357a4f61b823817fda9d28d9f5b026e64a7a155bc1236ca8b12b5c"
+    },
+    "skills": {
+      "company-research": {
+        "version": "2.6.0",
+        "content_hash": "117b2ecfac227006adfd6dd03f6f449ea32fbb32f779dfdcefcc7726c558ff6d"
+      },
+      "valuation": {
+        "version": "2.3.0",
+        "content_hash": "b725c6e9ee26f38257f9196e49f8696c80b473b46b39edf2684d4a4083fb29a5"
+      }
+    },
+    "rubric": {
+      "id": "common-stock-research-semantic/1.5.0",
+      "sha256": "a22d2c77398cd16499c4a9306db0f532c7a27dc1d9b7c1be30664e254a0e7d7d"
+    },
+    "execution_proof_hash": "e9f2ce3556963eb341d32acfca7c81cb660e3bae78ab6cc5370332b6ae5a6443",
+    "execution_proof_sha256": "a67ea31c675c385288cccc0c795fbbac8eeb29dde3da9ecd80b3a61b707d790a",
+    "coverage_sha256": "77139c4fc72abee1cc4dd54239b2f656555b7f21e91f37382869b8af0ab198f6",
+    "affected_report": {
+      "status": "LOW_CONFIDENCE",
+      "json_sha256": "1ae20b9a9f3b1b3bad41dd08849df85d9d4af325f9f64bfb7a98db62a43c9b0b",
+      "markdown_sha256": "74879526f5dddcbc4885a85b2d569d1244ea873c6ebeb6cefd81f4a714b3dd66",
+      "per_evidence_periods_distinguished": true
+    },
+    "focused_eval": {
+      "first_attempt": {
+        "eval_id": "eval-period-fix-v2",
+        "status": "FAILED",
+        "failure_code": "COMMON_STOCK_EVAL_INPUT_INVALID",
+        "rejected_artifact_sha256": "e7a208c4cb5f909e9491c1f632f2d3e8a9d7aca2782c92d18df842ecb2fce221",
+        "reason": "DANGLING_EVIDENCE_REFERENCE_FROM_GRADER"
+      },
+      "bounded_retry": {
+        "eval_id": "eval-period-fix-v2-retry",
+        "status": "PASS",
+        "minimum_dimension_grade": 2,
+        "comparable_financial_analysis_grade": 3,
+        "result_hash": "42b641622328fe4eb1ea35b8eb606c9621c60997609171fb305ce6c52aef8105",
+        "artifact_sha256": "c8f5b53d5cd18d42216891e006837a303dc01912db4fa8b7667e700c4eb65b5d"
+      }
+    }
+  },
+  "depth_accuracy_increment": {
+    "scope": "TASKS_8_1_TO_8_6_COMMON_STOCK_RESEARCH_ONLY",
+    "privacy": "SECURITY_DETAILS_AND_ACCOUNT_FACTS_EXTERNAL_ONLY",
+    "run_id": "host-common-stock-3777b460-fa2f-48fc-a225-6c80764a5bf5",
+    "run_dir": "/private/tmp/stock-agent-common-stock-depth-v8-recency-run-20260914-g/run",
+    "stage_status": "PARTIAL_RESEARCH",
+    "completed_reports": 3,
+    "parallel_overlap": true,
+    "complete_portfolio_decision": false,
+    "source_integrity_unchanged": true,
+    "execution_proof_hash": "8b1c4d327701a93b593b948bd1ddb20c5b9e4f6f1a4c9ed1509122645681bb30",
+    "execution_proof_sha256": "bb8f7dd1a4bde5a0915c506a054875b0c51b62449a30d24fc700b32fdd5a2ec6",
+    "process_result_sha256": "f1f1f0cb8d04ad3a5697db3e733c6b035da3974a1d2ad888ac781a79abf65402",
+    "gate_sha256": "b338ffa92151836519d707c2550220068e1e193f99e208518582cd59e9a9867b",
+    "mcp_events_sha256": "55343db93c382979df432731c2ad042db66418389010f92d71dd8344b0b4c7cf",
+    "coverage_sha256": "a6572bb96ec0a8bde5c04e5bdbf6c7ff52f7da205a015d7e0ec54e55c9cb521e",
+    "agent": {
+      "name": "runtime_company_analyst",
+      "version": "3.0.15",
+      "content_hash": "f748d79aeaaca6f75cf09b4ee18b7dc64764914c4bc6daee02c1b50cf4267a78"
+    },
+    "skills": {
+      "company-research": {
+        "version": "2.7.0",
+        "content_hash": "baf39945678e95202ebd768278957cc490f01157f264d668bcfeddc0e84994c8"
+      },
+      "valuation": {
+        "version": "2.4.0",
+        "content_hash": "bdbefc6f0170533bb3b87fa8dd67c8516ad19dc076d678d2c32604e9b23d397c"
+      }
+    },
+    "rubric": {
+      "id": "common-stock-research-semantic/1.6.0",
+      "sha256": "e20c3a0875d203dd8ad67b74c592ebe5e8c15094fa43d85686335251f8b804a9"
+    },
+    "content_checks": {
+      "monetary_scale_and_pretax_scope": "PASS_WITH_ACTUAL_MCP_OPERATION",
+      "newest_applicable_fact_and_comparison_baseline": "PASS_IN_CURRENT_3_0_15_SAMPLE_A",
+      "drivers_counterevidence_and_conditional_scenarios": "PASS_IN_CURRENT_SAMPLE_A_AND_PRIOR_SAMPLE_C",
+      "evidence_conflicts_transmitted_and_handled": "PASS",
+      "persisted_json_markdown_pairs": "PASS"
+    },
+    "affected_report_hashes": {
+      "sample_a_json_sha256": "9fb907f4167f94970b6d17e0d665a7df0b7ec90c7ecc93af656cead35d843da4",
+      "sample_a_markdown_sha256": "8eea8fb96a529cde058d9114e1ef8cabfa7f7c27687792ce5e61e20af0e918f6",
+      "sample_b_json_sha256": "077faeea9e27794c4557b25c855d451e3f9c24a481f34f7adbdd0330c5cf8ed0",
+      "sample_b_markdown_sha256": "bcdb802aeec920c1b0562c404e6aef597f0922c0022b90f57e8161320c4ed6e9",
+      "sample_c_json_sha256": "f456ad14f240c4d97ba5911b83ca23e347f5da0ac11a49ec5f252696d7d1ddeb",
+      "sample_c_markdown_sha256": "31dca7e1dcfcf9918bd78949877d0a2d282d071bc1e4a31729002bc3623dd1d0"
+    },
+    "focused_eval": {
+      "initial_gap_discovery": {
+        "eval_id": "eval-depth-v8-a",
+        "status": "FAIL",
+        "reason": "JSON_ONLY_EVAL_VIEW_OMITTED_DETERMINISTIC_MARKDOWN_CONFIDENCE_DISCLOSURE"
+      },
+      "sample_a_current": {
+        "eval_id": "eval-depth-v8-a2",
+        "job_version": "common-stock-research-eval-job/1.1.0",
+        "status": "PASS",
+        "model": "gpt-5.6-terra",
+        "minimum_dimension_grade": 3,
+        "input_hash": "b219155ca8c3cca1eccf9bbdd3c2c9e78643d4ab25dba51cc9bf721476370f32",
+        "result_hash": "6c799529e07d1cae846279420ad4e13b51012374394612fd813887efb3bd7cea",
+        "artifact_sha256": "f58fbabe5201a98acf0b1dea6849fabc8162ce5f186a7fc918249e4d74c0a3df",
+        "process_result_sha256": "209d628cbcf4c5721e4bf9498f7ce61a29267b8e81a705f34226b12b9ecb004f",
+        "source_integrity_unchanged": true
+      },
+      "sample_b": {
+        "eval_id": "eval-depth-v8-b",
+        "job_version": "common-stock-research-eval-job/1.0.0",
+        "status": "PASS",
+        "model": "gpt-5.6-terra",
+        "minimum_dimension_grade": 3,
+        "input_hash": "8a426ad13da0930f7687730908486d9930696407c1359eae267edba7e1bed37c",
+        "result_hash": "e0ff4e56531627b7612a41c20d718e1006bd874311a97631b8c485836b1bbfae",
+        "artifact_sha256": "db5dcc349d056f2e64414cef430a4a1677875df466a61dd8307ab61b8b4a61f2",
+        "process_result_sha256": "ff52dea0bb331cc6f36ed6539c68a7889dc52ec9c0d9dfc0009df3b602949693",
+        "source_integrity_unchanged": true
+      }
+    },
+    "current_bound_eval": {
+      "model": "gpt-5.6-terra",
+      "job_version": "common-stock-research-eval-job/1.1.0",
+      "sample_a": {
+        "eval_id": "depth-v8-current-sample-a",
+        "status": "FAIL",
+        "failed_dimension": "comparable_financial_analysis",
+        "reason": "OMITTED_NEWER_APPLICABLE_COMPARABLE_REVENUE",
+        "result_hash": "748e1ed55e1976e712a7c184e99ae9bbaacaf78722befbf6b930de5bb5c66eaf",
+        "artifact_sha256": "a9928fe2f6e8c20c39884ffad92a60346fc9366bf3caf9922fdb9554580f79ba"
+      },
+      "sample_b": {
+        "eval_id": "depth-v8-current-sample-b",
+        "status": "FAIL",
+        "failed_dimension": "counterevidence_quality",
+        "reason": "NO_OBSERVED_COMPANY_SPECIFIC_COUNTEREVIDENCE",
+        "result_hash": "455564f16f88645eb4c3edba5813e80528f01740c4d6076725c7cef9990e134b",
+        "artifact_sha256": "b02617a871eb53f3ef31d99fadc9f36328f7a76d7f70a844fa5d03d06e2dd881"
+      },
+      "sample_c": {
+        "eval_id": "depth-v8-current-sample-c",
+        "status": "PASS",
+        "minimum_dimension_grade": 2,
+        "result_hash": "36705072e3ea14d4bfc78046057a1a8c1fbeb198d1262b9bb88a2c3da267246e",
+        "artifact_sha256": "6884aaebc1cb5600c0af326ce7d584a02c31cea7148259332a47edca2efb5f07"
+      },
+      "coverage_binding": "PASS_FOR_ALL_THREE_RESULTS"
+    },
+    "current_recency_closure": {
+      "report": {
+        "json_sha256": "2e20213da084f09413d4425a9e6f6e35b7e8648cdf13a8c62f07024bc35c17bb",
+        "markdown_sha256": "21919f008f01578a38fa4fcd3a8739b825b5d81181cdc2bdae40a9c91529097f",
+        "latest_fact_check": "PASS",
+        "period_separation_check": "PASS",
+        "observed_counterevidence_check": "PASS"
+      },
+      "eval": {
+        "eval_id": "eval-recency-current-lock-v1",
+        "job_version": "common-stock-research-eval-job/1.1.0",
+        "status": "PASS",
+        "model": "gpt-5.6-terra",
+        "minimum_dimension_grade": 3,
+        "input_hash": "70f7673125c66eb41b56d33826f256552293fd29c5e772a39e5e8aafdb507bad",
+        "result_hash": "3efae1022acf28aad119216eba1a42c2ab6ac19c9bb5c0b4baf81ec1ff75b4db",
+        "input_manifest_sha256": "3183e1c49725f08abc0d7033b1baec1852550700a903aa7a36a9e889ef5a578f",
+        "artifact_sha256": "9f2d9719befda84ad85756a48b4489b506204ca009402ff656dfc8167f8d6708",
+        "report_sha256": "c71ed019ba454bc294d7eac2c142b4e4559ba0669b9d4c3ef90a44770e3afef2",
+        "process_result_sha256": "2308584eb896f19afedfca6112d122f878af724169e5c81ec09e64990bb8eaf7",
+        "source_integrity_unchanged": true,
+        "coverage_binding": "PASS"
+      },
+      "evidence_reuse": {
+        "prior_run_id": "host-common-stock-a5ab7573-0e61-434e-bdc1-9886ee53717f",
+        "reason": "3.0.15 只影响最新适用事实自检；金额工具与 prior sample C 的已绑定语义评价未受影响",
+        "prior_sample_c_result_hash": "36705072e3ea14d4bfc78046057a1a8c1fbeb198d1262b9bb88a2c3da267246e",
+        "prior_sample_c_artifact_sha256": "6884aaebc1cb5600c0af326ce7d584a02c31cea7148259332a47edca2efb5f07"
+      },
+      "quality_completion": {
+        "two_substantive_reports": "PASS",
+        "report_one": "REUSED_PRIOR_SAMPLE_C_ALL_DIMENSIONS_PASS",
+        "report_two": "CURRENT_3_0_15_SAMPLE_A_ALL_DIMENSIONS_PASS",
+        "at_least_one_calculation_grounded_valuation_view": "PASS"
+      }
+    },
+    "failed_attempts_preserved": [
+      "MCP_IMPORT_CYCLE_BEFORE_PACKAGE_NEUTRAL_MONETARY_MODULE",
+      "DANGLING_COUNTER_CLAIM_ASSUMPTION_ID",
+      "DANGLING_EVIDENCE_ID"
+    ],
+    "deterministic_tests": {
+      "command": "python3 -m unittest tests.test_valuation tests.test_common_stock_research_contracts tests.test_product_config tests.test_native_invocation_validation tests.test_native_evidence_gate.GateScopedFixtureToolTests.test_calculation_manifest_matches_bound_callable_parameters tests.test_native_evidence_gate.GateScopedFixtureToolTests.test_monetary_scale_calculation_extracts_disclosed_amount_and_tax_basis tests.test_native_evidence_gate.GateScopedFixtureToolTests.test_monetary_scale_rejects_missing_target_or_wrong_arity tests.test_native_evidence_gate.GateScopedFixtureToolTests.test_mcp_rejects_undeclared_parameter_and_records_redacted_error",
+      "status": "PASS",
+      "count": 94,
+      "raw_log": "/private/tmp/stock-agent-common-stock-depth-v8-final-evidence/focused-tests.log",
+      "raw_log_sha256": "50274272aa94dc2ff278083e97d4db2041b0d2e94c992e0a451e66b73c89b1bc"
+    },
+    "openspec_strict_validate": {
+      "status": "PASS",
+      "raw_log": "/private/tmp/stock-agent-common-stock-depth-v8-final-evidence/openspec-strict.log",
+      "raw_log_sha256": "31fe5edc2de56dd279c58271e1ff314368bcd0a21cbdb27423e7066082157bba"
+    },
+    "independent_review": {
+      "reviewer_agent_id": "01a09b9a-dfa2-7f52-8e72-acdf33e841e8",
+      "initial_result": "FAIL",
+      "initial_blockers": [
+        "OMITTED_NEWER_APPLICABLE_COMPARABLE_REVENUE",
+        "ONLY_ONE_ALL_DIMENSIONS_PASS_REPORT",
+        "FOCUSED_TEST_COMMAND_AND_RAW_LOG_NOT_FULLY_BOUND"
+      ],
+      "final_result": "PASS",
+      "remaining_blockers": [],
+      "tests_executed_by_reviewer": false,
+      "model_calls_executed_by_reviewer": false,
+      "task_5_4": "AWAITING_USER_APPROVAL"
+    }
+  },
+  "independent_incremental_review": {
+    "reviewer_agent_id": "01a096a9-0f4f-7540-bfef-f2d621c4cf00",
+    "initial_result": "FAIL",
+    "initial_blockers": ["RESEARCH_STATUS_AGGREGATION", "HISTORICAL_MODIFICATION_CLAIM"],
+    "focused_fix_tests": "20/20 PASS",
+    "final_result": "PASS",
+    "remaining_blockers": [],
+    "task_5_4": "AWAITING_USER_APPROVAL"
+  },
+  "depth_final_review": {
+    "reviewer_agent_id": "01a09a4b-de30-7bb2-9f7d-ffa66468694b",
+    "result": "PASS",
+    "closed_blockers": [
+      "PER_EVIDENCE_PERIOD_ALIGNMENT",
+      "PRIVATE_SECURITY_IDENTIFIER_REDACTION",
+      "PARTIAL_RESEARCH_REASON_COMPLETENESS"
+    ],
+    "task_7_4": "COMPLETE",
+    "task_5_4": "AWAITING_USER_APPROVAL",
+    "tests_executed_by_reviewer": false,
+    "model_calls_executed_by_reviewer": false
+  },
+  "current_output_acceptance": {
+    "acceptance_policy": "每份拟交接的本轮 Agent 输出必须绑定自身 Eval；历史同证券 PASS 不替代新文本评价",
+    "base_run": {
+      "run_id": "host-common-stock-3777b460-fa2f-48fc-a225-6c80764a5bf5",
+      "agent_version": "3.0.15",
+      "model": "gpt-5.6-terra",
+      "reports": {
+        "ALB": {
+          "report_file_sha256": "2e20213da084f09413d4425a9e6f6e35b7e8648cdf13a8c62f07024bc35c17bb",
+          "markdown_file_sha256": "21919f008f01578a38fa4fcd3a8739b825b5d81181cdc2bdae40a9c91529097f",
+          "evaluated_report_hash": "91e1a2f8019d698e8da246b2fd7a06d83dc69bbf926517cb1e18e3f8f2fbbfc1",
+          "eval_id": "eval-recency-current-lock-v1",
+          "eval_status": "PASS",
+          "eval_result_hash": "3efae1022acf28aad119216eba1a42c2ab6ac19c9bb5c0b4baf81ec1ff75b4db"
+        },
+        "MRVL": {
+          "report_file_sha256": "184b677d1c8e87f18e5a31fa112e6d1dc2ce83cbc7ef77747d04ef6b0b6681b2",
+          "markdown_file_sha256": "d4a001dd643b7a28ac15377c74316e9719e5b59b19f8baea7d28d732038f3236",
+          "evaluated_report_hash": "9f12edf85bdf1393bf331789943ecebab409b2384df7e3b900b7726b5febc61e",
+          "eval_id": "eval-current-mrvl-3.0.15",
+          "eval_status": "PASS",
+          "eval_result_hash": "4ffd2b7a73813461c16d71d767e79be8798199707416c4094e5710945d3e3d47",
+          "eval_result_file_sha256": "de8dd21633ae5dbd15e396f53def48390a26c1d2c3b28fc3c0d5d6ffb19a13a5"
+        }
+      }
+    },
+    "focused_wolf_run": {
+      "run_id": "host-common-stock-01f30c38-225d-4750-b813-659def3acdc3",
+      "focus_security_id": "US:COMMON_STOCK:WOLF",
+      "full_portfolio_hash_preserved": true,
+      "task_count": 1,
+      "agent_version": "3.0.17",
+      "agent_hash": "0d9b30ac8f757d827e8b7a471cef15260d538b5241597b87c9edfb0fc1b53a2f",
+      "company_research_version": "2.7.1",
+      "company_research_hash": "8c75db6e869e697252a5aadef7c50d1ff494fb2ee162063efbb1251689b108f8",
+      "model": "gpt-5.6-terra",
+      "execution_status": "PASS",
+      "report_status": "LOW_CONFIDENCE",
+      "report_file_sha256": "121c309f18ad021d94ccfc0b38ef1a3365f6e9c794a2bfdb5b38b1b2fb57c8e9",
+      "markdown_file_sha256": "5415795d8f1b045a8f0fd3b75397e5b7a3374755beeef3cf26f795730f0d19d9",
+      "evaluated_report_hash": "063c7638d3abab68c2a280b6ddb1e8bf2d69ff7d6113889316d9ce6e5b804c72",
+      "execution_proof_file_sha256": "2c0360a6097b5e40e6016be525307d1e76cb2ee1c8f72c2dfa37f2eba6ee551d",
+      "eval_id": "eval-current-wolf-3.0.17",
+      "eval_status": "PASS",
+      "eval_result_hash": "e3b807cd98121cc7f5cc3fecd98b9a48d7c0ab670f96243dac342c437240abb7",
+      "eval_result_file_sha256": "7b1f8d886f943b28e22f28a3cfb6b09894a61a5d72db0b4861ebcae7a7956da4",
+      "period_lineage_check": "PASS",
+      "counterevidence_check": "PASS",
+      "partial_period_valuation_label_check": "PASS"
+    },
+    "failed_wolf_attempt_preserved": {
+      "run_id": "host-common-stock-ca28090a-5324-4736-bdbc-8ea99eba4706",
+      "agent_version": "3.0.16",
+      "eval_id": "eval-current-wolf-3.0.16",
+      "eval_status": "FAIL",
+      "failure": "部分期间被误称为最新合格年度/历史财年 P/E",
+      "eval_result_file_sha256": "c662773e0a9d72820d85882ad2d5ed38da6a59fa0b77bf83c6fb171390d3f4e2"
+    },
+    "deterministic_tests": {
+      "status": "PASS",
+      "count": 100,
+      "raw_log": "/private/tmp/stock-agent-common-stock-depth-v8-final-evidence/focused-tests-3.0.17-final.log",
+      "raw_log_sha256": "fe47d03eab441945311c4f9ad84d096f668602527e4d0a8aecead8ce64601081"
+    },
+    "openspec_strict_validate": {
+      "status": "PASS",
+      "raw_log": "/private/tmp/stock-agent-common-stock-depth-v8-final-evidence/openspec-strict-3.0.17-final.log",
+      "raw_log_sha256": "31fe5edc2de56dd279c58271e1ff314368bcd0a21cbdb27423e7066082157bba"
+    },
+    "independent_review": {
+      "reviewer_agent_id": "01a0a00c-0cae-72d3-9650-b5fe02392586",
+      "initial_result": "FAIL",
+      "initial_blocker": "COMMON_STOCK_RUBRIC_VERSION_LOCK_NOT_EXPLICIT",
+      "targeted_fix": "在 assurance 中独立锁定普通股 Rubric 1.6.0 及实际文件 SHA-256；保留完整 Council runtime_eval_rubric 历史契约",
+      "final_result": "PASS",
+      "final_review_scope": "独立 Reviewer 直接读取 Rubric 声明、实际文件 hash、聚焦契约测试及已有底层运行/Eval 证据；未重跑模型或扩大到完整 Council",
+      "final_review_tasks": [
+        "8.2",
+        "8.3",
+        "8.6"
+      ]
+    },
+    "task_5_4": "AWAITING_USER_APPROVAL"
+  },
+  "wolf_freshstart_followup": {
+    "scope": "WOLF_FRESH_START_COMPARABILITY_ONLY",
+    "verification_record": "reviews/development/common-stock-wolf-freshstart-followup.md",
+    "deterministic_tests": {"status": "PASS", "count": 101},
+    "openspec_strict_validate": "PASS",
+    "rejected_typo_attempt": {
+      "run_dir": "/private/tmp/stock-agent-common-stock-wolf-freshstart-v3.3C5YJk/run",
+      "status": "FAIL_CLOSED",
+      "failure": "NON_CANONICAL_EVIDENCE_ID",
+      "rejected_output_sha256": "8fab38e8c0861e6420f46427dd68d78d3285151b5fab672ef10b2f26f31f8f3b",
+      "accepted_as_positive_evidence": false
+    },
+    "accepted_run": {
+      "run_id": "host-common-stock-da2e3609-dc45-4245-ac9b-514441177019",
+      "run_dir": "/private/tmp/stock-agent-common-stock-wolf-freshstart-v4-20260914/run",
+      "status": "PASS",
+      "stage_status": "PARTIAL_RESEARCH",
+      "model": "gpt-5.6-terra",
+      "source_integrity_unchanged": true,
+      "execution_proof_hash": "74876c1bfb141bbda1a44889a9f375878b7094de5f57edd624c966772856b614",
+      "execution_proof_sha256": "9885cadb29777fd80762c9834b5ffef726917972456a8ba8c8bbb8396fefe36f",
+      "gate_hash": "dea185fabcd8c1741e5426bb7ef8b28107b2222afca41e036e0c048facac273a",
+      "gate_sha256": "08181494c0ea84a65bcbe27fbb6a6dccbd8b6f38626d620acde60654b786d2d4",
+      "mcp_events_sha256": "7f2be2d3845e182ba3c0418194865e1d33c34d716333948f4232a2dc426144c8",
+      "launcher_dispatched_stock_count": 3,
+      "incremental_acceptance_security": "WOLF_ONLY",
+      "extra_reports_re_evaluated": false,
+      "complete_portfolio_decision": false
+    },
+    "wolf_report": {
+      "status": "LOW_CONFIDENCE",
+      "json_sha256": "1ee804570535e4e3f0c17f5d1a05d868d959a2c9ceeaf2cd3e83d300a9355802",
+      "markdown_sha256": "cf110c0f78badf328c5b62b521987e9911847e5492e45771a8a26162e36eebc2",
+      "evidence_closure": "PASS",
+      "freshstart_trend_interpretation": "NOT_USED",
+      "numeric_monitoring_baseline": "PASS"
+    },
+    "focused_eval": {
+      "eval_id": "eval-wolf-freshstart-v4",
+      "status": "PASS",
+      "model": "gpt-5.6-terra",
+      "rubric_id": "common-stock-research-semantic/1.7.0",
+      "input_hash": "55f2937ff97586c8b0ed0453c2a4b4ca60a764f0c055cf9d1c12c0d8d536442a",
+      "result_hash": "157631dff5e02fd2481a8c342fc219f182da18554e78ba7e0db050e69b074c7a",
+      "result_file_sha256": "eaa5bf3d466202720e802d9cd45a41d6abdf6280eac066fc146ce18f1afaa992",
+      "comparable_financial_analysis_grade": 3,
+      "reevaluation_conditions_grade": 3
+    },
+    "source_lock": {
+      "financials": "d841fee0ee5cd6a0adf18fcb2553704204bbb817cd157504769d7f1a0b2d4bd6",
+      "collection": "6edf6f68d9f757bf2c6b8c9079510878d0238b18d34fad6833eb5c371692610c",
+      "common_stock_stage": "4959ab46beb2439382b3c159ac5bb584fd554c5b436ec176473a618358a08129",
+      "runtime_company_analyst": "b7ecd21655e2f7a0d7aa1119ce63f9d94391d677598595586419a77a9d96b949",
+      "company_research": "57302d4433b7ed19f49564e4abbb31d198d5b24b6aaf70a06ac6f3f602ecfddb",
+      "rubric": "7d77d54dc32264c9fdd3bb5905f239f795feda512c5a005a92876985cfcaa98f",
+      "runtime_profile": "345290d8ba23f07ca953c35ef4114ab1e013b53457791f2ad1c41abce537b919",
+      "version_manifest": "8fe2b447c09e8f1714ffd7e6b8a807f7c1ca3d05ed379ff122bc401dd8a60ffe"
+    },
+    "independent_review": {
+      "reviewer_agent_id": "01a0a05b-5261-7cd0-aa3a-b33ddb4fe309",
+      "status": "PASS",
+      "record": "reviews/development/common-stock-wolf-freshstart-independent-review.md",
+      "blockers": [],
+      "tests_executed_by_reviewer": false,
+      "model_calls_executed_by_reviewer": false
+    },
+    "task_5_4": "APPROVED_2026-09-14"
+  },
+  "final_human_approval": {
+    "status": "APPROVED_FOR_CHANGE_ARCHIVE",
+    "approved_at_date": "2026-09-14",
+    "record": "reviews/development/common-stock-holding-analysis-approval.md",
+    "basis": {
+      "wolf_run_id": "host-common-stock-da2e3609-dc45-4245-ac9b-514441177019",
+      "wolf_report_sha256": "1ee804570535e4e3f0c17f5d1a05d868d959a2c9ceeaf2cd3e83d300a9355802",
+      "wolf_eval_result_hash": "157631dff5e02fd2481a8c342fc219f182da18554e78ba7e0db050e69b074c7a",
+      "reviewer_agent_id": "01a0a05b-5261-7cd0-aa3a-b33ddb4fe309",
+      "review": "PASS"
+    },
+    "promotion": "NOT_EVALUATED"
+  },
+  "source_lock": {
+    "runtime_company_analyst": "0d9b30ac8f757d827e8b7a471cef15260d538b5241597b87c9edfb0fc1b53a2f",
+    "common_stock_research": "cde847fc9478861f0894b4c8cf1ec844a42f828198c4ee8bbfee9bcde53c3f1c",
+    "research_output": "6bd68f96972cd68579d05d5f7234266c75d3f265d2de7a2e5ed779c527438449",
+    "common_stock_stage": "5e3931b783981571f4d7adb021cad2a6040b0297be3443c589a5310973948010",
+    "common_stock_eval": "1bdf9b18b4d27649d13396af82ca0a3a912b9d208a4de0300b629978727ecbd7",
+    "hook_recorder": "0e9975c6edfd26a749103d003b3e330766e33fa12b9813fa83ba7ef51a9fe3b1",
+    "fixture_mcp": "f7c84300eb35839967c12b61dc7cd402762860c752578be0485d7346772f9a6a",
+    "monetary": "030f0ef7b645de765b9fabc44d9a182add9bc6e5a80a55f7d693db412458680b",
+    "valuation": "6a3a22fceb209e785335aa4d7f76f90a6efe234749bcc8ccb5180850f06b4f4e",
+    "runtime_profile": "b623870903bc1fe91260514e7f4d25fa89d5856d8ee10ddd2f1031e2e6504a00",
+    "version_manifest": "4739ad7d9d03ef24c82f7626a9a217c88dac6166e06392b2b99c81042c6689db",
+    "host_launcher": "8169fa67287d97d9b877d26029356813bd6c38cdb49b7561c91722e764f1baf0",
+    "equity_report_schema": "a38e87f5e589ccfcd39f5464abb833a7d220899a961faf8cf7ea1ea508744671",
+    "rubric": "e20c3a0875d203dd8ad67b74c592ebe5e8c15094fa43d85686335251f8b804a9"
+  },
+  "boundaries": {
+    "complete_portfolio_decision": false,
+    "skeptic_cio_risk_executed": false,
+    "etf_options_research": false,
+    "promotion": "NOT_EVALUATED",
+    "private_holdings_committed": false
+  }
+}

@@ -1,6 +1,7 @@
 """Resolve repository-owned Codex resources before any model call."""
 
 from __future__ import annotations
+import json
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -68,7 +69,7 @@ def _record(product_root: Path, resource_id: str, relative_path: str) -> Resourc
     )
 
 
-def discover_product_resources(repository_root: Path) -> ProductDiscovery:
+def discover_product_resources(repository_root: Path, *, source_profile: str = "fixture") -> ProductDiscovery:
     """Return an auditable record of the exact repository product resources."""
 
     root = repository_root.resolve()
@@ -92,6 +93,50 @@ def discover_product_resources(repository_root: Path) -> ProductDiscovery:
             if actual_hashes[name] != version_manifest["resource_hashes"].get(name)
         )
         raise ValueError(f"product resource hash mismatch: {','.join(mismatches)}")
+    if source_profile != "fixture":
+        from copy import deepcopy
+        from .runtime_profiles import load_source_profile
+        from .versioning import validate_version_manifest
+        profile = load_source_profile(root, source_profile)
+        records["runtime_profile"] = _record(product_root, "runtime_profile", "profiles/live-us-equity.json")
+        # 仅派生本次运行锁，不覆盖 fixture manifest、历史包或生产版本指针。
+        version_manifest = deepcopy(version_manifest)
+        version_manifest["candidate_version"] += "+live-us-equity"
+        version_manifest["runtime_profile"] = profile["profile_id"]
+        version_manifest["data_snapshot"] = "live-snapshot/4.0.0"
+        version_manifest["resource_hashes"]["runtime_profile"] = records["runtime_profile"].sha256
+        version_manifest["mcp_adapters"]["live-gate-scoped"] = profile["mcp_adapter_version"]
+        from product.mcp.live.market import MARKET_VERSION, YFINANCE_VERSION, CALENDAR_VERSION
+        from product.mcp.live.sec import ADAPTER_VERSION
+        from product.mcp.live.sec_client import CLIENT_VERSION
+        from product.mcp.live.security_metadata import METADATA_VERSION
+        from product.mcp.live.yahoo_transport import TRANSPORT_VERSION
+        from product.mcp.live.collection import COLLECTION_VERSION
+        from product.mcp.live.disclosure import PARSER_VERSION
+        from product.mcp.live.nasdaq import ADAPTER_VERSION as NASDAQ_ADAPTER, CLIENT_VERSION as NASDAQ_CLIENT
+        from product.mcp.live.nasdaq import TRANSPORT_VERSION as NASDAQ_TRANSPORT, CERTIFI_VERSION
+        from product.mcp.live.sec_client import TRANSPORT_VERSION as SEC_TRANSPORT
+        from product.mcp.live.eastmoney_transport import HTTPS_VERSION as EASTMONEY_HTTPS
+        from product.mcp.live.tls import TRUST_VERSION
+        from product.mcp.live.eastmoney_transport import ADAPTER_VERSION as EASTMONEY_ADAPTER, AKSHARE_VERSION
+        from product.mcp.live.security_metadata import EASTMONEY_METADATA_VERSION
+        from product.mcp.live.source_routing import policy_lock
+        version_manifest["data_adapters"] = {
+            "yahoo": MARKET_VERSION, "yfinance": YFINANCE_VERSION, "calendar": CALENDAR_VERSION,
+            "sec_parser": ADAPTER_VERSION, "sec_client": CLIENT_VERSION,
+            "security_metadata": METADATA_VERSION, "yahoo_transport": TRANSPORT_VERSION,
+            "collection": COLLECTION_VERSION, "sec_disclosure": PARSER_VERSION,
+            "nasdaq": NASDAQ_ADAPTER, "nasdaq_client": NASDAQ_CLIENT,
+            "nasdaq_transport": NASDAQ_TRANSPORT, "certifi": CERTIFI_VERSION,
+            "sec_transport": SEC_TRANSPORT, "eastmoney_https": EASTMONEY_HTTPS, "https_trust": TRUST_VERSION,
+            "eastmoney": EASTMONEY_ADAPTER, "akshare": AKSHARE_VERSION,
+            "eastmoney_identity": EASTMONEY_METADATA_VERSION,
+            "routing": policy_lock()["version"], "routing_hash": policy_lock()["hash"],
+        }
+        for kind, relative in profile["schema_files"].items():
+            schema = json.loads((product_root / relative).read_text(encoding="utf-8"))
+            version_manifest["schemas"][f"live-{kind}"] = schema["properties"]["schema_version"]["const"]
+        validate_version_manifest(version_manifest)
     digest_payload = {
         "product_root": str(product_root),
         "resources": {name: asdict(record) for name, record in sorted(records.items())},

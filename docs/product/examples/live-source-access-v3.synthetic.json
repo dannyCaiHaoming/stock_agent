@@ -1,0 +1,31 @@
+[
+  {
+    "schema_version": "live-source-access/3.0.0", "provider": "nasdaq", "data_role": "universe",
+    "client_version": "nasdaq-readonly/1.0.0", "adapter_version": "nasdaq-universe/1.0.0",
+    "status": "UNCONFIRMED", "purpose": "personal-research", "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z", "free_features": ["仅合成字段样例"],
+    "limitations": ["不是实际来源核对或授权；不能用于采集"], "domains": ["api.nasdaq.com"], "request_budget": 5
+  },
+  {
+    "schema_version": "live-source-access/3.0.0", "provider": "yahoo", "data_role": "primary_market",
+    "client_version": "yfinance/1.7.0", "adapter_version": "yahoo-eod-adapter/0.2.0",
+    "status": "UNCONFIRMED", "purpose": "personal-research", "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z", "free_features": ["仅合成字段样例"],
+    "limitations": ["不是实际来源核对或授权；不能用于采集"],
+    "domains": ["query1.finance.yahoo.com", "query2.finance.yahoo.com", "fc.yahoo.com"], "request_budget": 12
+  },
+  {
+    "schema_version": "live-source-access/3.0.0", "provider": "eastmoney", "data_role": "backup_market",
+    "client_version": "akshare/1.18.94", "adapter_version": "eastmoney-bounded-transport/1.0.0",
+    "status": "UNCONFIRMED", "purpose": "personal-research", "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z", "free_features": ["仅合成字段样例"],
+    "limitations": ["不是实际来源核对或授权；不能用于采集"], "domains": ["63.push2his.eastmoney.com"], "request_budget": 6
+  },
+  {
+    "schema_version": "live-source-access/3.0.0", "provider": "sec", "data_role": "disclosure",
+    "client_version": "sec-readonly/0.3.1", "adapter_version": "sec-parser/0.2.0",
+    "status": "UNCONFIRMED", "purpose": "personal-research", "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z", "free_features": ["仅合成字段样例"],
+    "limitations": ["不是实际来源核对或授权；不能用于采集"], "domains": ["data.sec.gov", "www.sec.gov"], "request_budget": 30
+  }
+]

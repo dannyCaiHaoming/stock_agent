@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/demo-decision-envelope/1.0.0",
+  "type": "object",
+  "required": [
+    "schema_version", "profile", "run_id", "synthetic", "advisory_only",
+    "llm_used", "terminal_state", "decision", "risk_result_ref", "limitations"
+  ],
+  "properties": {
+    "schema_version": {"const": "demo-decision-envelope/1.0.0"},
+    "profile": {"const": "DEMO_SCAFFOLD"},
+    "run_id": {"type": "string", "minLength": 1},
+    "synthetic": {"const": true},
+    "advisory_only": {"const": true},
+    "llm_used": {"const": false},
+    "terminal_state": {"enum": ["DEMO_COMPLETED", "DEMO_SAFE_NO_TRADE"]},
+    "decision": {
+      "type": "object",
+      "required": [
+        "action", "security_id", "current_weight", "target_weight_range",
+        "maximum_notional", "time_horizon", "thesis", "counter_thesis",
+        "consensus", "conflicts", "unresolved_questions", "invalidation_conditions",
+        "confidence", "confidence_rationale", "evidence_refs", "no_trade_reason",
+        "no_trade_explanation", "reevaluation_conditions", "advisory_only"
+      ]
+    },
+    "risk_result_ref": {"type": ["object", "null"]},
+    "limitations": {"type": "array", "minItems": 4, "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

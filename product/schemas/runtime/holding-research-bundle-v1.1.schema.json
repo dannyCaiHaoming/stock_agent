@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holding-research-bundle/1.1.0",
+  "title": "HoldingResearchBundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "bundle_id", "run_id", "bindings", "decision_cutoff",
+    "common_stock_security_ids", "report_refs", "coverage", "consumability",
+    "package_provenance", "unresolved_cross_dimension_questions",
+    "no_unresolved_reason", "summary", "artifact_refs", "bundle_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "holding-research-bundle/1.1.0"},
+    "bundle_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"},
+    "run_id": {"type": "string", "minLength": 1},
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["handoff_id", "handoff_hash", "portfolio_hash", "council_request_id", "council_request_hash"],
+      "properties": {
+        "handoff_id": {"type": "string", "minLength": 1},
+        "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "council_request_id": {"type": "string", "minLength": 1},
+        "council_request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "decision_cutoff": {"type": "string", "minLength": 1},
+    "common_stock_security_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "report_refs": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["report_id", "report_hash", "report_type", "capability", "security_ids", "artifact_ref"],
+        "properties": {
+          "report_id": {"type": "string", "minLength": 1},
+          "report_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "report_type": {"enum": ["EQUITY_RESEARCH_REPORT", "RESEARCH_DIMENSION_REPORT"]},
+          "capability": {"enum": ["COMPANY_RESEARCH", "TECHNICAL_STRUCTURE", "FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "MACRO_MARKET", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"]},
+          "security_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "artifact_ref": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "coverage": {
+      "type": "array", "minItems": 1, "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["security_id", "capability", "status", "report_id", "gap_reason"],
+        "properties": {
+          "security_id": {"type": "string", "minLength": 1},
+          "capability": {"enum": ["COMPANY_RESEARCH", "TECHNICAL_STRUCTURE", "FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "MACRO_MARKET", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"]},
+          "status": {"enum": ["COMPLETE", "LOW_CONFIDENCE", "INSUFFICIENT_EVIDENCE", "SOURCE_LIMITED", "FAILED", "TIMEOUT", "NOT_RESEARCHED"]},
+          "report_id": {"type": ["string", "null"]},
+          "gap_reason": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "consumability": {"enum": ["STRUCTURALLY_CONSUMABLE", "DOWNSTREAM_READY"]},
+    "package_provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["base_run_id", "base_bundle_hash", "base_gate_hash", "company_research_imports", "incorporated_supplements", "excluded_supplements"],
+      "properties": {
+        "base_run_id": {"type": "string", "minLength": 1},
+        "base_bundle_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "base_gate_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "company_research_imports": {"type": "array", "items": {"$ref": "#/$defs/provenanceEntry"}},
+        "incorporated_supplements": {"type": "array", "items": {"$ref": "#/$defs/provenanceEntry"}},
+        "excluded_supplements": {"type": "array", "items": {"$ref": "#/$defs/excludedEntry"}}
+      }
+    },
+    "unresolved_cross_dimension_questions": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["question_id", "security_ids", "capabilities", "question", "report_refs", "claim_refs"],
+        "properties": {
+          "question_id": {"type": "string", "minLength": 1},
+          "security_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "capabilities": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "question": {"type": "string", "minLength": 1},
+          "report_refs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "claim_refs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "no_unresolved_reason": {"type": ["string", "null"], "minLength": 1},
+    "summary": {"type": "string", "minLength": 1},
+    "artifact_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "bundle_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "provenanceEntry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_run_id", "source_decision_cutoff", "report_id", "report_hash", "compatibility_status"],
+      "properties": {
+        "source_run_id": {"type": "string", "minLength": 1},
+        "source_decision_cutoff": {"type": "string", "minLength": 1},
+        "report_id": {"type": "string", "minLength": 1},
+        "report_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "compatibility_status": {"const": "REVALIDATED"}
+      }
+    },
+    "excludedEntry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_run_id", "source_decision_cutoff", "report_id", "report_hash", "compatibility_status", "reason_codes"],
+      "properties": {
+        "source_run_id": {"type": "string", "minLength": 1},
+        "source_decision_cutoff": {"type": "string", "minLength": 1},
+        "report_id": {"type": "string", "minLength": 1},
+        "report_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "compatibility_status": {"const": "EXCLUDED"},
+        "reason_codes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"unresolved_cross_dimension_questions": {"minItems": 1}}},
+      "then": {"properties": {"no_unresolved_reason": {"type": "null"}}},
+      "else": {"properties": {"no_unresolved_reason": {"type": "string", "minLength": 1}}}
+    }
+  ]
+}

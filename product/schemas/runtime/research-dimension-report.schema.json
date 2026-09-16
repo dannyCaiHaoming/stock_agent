@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-dimension-report/1.1.0",
+  "title": "ResearchDimensionReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "report_id", "run_id", "invocation_id", "capability",
+    "scope", "security_ids", "status", "sufficiency", "evaluation_status",
+    "bindings", "time_context", "execution", "summary", "claims",
+    "assumptions", "calculations", "documents", "research_relationships",
+    "limitations", "observation_conditions",
+    "data_gaps", "artifact_refs", "report_hash"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "const": "research-dimension-report/1.1.0"},
+    "report_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"},
+    "run_id": {"type": "string", "minLength": 1},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "capability": {"type": "string", "enum": ["TECHNICAL_STRUCTURE", "FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "MACRO_MARKET", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"]},
+    "scope": {"type": "string", "enum": ["PER_SECURITY", "SECURITY_GROUP", "SHARED_MARKET"]},
+    "security_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "status": {"type": "string", "enum": ["COMPLETE", "LOW_CONFIDENCE", "INSUFFICIENT_EVIDENCE", "SOURCE_LIMITED", "FAILED", "TIMEOUT"]},
+    "sufficiency": {"type": "string", "enum": ["SUFFICIENT", "PARTIAL", "INSUFFICIENT", "NOT_ASSESSED"]},
+    "evaluation_status": {"type": "string", "enum": ["NOT_EVALUATED", "PASS", "FAIL", "SOURCE_LIMITED"]},
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["handoff_id", "handoff_hash", "portfolio_hash", "council_request_id", "council_request_hash", "decision_cutoff"],
+      "properties": {
+        "handoff_id": {"type": "string", "minLength": 1},
+        "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "council_request_id": {"type": "string", "minLength": 1},
+        "council_request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "decision_cutoff": {"type": "string", "minLength": 1}
+      }
+    },
+    "time_context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["window_start", "window_end", "benchmark_id", "price_adjustment", "timezone"],
+      "properties": {
+        "window_start": {"type": ["string", "null"]},
+        "window_end": {"type": ["string", "null"]},
+        "benchmark_id": {"type": ["string", "null"]},
+        "price_adjustment": {"type": ["string", "null"]},
+        "timezone": {"type": ["string", "null"]}
+      }
+    },
+    "execution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["agent_name", "agent_version", "skill_name", "skill_version", "skill_hash", "model", "prompt_hash", "input_refs", "raw_output_hash"],
+      "properties": {
+        "agent_name": {"type": "string", "enum": ["runtime_company_analyst", "runtime_market_catalyst"]},
+        "agent_version": {"type": "string", "minLength": 1},
+        "skill_name": {"type": "string", "minLength": 1},
+        "skill_version": {"type": "string", "minLength": 1},
+        "skill_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "model": {"type": "string", "minLength": 1},
+        "prompt_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "input_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "raw_output_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "summary": {"type": "string", "minLength": 1},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "assumptions": {"type": "array", "items": {"$ref": "#/$defs/assumption"}},
+    "calculations": {"type": "array", "items": {"$ref": "#/$defs/calculation"}},
+    "documents": {"type": "array", "items": {"$ref": "#/$defs/document"}},
+    "research_relationships": {"type": "array", "items": {"$ref": "#/$defs/research_relationship"}},
+    "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "observation_conditions": {"type": "array", "items": {"$ref": "#/$defs/condition"}},
+    "data_gaps": {"type": "array", "items": {"$ref": "#/$defs/gap"}},
+    "artifact_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "report_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"},
+    "evidence_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"},
+    "claim": {
+      "type": "object", "additionalProperties": false,
+      "required": ["claim_id", "question", "statement", "kind", "evidence_refs", "research_claim_refs", "document_refs", "assumption_ids", "calculation_refs"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/id"},
+        "question": {"type": "string", "minLength": 1},
+        "statement": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "enum": ["FACT", "INTERPRETATION", "COMPARISON"]},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}},
+        "research_claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "document_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "assumption_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "calculation_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "assumption": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assumption_id", "statement", "rationale", "evidence_refs"],
+      "properties": {
+        "assumption_id": {"$ref": "#/$defs/id"},
+        "statement": {"type": "string", "minLength": 1},
+        "rationale": {"type": "string", "minLength": 1},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}}
+      }
+    },
+    "calculation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["calculation_id", "method", "value", "unit", "input_evidence_refs", "artifact_ref"],
+      "properties": {
+        "calculation_id": {"$ref": "#/$defs/id"},
+        "method": {"type": "string", "minLength": 1},
+        "value": {"type": ["number", "string", "null"]},
+        "unit": {"type": ["string", "null"]},
+        "input_evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}},
+        "artifact_ref": {"type": "string", "minLength": 1}
+      }
+    },
+    "document": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "document_id", "source_id", "title", "authors", "institution",
+        "material_type", "source_url", "original_source_url", "published_at",
+        "as_of", "retrieved_at", "body_hash", "locations", "parse_scope",
+        "duplicate_of", "revision_of", "interest_disclosure", "verification_status"
+      ],
+      "properties": {
+        "document_id": {"$ref": "#/$defs/id"},
+        "source_id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "authors": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "institution": {"type": ["string", "null"]},
+        "material_type": {"type": "string", "enum": ["INDEPENDENT_RESEARCH", "ISSUER_MATERIAL", "RATING_NEWS", "SEARCH_LEAD", "REPRINT"]},
+        "source_url": {"type": "string", "minLength": 1},
+        "original_source_url": {"type": ["string", "null"]},
+        "published_at": {"type": "string", "minLength": 1},
+        "as_of": {"type": "string", "minLength": 1},
+        "retrieved_at": {"type": "string", "minLength": 1},
+        "body_hash": {"anyOf": [{"type": "string", "pattern": "^[0-9a-f]{64}$"}, {"type": "null"}]},
+        "locations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "parse_scope": {"type": "string", "minLength": 1},
+        "duplicate_of": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "revision_of": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "interest_disclosure": {
+          "type": "object", "additionalProperties": false,
+          "required": ["status", "statement", "location"],
+          "properties": {
+            "status": {"type": "string", "enum": ["DECLARED", "UNKNOWN"]},
+            "statement": {"type": ["string", "null"]},
+            "location": {"type": ["string", "null"]}
+          }
+        },
+        "verification_status": {"type": "string", "enum": ["BODY_VERIFIED", "LEAD_ONLY", "FETCH_FAILED"]}
+      }
+    },
+    "research_relationship": {
+      "type": "object", "additionalProperties": false,
+      "required": ["relationship_id", "document_id", "target_claim_refs", "effect", "rationale", "resulting_claim_refs"],
+      "properties": {
+        "relationship_id": {"$ref": "#/$defs/id"},
+        "document_id": {"$ref": "#/$defs/id"},
+        "target_claim_refs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "effect": {"type": "string", "enum": ["SUPPORT", "CHALLENGE", "REVISE", "NO_NEW_INFORMATION"]},
+        "rationale": {"type": "string", "minLength": 1},
+        "resulting_claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "condition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["condition_id", "description", "claim_refs", "evidence_refs"],
+      "properties": {
+        "condition_id": {"$ref": "#/$defs/id"},
+        "description": {"type": "string", "minLength": 1},
+        "claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}}
+      }
+    },
+    "gap": {
+      "type": "object", "additionalProperties": false,
+      "required": ["gap_id", "reason_code", "description", "impact"],
+      "properties": {
+        "gap_id": {"$ref": "#/$defs/id"},
+        "reason_code": {"type": "string", "enum": ["NOT_FETCHED", "NOT_YET_DISCLOSED", "SOURCE_UNSUPPORTED", "SOURCE_LIMITED", "NOT_APPLICABLE", "UNKNOWN"]},
+        "description": {"type": "string", "minLength": 1},
+        "impact": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

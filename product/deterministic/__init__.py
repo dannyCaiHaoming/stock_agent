@@ -16,7 +16,24 @@ from .risk import (
     TargetWeightRange,
     VetoCode,
 )
-from .valuation import CalculationArtifact, equity_value_per_share, present_value
+from .valuation import (
+    CalculationArtifact,
+    comparable_period_change,
+    convert_monetary_scale,
+    equity_value_per_share,
+    financial_ratio,
+    operating_scenario_value_per_share,
+    present_value,
+    free_cash_flow_bridge,
+    net_debt_bridge,
+    share_count_change,
+    validate_monetary_scale_equivalence,
+)
+from .market_analysis import (
+    TECHNICAL_CALCULATION_VERSION,
+    calculate_technical_statistics,
+    verify_technical_calculation,
+)
 
 __all__ = [
     "METRIC_DEFINITION_VERSION",
@@ -33,7 +50,18 @@ __all__ = [
     "VetoCode",
     "CalculationArtifact",
     "calculate_portfolio_metrics",
+    "comparable_period_change",
+    "convert_monetary_scale",
     "equity_value_per_share",
+    "financial_ratio",
     "normalize_portfolio",
+    "operating_scenario_value_per_share",
     "present_value",
+    "free_cash_flow_bridge",
+    "net_debt_bridge",
+    "share_count_change",
+    "validate_monetary_scale_equivalence",
+    "TECHNICAL_CALCULATION_VERSION",
+    "calculate_technical_statistics",
+    "verify_technical_calculation",
 ]

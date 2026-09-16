@@ -417,7 +417,11 @@ class SessionPathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="eval paths ") as directory:
             eval_dir = Path(directory).resolve()
             sessions = eval_dir / "selected sessions"
-            (eval_dir / "input-manifest.json").write_text(json.dumps({"eval_id": "path-eval", "source_hashes": dict.fromkeys(("grader_prompt", "rubric", "semantic_input", "semantic_output_schema"), "test-hash")}))
+            source_run = eval_dir / "source run"
+            source_run.mkdir()
+            (source_run / "run_manifest.json").write_text(json.dumps({"source_mode": "fixture"}))
+            # 实际 eval-prepare 始终保存 run_dir；路径测试也显式绑定来源，不能省略后退回默认 rubric。
+            (eval_dir / "input-manifest.json").write_text(json.dumps({"eval_id": "path-eval", "run_dir": str(source_run), "source_hashes": dict.fromkeys(("grader_prompt", "rubric", "semantic_input", "semantic_output_schema"), "test-hash")}))
             expected = build_eval_smoke_prompt(ROOT, eval_dir=eval_dir, sessions_root=sessions)
             output = io.StringIO()
             with contextlib.redirect_stdout(output):

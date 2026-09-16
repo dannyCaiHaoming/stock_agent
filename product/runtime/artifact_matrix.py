@@ -139,6 +139,13 @@ def validate_artifact_matrix(
                 }
             )
 
+    if manifest is not None and manifest.get("source_mode") == "live":
+        from .live_context import LIVE_AUDIT_FILES
+        required.discard("audit/fixture_snapshot.json")
+        required.update(LIVE_AUDIT_FILES)
+        forbidden.add("audit/fixture_snapshot.json")
+        if "fixture" in manifest or "fixture_id" in manifest or manifest.get("schema_version") != "native-run-package/3.0.0":
+            raise ArtifactMatrixError("LIVE_ARTIFACT_SOURCE_INVALID")
     missing = sorted(path for path in required if not (run_dir / path).is_file())
     present_forbidden = sorted(path for path in forbidden if (run_dir / path).exists())
     if missing or present_forbidden:

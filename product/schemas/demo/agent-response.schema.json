@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/demo-agent-response/1.0.0",
+  "type": "object",
+  "required": [
+    "schema_version", "run_id", "invocation_id", "agent_name", "status",
+    "input_refs", "output", "producer_type", "llm_used", "skill_reasoning_executed"
+  ],
+  "properties": {
+    "schema_version": {"const": "demo-agent-response/1.0.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "agent_name": {"enum": ["runtime_company_analyst", "runtime_skeptic", "runtime_cio"]},
+    "status": {"enum": ["COMPLETE", "INSUFFICIENT_EVIDENCE", "LOW_CONFIDENCE", "TIMEOUT"]},
+    "input_refs": {"type": "array", "minItems": 1},
+    "output": {"type": "object"},
+    "producer_type": {"const": "deterministic_demo"},
+    "llm_used": {"const": false},
+    "skill_reasoning_executed": {"const": false}
+  },
+  "additionalProperties": false
+}

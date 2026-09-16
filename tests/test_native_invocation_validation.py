@@ -92,7 +92,7 @@ class InvocationManifestTests(unittest.TestCase):
         ):
             self.assertEqual(manifest["agent"]["name"], agent)
             expected_version = (
-                "2.1.0" if agent == "runtime_company_analyst" else "2.0.0"
+                "3.0.18" if agent == "runtime_company_analyst" else "2.1.0"
             )
             self.assertEqual(manifest["agent"]["version"], expected_version)
             self.assertEqual(
@@ -167,6 +167,8 @@ class InvocationManifestTests(unittest.TestCase):
             "禁止使用单数 evidence_id",
             "不得污染 evidence_refs",
             "不得自行截断",
+            "顶层字段仅使用其 properties",
+            "不得从其他角色报告复制顶层字段",
         ):
             self.assertIn(expected, prompt)
 

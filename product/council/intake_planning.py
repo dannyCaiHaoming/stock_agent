@@ -20,6 +20,10 @@ from product.runtime.schema_validation import SchemaValidationError, validate_sc
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ROOT = REPO_ROOT / "product" / "schemas" / "intake"
 REQUEST_SCHEMA_VERSION = "council-request/1.0.0"
+RESEARCH_REQUEST_SCHEMA_VERSION = "council-request/2.0.0"
+COMMON_STOCK_RESEARCH_STAGE = "COMMON_STOCK_RESEARCH"
+MULTI_DIMENSIONAL_HOLDING_RESEARCH_STAGE = "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+FULL_COUNCIL_STAGE = "FULL_COUNCIL"
 PLAN_SCHEMA_VERSION = "council-research-plan/1.0.0"
 RESEARCH_SCOPE = "ALL_INPUT_POSITIONS"
 CAPABILITY_BY_ASSET = {
@@ -80,15 +84,107 @@ def build_council_request(
     return request
 
 
+def build_common_stock_council_request(
+    handoff: Mapping[str, Any], *, request_id: str, research_question: str,
+    holding_horizon: str | None = None, benchmark_id: str | None = None,
+    mandate_artifact_id: str | None = None,
+    constraints: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the explicit research-only request from a confirmed Handoff.
+
+    The nullable fields are deliberately not replaced with sentinel strings.
+    They remain mandatory for the historical/full-Council request builder.
+    """
+
+    validate_handoff(handoff)
+    for field, value in (("request_id", request_id), ("research_question", research_question)):
+        if not isinstance(value, str) or not value.strip():
+            raise CouncilPlanningError(f"COUNCIL_REQUEST_TEXT_REQUIRED:{field}")
+    for field, value in (
+        ("holding_horizon", holding_horizon),
+        ("benchmark_id", benchmark_id),
+        ("mandate_artifact_id", mandate_artifact_id),
+    ):
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            raise CouncilPlanningError(f"COUNCIL_REQUEST_OPTIONAL_TEXT_INVALID:{field}")
+    request: dict[str, Any] = {
+        "schema_version": RESEARCH_REQUEST_SCHEMA_VERSION,
+        "stage": COMMON_STOCK_RESEARCH_STAGE,
+        "request_id": request_id.strip(),
+        "handoff_id": handoff["handoff_id"],
+        "handoff_hash": handoff["handoff_hash"],
+        "portfolio_hash": handoff["portfolio_hash"],
+        "research_question": research_question.strip(),
+        "holding_horizon": holding_horizon.strip() if holding_horizon is not None else None,
+        "research_scope": RESEARCH_SCOPE,
+        "research_security_ids": sorted(
+            position["security_id"] for position in handoff["portfolio"]["positions"]
+        ),
+        "benchmark_id": benchmark_id.strip() if benchmark_id is not None else None,
+        "mandate_artifact_id": (
+            mandate_artifact_id.strip() if mandate_artifact_id is not None else None
+        ),
+        "constraints": copy.deepcopy(dict(constraints or {})),
+    }
+    request["request_hash"] = canonical_hash(_without_hash(request, "request_hash"))
+    validate_council_request(request, handoff=handoff)
+    return request
+
+
+def build_multidimensional_holding_research_request(
+    handoff: Mapping[str, Any], *, request_id: str, research_question: str,
+    holding_horizon: str | None = None, benchmark_id: str | None = None,
+    mandate_artifact_id: str | None = None,
+    constraints: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """从确认 Handoff 构建显式多维研究请求，不启动下游决策。"""
+
+    request = build_common_stock_council_request(
+        handoff,
+        request_id=request_id,
+        research_question=research_question,
+        holding_horizon=holding_horizon,
+        benchmark_id=benchmark_id,
+        mandate_artifact_id=mandate_artifact_id,
+        constraints=constraints,
+    )
+    request["stage"] = MULTI_DIMENSIONAL_HOLDING_RESEARCH_STAGE
+    request["request_hash"] = canonical_hash(_without_hash(request, "request_hash"))
+    validate_council_request(request, handoff=handoff)
+    return request
+
+
 def validate_council_request(
     request: Mapping[str, Any], *, handoff: Mapping[str, Any] | None = None
 ) -> None:
+    version = request.get("schema_version")
+    schema_name = (
+        "council-request.schema.json"
+        if version == REQUEST_SCHEMA_VERSION
+        else "council-request-v2.schema.json"
+        if version == RESEARCH_REQUEST_SCHEMA_VERSION
+        else None
+    )
+    if schema_name is None:
+        raise CouncilPlanningError("COUNCIL_REQUEST_VERSION_INVALID")
     try:
-        validate_schema_instance(request, _schema("council-request.schema.json"))
+        validate_schema_instance(request, _schema(schema_name))
     except SchemaValidationError as exc:
         raise CouncilPlanningError(f"COUNCIL_REQUEST_SCHEMA_INVALID:{exc}") from exc
     if request.get("request_hash") != canonical_hash(_without_hash(request, "request_hash")):
         raise CouncilPlanningError("COUNCIL_REQUEST_HASH_MISMATCH")
+    if version == RESEARCH_REQUEST_SCHEMA_VERSION:
+        stage = request.get("stage")
+        if stage not in {
+            COMMON_STOCK_RESEARCH_STAGE,
+            MULTI_DIMENSIONAL_HOLDING_RESEARCH_STAGE,
+            FULL_COUNCIL_STAGE,
+        }:
+            raise CouncilPlanningError("COUNCIL_REQUEST_STAGE_INVALID")
+        if stage == FULL_COUNCIL_STAGE:
+            for field in ("holding_horizon", "benchmark_id", "mandate_artifact_id"):
+                if not isinstance(request.get(field), str) or not request[field].strip():
+                    raise CouncilPlanningError(f"COUNCIL_REQUEST_FULL_STAGE_FIELD_REQUIRED:{field}")
     if handoff is not None:
         validate_handoff(handoff)
         if handoff.get("schema_version") != HANDOFF_SCHEMA_VERSION:

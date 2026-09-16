@@ -43,6 +43,12 @@ def validate_version_manifest(manifest: Mapping[str, Any]) -> dict[str, Any]:
             raise ValueError(f"version manifest requires non-empty {field}")
         if any(not isinstance(key, str) or not isinstance(item, str) or not item for key, item in value.items()):
             raise ValueError(f"version manifest {field} entries must be non-empty strings")
+    if "data_adapters" in candidate:
+        adapters = candidate["data_adapters"]
+        if not isinstance(adapters, Mapping) or not adapters or any(
+            not isinstance(key, str) or not isinstance(value, str) or not value for key, value in adapters.items()
+        ):
+            raise ValueError("version manifest data_adapters must be a non-empty version mapping")
     model = candidate["model"].casefold()
     if any(marker in model for marker in FORBIDDEN_MODEL_MARKERS):
         raise ValueError("native candidate manifest requires an explicit non-fixture model")

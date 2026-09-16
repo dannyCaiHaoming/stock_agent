@@ -12,3 +12,7 @@ config_file = "agents/runtime_skeptic.toml"
 [agents.runtime_cio]
 description = "Fixture Council 主线程 CIO 的结构化综合协议。"
 config_file = "agents/runtime_cio.toml"
+
+[agents.runtime_market_catalyst]
+description = "多维持仓研究的只读技术、行业、宏观与市场结构专家。"
+config_file = "agents/runtime_market_catalyst.toml"

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-coverage/1.0.0",
+  "title": "ResearchCoverage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "batch_id", "handoff_id", "handoff_hash", "portfolio_hash",
+    "council_request_id", "council_request_hash", "stage_status", "execution_mode",
+    "target_concurrency", "effective_concurrency", "execution_mode_reason",
+    "per_item_timeout_seconds", "batch_budget_seconds", "batch_started_at", "cancelled_at", "items", "coverage_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "research-coverage/1.0.0"},
+    "batch_id": {"type": "string", "minLength": 1},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "council_request_id": {"type": "string", "minLength": 1},
+    "council_request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "stage_status": {"enum": ["RESEARCH_COMPLETE", "PARTIAL_RESEARCH", "NO_COMMON_STOCKS", "FAILED", "CANCELLED"]},
+    "execution_mode": {"enum": ["PARALLEL", "SERIAL", "NOT_STARTED"]},
+    "target_concurrency": {"type": "integer", "minimum": 1},
+    "effective_concurrency": {"type": "integer", "minimum": 0},
+    "execution_mode_reason": {"type": ["string", "null"], "minLength": 1},
+    "per_item_timeout_seconds": {"type": "integer", "minimum": 1},
+    "batch_budget_seconds": {"type": "integer", "minimum": 1},
+    "batch_started_at": {"type": ["string", "null"], "minLength": 1},
+    "cancelled_at": {"type": ["string", "null"], "minLength": 1},
+    "items": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["security_id", "asset_type", "required_capability", "execution_status", "research_status", "eval_status", "coverage_status", "invocation_id", "report_ref", "report_hash", "eval_ref", "eval_result_hash", "evaluated_report_hash", "failure_code"],
+        "properties": {
+          "security_id": {"type": "string", "minLength": 1},
+          "asset_type": {"enum": ["COMMON_STOCK", "ETF", "OPTION"]},
+          "required_capability": {"enum": ["company-research", "etf-research", "options-research"]},
+          "execution_status": {"enum": ["QUEUED", "RUNNING", "COMPLETED", "FAILED", "TIMEOUT", "CANCELLED", "NOT_STARTED"]},
+          "research_status": {"enum": ["VALID_RESEARCH", "LOW_CONFIDENCE", "INSUFFICIENT_EVIDENCE", "NOT_RESEARCHED", "FAILED"]},
+          "eval_status": {"enum": ["NOT_EVALUATED", "PASS", "FAIL"]},
+          "coverage_status": {"enum": ["RESEARCHED", "CAPABILITY_GAP", "NOT_RESEARCHED", "FAILED"]},
+          "invocation_id": {"type": ["string", "null"], "minLength": 1},
+          "report_ref": {"type": ["string", "null"], "minLength": 1},
+          "report_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "eval_ref": {"type": ["string", "null"], "minLength": 1},
+          "eval_result_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "evaluated_report_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "failure_code": {"type": ["string", "null"], "minLength": 1}
+        }
+      }
+    },
+    "coverage_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

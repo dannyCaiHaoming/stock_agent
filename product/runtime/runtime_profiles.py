@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 
 PRODUCT_AGENTS = ("runtime_company_analyst", "runtime_skeptic", "runtime_cio")
+LIVE_PROFILE_ID = "live-us-equity/4.0.0"
 ABLATION_AGENTS = {
     "cio-only": ("runtime_cio",),
     "analyst-cio": ("runtime_company_analyst", "runtime_cio"),
@@ -47,3 +48,38 @@ def load_ablation_profiles(repository_root: Path) -> dict[str, Any]:
     if not isinstance(product, Mapping) or product.get("publishable") is not True or tuple(product.get("agents", [])) != PRODUCT_AGENTS:
         raise ValueError("PRODUCT_PROFILE_INVALID")
     return dict(value)
+
+
+def load_source_profile(repository_root: Path, profile: str = "fixture") -> dict[str, Any]:
+    """显式来源选择；未知名称不得退回 fixture 或跳过 live 检查。"""
+    product_root = repository_root.resolve() / "product"
+    if profile == "fixture":
+        value = json.loads((product_root / "runtime-profile.json").read_text(encoding="utf-8"))
+        if value.get("profile_id") != "fixture-council/3.1.0":
+            raise ValueError("FIXTURE_SOURCE_PROFILE_INVALID")
+        return value
+    if profile != "live-us-equity":
+        raise ValueError("UNKNOWN_SOURCE_PROFILE")
+    value = json.loads((product_root / "profiles/live-us-equity.json").read_text(encoding="utf-8"))
+    if (value.get("profile_id") != LIVE_PROFILE_ID or value.get("source_mode") != "live"
+            or value.get("providers") != ["nasdaq", "yahoo", "eastmoney", "sec"]
+            or value.get("allowed_actions") != ["HOLD", "TRIM", "EXIT", "NO_TRADE"]
+            or value.get("parallel_first_pass") != list(PRODUCT_AGENTS[:2])
+            or set(value.get("agents", {})) != set(PRODUCT_AGENTS)
+            or value.get("max_positions") != 3 or value.get("base_currency") != "USD"):
+        raise ValueError("LIVE_SOURCE_PROFILE_INVALID")
+    expected_skills = {
+        "runtime_company_analyst": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"],
+        "runtime_skeptic": ["evidence-grounding", "counter-thesis"], "runtime_cio": ["portfolio-council"]}
+    for name, agent in value["agents"].items():
+        expected_tools = ["live_evidence.query", "live_math.calculate"] if name == "runtime_company_analyst" else ["live_evidence.query"]
+        if (agent.get("config_file") != f".codex/agents/{name}.toml"
+                or agent.get("skills") != expected_skills[name] or agent.get("tool_permissions") != expected_tools):
+            raise ValueError("LIVE_AGENT_PROFILE_INVALID")
+    schema_files = {kind: f"schemas/runtime/live-{kind}.schema.json"
+                    for kind in ("portfolio", "fact", "fact-v2", "universe", "source-selection", "batch")}
+    schema_files.update({"source-access": "schemas/runtime/live-source-access-v4.schema.json",
+                         "snapshot": "schemas/runtime/live-snapshot-v4.schema.json"})
+    if value.get("schema_files") != schema_files:
+        raise ValueError("LIVE_SCHEMA_PROFILE_INVALID")
+    return value

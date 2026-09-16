@@ -140,7 +140,20 @@ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
         "trace_lineage": "PASSED",
         "report_render": "PASSED",
     }
-    rendered = _render_report(decision)
+    live_context = None
+    if manifest.get("source_mode") == "live":
+        from .live_context import load_live_run_context
+        from .live_report import render_live_report
+        live_context = load_live_run_context(run_dir, manifest)
+        portfolio, snapshot, gate, calendar = live_context
+        saved_reports = {agent: _read_object(run_dir / f"agents/{agent}.json")
+                         for agent in ("runtime_company_analyst", "runtime_skeptic")
+                         if (run_dir / f"agents/{agent}.json").is_file()}
+        rendered = render_live_report(decision, gate=gate, reports=saved_reports, holding_horizon=portfolio["holding_horizon"],
+            portfolio=portfolio, snapshot=snapshot, calendar=calendar)
+        checks["live_evidence_gate_hash"] = canonical_hash(gate)
+    else:
+        rendered = _render_report(decision)
     if rendered != (run_dir / "report.md").read_text(encoding="utf-8"):
         raise ReplayError("REPLAY_REPORT_MISMATCH")
 
@@ -216,12 +229,13 @@ def replay_run(repository_root: Path, *, run_dir: Path) -> dict[str, Any]:
             },
             expected_report_agents=specialists,
         )
-        fixture = _read_object(fixture_path)
-        replayed_risk = check_cio_draft(
-            fixture,
-            draft,
-            run_id=str(manifest["run_id"]),
-        )
+        if live_context is not None:
+            from .risk_runtime import check_live_cio_draft
+            replayed_risk = check_live_cio_draft(portfolio, snapshot, gate, draft, run_id=manifest["run_id"],
+                                               calendar=calendar, focus_security_id=manifest["focus_security_id"])
+        else:
+            fixture = _read_object(fixture_path)
+            replayed_risk = check_cio_draft(fixture, draft, run_id=str(manifest["run_id"]))
         saved_risk = _read_object(risk_path)
         if canonical_hash(replayed_risk) != canonical_hash(saved_risk):
             raise ReplayError("REPLAY_RISK_RESULT_MISMATCH")

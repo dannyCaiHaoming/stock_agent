@@ -129,7 +129,7 @@ def check_run(repository_root: Path, *, run_dir: Path) -> tuple[dict[str, Any], 
         {
             "schema_version": RELEASE_GATE_VERSION,
             "status": "PASSED",
-            "category": "RELEASE_READY",
+            "category": "RUNTIME_SAFE_RESEARCH_UNASSESSED" if manifest.get("source_mode") == "live" else "RELEASE_READY",
             "run_id": trace["run_id"],
             "terminal_state": terminal_state,
             "failed_stage": None,

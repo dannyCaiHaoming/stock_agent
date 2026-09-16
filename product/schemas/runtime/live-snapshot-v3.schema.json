@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Live snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_mode",
+    "snapshot_id",
+    "snapshot_hash",
+    "request_started_at",
+    "decision_cutoff",
+    "portfolio_hash",
+    "source_access",
+    "facts",
+    "gaps",
+    "collection_events",
+    "raw_records",
+    "identity",
+    "freshness_policy_version",
+    "universe",
+    "source_selections"
+  ],
+  "properties": {
+    "identity": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "sec_mapping",
+        "security_metadata"
+      ],
+      "properties": {
+        "binding": {
+          "type": "object"
+        },
+        "sec_mapping": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "security_metadata": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "live-snapshot/3.0.0"
+    },
+    "source_mode": {
+      "type": "string",
+      "const": "live"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "snapshot_hash": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    },
+    "request_started_at": {
+      "type": "string",
+      "minLength": 20
+    },
+    "decision_cutoff": {
+      "type": "string",
+      "minLength": 20
+    },
+    "portfolio_hash": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    },
+    "source_access": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "collection_events": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "raw_records": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "freshness_policy_version": {
+      "type": "string",
+      "const": "live-freshness/1.0.0"
+    },
+    "universe": {
+      "type": "object"
+    },
+    "source_selections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

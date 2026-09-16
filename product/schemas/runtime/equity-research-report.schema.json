@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "equity-research-report/1.0.0",
+  "title": "EquityResearchReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "invocation_id", "report_id", "status", "agent",
+    "bindings", "security", "research_scope", "research_summary", "sections", "claims",
+    "assumptions", "counter_evidence_refs", "invalidation_conditions",
+    "reevaluation_triggers", "monitoring_indicators", "data_gaps", "confidence",
+    "confidence_rationale", "skill_execution", "artifact_refs"
+  ],
+  "properties": {
+    "schema_version": {"const": "equity-research-report/1.0.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "report_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["COMPLETE", "TIMEOUT", "INSUFFICIENT_EVIDENCE", "LOW_CONFIDENCE"]},
+    "agent": {"const": "runtime_company_analyst"},
+    "bindings": {"$ref": "#/$defs/bindings"},
+    "security": {"$ref": "#/$defs/security"},
+    "research_scope": {"const": "SINGLE_COMMON_STOCK_HOLDING"},
+    "research_summary": {"$ref": "#/$defs/summary"},
+    "sections": {"$ref": "#/$defs/sections"},
+    "claims": {"type": "array", "items": {"$ref": "#/$defs/claim"}},
+    "assumptions": {"type": "array", "items": {"$ref": "#/$defs/assumption"}},
+    "counter_evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}},
+    "invalidation_conditions": {"type": "array", "items": {"$ref": "#/$defs/condition"}},
+    "reevaluation_triggers": {"type": "array", "items": {"$ref": "#/$defs/trigger"}},
+    "monitoring_indicators": {"type": "array", "items": {"$ref": "#/$defs/indicator"}},
+    "data_gaps": {"type": "array", "items": {"$ref": "#/$defs/gap"}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "confidence_rationale": {"type": "string", "minLength": 1},
+    "skill_execution": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"$ref": "#/$defs/skill"}},
+    "artifact_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+  },
+  "$defs": {
+    "evidence_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"},
+    "bindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["handoff_id", "handoff_hash", "portfolio_hash", "council_request_id", "council_request_hash", "holding_research_request_id", "holding_research_request_hash", "decision_cutoff"],
+      "properties": {
+        "handoff_id": {"type": "string", "minLength": 1},
+        "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "council_request_id": {"type": "string", "minLength": 1},
+        "council_request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "holding_research_request_id": {"type": "string", "minLength": 1},
+        "holding_research_request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "decision_cutoff": {"type": "string", "minLength": 1}
+      }
+    },
+    "security": {
+      "type": "object", "additionalProperties": false,
+      "required": ["security_id", "display_symbol", "display_name", "market", "asset_type"],
+      "properties": {
+        "security_id": {"type": "string", "minLength": 1},
+        "display_symbol": {"type": "string", "minLength": 1},
+        "display_name": {"type": ["string", "null"]},
+        "market": {"type": "string", "minLength": 1},
+        "asset_type": {"const": "COMMON_STOCK"}
+      }
+    },
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "claim_refs", "primary_invalidation_condition_ids"],
+      "properties": {
+        "summary": {"type": "string", "minLength": 1},
+        "claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "primary_invalidation_condition_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "section": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "narrative", "claim_refs", "data_gap_ids"],
+      "properties": {
+        "status": {"enum": ["ANALYZED", "INSUFFICIENT_EVIDENCE", "NOT_APPLICABLE"]},
+        "narrative": {"type": "string", "minLength": 1},
+        "claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "data_gap_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "sections": {
+      "type": "object", "additionalProperties": false,
+      "required": ["company_and_core_questions", "business_competition_financials", "thesis_and_valuation", "catalysts_and_counterevidence", "invalidation_and_monitoring", "gaps_and_confidence"],
+      "properties": {
+        "company_and_core_questions": {"$ref": "#/$defs/section"},
+        "business_competition_financials": {"$ref": "#/$defs/section"},
+        "thesis_and_valuation": {"$ref": "#/$defs/section"},
+        "catalysts_and_counterevidence": {"$ref": "#/$defs/section"},
+        "invalidation_and_monitoring": {"$ref": "#/$defs/section"},
+        "gaps_and_confidence": {"$ref": "#/$defs/section"}
+      }
+    },
+    "claim": {
+      "type": "object", "additionalProperties": false,
+      "anyOf": [
+        {"properties": {"evidence_refs": {"minItems": 1}}},
+        {"properties": {"assumption_ids": {"minItems": 1}}},
+        {"properties": {"calculation_refs": {"minItems": 1}}}
+      ],
+      "required": ["claim_id", "statement", "kind", "evidence_refs", "assumption_ids", "calculation_refs", "counter_claim_refs", "invalidation_condition_ids"],
+      "properties": {
+        "claim_id": {"$ref": "#/$defs/id"},
+        "statement": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["FACT", "INTERPRETATION"]},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}},
+        "assumption_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "calculation_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "counter_claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "invalidation_condition_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "assumption": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assumption_id", "statement", "rationale", "evidence_refs"],
+      "properties": {
+        "assumption_id": {"$ref": "#/$defs/id"},
+        "statement": {"type": "string", "minLength": 1},
+        "rationale": {"type": "string", "minLength": 1},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}}
+      }
+    },
+    "condition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["condition_id", "description", "monitoring_signal", "claim_refs", "evidence_refs"],
+      "properties": {
+        "condition_id": {"$ref": "#/$defs/id"},
+        "description": {"type": "string", "minLength": 1},
+        "monitoring_signal": {"type": "string", "minLength": 1},
+        "claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}}
+      }
+    },
+    "trigger": {
+      "type": "object", "additionalProperties": false,
+      "required": ["trigger_id", "description", "claim_refs", "evidence_refs"],
+      "properties": {
+        "trigger_id": {"$ref": "#/$defs/id"},
+        "description": {"type": "string", "minLength": 1},
+        "claim_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}}
+      }
+    },
+    "indicator": {
+      "type": "object", "additionalProperties": false,
+      "required": ["indicator_id", "description", "why_it_matters", "evidence_refs"],
+      "properties": {
+        "indicator_id": {"$ref": "#/$defs/id"},
+        "description": {"type": "string", "minLength": 1},
+        "why_it_matters": {"type": "string", "minLength": 1},
+        "baseline": {"type": ["string", "null"], "minLength": 1},
+        "unit": {"type": ["string", "null"], "minLength": 1},
+        "comparison_period": {"type": ["string", "null"], "minLength": 1},
+        "reevaluation_rule": {"type": ["string", "null"], "minLength": 1},
+        "evidence_refs": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidence_id"}}
+      }
+    },
+    "gap": {
+      "type": "object", "additionalProperties": false,
+      "required": ["gap_id", "description", "impact"],
+      "properties": {
+        "gap_id": {"$ref": "#/$defs/id"},
+        "reason_code": {"enum": ["NOT_FETCHED", "NOT_YET_DISCLOSED", "SOURCE_UNSUPPORTED", "UNKNOWN"]},
+        "description": {"type": "string", "minLength": 1},
+        "impact": {"type": "string", "minLength": 1}
+      }
+    },
+    "skill": {
+      "type": "object", "additionalProperties": false,
+      "required": ["skill_name", "version", "invocation_hash"],
+      "properties": {
+        "skill_name": {"enum": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"]},
+        "version": {"type": "string", "minLength": 1},
+        "invocation_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

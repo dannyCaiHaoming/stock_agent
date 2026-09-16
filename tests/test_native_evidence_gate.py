@@ -184,13 +184,49 @@ class GateScopedFixtureToolTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["calculation_id"]["minLength"], 1)
         self.assertEqual(
             schema["properties"]["operation"]["enum"],
-            ["ratio", "percent_change"],
+            ["ratio", "percent_change", "monetary_scale"],
         )
         self.assertIn("Do not send operands or expression", calculate["description"])
         parameters = set(inspect.signature(GateScopedFixtureTools.calculate).parameters)
         parameters.remove("self")
         self.assertEqual(parameters, set(schema["properties"]))
         self.assertFalse(schema["additionalProperties"])
+
+    def test_monetary_scale_calculation_extracts_disclosed_amount_and_tax_basis(self):
+        gate = dict(self.gate)
+        gate["allowed_evidence"] = list(gate["allowed_evidence"]) + [{
+            "evidence_id": "ev-disclosed-sale-gain",
+            "value": "We recorded a pre-tax gain on sale of $1.8 billion.",
+            "as_of": "2026-01-31T00:00:00Z",
+        }]
+        gate["allowed_evidence_ids"] = list(gate["allowed_evidence_ids"]) + [
+            "ev-disclosed-sale-gain"
+        ]
+        tools = GateScopedFixtureTools(
+            gate, run_id="run-tools", agent="runtime_company_analyst",
+            invocation_id="inv-tools",
+        )
+        result = tools.calculate(
+            run_id="run-tools", agent="runtime_company_analyst",
+            invocation_id="inv-tools", calculation_id="calc-sale-gain-scale",
+            operation="monetary_scale", evidence_ids=["ev-disclosed-sale-gain"],
+            target_scale="亿",
+        )
+        conversion = result["conversions"][0]
+        self.assertEqual("18", conversion["converted_value"])
+        self.assertEqual("PRE_TAX", conversion["tax_basis"])
+        self.assertEqual("ev-disclosed-sale-gain", result["evidence_ids"][0])
+
+    def test_monetary_scale_rejects_missing_target_or_wrong_arity(self):
+        with self.assertRaisesRegex(
+            ToolAccessError, "MONETARY_SCALE_REQUIRES_ONE_FACT_AND_TARGET_SCALE"
+        ):
+            self.tools.calculate(
+                run_id="run-tools", agent="runtime_company_analyst",
+                invocation_id="inv-tools", calculation_id="calc-invalid-scale",
+                operation="monetary_scale",
+                evidence_ids=["ev-normal-debt", "ev-normal-revenue"],
+            )
 
     def test_query_manifest_spells_out_exact_stateless_parameters(self):
         query = next(

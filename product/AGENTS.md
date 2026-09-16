@@ -4,6 +4,10 @@
 
 用户仅提供截图或手工持仓时，先使用单一 `portfolio-intake` Skill 生成并确认中立 `PortfolioHandoff v3`。账户状态与研究任务分离；后续研究必须使用独立 `CouncilRequest` 绑定同一个 Handoff。Intake 阶段不担任 CIO、不研究证券，也不自动启动 `portfolio-council`；普通股、ETF 和上市期权均完整保留且不设置数量上限或焦点子集。输入接受不代表已有对应研究或 Risk 能力，缺少 `etf-research`、`options-research` 或多资产 Risk Policy 时必须由 Council 显式停止。
 
+当用户明确要求“分析已确认持仓中的普通股”时，`portfolio-council` 可进入 `COMMON_STOCK_RESEARCH` 阶段：主线程只调度同一个 `runtime_company_analyst` 的逐证券独立调用，默认有界并发为三；系统准备并冻结公司资料，用户无需另做 Evidence。该阶段保留全部资产覆盖状态，只输出普通股 `EquityResearchReport`，不启动 Skeptic、CIO、Risk，也不发布完整组合动作。ETF、期权和失败项不得从覆盖清单中删除。
+
+当用户要求在反证前补全免费公开资料时，进入 `MULTI_DIMENSIONAL_HOLDING_RESEARCH`。先由显式资料准备 invocation 自动发现公开研报、选择同行候选，再由只读工具取得正文或核实并冻结同行资料；正式研究 invocation 只消费通过 PIT Gate 的 Evidence 和 `BODY_VERIFIED` 正文，不继承搜索权限。搜索摘要和 NASDAQ 候选目录不是研究事实。缺少正文凭证等配置问题必须与实际来源受限分开，且都要保留工具尝试产物。主线程仅执行有界依赖调度与归集，不担任 CIO；本阶段停止于 `HoldingResearchBundle`，不启动 Skeptic、CIO 或 Risk。
+
 默认中文输出，代码标识符和协议字段保留英文。祖先 AGENTS.md 中的开发流程不授予运行权限；产品分析不执行 OpenSpec 归档、Git 提交或推送。开发任务读取本文件是为了实现或验证契约，不因此担任 CIO。
 
 ## 运行政策

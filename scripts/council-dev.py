@@ -76,13 +76,21 @@ def main(argv: list[str] | None = None) -> int:
     try:
         arguments = list(sys.argv[1:] if argv is None else argv)
         reject_legacy_entry(arguments)
+        if arguments and arguments[0] == "demo":
+            # 显式的零 LLM 装配 Demo；不会转入产品 launcher 或高级 Gate。
+            command = [sys.executable, "-m", "product.demo.cli", *arguments[1:]]
+            repo = INSTALLATION_ROOT
+        else:
+            command = []
+            repo = INSTALLATION_ROOT
         if arguments and arguments[0] == "self-check":
             # 明确白名单，不允许自检参数转发为任意运行/沙箱命令。
             allowed = {"check-run", "trace-check"}
             if len(arguments) < 2 or arguments[1] not in allowed:
                 raise ValueError("SELF_CHECK_COMMAND_NOT_ALLOWED")
             arguments = arguments[1:]
-        command, repo = forwarded_command(arguments, calling_cwd=Path.cwd())
+        if not command:
+            command, repo = forwarded_command(arguments, calling_cwd=Path.cwd())
         environment = dict(os.environ)
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
         status = subprocess.run(command, cwd=repo, env=environment, check=False).returncode

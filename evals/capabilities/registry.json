@@ -1,5 +1,5 @@
 {
-  "registry_version": "2.0.0",
+  "registry_version": "2.1.0",
   "production_registration_policy": {
     "required_contract_sections": [
       "input",
@@ -12,7 +12,7 @@
     "unsupported_claims_forbidden": true
   },
   "fixture_council_profile": {
-    "profile_id": "fixture-council/2.0.0",
+    "profile_id": "fixture-council/3.1.0",
     "entry_skill": "portfolio-council",
     "agents": [
       "runtime_cio",
@@ -24,6 +24,24 @@
       "runtime_skeptic"
     ],
     "excluded_agents": ["runtime_market_catalyst"]
+  },
+  "common_stock_research_stage": {
+    "stage_id": "common-stock-holding-analysis/1.0.0",
+    "entry_skill": "portfolio-council",
+    "agent": "runtime_company_analyst",
+    "max_concurrent_analysts": 3,
+    "downstream_stages_started": [],
+    "complete_portfolio_decision": false
+  },
+  "multidimensional_holding_research_stage": {
+    "stage_id": "multi-dimensional-holding-research/1.0.0",
+    "entry_skill": "portfolio-council",
+    "agents": ["runtime_company_analyst", "runtime_market_catalyst"],
+    "material_preparation_stage": "multidimensional-material-preparation-runtime/1.0.0",
+    "max_concurrent_subagents": 3,
+    "output": "HoldingResearchBundle/1.0.0",
+    "downstream_stages_started": [],
+    "complete_portfolio_decision": false
   },
   "council_role_contracts": [
     {
@@ -37,11 +55,11 @@
           "forbidden": ["raw_fixture", "web", "external_provider", "broker", "account_write"]
         },
         "skill_reasoning": {
-          "skills": ["evidence-grounding", "company-research", "valuation"],
+          "skills": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"],
           "responsibilities": ["company_thesis", "counter_evidence", "uncertainty", "invalidation_conditions"]
         },
         "structured_output": {
-          "artifact": "AgentResearchReport/2.0.0",
+          "artifact": "EquityResearchReport/1.0.0（普通股研究阶段）或历史 AgentResearchReport/2.0.0",
           "required": ["status", "agent", "claims", "counter_evidence_refs", "data_gaps", "invalidation_conditions", "confidence_rationale", "skill_execution"]
         },
         "eval": {
@@ -108,12 +126,12 @@
     },
     {
       "agent_id": "runtime_company_analyst",
-      "capabilities": ["evidence-grounding", "company-research", "valuation"],
+      "capabilities": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis", "common-stock-holding-analysis"],
       "ablation_baseline": "cio-only"
     },
     {
       "agent_id": "runtime_market_catalyst",
-      "capabilities": ["evidence-grounding", "catalyst-analysis"],
+      "capabilities": ["evidence-grounding", "catalyst-analysis", "technical-structure", "research-report-analysis", "industry-comparison", "macro-market-analysis", "ownership-disclosure", "options-market-structure"],
       "ablation_baseline": "cio-plus-company-analyst"
     },
     {
@@ -123,6 +141,32 @@
     }
   ],
   "capabilities": [
+    {
+      "capability_id": "common-stock-holding-analysis",
+      "production": true,
+      "contract": {
+        "input": {
+          "required": ["PortfolioHandoff/3.0.0", "CouncilRequest/2.0.0", "decision_cutoff", "allowed_evidence_ids"]
+        },
+        "tool_data": {
+          "read_only_tools": ["fixture_evidence.query", "fixture_math.calculate", "live_evidence.query", "live_math.calculate"],
+          "deterministic_calculations": ["pit_gate", "evidence_closure", "financial_period_comparison", "ratio", "scenario_value"]
+        },
+        "skill_reasoning": {
+          "skill": "product/skills/portfolio-council",
+          "specialist_skills": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"],
+          "responsibilities": ["bounded_parallel_dispatch", "single_company_thesis", "counterevidence", "invalidation_and_monitoring"]
+        },
+        "structured_output": {
+          "artifact": "EquityResearchReport/1.0.0 + ResearchCoverage/1.0.0",
+          "required": ["research_summary", "sections", "claims", "assumptions", "counter_evidence_refs", "invalidation_conditions", "confidence_rationale"]
+        },
+        "eval": {
+          "fixtures": ["../fixtures/common-stock-holding-analysis/contract-cases.json"],
+          "acceptance": ["schema_and_evidence_closure", "two_independent_invocations", "actual_parallel_overlap", "bound_focused_semantic_eval", "no_portfolio_action"]
+        }
+      }
+    },
     {
       "capability_id": "portfolio-intake",
       "production": true,
@@ -296,6 +340,72 @@
           "fixtures": ["fixtures/success.json", "fixtures/failure.json", "fixtures/timeout.json", "fixtures/missing_evidence.json", "fixtures/low_confidence.json"],
           "acceptance": ["events_respect_decision_cutoff", "freshness_is_explicit", "liquidity_gaps_are_not_inferred"]
         }
+      }
+    },
+    {
+      "capability_id": "technical-structure",
+      "production": true,
+      "contract": {
+        "input": {"required": ["security_id", "decision_cutoff", "allowed_evidence_ids", "price_basis", "benchmark_id"]},
+        "tool_data": {"read_only_tools": ["market_data.query", "technical_statistics.calculate"], "deterministic_calculations": ["returns", "relative_returns", "volatility", "drawdown", "volume"]},
+        "skill_reasoning": {"skill": "product/skills/technical-structure", "responsibilities": ["trend_interpretation", "relative_strength", "volume_price_context", "invalidation_signals"]},
+        "structured_output": {"artifact": "ResearchDimensionReport/1.1.0", "required": ["capability", "status", "claims", "assumptions", "calculations", "documents", "research_relationships", "data_gaps", "observation_conditions"]},
+        "eval": {"fixtures": ["../fixtures/multidimensional-research/contract-cases.json"], "acceptance": ["pit_safe_ohlcv", "calculation_lineage", "chart_consistency", "no_portfolio_action"]}
+      }
+    },
+    {
+      "capability_id": "research-report-analysis",
+      "production": true,
+      "contract": {
+        "input": {"required": ["security_id", "decision_cutoff", "allowed_evidence_ids", "verified_documents"]},
+        "tool_data": {"read_only_tools": ["fixture_runtime.research_search", "fixture_runtime.research_fetch"], "required_fact_fields": ["source_id", "as_of", "retrieved_at"], "formal_analysis_search_allowed": false},
+        "skill_reasoning": {"skill": "product/skills/research-report-analysis", "responsibilities": ["source_classification", "assumption_comparison", "claim_impact", "interest_disclosure_limits"]},
+        "structured_output": {"artifact": "ResearchDimensionReport/1.1.0", "required": ["capability", "status", "claims", "assumptions", "documents", "research_relationships", "data_gaps", "observation_conditions"]},
+        "eval": {"fixtures": ["../fixtures/multidimensional-research/contract-cases.json"], "acceptance": ["body_verified", "location_traceable", "forecast_not_fact", "source_limited_is_explicit"]}
+      }
+    },
+    {
+      "capability_id": "industry-comparison",
+      "production": true,
+      "contract": {
+        "input": {"required": ["security_id", "decision_cutoff", "allowed_evidence_ids", "selected_peer_candidates"]},
+        "tool_data": {"read_only_tools": ["nasdaq_candidate_pool.read", "live_collection.collect_selected", "fixture_runtime.query"], "formal_comparison_requires": "materialization_status=FROZEN and Gate-admitted peer Evidence"},
+        "skill_reasoning": {"skill": "product/skills/industry-comparison", "responsibilities": ["peer_selection_rationale", "comparability_limits", "industry_transmission", "relative_position"]},
+        "structured_output": {"artifact": "ResearchDimensionReport/1.1.0", "required": ["capability", "status", "claims", "assumptions", "calculations", "documents", "research_relationships", "data_gaps", "observation_conditions"]},
+        "eval": {"fixtures": ["../fixtures/multidimensional-research/contract-cases.json"], "acceptance": ["peer_identity_verified", "period_and_currency_explicit", "no_mechanical_winner"]}
+      }
+    },
+    {
+      "capability_id": "macro-market-analysis",
+      "production": true,
+      "contract": {
+        "input": {"required": ["security_ids", "decision_cutoff", "allowed_evidence_ids"]},
+        "tool_data": {"read_only_tools": ["official_macro.query", "market_data.query"], "required_fact_fields": ["source_id", "as_of", "retrieved_at"]},
+        "skill_reasoning": {"skill": "product/skills/macro-market-analysis", "responsibilities": ["rate_inflation_activity_context", "market_regime", "holding_transmission", "reverse_scenario"]},
+        "structured_output": {"artifact": "ResearchDimensionReport/1.1.0", "required": ["capability", "status", "claims", "assumptions", "documents", "research_relationships", "data_gaps", "observation_conditions"]},
+        "eval": {"fixtures": ["../fixtures/multidimensional-research/contract-cases.json"], "acceptance": ["shared_once", "release_and_revision_time_preserved", "holding_specific_transmission"]}
+      }
+    },
+    {
+      "capability_id": "ownership-disclosure",
+      "production": true,
+      "contract": {
+        "input": {"required": ["security_id", "decision_cutoff", "allowed_evidence_ids"]},
+        "tool_data": {"read_only_tools": ["ownership_filings.query"], "required_fact_fields": ["source_id", "as_of", "retrieved_at"]},
+        "skill_reasoning": {"skill": "product/skills/ownership-disclosure", "responsibilities": ["filing_lag", "transaction_type", "period_comparison", "coverage_limit"]},
+        "structured_output": {"artifact": "ResearchDimensionReport/1.1.0", "required": ["capability", "status", "claims", "documents", "research_relationships", "data_gaps", "observation_conditions"]},
+        "eval": {"fixtures": ["../fixtures/multidimensional-research/contract-cases.json"], "acceptance": ["raw_values_preserved", "filing_lag_explicit", "source_limited_not_research_pass"]}
+      }
+    },
+    {
+      "capability_id": "options-market-structure",
+      "production": true,
+      "contract": {
+        "input": {"required": ["security_id", "decision_cutoff", "allowed_evidence_ids"]},
+        "tool_data": {"read_only_tools": ["options_snapshot.query", "market_statistics.calculate"], "required_fact_fields": ["source_id", "as_of", "retrieved_at"]},
+        "skill_reasoning": {"skill": "product/skills/options-market-structure", "responsibilities": ["snapshot_structure", "liquidity_limit", "proxy_distinction", "direction_inference_boundary"]},
+        "structured_output": {"artifact": "ResearchDimensionReport/1.1.0", "required": ["capability", "status", "claims", "calculations", "documents", "research_relationships", "data_gaps", "observation_conditions"]},
+        "eval": {"fixtures": ["../fixtures/multidimensional-research/contract-cases.json"], "acceptance": ["snapshot_time_explicit", "volume_and_open_interest_distinct", "no_direction_from_single_snapshot"]}
       }
     }
   ]

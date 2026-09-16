@@ -23,6 +23,7 @@ from .hashing import canonical_hash, file_hash
 from .invocation import (
     OUTPUT_SCHEMAS,
     build_cio_ablation_output_schema,
+    build_live_cio_output_schema,
     build_specialist_output_schema,
     build_specialist_task_prompt,
     build_specialist_inputs,
@@ -324,8 +325,20 @@ def _publish_terminal(
     decision_path = run_dir / "decision.json"
     report_path = run_dir / "report.md"
     trace_path = run_dir / "decision_trace.json"
+    manifest_path = run_dir / "run_manifest.json"
+    manifest = _read_json(manifest_path) if manifest_path.is_file() else {}
+    report_text = _render_report(decision)
+    if manifest.get("source_mode") == "live":
+        from .live_report import render_live_report
+        from .live_context import load_live_run_context
+        portfolio, snapshot, gate, calendar = load_live_run_context(run_dir, manifest)
+        reports = {name: _read_json(run_dir / f"agents/{name}.json")
+                   for name in ("runtime_company_analyst", "runtime_skeptic")
+                   if (run_dir / f"agents/{name}.json").is_file()}
+        report_text = render_live_report(dict(decision), gate=gate, reports=reports, holding_horizon=portfolio["holding_horizon"],
+            portfolio=portfolio, snapshot=snapshot, calendar=calendar)
     _write_json(decision_path, decision)
-    report_path.write_text(_render_report(decision), encoding="utf-8")
+    report_path.write_text(report_text, encoding="utf-8")
     trace["terminal_state"] = decision["terminal_state"]
     trace["failed_stage"] = None
     _enrich_trace_from_run(trace, run_dir)
@@ -598,6 +611,15 @@ def prepare_run(
         allowed_evidence_ids=gate["allowed_evidence_ids"],
         research_question=research_question,
     )
+    return _prepare_specialist_invocations(root, run_dir=run_dir, run_id=run_id,
+        model=model, gate=gate, inputs=inputs, trace=trace, topology=topology)
+
+
+def _prepare_specialist_invocations(root: Path, *, run_dir: Path, run_id: str,
+                                    model: str, gate: Mapping[str, Any],
+                                    inputs: Mapping[str, Any], trace: dict[str, Any],
+                                    topology: Sequence[str]) -> dict[str, Any]:
+    """共用确定性准备步骤；实际 Agent 委派仍由 Codex Skill 执行。"""
     specialists = tuple(agent for agent in topology if agent != "runtime_cio")
     if "runtime_skeptic" in specialists:
         validate_skeptic_first_pass_input(inputs["runtime_skeptic"])
@@ -622,6 +644,7 @@ def prepare_run(
         task_prompt = build_specialist_task_prompt(
             agent_name=agent_name,
             allowed_evidence_ids=gate["allowed_evidence_ids"],
+            source_mode=str(agent_input.get("source_mode", "fixture")),
         )
         _write_text(run_dir / "prompts" / f"{agent_name}.txt", task_prompt)
         manifest = create_invocation_manifest(
@@ -650,10 +673,118 @@ def prepare_run(
             "agents": list(specialists),
         }
     )
-    _write_json(run_dir / "decision_trace.json", trace)
+    _write_json(run_dir / "decision_trace.json", trace, replace=True)
     if not specialists:
         return prepare_cio(root, run_dir=run_dir, model=model)
     return {"run_id": run_id, "next_state": "DISPATCH_REQUIRED"}
+
+
+def prepare_live_run(repository_root: Path, *, portfolio_path: Path, snapshot_path: Path,
+                     cache_root: Path, calendar, run_dir: Path, run_id: str, model: str,
+                     focus_security_id: str | None = None, authenticity_required: bool = True) -> dict[str, Any]:
+    """复用运行包生命周期准备 live；此函数不采集数据、不委派模型。"""
+    from product.mcp.live.contracts import external_path, validate_contract
+    from product.mcp.live.market import load_locked_calendar
+    from product.runtime.live_context import validate_raw_records, live_artifact_hashes, live_resource_hashes, source_topology_lock
+    from product.runtime.live_input import load_live_portfolio, build_live_specialist_inputs
+    from product.runtime.evidence_gate import run_live_evidence_gate
+    import re
+
+    if not isinstance(run_id, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,159}", run_id) is None:
+        raise RunPackageError("LIVE_RUN_ID_INVALID")
+    root = repository_root.resolve()
+    run_dir = external_path(run_dir)
+    portfolio_path, snapshot_path, cache_root = [external_path(p) for p in (portfolio_path, snapshot_path, cache_root)]
+    if run_dir.exists():
+        raise RunPackageError("run directory must be new")
+    run_dir.mkdir(parents=True, mode=0o700)
+    trace = None
+    try:
+        discovery = discover_product_resources(root, source_profile="live-us-equity")
+        if model != discovery.version_manifest["model"]:
+            raise RunPackageError("explicit model differs from candidate manifest")
+        portfolio = load_live_portfolio(portfolio_path)
+        snapshot = _read_json(snapshot_path)
+        validate_contract("snapshot", snapshot)
+        if authenticity_required and snapshot["schema_version"] != "live-snapshot/4.0.0":
+            raise RunPackageError("LIVE_CURRENT_SNAPSHOT_REQUIRED")
+        if snapshot["schema_version"] in ("live-snapshot/3.0.0", "live-snapshot/4.0.0") and (
+                {s["security_id"] for s in snapshot["source_selections"]} != {p["security_id"] for p in portfolio["positions"]}):
+            raise RunPackageError("LIVE_ROUTING_PORTFOLIO_COVERAGE_MISMATCH")
+        if snapshot["portfolio_hash"] != canonical_hash(portfolio):
+            raise RunPackageError("LIVE_SNAPSHOT_PORTFOLIO_MISMATCH")
+        focus = focus_security_id if focus_security_id is not None else portfolio["focus_security_id"]
+        if focus not in {p["security_id"] for p in portfolio["positions"]}:
+            raise RunPackageError("LIVE_FOCUS_UNKNOWN")
+        def read_cached(digest):
+            path = cache_root / "objects" / digest
+            if path.is_symlink() or not path.resolve().is_relative_to(cache_root):
+                raise RunPackageError("LIVE_CACHE_PATH_ESCAPE")
+            return path.read_bytes()
+        objects = validate_raw_records(snapshot, read_cached)
+        if authenticity_required and snapshot.get("identity") is not None:
+            from product.mcp.live.security_metadata import METADATA_VERSION, EASTMONEY_METADATA_VERSION
+            versions = (METADATA_VERSION, EASTMONEY_METADATA_VERSION) if snapshot["schema_version"] in ("live-snapshot/3.0.0", "live-snapshot/4.0.0") else (METADATA_VERSION,)
+            if any(item.get("metadata_version") not in versions for item in snapshot["identity"]["security_metadata"]):
+                raise RunPackageError("LIVE_REAL_IDENTITY_PROOF_REQUIRED")
+        calendar_record = calendar.lock_record()
+        calendar = load_locked_calendar(calendar_record)
+        gate = run_live_evidence_gate(snapshot, run_id=run_id, calendar=calendar).artifact
+        for path, value in (("audit/live/portfolio.json", portfolio), ("audit/live/snapshot.json", snapshot),
+                            ("audit/live/calendar.json", calendar_record), ("evidence/gate.json", gate)):
+            _write_json(run_dir / path, value)
+        for digest, raw in objects.items():
+            path = run_dir / "audit/live/objects" / digest
+            path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            with path.open("xb") as stream:
+                stream.write(raw)
+        manifest = {
+            "schema_version": "native-run-package/3.0.0", "source_mode": "live", "run_id": run_id,
+            "specialist_context_delivery": "subagent-start-context/2.0.0",
+            "specialist_output_delivery": "native-research-draft/1.0.0",
+            "candidate_version": discovery.version_manifest["candidate_version"],
+            "codex_runtime": discovery.version_manifest["codex_runtime"], "model": model,
+            "runtime_profile": discovery.version_manifest["runtime_profile"],
+            "decision_cutoff": snapshot["decision_cutoff"], "research_question": portfolio["research_question"],
+            "focus_security_id": focus, "output_dir": str(run_dir), "authenticity_required": authenticity_required,
+            "run_mode": "PRODUCT_COUNCIL", "ablation_profile": None, "trigger_reason": "live_advisory",
+            "discovery": discovery.to_dict(), "integrity_before": integrity_snapshot(root),
+            "source_context": {"snapshot_hash": snapshot["snapshot_hash"], "artifact_hashes": live_artifact_hashes(run_dir),
+                               "resource_hashes": live_resource_hashes(root),
+                               "topology_lock": source_topology_lock(snapshot)},
+            "execution_replay_supported": False,
+            "execution_replay_scope": "Live execution replay is outside this Change; no historical lock is modified."
+        }
+        _write_json(run_dir / "run_manifest.json", manifest)
+        trace = _base_trace(run_id, manifest)
+        trace["runtime"]["source_context"] = manifest["source_context"]
+        trace["runtime"]["specialist_context_delivery"] = manifest["specialist_context_delivery"]
+        trace["events"].extend([{"stage": "DISCOVERY_PREFLIGHT", "status": "PASSED", "source_mode": "live"},
+                               {"stage": "EVIDENCE_GATE", "status": "PASSED", "bundle_hash": gate["bundle_hash"]}])
+        _write_json(run_dir / "decision_trace.json", trace)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return fail_run(run_dir, run_id=run_id, code="LIVE_PREPARE_VALIDATION_FAILED", message=str(exc),
+                        failed_stage=FailureStage.PREFLIGHT, trace=trace)
+    try:
+        inputs = build_live_specialist_inputs(portfolio, snapshot, gate, calendar=calendar, focus_security_id=focus)
+    except ValueError as exc:
+        # 仅明确的缺价/身份缺失可前置安全终止；损坏、漂移等校验错误仍失败。
+        if not str(exc).startswith(("LIVE_PRICE_MISSING:", "LIVE_IDENTITY_SNAPSHOT_MISSING")):
+            return fail_run(run_dir, run_id=run_id, code="LIVE_INPUT_BINDING_FAILED", message=str(exc),
+                            failed_stage=FailureStage.EVIDENCE_GATE, trace=trace)
+        decision = _safe_no_trade_decision(run_id=run_id, reason="INPUT_INVALID", explanation=str(exc),
+            reevaluation=["补齐合格行情与证券身份后重新冻结资料；本次不构成研究质量通过。"])
+        decision["decisions"][0].update(target_weight_range=None, maximum_notional=None)
+        trace["events"].append({"stage": "PRE_AGENT_SAFE_TERMINATION", "agent_calls": 0, "reason": str(exc)})
+        _publish_terminal(run_dir, decision=decision, trace=trace)
+        return {"run_id": run_id, "next_state": TerminalState.SAFE_NO_TRADE.value}
+    # 共用 fixture 已验证的 Schema、Prompt、Invocation 准备步骤。
+    try:
+        return _prepare_specialist_invocations(root, run_dir=run_dir, run_id=run_id, model=model,
+            gate=gate, inputs=inputs, trace=trace, topology=validate_runtime_mode(run_mode="PRODUCT_COUNCIL", ablation_profile=None))
+    except (OSError, ValueError) as exc:
+        return fail_run(run_dir, run_id=run_id, code="LIVE_INVOCATION_PREPARE_FAILED", message=str(exc),
+                        failed_stage=FailureStage.PREFLIGHT, trace=trace)
 
 
 def prepare_cio(
@@ -774,8 +905,11 @@ def prepare_cio(
                             / repair_request["repaired_output_relative_path"]
                         ),
                     }
+            if run_manifest.get("source_mode") == "live" and run_manifest.get("authenticity_required", True):
+                from .invocation import verify_specialist_start_binding
+                verify_specialist_start_binding(root, run_dir, agent_name, report=report)
             reports[agent_name] = report
-    except (OSError, ValueError, ArtifactValidationError) as exc:
+    except (OSError, ValueError, ArtifactValidationError, ImportError) as exc:
         trace["events"].append(
             {
                 "stage": "SPECIALIST_FORMAT_REPAIR_REJECTED"
@@ -787,14 +921,28 @@ def prepare_cio(
         return fail_run(
             run_dir,
             run_id=run_id,
-            code="SPECIALIST_REPORT_VALIDATION_FAILED",
+            code="RUNTIME_DEPENDENCY_MISSING" if isinstance(exc, ImportError) else "SPECIALIST_REPORT_VALIDATION_FAILED",
             message=str(exc),
             failed_stage=FailureStage.SPECIALIST_VALIDATION,
             trace=trace,
         )
 
-    fixture = _read_json(run_dir / "audit" / "fixture_snapshot.json")
-    snapshot = build_risk_snapshot(fixture, run_id=run_id)
+    live = run_manifest.get("source_mode") == "live"
+    if live:
+        try:
+            from .live_context import load_live_run_context
+            from .risk_runtime import build_live_risk_snapshot
+            portfolio, evidence_snapshot, gate, calendar = load_live_run_context(run_dir, run_manifest)
+            snapshot, valuation = build_live_risk_snapshot(portfolio, evidence_snapshot, gate, run_id=run_id, calendar=calendar)
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            return fail_run(
+                run_dir, run_id=run_id,
+                code="RUNTIME_DEPENDENCY_MISSING" if isinstance(exc, ImportError) else "LIVE_CIO_CONTEXT_INVALID",
+                message=str(exc), failed_stage=FailureStage.CIO_SYNTHESIS, trace=trace,
+            )
+    else:
+        fixture = _read_json(run_dir / "audit" / "fixture_snapshot.json")
+        snapshot = build_risk_snapshot(fixture, run_id=run_id)
     metrics = calculate_portfolio_metrics(snapshot)
     if not specialists:
         refs.update(gate["allowed_evidence_ids"])
@@ -814,6 +962,14 @@ def prepare_cio(
         "allowed_evidence_ids": sorted(refs),
         "evidence_access": "fixture_evidence.query",
     }
+    if live:
+        from product.mcp.live.identity import verify_frozen_identity
+        identity = verify_frozen_identity(portfolio, evidence_snapshot["identity"], cutoff=evidence_snapshot["decision_cutoff"])
+        cio_input.update(source_mode="live", evidence_access="live_evidence.query",
+            security_id=run_manifest["focus_security_id"], holding_horizon=portfolio["holding_horizon"],
+            portfolio_hash=canonical_hash(portfolio), snapshot_hash=evidence_snapshot["snapshot_hash"],
+            gate_hash=gate["bundle_hash"], valuation_hash=valuation["valuation_hash"], identity_hash=identity["identity_hash"],
+            valuation=valuation, mandate=portfolio["mandate"], data_gaps=evidence_snapshot["gaps"])
     _write_json(run_dir / "inputs" / "runtime_cio.json", cio_input)
     contract_prompt = render_cio_action_prompt(load_decision_contract(root / "product"))
     task_prompt = (
@@ -823,10 +979,18 @@ def prepare_cio(
         "不得自行计算文件字节哈希。\n"
         f"{contract_prompt}"
     )
+    if live:
+        task_prompt += ("\n这是 live-us-equity 持仓研究，只允许 HOLD/TRIM/EXIT/NO_TRADE，security_id 必须为输入指定目标。"
+                        "用中文说明持仓与期限、事实到假设到影响、独立反证及冲突取舍、可观察的失效条件和置信度依据。"
+                        "不得把数据不足写成研究通过，不得补写无 Evidence 的事实；只使用 mcp__live_runtime__query。"
+                        "当前估值基于完整组合，不能假定其他子运行建议已经成交。")
     _write_text(run_dir / "prompts" / "runtime_cio.txt", task_prompt)
     cio_schema_path: Path | None = None
     expected_report_agents: Sequence[str] | None = None
-    if run_manifest.get("run_mode") == "EVAL_ABLATION":
+    if live:
+        cio_schema_path = run_dir / "schemas" / "cio-decision-draft.schema.json"
+        _write_json(cio_schema_path, build_live_cio_output_schema(root))
+    elif run_manifest.get("run_mode") == "EVAL_ABLATION":
         cio_schema_path = run_dir / "schemas" / "cio-decision-draft.schema.json"
         _write_json(
             cio_schema_path,
@@ -876,7 +1040,13 @@ def finalize_cio(
     root = repository_root.resolve()
     run_manifest = _read_json(run_dir / "run_manifest.json")
     run_id = run_manifest["run_id"]
-    fixture = _read_json(run_dir / "audit" / "fixture_snapshot.json")
+    live = run_manifest.get("source_mode") == "live"
+    if live:
+        from .live_context import load_live_run_context
+        from .risk_runtime import check_live_cio_draft
+        portfolio, evidence_snapshot, live_gate, calendar = load_live_run_context(run_dir, run_manifest)
+    else:
+        fixture = _read_json(run_dir / "audit" / "fixture_snapshot.json")
     cio_input = _read_json(run_dir / "inputs" / "runtime_cio.json")
     manifest = _read_json(run_dir / "invocations" / "runtime_cio.json")
     draft_name = "runtime_cio_revision.json" if revision else "runtime_cio.json"
@@ -976,7 +1146,9 @@ def finalize_cio(
     )
     _write_json(run_dir / "decision_trace.json", trace, replace=True)
     try:
-        risk = check_cio_draft(fixture, draft, run_id=run_id)
+        risk = (check_live_cio_draft(portfolio, evidence_snapshot, live_gate, draft, run_id=run_id,
+                                   calendar=calendar, focus_security_id=run_manifest["focus_security_id"])
+                if live else check_cio_draft(fixture, draft, run_id=run_id))
     except (OSError, ValueError, ArithmeticError, KeyError, TypeError) as exc:
         risk_entry["status"] = "FAILED"
         risk_entry["error"] = str(exc)
@@ -1037,8 +1209,7 @@ def finalize_cio(
         }
     else:
         terminal = TerminalState.SAFE_NO_TRADE
-        risk["final_action"] = "NO_TRADE"
-        risk["veto_reason"] = "RISK_VETO"
+        # 已持久化的 Risk 结果及 Trace 引用不可变；第二次仍需修订时由终态契约否决。
         item = {
             "action": "NO_TRADE",
             "security_id": draft.get("security_id"),
@@ -1060,12 +1231,15 @@ def finalize_cio(
             "status": status,
             "policy_version": risk["policy_version"],
             "original_action": risk["original_action"],
-            "final_action": risk["final_action"],
+            "final_action": risk["final_action"] if status == "APPROVED" else "NO_TRADE",
             "violations": risk["check"]["violations"],
             "feasible_bounds": risk["check"]["feasible_bounds"],
-            "veto_reason": risk["veto_reason"],
+            "veto_reason": risk["veto_reason"] if status == "APPROVED" else "RISK_VETO",
         },
     }
+    if live:
+        item.setdefault("target_weight_range", None)
+        item.setdefault("maximum_notional", None)
     try:
         gate = _read_json(run_dir / "evidence" / "gate.json")
         validate_evidence_closure(

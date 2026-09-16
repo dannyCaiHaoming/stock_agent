@@ -14,7 +14,7 @@ from .execution_proof import (
     build_run_specialist_execution_proof,
     discover_and_build_run_specialist_execution_proof,
 )
-from .run_package import fail_run, finalize_cio, prepare_cio, prepare_run
+from .run_package import fail_run, finalize_cio, prepare_cio, prepare_run, prepare_live_run
 from .replay import replay_run, write_replay_result
 from .native_eval import evaluate_run, persist_eval_result
 from .native_rerun import prepare_native_rerun
@@ -32,6 +32,34 @@ from .eval_execution_proof import (
 from .trace_validation import trace_integrity_report
 from .nested_codex import launch_nested_codex
 from .environment_preflight import reject_legacy_entry
+from .common_stock_stage import (
+    build_common_stock_stage_prompt,
+    launch_common_stock_stage,
+    prepare_common_stock_stage_run,
+)
+from .common_stock_eval import (
+    build_common_stock_eval_prompt,
+    finalize_common_stock_eval_job,
+    launch_common_stock_eval,
+    prepare_common_stock_eval_job,
+)
+from .common_stock_data import (
+    assemble_common_stock_evidence_from_live_snapshot,
+    collect_common_stock_data_from_handoff,
+)
+from .multidimensional_stage import (
+    assemble_canonical_holding_research_package,
+    build_multidimensional_stage_prompt,
+    check_multidimensional_bundle_consumable,
+    launch_multidimensional_stage,
+    prepare_multidimensional_stage_run,
+)
+from .research_materials_stage import (
+    build_research_materials_stage_prompt,
+    launch_research_materials_stage,
+    prepare_research_materials_stage,
+    materialize_selected_peers,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -48,6 +76,196 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--run-mode", default="PRODUCT_COUNCIL", choices=("PRODUCT_COUNCIL", "EVAL_ABLATION"))
     prepare.add_argument("--ablation-profile", choices=("cio-only", "analyst-cio", "full-council"))
     prepare.add_argument("--trigger-reason", default="product_council")
+
+    live = subparsers.add_parser("prepare-live", help="仅验证并准备外置冻结数据；不采集、不启动模型")
+    live.add_argument("--repo", type=Path, required=True)
+    live.add_argument("--profile", choices=("live-us-equity",), required=True)
+    live.add_argument("--portfolio", type=Path, required=True)
+    live.add_argument("--snapshot", type=Path, required=True)
+    live.add_argument("--cache-root", type=Path, required=True)
+    live.add_argument("--calendar-lock", type=Path, required=True)
+    live.add_argument("--run-dir", type=Path, required=True)
+    live.add_argument("--run-id", required=True)
+    live.add_argument("--model", required=True)
+    live.add_argument("--focus-security-id")
+
+    collection = subparsers.add_parser("collect-live", help="宿主显式调用的 live 采集；需已批准的外置来源配置")
+    collection.add_argument("--repo", type=Path, required=True)
+    collection.add_argument("--portfolio", type=Path, required=True)
+    collection.add_argument("--source-access", type=Path, required=True)
+    collection.add_argument("--output-dir", type=Path, required=True)
+    collection.add_argument("--cache-root", type=Path, required=True)
+
+    stock_prepare = subparsers.add_parser(
+        "prepare-common-stock-research",
+        help="从已确认 Handoff 与冻结 Gate 准备普通股研究阶段；不启动模型",
+    )
+    stock_prepare.add_argument("--repo", type=Path, required=True)
+    stock_prepare.add_argument("--handoff", type=Path, required=True)
+    stock_prepare.add_argument("--gate", type=Path, required=True)
+    stock_prepare.add_argument("--data-preparation", type=Path)
+    stock_prepare.add_argument("--source-bundle", type=Path)
+    stock_prepare.add_argument("--run-dir", type=Path, required=True)
+    stock_prepare.add_argument("--run-id", required=True)
+    stock_prepare.add_argument("--model", required=True)
+    stock_prepare.add_argument("--question", default="分析已确认的普通股持仓。")
+    stock_prepare.add_argument("--source-fixture", type=Path)
+    stock_prepare.add_argument("--max-concurrency", type=int, default=3)
+    stock_prepare.add_argument("--focus-security-id")
+
+    stock_data = subparsers.add_parser(
+        "prepare-common-stock-data",
+        help="将既有只读 live 冻结物转换为普通股研究 Gate；不启动模型或组合估值",
+    )
+    stock_data.add_argument("--handoff", type=Path, required=True)
+    stock_data.add_argument("--portfolio", type=Path, required=True)
+    stock_data.add_argument("--snapshot", type=Path, required=True)
+    stock_data.add_argument("--calendar", type=Path, required=True)
+    stock_data.add_argument("--output-dir", type=Path, required=True)
+    stock_data.add_argument("--run-id", required=True)
+
+    stock_collect = subparsers.add_parser(
+        "collect-common-stock-data",
+        help="从已确认 Handoff 经现有只读适配器自动准备普通股研究 Gate；不启动模型",
+    )
+    stock_collect.add_argument("--repo", type=Path, required=True)
+    stock_collect.add_argument("--handoff", type=Path, required=True)
+    stock_collect.add_argument("--source-access", type=Path, required=True)
+    stock_collect.add_argument("--output-dir", type=Path, required=True)
+    stock_collect.add_argument("--cache-root", type=Path, required=True)
+    stock_collect.add_argument("--run-id", required=True)
+    stock_collect.add_argument("--benchmark-id")
+    stock_collect.add_argument("--benchmark-ticker")
+
+    stock_prompt = subparsers.add_parser("common-stock-research-prompt")
+    stock_prompt.add_argument("--repo", type=Path, required=True)
+    stock_prompt.add_argument("--run-dir", type=Path, required=True)
+
+    stock_launch = subparsers.add_parser(
+        "launch-common-stock-research", help="仅宿主入口：运行普通股 Company Analyst 子任务"
+    )
+    stock_launch.add_argument("--repo", type=Path, required=True)
+    stock_launch.add_argument("--run-dir", type=Path, required=True)
+    stock_launch.add_argument("--codex-binary", default="codex")
+    stock_launch.add_argument("--timeout-seconds", type=int, default=1800)
+
+    multi_prepare = subparsers.add_parser(
+        "prepare-multidimensional-research",
+        help="从确认 Handoff 与冻结 Gate 准备免费多维研究阶段；不启动模型",
+    )
+    multi_prepare.add_argument("--repo", type=Path, required=True)
+    multi_prepare.add_argument("--handoff", type=Path, required=True)
+    multi_prepare.add_argument("--gate", type=Path, required=True)
+    multi_prepare.add_argument("--run-dir", type=Path, required=True)
+    multi_prepare.add_argument("--run-id", required=True)
+    multi_prepare.add_argument("--model", required=True)
+    multi_prepare.add_argument("--question", default="补全普通股持仓的免费多维研究资料。")
+    multi_prepare.add_argument("--benchmark-id", default="US:SPY")
+    multi_prepare.add_argument("--peer-candidates", type=Path)
+    multi_prepare.add_argument(
+        "--company-research-run", type=Path,
+        help="可选：已完成且将被重新验证、冻结复制的普通股研究运行目录",
+    )
+    multi_prepare.add_argument(
+        "--research-materials-run", type=Path,
+        help="可选：已完成且将被重新验证、冻结复制的资料准备运行目录",
+    )
+    multi_prepare.add_argument("--max-concurrency", type=int, default=3)
+
+    multi_prompt = subparsers.add_parser("multidimensional-research-prompt")
+    multi_prompt.add_argument("--repo", type=Path, required=True)
+    multi_prompt.add_argument("--run-dir", type=Path, required=True)
+
+    multi_launch = subparsers.add_parser(
+        "launch-multidimensional-research",
+        help="仅宿主入口：运行多维 Company Analyst / Market Catalyst 任务",
+    )
+    multi_launch.add_argument("--repo", type=Path, required=True)
+    multi_launch.add_argument("--run-dir", type=Path, required=True)
+    multi_launch.add_argument("--codex-binary", default="codex")
+    multi_launch.add_argument("--timeout-seconds", type=int, default=2400)
+    multi_launch.add_argument(
+        "--task-name",
+        help="只执行一个无依赖任务并保存定点执行证明；不生成完整研究包",
+    )
+
+    multi_consume = subparsers.add_parser(
+        "check-multidimensional-consumption",
+        help="只读解析多维研究包并保存下游消费证明；不启动模型",
+    )
+    multi_consume.add_argument("--repo", type=Path, required=True)
+    multi_consume.add_argument("--run-dir", type=Path, required=True)
+
+    multi_assemble = subparsers.add_parser(
+        "assemble-canonical-holding-research",
+        help="只读重验既有公司与多维研究产物并形成 canonical 下游交接包；不启动模型",
+    )
+    multi_assemble.add_argument("--repo", type=Path, required=True)
+    multi_assemble.add_argument("--base-run", type=Path, required=True)
+    multi_assemble.add_argument("--company-research-run", type=Path, required=True)
+    multi_assemble.add_argument("--output-dir", type=Path, required=True)
+    multi_assemble.add_argument("--supplement-run", type=Path, action="append", default=[])
+
+    materials_prepare = subparsers.add_parser(
+        "prepare-research-materials",
+        help="准备研报发现与同行选择任务；不启动模型或网络",
+    )
+    materials_prepare.add_argument("--repo", type=Path, required=True)
+    materials_prepare.add_argument("--handoff", type=Path, required=True)
+    materials_prepare.add_argument("--gate", type=Path, required=True)
+    materials_prepare.add_argument("--peer-candidates", type=Path, required=True)
+    materials_prepare.add_argument("--run-dir", type=Path, required=True)
+    materials_prepare.add_argument("--run-id", required=True)
+    materials_prepare.add_argument("--model", required=True)
+    materials_prepare.add_argument("--max-concurrency", type=int, default=3)
+
+    materials_prompt = subparsers.add_parser("research-materials-prompt")
+    materials_prompt.add_argument("--repo", type=Path, required=True)
+    materials_prompt.add_argument("--run-dir", type=Path, required=True)
+
+    materials_launch = subparsers.add_parser(
+        "launch-research-materials",
+        help="仅宿主入口：运行研报发现与同行选择准备任务",
+    )
+    materials_launch.add_argument("--repo", type=Path, required=True)
+    materials_launch.add_argument("--run-dir", type=Path, required=True)
+    materials_launch.add_argument("--codex-binary", default="codex")
+    materials_launch.add_argument("--timeout-seconds", type=int, default=1800)
+
+    peer_materialize = subparsers.add_parser(
+        "materialize-selected-peers",
+        help="从资料准备输出核实并冻结有限同行资料；不调用模型",
+    )
+    peer_materialize.add_argument("--materials-run", type=Path, required=True)
+    peer_materialize.add_argument("--source-access", type=Path, required=True)
+    peer_materialize.add_argument("--cache-root", type=Path, required=True)
+    peer_materialize.add_argument("--output-dir", type=Path, required=True)
+
+    stock_eval_prepare = subparsers.add_parser("common-stock-eval-prepare")
+    stock_eval_prepare.add_argument("--report", type=Path, required=True)
+    stock_eval_prepare.add_argument("--request", type=Path, required=True)
+    stock_eval_prepare.add_argument("--gate", type=Path, required=True)
+    stock_eval_prepare.add_argument("--rubric", type=Path, required=True)
+    stock_eval_prepare.add_argument("--mcp-events", type=Path)
+    stock_eval_prepare.add_argument("--output-dir", type=Path, required=True)
+    stock_eval_prepare.add_argument("--eval-id", required=True)
+
+    stock_eval_prompt = subparsers.add_parser("common-stock-eval-prompt")
+    stock_eval_prompt.add_argument("--eval-dir", type=Path, required=True)
+
+    stock_eval_finalize = subparsers.add_parser("common-stock-eval-finalize")
+    stock_eval_finalize.add_argument("--eval-dir", type=Path, required=True)
+    stock_eval_finalize.add_argument("--semantic-result", type=Path, required=True)
+
+    stock_eval_launch = subparsers.add_parser(
+        "launch-common-stock-eval",
+        help="仅宿主入口：使用既有 dev_eval Agent 评价一份普通股研究报告",
+    )
+    stock_eval_launch.add_argument("--repo", type=Path, required=True)
+    stock_eval_launch.add_argument("--eval-dir", type=Path, required=True)
+    stock_eval_launch.add_argument("--model", default="gpt-5.6-terra")
+    stock_eval_launch.add_argument("--codex-binary", default="codex")
+    stock_eval_launch.add_argument("--timeout-seconds", type=int, default=900)
 
     cio = subparsers.add_parser("prepare-cio")
     cio.add_argument("--repo", type=Path, required=True)
@@ -132,6 +350,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_proof.add_argument("--eval-dir", type=Path, required=True)
     eval_proof.add_argument("--semantic-result", type=Path, required=True)
     eval_proof.add_argument("--sessions-root", type=Path, required=True)
+    eval_proof.add_argument("--collect-native-output", action="store_true")
 
     calibration = subparsers.add_parser("eval-calibration")
     calibration.add_argument("--repo", type=Path, required=True)
@@ -209,6 +428,185 @@ def main(argv: Sequence[str] | None = None) -> int:
             ablation_profile=args.ablation_profile,
             trigger_reason=args.trigger_reason,
         )
+    elif args.command == "collect-common-stock-data":
+        try:
+            import os
+            result = collect_common_stock_data_from_handoff(
+                args.handoff, access_path=args.source_access,
+                output_dir=args.output_dir, cache_root=args.cache_root,
+                sec_user_agent=os.environ.get("SEC_USER_AGENT", ""),
+                run_id=args.run_id,
+                benchmark_id=args.benchmark_id,
+                benchmark_ticker=args.benchmark_ticker,
+            )
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            print(json.dumps({
+                "status": "FAILED", "failure_code": str(exc).split(":", 1)[0],
+                "command": args.command, "llm_calls": 0,
+            }, ensure_ascii=False))
+            return 2
+    elif args.command == "prepare-common-stock-data":
+        try:
+            from product.mcp.live.contracts import external_path
+            from product.mcp.live.market import load_locked_calendar
+            output_dir = external_path(args.output_dir)
+            if output_dir.exists():
+                raise ValueError("COMMON_STOCK_DATA_OUTPUT_EXISTS")
+            values = [
+                json.loads(external_path(path).read_text(encoding="utf-8"))
+                for path in (args.handoff, args.portfolio, args.snapshot, args.calendar)
+            ]
+            prepared = assemble_common_stock_evidence_from_live_snapshot(
+                values[0], live_portfolio=values[1], snapshot=values[2],
+                calendar=load_locked_calendar(values[3]), run_id=args.run_id,
+            )
+            output_dir.mkdir(parents=True, mode=0o700)
+            for name, value in (
+                ("gate.json", prepared["gate"]),
+                ("data-preparation.json", prepared["preparation"]),
+            ):
+                (output_dir / name).write_text(
+                    json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+            result = {
+                "status": "FROZEN", "run_id": args.run_id,
+                "gate": str(output_dir / "gate.json"),
+                "data_preparation": str(output_dir / "data-preparation.json"),
+            }
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            print(json.dumps({
+                "status": "FAILED", "failure_code": str(exc).split(":", 1)[0],
+                "command": args.command, "llm_calls": 0,
+            }, ensure_ascii=False))
+            return 2
+    elif args.command == "prepare-common-stock-research":
+        result = prepare_common_stock_stage_run(
+            args.repo, handoff_path=args.handoff, gate_path=args.gate,
+            run_dir=args.run_dir, run_id=args.run_id, model=args.model,
+            research_question=args.question, source_fixture=args.source_fixture,
+            target_concurrency=args.max_concurrency,
+            data_preparation_path=args.data_preparation,
+            source_bundle_path=args.source_bundle,
+            focus_security_id=args.focus_security_id,
+        )
+    elif args.command == "common-stock-research-prompt":
+        print(build_common_stock_stage_prompt(args.repo, args.run_dir))
+        return 0
+    elif args.command == "launch-common-stock-research":
+        result, exit_code = launch_common_stock_stage(
+            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "prepare-multidimensional-research":
+        result = prepare_multidimensional_stage_run(
+            args.repo, handoff_path=args.handoff, gate_path=args.gate,
+            run_dir=args.run_dir, run_id=args.run_id, model=args.model,
+            research_question=args.question, benchmark_id=args.benchmark_id,
+            target_concurrency=args.max_concurrency,
+            peer_candidate_pool_path=args.peer_candidates,
+            company_research_run_path=args.company_research_run,
+            research_materials_run_path=args.research_materials_run,
+        )
+    elif args.command == "multidimensional-research-prompt":
+        print(build_multidimensional_stage_prompt(args.repo, args.run_dir))
+        return 0
+    elif args.command == "launch-multidimensional-research":
+        result, exit_code = launch_multidimensional_stage(
+            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
+            timeout_seconds=args.timeout_seconds, task_name=args.task_name,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "check-multidimensional-consumption":
+        result = check_multidimensional_bundle_consumable(args.repo, args.run_dir)
+    elif args.command == "assemble-canonical-holding-research":
+        result = assemble_canonical_holding_research_package(
+            args.repo,
+            base_run_dir=args.base_run,
+            company_research_run_dir=args.company_research_run,
+            output_dir=args.output_dir,
+            supplement_run_dirs=args.supplement_run,
+        )
+    elif args.command == "prepare-research-materials":
+        result = prepare_research_materials_stage(
+            args.repo, handoff_path=args.handoff, gate_path=args.gate,
+            peer_candidate_pool_path=args.peer_candidates, run_dir=args.run_dir,
+            run_id=args.run_id, model=args.model,
+            target_concurrency=args.max_concurrency,
+        )
+    elif args.command == "research-materials-prompt":
+        print(build_research_materials_stage_prompt(args.repo, args.run_dir))
+        return 0
+    elif args.command == "launch-research-materials":
+        result, exit_code = launch_research_materials_stage(
+            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "materialize-selected-peers":
+        import os
+        result = materialize_selected_peers(
+            args.materials_run, source_access_path=args.source_access,
+            cache_root=args.cache_root, sec_user_agent=os.environ.get("SEC_USER_AGENT", ""),
+            output_dir=args.output_dir,
+        )
+    elif args.command == "common-stock-eval-prepare":
+        result = prepare_common_stock_eval_job(
+            report_path=args.report, request_path=args.request, gate_path=args.gate,
+            rubric_path=args.rubric, output_dir=args.output_dir, eval_id=args.eval_id,
+            mcp_events_path=args.mcp_events,
+        )
+    elif args.command == "common-stock-eval-prompt":
+        print(build_common_stock_eval_prompt(args.eval_dir))
+        return 0
+    elif args.command == "common-stock-eval-finalize":
+        result = finalize_common_stock_eval_job(
+            eval_dir=args.eval_dir, semantic_result_path=args.semantic_result,
+        )
+    elif args.command == "launch-common-stock-eval":
+        result, exit_code = launch_common_stock_eval(
+            args.repo, eval_dir=args.eval_dir, model=args.model,
+            codex_binary=args.codex_binary, timeout_seconds=args.timeout_seconds,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "collect-live":
+        try:
+            import os
+            from product.mcp.live.collection import collect_live_snapshot
+            result = collect_live_snapshot(
+                args.portfolio,
+                access_path=args.source_access,
+                output_dir=args.output_dir,
+                cache_root=args.cache_root,
+                sec_user_agent=os.environ.get("SEC_USER_AGENT", ""),
+            )
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            import re
+            token = str(exc).split(":", 1)[0]
+            code = token if re.fullmatch(r"[A-Z][A-Z0-9_]{2,100}", token) else "LIVE_COMMAND_FAILED"
+            print(json.dumps({"status": "FAILED", "failure_type": type(exc).__name__, "command": args.command,
+                              "failure_code": code}, ensure_ascii=False))
+            return 2
+    elif args.command == "prepare-live":
+        try:
+            from product.mcp.live.contracts import external_path
+            from product.mcp.live.market import load_locked_calendar
+            calendar_path = external_path(args.calendar_lock)
+            calendar = load_locked_calendar(json.loads(calendar_path.read_text(encoding="utf-8")))
+            result = prepare_live_run(
+                args.repo, portfolio_path=args.portfolio, snapshot_path=args.snapshot,
+                cache_root=args.cache_root, calendar=calendar, run_dir=args.run_dir,
+                run_id=args.run_id, model=args.model, focus_security_id=args.focus_security_id,
+            )
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            print(json.dumps({"status": "FAILED", "failure_code": str(exc),
+                              "command": args.command, "llm_calls": 0}, ensure_ascii=False))
+            return 2
     elif args.command == "prepare-cio":
         result = prepare_cio(args.repo, run_dir=args.run_dir, model=args.model)
     elif args.command == "finalize-cio":
@@ -365,7 +763,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     eval_dir=args.eval_dir.resolve(),
                     eval_id=str(json.loads((args.eval_dir / "input-manifest.json").read_text(encoding="utf-8"))["eval_id"]),
                 )
-                proof = build_eval_execution_proof(
+                from .eval_execution_proof import collect_native_eval_output
+                proof_builder = collect_native_eval_output if args.collect_native_output else build_eval_execution_proof
+                proof = proof_builder(
                     args.repo,
                     eval_dir=args.eval_dir,
                     semantic_result_path=args.semantic_result,

@@ -1,0 +1,161 @@
+{
+  "run_id": "live-8745812b-d1ae-4b60-aae8-7a07535df396",
+  "run_dir": "/private/tmp/stock-agent-live-plugin-fixed.pNoBOb/run/batch/runs/live-8745812b-d1ae-4b60-aae8-7a07535df396",
+  "status": "FAILED_VALIDATION",
+  "source_integrity_unchanged": true,
+  "model": "gpt-5.6-terra",
+  "discovery_hash": "22af1c6f2fa236ad70ccdbce2eaabdc0aa08cd4b743d1f8aa5a36bd0d9295b7f",
+  "live_resource_hashes": {
+    "docs/data/personal-research-approval.json": "6c5d0538b4236b41dd16728d2549b909ca9e0e3a3dd128babf693fd780d59453",
+    "evals/grading/live-us-equity-rubric-v1.json": "c04f30a43097c1f6d41c42591ca9564f932bb0672e636f25899fe09ba1339097",
+    "product/mcp/live/__init__.py": "93a54486d02d3f400373283411ccd89400c98368f96ab482cb1baa92711395bb",
+    "product/mcp/live/attachments.py": "0efb16c23b8f0bc9c8f116c3c7a4af7a69fbd73f23b0267c4b01dd4656b668d0",
+    "product/mcp/live/cache.py": "86886dada17a370c0d07019cc2708b5f0e228e5fccbd9945899cf927e5f50551",
+    "product/mcp/live/collection.py": "7900ee7f8e3047220d3c4cc4bd431277e2349ae62321468edbcc76385fb202fb",
+    "product/mcp/live/contracts.py": "cffb045a129f932d3c6e9872b986979059d9d05dfedfbac3ecd43e612ac50468",
+    "product/mcp/live/disclosure.py": "756f71dadb0969b4dd0285fefbc3a3778893ad7292c81654084964b2812037e6",
+    "product/mcp/live/eastmoney-identity-policy.json": "0cb596889269e72297d6e3a145c38d866a28e5681a045fc9fbb3d1b89791ca8d",
+    "product/mcp/live/eastmoney_market.py": "a3fabfa0e51db14c666eed65f37ce5886a5bb6d293d681c1060f06df3998c3ce",
+    "product/mcp/live/eastmoney_transport.py": "2f3268f64cb414ed2c2bbcb03452c50ef8fc233934f7074fece370743cc3d3c5",
+    "product/mcp/live/filing_selection.py": "a5caa70edd3b77210b824ecde2aed228cea3a0ae90d5eb81556e58cd25fe487d",
+    "product/mcp/live/financials.py": "9ac02ad7917da3659996365efad020e9081c9e3be747ca3407e6717b74df5efa",
+    "product/mcp/live/identity.py": "44db7f38294ad874bf9e307b51f6981c010745efc1c35b70f0b28ddcca0d05dd",
+    "product/mcp/live/market.py": "96f5e2b6326f1622a2e4203cc5dffd559a9d3a4a2bcbe8b886b4c13d1c5fd29a",
+    "product/mcp/live/nasdaq.py": "e22b5baaab1d7df458bfe0c8e8da3967fa489587d0a39b1f6d1e0e4c02441909",
+    "product/mcp/live/personal-research-approval.json": "6c5d0538b4236b41dd16728d2549b909ca9e0e3a3dd128babf693fd780d59453",
+    "product/mcp/live/sec.py": "f03b7f259817dbe7c29115c7bf4131a9d0d22440f0b8b2bf34d03ab1c47410d2",
+    "product/mcp/live/sec_client.py": "08bd8c7f66f022c7016a10598463c4e32f1986418dd8f57dbb68b4f1e3316632",
+    "product/mcp/live/security_metadata.py": "9ad32d90d6a5cf709e57334f8c4a7b0bb47d3e36536559393e38b0e920f32e93",
+    "product/mcp/live/source_routing.py": "3baf65f8d7da5ce00af81199e63dbd082592fb73154b10e506dc6ef0c1def71d",
+    "product/mcp/live/tls.py": "0d0c90ee8e2b793d71e557f6a777c90f47ee07f243fb97a56a30b3ad80464e04",
+    "product/mcp/live/yahoo_transport.py": "68671b2255977e98c2c57c6d5fed9ff8176b7790967760d26b4dc5d429ee7016",
+    "product/profiles/live-us-equity.json": "22719a2d98fe9371d9e7991ff029fb9d2b5f9e2fbbc953c6720b63808a77d852",
+    "product/schemas/runtime/live-batch.schema.json": "256704d0548d110e6a66b7318b85c0be24d1d573d6be89c54ffd4fde6aff73e3",
+    "product/schemas/runtime/live-fact-v2.schema.json": "7ea2884c65dcd6796cbfeb208de7c7afdc0cd366a0919d18536103172bc37e48",
+    "product/schemas/runtime/live-fact.schema.json": "ecc9155d5dc2f24e36b5f5d55cbacd62f3703c6250c43c9a1eaf174b40cdb706",
+    "product/schemas/runtime/live-portfolio.schema.json": "4ca1e49bd057144107c0fb6f1e544dec2f65133f13869af73a57d8052cde36e4",
+    "product/schemas/runtime/live-snapshot-v2.schema.json": "a06c0ab55313397fbc629311ebe3c6d86022cdef0b42dc202f93343001a01700",
+    "product/schemas/runtime/live-snapshot-v3.schema.json": "49996cd065db4af23b56553f6f5de28ac6c02b5a63d32b5adf1dc82adbe61365",
+    "product/schemas/runtime/live-snapshot-v4.schema.json": "a6a9ac362f7d9dc7a1c754d9628d2e8ccef3e2c52cfa4adf2af7ce41496e425b",
+    "product/schemas/runtime/live-snapshot.schema.json": "1d4779ce3fbeab769f777fd60fb169b83537929c1df2ea693f75954fd3c92eea",
+    "product/schemas/runtime/live-source-access-v2.schema.json": "207b5d671a3c84b7be6d8ad45a870540c4a26ea17e3fe47b4bb43a6dc1ce98fb",
+    "product/schemas/runtime/live-source-access-v3.schema.json": "381511848877ffa4362411f8339f032fb18113931b0593dcc8ed896f7ca4f429",
+    "product/schemas/runtime/live-source-access-v4.schema.json": "997e2eda0bd6b84f9477c22c7a1a26717d8f379061e393ec2af1bc4441cacc33",
+    "product/schemas/runtime/live-source-access.schema.json": "a1e22011bc575778bf8facfb5f3e4f79e3235744fc8bf71b0d8fe33b2e7c958d",
+    "product/schemas/runtime/live-source-selection.schema.json": "6712f6668798ecb94dcf4415b5704d8bf82c894e0823d978b6a45112b8e2ad4a",
+    "product/schemas/runtime/live-universe.schema.json": "8a5d75c3388725b001de81ebccf8c94c57b0ca784f81f720808896aebb85cdc2",
+    "pyproject.toml": "ba1c24e555e889ae4fab83972bfb3fe06e29cfae70331abb6be0eee35060d175",
+    "requirements-live-macos-py313.lock": "0ed376457f4ba48b81876beeb3d2e2cf9a0eaffc53529c860e23160a0fd9cea0"
+  },
+  "run_error": {
+    "code": "SPECIALIST_REPORT_VALIDATION_FAILED",
+    "failed_stage": "SPECIALIST_VALIDATION",
+    "message": "FORMAT_REPAIR_ADDED_FACT_CONTENT",
+    "run_id": "live-8745812b-d1ae-4b60-aae8-7a07535df396",
+    "schema_version": "run-error/2.1.0",
+    "terminal_state": "FAILED_VALIDATION"
+  },
+  "launcher_failure_code": "SKILL_LOAD_PROOF_MISSING",
+  "host_exit_code": 5,
+  "file_sha256": {
+    "run_manifest.json": "e7b44ee911470a3d34dc898ae2f533c816a3fccc8ddfe2a90ab2810c7aa5f964",
+    "run_error.json": "9e44b20716514d12397b9cf8cdda5ccaa26b671dad6be3533f4d21c1f315e371",
+    "decision_trace.json": "fe5c8c853bc8a1b287067cf014ea03875c95f62dde17210cb6bb404bbb75b922",
+    "invocation/prompt.txt": "18af65574a6899b07900599d11b3f2602afa8156ebefddb5b8414c1b9fbf41de",
+    "invocation/invocation-manifest.json": "ca05e829d5666fbcd0ed4298d7a78135c13162ea5ac9de5e5f628ea03aa39c9d",
+    "invocation/codex-events.jsonl": "ce0ff5e2291e53beaf3228940d93d55baca2028540fa1685195010cacb383626",
+    "invocation/codex-stderr.log": "848a60fedbe39dd3517369813a9b7ac95c82ab9b925314d1f5c0c08176a62b6a",
+    "invocation/process-result.json": "863dd3e62e59876ebef044d8f8d7afbe6c4882c105c6ca74d75bebcc85ef4d31",
+    "agents/runtime_company_analyst.json": "e66105fcccb1c59ac4d06181841b95ae8dd931e7bfb1d3ed634b30eecac31261",
+    "agents/runtime_skeptic.json": "49506c9c0dbbd3cbde63a6a7fbf3ff0d6c9e20918f9041f5556e44e4d6c1be38",
+    "repairs/runtime_company_analyst-request-1.json": "a9036a472dff7e28c286e04c0a655a01dfa66c41a7c188654b8e54fd7ae879d3",
+    "repairs/runtime_company_analyst-attempt-2.json": "11335096c202292a4389eb40b8766fa2ad8c2233f20b618b277dac71cbc149a6",
+    "events/mcp/events.jsonl": "db64c3dda1f38b9006a2d4adb1e8c5f68b517f52882a592657fcc8f9d32bd0ad",
+    "evidence/gate.json": "397e0b61bbebb5cfc9e4585f5a8f9c5c5c03e2e7f2e59110d3d06f84bd66d753"
+  },
+  "mcp_events": [
+    {
+      "access_mode": "read",
+      "adapter_version": "live-gate-scoped/1.0.0",
+      "error": "EMPTY_EVIDENCE_QUERY",
+      "event_type": "mcp_tool_error",
+      "input_hash": "6c10ea8b1e5befc2976a838b833467decc081e716d713e97483b1d1782d0ca50",
+      "tool": "query"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "live-gate-scoped/1.0.0",
+      "error": "UNKNOWN_EVIDENCE:ev-yahoo-7fdf30dd05fe54fae5cd3520f60967eacded432b27c",
+      "event_type": "mcp_tool_error",
+      "input_hash": "a1266422c7d62fea12a16663400d4e735f534b55daed17e8fa60f1ad06856bbe",
+      "tool": "query"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "live-gate-scoped/1.0.0",
+      "agent": "runtime_company_analyst",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-live-derived-4dda30b126f348e97936c5610b038476ae2090e1516f166930c0f9bd2ca90854",
+        "ev-live-derived-5a4294437f80604e796f9ece9aaa3f5454820f880d49f1a6a705aa74eaed958f",
+        "ev-live-derived-d02361866b908c98bec68fd4e1df8ddcafa36fa3399a6270525fd2acf947ee20",
+        "ev-live-derived-eead3e248b3a9e11d0b80b5b3e3cc4327eb6291d1a3058bcb493694b6ad0cb5a",
+        "ev-sec-000ebdeb581d23109c0220f4468d8c5cd51d866394f68b8df4db71cdc58bfcf6",
+        "ev-sec-0286d52b1ca86a08a3c5b9c5890daadafb7ac70beb96fa0b9f3dc26cb8ef5ce7",
+        "ev-sec-04c98125b5e4e9d918c7c0ed1be78a1ad13ed1474bfdccb703deb262dae96cca",
+        "ev-sec-08335cd1c40c837bf82adb4aee3db0e20203daf323937d98488525610eb7f4bb",
+        "ev-sec-0e118d296ce58db7de60e0b9ce295e208a73bcba48d6675ed91b28eee48c1c63",
+        "ev-sec-11d0bc9fa3206a1e2cb62a75f1ec9128bef9964e0f594cba6dc5d6d824d5b73b",
+        "ev-yahoo-7fdf30dd05fe54fae5cd3520b35b46a94e341c99819c0f60967eacded432b27c"
+      ],
+      "input_hash": "96b3b2e24b71d68cd660dd88765e486f63c071c06b2c31b260ad016e60778095",
+      "invocation_id": "inv_9aaad00504637bc936d30717",
+      "output_hash": "b11b4e725f46c23bf01a9d88ea00ec947112f3a751442a6c9efae75511f42bf6",
+      "run_id": "live-8745812b-d1ae-4b60-aae8-7a07535df396",
+      "tool": "live_evidence.query"
+    },
+    {
+      "access_mode": "read",
+      "adapter_version": "live-gate-scoped/1.0.0",
+      "agent": "runtime_skeptic",
+      "event_type": "mcp_tool_result",
+      "evidence_ids": [
+        "ev-live-derived-4dda30b126f348e97936c5610b038476ae2090e1516f166930c0f9bd2ca90854",
+        "ev-live-derived-5a4294437f80604e796f9ece9aaa3f5454820f880d49f1a6a705aa74eaed958f",
+        "ev-live-derived-d02361866b908c98bec68fd4e1df8ddcafa36fa3399a6270525fd2acf947ee20",
+        "ev-live-derived-eead3e248b3a9e11d0b80b5b3e3cc4327eb6291d1a3058bcb493694b6ad0cb5a",
+        "ev-sec-000ebdeb581d23109c0220f4468d8c5cd51d866394f68b8df4db71cdc58bfcf6",
+        "ev-sec-0286d52b1ca86a08a3c5b9c5890daadafb7ac70beb96fa0b9f3dc26cb8ef5ce7",
+        "ev-sec-04c98125b5e4e9d918c7c0ed1be78a1ad13ed1474bfdccb703deb262dae96cca",
+        "ev-sec-08335cd1c40c837bf82adb4aee3db0e20203daf323937d98488525610eb7f4bb",
+        "ev-sec-0e118d296ce58db7de60e0b9ce295e208a73bcba48d6675ed91b28eee48c1c63",
+        "ev-sec-11d0bc9fa3206a1e2cb62a75f1ec9128bef9964e0f594cba6dc5d6d824d5b73b",
+        "ev-yahoo-7fdf30dd05fe54fae5cd3520b35b46a94e341c99819c0f60967eacded432b27c"
+      ],
+      "input_hash": "3df1c91971682668362062bc7c0da6773a4e0180fb7695075f5df7a1ffc8ed20",
+      "invocation_id": "inv_5b10bb2619ce3d8f3d6ecabc",
+      "output_hash": "b11b4e725f46c23bf01a9d88ea00ec947112f3a751442a6c9efae75511f42bf6",
+      "run_id": "live-8745812b-d1ae-4b60-aae8-7a07535df396",
+      "tool": "live_evidence.query"
+    }
+  ],
+  "remaining_artifacts_missing": [
+    "cio/runtime_cio.json",
+    "decision.json",
+    "report.md",
+    "eval/result.json"
+  ],
+  "command": "env PATH=\"/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin:$PATH\" LIVE_SOURCE_ACCESS_FILE=\"/private/tmp/stock-agent-live-approved.GNswDM/source-access.json\" SEC_USER_AGENT=\"StockAgent personal research <SEC_CONTACT_EMAIL>\" LIVE_CACHE_ROOT=\"/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/cache\" bash scripts/run-product-smoke.sh --profile live-us-equity --portfolio \"/private/tmp/stock-agent-live-approved.GNswDM/portfolio.json\" \"/private/tmp/stock-agent-live-plugin-fixed.pNoBOb/run\" > \"/private/tmp/stock-agent-live-plugin-fixed.pNoBOb/host-stdout.log\" 2> \"/private/tmp/stock-agent-live-plugin-fixed.pNoBOb/host-stderr.log\"",
+  "format_repair_difference": {
+    "removed_top_level_fields": [
+      "evidence_refs"
+    ],
+    "changed_text_paths": [
+      "claims[0].statement",
+      "claims[5].statement",
+      "uncertainties[2]"
+    ],
+    "interpretation": "修复删除多余顶层字段时，同时删减/改写了原有文字。事实原子 hash 改变，按现有 FORMAT_ONLY 契约拒绝；不是证明新增了外部事实，也不是数据源/代理失败。"
+  },
+  "test_and_acceptance_scope": "实际模型运行失败；没有 CIO、Risk、可发布报告或语义 Eval。禁止将安装包 query 接缝或安全拒绝当成研究通过。没有自动第三次产品 LLM 补跑。"
+}

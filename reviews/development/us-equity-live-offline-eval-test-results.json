@@ -1,0 +1,41 @@
+{
+  "evidence_id": "us-equity-live-offline-eval-2026-09-10",
+  "scope": "deterministic_test_evidence_only",
+  "source_base": "e512a6364e1a7f52dc25f715d8edae76229bc279",
+  "source_inventory": "docs/data/live-offline-phase-3.sha256",
+  "source_inventory_sha256": "1398443cebf089f805d7fcf8a79a5616590c3adfb9bfe7515f6f6ba4ebf38558",
+  "added_test": "tests/test_live_eval_contract.py",
+  "added_test_sha256": "c5e6dbaf09e627bc145844101c924c2e3fdfcb0432cf697c060b73c0a736ba3a",
+  "cwd": "/Users/caihaoming/Documents/stock_agent",
+  "environment": {
+    "TMPDIR": "/private/tmp",
+    "live_python": "/private/tmp/stock-agent-live-deps.cBmS73/venv/bin/python"
+  },
+  "executions": [
+    {
+      "command": "env TMPDIR=/private/tmp /private/tmp/stock-agent-live-deps.cBmS73/venv/bin/python -B -m unittest tests.test_live_eval_contract -v",
+      "exit_code": 0,
+      "tests": 4,
+      "duration_seconds": 1.034,
+      "output": "test_dangling_specialist_reference_is_contained_not_published (tests.test_live_eval_contract.LiveEvalContractTests.test_dangling_specialist_reference_is_contained_not_published) ... ok\ntest_grading_input_drift_is_rejected (tests.test_live_eval_contract.LiveEvalContractTests.test_grading_input_drift_is_rejected) ... ok\ntest_missing_risk_artifact_cannot_enter_semantic_grading (tests.test_live_eval_contract.LiveEvalContractTests.test_missing_risk_artifact_cannot_enter_semantic_grading) ... ok\ntest_representative_reports_bind_actual_artifacts_and_propagate_grader_verdict (tests.test_live_eval_contract.LiveEvalContractTests.test_representative_reports_bind_actual_artifacts_and_propagate_grader_verdict) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 1.034s\n\nOK\n"
+    },
+    {
+      "command": "env TMPDIR=/private/tmp /private/tmp/stock-agent-live-deps.cBmS73/venv/bin/python -B -m unittest discover -s tests -p 'test_live_*.py' -q",
+      "exit_code": 0,
+      "tests": 105,
+      "duration_seconds": 5.324,
+      "output": "----------------------------------------------------------------------\nRan 105 tests in 5.324s\n\nOK\n"
+    },
+    {
+      "command": "openspec validate us-equity-live-advisory-slice --strict",
+      "exit_code": 0,
+      "output": "Change 'us-equity-live-advisory-slice' is valid\n"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "output": ""
+    }
+  ],
+  "note": "由当前工具返回结果归集；不是独立 Reviewer 证明、模型执行事件或生产运行包。单元测试临时产物随测试清理；合成输入与角色/评分替身定义均在上述已哈希测试及 phase-3 清单中。"
+}

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from product.runtime.run_package import prepare_run
 from product.runtime.smoke_prompt import build_smoke_prompt
+from product.runtime.nested_codex import fixture_mcp_runtime_environment
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -157,8 +158,9 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
         config = json.loads((ROOT / "product" / ".mcp.json").read_text())
         server = config["mcpServers"]["fixture_runtime"]
         self.assertEqual(server["cwd"], ".")
+        self.assertEqual(server["command"], "/bin/sh")
         self.assertEqual(
-            server["args"], ["-m", "runtime.fixture_mcp", "--stateless"]
+            server["args"], ["runtime/launch_fixture_mcp.sh", "--stateless"]
         )
         self.assertNotIn("cd ..", " ".join(server["args"]))
 
@@ -167,6 +169,7 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
         ) + "\n"
         env = dict(os.environ)
         env["PYTHONDONTWRITEBYTECODE"] = "1"
+        env.update(fixture_mcp_runtime_environment())
         result = subprocess.run(
             [server["command"], *server["args"]],
             cwd=ROOT / "product",
@@ -181,7 +184,7 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
         response = json.loads(result.stdout)
         self.assertEqual(
             [tool["name"] for tool in response["result"]["tools"]],
-            ["query", "calculate"],
+            ["query", "calculate", "research_search", "research_fetch"],
         )
 
 

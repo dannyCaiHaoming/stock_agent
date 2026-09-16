@@ -1,0 +1,18 @@
+{
+  "approval_id": "personal-research-scope-approval-2026-09-10",
+  "approved_at": "2026-09-10T09:12:22Z",
+  "scope": {
+    "purpose": "personal-research",
+    "change": "us-equity-live-advisory-slice",
+    "position_policy": "ALL_CONFIRMED_COMMON_STOCKS_RESOURCE_BOUNDED",
+    "providers": [
+      "nasdaq",
+      "yahoo",
+      "eastmoney",
+      "sec"
+    ],
+    "advisory_only": true
+  },
+  "statement": "用户批准当前 Capability 处理已确认 PortfolioHandoff 中的全部普通股，不设置固定持仓数量上限；仍以并发、来源请求预算、超时和响应大小限制资源，并保留拒绝或限流即停、PIT、数据完整性和不下单边界。",
+  "basis": "openspec/changes/us-equity-live-advisory-slice/design.md#2"
+}

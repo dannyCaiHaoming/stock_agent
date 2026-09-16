@@ -1,0 +1,47 @@
+{
+  "schema_version": "research-source-policy/1.0.0",
+  "checked_at": "2026-09-15T00:00:00Z",
+  "purpose": "personal-read-only-research",
+  "sources": {
+    "bls": {
+      "adapter_version": "bls-public-v1/1.0.0",
+      "authentication": "none",
+      "domains": ["api.bls.gov"],
+      "endpoint": "https://api.bls.gov/publicAPI/v1/timeseries/data/",
+      "request_budget": 1,
+      "series": ["CUUR0000SA0", "LNS14000000"],
+      "limitations": [
+        "公开 v1 响应不提供可验证的原始发布时间或历史 vintage",
+        "因此 published_at 采用 retrieved_at 的保守口径，不用于重建更早历史时点"
+      ]
+    },
+    "treasury": {
+      "adapter_version": "treasury-yield-csv/1.0.0",
+      "authentication": "none",
+      "domains": ["home.treasury.gov"],
+      "endpoint_template": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&_format=csv",
+      "request_budget": 1,
+      "limitations": [
+        "日度收益率表不提供精确发布时刻",
+        "因此 published_at 采用 retrieved_at 的保守口径"
+      ]
+    },
+    "openalex": {
+      "adapter_version": "openalex-public-research/1.0.0",
+      "authentication": "optional_for_search_required_for_content",
+      "domains": ["api.openalex.org", "content.openalex.org"],
+      "search_endpoint": "https://api.openalex.org/works",
+      "content_endpoint_template": "https://content.openalex.org/works/{work_id}.grobid-xml",
+      "request_budget": {
+        "searches_per_security": 3,
+        "candidates_per_security": 10,
+        "content_attempts_per_security": 5
+      },
+      "limitations": [
+        "OpenAlex 主要覆盖学术和技术研究，不等同于券商股票研报库",
+        "匿名检索预算较低；正文 Content API 需要外置 API key，凭证不得提交",
+        "正文仍保留原始版权和许可，系统只保存必要解析与定位，不发布全文"
+      ]
+    }
+  }
+}

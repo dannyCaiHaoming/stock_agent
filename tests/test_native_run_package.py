@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import copy
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 from product.runtime.run_package import (
@@ -16,6 +19,9 @@ from product.runtime.run_package import (
 from product.runtime.hashing import canonical_hash
 from product.runtime.cli import main as runtime_cli_main
 from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError
+from product.runtime.format_repair import build_format_repair_request, verify_format_repair
+from product.runtime.smoke_prompt import build_smoke_prompt
+from product.runtime.validation import ArtifactValidationError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -130,6 +136,25 @@ def cio_output(run_dir: Path, *, target=(0.5, 0.5)):
 
 
 class NativeRunPackageTests(unittest.TestCase):
+    def test_prepare_cio_missing_dependency_persists_failed_terminal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "dependency-failure"
+            prepare_run(ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run_dir,
+                        run_id="dependency-failure", model="gpt-5.6-terra",
+                        research_question="合成依赖故障", authenticity_required=False)
+            specialist_outputs(run_dir)
+            with patch("product.runtime.run_package.verify_invocation_manifest",
+                       side_effect=PackageNotFoundError("exchange-calendars")):
+                exit_code = runtime_cli_main(["prepare-cio", "--repo", str(ROOT),
+                    "--run-dir", str(run_dir), "--model", "gpt-5.6-terra"])
+            self.assertNotEqual(exit_code, 0)
+            error = read_json(run_dir / "run_error.json")
+            self.assertEqual(error["code"], "RUNTIME_DEPENDENCY_MISSING")
+            self.assertEqual(error["terminal_state"], "FAILED_VALIDATION")
+            self.assertEqual(error["failed_stage"], "SPECIALIST_VALIDATION")
+            self.assertEqual(read_json(run_dir / "decision_trace.json")["risk_lineage"], [])
+            self.assertFalse((run_dir / "decision.json").exists())
+
     def test_prepare_emits_gate_scoped_specialist_schemas_and_prompts(self):
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory) / "gate-scoped-schema-run"
@@ -427,15 +452,29 @@ class NativeRunPackageTests(unittest.TestCase):
             specialist_outputs(run_dir)
             report_path = run_dir / "agents" / "runtime_company_analyst.json"
             original = read_json(report_path)
-            original["format_noise"] = "remove me"
+            original["evidence_refs"] = ["ev-normal-revenue"]
+            original["claims"][0]["statement"] = (
+                "合成营收事实；source_id=fixture-source；as_of=2026-01-01。"
+            )
+            original["uncertainties"] = ["合成价格为 100；缺少估值基础。"]
             write_json(report_path, original)
+
+            prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
+            for instruction in (
+                "复制原始 JSON，仅改动 validation_error 指出的结构错误",
+                "禁止缩写、润色、重新总结或删除来源/时间说明",
+                "uncertainties/data_gaps 也不得改写",
+                "唯一修改就是删除不被该角色 Schema 接受的顶层 evidence_refs",
+                "父线程不得自行编辑修复",
+            ):
+                self.assertIn(instruction, prompt)
 
             requested = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
             self.assertEqual(
                 requested["next_state"], "ONE_SPECIALIST_FORMAT_REPAIR_REQUIRED"
             )
             repaired = dict(original)
-            repaired.pop("format_noise")
+            repaired.pop("evidence_refs")
             write_json(Path(requested["repaired_output"]), repaired)
 
             accepted = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
@@ -448,6 +487,36 @@ class NativeRunPackageTests(unittest.TestCase):
             stages = [event["stage"] for event in trace["events"]]
             self.assertIn("SPECIALIST_FORMAT_REPAIR_REQUIRED", stages)
             self.assertIn("SPECIALIST_FORMAT_REPAIR_ACCEPTED", stages)
+
+    def test_format_repair_rejects_provenance_removal_and_thesis_shortening(self):
+        # 脱敏复现真实失败的两种改写；不是模型研究或成功运行证据。
+        statements = [
+            ("合成债务为 40；source_id=fixture-source，as_of=2026-01-01。", "合成债务为 40。"),
+            ("现金增加支持偿债缓冲；但依赖后续现金流，不能据此推断估值有吸引力。",
+             "现金增加支持偿债缓冲；但依赖后续现金流。"),
+        ]
+        for before, after in statements:
+            with self.subTest(statement=before):
+                original = {
+                    "run_id": "repair-seam", "agent": "runtime_company_analyst",
+                    "invocation_id": "inv-seam",
+                    "evidence_refs": ["ev-seam"],
+                    "claims": [{"statement": before, "evidence_refs": ["ev-seam"]}],
+                }
+                request = build_format_repair_request(
+                    original, run_id="repair-seam", agent_name="runtime_company_analyst",
+                    validation_error=ArtifactValidationError(
+                        "AgentResearchReport keys invalid; missing=[], extra=['evidence_refs']"
+                    ),
+                )
+                repaired = copy.deepcopy(original)
+                repaired.pop("evidence_refs")
+                repaired["claims"][0]["statement"] = after
+                with self.assertRaisesRegex(ArtifactValidationError, "FORMAT_REPAIR_ADDED_FACT_CONTENT"):
+                    verify_format_repair(
+                        original, repaired, request, run_id="repair-seam",
+                        agent_name="runtime_company_analyst", allowed_evidence_ids=["ev-seam"],
+                    )
 
     def test_second_invalid_specialist_format_attempt_fails_validation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -482,6 +551,25 @@ class NativeRunPackageTests(unittest.TestCase):
             self.assertFalse((run_dir / "decision.json").exists())
             self.assertFalse((run_dir / "report.md").exists())
 
+    def test_second_revision_veto_does_not_mutate_persisted_risk_lineage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "revision-veto"
+            prepare_run(ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run_dir,
+                        run_id="revision-veto", model="gpt-5.6-terra", research_question="合成接缝测试",
+                        authenticity_required=False)
+            specialist_outputs(run_dir)
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            draft = cio_output(run_dir, target=(0.55, 0.8))
+            write_json(run_dir / "cio/runtime_cio.json", draft)
+            self.assertEqual(finalize_cio(ROOT, run_dir=run_dir)["next_state"], "ONE_CIO_REVISION_REQUIRED")
+            write_json(run_dir / "cio/runtime_cio_revision.json", draft)
+            self.assertEqual(finalize_cio(ROOT, run_dir=run_dir, revision=True)["next_state"], "SAFE_NO_TRADE")
+            trace = read_json(run_dir / "decision_trace.json")
+            for entry in trace["risk_lineage"]:
+                self.assertEqual(entry["result_hash"], canonical_hash(entry["result"]))
+            self.assertEqual(trace["risk_lineage"][-1]["result"], read_json(run_dir / "risk/check-2.json"))
+            self.assertEqual(read_json(run_dir / "decision.json")["risk_report"]["final_action"], "NO_TRADE")
+
     def test_risk_allows_at_most_one_cio_revision(self):
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory) / "revision-run"
@@ -505,6 +593,10 @@ class NativeRunPackageTests(unittest.TestCase):
             revised = cio_output(run_dir, target=(0.55, 0.6))
             write_json(run_dir / "cio" / "runtime_cio_revision.json", revised)
             second = finalize_cio(ROOT, run_dir=run_dir, revision=True)
+            trace = json.loads((run_dir / "decision_trace.json").read_text())
+            for entry in trace["risk_lineage"]:
+                if entry.get("result") is not None:
+                    self.assertEqual(entry["result_hash"], canonical_hash(entry["result"]))
             self.assertEqual(second["next_state"], "COMPLETED")
             trace = read_json(run_dir / "decision_trace.json")
             self.assertEqual(len(trace["risk_lineage"]), 2)

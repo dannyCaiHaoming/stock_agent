@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portfolio-council/demo-agent-request/1.0.0",
+  "type": "object",
+  "required": [
+    "schema_version", "run_id", "invocation_id", "sender", "recipient",
+    "input_refs", "portfolio_summary", "research_question", "decision_cutoff",
+    "allowed_evidence_ids", "demo_payload", "upstream_responses"
+  ],
+  "properties": {
+    "schema_version": {"const": "demo-agent-request/1.0.0"},
+    "run_id": {"type": "string", "minLength": 1},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "sender": {"const": "demo_orchestrator"},
+    "recipient": {"enum": ["runtime_company_analyst", "runtime_skeptic", "runtime_cio"]},
+    "input_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/artifactRef"}},
+    "portfolio_summary": {"type": "object"},
+    "research_question": {"type": "string", "minLength": 1},
+    "decision_cutoff": {"type": "string", "minLength": 1},
+    "allowed_evidence_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "demo_payload": {"type": "object"},
+    "upstream_responses": {"type": "array"}
+  },
+  "$defs": {
+    "artifactRef": {
+      "type": "object",
+      "required": ["artifact_id", "artifact_hash"],
+      "properties": {
+        "artifact_id": {"type": "string", "minLength": 1},
+        "artifact_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

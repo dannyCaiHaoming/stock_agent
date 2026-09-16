@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-calculation/1.0.0",
+  "title": "ResearchCalculation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "artifact_id", "artifact_hash", "method", "formula", "inputs",
+    "outputs", "periods", "units", "as_of", "assumption_ids", "evidence_fact_ids"
+  ],
+  "properties": {
+    "schema_version": {"const": "research-calculation/1.0.0"},
+    "artifact_id": {"type": "string", "pattern": "^calc:[a-z0-9-]+:[0-9a-f]{16}$"},
+    "artifact_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "method": {"enum": ["present-value", "equity-value-per-share", "comparable-period-change", "financial-ratio", "operating-scenario-value-per-share"]},
+    "formula": {"type": "string", "minLength": 1},
+    "inputs": {"type": "object"},
+    "outputs": {"type": "object"},
+    "periods": {"type": "object"},
+    "units": {"type": "object"},
+    "as_of": {"type": "string", "minLength": 1},
+    "assumption_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "evidence_fact_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+  }
+}

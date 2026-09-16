@@ -1,0 +1,5 @@
+{
+  "fixture_id": "common-stock-two-company-v1",
+  "purpose": "普通股持仓研究阶段的两公司合成验收数据标识；实际 Agent 上下文来自运行目录冻结 Gate。",
+  "synthetic": true
+}

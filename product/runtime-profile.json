@@ -1,38 +1,84 @@
 {
-  "profile_id": "fixture-council/3.0.0",
+  "profile_id": "fixture-council/3.1.0",
   "entry_skill": "portfolio-council",
   "working_directory": "product",
   "max_threads": 3,
   "agents": {
     "runtime_company_analyst": {
-      "version": "2.1.0",
+      "version": "3.0.18",
       "config_file": ".codex/agents/runtime_company_analyst.toml",
-      "skills": ["evidence-grounding", "company-research", "valuation"],
-      "tool_permissions": ["fixture_evidence.query", "fixture_math.calculate"],
+      "skills": [
+        "evidence-grounding",
+        "company-research",
+        "valuation",
+        "catalyst-analysis",
+        "research-report-analysis"
+      ],
+      "tool_permissions": [
+        "fixture_evidence.query",
+        "fixture_math.calculate"
+      ],
       "sandbox_mode": "read-only"
     },
     "runtime_skeptic": {
-      "version": "2.0.0",
+      "version": "2.1.0",
       "config_file": ".codex/agents/runtime_skeptic.toml",
-      "skills": ["evidence-grounding", "counter-thesis"],
-      "tool_permissions": ["fixture_evidence.query"],
+      "skills": [
+        "evidence-grounding",
+        "counter-thesis"
+      ],
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
       "sandbox_mode": "read-only"
     },
     "runtime_cio": {
-      "version": "3.0.0",
+      "version": "3.1.0",
       "config_file": ".codex/agents/runtime_cio.toml",
-      "skills": ["portfolio-council"],
-      "tool_permissions": ["fixture_evidence.query"],
+      "skills": [
+        "portfolio-council"
+      ],
+      "tool_permissions": [
+        "fixture_evidence.query"
+      ],
       "sandbox_mode": "workspace-write"
     }
   },
-  "parallel_first_pass": ["runtime_company_analyst", "runtime_skeptic"],
-  "evaluation_profiles": {
-    "cio-only": ["runtime_cio"],
-    "analyst-cio": ["runtime_company_analyst", "runtime_cio"],
-    "full-council": ["runtime_company_analyst", "runtime_skeptic", "runtime_cio"]
+  "parallel_first_pass": [
+    "runtime_company_analyst",
+    "runtime_skeptic"
+  ],
+  "common_stock_research_stage": {
+    "agent": "runtime_company_analyst",
+    "max_concurrent_analysts": 3,
+    "stops_before": ["runtime_skeptic", "runtime_cio", "deterministic_risk_engine"]
   },
-  "excluded_agents": ["runtime_market_catalyst"],
+  "multidimensional_holding_research_stage": {
+    "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+    "company_agent": "runtime_company_analyst",
+    "market_agent": "runtime_market_catalyst",
+    "market_agent_version": "1.0.1",
+    "market_agent_config_file": ".codex/agents/runtime_market_catalyst.toml",
+    "max_concurrent_research_tasks": 3,
+    "stops_before": ["runtime_skeptic", "runtime_cio", "deterministic_risk_engine"]
+  },
+  "evaluation_profiles": {
+    "cio-only": [
+      "runtime_cio"
+    ],
+    "analyst-cio": [
+      "runtime_company_analyst",
+      "runtime_cio"
+    ],
+    "full-council": [
+      "runtime_company_analyst",
+      "runtime_skeptic",
+      "runtime_cio"
+    ]
+  },
+  "excluded_agents": [
+    "runtime_market_catalyst"
+  ],
   "disabled_capabilities": [
     "web_search",
     "apps",

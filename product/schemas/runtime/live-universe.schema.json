@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "有界 NASDAQ 目录观察快照",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider",
+    "source_id",
+    "source_locator",
+    "adapter_version",
+    "client_version",
+    "request_started_at",
+    "as_of",
+    "retrieved_at",
+    "as_of_policy",
+    "membership_effective_at",
+    "pages",
+    "rows",
+    "row_count",
+    "totalrecords",
+    "completeness",
+    "gaps",
+    "events",
+    "snapshot_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "live-universe/1.0.0"
+    },
+    "provider": {
+      "const": "nasdaq"
+    },
+    "source_id": {
+      "const": "nasdaq-screener"
+    },
+    "source_locator": {
+      "const": "https://api.nasdaq.com/api/screener/stocks"
+    },
+    "adapter_version": {
+      "const": "nasdaq-universe/1.0.0"
+    },
+    "client_version": {
+      "const": "nasdaq-readonly/1.0.0"
+    },
+    "request_started_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "as_of": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retrieved_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "as_of_policy": {
+      "const": "observed_membership_only"
+    },
+    "membership_effective_at": {
+      "type": "null"
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "record",
+          "offset",
+          "limit",
+          "row_count",
+          "totalrecords",
+          "source_asof"
+        ],
+        "properties": {
+          "record": {
+            "type": "object"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+          "maximum": 8000
+          },
+          "row_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "totalrecords": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "source_asof": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download": {"type": "boolean"}
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "symbol",
+          "name",
+          "identity_status",
+          "source_id",
+          "as_of",
+          "retrieved_at",
+          "raw_content_hash"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "identity_status": {
+            "const": "UNVERIFIED"
+          },
+          "source_id": {
+            "const": "nasdaq-screener"
+          },
+          "as_of": {
+            "type": "string",
+            "minLength": 1
+          },
+          "retrieved_at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raw_content_hash": {
+            "type": "string",
+            "pattern": "[a-f0-9]{64}"
+          },
+          "market_cap": {"type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]+)?$"},
+          "country": {"type": ["string", "null"]},
+          "ipo_year": {"type": ["integer", "null"], "minimum": 1600, "maximum": 3000},
+          "sector": {"type": ["string", "null"]},
+          "industry": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "row_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "totalrecords": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "completeness": {
+      "enum": [
+        "COMPLETE",
+        "PARTIAL"
+      ]
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "snapshot_hash": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    }
+  }
+}

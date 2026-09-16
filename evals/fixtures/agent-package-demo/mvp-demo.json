@@ -1,0 +1,201 @@
+{
+  "schema_version": "agent-package-demo-input/1.0.0",
+  "profile": "DEMO_SCAFFOLD",
+  "synthetic": true,
+  "advisory_only": true,
+  "llm_used": false,
+  "fixture_version": "2.0.0",
+  "fixture_id": "agent-package-mvp-demo-v1",
+  "scenario_type": "agent_package_demo",
+  "run_id": "demo-mvp-normal-001",
+  "research_question": "演示三个角色如何围绕一只合成持仓传递证据、观点和风险结果。",
+  "decision_cutoff": "2026-01-31T23:59:59Z",
+  "freshness_policy": {
+    "version": "freshness/demo/1.0.0",
+    "default_max_age_days": 400,
+    "field_max_age_days": {
+      "close_price": 7,
+      "company_update": 90
+    }
+  },
+  "conflict_policy_version": "conflict-key/2.0.0",
+  "portfolio": {
+    "base_currency": "USD",
+    "cash": 80000,
+    "positions": [
+      {
+        "security_id": "SEC-DEMO",
+        "quantity": 200,
+        "price": 100,
+        "industry": "Synthetic Technology",
+        "average_daily_value": 10000000
+      }
+    ],
+    "mandate": {
+      "long_only": true,
+      "max_position_weight": 0.5,
+      "minimum_cash_weight": 0.1
+    }
+  },
+  "evidence": [
+    {
+      "evidence_id": "ev-demo-price",
+      "security_id": "SEC-DEMO",
+      "semantic_field": "close_price",
+      "value": 100,
+      "unit": "USD_per_share",
+      "currency": "USD",
+      "source_id": "synthetic-market-source",
+      "source_type": "fixture",
+      "source_locator": "fixture://agent-package-demo/price/1",
+      "source_version": "1",
+      "as_of": "2026-01-30T21:00:00Z",
+      "retrieved_at": "2026-01-30T21:05:00Z"
+    },
+    {
+      "evidence_id": "ev-demo-revenue",
+      "security_id": "SEC-DEMO",
+      "semantic_field": "revenue_ttm",
+      "value": 1000000,
+      "unit": "USD",
+      "currency": "USD",
+      "source_id": "synthetic-filing-source",
+      "source_type": "fixture",
+      "source_locator": "fixture://agent-package-demo/revenue/1",
+      "source_version": "1",
+      "as_of": "2025-12-31T00:00:00Z",
+      "retrieved_at": "2026-01-15T13:00:00Z"
+    },
+    {
+      "evidence_id": "ev-demo-debt",
+      "security_id": "SEC-DEMO",
+      "semantic_field": "total_debt",
+      "value": 200000,
+      "unit": "USD",
+      "currency": "USD",
+      "source_id": "synthetic-filing-source",
+      "source_type": "fixture",
+      "source_locator": "fixture://agent-package-demo/debt/1",
+      "source_version": "1",
+      "as_of": "2025-12-31T00:00:00Z",
+      "retrieved_at": "2026-01-15T13:00:00Z"
+    },
+    {
+      "evidence_id": "ev-demo-update",
+      "security_id": "SEC-DEMO",
+      "semantic_field": "company_update",
+      "value": "Synthetic management maintained its previously stated capacity plan.",
+      "unit": "text",
+      "source_id": "synthetic-company-source",
+      "source_type": "fixture",
+      "source_locator": "fixture://agent-package-demo/update/1",
+      "source_version": "1",
+      "as_of": "2026-01-20T14:00:00Z",
+      "retrieved_at": "2026-01-20T14:01:00Z"
+    }
+  ],
+  "role_samples": {
+    "analyst": {
+      "status": "COMPLETE",
+      "scope": "SEC-DEMO 合成公司质量、财务承受力和主要不确定性演示",
+      "evidence_refs": ["ev-demo-revenue", "ev-demo-debt", "ev-demo-update"],
+      "claims": [
+        {
+          "claim_id": "claim-demo-revenue-base",
+          "statement": "合成披露给出一百万美元的追踪收入基数。",
+          "kind": "FACT",
+          "evidence_refs": ["ev-demo-revenue"],
+          "assumption_ids": []
+        },
+        {
+          "claim_id": "claim-demo-balance-sheet",
+          "statement": "在合成示例中，债务相对收入的机械比率为 0.20，财务压力暂未主导研究结论。",
+          "kind": "INTERPRETATION",
+          "evidence_refs": ["ev-demo-debt", "ev-demo-revenue"],
+          "assumption_ids": ["assumption-demo-comparability"]
+        }
+      ],
+      "assumptions": [
+        {
+          "assumption_id": "assumption-demo-comparability",
+          "statement": "合成收入与债务口径可用于本次演示中的简单比率。",
+          "rationale": "这里只验证确定性计算产物如何进入角色输出，不代表真实估值方法。"
+        }
+      ],
+      "counter_evidence_refs": ["ev-demo-update"],
+      "uncertainties": ["合成更新没有提供产能计划的执行进度。"],
+      "data_gaps": ["没有真实现金流、竞争格局和估值数据。"],
+      "invalidation_conditions": ["若后续合成证据显示债务口径不可比，则该比率解释失效。"],
+      "confidence": 0.55,
+      "confidence_rationale": "证据足够演示数据流，但不足以构成真实公司研究。",
+      "calculation": {
+        "calculation_id": "calc-demo-debt-to-revenue",
+        "operation": "ratio",
+        "evidence_ids": ["ev-demo-debt", "ev-demo-revenue"]
+      }
+    },
+    "skeptic": {
+      "status": "COMPLETE",
+      "scope": "SEC-DEMO 合成反方论证演示",
+      "evidence_refs": ["ev-demo-update", "ev-demo-revenue"],
+      "challenges": [
+        {
+          "challenge_id": "challenge-demo-execution",
+          "statement": "维持产能计划并不能证明执行顺利，也可能意味着尚未获得可验证的新进展。",
+          "evidence_refs": ["ev-demo-update"],
+          "assumption_ids": [],
+          "resolution_evidence_needed": ["需要新的合成进度、投入和产出证据。"]
+        }
+      ],
+      "counter_evidence_refs": ["ev-demo-update"],
+      "uncertainties": ["合成更新没有说明计划的完成比例。"],
+      "data_gaps": ["没有真实需求、价格和竞争证据。"],
+      "invalidation_conditions": ["若出现可核验的合成执行里程碑，该挑战需要重新评估。"],
+      "confidence": 0.5,
+      "confidence_rationale": "反证直接引用合成事实，但数据覆盖很窄。"
+    },
+    "cio": {
+      "status": "COMPLETE",
+      "action": "HOLD",
+      "security_id": "SEC-DEMO",
+      "current_weight": 0.2,
+      "target_weight_range": [0.18, 0.22],
+      "maximum_notional": null,
+      "time_horizon": "仅用于演示的三个月观察期",
+      "thesis": "合成财务数据暂未显示硬性压力，适合演示保留持仓观点如何传递。",
+      "counter_thesis": "产能计划缺少执行证据，不能把管理层维持计划解读为进展确认。",
+      "consensus": ["两位 Specialist 都认为当前证据覆盖有限。"],
+      "conflicts": [],
+      "unresolved_questions": ["产能计划是否形成可核验的经营改善？"],
+      "invalidation_conditions": ["出现不可比财务口径或计划执行失败的合成证据。"],
+      "confidence": 0.5,
+      "confidence_rationale": "仅用于演示结构化综合，不代表真实投资置信度。",
+      "evidence_refs": ["ev-demo-revenue", "ev-demo-debt", "ev-demo-update"],
+      "no_trade_reason": null,
+      "no_trade_explanation": null,
+      "reevaluation_conditions": []
+    }
+  },
+  "domain_status_examples": ["COMPLETE", "INSUFFICIENT_EVIDENCE", "LOW_CONFIDENCE", "TIMEOUT"],
+  "risk_veto_cio_sample": {
+    "status": "LOW_CONFIDENCE",
+    "action": "HOLD",
+    "security_id": "SEC-NOT-IN-PORTFOLIO",
+    "current_weight": 0.2,
+    "target_weight_range": [0.18, 0.22],
+    "maximum_notional": null,
+    "time_horizon": "仅用于确定性 Risk veto 的合成边界样例",
+    "thesis": "该样例故意引用组合外证券，以验证 Risk Engine 否决。",
+    "counter_thesis": "组合中不存在该证券。",
+    "consensus": [],
+    "conflicts": [],
+    "unresolved_questions": ["该证券为何不在组合中？"],
+    "invalidation_conditions": ["组合输入合法纳入该证券时重新验证。"],
+    "confidence": 0.1,
+    "confidence_rationale": "这是风险边界样例，不是投资判断。",
+    "evidence_refs": ["ev-demo-price"],
+    "no_trade_reason": null,
+    "no_trade_explanation": null,
+    "reevaluation_conditions": []
+  }
+}

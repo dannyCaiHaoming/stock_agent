@@ -76,6 +76,13 @@ class HostProxyTests(unittest.TestCase):
         text = (ROOT / 'scripts/run-product-smoke.sh').read_text()
         self.assertIn('nested-codex-smoke', text)
         self.assertIn('check-run --run-dir', text)
+        self.assertIn('--resume-multidimensional-run', text)
+        self.assertIn('--resume-multidimensional-task', text)
+        self.assertIn('--task-name "$resume_multidimensional_task"', text)
+        self.assertIn('launch-multidimensional-research', text)
+        resume = text.index('if [ -n "$resume_multidimensional_run" ]')
+        default_prepare = text.index('if [ -z "$prepared_run" ]')
+        self.assertLess(resume, default_prepare)
         self.assertNotIn('dangerously-bypass', text)
         self.assertNotIn('network_proxy=false', text)
 

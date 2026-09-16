@@ -1,0 +1,76 @@
+{
+  "change": "us-equity-live-advisory-slice",
+  "scope": "NASDAQ HTTPS 信任库加载、错误分类及一次有界真实目录采集；不包含完整 Council",
+  "tests": {
+    "command": "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B -m unittest tests.test_live_nasdaq tests.test_live_collection tests.test_live_profile tests.test_live_admission -v",
+    "result": {
+      "chunk_id": "9e95dd",
+      "wall_time_seconds": 0.737127458,
+      "exit_code": 0,
+      "original_token_count": 1351,
+      "output": "test_cache_future_not_retried (tests.test_live_nasdaq.NasdaqTests.test_cache_future_not_retried) ... ok\ntest_cache_preserves_original_observation (tests.test_live_nasdaq.NasdaqTests.test_cache_preserves_original_observation) ... ok\ntest_completion_summary_tampering_rejected (tests.test_live_nasdaq.NasdaqTests.test_completion_summary_tampering_rejected) ... ok\ntest_default_partial_not_full_universe (tests.test_live_nasdaq.NasdaqTests.test_default_partial_not_full_universe) ... ok\ntest_denial_stops_sticky_no_retry (tests.test_live_nasdaq.NasdaqTests.test_denial_stops_sticky_no_retry) ... ok\ntest_empty_duplicate_changed_total (tests.test_live_nasdaq.NasdaqTests.test_empty_duplicate_changed_total) ... ok\ntest_forged_lineage_and_historical_time_fail (tests.test_live_nasdaq.NasdaqTests.test_forged_lineage_and_historical_time_fail) ... ok\ntest_https_context_loads_locked_ca_and_keeps_verification (tests.test_live_nasdaq.NasdaqTests.test_https_context_loads_locked_ca_and_keeps_verification) ... ok\ntest_invalid_payload_and_timeout_not_complete (tests.test_live_nasdaq.NasdaqTests.test_invalid_payload_and_timeout_not_complete) ... ok\ntest_no_authority_or_wrong_role_no_calls (tests.test_live_nasdaq.NasdaqTests.test_no_authority_or_wrong_role_no_calls) ... ok\ntest_page_and_row_budget (tests.test_live_nasdaq.NasdaqTests.test_page_and_row_budget) ... ok\ntest_pagination_and_original_evidence (tests.test_live_nasdaq.NasdaqTests.test_pagination_and_original_evidence) ... ok\ntest_raw_hash_mutation_rejected (tests.test_live_nasdaq.NasdaqTests.test_raw_hash_mutation_rejected) ... ok\ntest_read_and_scope_limits (tests.test_live_nasdaq.NasdaqTests.test_read_and_scope_limits) ... ok\ntest_real_opener_receives_verified_context_and_no_redirect_handler (tests.test_live_nasdaq.NasdaqTests.test_real_opener_receives_verified_context_and_no_redirect_handler) ... ok\ntest_repeated_page_and_symbol_aliases_not_silently_merged (tests.test_live_nasdaq.NasdaqTests.test_repeated_page_and_symbol_aliases_not_silently_merged) ... ok\ntest_request_budget_stops_before_next_page (tests.test_live_nasdaq.NasdaqTests.test_request_budget_stops_before_next_page) ... ok\ntest_transport_error_categories_survive_without_private_messages (tests.test_live_nasdaq.NasdaqTests.test_transport_error_categories_survive_without_private_messages) ... ok\ntest_collection_freezes_after_requests_and_binds_identity_raw_objects (tests.test_live_collection.LiveCollectionTests.test_collection_freezes_after_requests_and_binds_identity_raw_objects) ... ok\ntest_paused_access_does_not_create_client_or_output (tests.test_live_collection.LiveCollectionTests.test_paused_access_does_not_create_client_or_output) ... ok\ntest_routed_backup_collection_freeze_prepare (tests.test_live_collection.LiveCollectionTests.test_routed_backup_collection_freeze_prepare) ... ok\ntest_routed_primary_collection_freeze_prepare (tests.test_live_collection.LiveCollectionTests.test_routed_primary_collection_freeze_prepare) ... ok\ntest_defaults_remain_fixture_and_live_explicit (tests.test_live_profile.LiveProfileTests.test_defaults_remain_fixture_and_live_explicit) ... ok\ntest_live_discovery_lock_does_not_modify_fixture_manifest (tests.test_live_profile.LiveProfileTests.test_live_discovery_lock_does_not_modify_fixture_manifest) ... ok\ntest_live_execution_proof_does_not_accept_another_query_server (tests.test_live_profile.LiveProfileTests.test_live_execution_proof_does_not_accept_another_query_server) ... ok\ntest_live_invocation_binds_source_and_rejects_rehashed_permissions (tests.test_live_profile.LiveProfileTests.test_live_invocation_binds_source_and_rejects_rehashed_permissions) ... ok\ntest_live_mcp_stdio_starts_without_provider_requests (tests.test_live_profile.LiveProfileTests.test_live_mcp_stdio_starts_without_provider_requests) ... ok\ntest_profile_cannot_change_topology_tools_or_schema_path (tests.test_live_profile.LiveProfileTests.test_profile_cannot_change_topology_tools_or_schema_path) ... ok\ntest_approved_unverified_passes_without_fabricated_authorized (tests.test_live_admission.AdmissionTests.test_approved_unverified_passes_without_fabricated_authorized) ... ok\ntest_current_collector_rejects_legacy_and_bad_v4_before_clients (tests.test_live_admission.AdmissionTests.test_current_collector_rejects_legacy_and_bad_v4_before_clients) ... ok\ntest_current_sec_denial_does_not_retry_or_send_next_request (tests.test_live_admission.AdmissionTests.test_current_sec_denial_does_not_retry_or_send_next_request) ... ok\ntest_each_provider_uses_canonical_admission_before_io (tests.test_live_admission.AdmissionTests.test_each_provider_uses_canonical_admission_before_io) ... ok\ntest_legacy_status_not_reinterpreted (tests.test_live_admission.AdmissionTests.test_legacy_status_not_reinterpreted) ... ok\ntest_missing_unknown_paused_denied_scope_hash_and_future_fail (tests.test_live_admission.AdmissionTests.test_missing_unknown_paused_denied_scope_hash_and_future_fail) ... ok\ntest_request_boundaries_use_same_contract_and_denial_stays_sticky (tests.test_live_admission.AdmissionTests.test_request_boundaries_use_same_contract_and_denial_stays_sticky) ... ok\ntest_v4_gate_revalidates_approval_even_with_rehashed_snapshot (tests.test_live_admission.AdmissionTests.test_v4_gate_revalidates_approval_even_with_rehashed_snapshot) ... ok\n\n----------------------------------------------------------------------\nRan 36 tests in 0.740s\n\nOK\n"
+    }
+  },
+  "actual_command": "/private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B /private/tmp/stock-agent-nasdaq-tls.dZ9JbD/verify.py",
+  "process_result": {
+    "chunk_id": "318a43",
+    "wall_time_seconds": 0.000002,
+    "exit_code": 0,
+    "original_token_count": 327,
+    "output": "{\"actual_requests\": 1, \"cert_store_stats\": {\"crl\": 0, \"x509\": 121, \"x509_ca\": 121}, \"certifi_version\": \"2026.7.22\", \"check_hostname\": true, \"completeness\": \"PARTIAL\", \"events\": [{\"byte_count\": 39056, \"completed_at\": \"2026-09-10T10:33:32.673349Z\", \"http_status\": 200, \"provider\": \"nasdaq\", \"query\": {\"limit\": 200, \"offset\": 0}, \"raw_content_hash\": \"a1e99836538d7d0df0cb7f14ec8cdaa0ada5f30704ffec01ee1a27afdb2fd17a\", \"record_hash\": \"2b042ab995ba45c662524f9d18065b7bcbb94c1b2cbb3bc839dd4e39f2108826\", \"request_number\": 1, \"started_at\": \"2026-09-10T10:33:30.705414Z\"}], \"failure_code\": null, \"model_calls\": 0, \"proxy_evidence_sha256\": \"f6610fbaa2c33f05e69da40aaf30db1607f7aa891e73a848ec70aa6165dd9010\", \"purpose\": \"LIVE_DIRECTORY_VERIFICATION\", \"row_count\": 200, \"script_sha256\": \"7208d61038a1acc257286d48e41e52e92ef0390c026c68344178a1194adac3dc\", \"snapshot_hash\": \"fd5bdfab641efb3ffcebe119f63287bbc5821f74ba962853b1b3fd4ecaddd38e\", \"source_access_hash\": \"73fb321393e5a668ac68f4f48ca09374ce82147c69a64d469ddb0ab6003e00d3\", \"source_input_sha256\": \"fef09ca5f3d538ee8ad5700c2ab01f1c4d0a17f7fa148004ca95825238f889ac\", \"status\": \"PASSED\", \"totalrecords\": 7139, \"transport_version\": \"nasdaq-https/1.0.0\", \"universe_file_sha256\": \"ba62d5820138eb653c0459bec4893d1a2faeb78a73572c362f60974bf8e09eaa\", \"verify_mode\": 2}\n"
+  },
+  "actual_result": {
+    "actual_requests": 1,
+    "cert_store_stats": {
+      "crl": 0,
+      "x509": 121,
+      "x509_ca": 121
+    },
+    "certifi_version": "2026.7.22",
+    "check_hostname": true,
+    "completeness": "PARTIAL",
+    "events": [
+      {
+        "byte_count": 39056,
+        "completed_at": "2026-09-10T10:33:32.673349Z",
+        "http_status": 200,
+        "provider": "nasdaq",
+        "query": {
+          "limit": 200,
+          "offset": 0
+        },
+        "raw_content_hash": "a1e99836538d7d0df0cb7f14ec8cdaa0ada5f30704ffec01ee1a27afdb2fd17a",
+        "record_hash": "2b042ab995ba45c662524f9d18065b7bcbb94c1b2cbb3bc839dd4e39f2108826",
+        "request_number": 1,
+        "started_at": "2026-09-10T10:33:30.705414Z"
+      }
+    ],
+    "failure_code": null,
+    "model_calls": 0,
+    "proxy_evidence_sha256": "f6610fbaa2c33f05e69da40aaf30db1607f7aa891e73a848ec70aa6165dd9010",
+    "purpose": "LIVE_DIRECTORY_VERIFICATION",
+    "row_count": 200,
+    "script_sha256": "7208d61038a1acc257286d48e41e52e92ef0390c026c68344178a1194adac3dc",
+    "snapshot_hash": "fd5bdfab641efb3ffcebe119f63287bbc5821f74ba962853b1b3fd4ecaddd38e",
+    "source_access_hash": "73fb321393e5a668ac68f4f48ca09374ce82147c69a64d469ddb0ab6003e00d3",
+    "source_input_sha256": "fef09ca5f3d538ee8ad5700c2ab01f1c4d0a17f7fa148004ca95825238f889ac",
+    "status": "PASSED",
+    "totalrecords": 7139,
+    "transport_version": "nasdaq-https/1.0.0",
+    "universe_file_sha256": "ba62d5820138eb653c0459bec4893d1a2faeb78a73572c362f60974bf8e09eaa",
+    "verify_mode": 2
+  },
+  "sha256": {
+    "product/mcp/live/nasdaq.py": "407cbb2b4e74d22a8289f648343e0cfeb88e9883db0742e65feabdc826d3f8e3",
+    "product/runtime/discovery.py": "c9ef6c41859b1f644e961d2653f8e1be5f54f537697d8b1b14dd1a81296aa3f2",
+    "pyproject.toml": "ba1c24e555e889ae4fab83972bfb3fe06e29cfae70331abb6be0eee35060d175",
+    "tests/test_live_nasdaq.py": "5eac3c69fc9f35514dbf7523017eb26978b4b7d0218468cb8ea7a7bd83f28c1c",
+    "requirements-live-macos-py313.lock": "0ed376457f4ba48b81876beeb3d2e2cf9a0eaffc53529c860e23160a0fd9cea0",
+    "/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/result.json": "89e0fc4745a6eab8fde34a72adc32f3e14cec596b6f0f037f187c5d0bf0239db",
+    "/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/universe.json": "ba62d5820138eb653c0459bec4893d1a2faeb78a73572c362f60974bf8e09eaa",
+    "/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/verify.py": "7208d61038a1acc257286d48e41e52e92ef0390c026c68344178a1194adac3dc"
+  },
+  "evidence_reuse": "live-admission-v4-test-results.json 的175项为修复前快照。此次36项覆盖NASDAQ、collection、profile、准入受影响接缝；原输入/依赖/源码未改变部分仍仅按原范围复用，不声称重跑175项或完整Gate。",
+  "historical_failure": "原NASDQ_TRANSPORT_FAILURE未保留底层异常，不能追溯确认其唯一原因。默认信任库为空是离线实证；修复后同宿主代理的实际HTTPS目录请求已返回200。",
+  "source_permissions": "operator APPROVED；upstream UNVERIFIED；HTTP200不代表使用许可核实。"
+}

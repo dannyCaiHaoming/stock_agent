@@ -16,6 +16,7 @@ from .validation import collect_evidence_refs
 
 
 EVAL_VERSION = "native-council-eval/2.0.0"
+LIVE_EVAL_VERSION = "native-live-council-eval/1.0.0"
 EVAL_SCOPE = (
     "仅验证结构化正确性、证据血缘、Skeptic 独立非重复贡献、CIO 显式消费与硬风控；"
     "不评价市场收益、Alpha 或统计预测能力。"
@@ -67,6 +68,7 @@ def _nonduplicate_skeptic_contribution(
 
 
 def validate_native_eval_result(result: Mapping[str, Any]) -> None:
+    live = result.get("schema_version") == LIVE_EVAL_VERSION
     required = {
         "schema_version",
         "run_id",
@@ -78,9 +80,15 @@ def validate_native_eval_result(result: Mapping[str, Any]) -> None:
         "source_hashes",
         "eval_hash",
     }
+    if live:
+        required.remove("fixture_id")
+        required.add("profile_id")
+        from .runtime_profiles import LIVE_PROFILE_ID
+        if result.get("profile_id") not in ("live-us-equity/1.0.0", LIVE_PROFILE_ID):
+            raise NativeEvalError("LIVE_EVAL_PROFILE_INVALID")
     if set(result) != required:
         raise NativeEvalError("EVAL_RESULT_KEYS_INVALID")
-    if result.get("schema_version") != EVAL_VERSION or result.get("status") != "PASSED":
+    if result.get("schema_version") not in (EVAL_VERSION, LIVE_EVAL_VERSION) or result.get("status") != "PASSED":
         raise NativeEvalError("EVAL_RESULT_STATUS_INVALID")
     if result.get("terminal_state") not in {"COMPLETED", "SAFE_NO_TRADE"}:
         raise NativeEvalError("EVAL_TERMINAL_STATE_INVALID")
@@ -181,7 +189,25 @@ def evaluate_run(
         checks["actual_council_risk_passage"] = "PASSED"
 
     fixture_id = str(manifest.get("fixture_id", ""))
-    if fixture_id == "future-or-stale-v1":
+    live = manifest.get("source_mode") == "live"
+    if live:
+        from .live_context import load_live_run_context
+        from .live_input import build_live_specialist_inputs
+        portfolio, snapshot, gate, calendar = load_live_run_context(run_dir, manifest)
+        checks.pop("no_fixed_investment_outcome", None)
+        checks.update(live_source_binding="PASSED", live_pit_recomputed="PASSED",
+                      research_quality="REQUIRES_BOUND_SEMANTIC_EVAL")
+        if has_chain:
+            expected_inputs = build_live_specialist_inputs(portfolio, snapshot, gate, calendar=calendar,
+                                                           focus_security_id=manifest["focus_security_id"])
+            for name, expected in expected_inputs.items():
+                if _read_object(run_dir / f"inputs/{name}.json") != expected:
+                    raise NativeEvalError("LIVE_SPECIALIST_CONTEXT_MISMATCH")
+            checks["complete_portfolio_and_focus"] = "PASSED"
+        else:
+            # 安全终止不等于完成公司研究；此结果仅评价运行安全。
+            checks["research_quality"] = "NOT_ASSESSED_PRE_AGENT_TERMINATION"
+    elif fixture_id == "future-or-stale-v1":
         if gate is None or not gate.get("excluded_evidence_ids"):
             raise NativeEvalError("FUTURE_STALE_FILTERING_NOT_PROVEN")
         if decision.get("terminal_state") != "SAFE_NO_TRADE" or has_chain:
@@ -280,7 +306,7 @@ def evaluate_run(
         raise NativeEvalError("UNSUPPORTED_EVAL_FIXTURE")
 
     result = {
-        "schema_version": EVAL_VERSION,
+        "schema_version": LIVE_EVAL_VERSION if live else EVAL_VERSION,
         "run_id": manifest["run_id"],
         "fixture_id": fixture_id,
         "terminal_state": decision["terminal_state"],
@@ -294,6 +320,9 @@ def evaluate_run(
             "decision": canonical_hash(decision),
         },
     }
+    if live:
+        del result["fixture_id"]
+        result["profile_id"] = manifest["runtime_profile"]
     result["eval_hash"] = canonical_hash(result)
     validate_native_eval_result(result)
     return result

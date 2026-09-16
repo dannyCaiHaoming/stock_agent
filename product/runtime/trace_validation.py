@@ -107,6 +107,18 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
     if manifest is not None and manifest.get("run_id") != trace.get("run_id"):
         raise TraceValidationError("TRACE_RUN_ID_MISMATCH")
     runtime = trace.get("runtime")
+    live_context = None
+    if manifest is not None:
+        if manifest.get("source_mode", "fixture") not in ("fixture", "live"):
+            raise TraceValidationError("TRACE_SOURCE_MODE_UNKNOWN")
+        if manifest.get("source_mode") == "live":
+            from .live_context import load_live_run_context
+            try:
+                live_context = load_live_run_context(run_dir, manifest)
+            except (OSError, ValueError, KeyError) as exc:
+                raise TraceValidationError(f"TRACE_LIVE_SOURCE_INVALID:{exc}") from exc
+            if not isinstance(runtime, Mapping) or runtime.get("source_context") != manifest.get("source_context"):
+                raise TraceValidationError("TRACE_LIVE_SOURCE_LINEAGE_MISMATCH")
     if manifest is not None and manifest.get("execution_replay_supported") is True:
         reference = manifest.get("replay_capsule")
         if not isinstance(reference, Mapping):
@@ -250,11 +262,11 @@ def validate_decision_trace(trace: Mapping[str, Any], *, run_dir: Path) -> None:
         fixture_path = run_dir / "audit" / "fixture_snapshot.json"
         gate_path = run_dir / "evidence" / "gate.json"
         try:
-            fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+            fixture = None if live_context is not None else json.loads(fixture_path.read_text(encoding="utf-8"))
             gate = json.loads(gate_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise TraceValidationError("TRACE_PIT_ARTIFACT_MISSING_OR_INVALID") from exc
-        expected_gate = run_evidence_gate(fixture, run_id=str(trace["run_id"])).artifact
+        expected_gate = live_context[2] if live_context is not None else run_evidence_gate(fixture, run_id=str(trace["run_id"])).artifact
         if canonical_hash(gate) != canonical_hash(expected_gate):
             raise TraceValidationError("TRACE_PIT_GATE_MISMATCH")
         expected_lineage = {

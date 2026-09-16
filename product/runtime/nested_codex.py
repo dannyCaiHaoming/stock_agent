@@ -30,12 +30,31 @@ from .smoke_prompt import build_smoke_prompt
 from .environment_preflight import resolve_run_paths
 
 
-LAUNCHER_VERSION = "nested-codex-launcher/1.2.0"
+LAUNCHER_VERSION = "nested-codex-launcher/1.4.1"
 VALID_TERMINAL_STATES = {"COMPLETED", "SAFE_NO_TRADE"}
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def fixture_mcp_runtime_environment() -> dict[str, str]:
+    """Bind the MCP interpreter without relying on a child Agent's PATH."""
+
+    interpreter = Path(sys.executable).resolve()
+    dependency_root = Path(sys.prefix).resolve()
+    repository_root = Path(__file__).resolve().parents[2]
+    site_packages = (
+        dependency_root / "lib"
+        / f"python{sys.version_info.major}.{sys.version_info.minor}"
+        / "site-packages"
+    )
+    return {
+        "STOCK_AGENT_FIXTURE_MCP_PYTHON": str(interpreter),
+        "STOCK_AGENT_FIXTURE_MCP_PYTHONPATH": os.pathsep.join(
+            (str(repository_root), str(site_packages))
+        ),
+    }
 
 
 def _read_object(path: Path) -> dict[str, Any]:
@@ -113,6 +132,10 @@ def _resource_hashes(
         }
     return {
         "prompt": file_hash(prompt_path),
+        "cio_decoding_schema": (
+            file_hash(run_dir / "invocation/cio-output.schema.json")
+            if (run_dir / "invocation/cio-output.schema.json").is_file() else None
+        ),
         "agents_md": {
             str(path.relative_to(repository_root)): file_hash(path)
             for path in (repository_root / "AGENTS.md", repository_root / "product" / "AGENTS.md")
@@ -209,9 +232,29 @@ def _completion_checks(run_dir: Path) -> tuple[dict[str, Any], str | None]:
         checks["runtime_resources_loaded"] = True
         checks["specialists_executed"] = True
 
+    try:
+        run_manifest = _read_object(run_dir / "run_manifest.json")
+    except (OSError, ValueError):
+        run_manifest = {}
     dispatch_log = run_dir / "invocation" / "subagent-dispatches.jsonl"
     if pre_agent_safe:
         checks["dispatch_guard_active"] = True
+    elif run_manifest.get("source_mode") == "live":
+        try:
+            from .invocation import verify_specialist_start_binding
+            environment = _read_object(run_dir / "invocation/environment-manifest.json")
+            proof = _read_object(proof_path)
+            bindings = {agent: verify_specialist_start_binding(
+                Path(environment["repo_root"]), run_dir, agent,
+                report=_read_object(run_dir / f"agents/{agent}.json"))
+                for agent in ("runtime_company_analyst", "runtime_skeptic")}
+            checks["dispatch_guard_active"] = all(
+                proof["children"][agent].get("start_context_binding") == binding
+                for agent, binding in bindings.items())
+            checks["dispatch_guard_method"] = "START_CONTEXT_REVALIDATED"
+            checks["pre_dispatch_blocking"] = "NOT_GUARANTEED"
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            checks["dispatch_binding_error"] = str(exc)
     elif dispatch_log.is_file():
         try:
             dispatch_records = [
@@ -253,6 +296,22 @@ def _completion_checks(run_dir: Path) -> tuple[dict[str, Any], str | None]:
     checks["required_artifacts"] = [str(path) for path in required]
     checks["required_artifacts_complete"] = all(path.is_file() for path in required)
 
+    # Report the recorded product failure before the downstream proofs it prevented.
+    # This changes diagnostics only: failed terminal states still cannot pass.
+    if terminal_state == "FAILED_VALIDATION":
+        try:
+            run_error = _read_object(run_dir / "run_error.json")
+            if (run_error.get("run_id") == trace.get("run_id")
+                    and run_error.get("failed_stage") == trace.get("failed_stage")
+                    and run_error.get("terminal_state") == terminal_state
+                    and isinstance(run_error.get("code"), str) and run_error["code"]):
+                checks["failed_stage"] = run_error["failed_stage"]
+                checks["runtime_failure_message"] = run_error.get("message")
+                return checks, run_error["code"]
+        except (OSError, ValueError, json.JSONDecodeError):
+            pass
+        return checks, "FAILED_VALIDATION_ERROR_RECORD_INVALID"
+
     ordered = (
         ("skill_loaded", "SKILL_LOAD_PROOF_MISSING"),
         ("agents_md_loaded", "AGENTS_LOAD_PROOF_MISSING"),
@@ -281,6 +340,9 @@ def build_nested_codex_command(
     final_message_path: Path,
     hook_recorder_path: Path,
     externally_sandboxed: bool = False,
+    output_schema_path: Path | None = None,
+    fixture_mcp_run_dir: Path | None = None,
+    hook_agent_matcher: str = "^(runtime_company_analyst|runtime_skeptic)$",
 ) -> list[str]:
     """Return the canonical nested Codex command without shell interpolation."""
 
@@ -291,11 +353,19 @@ def build_nested_codex_command(
         (shlex.quote(sys.executable), shlex.quote(str(hook_recorder_path)))
     )
     hook_handler = (
-        '[{matcher="^(runtime_company_analyst|runtime_skeptic)$",'
+        f'[{{matcher={json.dumps(hook_agent_matcher)},'
         f'hooks=[{{type="command",command={json.dumps(hook_command)},timeout=3}}]}}]'
     )
+    # Bounded in build_specialist_start_context before emission. Avoid Codex's
+    # default spill-to-file: specialists have no general-purpose file reader.
+    start_hook_handler = (
+        f'[{{matcher={json.dumps(hook_agent_matcher)},'
+        f'hooks=[{{type="command",command={json.dumps(hook_command)},timeout=15,additionalContextLimit=0}}]}}]'
+    )
     dispatch_hook_handler = (
-        '[{matcher="^collaborationspawn_agent$",'
+        # Omit the matcher: native tool names/Agent aliases differ across CLI
+        # releases. The existing recorder classifies calls, retaining no arguments.
+        '[{'
         f'hooks=[{{type="command",command={json.dumps(hook_command)},timeout=3}}]}}]'
     )
     command = [
@@ -308,9 +378,48 @@ def build_nested_codex_command(
         "--json",
     ]
     command.extend(("--sandbox", "workspace-write"))
+    fixture_python_root: Path | None = None
+    if fixture_mcp_run_dir is not None:
+        fixture_mcp_run_dir = Path(fixture_mcp_run_dir).resolve()
+        # A host launcher may itself run from an external, run-scoped virtual
+        # environment.  The hook process is started by the parent runtime, but
+        # Subagent MCP startup is subject to the child sandbox and otherwise
+        # observes the interpreter symlink as ENOENT.  Expose only that
+        # dependency root; runtime Agent configs remain read-only and the
+        # repository/run boundaries are unchanged.
+        if sys.prefix != sys.base_prefix:
+            fixture_python_root = Path(sys.prefix).resolve()
+        fixture_environment = fixture_mcp_runtime_environment()
+        fixture_entrypoint = Path(product_root).resolve() / "runtime/launch_fixture_mcp.sh"
+        mcp_override = (
+            "mcp_servers.fixture_runtime={"
+            "command=\"/bin/sh\","
+            f"args=[{json.dumps(str(fixture_entrypoint))},\"--stateless\",\"--default-run-dir\","
+            f"{json.dumps(str(fixture_mcp_run_dir))}],"
+            f"cwd={json.dumps(str(Path(product_root).resolve()))},"
+            "env={"
+            f"STOCK_AGENT_FIXTURE_MCP_PYTHON={json.dumps(fixture_environment['STOCK_AGENT_FIXTURE_MCP_PYTHON'])},"
+            f"STOCK_AGENT_FIXTURE_MCP_PYTHONPATH={json.dumps(fixture_environment['STOCK_AGENT_FIXTURE_MCP_PYTHONPATH'])}"
+            "},"
+            "enabled_tools=[\"query\",\"calculate\",\"research_search\",\"research_fetch\"],startup_timeout_sec=10}"
+        )
+        command.extend(("-c", mcp_override))
+        # This launcher serves a frozen Gate through fixture_runtime.  Avoid
+        # eagerly starting the unrelated live server inside every specialist.
+        # Strict config still validates a disabled MCP entry, so replace the
+        # entire transport instead of overlaying only ``enabled=false``.
+        command.extend((
+            "-c",
+            'mcp_servers.live_runtime={command="/usr/bin/false",enabled=false}',
+        ))
+    if output_schema_path is not None:
+        command.extend(("--output-schema", str(output_schema_path)))
     command.extend([
-        "--add-dir",
-        str(run_dir),
+        "--add-dir", str(run_dir),
+    ])
+    if fixture_python_root is not None:
+        command.extend(["--add-dir", str(fixture_python_root)])
+    command.extend([
         "-C",
         str(product_root),
         "--strict-config",
@@ -323,7 +432,7 @@ def build_nested_codex_command(
         "-c",
         f"hooks.PreToolUse={dispatch_hook_handler}",
         "-c",
-        f"hooks.SubagentStart={hook_handler}",
+        f"hooks.SubagentStart={start_hook_handler}",
         "-c",
         f"hooks.SubagentStop={hook_handler}",
         "--output-last-message",
@@ -333,6 +442,36 @@ def build_nested_codex_command(
         "-",
     ])
     return command
+
+
+def _persist_cio_final_response(run_dir: Path, final_text: str,
+                                records: Sequence[Mapping[str, Any]]) -> None:
+    """只保存绑定到最终模型事件的原始 JSON，不修补引用或补写任何决策字段。"""
+    if not records or records[-1].get("type") != "turn.completed":
+        raise ValueError("CIO_FINAL_TURN_INCOMPLETE")
+    messages = [record["item"].get("text") for record in records
+                if record.get("type") == "item.completed"
+                and isinstance(record.get("item"), Mapping)
+                and record["item"].get("type") == "agent_message"]
+    if not messages or not isinstance(messages[-1], str) or messages[-1].strip() != final_text.strip():
+        raise ValueError("CIO_FINAL_EVENT_MISMATCH")
+    # Reject malformed/non-object output, but retain all well-formed draft fields
+    # for the existing finalizer to diagnose invalid contracts in the Trace.
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("CIO_FINAL_DUPLICATE_KEY")
+            result[key] = value
+        return result
+
+    value = json.loads(final_text, object_pairs_hook=unique_keys)
+    if not isinstance(value, dict):
+        raise ValueError("CIO_FINAL_RESPONSE_NOT_OBJECT")
+    destination = run_dir / "cio/runtime_cio.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("x", encoding="utf-8") as output:
+        output.write(final_text)
 
 
 def run_nested_codex_connectivity_probe(
@@ -379,12 +518,25 @@ def launch_nested_codex(
     for path in (sqlite_home, log_dir, tmp_dir):
         path.mkdir(parents=True, exist_ok=False)
 
+    initial_trace_path = run_dir / "decision_trace.json"
+    initial_trace = _read_object(initial_trace_path) if initial_trace_path.is_file() else {}
+    final_response_cio = (manifest.get("source_mode") == "live"
+                          and initial_trace.get("terminal_state") is None)
+    output_schema_path = None
+    if final_response_cio:
+        from .invocation import build_live_cio_decoding_schema
+        gate = _read_object(run_dir / "evidence/gate.json")
+        output_schema_path = invocation_dir / "cio-output.schema.json"
+        _write_json(output_schema_path, build_live_cio_decoding_schema(
+            repository_root, run_id=manifest["run_id"],
+            allowed_evidence_ids=gate["allowed_evidence_ids"]))
     prompt_path = invocation_dir / "prompt.txt"
     prompt_path.write_text(
         build_smoke_prompt(
             run_dir,
             repository_root=repository_root,
             defer_deterministic_finalize=True,
+            final_response_cio=final_response_cio,
         ),
         encoding="utf-8",
     )
@@ -402,16 +554,28 @@ def launch_nested_codex(
         log_dir=log_dir,
         final_message_path=raw_final_path,
         hook_recorder_path=product_root / "runtime" / "codex_hook_recorder.py",
+        output_schema_path=output_schema_path,
     )
     environment = dict(os.environ)
     environment["TMPDIR"] = str(tmp_dir)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment["STOCK_AGENT_RUN_DIR"] = str(run_dir)
+    environment["STOCK_AGENT_FIXTURE_MCP_RUN_DIR"] = str(run_dir)
+    environment.update(fixture_mcp_runtime_environment())
     environment["STOCK_AGENT_SUBAGENT_EVENT_LOG"] = str(hook_events_path)
     environment["STOCK_AGENT_SUBAGENT_DISPATCH_LOG"] = str(dispatch_events_path)
     environment["STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS"] = (
         "runtime_company_analyst,runtime_skeptic"
     )
+    environment.pop("STOCK_AGENT_START_CONTEXT", None)
+    environment.pop("STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT", None)
+    if manifest.get("source_mode") == "live":
+        from .invocation import START_CONTEXT_VERSION
+        if manifest.get("specialist_context_delivery") != START_CONTEXT_VERSION:
+            raise ValueError("START_CONTEXT_CONTRACT_MISSING")
+        environment["STOCK_AGENT_START_CONTEXT"] = START_CONTEXT_VERSION
+        if manifest.get("specialist_output_delivery") in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}:
+            environment["STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT"] = manifest["specialist_output_delivery"]
     before = integrity_snapshot(repository_root)
     resources = _resource_hashes(repository_root, run_dir, manifest, prompt_path)
     writable_paths = {
@@ -516,6 +680,11 @@ def launch_nested_codex(
     trace_path = run_dir / "decision_trace.json"
     trace = _read_object(trace_path) if trace_path.is_file() else {}
     pre_agent_safe = trace.get("terminal_state") == "SAFE_NO_TRADE" and not trace.get("agents")
+    if final_response_cio and codex_exit_code == 0 and event_error is None and not timed_out:
+        try:
+            _persist_cio_final_response(run_dir, final_text, records)
+        except (OSError, ValueError) as exc:
+            deterministic_continuation["error"] = str(exc)
     draft_ready = all(
         path.is_file()
         for path in (
@@ -528,6 +697,7 @@ def launch_nested_codex(
         codex_exit_code == 0
         and event_error is None
         and not timed_out
+        and deterministic_continuation["error"] is None
         and (pre_agent_safe or draft_ready)
     ):
         deterministic_continuation["attempted"] = True

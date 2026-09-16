@@ -5,10 +5,35 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 from .runtime_profiles import validate_runtime_mode
+from .invocation import build_specialist_dispatch_message, build_specialist_dispatch_ticket, START_CONTEXT_VERSION, LEGACY_START_CONTEXT_VERSION
+
+
+def _dispatch_messages(repository_root: Path, run_dir: Path, agents: list[str]) -> str:
+    version = _read_object(run_dir / "run_manifest.json").get("specialist_context_delivery")
+    if version == START_CONTEXT_VERSION:
+        messages = {agent: build_specialist_dispatch_ticket(repository_root, run_dir, agent) for agent in agents}
+        return ("以下是角色派发说明示例，不要求逐字复制。冻结输入由运行层独立交付，"
+                "不要传入其他 Agent 结论；保持指定角色、任务和隔离参数。\n```json\n"
+                + json.dumps(messages, ensure_ascii=False, indent=2) + "\n```")
+    if version == LEGACY_START_CONTEXT_VERSION:
+        messages = {agent: build_specialist_dispatch_ticket(repository_root, run_dir, agent) for agent in agents}
+        return ("历史 v1 派发契约：将以下对应角色的消息原样传入，不得改写。\n```json\n"
+                + json.dumps(messages, ensure_ascii=False, indent=2) + "\n```")
+    messages = {
+        agent: build_specialist_dispatch_message(repository_root, run_dir, agent)
+        for agent in agents
+    }
+    return (
+        "派发消息映射（JSON 值是完整消息字符串）：解析下列 JSON，将对应角色的值作为 "
+        "spawn_agent 的 message 参数原样传入；不得转抄 ID、删节、补充前后文或自行重组。"
+        "现有 PreToolUse 会拒绝与冻结输入不一致的消息；不得绕过该拒绝。\n```json\n"
+        + json.dumps(messages, ensure_ascii=False, indent=2) + "\n```"
+    )
 
 
 def sessions_root_argument(sessions_root: Path | None = None) -> str:
@@ -62,7 +87,7 @@ def _build_ablation_prompt(
     preparation = (
         "跳过 prepare-cio，因为 CIO 输入已存在。"
         if not specialists
-        else f"完成 Specialist 并由主线程保存报告后运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli prepare-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --model {shlex.quote(model)}`，仅在返回 CIO_SYNTHESIS_REQUIRED 后继续。"
+        else f"完成 Specialist 并由主线程保存报告后运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli prepare-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --model {shlex.quote(model)}`，仅在返回 CIO_SYNTHESIS_REQUIRED 后继续。"
     )
     return f"""$product:portfolio-council
 
@@ -78,18 +103,21 @@ def _build_ablation_prompt(
 1. 读取 run_manifest、Gate、现有 inputs/invocations/prompts 及输出 Schema。{dispatch}
 2. {preparation}
 3. 读取当前 Run 的 CIO input、invocation、prompt 与 Schema。主线程只基于当前 Run 的 Gate-scoped Evidence 和已验证报告（如有）综合；不得读取其他 Run 的 CIO 输出作为格式或结论示例。当 `allowed_evidence_ids` 非空时，至少调用一次 runtime_cio 授权的 `mcp__fixture_runtime__query`，禁止空 Evidence 查询。保存单个合法 JSON 到 `cio/runtime_cio.json`，不得伪造缺席的 Specialist 报告。
-4. 运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli execution-proof --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --sessions-root {sessions_root_argument(sessions_root)}`，必须得到 EXECUTION_PROOF_VERIFIED。
-5. 运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli finalize-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`；如 Risk 要求一次修订，只按 revision request 修订并使用 `--revision`，不得绕过或覆盖 Risk。
+4. 运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli execution-proof --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --sessions-root {sessions_root_argument(sessions_root)}`，必须得到 EXECUTION_PROOF_VERIFIED。
+5. 运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli finalize-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`；如 Risk 要求一次修订，只按 revision request 修订并使用 `--revision`，不得绕过或覆盖 Risk。
 6. 确认生成 decision.json、report.md、decision_trace.json。不得运行产品 `check-run` 冒充可发布；语义 Eval 由外部 dev_eval Job 完成。最终仅报告 run_id、实验 Profile、终态与产物名。
+
+{_dispatch_messages(repository_root, run_dir, specialists) if specialists else ''}
 """
 
 
-def build_smoke_prompt(
+def _build_smoke_prompt(
     run_dir: Path,
     *,
     repository_root: Path,
     defer_deterministic_finalize: bool = False,
     sessions_root: Path | None = None,
+    final_response_cio: bool = False,
 ) -> str:
     """Return instructions only; Codex remains the LLM orchestrator and CIO."""
 
@@ -138,8 +166,8 @@ def build_smoke_prompt(
 严格按以下顺序执行：
 
 1. 只读取 `run_manifest.json`、`evidence/gate.json`、`decision.json`、`report.md` 与 `decision_trace.json`，确认终态为 `SAFE_NO_TRADE`、Trace 中 `agents` 和 `risk_lineage` 均为空，并存在 `PRE_AGENT_SAFE_TERMINATION` 事件。
-2. 运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli eval --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`，要求实际 Eval 消费本次运行产物并返回 `PASSED`。
-3. 运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli check-run --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。不得仅依据 `codex exec` 的 shell exit code判断 Council 成功；只有 `check-run` 返回零才可报告 Release Gate 通过。
+2. 运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli eval --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`，要求实际 Eval 消费本次运行产物并返回 `PASSED`。
+3. 运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli check-run --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。不得仅依据 `codex exec` 的 shell exit code判断 Council 成功；只有 `check-run` 返回零才可报告 Release Gate 通过。
 4. 最终只报告 run_id、`SAFE_NO_TRADE`、Council Gate 状态和三项发布产物文件名。不得输出或执行真实订单。
 """
     if manifest.get("run_mode") == "EVAL_ABLATION":
@@ -154,14 +182,31 @@ def build_smoke_prompt(
         for path in (repository_root / "AGENTS.md", repository_root / "product" / "AGENTS.md")
         if path.is_file()
     )
+    input_read_step = (
+        "只读取 run_dir 内的 `run_manifest.json`、`evidence/gate.json`、`inputs/runtime_company_analyst.json`、"
+        "`inputs/runtime_skeptic.json`、对应 `invocations/*.json`、`prompts/*.txt`，以及每个 Invocation Manifest 的 "
+        "`output_schema` 指向的完整 Schema。逐文件读取并保证输出未截断；禁止合并大批文件导致上下文截断，"
+        "禁止重定向到 /dev/null 后声称已读取。Specialist Schema 是本次 Gate 约束的 run-scoped Schema；"
+        "CIO Schema 保持仓库产品所有。不得读取 audit/fixture_snapshot.json。"
+    )
+    if manifest.get("source_mode") == "live" and manifest.get("specialist_context_delivery") == START_CONTEXT_VERSION:
+        input_read_step = (
+            "准备与 PIT 校验已由运行层完成。使用上方固定参数及下方角色说明直接进入派发；"
+            "不要重复读取完整运行清单、Gate、两份 Specialist 输入/Invocation/Schema。"
+            "各 Specialist 的冻结材料由运行层独立交付，主线程不转抄它们。"
+            "待 prepare-cio 验证报告后，再按第6步读取 CIO 自己的输入与契约。"
+        )
     terminal_steps = (
+        """7. 以最终响应返回单个完整 CIODecisionDraft JSON，不加 Markdown 或状态包装；本次 codex exec 的 --output-schema 已约束顶层及 conflicts 内的 evidence_refs，只能选择 Gate 中的原始 ID。不要另行写入 cio/runtime_cio.json，不要再抄写一份草案。最终响应中的 Skill、invocation_id、consumed_reports 仍须来自第6步的真实输入；禁止编造。
+8. 输出上述 JSON 后停止，不调用 execution-proof、finalize-cio、eval 或 check-run。宿主会原样保存最终响应，再执行既有执行证明、完整 canonical 校验、Risk、Eval 与终态检查。草案不代表已批准建议，禁止真实下单。"""
+        if final_response_cio else
         f"""7. 将单个 CIODecisionDraft JSON 保存为 `cio/runtime_cio.json`。确认两份 Specialist 报告与 CIO 草案均已落盘后停止；不要调用 execution-proof、finalize-cio、eval 或 check-run。外层受信任启动器会在本次 `codex exec --json` 完整结束后，使用 Subagent lifecycle events 和完整 token telemetry 构建执行证明，再执行确定性 Risk Engine、Eval 与终态检查。
 8. 最终只报告 run_id 与 `CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION`。不得把草案称为已批准建议，不得输出或执行真实订单。"""
         if defer_deterministic_finalize
-        else f"""7. 将单个 CIODecisionDraft JSON 保存为 `cio/runtime_cio.json`。随后运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli execution-proof --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --sessions-root {sessions_root_argument(sessions_root)}`。只有返回 `EXECUTION_PROOF_VERIFIED` 才可进入下一步；任何 Agent 身份、Skill、MCP、并行顺序或原始 fixture 访问证据失败都必须停止，且不得发布建议。
-8. 运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli finalize-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。若返回一次 `ONE_CIO_REVISION_REQUIRED`，只依据 `risk/revision-request.json` 修订一次并保存 `cio/runtime_cio_revision.json`，再使用 `--revision` 调用；不得覆盖 Risk Engine 否决。
-9. 仅在获得 `COMPLETED` 或 `SAFE_NO_TRADE` 后运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli eval --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。Eval 必须消费本次真实运行产物并返回 `PASSED`；禁止用静态报告或 test-only bypass 代替。
-10. 运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli check-run --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。不得仅依据 `codex exec` 的 shell exit code 判断 Council 成功；只有 `check-run` 返回零才可报告 Release Gate 通过。最终只报告 run_id、next_state、Council Gate 状态和生成的文件名。不得输出或执行真实订单。"""
+        else f"""7. 将单个 CIODecisionDraft JSON 保存为 `cio/runtime_cio.json`。随后运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli execution-proof --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --sessions-root {sessions_root_argument(sessions_root)}`。只有返回 `EXECUTION_PROOF_VERIFIED` 才可进入下一步；任何 Agent 身份、Skill、MCP、并行顺序或原始 fixture 访问证据失败都必须停止，且不得发布建议。
+8. 运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli finalize-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。若返回一次 `ONE_CIO_REVISION_REQUIRED`，只依据 `risk/revision-request.json` 修订一次并保存 `cio/runtime_cio_revision.json`，再使用 `--revision` 调用；不得覆盖 Risk Engine 否决。
+9. 仅在获得 `COMPLETED` 或 `SAFE_NO_TRADE` 后运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli eval --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。Eval 必须消费本次真实运行产物并返回 `PASSED`；禁止用静态报告或 test-only bypass 代替。
+10. 运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli check-run --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))}`。不得仅依据 `codex exec` 的 shell exit code 判断 Council 成功；只有 `check-run` 返回零才可报告 Release Gate 通过。最终只报告 run_id、next_state、Council Gate 状态和生成的文件名。不得输出或执行真实订单。"""
     )
     return f"""$product:portfolio-council
 
@@ -178,13 +223,61 @@ def build_smoke_prompt(
 0. 本步明确允许读取所选 repository_root 的以下指令文件，按顺序逐一执行，即使启动时已自动加载也必须留下完整读取事件；根开发规则不授予产品开发/归档权限。冻结包中不存在的根指令不从宿主补入。
 {agents_read_steps}
 随后单独读取 `{repository_root / 'product' / 'skills' / 'portfolio-council' / 'SKILL.md'}`，不得与其他文件合并在同一命令中；上述事件用于把实际加载内容绑定到本次 invocation 和源码 hash。完成这些读取之前不得派发 Specialist。
-1. 只读取 run_dir 内的 `run_manifest.json`、`evidence/gate.json`、`inputs/runtime_company_analyst.json`、`inputs/runtime_skeptic.json`、对应 `invocations/*.json`、`prompts/*.txt`，以及每个 Invocation Manifest 的 `output_schema` 指向的完整 Schema。Specialist Schema 是本次 Gate 约束的 run-scoped Schema；CIO Schema 保持仓库产品所有。不得读取 audit/fixture_snapshot.json。
+1. {input_read_step}
 2. 在同一个 assistant 工具调用批次中并行发出两次 collaboration `spawn_agent`；禁止先等待第一条工具调用返回后再发第二条。第一条调用必须包含 `task_name=company_research`、`agent_type=runtime_company_analyst`、`fork_turns=none`；第二条必须包含 `task_name=independent_skeptic`、`agent_type=runtime_skeptic`、`fork_turns=none`。只有两个 Agent handle 都已返回后才允许第一次调用 `wait`；此前禁止读取、保存或等待任何一个 Specialist 结果。生命周期验收要求两个 `SubagentStart` 都早于任一 `SubagentStop`；“先完成 Analyst、再启动 Skeptic”属于非法串行派发，即使最终报告齐全也必须失败。`agent_type` 是必填验收字段，禁止用同名 task_name 代替。两条子任务消息必须逐字包含各自 `prompts/<agent>.txt` 的 task prompt、run_id、invocation_id、run_dir、完整 Agent input、完整 `skill_execution` 数组和 run-scoped 输出 Schema 契约。所有 `evidence_refs` 与 `counter_evidence_refs` 只能从 Agent input 的 `allowed_evidence_ids` 中逐字选择原始 ID；禁止拼接 source_id、as_of、retrieved_at、分隔符或说明文字。来源描述必须放在其他说明字段中，不得污染引用字段。
 3. 两个子 Agent 必须独立调用插件工具 `mcp__fixture_runtime__query`，且必须逐字传入且仅传入 `run_dir`、`run_id`、`agent`、`invocation_id`、`evidence_ids` 五个参数；`evidence_ids` 必须为数组，禁止使用单数 `evidence_id`。若工具返回参数契约错误，只允许按这五个参数纠正后重试一次；不得把工具错误写成无 Evidence 引用的 challenge 或 claim。Company Analyst 可额外调用 `mcp__fixture_runtime__calculate`。calculate 只允许参数 `run_dir`、`run_id`、`agent`、`invocation_id`、`calculation_id`、`operation`、`evidence_ids`；`calculation_id` 必须唯一且非空，`operation` 只能是 `ratio` 或 `percent_change`，`evidence_ids` 必须恰好两个；禁止传 `operands`、`expression` 或 `divide`。不得使用 Shell 或直接文件读取获取 Evidence。要求它们只返回一个 JSON 对象，不加 Markdown。
 4. 两个委派都发出后才可等待。收到结果后，将原样 JSON 分别保存为 `agents/runtime_company_analyst.json` 与 `agents/runtime_skeptic.json`；此时不得自行判断或改写格式错误。
-5. 运行 `cd {shlex.quote(str(repository_root))} && python3 -m product.runtime.cli prepare-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --model {shlex.quote(model)}`。若返回 `ONE_SPECIALIST_FORMAT_REPAIR_REQUIRED`，读取返回的 repair request，只向其中指定的原 Agent/原会话请求一次纯格式修复，并将结果保存到返回的 `repaired_output` 路径；随后只可再运行一次同一 `prepare-cio` 命令。修复不得新增事实、Evidence ID、Agent 身份或 Invocation；第二次仍非法必须停止。只有返回 `CIO_SYNTHESIS_REQUIRED` 才继续。
+5. 运行 `cd {shlex.quote(str(repository_root))} && {shlex.quote(sys.executable)} -m product.runtime.cli prepare-cio --repo {shlex.quote(str(repository_root))} --run-dir {shlex.quote(str(run_dir))} --model {shlex.quote(model)}`。若返回 `ONE_SPECIALIST_FORMAT_REPAIR_REQUIRED`，读取返回的 repair request，只向其中指定的原 Agent/原会话请求一次纯格式修复。修复消息必须附原始报告、validation_error 与本次 output_schema，并逐字传达：复制原始 JSON，仅改动 validation_error 指出的结构错误；其余每个字段、数组元素、字符串和数值原样保留，禁止缩写、润色、重新总结或删除来源/时间说明，uncertainties/data_gaps 也不得改写。若错误仅为 missing=[]、extra=['evidence_refs']，唯一修改就是删除不被该角色 Schema 接受的顶层 evidence_refs，保留 claims/challenges 内的 evidence_refs 及所有陈述不变；不得据此删除其他角色 Schema 允许的字段。将原 Agent 返回的 JSON 原样保存到返回的 `repaired_output` 路径，父线程不得自行编辑修复；随后只可再运行一次同一 `prepare-cio` 命令。修复不得新增事实、Evidence ID、Agent 身份或 Invocation；第二次仍非法必须停止。只有返回 `CIO_SYNTHESIS_REQUIRED` 才继续。
 6. 读取 `inputs/runtime_cio.json`、`invocations/runtime_cio.json`、`prompts/runtime_cio.txt` 和 CIO Schema。你自己担任 CIO，不再启动 CIO 子 Agent。只基于两份已验证报告、Evidence References、机械冲突与组合确定性数据综合；需要核验时调用同一个 fixture MCP，并使用 runtime_cio 的 invocation_id。必须逐字遵守 `prompts/runtime_cio.txt` 中由 canonical decision contract 生成的条件和示例；`consumed_reports` 的 `output_hash` 必须逐字复制 `inputs/runtime_cio.json` 中对应的 `validated_report_hashes`，禁止运行 `shasum` 或自行计算文件字节哈希。输出必须显式记录 consensus、conflicts、unresolved_questions、invalidation_conditions、confidence_rationale，允许 NO_TRADE，禁止固定结论。
 {terminal_steps}
 
 任何非法 JSON、Schema、Evidence Closure、身份、执行元数据或持久化错误都是 FAILED_VALIDATION，不得改写成投资性 NO_TRADE。
 """
+
+
+def build_smoke_prompt(run_dir: Path, *, repository_root: Path,
+                       defer_deterministic_finalize: bool = False, sessions_root: Path | None = None,
+                       final_response_cio: bool = False) -> str:
+    """复用同一委派流程，按已验证来源选择工具与证据边界。"""
+    manifest = _read_object(run_dir.resolve() / "run_manifest.json")
+    mode = manifest.get("source_mode", "fixture")
+    if mode not in ("fixture", "live"):
+        raise ValueError("UNKNOWN_SOURCE_MODE")
+    if final_response_cio and (mode != "live" or not defer_deterministic_finalize):
+        raise ValueError("CIO_FINAL_RESPONSE_MODE_INVALID")
+    if mode == "live":
+        from .live_context import load_live_run_context
+        load_live_run_context(run_dir, manifest)
+        if manifest.get("run_mode") != "PRODUCT_COUNCIL":
+            raise ValueError("LIVE_TOPOLOGY_NOT_SUPPORTED")
+    prompt = _build_smoke_prompt(run_dir, repository_root=repository_root,
+                                 defer_deterministic_finalize=defer_deterministic_finalize, sessions_root=sessions_root,
+                                 final_response_cio=final_response_cio)
+    agents = ["runtime_company_analyst", "runtime_skeptic"]
+    # Append after profile localization: never replace text inside frozen input values.
+    dispatch = (
+        "\n" + _dispatch_messages(repository_root, run_dir, agents)
+        if manifest.get("run_mode") != "EVAL_ABLATION"
+        and any((run_dir / "invocations" / f"{agent}.json").is_file() for agent in agents)
+        else ""
+    )
+    if mode == "fixture":
+        return prompt + dispatch
+    if manifest.get("specialist_output_delivery") in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}:
+        prompt = prompt.replace(
+            "收到结果后，将原样 JSON 分别保存为 `agents/runtime_company_analyst.json` 与 `agents/runtime_skeptic.json`；此时不得自行判断或改写格式错误。",
+            "两位 Specialist 的最终 JSON 已由运行层直接保存到 agents/runtime_company_analyst.json 与 agents/runtime_skeptic.json。不得转抄、重新序列化、编辑或覆盖这两份文件；缺少文件立即停止，不从消息手工补写。下一步 prepare-cio 直接消费原样产物。")
+    prompt = (prompt.replace("fixture Council", "live-us-equity Council")
+              .replace("mcp__fixture_runtime__", "mcp__live_runtime__")
+              .replace("同一个 fixture MCP", "同一个 live MCP")
+              .replace("fixture_snapshot.json", "live/snapshot.json")
+              .replace("CIO Schema 保持仓库产品所有", "CIO Schema 为本次 live 允许动作约束的 run-scoped Schema")
+              .replace("只有 `check-run` 返回零才可报告 Release Gate 通过", "`check-run` 返回零只表示运行安全，不能报告研究质量通过"))
+    if manifest.get("specialist_context_delivery") == START_CONTEXT_VERSION:
+        prompt = prompt.replace(
+            "两条子任务消息必须逐字包含各自 `prompts/<agent>.txt` 的 task prompt、run_id、invocation_id、run_dir、完整 Agent input、完整 `skill_execution` 数组和 run-scoped 输出 Schema 契约。",
+            "两条子任务使用简洁研究说明，不要求逐字复制下方示例。冻结 Input/Invocation/Prompt/Schema 由运行层交付，Agent 无需回传 context_receipt 或证明性 hash；缺少正确输入立即停止，不猜测身份。")
+    return prompt + dispatch + ("\nlive 附加边界：完整读取已加载 portfolio-council Skill 指向的 references/live-us-equity.md。"
+                     "根据本子运行的显式 focus_security_id 研究；禁止直接读取 audit/live/snapshot.json、"
+                     "audit/live/objects 或其他原始缓存，不得再次访问 Yahoo/SEC。只允许 HOLD/TRIM/EXIT/NO_TRADE。"
+                     "native Eval 不替代实际语义 Eval；不要宣称研究质量或 Change 已通过。\n")

@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Live portfolio",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "base_currency",
+    "portfolio_complete",
+    "synthetic_portfolio",
+    "source_id",
+    "as_of",
+    "retrieved_at",
+    "cash",
+    "holding_horizon",
+    "research_question",
+    "mandate",
+    "positions",
+    "focus_security_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "live-portfolio/1.0.0",
+      "type": "string"
+    },
+    "base_currency": {
+      "const": "USD",
+      "type": "string"
+    },
+    "portfolio_complete": {
+      "type": "boolean",
+      "const": true
+    },
+    "synthetic_portfolio": {
+      "type": "boolean"
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "as_of": {
+      "type": "string",
+      "minLength": 20
+    },
+    "retrieved_at": {
+      "type": "string",
+      "minLength": 20
+    },
+    "cash": {
+      "type": "number",
+      "minimum": 0
+    },
+    "holding_horizon": {
+      "type": "string",
+      "minLength": 1
+    },
+    "research_question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mandate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "max_position_weight",
+        "minimum_cash_weight"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "max_position_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "minimum_cash_weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "positions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "security_id",
+          "ticker",
+          "exchange",
+          "share_class",
+          "quantity"
+        ],
+        "properties": {
+          "security_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ticker": {
+            "type": "string",
+            "pattern": "[A-Z][A-Z0-9.-]{0,14}"
+          },
+          "exchange": {
+            "enum": [
+              "XNYS",
+              "XNAS",
+              "XASE"
+            ],
+            "type": "string"
+          },
+          "share_class": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "cost_basis": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "focus_security_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

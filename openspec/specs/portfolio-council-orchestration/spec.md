@@ -149,22 +149,57 @@ CIO-only、Company Analyst + CIO 和完整双 Specialist Council MUST 作为显�
 - **WHEN** Regression 案例只验证悬空 Evidence、Schema、PIT 或 Risk 的确定性 fail-closed 行为
 - **THEN** Runner 不调用 LLM，并在报告中记录零 token 与确定性执行原因
 
-### Requirement: CouncilRequest 必须与 PortfolioHandoff 独立版本化
-系统 SHALL 使用独立 `CouncilRequest` 表达一次多 Agent 研究请求。它 MUST 通过 `handoff_id`、`handoff_hash` 和 `portfolio_hash` 引用一个已确认的中立 `PortfolioHandoff v3`，并承载 `research_question`、`holding_horizon`、`research_scope`、`benchmark_id`、`mandate_artifact_id` 和可选用户约束。`PortfolioHandoff` 不得复制这些任务字段；对同一 Handoff 创建不同 CouncilRequest MUST NOT 改变 Handoff hash 或要求用户重新确认账户状态。
+### Requirement: Agent Package Demo 与真实 Portfolio Council 必须分离
+系统 SHALL 将 `DEMO_SCAFFOLD` 作为开发控制面的装配验证 Profile，而不是现有真实 `portfolio-council` 产品 Profile。Demo MAY 使用确定性 Adapter 产生示例角色输出，并静态验证实际 `portfolio-council` Skill 与 Agent Package 绑定；它 MUST NOT 声称入口 Skill 已执行推理、Codex 主线程已担任 CIO 或真实 Subagent 已启动。真实 fixture 或 live 产品 Profile 仍 MUST 使用其声明的真实 Codex Agent、Skill 和 LLM 约束，不得自动降级到 Demo Adapter。
 
-当前产品约定 `research_scope: ALL_INPUT_POSITIONS`，因此 CouncilRequest 的研究证券集合 MUST 与 Handoff 的全部 Position 完全一致，不得只选部分持仓。CouncilRequest 的缺失任务字段必须由 Council 在 Agent 启动前请求补充或安全停止，不得通过修改 Handoff 填充哨兵字符串。
+#### Scenario: 运行 Demo Profile
+- **WHEN** 开发者显式选择 `DEMO_SCAFFOLD`
+- **THEN** 系统执行固定多 Agent 数据流且不启动真实 LLM，验证实际 Package 静态绑定，并在全部产物中保留 Demo 身份和未执行真实 Skill/CIO/Subagent 的边界
+
+#### Scenario: 真实产品 Agent 调用失败
+- **WHEN** 真实 `portfolio-council` Profile 无法调用声明的 LLM Agent
+- **THEN** 真实运行按原契约失败或安全终止，不切换到 Demo Adapter 伪造产品报告
+
+### Requirement: Demo 拓扑必须传递经过验证的上游对象
+Demo 编排 SHALL 逻辑 fan-out 两份独立输入给 Company Analyst 和 Independent Skeptic，并在 fan-in 后将两份结构化响应作为 CIO 的显式输入，再将 CIO 草案作为 deterministic Risk Engine 的显式输入。任何阶段 MUST 在传递前校验发送者、接收者、`run_id`、`invocation_id` 和 Evidence References，并由编排层保存 Dispatch Record；禁止让 Agent 自行选择下一节点，也禁止使用同一个回调冒充多个 Agent 身份。
+
+#### Scenario: Agent 输出传给下一个节点
+- **WHEN** 一个 Demo Agent 返回合法响应
+- **THEN** 编排器将该原始结构化对象作为下一节点输入的一部分并保留发送者与接收者，不通过重新生成文本替代传递
+
+#### Scenario: 响应来自错误运行
+- **WHEN** CIO 输入包含其他 `run_id` 的 Specialist 响应
+- **THEN** 编排器在 CIO 响应前拒绝该输入并报告跨运行传递错误
+
+### Requirement: Demo Adapter 必须保留到真实 Agent 的替换接缝
+Demo AgentPort 和只读 ToolPort SHALL 与未来 Codex Agent/MCP Adapter 使用相同的请求、响应和角色输出边界。将任一 Demo Specialist 替换成真实 Codex Subagent，或将 CIO Demo Adapter 替换成当前主线程 CIO 时，MUST NOT 要求下游重写 Portfolio、Evidence、专业报告、CIO Draft 或 Risk 契约。
+
+#### Scenario: 后续替换 Company Analyst
+- **WHEN** 后续 Change 为 Company Analyst 接入真实 Codex Subagent 和专业 Skills
+- **THEN** 该 Agent 仍消费同一类 Gate-scoped 请求并产生同一角色报告，CIO 和 Risk 接口无需因生产者变化而修改
+
+### Requirement: CouncilRequest 必须与 PortfolioHandoff 独立版本化
+系统 SHALL 使用独立 `CouncilRequest` 表达研究请求，通过 `handoff_id`、`handoff_hash` 和 `portfolio_hash` 引用已确认的中立 `PortfolioHandoff v3`。研究请求 SHALL 承载研究问题、期限、范围、比较基准、组合约束引用及可选用户约束；持仓交接对象不得复制这些任务字段。对同一持仓创建不同请求 MUST NOT 改变持仓 hash 或要求重新确认账户状态。
+
+系统 SHALL 从用户研究意图自动构造请求。新增版本的显式 `COMMON_STOCK_RESEARCH` 阶段允许 `holding_horizon`、`benchmark_id` 与 `mandate_artifact_id` 为 null，表示未知期限或本阶段不需要的组合字段；不得填入假值。期限未知时只作当前公司研究并说明限制，不输出期限性组合结论。旧版本及完整 Council 阶段仍按其必要输入约束校验，进入完整决策前必须补齐适用信息。
+
+当前产品约定 `research_scope: ALL_INPUT_POSITIONS`，请求证券集合 MUST 与持仓全部 Position 一致，不得通过缩小请求范围隐瞒资产能力缺口。真正必需字段缺失时 SHALL 请求补充或安全停止，不把哨兵字符串写入持仓交接对象。
 
 #### Scenario: 对同一持仓提出不同问题
-- **WHEN** 用户先后对同一个 Handoff 提出“是否继续持有”和“未来三个月主要风险”两个研究问题
-- **THEN** 系统生成两个不同 CouncilRequest，但两者引用相同 Handoff/Portfolio hash 且不要求重新确认持仓
+- **WHEN** 用户先后对同一个持仓交接对象提出是否继续持有和未来三个月风险问题
+- **THEN** 系统生成不同请求但引用相同持仓 hash，不要求重新确认账户状态
 
 #### Scenario: 持有期限未知
-- **WHEN** 用户尚未提供持有期限
-- **THEN** CouncilRequest 将期限保留为明确未知或停在补充输入状态，不把 `UNSPECIFIED_REQUIRES_COUNCIL_CLARIFICATION` 等哨兵文本写入 PortfolioHandoff
+- **WHEN** 用户未提供期限且调用显式普通股研究阶段
+- **THEN** 新版请求记录 null 和研究限制，不猜测期限；完整决策阶段仍检查所需期限
 
 #### Scenario: 研究请求遗漏部分持仓
-- **WHEN** CouncilRequest 声明 `ALL_INPUT_POSITIONS` 但其研究证券集合少于 Handoff
-- **THEN** 确定性校验在任何 Agent 前拒绝该请求
+- **WHEN** 请求声明 ALL_INPUT_POSITIONS 但证券集合少于确认持仓
+- **THEN** 在 Agent 启动前拒绝请求
+
+#### Scenario: 公司研究未指定比较基准和组合约束
+- **WHEN** 用户已有确认持仓并仅请求公司研究
+- **THEN** 系统自动构造新版阶段请求，相应非必需字段为 null，不要求用户为此额外准备文件
 
 ### Requirement: Council 规划只能消费确认状态与研究请求的组合
 Council 的最小确定性规划接缝 SHALL 同时消费一个有效 `PortfolioHandoff v3` 和与之绑定的有效 `CouncilRequest`，再根据自身版本和 Product Profile 产生能力映射、能力缺口、批次及 Research Plan。规划产物 MUST 标记 `planning_only: true`，保留输入 hash 和全部持仓覆盖状态；它不得获取研究 Evidence、启动 Agent、生成 Thesis、动作、Risk 结果或最终报告。
@@ -178,9 +213,11 @@ Council 的最小确定性规划接缝 SHALL 同时消费一个有效 `Portfolio
 - **THEN** 规划接缝 fail closed，不生成 Research Plan
 
 ### Requirement: Portfolio Council 必须接受全持仓研究 Handoff
-`portfolio-council` SHALL 接受通过确定性校验的中立 `PortfolioHandoff v3` 和独立 `CouncilRequest`，并在两者绑定通过后，根据每项持仓的 `asset_type` 和当前产品 Profile 建立 Research Capability 映射、能力可用性判断、研究计划、批次与 Agent 派发。Handoff 中每个持仓证券 MUST 进入后续规划，CIO 与 Risk MUST 接收同一完整 Portfolio；未确认、确认失效、不完整、请求绑定错误或 Portfolio hash 不一致的输入 MUST 在任何研究 Agent 启动前失败。
+`portfolio-council` SHALL 接受通过确定性校验的中立 `PortfolioHandoff v3` 和独立 `CouncilRequest`，并在两者绑定通过后，根据每项持仓的 `asset_type` 和当前产品 Profile 建立 Research Capability 映射、能力可用性判断、研究计划、批次与 Agent 派发。Handoff 中每个持仓证券 MUST 进入后续规划，且任何已启动阶段都 MUST 保留同一完整 Portfolio hash；未确认、确认失效、不完整、请求绑定错误或 Portfolio hash 不一致的输入 MUST 在任何研究 Agent 启动前失败。
 
-Handoff 包含 ETF 或期权时，Council 前置规划 MUST 保留这些资产并声明所需研究能力。若当前候选版本没有对应 Skill/Agent，Council MUST 以明确能力缺口停止，不得要求 Intake 预先计算能力状态，不得将这些资产交给 Company Analyst 冒充专业覆盖，也不得仅研究普通股后声称组合完成。
+Handoff 包含 ETF 或期权时，Council 前置规划 MUST 保留这些资产并声明所需研究能力。若当前候选版本没有对应 Skill/Agent，默认完整 Council MUST 以明确能力缺口停止，不得要求 Intake 预先计算能力状态、不得将这些资产交给 Company Analyst 冒充专业覆盖，也不得仅研究普通股后声称组合完成。
+
+显式普通股研究阶段 MAY 在完整 Council 尚不具备 ETF/期权能力时，对规划中标记为可用的普通股有界并行启动 Company Analyst，同时保存全部持仓覆盖清单、未研究资产及能力缺口。该阶段 SHALL 止于研究报告集，不自动启动 Skeptic、CIO 决策或 Risk；无论输入是否全为普通股，都不得把它视为完整 Council。混合资产未覆盖时 MUST 标记 PARTIAL_RESEARCH，不得把部分覆盖作为完整 Council、完整 Portfolio Risk 或候选版本晋升证据。原 planning_only 入口 MUST 保持零 Agent 调用。
 
 #### Scenario: 十只持仓全部交接
 - **WHEN** 中立 Handoff 包含十只已确认持仓且 CouncilRequest 声明 `ALL_INPUT_POSITIONS`
@@ -191,12 +228,32 @@ Handoff 包含 ETF 或期权时，Council 前置规划 MUST 保留这些资产�
 - **THEN** Council 在研究前拒绝输入并返回需要补全、迁移或确认的原因
 
 #### Scenario: 多资产 Handoff 缺少研究能力
-- **WHEN** Handoff 同时包含普通股、ETF 和期权，但当前运行版本只有公司研究能力
-- **THEN** Council 自行识别并报告缺少 ETF/期权能力，保留全部研究对象且不启动不完整的 Council
+- **WHEN** Handoff 同时包含普通股、ETF 和期权，但当前运行版本只有公司研究能力且调用默认完整 Council
+- **THEN** Council 自行识别并报告缺少 ETF/期权能力，保留全部研究对象且不启动不完整的完整 Council
+
+#### Scenario: 显式执行普通股部分研究
+- **WHEN** 同一混合资产 Handoff 进入显式普通股研究阶段
+- **THEN** Council 只为普通股生成独立 Company Analyst 研究请求，保留 ETF/期权为能力缺口，并输出不得被解释为完整组合建议的覆盖状态和普通股研究产物
+
+#### Scenario: 完整组合暂时不能估值
+- **WHEN** ETF/期权价格或账户保证金缺失但对应普通股资料有效
+- **THEN** 显式普通股阶段不执行完整组合估值作为前置门槛，保留完整持仓引用继续研究；完整决策阶段的核算与风险要求保持不变
 
 #### Scenario: Intake Handoff 夹带能力状态
 - **WHEN** v3 Handoff 包含能力状态、研究计划、研究问题、持有期限、benchmark 或 Mandate
 - **THEN** Council 拒绝混合边界输入，不信任 Intake 代替 Council 生成的能力状态
+
+#### Scenario: 公司研究入口直接承接确认持仓
+- **WHEN** 用户通过 portfolio-council Skill 提出研究意图，已有有效确认 Handoff，并可选指定研究模型
+- **THEN** Skill 接续确认结果，经现有宿主承载自动派生请求并准备公司资料，不要求用户转换持仓文件或传入 Gate；所选模型作用于本批 Analyst，父运行与评分模型分别记录，普通使用不隐式启动评分
+
+#### Scenario: 资产覆盖与专业方向覆盖不同
+- **WHEN** 所有普通股均已生成公司报告，但尚未开展市场、板块、图形或资金研究
+- **THEN** 清单与报告仍明确本阶段专业范围，普通股全部处理不等于全维度研究完成，未研究方向不被当成无风险或公司研究的前置门槛
+
+#### Scenario: 归集实际评价
+- **WHEN** 某份公司报告的绑定有效 Eval 已完成
+- **THEN** 覆盖清单关联该报告真实评价状态和产物路径，不继续显示未评估或借用不同报告的 PASS，其他持仓状态保持独立
 
 ### Requirement: 大组合只能透明分批而不能减少研究范围
 后续 Council 执行 MAY 使用有界并发或分批处理全部持仓，但 MUST 保存总数、已完成、待处理和失败项目。只要有持仓尚未形成规定的研究状态，系统 MUST NOT 声称全部组合研究完成；批大小和并发限制不得写成 Portfolio Schema 的持仓数量上限。

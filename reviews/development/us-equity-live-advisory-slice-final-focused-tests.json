@@ -1,0 +1,78 @@
+{
+  "schema_version": "development-focused-test-evidence/1.0.0",
+  "change_id": "us-equity-live-advisory-slice",
+  "executed_at": "2026-09-15T18:21:40Z",
+  "environment": {
+    "cwd": "/Users/caihaoming/Documents/stock_agent",
+    "tmpdir": "/private/tmp",
+    "python_bytecode_disabled": true,
+    "network_used": false,
+    "product_llm_used": false
+  },
+  "unittest": {
+    "command": "env TMPDIR=/private/tmp PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest tests.test_live_host_entry tests.test_live_cli tests.test_live_profile tests.test_live_contracts_gate tests.test_live_collection tests.test_common_stock_research_contracts tests.test_live_admission tests.test_live_source_routing tests.test_live_nasdaq tests.test_live_yahoo_transport tests.test_live_eastmoney_transport tests.test_live_sec tests.test_live_sec_client tests.test_live_filing_selection tests.test_live_financials tests.test_live_security_metadata tests.test_multidimensional_stage tests.test_research_materials_stage tests.test_portfolio_council_skill",
+    "exit_code": 0,
+    "tests_run": 301,
+    "skipped": 10,
+    "status": "PASSED",
+    "raw_output": "Ran 301 tests in 2.084s\n\nOK (skipped=10)"
+  },
+  "openspec": {
+    "command": "openspec validate us-equity-live-advisory-slice --strict",
+    "exit_code": 0,
+    "status": "PASSED",
+    "raw_output": "Change 'us-equity-live-advisory-slice' is valid"
+  },
+  "scope_boundary": {
+    "proves": [
+      "Handoff 数据准备与多持仓无固定产品上限",
+      "主备来源与准入接缝",
+      "PIT 与 Evidence Closure",
+      "逐证券失败隔离",
+      "冻结 source package 与 Agent 前 fail-closed 绑定",
+      "旧入口退役和必要共享消费者保留"
+    ],
+    "does_not_prove": [
+      "真实 Provider 当前可用性",
+      "研究资料充分性",
+      "Company Analyst 语义质量",
+      "完整 Council、Risk、Regression、Release Gate 或 Promotion"
+    ]
+  },
+  "sha256": {
+    "openspec/changes/us-equity-live-advisory-slice/proposal.md": "e1431ba034ca52e91523944370114c783c3869e791267ef78abef16a0d3db3fd",
+    "openspec/changes/us-equity-live-advisory-slice/design.md": "3ff05e75fa6cb3e62bb7934d5a2f16a0d939239971914f3f0916c516883433cd",
+    "openspec/changes/us-equity-live-advisory-slice/tasks.md": "0cca5084c44b0d57e41aff70fe6d9e46a540343020e99a3f177cda0130cf066f",
+    "openspec/changes/us-equity-live-advisory-slice/specs/live-us-equity-data/spec.md": "9ca8ac74b62363044dc825e54a6ea695d1e8d2742905fe20913cc385fd31b849",
+    "product/runtime/common_stock_data.py": "6b899c9097e2e1f2e5711aa35b56b3614fbe6e8401c391d5769fbc0803b72fa0",
+    "product/runtime/common_stock_stage.py": "e62e66fbfd46a2e0bde19f2bbf7e6290efec410818d489755bf3bb4f3097955f",
+    "product/council/common_stock_research.py": "31990cbaec95bc07f6033aee3698f1126caee7091e196f4d54aadedd2806c27c",
+    "product/mcp/live/collection.py": "2646e232b99b8ae6255ba20e3267fdefa502dd62f39274c6d3ad7bcdf49668b3",
+    "product/runtime/cli.py": "469ed6f5e3109986e93e71b17529d3f812f4e72fcbe7f656b4e6f3e0b2e8be45",
+    "scripts/run-product-smoke.sh": "e53e0a746637cd2c281ccae558bc4fa5d9ab188f1873a162405eea41c932d537",
+    "product/schemas/runtime/live-snapshot-v4.schema.json": "625152e883e07022c44bdc47969cfbc2c150ae9610104fa039f369d4449479ff",
+    "product/schemas/runtime/live-source-access-v4.schema.json": "a5fcecc2c492bb63b9a1b736af6f6f7a4d2c5486a9188949187d056257a39c15",
+    "product/mcp/live/personal-research-approval.json": "ea10c888f417bb370a63377936646fff478539694a47f3cb3aa4182a88141c11",
+    "product/version-manifest.json": "698cce75e254fe90e9459e07300a11632ee6aa501fe8ec4c267f83cb7af0e181",
+    "product/skills/portfolio-council/SKILL.md": "ed69a4603d431b5b7d4576c917021987e03719dc97bef772e9e3a1b22e345095",
+    "tests/test_live_host_entry.py": "b80fc0b4a43014dbcf799875cda4cba3b1079bb2ce2c0ec60bd137ea536de2a9",
+    "tests/test_live_cli.py": "535ca9aeeb12a6037d462cba94f05011f3394033da250244af0a06ab88eb28eb",
+    "tests/test_live_profile.py": "48bf12ba78db14c4a3e8a464f6c465dced6d31a2b4452e5b90ec6eb6b1914a5d",
+    "tests/test_live_contracts_gate.py": "9114b32b35a1a615a363fecfbade24ff363257f47958a67382ecb35cd995eb1d",
+    "tests/test_live_collection.py": "9249b3f453e3cea6333e2569951f80a258994517955207d6c3212de90eca45f2",
+    "tests/test_common_stock_research_contracts.py": "de7de23e2cd01a032fe6781d3ced1dffdfca050c3f28627cf4ad2d92dd0fe104",
+    "tests/test_live_admission.py": "91b5fa3ea9b6fce802021ef27f679c651efc37604b07d74de29212ec12cfa14e",
+    "tests/test_live_source_routing.py": "15c4073f57e7d29939ba53bf5d4a8cbec8979b1abf950d4ef01af1332871ce30",
+    "tests/test_live_nasdaq.py": "6137b8fab9e920aaf894091dd02dc88e15346063fe7f1d57551cae826218b7e6",
+    "tests/test_live_yahoo_transport.py": "277995b3211b0a1db563da5e42eeb8286acfb287346cd0c0dd8a21e3a6704770",
+    "tests/test_live_eastmoney_transport.py": "28456805dbac20f3c106637b6596fdb41c7d30e7dbde8fcfab79a9f8836717e9",
+    "tests/test_live_sec.py": "22b82c8e655edad1e05f1efba54658db70728578f45b2ba65716b96ca65fd6db",
+    "tests/test_live_sec_client.py": "d54d1f0001ac786c78e86455c3184a1412365ddad86d37414f05d3b9f58e3807",
+    "tests/test_live_filing_selection.py": "eaf0870edeb9a8659dda2ecf4864d5c2dad1112bc11f3e25c216b41b0ea41e3c",
+    "tests/test_live_financials.py": "b3a4ba1af544cc78005211214f9e88d3c10709387c8f35932d3ca18c3426eab0",
+    "tests/test_live_security_metadata.py": "ab1203a209379ab785833a23d9efb991cc2dd6a1e4c4f2a32e39769087f95c36",
+    "tests/test_multidimensional_stage.py": "0200ba0181c543c2803c46bcd618b4e8c845a7d55af2f70fc983b6119a1973cf",
+    "tests/test_research_materials_stage.py": "81148a58bed039ca646ee4c2d2ab9f3b70ad4e620012ded74d0cae35d0418b80",
+    "tests/test_portfolio_council_skill.py": "7a7e54ad2d24a961776befa76736ef4ffdc4ad94c08ab6a86b9fd4c62dc8625f"
+  }
+}

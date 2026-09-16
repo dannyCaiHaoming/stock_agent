@@ -1,0 +1,27 @@
+{
+  "policy_version": "eastmoney-us-identity/1.0.0",
+  "provider": "eastmoney",
+  "client": "akshare/1.18.94",
+  "market_codes": {"XNAS": 105, "XNYS": 106, "XASE": 107},
+  "ticker_policy": "uppercase_alphanumeric_only_no_implicit_punctuation_conversion",
+  "currency": "USD",
+  "verification": "adapter_convention_plus_actual_response_market_code_and_SEC_ticker_map_and_cover",
+  "sources": [
+    {
+      "source_id": "akshare-us-hist-unit-contract",
+      "source_locator": "https://akshare.akfamily.xyz/data/stock/stock.html",
+      "as_of": null,
+      "retrieved_at": "2026-09-10",
+      "time_precision": "day/publication_date_unknown",
+      "supports": "stock_us_hist open/close/high/low are denominated in USD"
+    },
+    {
+      "source_id": "valuecell-akshare-exchange-convention",
+      "source_locator": "https://raw.githubusercontent.com/ValueCell-ai/valuecell/main/python/valuecell/adapters/assets/akshare_adapter.py",
+      "as_of": null,
+      "retrieved_at": "2026-09-10",
+      "time_precision": "day/publication_date_unknown",
+      "supports": "implementation convention NASDAQ=105 NYSE=106 AMEX=107; not an upstream identity guarantee"
+    }
+  ]
+}

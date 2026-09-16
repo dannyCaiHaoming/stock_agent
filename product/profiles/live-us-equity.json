@@ -1,0 +1,83 @@
+{
+  "profile_id": "live-us-equity/4.0.0",
+  "source_mode": "live",
+  "entry_skill": "portfolio-council",
+  "working_directory": "product",
+  "providers": [
+    "nasdaq",
+    "yahoo",
+    "eastmoney",
+    "sec"
+  ],
+  "allowed_actions": [
+    "HOLD",
+    "TRIM",
+    "EXIT",
+    "NO_TRADE"
+  ],
+  "max_positions": 3,
+  "base_currency": "USD",
+  "parallel_first_pass": [
+    "runtime_company_analyst",
+    "runtime_skeptic"
+  ],
+  "agents": {
+    "runtime_company_analyst": {
+      "version": "3.0.18",
+      "config_file": ".codex/agents/runtime_company_analyst.toml",
+      "skills": [
+        "evidence-grounding",
+        "company-research",
+        "valuation",
+        "catalyst-analysis"
+      ],
+      "tool_permissions": [
+        "live_evidence.query",
+        "live_math.calculate"
+      ]
+    },
+    "runtime_skeptic": {
+      "version": "2.1.0",
+      "config_file": ".codex/agents/runtime_skeptic.toml",
+      "skills": [
+        "evidence-grounding",
+        "counter-thesis"
+      ],
+      "tool_permissions": [
+        "live_evidence.query"
+      ]
+    },
+    "runtime_cio": {
+      "version": "3.1.0",
+      "config_file": ".codex/agents/runtime_cio.toml",
+      "skills": [
+        "portfolio-council"
+      ],
+      "tool_permissions": [
+        "live_evidence.query"
+      ]
+    }
+  },
+  "freshness_policy_version": "live-freshness/1.0.0",
+  "mcp_adapter_version": "live-gate-scoped/1.0.0",
+  "schema_files": {
+    "portfolio": "schemas/runtime/live-portfolio.schema.json",
+    "fact": "schemas/runtime/live-fact.schema.json",
+    "fact-v2": "schemas/runtime/live-fact-v2.schema.json",
+    "source-access": "schemas/runtime/live-source-access-v4.schema.json",
+    "snapshot": "schemas/runtime/live-snapshot-v4.schema.json",
+    "universe": "schemas/runtime/live-universe.schema.json",
+    "source-selection": "schemas/runtime/live-source-selection.schema.json",
+    "batch": "schemas/runtime/live-batch.schema.json"
+  },
+  "disabled_capabilities": [
+    "web_search",
+    "apps",
+    "agent_provider_access",
+    "broker",
+    "account_mutation",
+    "order_execution"
+  ],
+  "execution_replay_acceptance": "OUT_OF_SCOPE",
+  "source_isolation": "UNVERIFIED"
+}

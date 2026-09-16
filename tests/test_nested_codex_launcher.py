@@ -13,6 +13,7 @@ from product.runtime.nested_codex import (
     launch_nested_codex,
 )
 from product.runtime.codex_hook_recorder import handle_hook_event, record_hook_event
+from product.runtime.invocation import build_specialist_dispatch_message
 from product.runtime.run_package import _record_all_artifacts, prepare_run
 from product.runtime.execution_proof import verify_agents_instruction_load
 from tests.test_agents_instruction_proof import bind_instruction_fixture
@@ -47,7 +48,8 @@ class NestedCodexLauncherTests(unittest.TestCase):
             self.assertIn(expected, command)
         self.assertNotIn("--ignore-user-config", command)
         self.assertTrue(any(item.startswith("hooks.PreToolUse=") for item in command))
-        self.assertTrue(any("collaborationspawn_agent" in item for item in command))
+        dispatch_config = next(item for item in command if item.startswith("hooks.PreToolUse="))
+        self.assertNotIn("matcher=", dispatch_config)
         self.assertTrue(any(item.startswith("hooks.SubagentStart=") for item in command))
         self.assertTrue(any(item.startswith("hooks.SubagentStop=") for item in command))
 
@@ -75,6 +77,97 @@ class NestedCodexLauncherTests(unittest.TestCase):
             run.assert_not_called()
             mkdir.assert_not_called()
             read.assert_not_called()
+
+    def test_command_can_bind_fixture_mcp_to_one_run_directory(self):
+        run_dir = Path("/tmp/common-stock-run")
+        command = build_nested_codex_command(
+            codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
+            model="gpt-5.6-terra", sqlite_home=run_dir / ".codex-runtime/sqlite",
+            log_dir=run_dir / ".codex-runtime/logs",
+            final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
+            hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
+            fixture_mcp_run_dir=run_dir,
+        )
+        override = next(
+            item for item in command if item.startswith("mcp_servers.fixture_runtime=")
+        )
+        self.assertIn('"--default-run-dir","/private/tmp/common-stock-run"', override)
+        self.assertIn(
+            'enabled_tools=["query","calculate","research_search","research_fetch"]',
+            override,
+        )
+        self.assertNotIn("danger-full-access", override)
+
+    def test_fixture_mcp_virtualenv_is_visible_to_subagent_sandbox(self):
+        run_dir = Path("/tmp/common-stock-run")
+        with (
+            patch("product.runtime.nested_codex.sys.executable", "/private/tmp/runtime-venv/bin/python"),
+            patch("product.runtime.nested_codex.sys.prefix", "/private/tmp/runtime-venv"),
+            patch("product.runtime.nested_codex.sys.base_prefix", "/Library/Python"),
+            patch(
+                "product.runtime.nested_codex.Path.resolve",
+                autospec=True,
+                side_effect=lambda path: (
+                    Path("/Library/Python/bin/python3")
+                    if str(path) == "/private/tmp/runtime-venv/bin/python"
+                    else path
+                ),
+            ),
+        ):
+            command = build_nested_codex_command(
+                codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
+                model="gpt-5.6-terra", sqlite_home=run_dir / ".codex-runtime/sqlite",
+                log_dir=run_dir / ".codex-runtime/logs",
+                final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
+                hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
+                fixture_mcp_run_dir=run_dir,
+            )
+        add_dirs = [
+            command[index + 1]
+            for index, value in enumerate(command[:-1]) if value == "--add-dir"
+        ]
+        self.assertEqual(
+            ["/tmp/common-stock-run", "/private/tmp/runtime-venv"], add_dirs
+        )
+        override = next(
+            item for item in command if item.startswith("mcp_servers.fixture_runtime=")
+        )
+        self.assertIn('command="/bin/sh"', override)
+        self.assertIn('runtime/launch_fixture_mcp.sh', override)
+        self.assertIn(
+            'STOCK_AGENT_FIXTURE_MCP_PYTHON="/Library/Python/bin/python3"', override
+        )
+        self.assertIn(
+            'STOCK_AGENT_FIXTURE_MCP_PYTHONPATH="', override
+        )
+        self.assertIn('/stock_agent:/private/tmp/runtime-venv/lib/python', override)
+        self.assertIn('/site-packages"}', override)
+        self.assertIn(
+            'mcp_servers.live_runtime={command="/usr/bin/false",enabled=false}',
+            command,
+        )
+
+    def test_multidimensional_matcher_can_include_market_agent_without_changing_default(self):
+        run_dir = Path("/tmp/multidimensional-run")
+        arguments = dict(
+            codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
+            model="gpt-5.6-terra", sqlite_home=run_dir / ".codex-runtime/sqlite",
+            log_dir=run_dir / ".codex-runtime/logs",
+            final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
+            hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
+        )
+        default_command = build_nested_codex_command(**arguments)
+        multidimensional_command = build_nested_codex_command(
+            **arguments,
+            hook_agent_matcher="^(runtime_company_analyst|runtime_market_catalyst)$",
+        )
+
+        default_hooks = "\n".join(item for item in default_command if item.startswith("hooks."))
+        multidimensional_hooks = "\n".join(
+            item for item in multidimensional_command if item.startswith("hooks.")
+        )
+        self.assertNotIn("runtime_market_catalyst", default_hooks)
+        self.assertIn("runtime_market_catalyst", multidimensional_hooks)
 
     def test_preflight_is_rejected_before_run_or_report_is_read(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -214,6 +307,11 @@ class NestedCodexLauncherTests(unittest.TestCase):
                     "message": "这段 Specialist 提示不得保存",
                 },
             }
+            prepare_run(ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
+                        run_dir=run_dir, run_id="hook-dispatch", model="gpt-5.6-terra",
+                        research_question="合成派发测试", authenticity_required=False)
+            payload["tool_input"]["message"] = build_specialist_dispatch_message(
+                ROOT, run_dir, "runtime_skeptic")
             allowed, response = handle_hook_event(payload, environ=environment)
             self.assertEqual(allowed["decision"], "ALLOW")
             self.assertEqual(response, {})
@@ -313,6 +411,22 @@ class NestedCodexLauncherTests(unittest.TestCase):
             self.assertEqual(failure, "SKILL_LOAD_PROOF_MISSING")
             self.assertFalse(checks["specialists_executed"])
             self.assertFalse(checks["terminal_state_valid"])
+
+    def test_failed_validation_preserves_first_runtime_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            trace = {"run_id": "failed-run", "terminal_state": "FAILED_VALIDATION",
+                     "failed_stage": "SPECIALIST_VALIDATION"}
+            (run_dir / "decision_trace.json").write_text(json.dumps(trace))
+            error = {**trace, "code": "SPECIALIST_REPORT_VALIDATION_FAILED", "message": "INVALID_CONFIDENCE"}
+            (run_dir / "run_error.json").write_text(json.dumps(error))
+            checks, code = _completion_checks(run_dir)
+            self.assertEqual(code, "SPECIALIST_REPORT_VALIDATION_FAILED")
+            self.assertEqual(checks["runtime_failure_message"], "INVALID_CONFIDENCE")
+            self.assertFalse(checks["required_artifacts_complete"])
+            error["run_id"] = "another-run"
+            (run_dir / "run_error.json").write_text(json.dumps(error))
+            self.assertEqual(_completion_checks(run_dir)[1], "FAILED_VALIDATION_ERROR_RECORD_INVALID")
 
     def test_completion_check_uses_canonical_trace_agent_name(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Live source-access",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider",
+    "client_version",
+    "adapter_version",
+    "status",
+    "purpose",
+    "terms_url",
+    "checked_at",
+    "free_features",
+    "limitations",
+    "domains",
+    "request_budget"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "live-source-access/1.0.0"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "sec",
+        "yahoo"
+      ]
+    },
+    "client_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adapter_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "AUTHORIZED",
+        "PAUSED",
+        "UNCONFIRMED"
+      ]
+    },
+    "purpose": {
+      "type": "string",
+      "const": "personal-research"
+    },
+    "terms_url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checked_at": {
+      "type": "string",
+      "minLength": 20
+    },
+    "free_features": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "[a-z0-9-]+(?:\\.[a-z0-9-]+)+"
+      }
+    },
+    "request_budget": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

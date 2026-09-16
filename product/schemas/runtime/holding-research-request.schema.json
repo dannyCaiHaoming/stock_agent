@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holding-research-request/1.0.0",
+  "title": "HoldingResearchRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "request_id", "run_id", "invocation_id", "handoff_id",
+    "handoff_hash", "portfolio_hash", "council_request_id", "council_request_hash",
+    "security", "research_question", "holding_horizon", "decision_cutoff",
+    "allowed_evidence_ids", "evidence_bundle_hash", "data_gaps", "user_context",
+    "agent_binding", "skill_bindings", "request_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "holding-research-request/1.0.0"},
+    "request_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "council_request_id": {"type": "string", "minLength": 1},
+    "council_request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "security": {
+      "type": "object", "additionalProperties": false,
+      "required": ["security_id", "display_symbol", "display_name", "market", "asset_type", "identity_status"],
+      "properties": {
+        "security_id": {"type": "string", "minLength": 1},
+        "display_symbol": {"type": "string", "minLength": 1},
+        "display_name": {"type": ["string", "null"]},
+        "market": {"type": "string", "minLength": 1},
+        "asset_type": {"const": "COMMON_STOCK"},
+        "identity_status": {"enum": ["USER_CONFIRMED", "RESOLVED"]}
+      }
+    },
+    "research_question": {"type": "string", "minLength": 1},
+    "holding_horizon": {"type": ["string", "null"], "minLength": 1},
+    "decision_cutoff": {"type": "string", "minLength": 1},
+    "allowed_evidence_ids": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"}
+    },
+    "evidence_bundle_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "data_gaps": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "user_context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["user_thesis", "user_questions"],
+      "properties": {
+        "user_thesis": {"type": ["string", "null"], "minLength": 1},
+        "user_questions": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "agent_binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "content_hash"],
+      "properties": {
+        "name": {"const": "runtime_company_analyst"},
+        "version": {"type": "string", "minLength": 1},
+        "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "skill_bindings": {
+      "type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "version", "content_hash"],
+        "properties": {
+          "name": {"enum": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"]},
+          "version": {"type": "string", "minLength": 1},
+          "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": "multidimensional-research-contract-cases/1.0.0",
+  "cases": [
+    {"case_id": "valid-report", "expected": "PASS", "invariant": "报告绑定、PIT 与 Evidence 引用闭合"},
+    {"case_id": "dangling-evidence", "expected": "FAIL", "invariant": "悬空 Evidence 必须失败"},
+    {"case_id": "wrong-holding", "expected": "FAIL", "invariant": "错误持仓绑定必须失败"},
+    {"case_id": "source-limited", "expected": "PASS_WITH_LIMITATION", "invariant": "受限状态不能冒充研究验证"},
+    {"case_id": "portfolio-action", "expected": "FAIL", "invariant": "研究报告禁止组合动作"}
+  ]
+}

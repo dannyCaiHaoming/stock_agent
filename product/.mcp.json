@@ -1,15 +1,23 @@
 {
   "mcpServers": {
-    "fixture_runtime": {
+    "live_runtime": {
       "command": "python3",
+      "args": ["-m", "runtime.live_mcp"],
+      "cwd": ".",
+      "enabled": true,
+      "enabled_tools": ["query", "calculate"],
+      "default_tools_approval_mode": "approve",
+      "startup_timeout_sec": 10
+    },
+    "fixture_runtime": {
+      "command": "/bin/sh",
       "args": [
-        "-m",
-        "runtime.fixture_mcp",
+        "runtime/launch_fixture_mcp.sh",
         "--stateless"
       ],
       "cwd": ".",
       "enabled": true,
-      "enabled_tools": ["query", "calculate"],
+      "enabled_tools": ["query", "calculate", "research_search", "research_fetch"],
       "default_tools_approval_mode": "approve",
       "startup_timeout_sec": 10
     }

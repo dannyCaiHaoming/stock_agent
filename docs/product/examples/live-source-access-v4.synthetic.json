@@ -1,0 +1,213 @@
+[
+  {
+    "schema_version": "live-source-access/4.0.0",
+    "provider": "nasdaq",
+    "data_role": "universe",
+    "client_version": "nasdaq-readonly/1.0.0",
+    "adapter_version": "nasdaq-universe/1.0.0",
+    "purpose": "personal-research",
+    "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z",
+    "free_features": [
+      "仅合成字段样例"
+    ],
+    "limitations": [
+      "不是实际来源核对或授权；不能用于采集"
+    ],
+    "domains": [
+      "api.nasdaq.com"
+    ],
+    "request_budget": 5,
+    "operator_approval": {
+      "status": "NOT_APPROVED",
+      "record": {
+        "approval_id": "personal-research-scope-approval-2026-09-10",
+        "approved_at": "2026-09-10T09:12:22Z",
+        "scope": {
+          "purpose": "personal-research",
+          "change": "us-equity-live-advisory-slice",
+          "position_policy": "ALL_CONFIRMED_COMMON_STOCKS_RESOURCE_BOUNDED",
+          "providers": [
+            "nasdaq",
+            "yahoo",
+            "eastmoney",
+            "sec"
+          ],
+          "advisory_only": true
+        },
+        "statement": "用户批准当前 Capability 处理已确认 PortfolioHandoff 中的全部普通股，不设置固定持仓数量上限；仍以并发、来源请求预算、超时和响应大小限制资源，并保留拒绝或限流即停、PIT、数据完整性和不下单边界。",
+        "basis": "openspec/changes/us-equity-live-advisory-slice/design.md#2"
+      },
+      "record_hash": "84f7f933a5107a2948315ad66ff424b44f6db8773d691668a86a5eb4850f2960"
+    },
+    "upstream_permission": {
+      "status": "UNVERIFIED",
+      "checked_at": "2026-09-10T00:00:00Z",
+      "basis": [
+        "合成字段样例，不是上游许可依据"
+      ],
+      "limitations": [
+        "不是实际来源核对或授权；不能用于采集"
+      ]
+    }
+  },
+  {
+    "schema_version": "live-source-access/4.0.0",
+    "provider": "yahoo",
+    "data_role": "primary_market",
+    "client_version": "yfinance/1.7.0",
+    "adapter_version": "yahoo-eod-adapter/0.2.0",
+    "purpose": "personal-research",
+    "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z",
+    "free_features": [
+      "仅合成字段样例"
+    ],
+    "limitations": [
+      "不是实际来源核对或授权；不能用于采集"
+    ],
+    "domains": [
+      "query1.finance.yahoo.com",
+      "query2.finance.yahoo.com",
+      "fc.yahoo.com"
+    ],
+    "request_budget": 12,
+    "operator_approval": {
+      "status": "NOT_APPROVED",
+      "record": {
+        "approval_id": "personal-research-scope-approval-2026-09-10",
+        "approved_at": "2026-09-10T09:12:22Z",
+        "scope": {
+          "purpose": "personal-research",
+          "change": "us-equity-live-advisory-slice",
+          "position_policy": "ALL_CONFIRMED_COMMON_STOCKS_RESOURCE_BOUNDED",
+          "providers": [
+            "nasdaq",
+            "yahoo",
+            "eastmoney",
+            "sec"
+          ],
+          "advisory_only": true
+        },
+        "statement": "用户批准当前 Capability 处理已确认 PortfolioHandoff 中的全部普通股，不设置固定持仓数量上限；仍以并发、来源请求预算、超时和响应大小限制资源，并保留拒绝或限流即停、PIT、数据完整性和不下单边界。",
+        "basis": "openspec/changes/us-equity-live-advisory-slice/design.md#2"
+      },
+      "record_hash": "84f7f933a5107a2948315ad66ff424b44f6db8773d691668a86a5eb4850f2960"
+    },
+    "upstream_permission": {
+      "status": "UNVERIFIED",
+      "checked_at": "2026-09-10T00:00:00Z",
+      "basis": [
+        "合成字段样例，不是上游许可依据"
+      ],
+      "limitations": [
+        "不是实际来源核对或授权；不能用于采集"
+      ]
+    }
+  },
+  {
+    "schema_version": "live-source-access/4.0.0",
+    "provider": "eastmoney",
+    "data_role": "backup_market",
+    "client_version": "akshare/1.18.94",
+    "adapter_version": "eastmoney-bounded-transport/1.0.0",
+    "purpose": "personal-research",
+    "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z",
+    "free_features": [
+      "仅合成字段样例"
+    ],
+    "limitations": [
+      "不是实际来源核对或授权；不能用于采集"
+    ],
+    "domains": [
+      "63.push2his.eastmoney.com"
+    ],
+    "request_budget": 6,
+    "operator_approval": {
+      "status": "NOT_APPROVED",
+      "record": {
+        "approval_id": "personal-research-scope-approval-2026-09-10",
+        "approved_at": "2026-09-10T09:12:22Z",
+        "scope": {
+          "purpose": "personal-research",
+          "change": "us-equity-live-advisory-slice",
+          "position_policy": "ALL_CONFIRMED_COMMON_STOCKS_RESOURCE_BOUNDED",
+          "providers": [
+            "nasdaq",
+            "yahoo",
+            "eastmoney",
+            "sec"
+          ],
+          "advisory_only": true
+        },
+        "statement": "用户批准当前 Capability 处理已确认 PortfolioHandoff 中的全部普通股，不设置固定持仓数量上限；仍以并发、来源请求预算、超时和响应大小限制资源，并保留拒绝或限流即停、PIT、数据完整性和不下单边界。",
+        "basis": "openspec/changes/us-equity-live-advisory-slice/design.md#2"
+      },
+      "record_hash": "84f7f933a5107a2948315ad66ff424b44f6db8773d691668a86a5eb4850f2960"
+    },
+    "upstream_permission": {
+      "status": "UNVERIFIED",
+      "checked_at": "2026-09-10T00:00:00Z",
+      "basis": [
+        "合成字段样例，不是上游许可依据"
+      ],
+      "limitations": [
+        "不是实际来源核对或授权；不能用于采集"
+      ]
+    }
+  },
+  {
+    "schema_version": "live-source-access/4.0.0",
+    "provider": "sec",
+    "data_role": "disclosure",
+    "client_version": "sec-readonly/0.3.1",
+    "adapter_version": "sec-parser/0.2.0",
+    "purpose": "personal-research",
+    "terms_url": "https://example.invalid/terms",
+    "checked_at": "2026-09-10T00:00:00Z",
+    "free_features": [
+      "仅合成字段样例"
+    ],
+    "limitations": [
+      "不是实际来源核对或授权；不能用于采集"
+    ],
+    "domains": [
+      "data.sec.gov",
+      "www.sec.gov"
+    ],
+    "request_budget": 30,
+    "operator_approval": {
+      "status": "NOT_APPROVED",
+      "record": {
+        "approval_id": "personal-research-scope-approval-2026-09-10",
+        "approved_at": "2026-09-10T09:12:22Z",
+        "scope": {
+          "purpose": "personal-research",
+          "change": "us-equity-live-advisory-slice",
+          "position_policy": "ALL_CONFIRMED_COMMON_STOCKS_RESOURCE_BOUNDED",
+          "providers": [
+            "nasdaq",
+            "yahoo",
+            "eastmoney",
+            "sec"
+          ],
+          "advisory_only": true
+        },
+        "statement": "用户批准当前 Capability 处理已确认 PortfolioHandoff 中的全部普通股，不设置固定持仓数量上限；仍以并发、来源请求预算、超时和响应大小限制资源，并保留拒绝或限流即停、PIT、数据完整性和不下单边界。",
+        "basis": "openspec/changes/us-equity-live-advisory-slice/design.md#2"
+      },
+      "record_hash": "84f7f933a5107a2948315ad66ff424b44f6db8773d691668a86a5eb4850f2960"
+    },
+    "upstream_permission": {
+      "status": "UNVERIFIED",
+      "checked_at": "2026-09-10T00:00:00Z",
+      "basis": [
+        "合成字段样例，不是上游许可依据"
+      ],
+      "limitations": [
+        "不是实际来源核对或授权；不能用于采集"
+      ]
+    }
+  }
+]

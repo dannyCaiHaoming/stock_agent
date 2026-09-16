@@ -2,7 +2,7 @@
 name: evidence-grounding
 description: 使用 point-in-time 证据约束投资研究，在综合报告前区分事实、假设、冲突和数据缺口。
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # 证据约束
@@ -20,7 +20,7 @@ metadata:
 2. 将每项实质性陈述分类为 `FACT`、`ASSUMPTION` 或 `INTERPRETATION`。
 3. 为事实和基于证据的解释附加 `evidence_refs`。缺乏支持但仍有分析价值的前提只能作为显式假设保留。
 4. 保留存在实质冲突的来源，解释冲突对决策的影响，不得静默选择一方。
-5. 将过期或缺失的关键证据记录为结构化缺口，不得自行推断数值。
+5. 将过期或缺失的关键证据记录为结构化缺口，不得自行推断数值。缺口原因只能在有资料支持时标记为 `NOT_FETCHED`、`NOT_YET_DISCLOSED` 或 `SOURCE_UNSUPPORTED`；无法证明原因时使用 `UNKNOWN`，不得把未获取误写成公司尚未披露。
 
 ## 停止条件
 

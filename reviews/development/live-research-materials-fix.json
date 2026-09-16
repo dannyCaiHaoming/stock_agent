@@ -1,0 +1,122 @@
+{
+  "change": "us-equity-live-advisory-slice",
+  "evidence_id": "live-research-materials-and-cio-failure-fix-2026-09-10",
+  "scope": "Tasks 2.2/3.2/3.5/5.1 受影响接缝及 Task 5.2 真实研究的前置修复；不是实际 Council 验收",
+  "source_hashes": {
+    "product/mcp/live/collection.py": "3c2f255309d7f49b3766e302b7f12523009db174b24b5683f5f07552768ed0d9",
+    "product/mcp/live/disclosure.py": "2d742808dcfeb225d240c1bf5423abdea2354f750b40a6422db19c370c4ebdef",
+    "product/runtime/run_package.py": "a16b9841077464f4656b28c2a2deba590b43ffc26cb912a9d570e170d214d469",
+    "product/runtime/smoke_prompt.py": "3e890b30422d71a1f3d59cf78cba5282e20d543ee51411caecf92aa21e3965a0",
+    "product/runtime/codex_hook_recorder.py": "c56efc6e0640a06ef4292b1f49f2ca58ae1fc635d84a0bffa54a511e8f713207",
+    "product/runtime/nested_codex.py": "a322369c547f2308cf87bd461bcb56a58fccf81bf83ec4df0d512b1681182c9a",
+    "tests/test_live_disclosure.py": "3814b33aaae08323f277692904ec2ea8ff3027fe17395ef1c9f2b7d1556b2bc2",
+    "tests/test_live_financials.py": "5584f3e04c0f5f98d2bce82d5df519a5f2d091177d8c9a753c25cf10d4dbef88",
+    "tests/test_native_run_package.py": "9998a64916c8342e0e399225922aeb69415b07d9fb4567415a1a4e1c9d37b525",
+    "tests/test_live_eval_contract.py": "fc7d863d5912534a4ab944e436b18da4ca6d980b23839d4bea65f87bf92d3519",
+    "tests/test_specialist_dispatch.py": "f9c1e7fb4c07a8c8c6359243a98fabf3610fbd44274a1c0836db35f3797e8943",
+    "product/version-manifest.json": "8c5988c6043250767de4e72c60e520c5556f71f0909bfa86b12df16277bc5b2c"
+  },
+  "tests": {
+    "command": "TMPDIR=/private/tmp/stock-agent-live-data-seams.6nyjNT /private/tmp/stock-agent-live-combined.jtbR6l/venv/bin/python -B -m unittest tests.test_live_disclosure tests.test_live_financials tests.test_live_collection tests.test_live_sec_client tests.test_live_contracts_gate tests.test_live_eval_contract tests.test_native_run_package tests.test_specialist_dispatch -v",
+    "execution_session_id": 17412,
+    "exit_code": 0,
+    "tests": 90,
+    "llm_calls": 0,
+    "output": "test_budget_and_missing (tests.test_live_disclosure.DisclosureTests.test_budget_and_missing) ... ok\ntest_hash_and_encoding_fail_closed (tests.test_live_disclosure.DisclosureTests.test_hash_and_encoding_fail_closed) ... ok\ntest_inline_item_reference_and_running_header_do_not_cut_body (tests.test_live_disclosure.DisclosureTests.test_inline_item_reference_and_running_header_do_not_cut_body) ... ok\ntest_repeated_section_omission_explicit (tests.test_live_disclosure.DisclosureTests.test_repeated_section_omission_explicit) ... ok\ntest_scripts_removed_instructions_remain_untrusted (tests.test_live_disclosure.DisclosureTests.test_scripts_removed_instructions_remain_untrusted) ... ok\ntest_sections_and_source_spans (tests.test_live_disclosure.DisclosureTests.test_sections_and_source_spans) ... ok\ntest_selected_earnings_exhibit_is_bounded_untrusted_and_locatable (tests.test_live_disclosure.DisclosureTests.test_selected_earnings_exhibit_is_bounded_untrusted_and_locatable) ... ok\ntest_split_sec_headings_retain_body_and_original_spans (tests.test_live_disclosure.DisclosureTests.test_split_sec_headings_retain_body_and_original_spans) ... ok\ntest_supported_heading_without_punctuation_remains_recognized (tests.test_live_disclosure.DisclosureTests.test_supported_heading_without_punctuation_remains_recognized) ... ok\ntest_unknown_format_not_claimed_complete (tests.test_live_disclosure.DisclosureTests.test_unknown_format_not_claimed_complete) ... ok\ntest_comparison_provenance (tests.test_live_financials.FinancialComparisonTests.test_comparison_provenance) ... ok\ntest_differing_revision_is_not_silently_selected (tests.test_live_financials.FinancialComparisonTests.test_differing_revision_is_not_silently_selected) ... ok\ntest_equal_repeated_disclosures_keep_each_comparison_provenance (tests.test_live_financials.FinancialComparisonTests.test_equal_repeated_disclosures_keep_each_comparison_provenance) ... ok\ntest_future_parent_not_backdated (tests.test_live_financials.FinancialComparisonTests.test_future_parent_not_backdated) ... ok\ntest_instant_comparison_and_invalid_start (tests.test_live_financials.FinancialComparisonTests.test_instant_comparison_and_invalid_start) ... ok\ntest_missing_or_duplicate_parent (tests.test_live_financials.FinancialComparisonTests.test_missing_or_duplicate_parent) ... ok\ntest_noncomparable_cases (tests.test_live_financials.FinancialComparisonTests.test_noncomparable_cases) ... ok\ntest_nonpositive_base_preserves_delta (tests.test_live_financials.FinancialComparisonTests.test_nonpositive_base_preserves_delta) ... ok\ntest_collection_freezes_after_requests_and_binds_identity_raw_objects (tests.test_live_collection.LiveCollectionTests.test_collection_freezes_after_requests_and_binds_identity_raw_objects) ... ok\ntest_paused_access_does_not_create_client_or_output (tests.test_live_collection.LiveCollectionTests.test_paused_access_does_not_create_client_or_output) ... ok\ntest_routed_backup_collection_freeze_prepare (tests.test_live_collection.LiveCollectionTests.test_routed_backup_collection_freeze_prepare) ... ok\ntest_routed_primary_collection_freeze_prepare (tests.test_live_collection.LiveCollectionTests.test_routed_primary_collection_freeze_prepare) ... ok\ntest_budget_and_partial_failure (tests.test_live_sec_client.SecClientTests.test_budget_and_partial_failure) ... ok\ntest_cache_corruption_fail_closed (tests.test_live_sec_client.SecClientTests.test_cache_corruption_fail_closed) ... ok\ntest_cache_hit_preserves_timestamp_and_refresh_appends (tests.test_live_sec_client.SecClientTests.test_cache_hit_preserves_timestamp_and_refresh_appends) ... ok\ntest_endpoint_restriction (tests.test_live_sec_client.SecClientTests.test_endpoint_restriction) ... ok\ntest_fetch_parse_document_chain (tests.test_live_sec_client.SecClientTests.test_fetch_parse_document_chain) ... ok\ntest_history_page_raw_provenance_and_budget (tests.test_live_sec_client.SecClientTests.test_history_page_raw_provenance_and_budget) ... ok\ntest_history_wrong_issuer_name_rejected_before_request (tests.test_live_sec_client.SecClientTests.test_history_wrong_issuer_name_rejected_before_request) ... ok\ntest_permission_errors_no_retry (tests.test_live_sec_client.SecClientTests.test_permission_errors_no_retry) ... ok\ntest_rate_limit_and_timeout_are_bounded (tests.test_live_sec_client.SecClientTests.test_rate_limit_and_timeout_are_bounded) ... ok\ntest_repo_cache_rejected (tests.test_live_sec_client.SecClientTests.test_repo_cache_rejected) ... ok\ntest_request_spacing_and_stale_cache (tests.test_live_sec_client.SecClientTests.test_request_spacing_and_stale_cache) ... ok\ntest_retry_after_not_truncated_or_guessed (tests.test_live_sec_client.SecClientTests.test_retry_after_not_truncated_or_guessed) ... ok\ntest_selected_disclosures_include_bound_earnings_attachment (tests.test_live_sec_client.SecClientTests.test_selected_disclosures_include_bound_earnings_attachment) ... ok\ntest_ticker_map_read_through_verified_cache (tests.test_live_sec_client.SecClientTests.test_ticker_map_read_through_verified_cache) ... ok\ntest_batch_missing_children_is_failure_without_new_advice (tests.test_live_contracts_gate.LiveContractGateTests.test_batch_missing_children_is_failure_without_new_advice) ... ok\ntest_batch_rechecks_each_child_and_preserves_partial_failure (tests.test_live_contracts_gate.LiveContractGateTests.test_batch_rechecks_each_child_and_preserves_partial_failure) ... ok\ntest_batch_unique_ids_and_explicit_focus (tests.test_live_contracts_gate.LiveContractGateTests.test_batch_unique_ids_and_explicit_focus) ... ok\ntest_calendar_and_access_fail_closed (tests.test_live_contracts_gate.LiveContractGateTests.test_calendar_and_access_fail_closed) ... ok\ntest_calendar_lock_drift_rejected (tests.test_live_contracts_gate.LiveContractGateTests.test_calendar_lock_drift_rejected) ... ok\ntest_chinese_report_keeps_canonical_refs_and_no_trade_nulls (tests.test_live_contracts_gate.LiveContractGateTests.test_chinese_report_keeps_canonical_refs_and_no_trade_nulls) ... ok\ntest_empty_and_snapshot_tamper (tests.test_live_contracts_gate.LiveContractGateTests.test_empty_and_snapshot_tamper) ... ok\ntest_financial_freshness_uses_period_not_download (tests.test_live_contracts_gate.LiveContractGateTests.test_financial_freshness_uses_period_not_download) ... ok\ntest_future_information_excluded (tests.test_live_contracts_gate.LiveContractGateTests.test_future_information_excluded) ... ok\ntest_identity_binding_rejects_etf_class_and_cik_mismatch (tests.test_live_contracts_gate.LiveContractGateTests.test_identity_binding_rejects_etf_class_and_cik_mismatch) ... ok\ntest_identity_bottom_up_validation_before_agent (tests.test_live_contracts_gate.LiveContractGateTests.test_identity_bottom_up_validation_before_agent) ... ok\ntest_live_inputs_gate_before_context_and_independent_copies (tests.test_live_contracts_gate.LiveContractGateTests.test_live_inputs_gate_before_context_and_independent_copies) ... ok\ntest_live_prepare_reuses_native_invocations_without_fixture_alias (tests.test_live_contracts_gate.LiveContractGateTests.test_live_prepare_reuses_native_invocations_without_fixture_alias) ... ok\ntest_live_risk_reuses_engine_and_keeps_veto (tests.test_live_contracts_gate.LiveContractGateTests.test_live_risk_reuses_engine_and_keeps_veto) ... ok\ntest_live_tools_only_expose_verified_gate (tests.test_live_contracts_gate.LiveContractGateTests.test_live_tools_only_expose_verified_gate) ... ok\ntest_max_count_duplicates_and_external_input (tests.test_live_contracts_gate.LiveContractGateTests.test_max_count_duplicates_and_external_input) ... ok\ntest_missing_price_stops_whole_portfolio (tests.test_live_contracts_gate.LiveContractGateTests.test_missing_price_stops_whole_portfolio) ... ok\ntest_parent_exclusion_closure_cycle_and_hash (tests.test_live_contracts_gate.LiveContractGateTests.test_parent_exclusion_closure_cycle_and_hash) ... ok\ntest_portfolio_rejects_bad_inputs (tests.test_live_contracts_gate.LiveContractGateTests.test_portfolio_rejects_bad_inputs) ... ok\ntest_rehashed_forged_gate_is_rejected (tests.test_live_contracts_gate.LiveContractGateTests.test_rehashed_forged_gate_is_rejected) ... ok\ntest_required_completeness_and_quantity_contract (tests.test_live_contracts_gate.LiveContractGateTests.test_required_completeness_and_quantity_contract) ... ok\ntest_schema_copies_match_canonical (tests.test_live_contracts_gate.LiveContractGateTests.test_schema_copies_match_canonical) ... ok\ntest_sec_normalization_and_derived_gate_chain (tests.test_live_contracts_gate.LiveContractGateTests.test_sec_normalization_and_derived_gate_chain) ... ok\ntest_three_focus_inputs_share_full_portfolio_and_snapshot (tests.test_live_contracts_gate.LiveContractGateTests.test_three_focus_inputs_share_full_portfolio_and_snapshot) ... ok\ntest_value_uses_gate_price_not_cost (tests.test_live_contracts_gate.LiveContractGateTests.test_value_uses_gate_price_not_cost) ... ok\ntest_cio_context_failure_is_persisted_before_risk_without_advice (tests.test_live_eval_contract.LiveEvalContractTests.test_cio_context_failure_is_persisted_before_risk_without_advice) ... ok\ntest_dangling_specialist_reference_is_contained_not_published (tests.test_live_eval_contract.LiveEvalContractTests.test_dangling_specialist_reference_is_contained_not_published) ... ok\ntest_grading_input_drift_is_rejected (tests.test_live_eval_contract.LiveEvalContractTests.test_grading_input_drift_is_rejected) ... ok\ntest_missing_risk_artifact_cannot_enter_semantic_grading (tests.test_live_eval_contract.LiveEvalContractTests.test_missing_risk_artifact_cannot_enter_semantic_grading) ... ok\ntest_representative_reports_bind_actual_artifacts_and_propagate_grader_verdict (tests.test_live_eval_contract.LiveEvalContractTests.test_representative_reports_bind_actual_artifacts_and_propagate_grader_verdict) ... ok\ntest_cio_receives_only_validated_reports_references_and_gate_scoped_query (tests.test_native_run_package.NativeRunPackageTests.test_cio_receives_only_validated_reports_references_and_gate_scoped_query) ... ok\ntest_dangling_specialist_reference_becomes_failed_validation_without_advice (tests.test_native_run_package.NativeRunPackageTests.test_dangling_specialist_reference_becomes_failed_validation_without_advice) ... ok\ntest_execution_proof_cli_persists_failed_validation_and_nonzero_exit (tests.test_native_run_package.NativeRunPackageTests.test_execution_proof_cli_persists_failed_validation_and_nonzero_exit) ... ok\ntest_format_repair_rejects_provenance_removal_and_thesis_shortening (tests.test_native_run_package.NativeRunPackageTests.test_format_repair_rejects_provenance_removal_and_thesis_shortening) ... ok\ntest_future_or_stale_fixture_safely_stops_before_agents (tests.test_native_run_package.NativeRunPackageTests.test_future_or_stale_fixture_safely_stops_before_agents) ... ok\ntest_integrity_snapshot_detects_protected_file_changes (tests.test_native_run_package.NativeRunPackageTests.test_integrity_snapshot_detects_protected_file_changes) ... ok\ntest_invalid_portfolio_safely_stops_before_agents (tests.test_native_run_package.NativeRunPackageTests.test_invalid_portfolio_safely_stops_before_agents) ... ok\ntest_prepare_cio_missing_dependency_persists_failed_terminal (tests.test_native_run_package.NativeRunPackageTests.test_prepare_cio_missing_dependency_persists_failed_terminal) ... ok\ntest_prepare_emits_gate_scoped_specialist_schemas_and_prompts (tests.test_native_run_package.NativeRunPackageTests.test_prepare_emits_gate_scoped_specialist_schemas_and_prompts) ... ok\ntest_production_finalization_fails_closed_without_native_execution_proof (tests.test_native_run_package.NativeRunPackageTests.test_production_finalization_fails_closed_without_native_execution_proof) ... ok\ntest_risk_allows_at_most_one_cio_revision (tests.test_native_run_package.NativeRunPackageTests.test_risk_allows_at_most_one_cio_revision) ... ok\ntest_second_invalid_specialist_format_attempt_fails_validation (tests.test_native_run_package.NativeRunPackageTests.test_second_invalid_specialist_format_attempt_fails_validation) ... ok\ntest_second_revision_veto_does_not_mutate_persisted_risk_lineage (tests.test_native_run_package.NativeRunPackageTests.test_second_revision_veto_does_not_mutate_persisted_risk_lineage) ... ok\ntest_specialist_format_repair_is_one_shot_and_preserves_fact_boundary (tests.test_native_run_package.NativeRunPackageTests.test_specialist_format_repair_is_one_shot_and_preserves_fact_boundary) ... ok\ntest_valid_fake_artifacts_exercise_complete_deterministic_boundaries (tests.test_native_run_package.NativeRunPackageTests.test_valid_fake_artifacts_exercise_complete_deterministic_boundaries) ... ok\ntest_actual_launcher_hook_config_covers_native_names_and_aliases (tests.test_specialist_dispatch.SpecialistDispatchTests.test_actual_launcher_hook_config_covers_native_names_and_aliases) ... ok\ntest_complete_message_is_derived_from_canonical_inputs_for_both_agents (tests.test_specialist_dispatch.SpecialistDispatchTests.test_complete_message_is_derived_from_canonical_inputs_for_both_agents) ... ok\ntest_confidence_contract_rejects_labels_without_value_repair (tests.test_specialist_dispatch.SpecialistDispatchTests.test_confidence_contract_rejects_labels_without_value_repair) ... ok\ntest_internal_commands_use_launcher_python_not_login_shell_path (tests.test_specialist_dispatch.SpecialistDispatchTests.test_internal_commands_use_launcher_python_not_login_shell_path) ... ok\ntest_mutated_source_or_missing_manifest_fails_closed (tests.test_specialist_dispatch.SpecialistDispatchTests.test_mutated_source_or_missing_manifest_fails_closed) ... ok\ntest_spawn_without_explicit_role_is_denied (tests.test_specialist_dispatch.SpecialistDispatchTests.test_spawn_without_explicit_role_is_denied) ... ok\ntest_standalone_hook_process_accepts_exact_dispatch_without_model (tests.test_specialist_dispatch.SpecialistDispatchTests.test_standalone_hook_process_accepts_exact_dispatch_without_model) ... ok\ntest_standalone_hook_process_rejects_bad_dispatch_without_model (tests.test_specialist_dispatch.SpecialistDispatchTests.test_standalone_hook_process_rejects_bad_dispatch_without_model) ... ok\ntest_wrong_id_empty_ids_omitted_context_and_added_text_are_denied (tests.test_specialist_dispatch.SpecialistDispatchTests.test_wrong_id_empty_ids_omitted_context_and_added_text_are_denied) ... ok\n\n----------------------------------------------------------------------\nRan 90 tests in 4.005s\n\nOK\n{\"code\": \"NATIVE_EXECUTION_PROOF_FAILED\", \"failed_stage\": \"EXECUTION_PROOF\", \"message\": \"RUN_PARENT_ROLLOUT_COUNT_INVALID:0\", \"run_id\": \"proof-failure\", \"schema_version\": \"run-error/2.1.0\", \"terminal_state\": \"FAILED_VALIDATION\"}\n{\"code\": \"RUNTIME_DEPENDENCY_MISSING\", \"failed_stage\": \"SPECIALIST_VALIDATION\", \"message\": \"No package metadata was found for exchange-calendars\", \"run_id\": \"dependency-failure\", \"schema_version\": \"run-error/2.1.0\", \"terminal_state\": \"FAILED_VALIDATION\"}\n"
+  },
+  "offline_reprocessing": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\nfrom pathlib import Path\nimport hashlib,json\nfrom product.mcp.live.disclosure import extract_sections\nfrom product.mcp.live.collection import research_financials,COLLECTION_VERSION\np=Path('/private/tmp/stock-agent-routing-smoke.0M4BLk/run/data/snapshot.json')\nbefore=hashlib.sha256(p.read_bytes()).hexdigest();s=json.loads(p.read_text())\nold=[f for f in s['facts'] if f['kind']=='disclosure'];doc=old[0]['metadata']\nraw_path=Path('/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/cache/objects')/doc['raw_content_hash'];raw=raw_path.read_bytes()\nnew=extract_sections(raw,doc)\nfinancial=[f['metadata'] for f in s['facts'] if f['kind']=='financial']\nselected,gaps=research_financials(financial,security_id='MSFT',selection_time=s['decision_cutoff'])\nprint(json.dumps({'historical_snapshot_path':str(p),'historical_snapshot_sha256':before,'raw_document_path':str(raw_path),'raw_document_sha256':hashlib.sha256(raw).hexdigest(),'raw_hash_verified':hashlib.sha256(raw).hexdigest()==doc['raw_content_hash'],'parser_version':new['parser_version'],'collection_version':COLLECTION_VERSION,'old_sections':[{ 'section':f['semantic_field'],'characters':len(f['value'])} for f in old],'new_sections':[{ 'section':f['section'],'characters':len(f['text']),'truncated':f['truncated'],'evidence_id':f['evidence_id']} for f in new['evidence']],'missing_sections':new['missing_sections'],'coverage':new['coverage'],'financial_input_scope':'仅旧快照已选取的88条原始财务metadata；未重拉或声称全量SEC重新采集','financial_input_count':len(financial),'new_derived_count':sum(f['kind']=='derived' for f in selected),'remaining_comparison_gaps':[g for g in gaps if g['reason']=='COMPARABLE_PERIOD_MISSING_OR_AMBIGUOUS'],'historical_snapshot_unchanged':hashlib.sha256(p.read_bytes()).hexdigest()==before},ensure_ascii=False,indent=2))\nPY",
+    "exit_code": 0,
+    "result": {
+      "historical_snapshot_path": "/private/tmp/stock-agent-routing-smoke.0M4BLk/run/data/snapshot.json",
+      "historical_snapshot_sha256": "456cde82ec2be5ecf1ff6ca57ccbf7aee161322c23d287ae6e91144304b0b8ba",
+      "raw_document_path": "/private/tmp/stock-agent-nasdaq-tls.dZ9JbD/cache/objects/4bcf2da2871acc19e32c5a62f36f6d83d6aae03cdc4aaa9a86a9a21ee8223f02",
+      "raw_document_sha256": "4bcf2da2871acc19e32c5a62f36f6d83d6aae03cdc4aaa9a86a9a21ee8223f02",
+      "raw_hash_verified": true,
+      "parser_version": "sec-sections/0.3.1",
+      "collection_version": "live-collection/3.0.1",
+      "old_sections": [
+        {
+          "section": "business",
+          "characters": 63
+        },
+        {
+          "section": "risk_factors",
+          "characters": 25
+        }
+      ],
+      "new_sections": [
+        {
+          "section": "business",
+          "characters": 63,
+          "truncated": false,
+          "evidence_id": "ev-sec-text-b531e576ecbd0d74ad7e9dc9398178905f9fd00f2c15edcf1732fe4c80a1675c"
+        },
+        {
+          "section": "risk_factors",
+          "characters": 25,
+          "truncated": false,
+          "evidence_id": "ev-sec-text-a56831f83e66efc08ab4deb96fb52b96a667e60c36a967c9051724220556b514"
+        },
+        {
+          "section": "management_discussion",
+          "characters": 99,
+          "truncated": false,
+          "evidence_id": "ev-sec-text-06234df5a7308e13e4fa356b0c44d90e9d36b47bba1f25bd325184a29ad1fb3b"
+        },
+        {
+          "section": "business",
+          "characters": 7937,
+          "truncated": true,
+          "evidence_id": "ev-sec-text-ff1f53de8ab8fd7a9937f244c672a1c35bb469fc4ee6f59fdfc2625178ee463d"
+        },
+        {
+          "section": "risk_factors",
+          "characters": 7975,
+          "truncated": true,
+          "evidence_id": "ev-sec-text-5fed4a054e57e135a11154c3569d4a5d95083bc2f4609841073f4d6807f9fba2"
+        },
+        {
+          "section": "management_discussion",
+          "characters": 3901,
+          "truncated": true,
+          "evidence_id": "ev-sec-text-0e1cc2fe6f17b8176c0ccb6304c2f43ec33f888b182db02a2da9e35a6b69ee73"
+        }
+      ],
+      "missing_sections": [],
+      "coverage": "HEADING_MATCHES_ONLY_NOT_VERIFIED_COMPLETE",
+      "financial_input_scope": "仅旧快照已选取的88条原始财务metadata；未重拉或声称全量SEC重新采集",
+      "financial_input_count": 88,
+      "new_derived_count": 41,
+      "remaining_comparison_gaps": [
+        {
+          "security_id": "MSFT",
+          "reason": "COMPARABLE_PERIOD_MISSING_OR_AMBIGUOUS",
+          "field": "us-gaap.CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
+        }
+      ],
+      "historical_snapshot_unchanged": true
+    }
+  },
+  "openspec_strict_validate": {
+    "command": "openspec validate us-equity-live-advisory-slice --strict",
+    "exit_code": 0,
+    "output": "Change 'us-equity-live-advisory-slice' is valid\n"
+  },
+  "dispatch_adjustment": {
+    "status": "AWAITING_USER_APPROVAL",
+    "implementation_changed": false,
+    "proposed_delivery": "SubagentStart additionalContext + canonical input hashes; retain applicable PreToolUse and fail-closed runtime evidence checks",
+    "limitation": "不保证在子Agent启动前阻止错误，不声称全派发或全进程隔离"
+  },
+  "runtime_acceptance": "NOT_RUN",
+  "product_plugin_refreshed": false,
+  "tasks_completed_this_turn": [],
+  "remaining_tasks": [
+    "2.6",
+    "5.2",
+    "5.3",
+    "5.4",
+    "5.5"
+  ]
+}
