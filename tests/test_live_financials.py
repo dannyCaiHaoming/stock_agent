@@ -2,7 +2,7 @@ import copy
 import unittest
 
 from product.mcp.live.financials import compare_year_over_year
-from product.mcp.live.collection import research_financials
+from product.mcp.live.collection import research_financials, research_valuation_financials
 
 
 class FinancialComparisonTests(unittest.TestCase):
@@ -182,6 +182,34 @@ class FinancialComparisonTests(unittest.TestCase):
             "SEGMENT_DIMENSION_DATA_NOT_AVAILABLE_FROM_COMPANYFACTS",
             {item.get("reason") for item in gaps},
         )
+
+    def test_valuation_history_retains_long_window_revisions_and_rejects_future(self):
+        rows = []
+        for index in range(7):
+            year = 2019 + index
+            rows.append(dict(
+                self.evidence["current"], evidence_id=f"annual-{year}",
+                value=str(100 + index), period_start=f"{year}-01-01",
+                period_end=f"{year}-12-31", as_of=f"{year}-12-31T00:00:00Z",
+                published_at=f"{year + 1}-02-01T00:00:00Z", retrieved_at="2026-09-10T00:00:00Z",
+                raw_content_hash=f"{index + 1:x}" * 64, adapter_version="synthetic/1",
+                form="10-K", fiscal_period="FY", accession=f"annual-{year}",
+            ))
+        rows.append(dict(rows[-1], evidence_id="annual-2025-amended", form="10-K/A",
+                         accession="annual-2025-amended", value="999",
+                         published_at="2026-03-01T00:00:00Z"))
+        rows.append(dict(rows[-1], evidence_id="future", accession="future",
+                         published_at="2026-10-01T00:00:00Z"))
+        facts, gaps = research_valuation_financials(
+            rows, security_id="TEST", selection_time="2026-09-10T00:00:00Z",
+        )
+        identifiers = {item["evidence_id"] for item in facts}
+        self.assertIn("annual-2025", identifiers)
+        self.assertIn("annual-2025-amended", identifiers)
+        self.assertNotIn("future", identifiers)
+        self.assertTrue(all(item["usage"] == "comparison" for item in facts))
+        self.assertTrue(all(item["metadata"]["historical_version_policy"] == "ALL_SELECTED_PUBLIC_VERSIONS" for item in facts))
+        self.assertTrue(any(item["reason"] == "VALUATION_FINANCIAL_AFTER_CUTOFF" for item in gaps))
 
     def test_debt_maturity_tags_are_retained_without_inventing_full_schedule(self):
         inputs = []

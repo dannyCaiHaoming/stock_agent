@@ -170,6 +170,27 @@ SEC 联系信息只在运行时进入 EDGAR `User-Agent`，未写入仓库、缓
 
 采集层只形成事实、供应商观点、来源限制和结构化缺口，不输出护城河评分、管理层质量评分、交易动作或组合决策。
 
+## 个股估值与图文能力矩阵（2026-09-17）
+
+本节来源为 `complete-company-valuation-and-report-visuals` 的有界真实验收，资料截止 `2026-09-16T19:20:00Z`，记录时间 `2026-09-16T19:24:11Z`。它补充三源接缝能力，不改变 Moomoo manifest 或前序 Change 结论。
+
+| 能力 | 首选来源 | 真实状态 | 明确限制 |
+|---|---|---|---|
+| 当前 trailing PE | Yahoo 价格 + SEC PIT diluted EPS | PLAB `DERIVED` 成功 | provider PE 缺失不阻塞；负 EPS 标不适用 |
+| 历史 trailing PE | Yahoo 非分红复权价格 + SEC 原公开版本 | PLAB 50/61 月末、覆盖 81.97%、分位可用 | 事后重建保留真实检索时间；晚披露版本不得倒填 |
+| P/S、P/B、FCF Yield | Yahoo 价格 + SEC 实际流通股数/财务 | 算术与缺项路径已验证 | 不以加权平均稀释股数代替市值股数 |
+| forward PE、完整 EV/EBITDA | Yahoo 条件字段 + SEC 资本结构 | 条件受限 | 财政期、GAAP/adjusted 或 EV 构成未知时不强算 |
+| 资本效率与流动性 | SEC 同口径财务 | PLAB ROE/ROA/current ratio/OCF-net income 成功 | ROIC 缺 NOPAT/投入资本桥接时保持 INPUT_MISSING |
+| 指引与 GAAP 调节 | 已申报业绩发布/10-Q/10-K | ALB 同目标期两版指引与调节桥成功 | 不同目标期或会计基础不得比较 |
+| SBC/回购/股数 | SEC Company Facts/原文 | MRVL 两财年真实覆盖 | 金额与实际/加权股数分列，不推导净稀释 |
+| 债务期限 | SEC 财务与附注事实 | MRVL 三个未来本金桶成功 | 与账面债务差额明确保留；授信/契约仍条件受限 |
+| KPI、集中度、治理 | 已申报业绩发布与 DEF 14A | ALB 两期 LCE KPI；PLAB 匿名集中度与关联交易政策成功 | 匿名身份不外推，定义变化不连趋势 |
+| 实际/预期 | 有事前 vintage 的冻结预测 | 条件受限 | PLAB GAAP actual 与 non-GAAP guidance 不生成 beat/miss |
+| 有限同行 | 固定候选的 SEC/Yahoo 冻结数据 | ALAB、MRVL 各三项经营指标加一项估值尺度 | 股数时点滞后；不扩展、不评分、不排名 |
+| 静态图文报告 | 冻结 chart-data + deterministic renderer | 离线 HTML/Markdown/SVG/JSON/29 页 A4 横向 PDF 成功 | 窄屏长表采用卡片内横向滚动；mixed-unit 数据只呈现分单位表格，不跨字段连线；旧无附件报告保持原样 |
+
+完整逐字段证据、预算和真实限制见 `reviews/development/complete-company-valuation-and-report-visuals-acceptance.json`。Moomoo 仍未被假定具备 PE 或历史估值权限；核心估值依赖 SEC/Yahoo，Moomoo 只在批准方法真实返回适用字段时并列补充。
+
 ## 回滚与剩余验收
 
 回滚 Moomoo 新能力时，禁用 `MoomooOpenDQuoteClient` 或将 manifest 移出批准版本；用户也可直接停止 OpenD。旧 live snapshot、SEC/Yahoo 和已冻结合格 Evidence 保持可读。

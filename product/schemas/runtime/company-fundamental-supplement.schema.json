@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "company-fundamental-supplement.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "supplement_id", "security_id", "decision_cutoff", "document_budget", "groups", "artifact_hash"],
+  "properties": {
+    "schema_version": {"const": "company-fundamental-supplement/1.0.0"},
+    "supplement_id": {"type": "string", "minLength": 1},
+    "security_id": {"type": "string", "minLength": 1},
+    "decision_cutoff": {"type": "string", "format": "date-time"},
+    "document_budget": {"type": "object", "additionalProperties": false, "required": ["annual", "quarterly", "earnings_releases", "proxy", "other_8k", "total"], "properties": {"annual": {"const": 2}, "quarterly": {"const": 4}, "earnings_releases": {"const": 4}, "proxy": {"const": 2}, "other_8k": {"const": 8}, "total": {"const": 32}}},
+    "groups": {"type": "object", "additionalProperties": false, "required": ["guidance", "earnings_quality", "debt_liquidity", "operating_kpis", "governance", "earnings_expectations", "financial_ratios"], "properties": {"guidance": {"$ref": "#/$defs/group"}, "earnings_quality": {"$ref": "#/$defs/group"}, "debt_liquidity": {"$ref": "#/$defs/group"}, "operating_kpis": {"$ref": "#/$defs/group"}, "governance": {"$ref": "#/$defs/group"}, "earnings_expectations": {"$ref": "#/$defs/group"}, "financial_ratios": {"$ref": "#/$defs/group"}}},
+    "artifact_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {"group": {"type": "object", "additionalProperties": false, "required": ["status", "coverage", "reason", "items"], "properties": {"status": {"enum": ["COVERED", "PARTIAL", "SOURCE_LIMITED", "NOT_DISCLOSED", "UNVERIFIED"]}, "coverage": {"type": "string"}, "reason": {"type": ["string", "null"]}, "items": {"type": "array", "items": {"type": "object", "additionalProperties": true, "required": ["item_id", "claim_status", "source_id", "as_of", "retrieved_at", "published_at", "period", "definition", "unit", "evidence_refs", "calculation_ref"], "properties": {"item_id": {"type": "string"}, "claim_status": {"enum": ["CANDIDATE", "VERIFIED_FACT", "DERIVED"]}, "source_id": {"type": "string"}, "as_of": {"type": "string", "format": "date-time"}, "retrieved_at": {"type": "string", "format": "date-time"}, "published_at": {"type": ["string", "null"], "format": "date-time"}, "period": {"type": ["string", "null"]}, "definition": {"type": "string"}, "unit": {"type": ["string", "null"]}, "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "calculation_ref": {"type": ["string", "null"]}}}}}}}
+}

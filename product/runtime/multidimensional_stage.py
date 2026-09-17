@@ -22,7 +22,7 @@ from product.runtime.hashing import canonical_hash, file_hash
 
 STAGE_VERSION = "multidimensional-holding-research-runtime/1.0.0"
 DISPATCH_VERSION = "multidimensional-research-dispatch/1.0.0"
-COMPANY_AGENT_VERSION = "3.0.18"
+COMPANY_AGENT_VERSION = "3.0.20"
 MARKET_AGENT_VERSION = "1.0.1"
 
 

@@ -111,7 +111,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
         )
         self.assertIn('"--default-run-dir","/private/tmp/common-stock-run"', override)
         self.assertIn(
-            'enabled_tools=["query","calculate","research_search","research_fetch"]',
+            'enabled_tools=["query","calculate","equity_research_attachments.query","research_search","research_fetch"]',
             override,
         )
         self.assertNotIn("danger-full-access", override)

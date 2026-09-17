@@ -113,6 +113,10 @@ def build_parser() -> argparse.ArgumentParser:
     stock_prepare.add_argument("--source-fixture", type=Path)
     stock_prepare.add_argument("--max-concurrency", type=int, default=3)
     stock_prepare.add_argument("--focus-security-id")
+    stock_prepare.add_argument(
+        "--equity-research-package", type=Path, action="append", default=[],
+        help="可重复；按 security_id 绑定的冻结估值/基本面/同行附件包",
+    )
 
     stock_data = subparsers.add_parser(
         "prepare-common-stock-data",
@@ -512,6 +516,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             data_preparation_path=args.data_preparation,
             source_bundle_path=args.source_bundle,
             focus_security_id=args.focus_security_id,
+            equity_research_package_paths=args.equity_research_package,
         )
     elif args.command == "common-stock-research-prompt":
         print(build_common_stock_stage_prompt(args.repo, args.run_dir))

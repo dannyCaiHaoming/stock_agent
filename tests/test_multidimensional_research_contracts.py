@@ -472,7 +472,7 @@ class ResearchDimensionContractTests(unittest.TestCase):
             "run_id": "run-1", "invocation_id": "invocation-1",
             "model": "gpt-5.6-terra", "prompt_hash": "e" * 64, "input_refs": [],
             "skill": {"name": "research-report-analysis", "version": "1.2.0", "content_hash": "d" * 64},
-            "agent_binding": {"name": "runtime_company_analyst", "version": "3.0.18"},
+            "agent_binding": {"name": "runtime_company_analyst", "version": "3.0.20"},
         }
         draft = {
             "run_id": "run-1", "invocation_id": "invocation-1", "agent": "runtime_company_analyst",

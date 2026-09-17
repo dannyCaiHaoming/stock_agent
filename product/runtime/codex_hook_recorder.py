@@ -950,13 +950,9 @@ def _capture_common_stock_report(payload, record, environment):
     invocation = json.loads((run_dir / task["invocation_path"]).read_text(encoding="utf-8"))
     if payload["model"] != invocation["model"] or task["security_id"] != request["security"]["security_id"]:
         raise ValueError("COMMON_STOCK_OUTPUT_MODEL_OR_SECURITY_INVALID")
-    calculation_ids = []
-    mcp_path = run_dir / "events/mcp/events.jsonl"
-    if mcp_path.is_file():
-        for line in mcp_path.read_text(encoding="utf-8").splitlines():
-            event = json.loads(line)
-            if event.get("invocation_id") == value["invocation_id"] and isinstance(event.get("calculation_id"), str):
-                calculation_ids.append(event["calculation_id"])
+    calculation_ids = stage._calculation_ids_for_invocation(
+        run_dir, value["invocation_id"]
+    )
     draft = {key: item for key, item in value.items() if key not in {"run_id", "invocation_id", "agent"}}
     report = __import__(
         "product.council.common_stock_research", fromlist=["envelope_equity_research_draft"]
@@ -967,6 +963,10 @@ def _capture_common_stock_report(payload, record, environment):
         report_id="equity-report:" + value["invocation_id"],
         calculation_artifact_ids=calculation_ids,
     )
+    if task.get("equity_research_package_path"):
+        stage.validate_delivered_research_references(
+            report, run_dir=run_dir, invocation_id=value["invocation_id"],
+        )
     gate = json.loads((run_dir / "evidence/gate.json").read_text(encoding="utf-8"))
     evidence = [item for item in gate["allowed_evidence"] if item["evidence_id"] in set(request["allowed_evidence_ids"])]
     output = __import__(
@@ -1243,12 +1243,8 @@ def handle_hook_event(
                 response = {
                     "hookSpecificOutput": {
                         "hookEventName": "SubagentStart",
-                        "additionalContext": (
-                            stage.serialize_common_stock_dispatch_context(packet)
-                            if _common_stock_stage(environment)
-                            else json.dumps(
-                                packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-                            )
+                        "additionalContext": json.dumps(
+                            packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
                         ),
                     }
                 }
@@ -1300,8 +1296,12 @@ def handle_hook_event(
                 response = {
                     "hookSpecificOutput": {
                         "hookEventName": "SubagentStart",
-                        "additionalContext": json.dumps(
-                            packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                        "additionalContext": (
+                            stage.serialize_common_stock_dispatch_context(packet)
+                            if _common_stock_stage(environment)
+                            else json.dumps(
+                                packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                            )
                         ),
                     }
                 }

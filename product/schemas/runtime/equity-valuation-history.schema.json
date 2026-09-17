@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "equity-valuation-history.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "history_id", "security_id", "decision_cutoff", "metric", "requested_window", "actual_window", "points", "valid_points", "coverage_ratio", "reference_points", "reference_coverage_ratio", "current_point_date", "current_value", "minimum_reference_points", "minimum_reference_coverage", "percentile", "percentile_status", "reconstruction_policy", "data_gaps", "artifact_hash"],
+  "properties": {
+    "schema_version": {"const": "equity-valuation-history/1.0.0"},
+    "history_id": {"type": "string", "minLength": 1},
+    "security_id": {"type": "string", "minLength": 1},
+    "decision_cutoff": {"type": "string", "format": "date-time"},
+    "metric": {"const": "trailing_pe"},
+    "requested_window": {"type": "object", "required": ["start", "end"], "properties": {"start": {"type": "string", "format": "date"}, "end": {"type": "string", "format": "date"}}, "additionalProperties": false},
+    "actual_window": {"type": ["object", "null"], "required": ["start", "end"], "properties": {"start": {"type": "string", "format": "date"}, "end": {"type": "string", "format": "date"}}, "additionalProperties": false},
+    "points": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["valuation_date", "price", "value", "status", "reason", "financial_period", "source_id", "as_of", "published_at", "retrieved_at", "currency", "unit", "formula", "formula_version", "calculation_ref", "calculation", "is_current", "evidence_refs", "segment_id"], "properties": {"valuation_date": {"type": "string", "format": "date"}, "price": {"type": ["string", "null"]}, "value": {"type": ["string", "null"]}, "status": {"enum": ["AVAILABLE", "NOT_APPLICABLE", "INPUT_MISSING", "STALE", "DISCONTINUITY"]}, "reason": {"type": ["string", "null"]}, "financial_period": {"type": ["string", "null"]}, "source_id": {"type": "string", "minLength": 1}, "as_of": {"type": "string", "format": "date-time"}, "published_at": {"type": ["string", "null"], "format": "date-time"}, "retrieved_at": {"type": "string", "format": "date-time"}, "currency": {"type": ["string", "null"]}, "unit": {"const": "ratio"}, "formula": {"const": "split-adjusted close / PIT TTM diluted EPS"}, "formula_version": {"const": "trailing-pe-pit/1.0.0"}, "calculation_ref": {"type": ["string", "null"]}, "calculation": {"type": ["object", "null"]}, "is_current": {"type": "boolean"}, "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}, "segment_id": {"type": "string", "minLength": 1}}}},
+    "valid_points": {"type": "integer", "minimum": 0},
+    "coverage_ratio": {"type": "string"},
+    "reference_points": {"type": "integer", "minimum": 0},
+    "reference_coverage_ratio": {"type": "string"},
+    "current_point_date": {"type": ["string", "null"], "format": "date"},
+    "current_value": {"type": ["string", "null"]},
+    "minimum_reference_points": {"type": "integer", "minimum": 1},
+    "minimum_reference_coverage": {"type": "string"},
+    "percentile": {"type": ["string", "null"]},
+    "percentile_status": {"enum": ["AVAILABLE", "INSUFFICIENT_HISTORY", "CURRENT_VALUE_UNAVAILABLE", "SEGMENT_MISMATCH"]},
+    "reconstruction_policy": {"const": "ORIGINAL_PUBLIC_VERSION_AS_KNOWN_AT_POINT_RETRIEVED_LATER"},
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "artifact_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

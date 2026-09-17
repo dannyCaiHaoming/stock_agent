@@ -29,6 +29,7 @@ MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.3.0"
 SUPPORTED_TOOLS = {
     "fixture_evidence.query", "fixture_math.calculate",
     "public_research.search", "public_research.fetch",
+    "equity_research_attachments.query",
 }
 MONETARY_MENTION = re.compile(
     r"(?P<currency>\$|USD\s*)(?P<value>[+-]?\d+(?:\.\d+)?)\s*"
@@ -151,6 +152,29 @@ def _tool_manifest(
         if stateless:
             identity = {"run_dir": {"type": "string"}, **identity}
         tools.extend([
+            {
+                "name": "equity_research_attachments.query",
+                "description": (
+                    "Read only the Gate-bound valuation snapshot/history, fundamental supplement, "
+                    "or peer comparison attached to this common-stock invocation."
+                ),
+                "annotations": {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
+                "inputSchema": {
+                    "type": "object", "additionalProperties": False,
+                    "required": [*identity, "security_id", "decision_cutoff", "kinds"],
+                    "properties": {
+                        **identity, "security_id": {"type": "string"},
+                        "decision_cutoff": {"type": "string"},
+                        "kinds": {
+                            "type": "array", "minItems": 1, "uniqueItems": True,
+                            "items": {"enum": [
+                                "valuation_snapshot", "valuation_history",
+                                "fundamental_supplement", "peer_comparison",
+                            ]},
+                        },
+                    },
+                },
+            },
             {
                 "name": "research_search",
                 "description": (
@@ -635,6 +659,48 @@ class StatelessFixtureTools:
         self.events.append(event)
         return output
 
+    def equity_research_attachments_query(self, **arguments: Any) -> dict[str, Any]:
+        run_dir = (
+            arguments.pop("run_dir", None)
+            if self.default_run_dir is not None else arguments.pop("run_dir")
+        )
+        self._bound_tools(
+            run_dir=run_dir,
+            **{
+                key: str(arguments[key])
+                for key in ("run_id", "agent", "invocation_id")
+            },
+        )
+        if self._last_root is None or self._last_invocation is None:
+            raise ToolAccessError("RUN_PACKAGE_BINDING_MISSING")
+        if "equity_research_attachments.query" not in self._last_invocation.get("tool_permissions", []):
+            raise ToolAccessError("TOOL_NOT_AUTHORIZED:equity_research_attachments.query")
+        manifest = _load_object(self._last_root / "run_manifest.json")
+        if manifest.get("stage") != "COMMON_STOCK_RESEARCH":
+            raise ToolAccessError("COMMON_STOCK_STAGE_REQUIRED")
+        index = _load_object(self._last_root / "research/dispatch-index.json")
+        tasks = [
+            item for item in index.get("tasks", [])
+            if item.get("invocation_id") == arguments.get("invocation_id")
+            and item.get("security_id") == arguments.get("security_id")
+        ]
+        if len(tasks) != 1 or not tasks[0].get("equity_research_package_path"):
+            raise ToolAccessError("EQUITY_ATTACHMENT_INVOCATION_BINDING_MISSING")
+        package = _load_object(self._last_root / tasks[0]["equity_research_package_path"])
+        gate = _load_object(self._last_root / "evidence/gate.json")
+        try:
+            from product.runtime.equity_research_package import GateScopedEquityResearchTools
+        except ModuleNotFoundError:
+            from runtime.equity_research_package import GateScopedEquityResearchTools
+        tools = GateScopedEquityResearchTools(
+            package=package, gate=gate,
+            run_id=str(arguments["run_id"]), agent=str(arguments["agent"]),
+            invocation_id=str(arguments["invocation_id"]),
+        )
+        result = tools.query(**arguments)
+        self.events.append(tools.events[-1])
+        return result
+
     def research_fetch(self, **arguments: Any) -> dict[str, Any]:
         root, task = self._research_context(arguments, "public_research.fetch")
         if task.get("preparation_kind") != "RESEARCH_REPORT_DISCOVERY":
@@ -870,6 +936,8 @@ def serve_stdio(
                     value = tools.research_search(**arguments)
                 elif name == "research_fetch":
                     value = tools.research_fetch(**arguments)
+                elif name == "equity_research_attachments.query":
+                    value = tools.equity_research_attachments_query(**arguments)
                 else:
                     raise ToolAccessError(f"UNKNOWN_TOOL:{name}")
                 result = {

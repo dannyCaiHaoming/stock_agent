@@ -235,6 +235,12 @@ PY
     fi
     set -- "$@" --focus-security-id "$stock_focus_security_id"
   fi
+  if [ -n "${EQUITY_RESEARCH_PACKAGE_FILE:-}" ]; then
+    if [ "$stage" = "multidimensional-holding-research" ]; then
+      echo 'EQUITY_RESEARCH_PACKAGE_STAGE_UNSUPPORTED：冻结估值附件只接入普通股公司研究阶段。' >&2; exit 2
+    fi
+    set -- "$@" --equity-research-package "$EQUITY_RESEARCH_PACKAGE_FILE"
+  fi
   "$@"
   product_run="$bundle/run"
   echo "进入宿主研究阶段；进度：$product_run/invocation/codex-events.jsonl" >&2

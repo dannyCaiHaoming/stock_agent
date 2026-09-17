@@ -21,6 +21,12 @@ bash <repository-root>/scripts/run-product-smoke.sh \
 
 模型来自 prepare 写入的锁定 manifest。launcher 保存固定 prompt 文件、JSONL、stderr、环境和进程结果，调用现有 Hook 与完成判定；必须核对真实 Skill、Agent、MCP、Hook 事件与终态产物，不能只看 shell exit code。禁止恢复旧 `smoke-prompt | codex exec` 管道作为验收入口。
 
+### 1.1 普通股专项运行前门槛
+
+`COMMON_STOCK_RESEARCH` 的新估值附件版本在宿主启动前必须同时满足：实际 Hook `additionalContext` 紧凑 UTF-8 JSON 不超过 256 KiB；附件目录明确列出 `valuation_snapshot`、`valuation_history`、`fundamental_supplement`、`peer_comparison` 的实际可用状态；fixture MCP 的 `tools/list` 与 `tools/call` 能在 run/invocation/security/cutoff/Gate 绑定下读取附件。图表不进入模型工具。
+
+launcher 从运行目录内的一次性隔离源码副本启动并保存当前工作区前后 hash。进程以独立进程组运行；超时后只证明本地 TERM/KILL 与进程回收，远端服务端取消不能证明时写 `UNKNOWN`。任何 timeout、非零退出、缺 Stop、缺/非法报告或引用失败都必须完成 Coverage v1、stage、process 的失败归集，不得留下 `QUEUED`，也不得自动追加模型重试。准备和零模型门槛通过不等于真实模型验收、Runtime Eval 或 Promotion PASS。
+
 ## 2. Artifact Replay
 
 ```text

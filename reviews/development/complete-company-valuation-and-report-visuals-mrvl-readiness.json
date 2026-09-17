@@ -1,0 +1,68 @@
+{
+  "schema_version": "common-stock-zero-model-readiness/1.0.0",
+  "change_id": "complete-company-valuation-and-report-visuals",
+  "checked_at": "2026-09-17T10:29:16+08:00",
+  "status": "PASSED",
+  "model_calls": 0,
+  "security_id": "US:COMMON_STOCK:MRVL",
+  "run_id": "host-common-stock-0b58adb5-1e70-48c2-8190-83c3cd2bf709",
+  "decision_cutoff": "2026-09-16T15:53:32.729494Z",
+  "runtime_python": "/private/tmp/stock-agent-live-runtime-20260916/bin/python",
+  "run_dir": "/private/tmp/stock-agent-mrvl-zero-model.5zYkNV/run",
+  "inputs": {
+    "handoff_sha256": "a6cbd7f8ca8294bc7993af30cce224c16419f622ad1e838513b69f2237164012",
+    "gate_sha256": "bfc4dcdf15c4923f2a8a4176398f3c34f7969d4a0900ad7e04d4aeee0fbeb4fe",
+    "equity_research_package_sha256": "079591e7b59f89542f737651dee5424a65b0e7082d6076e7d24c8c73c678ef85",
+    "package_hash": "5b182d0d0b9e84ad2d6bfe50b51b2c525800a4bc79b26ed97705cfc80eba1101"
+  },
+  "attachments": {
+    "kinds": [
+      "valuation_snapshot",
+      "valuation_history",
+      "fundamental_supplement",
+      "peer_comparison"
+    ],
+    "valuation_history_status": "CURRENT_VALUE_UNAVAILABLE",
+    "valuation_history_limitation": "PIT_EPS_MISSING",
+    "visual_bundle_model_access": "NOT_ALLOWED_DETERMINISTIC_RENDER_ONLY"
+  },
+  "start_context": {
+    "policy_version": "common-stock-start-context-budget/1.0.0",
+    "actual_utf8_bytes": 188710,
+    "maximum_utf8_bytes": 262144,
+    "dispatch_packet_sha256": "785519efdb5212cfe3f0e03c8d00dca12e5f4cf9980f6556368a236fe30647cb",
+    "semantic_groups": 43,
+    "evidence_items": 568,
+    "daily_technical_series_embedded": false,
+    "attachment_content_embedded": false
+  },
+  "mcp_protocol": {
+    "tools_list": "PASSED",
+    "tools_call": "PASSED",
+    "queried_all_four_attachment_kinds": true,
+    "event_log_sha256": "4ad3d4b84d6ab4a516062ceb2b4d8ef7bc1acc52179c5235f9ccbb756f6f2884",
+    "returned_frozen_calculation_ids": [
+      "calc:current_ratio:56ad557228652032",
+      "calc:peer-metric:3fc36115e2b440ea",
+      "calc:price_to_sales:60c0b66528422817"
+    ]
+  },
+  "source_integrity": {
+    "before": "7aa26f64ddf1ea1468b525f35531e83bb44899a39c1ffbbe75087ae415a1df79",
+    "after": "7aa26f64ddf1ea1468b525f35531e83bb44899a39c1ffbbe75087ae415a1df79",
+    "unchanged": true
+  },
+  "deterministic_checks": {
+    "runtime_and_attachment_tests": "92 tests passed",
+    "valuation_and_visual_tests": "38 tests passed",
+    "openspec_strict_validate": "PASSED",
+    "timeout_process_tree_cleanup": "PASSED",
+    "timeout_nonzero_missing_stop_state_consistency": "PASSED",
+    "delivered_reference_closure_positive_and_negative": "PASSED"
+  },
+  "prior_failed_run_relation": {
+    "prior_status": "HARD_TIMEOUT",
+    "automatic_retry_performed": false,
+    "new_model_authorization_required": true
+  }
+}

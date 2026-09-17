@@ -14,6 +14,8 @@
 
 用户不需要重新录入持仓，也不需要制作 Evidence 文件。`holding_horizon` 未知时保留 `null`；公司研究不要求虚构 benchmark 或 Mandate。真实用户持仓、来源凭据、缓存和运行产物必须位于仓库外，不提交 Git。
 
+真实模型调试或专项验收默认使用用户已确认的冻结持仓输入。盈利、亏损、重组等开发样本只能用于明确标识的边界测试，不得替换用户持仓、写入其 PortfolioHandoff，或与真实持仓报告混合呈现。
+
 Company Analyst 默认看不到成本价、浮动盈亏、现金、其他持仓或其他 Agent 的结论，避免把公司研究变成组合动作判断。
 
 ## 运行和输出
@@ -44,7 +46,21 @@ bash scripts/run-product-smoke.sh --stage common-stock-research \
 
 父调度不能用固定 `wait` 次数、普通消息、父线程自报 `dispatched` 数或 Codex 退出码代替终态。父线程每次准备结束时，`Stop` Hook 从冻结 dispatch index、允许派发记录及最小化生命周期日志重算缺失任务；缺失时要求继续等待，全部 task/invocation 终态齐备后才允许进入既有 finalizer。该 Hook 不读取研究正文，也不生成或修补报告；非法报告、引用不闭合或报告集合不完整仍由 finalizer 非零失败。审计位于运行目录的 `invocation/parent-stop-events.jsonl`，只保存任务名、父会话、时间和判定，不保存 Prompt、最终消息或 transcript。
 
-Company Analyst 的 dispatch catalog 只包含首版公司研究所需的证据索引。逐日 OHLCV 系列保留在冻结 Gate 中，但不重复注入公司研究上下文，留给后续 `technical-structure` 能力消费。输出 Schema 也不复制整个 Evidence ID 枚举；模型从 catalog 原样选择 ID，finalizer 仍以冻结 `HoldingResearchRequest` 完整校验 Evidence Closure。
+Company Analyst 的 dispatch catalog 只包含首版公司研究所需的证据索引。逐日 OHLCV 系列保留在冻结 Gate 中，但不重复注入公司研究上下文，留给后续 `technical-structure` 能力消费。输出 Schema 也不复制整个 Evidence ID 枚举；模型从 catalog 原样选择 ID，finalizer 仍以冻结 `HoldingResearchRequest` 完整校验 Evidence Closure。Hook 实际发送的紧凑 UTF-8 JSON 有 256 KiB 硬上限；超限在模型启动前失败并列出主要组成，不截断事实或自动放宽预算。
+
+普通股 launcher 使用运行目录中的一次性隔离源码副本作为模型工作区，当前开发工作区只作为受保护来源并做运行前后 hash 核对。超时会终止本地进程组并拒绝迟到最终消息；远端取消无法证明时记录为 `UNKNOWN`，不自动重试。timeout、非零退出、缺 Stop 或非法/缺失报告都会同步更新 Coverage、stage 与 process，已结束运行不再保留 `QUEUED`。
+
+## 估值、基本面和图文附件
+
+普通股研究可选接收与当前 `run_id`、证券和 `decision_cutoff` 严格绑定的冻结附件包。启动上下文只列出附件种类和绑定 hash，不嵌入附件正文；Company Analyst 必须实际调用 `fixture_runtime.equity_research_attachments.query` 才能读取当前估值快照、历史估值、公司基本面补充和有限同行比较。实际返回的 Evidence、冻结计算与本次计算会进入引用闭合事件；没有成功返回的引用不能写入报告。图表附件只由确定性渲染器消费，不进入模型上下文。附件查询不能联网补数、扩大 Evidence 或把分位/倍数自动转换成买卖动作。
+
+估值同时保留供应商报告值和系统派生值。派生 trailing PE 使用与 EPS 拆股基准一致的非分红复权价格；P/S、P/B 和 FCF Yield 使用实际流通股数形成市值，不混用加权平均稀释股数。负 EPS、非正账面权益、缺资本结构和口径未知分别标为不适用、输入缺失或基础未知，不以零替代。
+
+历史估值默认请求近五年月末，但按实际覆盖交付；每个点只能使用当时已经公开的财务版本。只有至少 24 个有效月末且请求窗口覆盖率达到 80% 才展示 mid-rank 分位。今天取得的历史原申报可以按其原公开时间重建，但必须保留真实检索时间并说明是事后重建。
+
+完整图文目录包含 `report.html`、`report.md`、`research.json`、`manifest.json`、chart-data JSON 与 SVG。HTML 无需服务器或外部 CDN，移动端长表在卡片内横向滚动，打印版保留中文和分页。旧报告没有新附件时仍按原方式读取，不改写历史 JSON 或 hash。
+
+公司补充材料按指引、盈利质量、债务流动性、经营 KPI、治理、实际/预期和财务比率分组；每组显示覆盖状态及具体原因。同行比较默认 2–3 家、最多 5 家，显示实际财报期、币种和逐字段可比性，不递归寻找同行、不加入持仓、不生成综合评分或排名。免费来源不能稳定提供历史一致预期、完整 forward PE、完整 EV/EBITDA、所有公司 KPI 或代理声明；这些字段缺失时保留限制，不等同公司没有相关风险或披露。
 
 ## 报告边界
 

@@ -1,0 +1,314 @@
+{
+  "schema_version": "development-acceptance/1.0.0",
+  "change_id": "complete-company-valuation-and-report-visuals",
+  "source_id": "bounded-real-acceptance-2026-09-17",
+  "as_of": "2026-09-16T19:20:00Z",
+  "retrieved_at": "2026-09-17T04:29:31Z",
+  "status": "PASS_HUMAN_COMPLETION_APPROVED",
+  "human_completion_approval": {
+    "status": "APPROVED",
+    "approved_at": "2026-09-17T04:29:31Z",
+    "scope": "complete-company-valuation-and-report-visuals 完成、主规格同步、归档、scoped commit 与指定远端 push",
+    "runtime_eval_status": "NOT_RUN",
+    "replay_status": "NOT_RUN",
+    "regression_status": "NOT_RUN",
+    "promotion_status": "NOT_RUN"
+  },
+  "runtime_eval_status": "NOT_RUN",
+  "primary_sample": {
+    "security_id": "US:COMMON_STOCK:PLAB",
+    "decision_cutoff": "2026-09-16T19:20:00Z",
+    "source_id": "sec-companyfacts-0000810136+yahoo-daily+photronics-ir+sec-def14a",
+    "as_of": "2026-09-15T20:00:00Z",
+    "retrieved_at": "2026-09-16T19:02:35Z",
+    "current_derived_trailing_pe": "9.598591629887970422535211268",
+    "requested_month_ends": 61,
+    "valid_month_ends": 50,
+    "coverage_ratio": "0.8196721311475409836065573770",
+    "reference_month_ends": 49,
+    "reference_coverage_ratio": "0.8166666666666666666666666667",
+    "mid_rank_percentile": "18.36734693877551020408163265",
+    "daily_price_points": 1264,
+    "pit_eps_versions": 52,
+    "pit_correction": "REMOVED_FY2021_Q4_WITH_LATE_SOURCE",
+    "package_hash": "0c89904387a7c7674af85fc6a4ef44eef4c523898bac527c9efebc34b90d68a1",
+    "gate_hash": "98e8796e1f7cec4fa67afcd26b0e4aea0696bb381bb19ef7bd12e8ca7eafd5ad",
+    "artifact_root": "/private/tmp/complete-company-valuation-real-plab/acceptance"
+  },
+  "bounded_collection": {
+    "source_id": "plab-spy-bounded-collection",
+    "as_of": "2026-09-16T19:20:00Z",
+    "retrieved_at": "2026-09-16T19:00:00Z",
+    "network_requests": 9,
+    "cache_hits": 6,
+    "history_window": "2021-09-01/2026-09-15",
+    "disclosure_budget": {
+      "annual": 2,
+      "quarterly": 4,
+      "earnings_releases": 4,
+      "proxy": 2,
+      "other_8k": 8,
+      "total": 32
+    },
+    "peer_budget": 2
+  },
+  "core_real_matrix": [
+    {
+      "group": "guidance_same_target",
+      "status": "PASS",
+      "source_id": "alb-ir-fy2025-results+alb-ir-q1-2026-results",
+      "as_of": "2026-05-06T00:00:00Z",
+      "retrieved_at": "2026-09-16T19:17:20Z",
+      "evidence": "ALB FY2026 Specialties 指引由净销售额 12–14 亿美元、adjusted EBITDA 1.70–2.30 亿美元，修订为 13–15 亿美元、2.25–2.75 亿美元；PLAB FY2025 Q1 与 FY2026 Q1 作为跨目标期不得比较负例。",
+      "source_locators": [
+        "https://investors.albemarle.com/news-and-events/news/news-details/2026/Albemarle-Reports-Fourth-Quarter-and-Full-Year-2025-Results/default.aspx",
+        "https://investors.albemarle.com/news-and-events/news/news-details/2026/Albemarle-Reports-First-Quarter-2026-Results/default.aspx"
+      ]
+    },
+    {
+      "group": "earnings_quality_two_periods",
+      "status": "PASS",
+      "source_id": "sec-companyfacts-0001835632",
+      "as_of": "2026-01-31T00:00:00Z",
+      "retrieved_at": "2026-09-16T15:52:27.024532Z",
+      "evidence": "MRVL FY2025/FY2026 SBC 分别为 597.4/590.8 百万美元，回购现金流为 725.0/2,040.1 百万美元，期末实际股数为 866.0/847.3 百万股；金额与股数分列，不推导净稀释。",
+      "evidence_ids": [
+        "ev-sec-b37f8bc7a923d115f49a844ebfc908ac09a965369162d377612165b5d69d0f02",
+        "ev-sec-5f0777d41d05bff91083aa2aaf3113ac80080b37c3ce3a763f1ab26e34d23383",
+        "ev-sec-7fc56d9d40d305d387cd9d0bd31cd98795fc9ca09ee25374eb9ee7f345189218",
+        "ev-sec-cbd6f505590ff557c30b45413f65bd98542b5f515b7850e598cc928d6d5cdd42",
+        "ev-sec-49227d3b3a4b3b32793cffcc6f8e8ece3c00d206dde67ddb55a30c571535e8b1",
+        "ev-sec-3d6468148e0006a8be668864eef763c5cd9bc512a8ae5370d271443f49be4d0c"
+      ]
+    },
+    {
+      "group": "gaap_adjusted_bridge",
+      "status": "PASS",
+      "source_id": "alb-ir-q2-2026-results",
+      "as_of": "2026-08-05T00:00:00Z",
+      "retrieved_at": "2026-09-16T19:17:20Z",
+      "evidence": "ALB GAAP net income 479.959 + pension/OPEB after-tax 0.626 + unusual items after-tax 30.555 = adjusted net income 511.140 百万美元，按披露精度闭合。",
+      "source_locator": "https://investors.albemarle.com/news-and-events/news/news-details/2026/Albemarle-Reports-Second-Quarter-2026-Results/default.aspx"
+    },
+    {
+      "group": "debt_maturities",
+      "status": "PASS",
+      "source_id": "sec-companyfacts-0001835632",
+      "as_of": "2026-08-01T00:00:00Z",
+      "retrieved_at": "2026-09-16T15:52:27.024532Z",
+      "evidence": "MRVL year-two/year-three/year-four 本金桶为 1,249.9/500.0/500.0 百万美元；noncurrent debt 4,962.9 百万美元、current debt 0、cash 3,932.8 百万美元。未分配差额 2,713.0 百万美元被明确保留，不强制调平。",
+      "evidence_ids": [
+        "ev-sec-37240cd5355265179ca69afd4eecdfe6bd6b72adc2bc49d1d1e4a006094c0fee",
+        "ev-sec-877449558be2bc699649c2748fd468a982e07bc2c0efb4b16220f6364ae39a95",
+        "ev-sec-1fa42e94cabbe9815004fa672b80d0c96ac317fc4c0038d58aeaafa69f39328b",
+        "ev-sec-feddedb667b219b951e8823077651033ca91911ad74f0fee78f48a97bed2d8e1",
+        "ev-sec-70003d6e7880332df0303d67f57016ed0bedb84e72aea409eb5e526c95f56c1d",
+        "ev-sec-8571f0839029488084bfb2c5b01c390008caabf3b16979fb638d2c830da8f253"
+      ]
+    },
+    {
+      "group": "kpi_concentration_governance",
+      "status": "PASS",
+      "source_id": "alb-ir-q2-2026-results+sec-def14a-0001539497-26-000750",
+      "as_of": "2026-08-05T00:00:00Z",
+      "retrieved_at": "2026-09-16T19:02:35Z",
+      "evidence": "ALB Energy Storage sales volume 为 65/59 kT LCE，定义一致；PLAB 代理声明保留匿名关联客户 FY2025 收入 137.3 百万美元、应收 38.3 百万美元及审计委员会事前批准政策，不推定客户身份。",
+      "evidence_ids": [
+        "ev-sec-governance-d2aa33abd7787d7f00707f8a5bfb51d2d9e76fddc232d89c66cfbb080cda1d67"
+      ]
+    },
+    {
+      "group": "financial_ratios",
+      "status": "PASS_WITH_CONDITIONAL_ROIC",
+      "source_id": "sec-companyfacts-0000810136",
+      "as_of": "2026-08-02T00:00:00Z",
+      "retrieved_at": "2026-09-15T02:51:17.291559Z",
+      "evidence": "PLAB current ratio 4.941409、ROE 0.137214、ROA 0.088198、OCF/net income 1.868334 均可复算；ROIC 因 NOPAT/投入资本桥接不足标 INPUT_MISSING。"
+    },
+    {
+      "group": "bounded_peers",
+      "status": "PASS",
+      "source_id": "sec-companyfacts-0000810136+sec-companyfacts-0001736297+sec-companyfacts-0001835632+yahoo-daily",
+      "as_of": "2026-09-14T20:00:00Z",
+      "retrieved_at": "2026-09-15T01:48:12.544607Z",
+      "evidence": "目标 PLAB 与 ALAB、MRVL 两家固定同行各展示 GAAP TTM revenue、GAAP TTM operating margin 和 market cap / GAAP TTM revenue；TTM 统一按 FY + current YTD - prior-year YTD 重建，P/S 市值分子由冻结收盘价乘截止点前最新已发布实际股数，业务差异与有限可比状态显式保留。",
+      "peer_metric_counts": {
+        "US:COMMON_STOCK:PLAB": 3,
+        "US:COMMON_STOCK:ALAB": 3,
+        "US:COMMON_STOCK:MRVL": 3
+      }
+    },
+    {
+      "group": "earnings_expectations",
+      "status": "CONDITIONAL_LIMIT_RECORDED",
+      "source_id": "photronics-ir-fy25-results",
+      "as_of": "2026-08-02T00:00:00Z",
+      "retrieved_at": "2026-09-16T19:00:00Z",
+      "evidence": "GAAP actual 与 non-GAAP guidance 基础不一致，保持 PARTIAL/BASIS_MISMATCH，不生成虚构 beat/miss。"
+    }
+  ],
+  "visual_delivery": {
+    "source_id": "deterministic-static-report-renderer",
+    "as_of": "2026-09-16T19:20:00Z",
+    "retrieved_at": "2026-09-16T19:24:11Z",
+    "html": "/private/tmp/complete-company-valuation-real-plab/acceptance/report/report.html",
+    "markdown": "/private/tmp/complete-company-valuation-real-plab/acceptance/report/report.md",
+    "manifest": "/private/tmp/complete-company-valuation-real-plab/acceptance/report/manifest.json",
+    "pdf": "/private/tmp/complete-company-valuation-real-plab/acceptance/report-print.pdf",
+    "pdf_pages": 29,
+    "offline_scripts": 0,
+    "broken_images": 0,
+    "desktop_page_overflow": false,
+    "narrow_page_overflow": false,
+    "narrow_table_scroll_width": 900,
+    "narrow_table_viewport_width": 348
+  },
+  "mrvl_model_visual_acceptance": {
+    "source_id": "mrvl-single-model-acceptance-2026-09-17-v6",
+    "as_of": "2026-09-16T15:53:32.729494Z",
+    "retrieved_at": "2026-09-17T03:28:55Z",
+    "status": "PASS",
+    "model": "gpt-5.6-terra",
+    "security_id": "US:COMMON_STOCK:MRVL",
+    "run_dir": "/private/tmp/complete-company-valuation-mrvl-model-acceptance-v6.r2u9Rz/run",
+    "stage_status": "RESEARCH_COMPLETE",
+    "research_status": "LOW_CONFIDENCE",
+    "subagent_starts": 1,
+    "subagent_stops": 1,
+    "queried_all_four_attachment_kinds": true,
+    "claim_evidence_gate_closed": true,
+    "claim_evidence_query_closed": true,
+    "claim_calculation_refs_closed": true,
+    "fact_period_lineage_valid": true,
+    "plab_contamination": false,
+    "prohibited_action_fields_present": false,
+    "report_sha256": "58cbc460a19f099559f4e299e7b88d9a764e6d29da45254496283444c02352cf",
+    "visual_directory": "/private/tmp/complete-company-valuation-mrvl-model-acceptance-v6.r2u9Rz/acceptance/report-final-v2",
+    "manifest_sha256": "64d589e672df304862af74999205079a87e0b04be7160573925c9764ed574d30",
+    "pdf": "/private/tmp/complete-company-valuation-mrvl-model-acceptance-v6.r2u9Rz/acceptance/mrvl-report-final.pdf",
+    "pdf_pages": 20,
+    "price_trading_days": 251,
+    "annual_financial_periods": 2,
+    "offline_scripts": 0,
+    "broken_images": 0,
+    "desktop_page_overflow": false,
+    "narrow_page_overflow": false,
+    "explicit_limited_sections": [
+      "relative_performance_drawdown",
+      "trailing_pe_history",
+      "supplement_earnings_expectations",
+      "supplement_governance",
+      "supplement_guidance",
+      "peer_comparison_table"
+    ]
+  },
+  "validation": {
+    "source_id": "local-deterministic-validation",
+    "as_of": "2026-09-16T19:24:11Z",
+    "retrieved_at": "2026-09-16T19:24:11Z",
+    "focused_tests": {
+      "result": "PASS",
+      "ran": 193,
+      "skipped": 4,
+      "tmpdir": "/private/tmp"
+    },
+    "post_model_timeout_cleanup_regression": {
+      "result": "PASS",
+      "ran": 195,
+      "skipped": 0,
+      "runtime": "/private/tmp/stock-agent-live-runtime-20260916/bin/python",
+      "source_hash_restored": "a991476ec3fcb4c083cd5b7cdc986d56040e21d1067f31ee4dc3ce6cb7680fcf",
+      "mrvl_run_package_reconstruction": "PASS"
+    },
+    "final_precommit_regression": {
+      "result": "PASS",
+      "ran": 204,
+      "skipped": 0,
+      "retrieved_at": "2026-09-17T04:33:33Z",
+      "tmpdir": "/private/tmp",
+      "company_agent_version": "3.0.20",
+      "company_agent_sha256": "b03e6b5c3b98b11b94d319379e6fb98abaf872628716c0fe06597ccdb49b44f5",
+      "runtime_profile_sha256": "ea4a3de6f5b94a548dafb01edddd25945f2fd978766099af59f8ac107bad7a98"
+    },
+    "openspec_strict_validate": "PASS",
+    "compile_and_json_parse": "PASS",
+    "git_diff_check": "PASS",
+    "frozen_package_gate_validation": {
+      "acceptance_package": "PASS",
+      "model_acceptance_package": "PASS"
+    },
+    "semantic_tamper_regressions": {
+      "result": "PASS",
+      "cases": [
+        "history_percentile_rehashed",
+        "history_coverage_rehashed",
+        "peer_coverage_status_rehashed",
+        "peer_cross_metric_ttm_revenue_rehashed",
+        "peer_price_evidence_missing_rehashed"
+      ]
+    },
+    "independent_readonly_review": {
+      "result": "PASS",
+      "round": 5,
+      "record": "reviews/development/complete-company-valuation-and-report-visuals-independent-review.md"
+    },
+    "full_repository_suite": {
+      "result": "BASELINE_FAILURES_OUTSIDE_CHANGE_SCOPE",
+      "ran": 972,
+      "failures": 8,
+      "errors": 27,
+      "skipped": 22,
+      "observed_causes": [
+        "FIXTURE_MCP_TOOL_DRIFT in legacy demo",
+        "exchange-calendars missing from system test interpreter",
+        "legacy candidate/promotion/version-manifest baseline drift",
+        "default temporary path resolves through a forbidden symlink; focused rerun with TMPDIR=/private/tmp passes"
+      ]
+    },
+    "self_check": "NOT_AVAILABLE_CURRENT_CLI_SELF_CHECK_COMMAND_NOT_ALLOWED"
+  },
+  "model_consumption": {
+    "source_id": "mrvl-single-model-acceptance-2026-09-17",
+    "as_of": "2026-09-16T15:53:32.729494Z",
+    "retrieved_at": "2026-09-17T01:08:26Z",
+    "status": "FAILED_TIMEOUT",
+    "reason": "COMMON_STOCK_STAGE_TIMEOUT",
+    "attempt_consumed": true,
+    "automatic_retry": false,
+    "model": "gpt-5.6-terra",
+    "security_id": "US:COMMON_STOCK:MRVL",
+    "package_hash": "858b8e9d9f0cd12f7decbc63acb93bb8f9be23c8d548625650cc1a4ac5beb393",
+    "run_dir": "/private/tmp/complete-company-valuation-mrvl-model-acceptance-run-v3/run",
+    "report_produced": false,
+    "execution_proof_produced": false,
+    "runtime_eval_status": "NOT_RUN",
+    "record": "reviews/development/complete-company-valuation-and-report-visuals-model-acceptance.json",
+    "follow_up": {
+      "status": "FAILED_VALIDATION",
+      "reason": "COMMON_STOCK_REPORT_SET_INCOMPLETE",
+      "output_capture_failure_code": "EQUITY_RESEARCH_FACT_PERIOD_LINEAGE_INCOMPLETE:claim-derived-valuation:2025-02-02",
+      "attempt_consumed": true,
+      "automatic_retry": false,
+      "model": "gpt-5.6-terra",
+      "security_id": "US:COMMON_STOCK:MRVL",
+      "package_hash": "5b182d0d0b9e84ad2d6bfe50b51b2c525800a4bc79b26ed97705cfc80eba1101",
+      "queried_all_four_attachment_kinds": true,
+      "rejected_draft_produced": true,
+      "validated_report_produced": false,
+      "run_dir": "/private/tmp/complete-company-valuation-mrvl-model-acceptance-v5.x5rBRn/run",
+      "runtime_eval_status": "NOT_RUN"
+    },
+    "final": {
+      "status": "PASSED",
+      "attempt_consumed": true,
+      "automatic_retry": false,
+      "model": "gpt-5.6-terra",
+      "security_id": "US:COMMON_STOCK:MRVL",
+      "queried_all_four_attachment_kinds": true,
+      "validated_report_produced": true,
+      "visual_report_produced": true,
+      "run_dir": "/private/tmp/complete-company-valuation-mrvl-model-acceptance-v6.r2u9Rz/run",
+      "runtime_eval_status": "NOT_RUN"
+    }
+  }
+}

@@ -1,6 +1,10 @@
 import copy
+import io
 import json
+import os
 import shutil
+import sys
+import time
 import unittest
 from pathlib import Path
 import tomllib
@@ -30,6 +34,7 @@ from product.council import (
     validate_persisted_equity_research_pair,
 )
 from product.intake import build_handoff, build_manual_draft
+from product.deterministic.equity_valuation import build_fundamental_supplement
 from product.runtime.hashing import canonical_hash
 from product.runtime.validation import validate_company_report
 from product.runtime.invocation import validate_skeptic_first_pass_input
@@ -49,6 +54,7 @@ from product.runtime.common_stock_stage import (
     CommonStockStageError,
     STAGE_VERSION,
     _bound_common_stock_dispatch_packet,
+    _run_bounded_process_group,
     _build_common_stock_dispatch_packet,
     build_common_stock_dispatch_message,
     build_common_stock_dispatch_packet,
@@ -57,6 +63,7 @@ from product.runtime.common_stock_stage import (
     launch_common_stock_stage,
     prepare_common_stock_stage_run,
     serialize_common_stock_dispatch_context,
+    validate_delivered_research_references,
 )
 from product.runtime.common_stock_data import (
     CommonStockDataError,
@@ -67,7 +74,8 @@ from product.runtime.common_stock_data import (
 )
 from product.runtime.model_routing import select_product_runtime_model
 from product.runtime.codex_hook_recorder import handle_hook_event
-from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError
+from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError, serve_stdio
+from product.runtime.equity_research_package import build_equity_research_package
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -838,6 +846,11 @@ class CompanyAnalystCapabilityTests(unittest.TestCase):
         self.assertIn("完整字符串核对", instructions)
         self.assertIn("不得仅写", instructions)
         self.assertIn("不粘贴 evidence_id", instructions)
+        self.assertIn(
+            "equity_research_attachments.query` 实际返回附件正文中的冻结 calculation_ref",
+            instructions,
+        )
+        self.assertIn("FY + current YTD - prior YTD", instructions)
         self.assertNotIn("新增 Catalyst Agent", instructions)
 
     def test_same_agent_definition_creates_independent_stock_invocations(self):
@@ -1656,6 +1669,132 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
 
 
 class CommonStockNativeStageTests(unittest.TestCase):
+    def test_stage_reconstructs_dispatch_with_equity_attachment_binding(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff = stock_handoff(1)
+            run_id = "attachment-stage-run"
+            gate = gate_for(handoff, run_id)
+            security_id = handoff["portfolio"]["positions"][0]["security_id"]
+            evidence_ref = gate["allowed_evidence_ids"][0]
+            item = {
+                "item_id": "attachment-item",
+                "claim_status": "VERIFIED_FACT",
+                "source_id": "synthetic-sec",
+                "as_of": "2026-06-30T00:00:00Z",
+                "retrieved_at": "2026-07-01T00:00:00Z",
+                "published_at": "2026-07-01T00:00:00Z",
+                "period": "2026Q2",
+                "definition": "synthetic acceptance fact",
+                "unit": "USD",
+                "evidence_refs": [evidence_ref],
+                "calculation_ref": None,
+            }
+            groups = {
+                name: {
+                    "status": "PARTIAL",
+                    "coverage": "synthetic attachment reconstruction",
+                    "reason": None,
+                    "items": [copy.deepcopy(item) | {"item_id": name}],
+                }
+                for name in (
+                    "guidance", "earnings_quality", "debt_liquidity",
+                    "operating_kpis", "governance", "earnings_expectations",
+                    "financial_ratios",
+                )
+            }
+            supplement = build_fundamental_supplement(
+                supplement_id="attachment-supplement",
+                security_id=security_id,
+                decision_cutoff=gate["decision_cutoff"],
+                groups=groups,
+            )
+            package = build_equity_research_package(
+                package_id="attachment-package",
+                run_id=run_id,
+                security_id=security_id,
+                decision_cutoff=gate["decision_cutoff"],
+                gate_bundle_hash=gate["bundle_hash"],
+                artifacts={"fundamental_supplement": supplement},
+            )
+            handoff_path = root / "handoff.json"
+            gate_path = root / "gate.json"
+            package_path = root / "equity-package.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            package_path.write_text(json.dumps(package), encoding="utf-8")
+
+            prepare_common_stock_stage_run(
+                ROOT,
+                handoff_path=handoff_path,
+                gate_path=gate_path,
+                run_dir=root / "run",
+                run_id=run_id,
+                model="gpt-5.6-terra",
+                equity_research_package_paths=[package_path],
+            )
+            _validate_common_stock_stage_run_package(ROOT, root / "run")
+            task = json.loads(
+                (root / "run/research/dispatch-index.json").read_text(
+                    encoding="utf-8"
+                )
+            )["tasks"][0]
+            self.assertEqual(
+                package["package_hash"], task["equity_research_package_hash"]
+            )
+            packet = build_common_stock_dispatch_packet(
+                ROOT, root / "run", task["task_name"]
+            )
+            self.assertIn(
+                "equity_research_attachments.query 成功返回附件正文中的 calculation_ref",
+                packet["instruction"],
+            )
+            self.assertIn(
+                "calculation_ref 与全部 input evidence_refs",
+                packet["instruction"],
+            )
+            self.assertIn(
+                "FY + current YTD - prior YTD",
+                packet["instruction"],
+            )
+            invocation = json.loads(
+                (root / "run" / task["invocation_path"]).read_text(encoding="utf-8")
+            )
+            requests = [
+                {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                {
+                    "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                    "params": {
+                        "name": "equity_research_attachments.query",
+                        "arguments": {
+                            "run_id": run_id,
+                            "agent": "runtime_company_analyst",
+                            "invocation_id": invocation["invocation_id"],
+                            "security_id": security_id,
+                            "decision_cutoff": gate["decision_cutoff"],
+                            "kinds": ["fundamental_supplement"],
+                        },
+                    },
+                },
+            ]
+            stdin = io.StringIO("\n".join(json.dumps(item) for item in requests) + "\n")
+            stdout = io.StringIO()
+            with patch("sys.stdin", stdin), patch("sys.stdout", stdout):
+                serve_stdio(
+                    stateless=True, default_run_dir=root / "run",
+                )
+            responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
+            listed = {item["name"] for item in responses[0]["result"]["tools"]}
+            self.assertIn("equity_research_attachments.query", listed)
+            self.assertEqual(
+                {"fundamental_supplement"},
+                set(responses[1]["result"]["structuredContent"]["artifacts"]),
+            )
+            event = json.loads(
+                (root / "run/events/mcp/events.jsonl").read_text(encoding="utf-8").strip()
+            )
+            self.assertEqual("equity_research_attachments.query", event["tool"])
+
     def test_stage_rejects_tampered_gate_instead_of_resigning_it(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -2014,6 +2153,53 @@ class CommonStockNativeStageTests(unittest.TestCase):
         ):
             _bound_common_stock_dispatch_packet({"oversized_section": "大" * 100_000})
 
+    def test_attachment_and_live_calculation_references_require_successful_delivery(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            events = run / "events/mcp/events.jsonl"
+            events.parent.mkdir(parents=True)
+            records = [
+                {
+                    "event_type": "mcp_tool_result", "invocation_id": "inv-1",
+                    "tool": "equity_research_attachments.query",
+                    "evidence_ids": ["ev-frozen"],
+                    "calculation_ids": ["calc:frozen"],
+                },
+                {
+                    "event_type": "mcp_tool_result", "invocation_id": "inv-1",
+                    "tool": "fixture_math.calculate", "calculation_id": "calc:live",
+                },
+            ]
+            events.write_text(
+                "\n".join(json.dumps(item) for item in records) + "\n",
+                encoding="utf-8",
+            )
+            report = {
+                "claims": [{
+                    "evidence_refs": ["ev-frozen"],
+                    "calculation_refs": ["calc:frozen", "calc:live"],
+                }]
+            }
+            validate_delivered_research_references(
+                report, run_dir=run, invocation_id="inv-1",
+            )
+            broken = copy.deepcopy(report)
+            broken["claims"][0]["evidence_refs"].append("ev-never-returned")
+            with self.assertRaisesRegex(
+                CommonStockStageError, "COMMON_STOCK_EVIDENCE_NOT_DELIVERED",
+            ):
+                validate_delivered_research_references(
+                    broken, run_dir=run, invocation_id="inv-1",
+                )
+            broken = copy.deepcopy(report)
+            broken["claims"][0]["calculation_refs"].append("calc:never-returned")
+            with self.assertRaisesRegex(
+                CommonStockStageError, "COMMON_STOCK_CALCULATION_NOT_DELIVERED",
+            ):
+                validate_delivered_research_references(
+                    broken, run_dir=run, invocation_id="inv-1",
+                )
+
     def test_dispatch_catalog_exposes_frozen_research_supplement_routing(self):
         handoff = stock_handoff(1)
         gate = gate_for(handoff, "native-stage-run")
@@ -2172,7 +2358,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 key: value for key, value in manifest.items() if key != "manifest_hash"
             })
             manifest_path.write_text(json.dumps(manifest))
-            with patch("product.runtime.common_stock_stage.subprocess.run") as process:
+            with patch("product.runtime.common_stock_stage._run_bounded_process_group") as process:
                 with self.assertRaisesRegex(CommonStockStageError, "MANIFEST_BINDING_INVALID"):
                     launch_common_stock_stage(ROOT, run_dir=run)
                 process.assert_not_called()
@@ -2180,15 +2366,21 @@ class CommonStockNativeStageTests(unittest.TestCase):
     def test_launcher_installs_parent_stop_barrier_and_documents_wait_semantics(self):
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare_stage(temp, count=1)
-            with patch("product.runtime.common_stock_stage.subprocess.run") as process:
-                process.return_value.stdout = ""
-                process.return_value.stderr = "expected test failure"
-                process.return_value.returncode = 1
+            with patch("product.runtime.common_stock_stage._run_bounded_process_group") as process:
+                process.return_value = {
+                    "stdout": "", "stderr": "expected test failure",
+                    "process_exit_code": 1, "timed_out": False,
+                    "local_process_group": {
+                        "pid": 123, "term_sent": False, "kill_sent": False,
+                        "cleanup_complete": True,
+                    },
+                    "remote_cancellation_status": "NOT_APPLICABLE",
+                }
                 result, code = launch_common_stock_stage(ROOT, run_dir=run)
             self.assertEqual("FAILED", result["status"])
             self.assertEqual(7, code)
             command = process.call_args.args[0]
-            environment = process.call_args.kwargs["env"]
+            environment = process.call_args.kwargs["environment"]
             self.assertTrue(any(item.startswith("hooks.Stop=") for item in command))
             self.assertEqual(
                 str((run / "invocation/parent-stop-events.jsonl").resolve()),
@@ -2208,6 +2400,145 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertIn("`YYYY-MM-DD` ASCII", packet["instruction"])
             self.assertIn("不得以固定 wait 次数", prompt)
             self.assertIn("不得发送 follow-up 或反复 list", prompt)
+
+    def test_launcher_timeout_and_nonzero_paths_finalize_all_state_views(self):
+        outcomes = (
+            ({
+                "stdout": "", "stderr": "timeout", "process_exit_code": 124,
+                "timed_out": True,
+                "local_process_group": {
+                    "pid": 123, "term_sent": True, "kill_sent": True,
+                    "cleanup_complete": True,
+                },
+                "remote_cancellation_status": "UNKNOWN",
+            }, "TIMEOUT", "COMMON_STOCK_STAGE_TIMEOUT"),
+            ({
+                "stdout": "", "stderr": "failed", "process_exit_code": 9,
+                "timed_out": False,
+                "local_process_group": {
+                    "pid": 124, "term_sent": False, "kill_sent": False,
+                    "cleanup_complete": True,
+                },
+                "remote_cancellation_status": "NOT_APPLICABLE",
+            }, "FAILED", "COMMON_STOCK_CODEX_PROCESS_FAILED"),
+        )
+        for outcome, execution_status, failure_code in outcomes:
+            with self.subTest(execution_status=execution_status), tempfile.TemporaryDirectory() as temp:
+                run, _ = self.prepare_stage(temp, count=1)
+                with patch(
+                    "product.runtime.common_stock_stage._run_bounded_process_group",
+                    return_value=outcome,
+                ):
+                    result, code = launch_common_stock_stage(ROOT, run_dir=run)
+                self.assertEqual(7, code)
+                self.assertEqual("FAILED", result["status"])
+                coverage = json.loads((run / "research/coverage.json").read_text())
+                stage = json.loads((run / "research/stage.json").read_text())
+                process = json.loads((run / "invocation/process-result.json").read_text())
+                item = coverage["items"][0]
+                self.assertEqual(execution_status, item["execution_status"])
+                self.assertEqual("FAILED", item["research_status"])
+                self.assertEqual("FAILED", item["coverage_status"])
+                self.assertEqual(failure_code, item["failure_code"])
+                self.assertEqual("FAILED", coverage["stage_status"])
+                self.assertEqual(coverage, stage["coverage"])
+                self.assertEqual("FAILED", process["process_status"])
+                self.assertEqual("FAILED", process["stage_status"])
+                self.assertEqual(failure_code, process["failure_code"])
+
+    def test_launcher_missing_final_or_stop_does_not_leave_queued(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp, count=1)
+
+            def successful_process_without_stop(command, **_kwargs):
+                final_path = Path(command[command.index("--output-last-message") + 1])
+                final_path.write_text(json.dumps({
+                    "stage": "COMMON_STOCK_RESEARCH",
+                    "run_id": "native-stage-run", "dispatched": 1,
+                }), encoding="utf-8")
+                return {
+                    "stdout": "", "stderr": "", "process_exit_code": 0,
+                    "timed_out": False,
+                    "local_process_group": {
+                        "pid": 125, "term_sent": False, "kill_sent": False,
+                        "cleanup_complete": True,
+                    },
+                    "remote_cancellation_status": "NOT_APPLICABLE",
+                }
+
+            with patch(
+                "product.runtime.common_stock_stage._run_bounded_process_group",
+                side_effect=successful_process_without_stop,
+            ):
+                result, code = launch_common_stock_stage(ROOT, run_dir=run)
+            self.assertEqual(7, code)
+            self.assertEqual("COMMON_STOCK_DISPATCH_PROOF_INCOMPLETE", result["failure_code"])
+            coverage = json.loads((run / "research/coverage.json").read_text())
+            self.assertEqual("FAILED", coverage["items"][0]["execution_status"])
+
+    def test_bounded_process_group_terminates_hanging_child_tree(self):
+        with tempfile.TemporaryDirectory() as temp:
+            result = _run_bounded_process_group(
+                [
+                    sys.executable, "-c",
+                    (
+                        "import subprocess,sys,time;"
+                        "p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']);"
+                        "print(p.pid,flush=True);time.sleep(60)"
+                    ),
+                ],
+                prompt="", cwd=Path(temp), environment=os.environ,
+                timeout_seconds=0.1, termination_grace_seconds=0.2,
+            )
+            self.assertTrue(result["timed_out"])
+            self.assertTrue(result["local_process_group"]["term_sent"])
+            self.assertTrue(result["local_process_group"]["cleanup_complete"])
+            child_pid = int(result["stdout"].strip().splitlines()[0])
+            child_gone = False
+            for _ in range(20):
+                try:
+                    os.kill(child_pid, 0)
+                except ProcessLookupError:
+                    child_gone = True
+                    break
+                time.sleep(0.05)
+            self.assertTrue(child_gone)
+
+    def test_model_source_write_isolated_and_discarded_without_touching_workspace(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp, count=1)
+            active_before = (ROOT / "product/runtime/common_stock_stage.py").read_bytes()
+
+            def mutate_isolated_source(_command, **kwargs):
+                sentinel = Path(kwargs["cwd"]) / "runtime/common_stock_stage.py"
+                sentinel.write_text(
+                    sentinel.read_text(encoding="utf-8") + "\n# model-write-sentinel\n",
+                    encoding="utf-8",
+                )
+                return {
+                    "stdout": "", "stderr": "failed after sentinel",
+                    "process_exit_code": 1, "timed_out": False,
+                    "local_process_group": {
+                        "pid": 126, "term_sent": False, "kill_sent": False,
+                        "cleanup_complete": True,
+                    },
+                    "remote_cancellation_status": "NOT_APPLICABLE",
+                }
+
+            with patch(
+                "product.runtime.common_stock_stage._run_bounded_process_group",
+                side_effect=mutate_isolated_source,
+            ):
+                _result, code = launch_common_stock_stage(ROOT, run_dir=run)
+            self.assertEqual(7, code)
+            process = json.loads((run / "invocation/process-result.json").read_text())
+            self.assertTrue(process["source_integrity_unchanged"])
+            self.assertFalse(process["isolated_source_integrity_unchanged"])
+            self.assertTrue(process["isolated_source_discarded"])
+            self.assertEqual(
+                active_before,
+                (ROOT / "product/runtime/common_stock_stage.py").read_bytes(),
+            )
 
     def test_launch_rejects_consistently_resigned_stage_and_invocation_drift(self):
         with tempfile.TemporaryDirectory() as temp:

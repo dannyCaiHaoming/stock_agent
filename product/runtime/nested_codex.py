@@ -344,6 +344,7 @@ def build_nested_codex_command(
     fixture_mcp_run_dir: Path | None = None,
     hook_agent_matcher: str = "^(runtime_company_analyst|runtime_skeptic)$",
     enable_parent_stop_barrier: bool = False,
+    skip_git_repo_check: bool = False,
 ) -> list[str]:
     """Return the canonical nested Codex command without shell interpolation."""
 
@@ -382,6 +383,8 @@ def build_nested_codex_command(
         "--ephemeral",
         "--json",
     ]
+    if skip_git_repo_check:
+        command.append("--skip-git-repo-check")
     command.extend(("--sandbox", "workspace-write"))
     fixture_python_root: Path | None = None
     if fixture_mcp_run_dir is not None:
@@ -406,7 +409,7 @@ def build_nested_codex_command(
             f"STOCK_AGENT_FIXTURE_MCP_PYTHON={json.dumps(fixture_environment['STOCK_AGENT_FIXTURE_MCP_PYTHON'])},"
             f"STOCK_AGENT_FIXTURE_MCP_PYTHONPATH={json.dumps(fixture_environment['STOCK_AGENT_FIXTURE_MCP_PYTHONPATH'])}"
             "},"
-            "enabled_tools=[\"query\",\"calculate\",\"research_search\",\"research_fetch\"],startup_timeout_sec=10}"
+            "enabled_tools=[\"query\",\"calculate\",\"equity_research_attachments.query\",\"research_search\",\"research_fetch\"],startup_timeout_sec=10}"
         )
         command.extend(("-c", mcp_override))
         # This launcher serves a frozen Gate through fixture_runtime.  Avoid

@@ -204,6 +204,64 @@ def research_financials(raw_facts, *, security_id, selection_time):
     return facts + derived, gaps
 
 
+def research_valuation_financials(
+    raw_facts, *, security_id, selection_time, annual_limit=7, quarter_limit=24,
+):
+    """为五年 PIT 估值保留较长窗口和同期间全部公开版本。
+
+    与 ``research_financials`` 的当前背景窗口分离，避免扩大旧 sidecar；本函数
+    不挑选“最新重述覆盖历史”，逐点生效由估值模块依据 published_at 完成。
+    """
+    cutoff = parse_timestamp(selection_time)
+    groups, normalized, gaps = {}, [], []
+    for fact in raw_facts:
+        if fact.get("taxonomy") != "us-gaap":
+            continue
+        if fact.get("tag") not in FINANCIAL_TAGS:
+            continue
+        try:
+            published = parse_timestamp(fact["published_at"])
+            as_of = parse_timestamp(fact["as_of"])
+        except (KeyError, TypeError, ValueError):
+            gaps.append({"security_id": security_id, "reason": "VALUATION_FINANCIAL_TIME_INVALID"})
+            continue
+        if max(published, as_of) > cutoff:
+            gaps.append({
+                "security_id": security_id, "reason": "VALUATION_FINANCIAL_AFTER_CUTOFF",
+                "tag": fact["tag"], "accession": fact.get("accession"),
+            })
+            continue
+        key = (
+            fact["tag"], fact["unit"], fact["context_type"],
+            fact["form"].removesuffix("/A"),
+        )
+        groups.setdefault(key, []).append(fact)
+    for key, values in sorted(groups.items()):
+        selected, omitted = _select_financial_periods(
+            values, annual_limit=annual_limit, quarter_limit=quarter_limit,
+            other_limit=quarter_limit,
+        )
+        for fact in selected:
+            value = normalize_sec_fact(fact, security_id=security_id, usage="comparison")
+            value["metadata"]["historical_version_policy"] = "ALL_SELECTED_PUBLIC_VERSIONS"
+            normalized.append(value)
+        if omitted:
+            gaps.append({
+                "security_id": security_id,
+                "reason": "VALUATION_HISTORY_SELECTION_TRUNCATED",
+                "group": list(key), "omitted_count": omitted,
+                "annual_limit": annual_limit, "quarter_limit": quarter_limit,
+            })
+    if not normalized:
+        gaps.append({"security_id": security_id, "reason": "VALUATION_HISTORY_FINANCIALS_MISSING"})
+    return sorted(
+        normalized,
+        key=lambda item: (
+            item["metadata"]["period_end"], item["published_at"], item["evidence_id"],
+        ),
+    ), gaps
+
+
 def collect_security_market(security, *, start, end, policies, session, cache, calendar, now,
                             backup_client, market_collector=collect_daily):
     """将实际两路适配接入单证券选择；SEC 封面绑定仍在冻结前统一执行。"""

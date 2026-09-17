@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "equity-valuation-snapshot.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "snapshot_id", "security_id", "decision_cutoff", "valuation_at", "price_basis", "metrics", "data_gaps", "artifact_hash"],
+  "properties": {
+    "schema_version": {"const": "equity-valuation-snapshot/1.0.0"},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "security_id": {"type": "string", "minLength": 1},
+    "decision_cutoff": {"type": "string", "format": "date-time"},
+    "valuation_at": {"type": "string", "format": "date-time"},
+    "price_basis": {"enum": ["CLOSE_SPLIT_ADJUSTED_NOT_DIVIDEND_ADJUSTED", "PROVIDER_REPORTED_CURRENT"]},
+    "metrics": {"type": "array", "items": {"$ref": "#/$defs/metric"}},
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "artifact_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "name", "origin", "value", "status", "reason", "currency", "unit", "price_at", "financial_period", "fiscal_basis", "accounting_basis", "source_id", "as_of", "retrieved_at", "published_at", "evidence_refs", "formula", "calculation_ref"],
+      "properties": {
+        "metric_id": {"type": "string", "minLength": 1},
+        "name": {"enum": ["trailing_pe", "forward_pe", "price_to_sales", "price_to_book", "fcf_yield", "enterprise_value", "ev_to_ebitda"]},
+        "origin": {"enum": ["PROVIDER_REPORTED", "DERIVED"]},
+        "value": {"type": ["string", "null"]},
+        "status": {"enum": ["AVAILABLE", "NOT_APPLICABLE", "INPUT_MISSING", "BASIS_UNKNOWN", "CONFLICT", "SOURCE_UNSUPPORTED"]},
+        "reason": {"type": ["string", "null"]},
+        "currency": {"type": ["string", "null"]},
+        "unit": {"type": "string", "minLength": 1},
+        "price_at": {"type": ["string", "null"], "format": "date-time"},
+        "financial_period": {"type": ["string", "null"]},
+        "fiscal_basis": {"type": ["string", "null"]},
+        "accounting_basis": {"type": ["string", "null"]},
+        "source_id": {"type": "string", "minLength": 1},
+        "as_of": {"type": "string", "format": "date-time"},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "published_at": {"type": ["string", "null"], "format": "date-time"},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "formula": {"type": ["string", "null"]},
+        "calculation_ref": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
