@@ -44,6 +44,7 @@ from .common_stock_eval import (
     prepare_common_stock_eval_job,
 )
 from .common_stock_data import (
+    attach_research_supplement,
     assemble_common_stock_evidence_from_live_snapshot,
     collect_common_stock_data_from_handoff,
 )
@@ -136,6 +137,15 @@ def build_parser() -> argparse.ArgumentParser:
     stock_collect.add_argument("--run-id", required=True)
     stock_collect.add_argument("--benchmark-id")
     stock_collect.add_argument("--benchmark-ticker")
+
+    stock_supplement = subparsers.add_parser(
+        "attach-research-supplement",
+        help="把冻结的三源补充包接入既有普通股 Gate；不采集网络或启动模型",
+    )
+    stock_supplement.add_argument("--data-dir", type=Path, required=True)
+    stock_supplement.add_argument("--background", type=Path, required=True)
+    stock_supplement.add_argument("--package", type=Path, required=True)
+    stock_supplement.add_argument("--batch", type=Path, required=True)
 
     stock_prompt = subparsers.add_parser("common-stock-research-prompt")
     stock_prompt.add_argument("--repo", type=Path, required=True)
@@ -438,8 +448,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 run_id=args.run_id,
                 benchmark_id=args.benchmark_id,
                 benchmark_ticker=args.benchmark_ticker,
+                collect_research_supplements=True,
             )
         except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            print(json.dumps({
+                "status": "FAILED", "failure_code": str(exc).split(":", 1)[0],
+                "command": args.command, "llm_calls": 0,
+            }, ensure_ascii=False))
+            return 2
+    elif args.command == "attach-research-supplement":
+        try:
+            result = attach_research_supplement(
+                args.data_dir, background_path=args.background,
+                package_path=args.package, batch_path=args.batch,
+            )
+        except (OSError, ValueError, KeyError, TypeError) as exc:
             print(json.dumps({
                 "status": "FAILED", "failure_code": str(exc).split(":", 1)[0],
                 "command": args.command, "llm_calls": 0,

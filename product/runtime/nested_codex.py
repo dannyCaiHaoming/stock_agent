@@ -30,7 +30,7 @@ from .smoke_prompt import build_smoke_prompt
 from .environment_preflight import resolve_run_paths
 
 
-LAUNCHER_VERSION = "nested-codex-launcher/1.4.1"
+LAUNCHER_VERSION = "nested-codex-launcher/1.4.2"
 VALID_TERMINAL_STATES = {"COMPLETED", "SAFE_NO_TRADE"}
 
 
@@ -343,6 +343,7 @@ def build_nested_codex_command(
     output_schema_path: Path | None = None,
     fixture_mcp_run_dir: Path | None = None,
     hook_agent_matcher: str = "^(runtime_company_analyst|runtime_skeptic)$",
+    enable_parent_stop_barrier: bool = False,
 ) -> list[str]:
     """Return the canonical nested Codex command without shell interpolation."""
 
@@ -365,6 +366,10 @@ def build_nested_codex_command(
     dispatch_hook_handler = (
         # Omit the matcher: native tool names/Agent aliases differ across CLI
         # releases. The existing recorder classifies calls, retaining no arguments.
+        '[{'
+        f'hooks=[{{type="command",command={json.dumps(hook_command)},timeout=3}}]}}]'
+    )
+    stop_hook_handler = (
         '[{'
         f'hooks=[{{type="command",command={json.dumps(hook_command)},timeout=3}}]}}]'
     )
@@ -414,6 +419,16 @@ def build_nested_codex_command(
         ))
     if output_schema_path is not None:
         command.extend(("--output-schema", str(output_schema_path)))
+    hook_overrides = [
+        "-c",
+        f"hooks.PreToolUse={dispatch_hook_handler}",
+        "-c",
+        f"hooks.SubagentStart={start_hook_handler}",
+        "-c",
+        f"hooks.SubagentStop={hook_handler}",
+    ]
+    if enable_parent_stop_barrier:
+        hook_overrides.extend(("-c", f"hooks.Stop={stop_hook_handler}"))
     command.extend([
         "--add-dir", str(run_dir),
     ])
@@ -429,12 +444,7 @@ def build_nested_codex_command(
         f'log_dir="{log_dir}"',
         "-c",
         'history.persistence="none"',
-        "-c",
-        f"hooks.PreToolUse={dispatch_hook_handler}",
-        "-c",
-        f"hooks.SubagentStart={start_hook_handler}",
-        "-c",
-        f"hooks.SubagentStop={hook_handler}",
+        *hook_overrides,
         "--output-last-message",
         str(final_message_path),
         "--model",

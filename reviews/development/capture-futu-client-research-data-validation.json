@@ -1,0 +1,325 @@
+{
+  "schema_version": "development-validation/1.0.0",
+  "change_id": "capture-futu-client-research-data",
+  "recorded_at": "2026-09-17T01:42:00Z",
+  "scope": "受影响契约、OpenD Quote-only、安全隔离、来源路由、标准化、PIT、MCP 与 OpenSpec；不含 Runtime Eval、Regression、Ablation、Promotion 或完整 Council",
+  "focused_tests": {
+    "command": "TMPDIR=/private/tmp /private/tmp/stock-agent-three-source-venv/bin/python -m unittest tests.test_live_disclosure tests.test_live_financials tests.test_live_options tests.test_live_ownership tests.test_live_sec_client tests.test_live_yahoo_transport tests.test_disclosure_candidates tests.test_event_context tests.test_moomoo_normalize tests.test_moomoo_opend tests.test_research_supplement tests.test_sec_13f tests.test_sec_segments tests.test_yahoo_research tests.test_common_stock_research_contracts tests.test_nested_codex_launcher",
+    "cwd": "/Users/caihaoming/Documents/stock_agent",
+    "exit_code": 0,
+    "tests_run": 234,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "raw_output_sha256": "4f259f3aaf75963d98d3d488896b072ea91671e47a5f475c7a48d3433dddb318",
+    "terminal_summary": "Ran 234 tests in 1.260s; OK"
+  },
+  "static_checks": [
+    {
+      "command": "python3 -m compileall -q product tests",
+      "exit_code": 0,
+      "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "raw_output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "openspec validate capture-futu-client-research-data --strict",
+      "exit_code": 0,
+      "raw_output_sha256": "773fad048b394cdcae0b7e09774e6baa2e172802eba01199bfb45c7f42f4a6bc",
+      "terminal_summary": "Change 'capture-futu-client-research-data' is valid"
+    }
+  ],
+  "real_three_source_package": {
+    "security_id": "US:COMMON_STOCK:AAPL",
+    "decision_cutoff": "2026-09-16T15:08:54.394877Z",
+    "artifact_directory": "/private/tmp/aapl-three-source-consumption-input-v2",
+    "contract_validation": "PASS",
+    "all_top_level_fact_times_at_or_before_cutoff": true,
+    "all_money_flow_period_ends_at_or_before_retrieval": true,
+    "future_provider_valid_time_admitted": false,
+    "fact_count": 228,
+    "money_flow_fact_count": 5,
+    "money_flow_period_end": "2026-09-16T15:08:00Z",
+    "capability_count": 15,
+    "source_selection_count": 10,
+    "mcp_query_fact_count": 27,
+    "mcp_source_families": ["moomoo_sg", "sec", "yahoo"],
+    "contract_hashes": {
+      "batch_hash": "0265cdeb8b3b203918c152f98850eb6c16cbdee00a4381be4acd394fb4c3132e",
+      "background_snapshot_hash": "e57286357d95db140152efba356fe8826c4db9a5a2b87893430ed9aad846cd25",
+      "package_hash": "4f264957f9212e6f78fe0aca1665815187c8359b40c14d88fcd6eff485ed6a0e",
+      "mcp_result_hash": "935439e1745071b2ea05b2557c0b7d45122f5b475c3d2023c4f40feaa3eee742",
+      "consumption_input_hash": "fe521653088ccdeb0279549d1de5321a6166e3077ce10446217bb63d4cb82e58"
+    },
+    "file_sha256": {
+      "batch.json": "d57184bb5b3477ec34a72383fe8f1f00f4325e09c6f43efaa0f7815f0d4195c7",
+      "company-background.json": "bf72d1abbfa52951da5cbdd02008f677b5f2438cb6a46dbb2b1e8a239bd404a2",
+      "research-supplement-package.json": "0cd30459e6c22ddaabb9c69a3e93f1807f05d297636f6e6b87d2694336cc495a",
+      "mcp-query-result.json": "bea54b8d75bf572c3dcb1955da53d2b47214d8a275b7dc530713992203d9a8d6",
+      "consumption-input.json": "6b878de8e24e1d0f6dc87d5fd7d08bbc920a5cd0915fcf40a061cda7dd04f0aa"
+    }
+  },
+  "real_post_fix_opend_state_machine": {
+    "command_scope": "one MoomooOpenDQuoteClient: readiness() then company-profile-v1 for US.AAPL",
+    "exit_code": 0,
+    "status": "OPEND_QUOTE_FEASIBLE",
+    "server_version": "1010",
+    "sdk_version": "10.10.7008",
+    "profile_server_version": "1010",
+    "global_state_requests": 1,
+    "company_profile_requests": 1,
+    "profile_raw_hash": "eb774daabb214749a63992e3c8be2f8e776f4fa4bf2d13c2ae1e32b7c11ac8e8",
+    "normalized_result_hash": "09622bfe51eb540b864ab17f51040d923e7cf3bb048df552a14dd719bfad6654"
+  },
+  "sensitive_information_scan": {
+    "scope": [
+      "/private/tmp/aapl-three-source-consumption-input-v2",
+      "product",
+      "openspec",
+      "docs",
+      "tests"
+    ],
+    "result": "PASS",
+    "benign_matches": ["product/mcp/live/sec_client.py contains the error code SEC_CONTACT_REQUIRED"],
+    "contact_or_email_found": false
+  },
+  "non_acceptance_run": {
+    "command": "/private/tmp/stock-agent-three-source-venv/bin/python -m unittest discover -s tests",
+    "exit_code": 130,
+    "status": "INTERRUPTED_NOT_COUNTED",
+    "reason": "The broad repository suite entered runtime promotion/eval verification. Repository policy forbids treating Promotion/Eval as an implicit ordinary-change check; it was interrupted and is not reported as PASS or FAIL evidence for this change."
+  },
+  "model_consumption": {
+    "first_authorized_terra_run": "INVALID_INPUT_PIT_FAILURE",
+    "replacement_run_performed": true,
+    "replacement_authorization_required": false,
+    "replacement_status": "PASS",
+    "model": "gpt-5.6-terra",
+    "result_ref": "capture-futu-client-research-data-terra-consumption.json",
+    "input_hash": "fe521653088ccdeb0279549d1de5321a6166e3077ce10446217bb63d4cb82e58",
+    "cited_evidence_count": 23,
+    "missing_evidence_ids": [],
+    "source_families": [
+      "moomoo_sg",
+      "sec",
+      "yahoo"
+    ],
+    "skeptic_started": false,
+    "cio_started": false,
+    "risk_started": false,
+    "full_council_started": false
+  },
+  "supplementary_screenshot_common_stock_smoke": {
+    "acceptance_scope": "SEPARATE_FROM_TASK_7_3",
+    "handoff_id": "handoff-private-current-portfolio-v3",
+    "handoff_hash": "d69b3674125e716d33de0f5ca5ed38c3a77229e747bfa6156ac036a6438f871e",
+    "handoff_validation": "PASS",
+    "account_reconciliation": "RECONCILED",
+    "common_stock_security_ids": [
+      "US:COMMON_STOCK:ALB",
+      "US:COMMON_STOCK:MRVL",
+      "US:COMMON_STOCK:WOLF"
+    ],
+    "retained_capability_gaps": [
+      "US:ETF:SOXL",
+      "US:OPTION:SOXL:2026-09-18:98:PUT"
+    ],
+    "frozen_data_run": "/private/tmp/stock-agent-common-stock-screenshot-20260916-v3",
+    "data_collection_status": "PASS",
+    "ready_common_stock_count": 3,
+    "model": "gpt-5.6-terra",
+    "research_stage_status": "FAILED",
+    "failure_code": "COMMON_STOCK_REPORT_SET_INCOMPLETE",
+    "observed_subagent_starts": 3,
+    "observed_subagent_stops": 0,
+    "valid_report_count": 0,
+    "diagnosis": "宿主 Codex 的 wait 返回空 Agent 集合，父调度线程在只有 SubagentStart、没有 SubagentStop 时提前结束；确定性 finalizer 正确拒绝将启动状态计作完成。提示词硬化后的重试仍复现该宿主协作层问题。",
+    "retry_run": "/private/tmp/stock-agent-common-stock-screenshot-20260916-v4",
+    "runtime_eval_started": false,
+    "full_council_started": false
+  },
+  "screenshot_three_source_candidate": {
+    "status": "DETERMINISTIC_DATA_AND_PREPARATION_PASS",
+    "run_id": "capture-futu-client-research-data-20260917-v5",
+    "decision_cutoff": "2026-09-16T18:05:58.522440Z",
+    "artifact_directory": "/private/tmp/capture-futu-client-research-data-20260917-v5/data",
+    "security_ids": [
+      "US:COMMON_STOCK:ALB",
+      "US:COMMON_STOCK:MRVL",
+      "US:COMMON_STOCK:WOLF"
+    ],
+    "source_bundle_reconstruction": "PASS",
+    "preparation_items_match_gate_scope": true,
+    "supplement_statuses": {
+      "US:COMMON_STOCK:ALB": {"status": "PARTIAL", "fact_count": 265, "sec": 202, "yahoo": 6, "moomoo_sg": 57, "vendor_money_flow": 5},
+      "US:COMMON_STOCK:MRVL": {"status": "PARTIAL", "fact_count": 265, "sec": 202, "yahoo": 6, "moomoo_sg": 57, "vendor_money_flow": 5},
+      "US:COMMON_STOCK:WOLF": {"status": "PARTIAL", "fact_count": 217, "sec": 202, "yahoo": 6, "moomoo_sg": 9, "vendor_money_flow": 5}
+    },
+    "covered_background_groups": [
+      "identity_profile", "business_segments", "financial_history",
+      "capital_allocation", "earnings_guidance", "analyst_expectations",
+      "event_context", "share_short_context"
+    ],
+    "explicit_source_limited_groups": ["management_governance", "relationships"],
+    "mcp_checks": {
+      "supplement_query_security_id": "US:COMMON_STOCK:ALB",
+      "supplement_query_fact_count": 208,
+      "queried_datasets": ["business_segments", "financial_history", "identity_profile", "vendor_money_flow"],
+      "source_families": ["moomoo_sg", "sec", "yahoo"],
+      "generic_gate_query_fact_count": 2
+    },
+    "prepared_single_security_run": {
+      "run_directory": "/private/tmp/capture-futu-client-research-data-20260917-prepared-alb-v2/run",
+      "status": "PREPARED",
+      "task_count": 1,
+      "security_id": "US:COMMON_STOCK:ALB",
+      "supplement_catalog_count": 265,
+      "moomoo_vendor_money_flow_visible": true
+    },
+    "prepared_all_security_run": {
+      "run_directory": "/private/tmp/capture-futu-client-research-data-20260917-prepared-all-v1/run",
+      "status": "PREPARED",
+      "task_count": 3,
+      "supplement_catalog_counts": {
+        "US:COMMON_STOCK:ALB": 265,
+        "US:COMMON_STOCK:MRVL": 265,
+        "US:COMMON_STOCK:WOLF": 217
+      },
+      "all_tasks_include_sec_yahoo_moomoo": true,
+      "all_tasks_include_vendor_money_flow": true
+    },
+    "file_sha256": {
+      "gate.json": "4ef7ad34ab47cb68214ff98fc7341fb1ae8dc4383a3fe5f6df63b23b03783a48",
+      "data-preparation.json": "c2efdc1eef498147dce7d54873ee4d39f3f8ab3bf830f2acdea0f62b55039a5d",
+      "source-bundle.json": "64618a82292d66694cf42182f6b6ac82087f0de478d9cacfc959f8a223653795"
+    },
+    "failed_or_superseded_runs": {
+      "v2": "Gate input_evidence_ids 被基础更新覆盖；重建校验正确拒绝",
+      "v4": "局部变量作用域错误；采集入口失败且未形成候选包"
+    },
+    "model_consumption": {
+      "authorization_confirmed": true,
+      "status": "PASS",
+      "acceptance_ref": "screenshot_holdings_common_stock_acceptance"
+    }
+  },
+  "screenshot_holdings_common_stock_acceptance": {
+    "status": "PASS",
+    "scope": "已确认截图持仓的 COMMON_STOCK_RESEARCH；不含 ETF、期权、Skeptic、CIO、Risk、完整 Council 或 Runtime Eval",
+    "model": "gpt-5.6-terra",
+    "official_launcher": "scripts/run-product-smoke.sh --stage common-stock-research",
+    "handoff_id": "handoff-private-current-portfolio-v3",
+    "run_id": "capture-futu-client-research-data-20260917-v5",
+    "decision_cutoff": "2026-09-16T18:05:58.522440Z",
+    "single_security_proof_run": {
+      "run_directory": "/private/tmp/capture-futu-client-research-data-20260917-alb-v10/run",
+      "security_id": "US:COMMON_STOCK:ALB",
+      "status": "PASSED",
+      "all_reports_valid": true,
+      "source_integrity_unchanged": true,
+      "proof_hash": "887b819a2f7fd21ed81f6e74c2930695abd942d88fda3eb36159bd61f8e300d8"
+    },
+    "full_holdings_run": {
+      "run_directory": "/private/tmp/capture-futu-client-research-data-20260917-holdings-v1/run",
+      "status": "PASSED",
+      "completed": 3,
+      "expected": 3,
+      "completed_security_ids": [
+        "US:COMMON_STOCK:ALB",
+        "US:COMMON_STOCK:MRVL",
+        "US:COMMON_STOCK:WOLF"
+      ],
+      "parallel_overlap": true,
+      "source_integrity_unchanged": true,
+      "execution_proof_hash": "80fe00371ef3caf5bb2afe18e64080e47c7eb5de0a54730bc851d767fe81ecd8",
+      "coverage_hash": "49b2846a17073426bf22debe3ee0ca42afd8e1a4f159638464d6f30034ea4756",
+      "common_stock_coverage": "3/3 RESEARCHED",
+      "retained_capability_gaps": [
+        "US:ETF:SOXL",
+        "US:OPTION:SOXL:2026-09-18:98:PUT"
+      ]
+    },
+    "report_validation": {
+      "US:COMMON_STOCK:ALB": {
+        "status": "COMPLETE",
+        "claim_count": 8,
+        "evidence_ref_count": 14,
+        "consumed_sources": ["SEC", "Yahoo", "Moomoo SG"],
+        "vendor_money_flow_referenced": true,
+        "json_sha256": "7a6407521f94a5f31128f8d4a9f5c999113bf8809ca984d0669e9036cbea59bb",
+        "markdown_sha256": "b8060049ec17843b8eda1cac5785d1285ff3b3165a6cb233754b7e3c4f43cd25"
+      },
+      "US:COMMON_STOCK:MRVL": {
+        "status": "LOW_CONFIDENCE",
+        "claim_count": 9,
+        "evidence_ref_count": 13,
+        "consumed_sources": ["SEC", "Yahoo", "Moomoo SG"],
+        "vendor_money_flow_referenced": true,
+        "new_background_referenced": ["identity_profile", "earnings_guidance"],
+        "json_sha256": "b6f4b3588b5fdfb0385ca382d9463c91614d1c829ab6387d2c9fd5a0a8d2c9fc",
+        "markdown_sha256": "74bd62a1416453cedbb17739954cabca3a91545bef8bb486bb71feabc610a54c"
+      },
+      "US:COMMON_STOCK:WOLF": {
+        "status": "LOW_CONFIDENCE",
+        "claim_count": 8,
+        "evidence_ref_count": 15,
+        "consumed_sources": ["SEC", "Yahoo", "Moomoo SG"],
+        "vendor_money_flow_referenced": true,
+        "new_background_referenced": ["business_segments"],
+        "json_sha256": "fc69bd2c58c6c0d281b47179d74bbdf23e813d5244da7e030e397c6970479ebe",
+        "markdown_sha256": "89b4e520a86231a67a076716dbe17ded7c7edf0b744108cdfdd2911781123fbf"
+      }
+    },
+    "execution_log_hashes": {
+      "subagent_dispatches": "20620fd42111f2af92ab037cb9d2654dd4253274bdeaa57b15932273a1dd3961",
+      "subagent_events": "2964e5bd2d110d5825184ffd6fdd813deee127f87f5344dbe2dea7a988435317",
+      "parent_stop_events": "0702b8aacda95151933f46d934454adecf49b70aaf36d45fa8013408b3d9b8ef",
+      "mcp_events": "8113376c1ce82d20c5cae099cfe98d4a79c121573bb861a4bfd0972908032f05"
+    },
+    "historical_failed_runs_retained": {
+      "alb_v9": "报告因 FACT Claim 未原样保留 ISO period_end 被门禁拒收；促成期间血缘提示与缺报告终态修复",
+      "alb_v8": "宿主权限拒绝 Codex 本地客户端初始化；未启动模型",
+      "alb_v7": "运行中源码版本漂移导致 dispatch index 版本不匹配"
+    }
+  },
+  "archive_candidate_validation": {
+    "recorded_at": "2026-09-17T02:34:06Z",
+    "scope": "仅验证本 Change 暂存快照及已确认三股冻结输入；不启动模型、Runtime Eval、Regression、Ablation、Promotion 或完整 Council",
+    "isolated_snapshot": {
+      "compileall": "PASS",
+      "focused_and_version_lock_tests": {
+        "status": "PASS",
+        "tests_run": 256,
+        "failures": 0,
+        "errors": 0
+      },
+      "main_specs": {
+        "status": "PASS",
+        "passed": 15,
+        "failed": 0
+      }
+    },
+    "three_security_preparation": {
+      "status": "PREPARED",
+      "task_count": 3,
+      "run_id": "capture-futu-client-research-data-20260917-v5",
+      "context_budget_bytes": {
+        "US:COMMON_STOCK:ALB": 228548,
+        "US:COMMON_STOCK:MRVL": 222970,
+        "US:COMMON_STOCK:WOLF": 173103
+      },
+      "context_max_bytes": 262144,
+      "supplement_fact_counts": {
+        "US:COMMON_STOCK:ALB": 265,
+        "US:COMMON_STOCK:MRVL": 265,
+        "US:COMMON_STOCK:WOLF": 217
+      },
+      "all_include_sec_yahoo_moomoo": true,
+      "all_include_five_vendor_money_flow_facts": true,
+      "catalog_provenance_policy": "启动目录只保留证据定位、期间与来源路由；完整 kind/source_type/batch_id/比较限制由 Gate-scoped fixture_runtime.query 返回"
+    }
+  }
+}

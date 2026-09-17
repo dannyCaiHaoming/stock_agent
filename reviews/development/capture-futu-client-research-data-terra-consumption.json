@@ -1,0 +1,89 @@
+{
+  "schema_version": "three-source-specialist-consumption-validation/1.0.0",
+  "change_id": "capture-futu-client-research-data",
+  "recorded_at": "2026-09-16T16:00:33Z",
+  "model": "gpt-5.6-terra",
+  "status": "PASS",
+  "execution_scope": {
+    "security_id": "US:COMMON_STOCK:AAPL",
+    "input_path": "/private/tmp/aapl-three-source-consumption-input-v2/consumption-input.json",
+    "input_hash": "fe521653088ccdeb0279549d1de5321a6166e3077ce10446217bb63d4cb82e58",
+    "decision_cutoff": "2026-09-16T15:08:54.394877Z",
+    "allowed_sources": [
+      "sec",
+      "yahoo",
+      "moomoo_sg"
+    ],
+    "skeptic_started": false,
+    "cio_started": false,
+    "risk_started": false,
+    "full_council_started": false,
+    "portfolio_action_emitted": false
+  },
+  "output_summary": {
+    "language": "zh-CN",
+    "structured_json": true,
+    "status_reason": "修复后的冻结输入通过专项消费；SEC 事实、Yahoo/Moomoo 第三方预测或观点、Moomoo 供应商计算资金流及其限制被分开表达，PARTIAL、SOURCE_LIMITED 与 NOT_ATTEMPTED 缺口均保留。",
+    "representative_claims": [
+      {
+        "claim_type": "FACT",
+        "statement": "SEC 当前映射将 AAPL 对应为 Apple Inc.、CIK 0000320193 与 XNAS。",
+        "evidence_ids": [
+          "ev-research-supplement-fe0156c99845883aadc6c6f0b1facf4f7bf38dd497df4dd3613e49aa47e55828"
+        ]
+      },
+      {
+        "claim_type": "FACT",
+        "statement": "SEC 2025 财年分维度事实列示产品收入 307003 百万美元、服务收入 109158 百万美元。",
+        "evidence_ids": [
+          "ev-research-supplement-4ee71112246b0902b6adc449e0c79c00e1495865115258db17a3e7b8cb45adee",
+          "ev-research-supplement-498d84e4267d7da4d7d89212f96fd1bf1203538e65ee30219befc86c52b57dd3"
+        ]
+      },
+      {
+        "claim_type": "THIRD_PARTY_FORECAST",
+        "statement": "Yahoo 的近季度 EPS/营收一致预期属于第三方预测，不是发行人事实。",
+        "evidence_ids": [
+          "ev-research-supplement-8b416fc9eb64a7ece66285584f944b638141dc18afa3f0283fd1e61cc92bdd24"
+        ]
+      },
+      {
+        "claim_type": "THIRD_PARTY_OPINION",
+        "statement": "Moomoo SG 的分析师共识与目标价属于供应商观点，不是发行人指引。",
+        "evidence_ids": [
+          "ev-research-supplement-1904333a319caaaf78143d5668650ac563d4f5ee83f4ba7d99c5a6a8bf581758"
+        ]
+      },
+      {
+        "claim_type": "VENDOR_CALCULATED_FLOW",
+        "statement": "Moomoo SG overall 资金流为供应商分类净流量，不能识别真实机构交易者或推断未来方向。",
+        "evidence_ids": [
+          "ev-research-supplement-11e851678089706dbd07dbd6e4c628171449e5890d9e28f295979760795f501b"
+        ]
+      }
+    ]
+  },
+  "deterministic_validation": {
+    "canonical_input_hash_matches": true,
+    "cited_evidence_count": 23,
+    "cited_evidence_present_count": 23,
+    "missing_evidence_ids": [],
+    "all_cited_evidence_at_or_before_cutoff": true,
+    "money_flow_period_end": "2026-09-16T15:08:00Z",
+    "money_flow_period_end_at_or_before_retrieval": true,
+    "source_families_represented": [
+      "moomoo_sg",
+      "sec",
+      "yahoo"
+    ],
+    "fact_forecast_opinion_separated": true,
+    "coverage_gaps_preserved": true,
+    "vendor_flow_not_treated_as_verified_institutional_flow": true
+  },
+  "limitations": [
+    "SEC Company Facts 的累计季度、重述与可比期间问题仍保持为缺口。",
+    "分部背景仍为 PARTIAL，预算耗尽、坏数值与重复去除信息未被隐藏。",
+    "Yahoo 与 Moomoo SG 均为当前供应商快照，预测财政期、口径及历史 vintage 不完整。",
+    "管理层治理、重要关系、事件背景与未尝试的发行人指引没有补造结论。"
+  ]
+}

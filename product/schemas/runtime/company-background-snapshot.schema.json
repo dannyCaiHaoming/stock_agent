@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "company-background-snapshot/1.0.0",
+  "title": "CompanyBackgroundSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "snapshot_id", "batch_id", "security_id", "ticker", "decision_cutoff", "created_at", "status", "groups", "evidence", "snapshot_hash"],
+  "properties": {
+    "schema_version": {"const": "company-background-snapshot/1.0.0"},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "batch_id": {"type": "string", "minLength": 1},
+    "security_id": {"type": "string", "minLength": 1},
+    "ticker": {"type": "string", "minLength": 1},
+    "decision_cutoff": {"type": "string", "minLength": 20},
+    "created_at": {"type": "string", "minLength": 20},
+    "status": {"enum": ["FROZEN", "PARTIAL", "INSUFFICIENT_EVIDENCE"]},
+    "groups": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_profile", "business_segments", "management_governance", "relationships", "financial_history", "capital_allocation", "earnings_guidance", "analyst_expectations", "event_context", "share_short_context"],
+      "properties": {
+        "identity_profile": {"type": "object"},
+        "business_segments": {"type": "object"},
+        "management_governance": {"type": "object"},
+        "relationships": {"type": "object"},
+        "financial_history": {"type": "object"},
+        "capital_allocation": {"type": "object"},
+        "earnings_guidance": {"type": "object"},
+        "analyst_expectations": {"type": "object"},
+        "event_context": {"type": "object"},
+        "share_short_context": {"type": "object"}
+      }
+    },
+    "evidence": {"type": "array", "items": {"type": "object"}},
+    "snapshot_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

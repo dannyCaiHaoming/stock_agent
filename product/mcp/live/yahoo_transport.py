@@ -61,7 +61,7 @@ class RequestBoundary:
         self.budget, self.requests = access["request_budget"], 0
         self.events, self.failure_code = [], None
         self.now, self.sleep = now, sleep
-        self.cache, self.chart_records, self.option_records = cache, [], []
+        self.cache, self.chart_records, self.option_records, self.research_records = cache, [], [], []
 
     def fail(self, code):
         self.failure_code = self.failure_code or code
@@ -81,17 +81,19 @@ class RequestBoundary:
         bootstrap = host == "fc.yahoo.com" and path in ("", "/")
         chart = re.fullmatch(r"/v8/finance/chart/([A-Z][A-Z0-9.-]{0,14})", path)
         options = re.fullmatch(r"/v7/finance/options/([A-Z][A-Z0-9.-]{0,14})", path)
+        quote_summary = re.fullmatch(r"/v10/finance/quoteSummary/([A-Z][A-Z0-9.-]{0,14})", path)
         query_host = host in ("query1.finance.yahoo.com", "query2.finance.yahoo.com")
         if not (
             bootstrap or query_host and (
                 path == "/v1/test/getcrumb"
                 or chart and chart[1] in self.tickers
                 or options and options[1] in self.tickers
+                or quote_summary and quote_summary[1] in self.tickers
             )
         ):
             self.fail("YAHOO_ENDPOINT_NOT_AUTHORIZED")
         params = kwargs.get("params") or {}
-        allowed_keys = {"period1", "period2", "range", "interval", "includePrePost", "events", "crumb", "includeAdjustedClose", "date"}
+        allowed_keys = {"period1", "period2", "range", "interval", "includePrePost", "events", "crumb", "includeAdjustedClose", "date", "modules"}
         if not isinstance(params, dict) or (set(params) | set(parse_qs(parsed.query))) - allowed_keys:
             self.fail("YAHOO_QUERY_FIELDS_NOT_AUTHORIZED")
         query = parse_qs(parsed.query)
@@ -99,6 +101,11 @@ class RequestBoundary:
             self.fail("YAHOO_QUERY_FIELDS_AMBIGUOUS")
         effective = {**{key: value[0] for key, value in query.items()}, **params}
         if chart:
+            if set(effective) - {
+                "period1", "period2", "range", "interval", "includePrePost",
+                "events", "crumb", "includeAdjustedClose",
+            }:
+                self.fail("YAHOO_QUERY_FIELDS_NOT_AUTHORIZED")
             if (effective.get("interval", "1d") != "1d"
                     or str(effective.get("includePrePost", False)).lower() not in ("false", "0")
                     or effective.get("range", "1d") not in ("1d", "5d", "1mo", "3mo", "6mo", "1y")):
@@ -119,6 +126,18 @@ class RequestBoundary:
             or re.fullmatch(r"[0-9]{9,12}", str(effective["date"])) is None
         ):
             self.fail("YAHOO_OPTIONS_QUERY_INVALID")
+        if quote_summary:
+            allowed_modules = {
+                "assetProfile", "price", "calendarEvents", "earningsTrend",
+                "recommendationTrend", "defaultKeyStatistics", "summaryDetail",
+            }
+            modules = str(effective.get("modules", "")).split(",")
+            if (
+                set(effective) - {"modules", "crumb"} or not modules
+                or any(module not in allowed_modules for module in modules)
+                or len(modules) != len(set(modules))
+            ):
+                self.fail("YAHOO_RESEARCH_MODULES_INVALID")
         if any(kwargs.get(key) is not None for key in ("data", "json", "files", "auth")):
             self.fail("YAHOO_REQUEST_BODY_FORBIDDEN")
         # SDK 要求跟随重定向时仍关闭；新的 consent 域名/POST 不会自动放行。
@@ -163,6 +182,15 @@ class RequestBoundary:
                         "params": query, "transport_version": TRANSPORT_VERSION, "kind": "options"},
                         response.content, retrieved_at=event["completed_at"])
                     self.option_records.append({"ticker": options[1], "record": record})
+                    event["raw_content_hash"] = record["raw_content_hash"]
+                if quote_summary and self.cache is not None:
+                    query = dict(parse_qs(parsed.query), **params)
+                    query.pop("crumb", None)
+                    record = self.cache.store({"provider": "yahoo", "endpoint": event["endpoint"],
+                        "params": query, "transport_version": TRANSPORT_VERSION,
+                        "kind": "research-quote-summary"}, response.content,
+                        retrieved_at=event["completed_at"])
+                    self.research_records.append({"ticker": quote_summary[1], "record": record})
                     event["raw_content_hash"] = record["raw_content_hash"]
                 return response
             event["status"] = "failed"
@@ -210,3 +238,27 @@ def create_yahoo_session(access, *, tickers, state_dir, cache):
     session = BoundedSession(impersonate="chrome")
     session.live_boundary = boundary
     return session
+
+
+def acquire_anonymous_crumb(session) -> str:
+    """建立匿名 Yahoo 会话并返回仅驻留内存的 crumb。
+
+    crumb 不进入事件、缓存 key、文件或异常；调用方只可把它传给同一有界
+    session 的已批准 GET 请求。
+    """
+
+    boundary = getattr(session, "live_boundary", None)
+    if not isinstance(boundary, RequestBoundary):
+        raise YahooTransportError("YAHOO_BOUNDED_SESSION_REQUIRED")
+    session.get("https://fc.yahoo.com/")
+    response = session.get("https://query1.finance.yahoo.com/v1/test/getcrumb")
+    try:
+        crumb = response.content.decode("utf-8", "strict").strip()
+    except (AttributeError, UnicodeError) as exc:
+        raise YahooTransportError("YAHOO_CRUMB_INVALID") from exc
+    if (
+        not crumb or len(crumb) > 256 or any(ord(char) < 33 or ord(char) > 126 for char in crumb)
+        or "<" in crumb or ">" in crumb
+    ):
+        raise YahooTransportError("YAHOO_CRUMB_INVALID")
+    return crumb

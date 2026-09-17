@@ -212,6 +212,13 @@ def validate_common_stock_source_bundle(
     }
     if set(preparation_rows) != expected_ids:
         raise CommonStockDataError("COMMON_STOCK_PREPARATION_COVERAGE_INVALID")
+    supplemental_evidence_ids: set[str] = set()
+    legacy_supplement = preparation.get("research_supplement")
+    if isinstance(legacy_supplement, Mapping):
+        supplemental_evidence_ids.update(legacy_supplement.get("evidence_ids", []))
+    for supplement in preparation.get("research_supplements", []):
+        if isinstance(supplement, Mapping):
+            supplemental_evidence_ids.update(supplement.get("evidence_ids", []))
     facts_by_id: dict[str, Mapping[str, Any]] = {}
     input_ids: set[str] = set()
     excluded_by_id: dict[str, Mapping[str, Any]] = {}
@@ -322,7 +329,10 @@ def validate_common_stock_source_bundle(
             row.get("status") != expected_status
             or row.get("identity_status") != "VERIFIED"
             or row.get("decision_cutoff") != result["decision_cutoff"]
-            or row.get("evidence_ids") != expected_evidence_ids
+            or sorted(
+                evidence_id for evidence_id in row.get("evidence_ids", [])
+                if evidence_id not in supplemental_evidence_ids
+            ) != expected_evidence_ids
             or row.get("failure_code") is not None
             or row.get("data_gaps") != result["data_gaps"]
         ):
@@ -396,6 +406,76 @@ def validate_common_stock_source_bundle(
         expected = merge_option_research_evidence(
             expected, options=read_snapshot("portfolio-option-snapshot.json")
         )
+    if "research_supplement" in preparation:
+        def read_supplement(name: str) -> dict[str, Any]:
+            path = (root / name).resolve()
+            if not path.is_relative_to(root) or not path.is_file():
+                raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_ARTIFACT_MISSING")
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(value, Mapping):
+                raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_ARTIFACT_INVALID")
+            return dict(value)
+        expected = merge_research_supplement_evidence(
+            expected,
+            background=read_supplement("company-background-snapshot.json"),
+            package=read_supplement("research-supplement-package.json"),
+            batch=read_supplement("research-capture-batch.json"),
+            allowed_security_ids={
+                item["security_id"] for item in handoff["portfolio"]["positions"]
+            },
+        )
+    plural_supplements = preparation.get("research_supplements", [])
+    bundle_supplements = bundle.get("research_supplements", [])
+    if plural_supplements != bundle_supplements:
+        raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_INDEX_MISMATCH")
+    if "research_supplement" in preparation and plural_supplements:
+        raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_INDEX_AMBIGUOUS")
+    if not isinstance(plural_supplements, list) or len({
+        item.get("security_id") for item in plural_supplements if isinstance(item, Mapping)
+    }) != len(plural_supplements):
+        raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_INDEX_INVALID")
+    for record in plural_supplements:
+        if not isinstance(record, Mapping):
+            raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_INDEX_INVALID")
+
+        def read_supplement_ref(field: str) -> dict[str, Any]:
+            ref = record.get(field)
+            if not isinstance(ref, str):
+                raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_REFERENCE_MISSING")
+            path = (root / ref).resolve()
+            if not path.is_relative_to(root) or not path.is_file():
+                raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_REFERENCE_INVALID")
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(value, Mapping):
+                raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_ARTIFACT_INVALID")
+            return dict(value)
+
+        markdown_ref = record.get("markdown_ref")
+        markdown_path = (root / markdown_ref).resolve() if isinstance(markdown_ref, str) else root
+        if not isinstance(markdown_ref, str) or not markdown_path.is_relative_to(root) \
+                or not markdown_path.is_file():
+            raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_REFERENCE_INVALID")
+        background = read_supplement_ref("background_ref")
+        package = read_supplement_ref("package_ref")
+        batch = read_supplement_ref("batch_ref")
+        if (
+            record.get("security_id") != background.get("security_id")
+            or record.get("snapshot_hash") != background.get("snapshot_hash")
+            or record.get("package_hash") != package.get("package_hash")
+            or record.get("batch_id") != batch.get("batch_id")
+        ):
+            raise CommonStockDataError("COMMON_STOCK_RESEARCH_SUPPLEMENT_BINDING_INVALID")
+        expected = merge_research_supplement_evidence(
+            expected, background=background, package=package, batch=batch,
+            allowed_security_ids={
+                item["security_id"] for item in handoff["portfolio"]["positions"]
+            },
+            artifact_refs={
+                field: str(record[field]) for field in (
+                    "background_ref", "package_ref", "batch_ref", "markdown_ref"
+                )
+            },
+        )
 
     peer_path = root / "peer-candidate-pool.json"
     if peer_path.is_file():
@@ -438,7 +518,7 @@ def validate_common_stock_source_bundle(
 def collect_common_stock_data_from_handoff(
     handoff_path: Path, *, access_path: Path, output_dir: Path, cache_root: Path,
     sec_user_agent: str, run_id: str, benchmark_id: str | None = None,
-    benchmark_ticker: str | None = None,
+    benchmark_ticker: str | None = None, collect_research_supplements: bool = False,
 ) -> dict[str, Any]:
     """通过现有只读适配器自动生成 Gate；不启动模型或完整组合估值。"""
 
@@ -466,6 +546,15 @@ def collect_common_stock_data_from_handoff(
         json.dumps(collection_portfolio, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    external_research_results: dict[str, list[dict[str, Any]]] = {}
+    if collect_research_supplements:
+        from product.mcp.live.research_supplement_collection import (
+            capture_external_research_results,
+        )
+        external_research_results = capture_external_research_results(
+            collection_portfolio["positions"], access=access, cache_root=cache_root,
+            state_root=destination / "research-supplement-capture",
+        )
     collected_results: dict[str, Mapping[str, Any]] = {}
     source_items: list[dict[str, Any]] = []
     successful_snapshots: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = []
@@ -550,6 +639,49 @@ def collect_common_stock_data_from_handoff(
     prepared = assemble_common_stock_evidence(
         handoff, run_id=run_id, collect_security=collected_security,
     )
+    research_supplement_paths: list[str] = []
+    if collect_research_supplements:
+        from product.mcp.live.research_supplement import render_company_background_markdown
+        from product.mcp.live.research_supplement_collection import build_research_supplements
+
+        supplements = build_research_supplements(
+            collection_portfolio["positions"], gate=prepared["gate"],
+            external_results=external_research_results, run_id=run_id,
+        )
+        allowed_security_ids = {
+            item["security_id"] for item in collection_portfolio["positions"]
+        }
+        supplement_root = destination / "research-supplements"
+        supplement_root.mkdir(mode=0o700)
+        for supplement in supplements:
+            security_id = supplement["security_id"]
+            item_root = supplement_root / _safe_security_component(security_id)
+            item_root.mkdir(mode=0o700)
+            refs = {
+                "background_ref": str((item_root / "company-background-snapshot.json").relative_to(destination)),
+                "package_ref": str((item_root / "research-supplement-package.json").relative_to(destination)),
+                "batch_ref": str((item_root / "research-capture-batch.json").relative_to(destination)),
+                "markdown_ref": str((item_root / "company-background.md").relative_to(destination)),
+            }
+            for field, value in (
+                ("background_ref", supplement["background"]),
+                ("package_ref", supplement["package"]),
+                ("batch_ref", supplement["batch"]),
+            ):
+                (destination / refs[field]).write_text(
+                    json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+            (destination / refs["markdown_ref"]).write_text(
+                render_company_background_markdown(supplement["background"]),
+                encoding="utf-8",
+            )
+            prepared = merge_research_supplement_evidence(
+                prepared, background=supplement["background"],
+                package=supplement["package"], batch=supplement["batch"],
+                allowed_security_ids=allowed_security_ids, artifact_refs=refs,
+            )
+            research_supplement_paths.append(str(item_root))
     source_bundle = {
         "schema_version": SOURCE_BUNDLE_VERSION,
         "bundle_id": f"common-stock-source:{run_id}",
@@ -562,6 +694,9 @@ def collect_common_stock_data_from_handoff(
         "source_access_hash": canonical_hash(access),
         "decision_cutoff": prepared["preparation"]["common_cutoff"],
         "items": source_items,
+        "research_supplements": copy.deepcopy(
+            prepared["preparation"].get("research_supplements", [])
+        ),
     }
     source_bundle["bundle_hash"] = canonical_hash(source_bundle)
     source_bundle_path = destination / "source-bundle.json"
@@ -574,12 +709,17 @@ def collect_common_stock_data_from_handoff(
         evidence_id for result in collected_results.values()
         for evidence_id in result["input_evidence_ids"]
     }
+    all_input_ids.update(gate.get("input_evidence_ids", []))
     accepted_ids = set(gate["allowed_evidence_ids"])
     excluded_by_id = {
         item["evidence_id"]: copy.deepcopy(item)
+        for item in gate.get("excluded", [])
+    }
+    excluded_by_id.update({
+        item["evidence_id"]: copy.deepcopy(item)
         for result in collected_results.values() for item in result["excluded"]
         if item["evidence_id"] not in accepted_ids
-    }
+    })
     gate.update({
         "source_mode": "live-read-only",
         "source_bundle_id": source_bundle["bundle_id"],
@@ -737,7 +877,80 @@ def collect_common_stock_data_from_handoff(
     }
     if peer_candidate_path is not None:
         result["peer_candidate_pool"] = str(peer_candidate_path)
+    if research_supplement_paths:
+        result["research_supplements"] = research_supplement_paths
     return result
+
+
+def attach_research_supplement(
+    data_dir: Path, *, background_path: Path, package_path: Path, batch_path: Path,
+) -> dict[str, Any]:
+    """把已冻结补充包接到既有普通股数据目录；不采集网络、不启动模型。"""
+    from product.mcp.live.contracts import external_path, validate_contract
+    from product.mcp.live.research_supplement import (
+        render_company_background_markdown,
+        validate_research_supplement_package,
+    )
+
+    root = external_path(data_dir)
+    gate_path, preparation_path = root / "gate.json", root / "data-preparation.json"
+    if not root.is_dir() or not gate_path.is_file() or not preparation_path.is_file():
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_DATA_PACKAGE_INVALID")
+    targets = {
+        "company-background-snapshot.json": external_path(background_path),
+        "research-supplement-package.json": external_path(package_path),
+        "research-capture-batch.json": external_path(batch_path),
+    }
+    if any((root / name).exists() for name in targets):
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_ALREADY_ATTACHED")
+    values = {
+        name: json.loads(path.read_text(encoding="utf-8")) for name, path in targets.items()
+    }
+    background = values["company-background-snapshot.json"]
+    package = values["research-supplement-package.json"]
+    batch = values["research-capture-batch.json"]
+    validate_research_supplement_package(package, batch=batch, background=background)
+    prepared = {
+        "gate": json.loads(gate_path.read_text(encoding="utf-8")),
+        "preparation": json.loads(preparation_path.read_text(encoding="utf-8")),
+    }
+    if "research_supplement" in prepared["preparation"]:
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_ALREADY_ATTACHED")
+    collection_input_path = root / "collection-input.json"
+    if not collection_input_path.is_file():
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_COLLECTION_INPUT_MISSING")
+    collection_input = json.loads(collection_input_path.read_text(encoding="utf-8"))
+    validate_contract("portfolio", collection_input)
+    allowed_security_ids = {
+        item["security_id"] for item in collection_input["positions"]
+    }
+    merged = merge_research_supplement_evidence(
+        prepared, background=background, package=package, batch=batch,
+        allowed_security_ids=allowed_security_ids,
+    )
+    for name, value in values.items():
+        (root / name).write_text(
+            json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    (root / "company-background.md").write_text(
+        render_company_background_markdown(background), encoding="utf-8",
+    )
+    gate_path.write_text(
+        json.dumps(merged["gate"], ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    preparation_path.write_text(
+        json.dumps(merged["preparation"], ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "status": "ATTACHED", "data_dir": str(root),
+        "background_snapshot_hash": background["snapshot_hash"],
+        "package_hash": package["package_hash"],
+        "gate_hash": merged["gate"]["bundle_hash"],
+        "evidence_ids": package["evidence_ids"],
+    }
 
 
 def collect_benchmark_research_series(
@@ -1008,6 +1221,129 @@ def merge_option_research_evidence(
             "gaps": copy.deepcopy(list(options.get("gaps", []))),
         },
     })
+    preparation["preparation_hash"] = canonical_hash({
+        key: value for key, value in preparation.items() if key != "preparation_hash"
+    })
+    return result
+
+
+def merge_research_supplement_evidence(
+    prepared: Mapping[str, Any], *, background: Mapping[str, Any],
+    package: Mapping[str, Any] | None = None, batch: Mapping[str, Any] | None = None,
+    allowed_security_ids: set[str], artifact_refs: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """把三源研究 sidecar 合入同一 Gate，不改变基础四源快照契约。"""
+
+    from product.mcp.live.research_supplement import (
+        validate_company_background_snapshot,
+        validate_research_supplement_package,
+    )
+
+    result = copy.deepcopy(dict(prepared))
+    gate = result.get("gate")
+    preparation = result.get("preparation")
+    if not isinstance(gate, dict) or not isinstance(preparation, dict):
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_PREPARATION_INVALID")
+    if not allowed_security_ids or background.get("security_id") not in allowed_security_ids:
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_PORTFOLIO_SCOPE_MISMATCH")
+    try:
+        validate_company_background_snapshot(background)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_SNAPSHOT_INVALID") from exc
+    facts = list(background["evidence"])
+    if package is not None:
+        if batch is None:
+            raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_BATCH_REQUIRED")
+        try:
+            validate_research_supplement_package(package, batch=batch, background=background)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_PACKAGE_INVALID") from exc
+        facts.extend(package["extra_evidence"])
+    snapshot_cutoff = parse_timestamp(background["decision_cutoff"])
+    if parse_timestamp(gate["decision_cutoff"]) != snapshot_cutoff \
+            or parse_timestamp(preparation["common_cutoff"]) != snapshot_cutoff:
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_CUTOFF_MISMATCH")
+    existing_ids = set(gate.get("input_evidence_ids", []))
+    allowed = list(gate.get("allowed_evidence", []))
+    excluded = list(gate.get("excluded", []))
+    for original in facts:
+        fact = copy.deepcopy(dict(original))
+        if fact["evidence_id"] in existing_ids:
+            raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_EVIDENCE_DUPLICATE")
+        if fact["security_id"] != background["security_id"]:
+            raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_SECURITY_MISMATCH")
+        existing_ids.add(fact["evidence_id"])
+        if max(
+            parse_timestamp(fact["as_of"]), parse_timestamp(fact["published_at"]),
+            parse_timestamp(fact["retrieved_at"]),
+        ) > snapshot_cutoff:
+            excluded.append({
+                "evidence_id": fact["evidence_id"],
+                "reason_codes": ["FUTURE_RESEARCH_SUPPLEMENT_INFORMATION"],
+                "as_of": fact["as_of"],
+                "published_at": fact["published_at"],
+                "retrieved_at": fact["retrieved_at"],
+            })
+        else:
+            allowed.append(fact)
+    excluded_ids = {item["evidence_id"] for item in excluded}
+    admitted_fact_ids = {
+        fact["evidence_id"] for fact in facts
+        if fact["evidence_id"] not in excluded_ids
+    }
+    gate.update({
+        "decision_cutoff": iso_utc(snapshot_cutoff),
+        "input_evidence_ids": sorted(existing_ids),
+        "allowed_evidence": sorted(allowed, key=lambda item: item["evidence_id"]),
+        "allowed_evidence_ids": sorted(item["evidence_id"] for item in allowed),
+        "excluded": sorted(excluded, key=lambda item: item["evidence_id"]),
+        "excluded_evidence_ids": sorted(item["evidence_id"] for item in excluded),
+    })
+    gate["bundle_hash"] = canonical_hash({
+        key: value for key, value in gate.items() if key != "bundle_hash"
+    })
+    record = {
+        "schema_version": background["schema_version"],
+        "snapshot_id": background["snapshot_id"],
+        "snapshot_hash": background["snapshot_hash"],
+        "package_hash": package.get("package_hash") if package is not None else None,
+        "batch_id": background["batch_id"],
+        "security_id": background["security_id"],
+        "status": background["status"],
+        "evidence_ids": sorted(item["evidence_id"] for item in facts),
+        "group_statuses": {
+            name: group["status"] for name, group in sorted(background["groups"].items())
+        },
+    }
+    preparation["common_cutoff"] = gate["decision_cutoff"]
+    matching_rows = [
+        item for item in preparation.get("items", [])
+        if item.get("security_id") == background["security_id"]
+    ]
+    if preparation.get("items") is not None and len(matching_rows) != 1:
+        raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_PREPARATION_ITEM_MISSING")
+    if matching_rows:
+        matching_rows[0]["evidence_ids"] = sorted(
+            set(matching_rows[0].get("evidence_ids", [])) | admitted_fact_ids
+        )
+        if matching_rows[0]["evidence_ids"]:
+            matching_rows[0]["status"] = "READY"
+    if artifact_refs is None:
+        preparation["research_supplement"] = record
+    else:
+        required_refs = {"background_ref", "package_ref", "batch_ref", "markdown_ref"}
+        if set(artifact_refs) != required_refs or any(
+            not isinstance(value, str) or not value for value in artifact_refs.values()
+        ):
+            raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_REFERENCE_INVALID")
+        record.update(dict(artifact_refs))
+        records = list(preparation.get("research_supplements", []))
+        if any(item.get("security_id") == background["security_id"] for item in records):
+            raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_ALREADY_ATTACHED")
+        records.append(record)
+        preparation["research_supplements"] = sorted(
+            records, key=lambda item: item["security_id"]
+        )
     preparation["preparation_hash"] = canonical_hash({
         key: value for key, value in preparation.items() if key != "preparation_hash"
     })

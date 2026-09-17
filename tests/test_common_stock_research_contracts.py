@@ -45,8 +45,10 @@ from product.runtime.common_stock_eval import (
     validate_common_stock_eval_result,
 )
 from product.runtime.common_stock_stage import (
+    COMMON_STOCK_START_CONTEXT_MAX_BYTES,
     CommonStockStageError,
     STAGE_VERSION,
+    _bound_common_stock_dispatch_packet,
     _build_common_stock_dispatch_packet,
     build_common_stock_dispatch_message,
     build_common_stock_dispatch_packet,
@@ -54,6 +56,7 @@ from product.runtime.common_stock_stage import (
     _validate_common_stock_stage_run_package,
     launch_common_stock_stage,
     prepare_common_stock_stage_run,
+    serialize_common_stock_dispatch_context,
 )
 from product.runtime.common_stock_data import (
     CommonStockDataError,
@@ -69,6 +72,14 @@ from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError
 
 ROOT = Path(__file__).resolve().parents[1]
 PORTFOLIO_FIXTURE = ROOT / "evals/fixtures/portfolio-intake/synthetic-multi-asset-manual.json"
+
+
+def flattened_evidence_catalog(packet):
+    return [
+        item
+        for group in packet["evidence_catalog"]
+        for item in group["items"]
+    ]
 
 
 def confirmed_handoff():
@@ -812,7 +823,7 @@ class CompanyAnalystCapabilityTests(unittest.TestCase):
         self.assertIn("局部缺口", instructions)
         self.assertIn("即使只差一天", instructions)
         self.assertIn("只有起止日完全相同", instructions)
-        self.assertIn("evidence_period_index", instructions)
+        self.assertIn("evidence_catalog", instructions)
         self.assertIn("按每个实际采用的指标逐项自检", instructions)
         self.assertIn("不能只写旧年度基线", instructions)
         self.assertIn("10-K、FY 标签本身不构成证明", instructions)
@@ -1970,22 +1981,97 @@ class CommonStockNativeStageTests(unittest.TestCase):
             run, _ = self.prepare_stage(temp)
             index = json.loads((run / "research/dispatch-index.json").read_text())
             packet = build_common_stock_dispatch_packet(ROOT, run, index["tasks"][0]["task_name"])
-            for item in packet["evidence_catalog"]:
+            for item in flattened_evidence_catalog(packet):
                 for field, value in metadata.items():
+                    if field == "source_locator":
+                        continue
                     self.assertEqual(value, item[field])
-            self.assertTrue(packet["evidence_period_index"])
-            indexed = [
-                item
-                for group in packet["evidence_period_index"]
+            self.assertTrue(packet["evidence_catalog"])
+            indexed_ids = [
+                item["evidence_id"]
+                for group in packet["evidence_catalog"]
                 for item in group["items"]
             ]
             self.assertEqual(
-                {item["evidence_id"] for item in packet["evidence_catalog"]},
-                {item["evidence_id"] for item in indexed},
+                {item["evidence_id"] for item in flattened_evidence_catalog(packet)},
+                set(indexed_ids),
             )
-            self.assertTrue(all(item["period_kind"] == "DURATION" for item in indexed))
-            self.assertTrue(all("自动采用" in group["selection_rule"] for group in packet["evidence_period_index"]))
+            self.assertIn("不代表自动可比", packet["catalog_policy"]["period_selection_rule"])
             self.assertEqual(index["tasks"][0]["packet_hash"], canonical_hash(packet))
+
+    def test_dispatch_context_uses_exact_hook_bytes_and_fails_closed_when_oversized(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp, count=1)
+            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+            packet = build_common_stock_dispatch_packet(ROOT, run, task["task_name"])
+        context = serialize_common_stock_dispatch_context(packet)
+        actual_bytes = len(context.encode("utf-8"))
+        self.assertEqual(packet["context_budget"]["actual_bytes"], actual_bytes)
+        self.assertLessEqual(actual_bytes, COMMON_STOCK_START_CONTEXT_MAX_BYTES)
+        self.assertIn("evidence_catalog", packet["context_budget"]["section_bytes"])
+        with self.assertRaisesRegex(
+            CommonStockStageError, "COMMON_STOCK_START_CONTEXT_BUDGET_EXCEEDED.*largest=",
+        ):
+            _bound_common_stock_dispatch_packet({"oversized_section": "大" * 100_000})
+
+    def test_dispatch_catalog_exposes_frozen_research_supplement_routing(self):
+        handoff = stock_handoff(1)
+        gate = gate_for(handoff, "native-stage-run")
+        fact = gate["allowed_evidence"][0]
+        fact.update({
+            "dataset": "vendor_money_flow", "source_family": "moomoo_sg",
+            "source_type": "VENDOR_CALCULATED_FLOW", "batch_id": "batch-supplement",
+        })
+        gate["bundle_hash"] = canonical_hash({
+            key: value for key, value in gate.items() if key != "bundle_hash"
+        })
+        with tempfile.TemporaryDirectory() as temp, patch(
+            __name__ + ".gate_for", return_value=gate,
+        ):
+            run, _ = self.prepare_stage(temp, count=1)
+            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+            packet = _build_common_stock_dispatch_packet(ROOT, run, task)
+        catalog = next(
+            item for item in flattened_evidence_catalog(packet)
+            if item["evidence_id"] == fact["evidence_id"]
+        )
+        self.assertEqual("vendor_money_flow", catalog["dataset"])
+        self.assertEqual("moomoo_sg", catalog["source_family"])
+        self.assertNotIn("source_type", catalog)
+        self.assertNotIn("batch_id", catalog)
+        self.assertIn("fixture_runtime.query", packet["catalog_policy"]["provenance_rule"])
+
+    def test_dispatch_excludes_daily_technical_market_series_from_company_research(self):
+        handoff = stock_handoff(1)
+        gate = gate_for(handoff, "native-stage-run")
+        technical = copy.deepcopy(gate["allowed_evidence"][0])
+        technical.update(
+            evidence_id="ev-daily-adjusted-close",
+            semantic_field="adjusted_close_price",
+            dataset="historical_prices",
+        )
+        gate["allowed_evidence"].append(technical)
+        gate["allowed_evidence_ids"].append(technical["evidence_id"])
+        gate["input_evidence_ids"].append(technical["evidence_id"])
+        gate["bundle_hash"] = canonical_hash({
+            key: value for key, value in gate.items() if key != "bundle_hash"
+        })
+        with tempfile.TemporaryDirectory() as temp, patch(__name__ + ".gate_for", return_value=gate):
+            run, _ = self.prepare_stage(temp, count=1)
+            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+            packet = _build_common_stock_dispatch_packet(ROOT, run, task)
+        self.assertNotIn(
+            technical["evidence_id"],
+            {item["evidence_id"] for item in flattened_evidence_catalog(packet)},
+        )
+        self.assertNotIn(
+            "allowed_evidence_ids", packet["holding_research_request"]
+        )
+        self.assertNotIn("allowed_evidence_ids", packet)
+        self.assertEqual(
+            1, packet["catalog_policy"]["request_allowed_evidence_count"]
+            - packet["catalog_policy"]["company_research_evidence_count"],
+        )
 
     def test_period_index_preserves_newer_and_comparable_periods_without_selecting_for_agent(self):
         handoff = stock_handoff(1)
@@ -2010,13 +2096,13 @@ class CommonStockNativeStageTests(unittest.TestCase):
             task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
             packet = _build_common_stock_dispatch_packet(ROOT, run, task)
         revenue = next(
-            group for group in packet["evidence_period_index"]
+            group for group in packet["evidence_catalog"]
             if group["semantic_field"] == "revenue"
         )
         self.assertEqual(2, len(revenue["items"]))
-        self.assertEqual("2026-09-30", revenue["items"][-1]["period_end"])
+        self.assertIn(original["evidence_id"], {item["evidence_id"] for item in revenue["items"]})
         self.assertNotIn("selected_evidence_id", revenue)
-        self.assertIn("不代表自动可比", revenue["selection_rule"])
+        self.assertIn("不代表自动可比", packet["catalog_policy"]["period_selection_rule"])
 
     def test_dispatch_exposes_derived_comparison_scope_without_claiming_accounting_comparability(self):
         handoff = stock_handoff(1)
@@ -2050,13 +2136,17 @@ class CommonStockNativeStageTests(unittest.TestCase):
             task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
             packet = _build_common_stock_dispatch_packet(ROOT, run, task)
         catalog = next(
-            item for item in packet["evidence_catalog"]
+            item for item in flattened_evidence_catalog(packet)
             if item["evidence_id"] == "ev-derived-comparison"
         )
-        self.assertEqual("UNVERIFIED", catalog["accounting_basis_status"])
-        self.assertEqual("UNVERIFIED", catalog["share_denominator_status"])
-        self.assertEqual("REQUIRES_EVIDENCE_REVIEW", catalog["trend_interpretation_status"])
-        self.assertEqual(2, len(catalog["comparison_periods"]))
+        for field in (
+            "accounting_basis_status", "share_denominator_status",
+            "trend_interpretation_status", "comparison_limitation",
+        ):
+            self.assertNotIn(field, catalog)
+        self.assertEqual("UNVERIFIED", derived["metadata"]["accounting_basis_status"])
+        self.assertEqual("Arithmetic change only.", derived["metadata"]["comparison_limitation"])
+        self.assertIn("完整 provenance", packet["catalog_policy"]["provenance_rule"])
 
     def prepare_stage(self, temp: str, count: int = 2):
         root = Path(temp)
@@ -2086,6 +2176,38 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 with self.assertRaisesRegex(CommonStockStageError, "MANIFEST_BINDING_INVALID"):
                     launch_common_stock_stage(ROOT, run_dir=run)
                 process.assert_not_called()
+
+    def test_launcher_installs_parent_stop_barrier_and_documents_wait_semantics(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp, count=1)
+            with patch("product.runtime.common_stock_stage.subprocess.run") as process:
+                process.return_value.stdout = ""
+                process.return_value.stderr = "expected test failure"
+                process.return_value.returncode = 1
+                result, code = launch_common_stock_stage(ROOT, run_dir=run)
+            self.assertEqual("FAILED", result["status"])
+            self.assertEqual(7, code)
+            command = process.call_args.args[0]
+            environment = process.call_args.kwargs["env"]
+            self.assertTrue(any(item.startswith("hooks.Stop=") for item in command))
+            self.assertEqual(
+                str((run / "invocation/parent-stop-events.jsonl").resolve()),
+                environment["STOCK_AGENT_PARENT_STOP_LOG"],
+            )
+            manifest = json.loads(
+                (run / "invocation/environment-manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                str((run / "invocation/parent-stop-events.jsonl").resolve()),
+                manifest["parent_stop_log"],
+            )
+            prompt = (run / "invocation/prompt.txt").read_text(encoding="utf-8")
+            self.assertIn("`wait_agent` 必须显式使用 `timeout_ms=600000`", prompt)
+            self.assertIn("空 `receiver_thread_ids`", prompt)
+            packet = build_common_stock_dispatch_packet(ROOT, run, "company_research_1")
+            self.assertIn("`YYYY-MM-DD` ASCII", packet["instruction"])
+            self.assertIn("不得以固定 wait 次数", prompt)
+            self.assertIn("不得发送 follow-up 或反复 list", prompt)
 
     def test_launch_rejects_consistently_resigned_stage_and_invocation_drift(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -2198,6 +2320,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             "STOCK_AGENT_RUN_DIR": str(run),
             "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
             "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
+            "STOCK_AGENT_PARENT_STOP_LOG": str(invocation / "parent-stop-events.jsonl"),
             "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst",
             "STOCK_AGENT_COMMON_STOCK_STAGE": STAGE_VERSION,
         }
@@ -2258,12 +2381,13 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertEqual(index["tasks"][0]["packet_hash"], canonical_hash(packet))
             tools = StatelessFixtureTools()
             identity = packet["identity"]
+            catalog_evidence_id = flattened_evidence_catalog(packet)[0]["evidence_id"]
             queried = tools.query(
                 run_dir=str(run), run_id=identity["run_id"], agent=identity["agent"],
                 invocation_id=identity["invocation_id"],
-                evidence_ids=[packet["allowed_evidence_ids"][0]],
+                evidence_ids=[catalog_evidence_id],
             )
-            self.assertEqual(packet["allowed_evidence_ids"][0], queried["evidence"][0]["evidence_id"])
+            self.assertEqual(catalog_evidence_id, queried["evidence"][0]["evidence_id"])
 
             bound_tools = StatelessFixtureTools(default_run_dir=run)
             query_schema = next(
@@ -2273,14 +2397,14 @@ class CommonStockNativeStageTests(unittest.TestCase):
             bound = bound_tools.query(
                 run_id=identity["run_id"], agent=identity["agent"],
                 invocation_id=identity["invocation_id"],
-                evidence_ids=[packet["allowed_evidence_ids"][0]],
+                evidence_ids=[catalog_evidence_id],
             )
-            self.assertEqual(packet["allowed_evidence_ids"][0], bound["evidence"][0]["evidence_id"])
+            self.assertEqual(catalog_evidence_id, bound["evidence"][0]["evidence_id"])
             with self.assertRaisesRegex(ToolAccessError, "RUN_DIRECTORY_OVERRIDE_REJECTED"):
                 bound_tools.query(
                     run_dir=str(Path(temp) / "other"), run_id=identity["run_id"],
                     agent=identity["agent"], invocation_id=identity["invocation_id"],
-                    evidence_ids=[packet["allowed_evidence_ids"][0]],
+                    evidence_ids=[catalog_evidence_id],
                 )
 
     def test_dispatch_passes_relevant_gate_conflicts_without_selecting_winner(self):
@@ -2369,6 +2493,52 @@ class CommonStockNativeStageTests(unittest.TestCase):
             )
             self.assertEqual("ALLOW", allowed["decision"])
 
+    def test_hook_requires_wait_while_research_task_is_active(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp, count=1)
+            env = self.hook_environment(run)
+            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+            parent = "parent-session"
+            record, _ = handle_hook_event(
+                self.dispatch_payload(run, task, parent=parent), environ=env,
+            )
+            self.assertEqual("ALLOW", record["decision"])
+
+            for number, tool_name in enumerate((
+                "collaborationlist_agents",
+                "collaborationfollowup_task",
+                "collaborationinterrupt_agent",
+            )):
+                blocked, response = handle_hook_event({
+                    "hook_event_name": "PreToolUse", "session_id": parent,
+                    "turn_id": "parent-turn", "tool_name": tool_name,
+                    "tool_use_id": f"control-{number}", "cwd": str(ROOT / "product"),
+                    "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                    "tool_input": {"target": "company_research_1"},
+                }, environ=env)
+                self.assertEqual("DENY_ACTIVE_RESEARCH_CONTROL", blocked["decision"])
+                self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
+
+            allowed, response = handle_hook_event({
+                "hook_event_name": "PreToolUse", "session_id": parent,
+                "turn_id": "parent-turn", "tool_name": "collaborationwait_agent",
+                "tool_use_id": "wait-1", "cwd": str(ROOT / "product"),
+                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                "tool_input": {"timeout_ms": 300000},
+            }, environ=env)
+            self.assertEqual("IGNORE_NON_AGENT_TOOL", allowed["decision"])
+            self.assertEqual({}, response)
+
+            blocked, response = handle_hook_event({
+                "hook_event_name": "PreToolUse", "session_id": parent,
+                "turn_id": "parent-turn", "tool_name": "collaborationwait_agent",
+                "tool_use_id": "wait-short", "cwd": str(ROOT / "product"),
+                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                "tool_input": {},
+            }, environ=env)
+            self.assertEqual("DENY_SHORT_RESEARCH_WAIT", blocked["decision"])
+            self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
+
     def test_invalid_native_report_is_retained_only_as_rejected_output(self):
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare_stage(temp, count=1)
@@ -2403,6 +2573,95 @@ class CommonStockNativeStageTests(unittest.TestCase):
             rejected = run / stopped["output_capture"]["rejected_path"]
             self.assertTrue(rejected.is_file())
             self.assertFalse((run / "research/reports").exists())
+            result = finalize_common_stock_stage_run(ROOT, run)
+            self.assertEqual("FAILED", result["status"])
+            self.assertEqual(0, result["completed"])
+            proof = json.loads((run / "research/execution-proof.json").read_text())
+            self.assertFalse(proof["all_reports_valid"])
+            coverage = json.loads((run / "research/coverage.json").read_text())
+            self.assertEqual("REPORT_MISSING", coverage["items"][0]["failure_code"])
+
+    def test_parent_stop_requires_same_session_and_frozen_invocation_terminal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp, count=1)
+            env = self.hook_environment(run)
+            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+            parent = "parent-session"
+            allowed, _ = handle_hook_event(
+                self.dispatch_payload(run, task, parent=parent), environ=env
+            )
+            self.assertEqual("ALLOW", allowed["decision"])
+
+            parent_stop = {
+                "hook_event_name": "Stop",
+                "session_id": parent,
+                "turn_id": "parent-turn",
+                "cwd": str(ROOT / "product"),
+                "stop_hook_active": False,
+                "last_assistant_message": json.dumps({"dispatched": 1}),
+            }
+            record, response = handle_hook_event(parent_stop, environ=env)
+            self.assertEqual("BLOCK", record["decision"])
+            self.assertEqual([task["task_name"]], record["missing_task_names"])
+            self.assertEqual("block", response["decision"])
+
+            child = "child-one"
+            handle_hook_event(
+                self.event("SubagentStart", parent=parent, child=child, turn="child-turn"),
+                environ=env,
+            )
+            record, response = handle_hook_event(parent_stop, environ=env)
+            self.assertEqual("BLOCK", record["decision"])
+            self.assertEqual("block", response["decision"])
+
+            request = json.loads((run / task["request_path"]).read_text())
+            native = {
+                "run_id": request["run_id"],
+                "invocation_id": request["invocation_id"],
+                "agent": "runtime_company_analyst",
+                **CommonStockDispatchTests.draft(valid_report(request)),
+            }
+            wrong = dict(native)
+            wrong["invocation_id"] = "wrong-invocation"
+            handle_hook_event(
+                self.event(
+                    "SubagentStop", parent=parent, child=child, turn="child-turn",
+                    message=json.dumps(wrong, ensure_ascii=False),
+                ),
+                environ=env,
+            )
+            record, _ = handle_hook_event(parent_stop, environ=env)
+            self.assertEqual("BLOCK", record["decision"])
+
+            handle_hook_event(
+                self.event(
+                    "SubagentStop", parent="other-parent", child=child, turn="other-turn",
+                    message=json.dumps(native, ensure_ascii=False),
+                ),
+                environ=env,
+            )
+            record, _ = handle_hook_event(parent_stop, environ=env)
+            self.assertEqual("BLOCK", record["decision"])
+
+            handle_hook_event(
+                self.event(
+                    "SubagentStop", parent=parent, child=child, turn="child-turn",
+                    message=json.dumps(native, ensure_ascii=False),
+                ),
+                environ=env,
+            )
+            record, response = handle_hook_event(parent_stop, environ=env)
+            self.assertEqual("ALLOW", record["decision"])
+            self.assertEqual([task["task_name"]], record["completed_task_names"])
+            self.assertEqual({}, response)
+
+            audit_text = (run / "invocation/parent-stop-events.jsonl").read_text(
+                encoding="utf-8"
+            )
+            audit = json.loads(audit_text.splitlines()[-1])
+            self.assertNotIn("last_assistant_message", audit)
+            self.assertNotIn("prompt", audit)
+            self.assertNotIn("transcript", audit_text)
 
     def test_hook_allows_distinct_tasks_denies_duplicate_and_finalizes_bound_reports(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -2438,9 +2697,14 @@ class CommonStockNativeStageTests(unittest.TestCase):
                     environ=env,
                 )
                 context = json.loads(response["hookSpecificOutput"]["additionalContext"])
+                raw_context = response["hookSpecificOutput"]["additionalContext"]
                 self.assertEqual(task["task_name"], start["context_binding"]["task_name"])
                 self.assertEqual(task["packet_hash"], start["context_binding"]["packet_hash"])
                 self.assertEqual(task["invocation_id"], context["identity"]["invocation_id"])
+                self.assertEqual(
+                    context["context_budget"]["actual_bytes"],
+                    len(raw_context.encode("utf-8")),
+                )
             mcp_path = run / "events/mcp/events.jsonl"
             mcp_path.parent.mkdir(parents=True)
             mcp_path.write_text(json.dumps({

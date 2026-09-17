@@ -52,6 +52,24 @@ class NestedCodexLauncherTests(unittest.TestCase):
         self.assertNotIn("matcher=", dispatch_config)
         self.assertTrue(any(item.startswith("hooks.SubagentStart=") for item in command))
         self.assertTrue(any(item.startswith("hooks.SubagentStop=") for item in command))
+        self.assertFalse(any(item.startswith("hooks.Stop=") for item in command))
+
+    def test_command_can_enable_parent_stop_barrier_explicitly(self):
+        run_dir = Path("/tmp/common-stock-run")
+        command = build_nested_codex_command(
+            codex_binary="codex",
+            product_root=ROOT / "product",
+            run_dir=run_dir,
+            model="gpt-5.6-terra",
+            sqlite_home=run_dir / ".codex-runtime/sqlite",
+            log_dir=run_dir / ".codex-runtime/logs",
+            final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
+            hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
+            enable_parent_stop_barrier=True,
+        )
+        stop_config = next(item for item in command if item.startswith("hooks.Stop="))
+        self.assertIn("codex_hook_recorder.py", stop_config)
+        self.assertNotIn("matcher=", stop_config)
 
     def test_command_default_and_explicit_false_preserve_native_sandbox(self):
         run_dir = Path("/tmp/run")

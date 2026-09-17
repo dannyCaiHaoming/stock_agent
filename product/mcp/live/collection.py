@@ -1,5 +1,5 @@
 """持仓范围内的先采集后冻结；仅调用数据适配，不调用模型。"""
-from datetime import datetime, UTC, timedelta
+from datetime import date, datetime, UTC, timedelta
 from decimal import Decimal
 from pathlib import Path
 import json
@@ -33,26 +33,83 @@ FINANCIAL_TAGS = {"Revenues", "RevenueFromContractWithCustomerExcludingAssessedT
                   "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree",
                   "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour",
                   "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive",
-                  "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive"}
+                  "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive",
+                  "Assets", "AssetsCurrent", "Liabilities", "LiabilitiesCurrent",
+                  "StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+                  "AccountsReceivableNetCurrent", "InventoryNet", "AccountsPayableCurrent",
+                  "ResearchAndDevelopmentExpense", "InterestExpense", "InterestExpenseNonOperating",
+                  "PaymentsOfDividends", "PaymentsForRepurchaseOfCommonStock",
+                  "CommonStockDividendsPerShareDeclared", "PropertyPlantAndEquipmentNet",
+                  "RetainedEarningsAccumulatedDeficit"}
+
+
+def _financial_period_bucket(fact):
+    form = fact["form"].removesuffix("/A")
+    fiscal_period = fact.get("fiscal_period")
+    if form == "10-K" or fiscal_period == "FY":
+        return "annual"
+    if form == "10-Q":
+        if fact["context_type"] == "instant":
+            return "independent_quarter"
+        if fact.get("period_start"):
+            days = (date.fromisoformat(fact["period_end"]) - date.fromisoformat(fact["period_start"])).days
+            if days <= 120:
+                return "independent_quarter"
+        return "cumulative_quarter"
+    return "other"
+
+
+def _select_financial_periods(values, *, annual_limit=3, quarter_limit=8, other_limit=8):
+    """按期间选取并保留同一期间的全部修订，不静默挑选一个 accession。"""
+    by_bucket = {}
+    for fact in values:
+        by_bucket.setdefault(_financial_period_bucket(fact), []).append(fact)
+    selected, omitted = [], 0
+    limits = {
+        "annual": annual_limit,
+        "independent_quarter": quarter_limit,
+        "cumulative_quarter": quarter_limit,
+        "other": other_limit,
+    }
+    for bucket, rows in sorted(by_bucket.items()):
+        periods = sorted({row["period_end"] for row in rows}, reverse=True)
+        accepted_periods = set(periods[:limits[bucket]])
+        accepted = [row for row in rows if row["period_end"] in accepted_periods]
+        selected.extend(accepted)
+        omitted += len(rows) - len(accepted)
+    selected.sort(
+        key=lambda f: (f["period_end"], f.get("period_start") or "", f["published_at"], f["evidence_id"]),
+        reverse=True,
+    )
+    return selected, omitted
 
 
 def research_financials(raw_facts, *, security_id, selection_time):
     """有限标准字段/期间选择，不作投资评分；截断与不可比均明示。"""
     cutoff = parse_timestamp(selection_time)
     groups, facts, gaps = {}, [], []
+    unsupported_taxonomy = 0
     for fact in raw_facts:
-        if fact["taxonomy"] != "us-gaap" or fact["tag"] not in FINANCIAL_TAGS:
+        if fact["taxonomy"] != "us-gaap":
+            unsupported_taxonomy += 1
             continue
-        if (cutoff - parse_timestamp(fact["as_of"])).days > 800:
+        if fact["tag"] not in FINANCIAL_TAGS:
+            continue
+        if (cutoff - parse_timestamp(fact["as_of"])).days > 1200:
             continue
         key = (fact["tag"], fact["unit"], fact["context_type"], fact["form"].removesuffix("/A"))
         groups.setdefault(key, []).append(fact)
     for key, values in sorted(groups.items()):
-        values.sort(key=lambda f: (f["period_end"], f.get("period_start") or "", f["published_at"], f["evidence_id"]), reverse=True)
-        for index, fact in enumerate(values[:8]):
+        selected, omitted = _select_financial_periods(values)
+        for index, fact in enumerate(selected):
             facts.append(normalize_sec_fact(fact, security_id=security_id, usage="current" if index == 0 else "comparison"))
-        if len(values) > 8:
-            gaps.append({"security_id": security_id, "reason": "FINANCIAL_SELECTION_TRUNCATED", "group": list(key), "omitted_count": len(values) - 8})
+        if omitted:
+            gaps.append({"security_id": security_id, "reason": "FINANCIAL_SELECTION_TRUNCATED", "group": list(key), "omitted_count": omitted})
+    if unsupported_taxonomy:
+        gaps.append({
+            "security_id": security_id, "reason": "UNSUPPORTED_TAXONOMY_EXCLUDED",
+            "count": unsupported_taxonomy,
+        })
     if not facts:
         gaps.append({"security_id": security_id, "reason": "STANDARD_FINANCIALS_MISSING"})
     expected = {
@@ -63,6 +120,17 @@ def research_financials(raw_facts, *, security_id, selection_time):
         "debt": {"LongTermDebtCurrent", "LongTermDebtNoncurrent", "LongTermDebt", "ShortTermBorrowings", "DebtCurrent"},
         "diluted_eps": {"EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"},
         "operating_profit": {"OperatingIncomeLoss"},
+        "balance_sheet": {
+            "Assets", "AssetsCurrent", "Liabilities", "LiabilitiesCurrent",
+            "StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+        },
+        "working_capital": {"AccountsReceivableNetCurrent", "InventoryNet", "AccountsPayableCurrent"},
+        "research_and_development": {"ResearchAndDevelopmentExpense"},
+        "interest_expense": {"InterestExpense", "InterestExpenseNonOperating"},
+        "dividends_and_repurchases": {
+            "PaymentsOfDividends", "PaymentsForRepurchaseOfCommonStock",
+            "CommonStockDividendsPerShareDeclared",
+        },
         "capital_expenditure": {"PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsForAdditionsToPropertyPlantAndEquipment"},
         "dilution_inputs": {"WeightedAverageNumberOfDilutedSharesOutstanding", "CommonStockSharesOutstanding", "ShareBasedCompensation", "StockBasedCompensation"},
         "debt_maturity_schedule": {
@@ -77,6 +145,34 @@ def research_financials(raw_facts, *, security_id, selection_time):
     available_tags = {fact["metadata"]["tag"] for fact in facts}
     gaps.extend({"security_id": security_id, "reason": "STANDARD_METRIC_MISSING", "metric": metric}
                 for metric, tags in expected.items() if not tags & available_tags)
+    annual_periods = {
+        fact["metadata"]["period_end"] for fact in facts
+        if _financial_period_bucket(fact["metadata"]) == "annual"
+    }
+    independent_quarters = {
+        fact["metadata"]["period_end"] for fact in facts
+        if _financial_period_bucket(fact["metadata"]) == "independent_quarter"
+    }
+    cumulative_quarters = {
+        fact["metadata"]["period_end"] for fact in facts
+        if _financial_period_bucket(fact["metadata"]) == "cumulative_quarter"
+    }
+    gaps.append({
+        "security_id": security_id,
+        "reason": "FINANCIAL_HISTORY_COVERAGE",
+        "annual_periods": len(annual_periods),
+        "independent_quarters": len(independent_quarters),
+        "target_annual_periods": 3,
+        "target_independent_quarters": 8,
+        "status": "TARGET_MET" if len(annual_periods) >= 3 and len(independent_quarters) >= 8 else "PARTIAL",
+    })
+    if cumulative_quarters:
+        gaps.append({
+            "security_id": security_id,
+            "reason": "CUMULATIVE_QUARTER_NOT_SPLIT",
+            "period_ends": sorted(cumulative_quarters),
+            "impact": "未用累计 YTD 值推算独立季度；需同口径父期间后再确定性拆分。",
+        })
     # SEC companyfacts 不保留 XBRL dimension/member，不能用合计值伪造分部。
     # 分部资料仍可由已冻结的 10-K/10-Q 正文供 LLM 定性解释；结构化分部
     # 数值需未来读取 filing XBRL instance 后才能关闭此缺口。

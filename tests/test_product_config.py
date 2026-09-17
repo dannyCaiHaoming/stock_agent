@@ -82,7 +82,7 @@ class SkillConfigTests(unittest.TestCase):
             self.assertEqual(fields.get("name"), skill_name)
             expected_version = {
                 "portfolio-intake": "1.0.0",
-                "portfolio-council": "3.4.1",
+                "portfolio-council": "3.4.2",
                 "evidence-grounding": "2.1.0",
                 "company-research": "2.7.2",
                 "valuation": "2.4.0",
@@ -200,7 +200,7 @@ class RuntimeAgentConfigTests(unittest.TestCase):
             },
             {
                 "runtime_cio": "3.1.0",
-                "runtime_company_analyst": "3.0.18",
+                "runtime_company_analyst": "3.0.20",
                 "runtime_skeptic": "2.1.0",
             },
         )

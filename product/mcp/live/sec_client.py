@@ -325,6 +325,38 @@ class SecClient:
             "resolution_version": OWNERSHIP_DOCUMENT_RESOLUTION_VERSION,
         }
 
+    def read_13f_information_tables(
+        self, filing: dict, *, attachment_limit: int = 10, **policy,
+    ) -> dict:
+        """从同一 13F accession 的官方 filing index 选择信息表 XML。"""
+
+        from product.mcp.live.sec_13f import select_13f_information_tables
+
+        if filing.get("form") not in {"13F-HR", "13F-HR/A"}:
+            raise FetchError("SEC_13F_FORM_UNSUPPORTED")
+        cik = normalize_cik(filing["cik"])
+        accession = filing["accession"]
+        if not re.fullmatch(r"[0-9]{10}-[0-9]{2}-[0-9]{6}", accession):
+            raise FetchError("SEC_ACCESSION_INVALID")
+        submitted_url = validate_sec_url(filing["document_url"])
+        prefix = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/"
+        if not submitted_url.startswith(prefix):
+            raise FetchError("SEC_DOCUMENT_BINDING_MISMATCH")
+        index_url = validate_sec_url(prefix + f"{accession}-index.html")
+        index_record = self.fetch(index_url, **policy)
+        selection = select_13f_information_tables(
+            self.cache.read(index_record), filing=filing,
+            index_record=index_record, limit=attachment_limit,
+        )
+        documents = []
+        for item in selection["selected"]:
+            record = self.fetch(validate_sec_url(item["document_url"]), **policy)
+            documents.append({"selection": item, "record": record})
+        return {
+            "index_url": index_url, "index_record": index_record,
+            "selection": selection, "documents": documents,
+        }
+
     def fetch_many(self, urls: list[str], **policy) -> dict:
         # 先验证整个集合，防止传入无关持仓信息；同一集合内刷新也去重。
         unique = dict.fromkeys(validate_sec_url(url) for url in urls)

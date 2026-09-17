@@ -206,3 +206,50 @@ class FinancialComparisonTests(unittest.TestCase):
             "debt_maturity_schedule",
             {item.get("metric") for item in gaps if item.get("reason") == "STANDARD_METRIC_MISSING"},
         )
+
+    def test_three_year_and_eight_independent_quarter_window_is_explicit(self):
+        inputs = []
+        for index, end in enumerate(("2026-06-30", "2025-06-30", "2024-06-30")):
+            inputs.append(dict(
+                self.evidence["current"], evidence_id=f"annual-{index}", form="10-K",
+                fiscal_period="FY", period_start=f"{2023 + index}-07-01", period_end=end,
+                as_of=f"{end}T00:00:00Z", raw_content_hash="d" * 64,
+                adapter_version="synthetic/1", accession=f"annual-{index}",
+            ))
+        quarter_ends = (
+            "2026-06-30", "2026-03-31", "2025-12-31", "2025-09-30",
+            "2025-06-30", "2025-03-31", "2024-12-31", "2024-09-30",
+        )
+        for index, end in enumerate(quarter_ends):
+            year, month, _ = end.split("-")
+            start_month = max(1, int(month) - 2)
+            inputs.append(dict(
+                self.evidence["current"], evidence_id=f"quarter-{index}", form="10-Q",
+                fiscal_period="Q1", period_start=f"{year}-{start_month:02d}-01", period_end=end,
+                as_of=f"{end}T00:00:00Z", raw_content_hash="e" * 64,
+                adapter_version="synthetic/1", accession=f"quarter-{index}",
+            ))
+        facts, gaps = research_financials(
+            inputs, security_id="TEST", selection_time="2026-09-10T00:00:00Z"
+        )
+        coverage = next(item for item in gaps if item["reason"] == "FINANCIAL_HISTORY_COVERAGE")
+        self.assertEqual(coverage["annual_periods"], 3)
+        self.assertEqual(coverage["independent_quarters"], 8)
+        self.assertEqual(coverage["status"], "TARGET_MET")
+        self.assertEqual(len([item for item in facts if item["kind"] == "financial"]), 11)
+
+    def test_cumulative_quarter_and_unsupported_taxonomy_are_not_invented(self):
+        cumulative = dict(
+            self.evidence["current"], evidence_id="ytd", form="10-Q", fiscal_period="Q2",
+            period_start="2026-01-01", period_end="2026-06-30",
+            raw_content_hash="f" * 64, adapter_version="synthetic/1", accession="ytd",
+        )
+        unsupported = dict(cumulative, evidence_id="ifrs", taxonomy="ifrs-full")
+        facts, gaps = research_financials(
+            [cumulative, unsupported], security_id="TEST", selection_time="2026-09-10T00:00:00Z"
+        )
+        self.assertTrue(any(item["evidence_id"] == "ytd" for item in facts))
+        self.assertTrue(any(item["reason"] == "CUMULATIVE_QUARTER_NOT_SPLIT" for item in gaps))
+        self.assertEqual(
+            next(item for item in gaps if item["reason"] == "UNSUPPORTED_TAXONOMY_EXCLUDED")["count"], 1
+        )

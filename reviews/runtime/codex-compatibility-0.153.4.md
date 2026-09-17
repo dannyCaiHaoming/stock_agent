@@ -5,7 +5,7 @@
 - Codex CLI：`codex-cli 0.153.4`
 - `multi_agent`：`stable = true`
 - 实际运行的 `multi_agent_version`：`v2`
-- 检查日期：`2026-09-06`
+- 检查日期：`2026-09-17`
 
 ## 可重复探测命令
 
@@ -25,6 +25,7 @@ codex debug --help
 - `runtime_company_analyst` 与 `runtime_skeptic` 已在同一父运行中分别启动，且两个派发均发生在第一次 `wait_agent` 之前。
 - 两个专业 Agent 均实际调用 fixture-only 只读 MCP；Company Analyst 另调用确定性计算工具，未发现 Web、外部 Provider、券商、账户或原始 fixture 读取。
 - `product:portfolio-council` 可由已安装本地 Plugin 发现，专业 Agent 的 Skill 配置、Invocation Manifest、输出协议和 MCP 事件可共同形成可验证证据链。
+- `Stop` command Hook 可在父线程准备结束时返回 `decision=block`；普通股 launcher 用它复核全部冻结 task/invocation 是否已有同一父会话的 `SubagentStop`。`wait_agent` 可能因启动或进度活动返回，不能单独作为完成证明。
 
 ## 0.153.4 事件格式适配
 
@@ -46,4 +47,4 @@ codex debug --help
 
 兼容性阻断解除后，正常、冲突与 Risk 三类真实运行均已成功通过 CIO、Risk Engine、终态产物和实际 Eval；未来或过期场景也已按设计在 Agent 前安全终止。兼容性结论不代表真实市场数据能力已经实现。
 
-参考：[OpenAI Subagents](https://learn.chatgpt.com/zh-Hans/docs/agent-configuration/subagents) 与 [OpenAI Codex 更新日志](https://learn.chatgpt.com/docs/changelog?translationFallback=zh-Hans)。
+参考：[OpenAI Codex Hooks](https://developers.openai.com/codex/hooks)、[OpenAI Subagents](https://learn.chatgpt.com/zh-Hans/docs/agent-configuration/subagents) 与 [OpenAI Codex 更新日志](https://learn.chatgpt.com/docs/changelog?translationFallback=zh-Hans)。

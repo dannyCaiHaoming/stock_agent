@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from importlib.metadata import version
+import hashlib
 import json
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
@@ -32,6 +33,18 @@ def _number(value: Any, field: str, *, nullable: bool = True) -> str | None:
 
 def _raise(field: str):
     raise ValueError(f"YAHOO_OPTION_VALUE_MISSING:{field}")
+
+
+def _signed_number(value: Any, field: str) -> str | None:
+    if value is None or value == "":
+        return None
+    try:
+        number = Decimal(str(value))
+    except InvalidOperation as exc:
+        raise ValueError(f"YAHOO_OPTION_VALUE_INVALID:{field}") from exc
+    if not number.is_finite():
+        raise ValueError(f"YAHOO_OPTION_VALUE_INVALID:{field}")
+    return format(number, "f")
 
 
 def normalize_option_rows(
@@ -63,6 +76,17 @@ def normalize_option_rows(
             last_trade = iso_utc(last_trade)
         else:
             last_trade = None
+        if last_trade is not None and parse_timestamp(last_trade) > retrieved:
+            raise ValueError("YAHOO_OPTION_LAST_TRADE_IN_FUTURE")
+        multiplier = _number(
+            row.get("contractMultiplier", row.get("multiplier")), "contract_multiplier"
+        )
+        if multiplier == "0":
+            raise ValueError("YAHOO_OPTION_MULTIPLIER_INVALID")
+        greeks = {
+            name: _signed_number(row.get(name), name)
+            for name in ("delta", "gamma", "theta", "vega", "rho")
+        }
         value = {
             "contract_symbol": contract,
             "option_type": option_type,
@@ -76,9 +100,22 @@ def normalize_option_rows(
             "implied_volatility": _number(row.get("impliedVolatility"), "implied_volatility"),
             "in_the_money": bool(row.get("inTheMoney")) if row.get("inTheMoney") is not None else None,
             "last_trade_at": last_trade,
+            "quote_observed_at": iso_utc(retrieved),
+            "open_interest_observed_at": iso_utc(retrieved),
+            "contract_size_label": row.get("contractSize"),
+            "contract_multiplier": multiplier,
+            "greeks": greeks,
         }
         if value["bid"] is None or value["ask"] is None:
             gaps.append({"reason": "OPTION_QUOTE_SIDE_MISSING", "contract_symbol": contract})
+        if multiplier is None:
+            gaps.append({"reason": "OPTION_MULTIPLIER_MISSING", "contract_symbol": contract})
+        missing_greeks = sorted(name for name, number in greeks.items() if number is None)
+        if missing_greeks:
+            gaps.append({
+                "reason": "OPTION_GREEKS_MISSING", "contract_symbol": contract,
+                "fields": missing_greeks,
+            })
         fact = {
             "schema_version": "live-fact/1.0.0", "security_id": security_id,
             "semantic_field": "option_chain_contract", "value": value,
@@ -94,6 +131,10 @@ def normalize_option_rows(
                 "provider_symbol": ticker, "expiration": expiration,
                 "snapshot_only": True, "historical_open_interest_available": False,
                 "trade_direction_available": False,
+                "quote_time_policy": "retrieval_time; provider exchange quote timestamp unavailable",
+                "open_interest_time_policy": "retrieval_time snapshot; publication vintage unavailable",
+                "greeks_status": "PARTIAL" if missing_greeks else "REPORTED_NOT_RECALCULATED",
+                "cross_source_synchronization": "NOT_ASSUMED",
             },
             "parent_ids": [], "parent_hashes": [],
         }
@@ -101,6 +142,62 @@ def normalize_option_rows(
         validate_contract("fact", fact)
         evidence.append(fact)
     return {"evidence": evidence, "gaps": gaps}
+
+
+def _parse_option_wire(raw: bytes, *, ticker: str) -> dict[str, Any]:
+    if not raw or len(raw) > 32 * 1024 * 1024:
+        raise ValueError("YAHOO_OPTION_RESPONSE_SIZE_INVALID")
+    try:
+        body = json.loads(raw)
+        root = body["optionChain"]
+        results = root["result"]
+    except (UnicodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise ValueError("YAHOO_OPTION_RESPONSE_INVALID") from exc
+    if root.get("error") is not None or not isinstance(results, list) or len(results) != 1:
+        raise ValueError("YAHOO_OPTION_RESULT_INVALID")
+    result = results[0]
+    quote = result.get("quote", {})
+    if result.get("underlyingSymbol") not in (None, ticker) \
+            or quote.get("symbol") not in (None, ticker) \
+            or quote.get("quoteType") not in (None, "EQUITY"):
+        raise ValueError("YAHOO_OPTION_SECURITY_MISMATCH")
+    expiration_dates = result.get("expirationDates")
+    option_sets = result.get("options")
+    if not isinstance(expiration_dates, list) or any(
+        not isinstance(value, int) or isinstance(value, bool) or value <= 0
+        for value in expiration_dates
+    ) or not isinstance(option_sets, list) or len(option_sets) != 1:
+        raise ValueError("YAHOO_OPTION_STRUCTURE_INVALID")
+    option_set = option_sets[0]
+    expiration_epoch = option_set.get("expirationDate")
+    if not isinstance(expiration_epoch, int) or isinstance(expiration_epoch, bool) or expiration_epoch <= 0:
+        raise ValueError("YAHOO_OPTION_EXPIRATION_INVALID")
+
+    def rows(name: str) -> list[dict[str, Any]]:
+        values = option_set.get(name, [])
+        if not isinstance(values, list):
+            raise ValueError("YAHOO_OPTION_STRUCTURE_INVALID")
+        normalized = []
+        for value in values:
+            if not isinstance(value, Mapping):
+                raise ValueError("YAHOO_OPTION_STRUCTURE_INVALID")
+            item = dict(value)
+            contract = item.get("contractSymbol")
+            if not isinstance(contract, str) or not contract.startswith(ticker):
+                raise ValueError("YAHOO_OPTION_SECURITY_MISMATCH")
+            last_trade = item.get("lastTradeDate")
+            if last_trade is not None:
+                if not isinstance(last_trade, int) or isinstance(last_trade, bool) or last_trade <= 0:
+                    raise ValueError("YAHOO_OPTION_LAST_TRADE_INVALID")
+                item["lastTradeDate"] = iso_utc(datetime.fromtimestamp(last_trade, tz=timezone.utc))
+            normalized.append(item)
+        return normalized
+
+    return {
+        "expiration_dates": expiration_dates,
+        "expiration": datetime.fromtimestamp(expiration_epoch, tz=timezone.utc).date().isoformat(),
+        "calls": rows("calls"), "puts": rows("puts"),
+    }
 
 
 def collect_option_snapshot(
@@ -116,24 +213,66 @@ def collect_option_snapshot(
         raise ValueError("YAHOO_OPTION_ACCESS_MISMATCH")
     if version("yfinance") != YFINANCE_VERSION:
         raise ValueError("YAHOO_CLIENT_VERSION_MISMATCH")
-    if ticker_factory is None:
-        import yfinance as yf
-        ticker_factory = yf.Ticker
-    target = ticker_factory(ticker, session=session)
-    expirations = tuple(target.options or ())[:max_expiries]
     evidence, gaps = [], []
-    for expiration in expirations:
-        chain = target.option_chain(expiration)
-        completed = iso_utc(retrieved_at())
-        for frame, option_type in ((chain.calls, "CALL"), (chain.puts, "PUT")):
-            rows = frame.to_dict("records")
-            raw_hash = content_hash({"ticker": ticker, "expiration": expiration, "option_type": option_type, "rows": rows})
-            normalized = normalize_option_rows(
-                rows, security_id=security_id, ticker=ticker, expiration=expiration,
-                option_type=option_type, retrieved_at=completed, raw_content_hash=raw_hash,
+    expirations: tuple[str, ...]
+    if ticker_factory is None:
+        from product.mcp.live.yahoo_transport import acquire_anonymous_crumb
+        crumb = acquire_anonymous_crumb(session)
+        pending_dates: list[int | None] = [None]
+        completed_expirations: list[str] = []
+        for index in range(max_expiries):
+            requested_date = pending_dates[index]
+            params = {"crumb": crumb}
+            if requested_date is not None:
+                params["date"] = requested_date
+            response = session.get(
+                f"https://query2.finance.yahoo.com/v7/finance/options/{ticker}", params=params,
             )
-            evidence.extend(normalized["evidence"])
-            gaps.extend(normalized["gaps"])
+            parsed = _parse_option_wire(response.content, ticker=ticker)
+            if index == 0:
+                pending_dates = list(parsed["expiration_dates"][:max_expiries])
+                if not pending_dates:
+                    break
+                if pending_dates[0] != int(datetime.fromisoformat(parsed["expiration"]).replace(
+                    tzinfo=timezone.utc,
+                ).timestamp()):
+                    # Yahoo may encode midnight in a market timezone. The payload's
+                    # explicit chain expiration remains authoritative for this row.
+                    pending_dates[0] = None
+            expiration = parsed["expiration"]
+            if expiration in completed_expirations:
+                raise ValueError("YAHOO_OPTION_DUPLICATE_EXPIRATION")
+            completed_expirations.append(expiration)
+            completed = iso_utc(retrieved_at())
+            raw_hash = hashlib.sha256(response.content).hexdigest()
+            for rows, option_type in ((parsed["calls"], "CALL"), (parsed["puts"], "PUT")):
+                normalized = normalize_option_rows(
+                    rows, security_id=security_id, ticker=ticker, expiration=expiration,
+                    option_type=option_type, retrieved_at=completed, raw_content_hash=raw_hash,
+                )
+                evidence.extend(normalized["evidence"])
+                gaps.extend(normalized["gaps"])
+            if index + 1 >= len(pending_dates):
+                break
+        expirations = tuple(completed_expirations)
+    else:
+        target = ticker_factory(ticker, session=session)
+        expirations = tuple(target.options or ())[:max_expiries]
+        for expiration in expirations:
+            chain = target.option_chain(expiration)
+            completed = iso_utc(retrieved_at())
+            for frame, option_type in ((chain.calls, "CALL"), (chain.puts, "PUT")):
+                rows = frame.to_dict("records")
+                raw_hash = content_hash({
+                    "ticker": ticker, "expiration": expiration,
+                    "option_type": option_type, "rows": rows,
+                })
+                normalized = normalize_option_rows(
+                    rows, security_id=security_id, ticker=ticker, expiration=expiration,
+                    option_type=option_type, retrieved_at=completed, raw_content_hash=raw_hash,
+                )
+                evidence.extend(normalized["evidence"])
+                gaps.extend(normalized["gaps"])
     if not expirations:
         gaps.append({"reason": "YAHOO_OPTION_EXPIRATIONS_EMPTY"})
     return {

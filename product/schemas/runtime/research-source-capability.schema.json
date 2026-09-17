@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research-source-capability/1.2.0",
+  "title": "ResearchSourceCapability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source", "region", "security_id", "dataset", "status", "fields", "endpoint_version", "checked_at", "as_of", "attempt_count", "request_budget", "actual_requests", "evidence_ids", "raw_content_hashes", "limitations", "failure_code", "capability_hash"],
+  "properties": {
+    "schema_version": {"const": "research-source-capability/1.2.0"},
+    "source": {"enum": ["sec", "yahoo", "moomoo_sg"]},
+    "region": {"type": "string", "minLength": 1},
+    "security_id": {"type": "string", "minLength": 1},
+    "dataset": {"type": "string", "minLength": 1},
+    "status": {"enum": ["NOT_ATTEMPTED", "AVAILABLE", "PARTIAL", "SOURCE_LIMITED", "BLOCKED_CONFIGURATION", "FAILED", "UNSUPPORTED", "OPEND_UNREACHABLE", "QUOTE_NOT_LOGGED_IN", "OPEND_VERSION_UNSUPPORTED", "SDK_VERSION_UNSUPPORTED", "ENTITLEMENT_REQUIRED", "RATE_LIMITED", "API_UNAVAILABLE", "CONTRACT_MISMATCH", "BLOCKED_BY_POLICY"]},
+    "fields": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "endpoint_version": {"type": ["string", "null"], "minLength": 1},
+    "checked_at": {"type": "string", "minLength": 20},
+    "as_of": {"type": "string", "minLength": 20},
+    "attempt_count": {"type": "integer", "minimum": 0},
+    "request_budget": {"type": "integer", "minimum": 0},
+    "actual_requests": {"type": "integer", "minimum": 0},
+    "evidence_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "raw_content_hashes": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "failure_code": {"type": ["string", "null"], "minLength": 1},
+    "capability_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

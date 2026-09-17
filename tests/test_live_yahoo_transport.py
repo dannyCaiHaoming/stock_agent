@@ -7,7 +7,9 @@ import importlib.util
 from pathlib import Path
 import tempfile
 
-from product.mcp.live.yahoo_transport import RequestBoundary, YahooTransportError
+from product.mcp.live.yahoo_transport import (
+    RequestBoundary, YahooTransportError, acquire_anonymous_crumb,
+)
 from product.mcp.live.market import download_daily, MARKET_VERSION, YFINANCE_VERSION
 
 
@@ -32,6 +34,24 @@ class YahooTransportTests(unittest.TestCase):
             with self.subTest(params=params), self.assertRaisesRegex(YahooTransportError, "RANGE_INVALID"):
                 self.boundary().request(send, "GET", "https://query1.finance.yahoo.com/v8/finance/chart/TEST", params=params)
             send.assert_not_called()
+
+    def test_company_background_modules_are_exact_and_path_scoped(self):
+        modules = "assetProfile,price,calendarEvents,earningsTrend,recommendationTrend,defaultKeyStatistics,summaryDetail"
+        send = Mock(return_value=response(200))
+        self.boundary().request(
+            send, "GET", "https://query1.finance.yahoo.com/v10/finance/quoteSummary/TEST",
+            params={"modules": modules},
+        )
+        self.assertEqual(send.call_count, 1)
+        for url, params, code in (
+            ("https://query1.finance.yahoo.com/v10/finance/quoteSummary/TEST", {"modules": "assetProfile,insiderTransactions"}, "MODULES_INVALID"),
+            ("https://query1.finance.yahoo.com/v10/finance/quoteSummary/OTHER", {"modules": "assetProfile"}, "ENDPOINT_NOT_AUTHORIZED"),
+            ("https://query1.finance.yahoo.com/v8/finance/chart/TEST", {"modules": "assetProfile"}, "FIELDS_NOT_AUTHORIZED"),
+        ):
+            attempted = Mock()
+            with self.subTest(url=url, params=params), self.assertRaisesRegex(YahooTransportError, code):
+                self.boundary().request(attempted, "GET", url, params=params)
+            attempted.assert_not_called()
 
     @unittest.skipUnless(importlib.util.find_spec("curl_cffi"), "live 可选依赖未安装")
     def test_streaming_limit_stops_on_oversize_chunk_without_retry(self):
@@ -105,6 +125,25 @@ class YahooTransportTests(unittest.TestCase):
                 self.assertTrue(session.live_boundary.chart_records)
             finally:
                 session.close()
+
+    def test_anonymous_crumb_is_ephemeral_and_shape_checked(self):
+        class Session:
+            def __init__(self, value=b"safe-crumb"):
+                self.live_boundary = self_boundary
+                self.value = value
+                self.urls = []
+            def get(self, url):
+                self.urls.append(url)
+                return SimpleNamespace(content=(b"" if "fc.yahoo" in url else self.value))
+        self_boundary = self.boundary()
+        session = Session()
+        self.assertEqual(acquire_anonymous_crumb(session), "safe-crumb")
+        self.assertEqual(session.urls, [
+            "https://fc.yahoo.com/", "https://query1.finance.yahoo.com/v1/test/getcrumb",
+        ])
+        self.assertNotIn("safe-crumb", str(self_boundary.events))
+        with self.assertRaisesRegex(YahooTransportError, "CRUMB_INVALID"):
+            acquire_anonymous_crumb(Session(b"<html>"))
 
     def boundary(self, **changes):
         return RequestBoundary(dict(access(), **changes), tickers=["TEST"], sleep=Mock(),

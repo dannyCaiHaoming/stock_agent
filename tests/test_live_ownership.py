@@ -80,6 +80,27 @@ class OwnershipParserTests(unittest.TestCase):
         empty = parse_ownership_document(b"<ownershipDocument/>", filing=FILING, security_id="TEST", retrieved_at="2026-09-13T00:00:00Z")
         self.assertEqual(empty["gaps"][0]["reason"], "SEC_OWNERSHIP_NO_TRANSACTIONS")
 
+    def test_exercise_transfer_and_derivative_nature_remain_raw_codes(self):
+        raw = b"""<ownershipDocument><reportingOwner><reportingOwnerId><rptOwnerName>Owner</rptOwnerName></reportingOwnerId></reportingOwner>
+<nonDerivativeTable>
+  <nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle><transactionDate><value>2026-09-10</value></transactionDate>
+    <transactionCoding><transactionCode>G</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>10</value></transactionShares><transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode></transactionAmounts>
+    <ownershipNature><directOrIndirectOwnership><value>I</value></directOrIndirectOwnership></ownershipNature></nonDerivativeTransaction>
+</nonDerivativeTable>
+<derivativeTable>
+  <derivativeTransaction><securityTitle><value>Option</value></securityTitle><transactionDate><value>2026-09-11</value></transactionDate>
+    <transactionCoding><transactionCode>M</transactionCode></transactionCoding><transactionAmounts><transactionShares><value>20</value></transactionShares><transactionPricePerShare><value>5</value></transactionPricePerShare><transactionAcquiredDisposedCode><value>A</value></transactionAcquiredDisposedCode></transactionAmounts>
+    <ownershipNature><directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature></derivativeTransaction>
+</derivativeTable></ownershipDocument>"""
+        facts = parse_ownership_document(
+            raw, filing=FILING, security_id="TEST", retrieved_at="2026-09-13T00:00:00Z"
+        )["evidence"]
+        self.assertEqual({item["value"]["transaction_code"] for item in facts}, {"G", "M"})
+        derivative = next(item for item in facts if item["value"]["transaction_code"] == "M")
+        self.assertEqual(derivative["value"]["instrument_type"], "DERIVATIVE")
+        transfer = next(item for item in facts if item["value"]["transaction_code"] == "G")
+        self.assertEqual(transfer["value"]["ownership_nature"], "I")
+
     def test_future_publication_and_wrong_form_fail_closed(self):
         with self.assertRaisesRegex(ValueError, "PUBLICATION_AFTER_RETRIEVAL"):
             parse_ownership_document(

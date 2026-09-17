@@ -193,6 +193,25 @@ class SecClientTests(unittest.TestCase):
             client.read_ownership_document(filing, max_age_seconds=0)
         self.assertEqual(self.calls, [])
 
+    def test_13f_reader_discovers_and_fetches_only_bound_information_table(self):
+        prefix = "https://www.sec.gov/Archives/edgar/data/1/000000000126000001/"
+        index = b'''<html><table>
+          <tr><td><a href="cover.xml">cover.xml</a></td><td>13F-HR</td></tr>
+          <tr><td><a href="infotable.xml">infotable.xml</a></td><td>INFORMATION TABLE</td></tr>
+        </table></html>'''
+        table = b"<informationTable/>"
+        filing = {
+            "cik": "0000000001", "accession": "0000000001-26-000001",
+            "form": "13F-HR", "published_at": "2026-09-09T00:00:00Z",
+            "document_url": prefix + "cover.xml",
+        }
+        client = self.client([Response(200, index), Response(200, table)])
+        result = client.read_13f_information_tables(filing, max_age_seconds=0)
+        self.assertEqual(self.calls[0][0], prefix + "0000000001-26-000001-index.html")
+        self.assertEqual(self.calls[1][0], prefix + "infotable.xml")
+        self.assertEqual(len(result["documents"]), 1)
+        self.assertEqual(self.cache.read(result["documents"][0]["record"]), table)
+
     def test_cache_corruption_fail_closed(self):
         client = self.client([Response(200, b"ok")])
         record = client.fetch(URL, max_age_seconds=100)

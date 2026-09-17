@@ -10,6 +10,16 @@ from product.mcp.provenance import content_hash
 
 PARSER_VERSION = "sec-sections/0.3.1"
 SECTION_NAMES = ("business", "risk_factors", "management_discussion")
+GOVERNANCE_FORMS = ("DEF 14A", "DEF 14C", "10-K", "8-K")
+GOVERNANCE_PATTERNS = (
+    ("directors_and_governance", r"directors?\s+and\s+corporate\s+governance"),
+    ("executive_officers", r"executive\s+officers?"),
+    ("executive_compensation", r"executive\s+compensation"),
+    ("security_ownership", r"security\s+ownership"),
+    ("related_party_transactions", r"(?:related[- ]party|certain\s+relationships?(?:\s+and\s+related\s+transactions?)?)"),
+    ("leadership_changes", r"item\s+5\.02\b[^\n]{0,160}(?:departure|appointment|election|compensatory)"),
+    ("issuer_purchases", r"issuer\s+purchases\s+of\s+equity\s+securities"),
+)
 
 
 def _heading_word(word: str) -> str:
@@ -155,3 +165,55 @@ def extract_earnings_exhibit(raw: bytes, document: dict, *, limit: int = 8000) -
         attachment_selection=document["attachment_selection"])
     fact["evidence_id"] = "ev-sec-text-" + content_hash(fact)
     return {"evidence": [fact], "gap": "EARNINGS_EXHIBIT_TEXT_TRUNCATED" if fact["truncated"] else None}
+
+
+def extract_governance_sections(
+    raw: bytes, document: dict, *, section_limit: int = 6000, total_limit: int = 24000,
+) -> dict:
+    """从精确表单白名单提取治理候选；内容保持未信任并要求研究层引用核实。"""
+    if document.get("form") not in GOVERNANCE_FORMS:
+        raise ValueError("SEC_GOVERNANCE_FORM_NOT_ALLOWED")
+    if any(type(value) is not int or value <= 0 for value in (section_limit, total_limit)):
+        raise ValueError("SEC_GOVERNANCE_TEXT_BUDGET_INVALID")
+    if len(raw) > 32 * 1024 * 1024 or hashlib.sha256(raw).hexdigest() != document["raw_content_hash"]:
+        raise ValueError("SEC_GOVERNANCE_DOCUMENT_HASH_OR_SIZE_INVALID")
+    source = raw.decode("utf-8", errors="strict")
+    parser = _Text(source)
+    parser.feed(source)
+    parser.close()
+    text = "".join(parser.parts)
+    headings = []
+    for name, pattern in GOVERNANCE_PATTERNS:
+        headings.extend((match.start(), match.end(), name) for match in re.finditer(pattern, text, re.I))
+    headings.sort()
+    evidence, remaining, seen = [], total_limit, set()
+    for index, (start, _, name) in enumerate(headings):
+        if name in seen or remaining <= 0:
+            continue
+        end = headings[index + 1][0] if index + 1 < len(headings) else len(text)
+        stop = min(end, start + section_limit, start + remaining)
+        spans = [[raw_start, raw_end] for left, right, raw_start, raw_end in parser.spans
+                 if left < stop and right > start]
+        fact = {key: document[key] for key in (
+            "source_id", "source_locator", "as_of", "published_at", "retrieved_at",
+            "raw_content_hash", "cik", "accession", "form",
+        )}
+        fact.update(
+            section=name, text=text[start:stop], raw_character_spans=spans,
+            normalized_text_range=[start, stop],
+            locator_policy="raw-decoded-html-character-spans/end-exclusive",
+            encoding="utf-8", parser_version=PARSER_VERSION,
+            untrusted_data=True, truncated=stop < end,
+            extraction_status="CANDIDATE_REQUIRES_EVIDENCE_REVIEW",
+        )
+        fact["evidence_id"] = "ev-sec-governance-" + content_hash(fact)
+        evidence.append(fact)
+        remaining -= stop - start
+        seen.add(name)
+    return {
+        "evidence": evidence,
+        "missing_sections": sorted(set(name for name, _ in GOVERNANCE_PATTERNS) - seen),
+        "coverage": "HEADING_MATCHES_ONLY_NOT_VERIFIED_COMPLETE",
+        "allowed_forms": list(GOVERNANCE_FORMS),
+        "budget_exhausted": remaining == 0,
+    }

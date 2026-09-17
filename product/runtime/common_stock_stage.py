@@ -33,11 +33,23 @@ from product.council.research_output import validate_persisted_equity_research_p
 
 
 STAGE_VERSION = "common-stock-research-runtime/1.0.0"
-DISPATCH_VERSION = "common-stock-research-dispatch/1.0.0"
-COMPANY_AGENT_VERSION = "3.0.18"
+DISPATCH_VERSION = "common-stock-research-dispatch/1.2.0"
+COMPANY_AGENT_VERSION = "3.0.20"
+COMMON_STOCK_START_CONTEXT_MAX_BYTES = 256 * 1024
 REQUIRED_SKILLS = (
     "evidence-grounding", "company-research", "valuation", "catalyst-analysis"
 )
+
+# 日线 OHLCV 属于后续 technical-structure 阶段。Company Analyst 仍可通过
+# 冻结附件使用估值快照，但不应为首版公司研究注入逐日技术序列。
+COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS = frozenset({
+    "adjusted_close_price",
+    "historical_close_price",
+    "open_price",
+    "high_price",
+    "low_price",
+    "share_volume",
+})
 
 
 class CommonStockStageError(ValueError):
@@ -147,7 +159,9 @@ def _dynamic_draft_schema(
     schema["$defs"].pop("bindings", None)
     schema["$defs"].pop("security", None)
     schema["$defs"].pop("skill", None)
-    schema["$defs"]["evidence_id"] = {"type": "string", "enum": list(allowed_evidence_ids)}
+    # 不把可能很长的 Evidence ID 集合复制进模型输出 Schema。最终归集仍会
+    # 依据冻结 HoldingResearchRequest 做完整的 Evidence Closure 校验。
+    schema["$defs"]["evidence_id"] = {"type": "string", "minLength": 1}
     calculation_schema: dict[str, Any] = {"type": "string", "minLength": 1}
     if calculation_artifact_ids:
         calculation_schema = {"type": "string", "enum": list(calculation_artifact_ids)}
@@ -162,53 +176,76 @@ def invocation_file_name(invocation_id: str) -> str:
 def _build_evidence_period_index(
     evidence: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Group factual periods without deciding comparability or importance."""
+    """构造唯一一份紧凑语义索引；完整 provenance 仍由冻结查询返回。"""
 
     groups: dict[str, list[dict[str, Any]]] = {}
     for item in evidence:
         semantic_field = item.get("semantic_field")
         if not isinstance(semantic_field, str) or not semantic_field:
             continue
+        evidence_id = item.get("evidence_id")
+        if not isinstance(evidence_id, str) or not evidence_id:
+            continue
         metadata = item.get("metadata") if isinstance(item.get("metadata"), Mapping) else {}
-        period_start = metadata.get("period_start")
-        period_end = metadata.get("period_end")
-        context_type = metadata.get("context_type")
-        if context_type == "instant":
-            period_kind = "INSTANT"
-        elif period_start is not None or context_type == "duration":
-            period_kind = "DURATION"
-        else:
-            period_kind = "UNKNOWN"
-        groups.setdefault(semantic_field, []).append({
-            "evidence_id": item.get("evidence_id"),
-            "source_id": item.get("source_id"),
-            "unit": item.get("unit") or metadata.get("unit"),
-            "context_type": context_type,
-            "period_kind": period_kind,
-            "period_start": period_start,
-            "period_end": period_end,
+        compact = {
+            "evidence_id": evidence_id,
             "as_of": item.get("as_of"),
-            "published_at": item.get("published_at") or metadata.get("published_at"),
-            "retrieved_at": item.get("retrieved_at"),
+            "unit": item.get("unit") or metadata.get("unit"),
+            "context_type": metadata.get("context_type"),
+            "period_start": metadata.get("period_start"),
+            "period_end": metadata.get("period_end"),
+            "fiscal_period": metadata.get("fiscal_period"),
             "form": metadata.get("form"),
+            "dataset": item.get("dataset"),
+            "source_family": item.get("source_family"),
+        }
+        groups.setdefault(semantic_field, []).append({
+            key: value for key, value in compact.items() if value is not None
         })
-    result = []
-    for semantic_field, items in sorted(groups.items()):
-        items.sort(key=lambda value: (
-            str(value.get("period_end") or ""),
-            str(value.get("as_of") or ""),
-            str(value.get("published_at") or ""),
-            str(value.get("evidence_id") or ""),
-        ))
-        result.append({
-            "semantic_field": semantic_field,
-            "selection_rule": (
-                "逐项核对指标定义、主体、单位、期间性质与会计基础；"
-                "排序不代表自动可比或自动采用最后一项"
-            ),
-            "items": items,
-        })
-    return result
+    return [
+        {
+            "semantic_field": field,
+            "items": sorted(items, key=lambda value: (
+                str(value.get("period_end") or ""),
+                str(value.get("as_of") or ""),
+                str(value["evidence_id"]),
+            )),
+        }
+        for field, items in sorted(groups.items())
+    ]
+
+
+def serialize_common_stock_dispatch_context(packet: Mapping[str, Any]) -> str:
+    """与 SubagentStart Hook 完全相同的 UTF-8 上下文序列化。"""
+
+    return json.dumps(packet, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _bound_common_stock_dispatch_packet(packet: dict[str, Any]) -> dict[str, Any]:
+    section_bytes = {
+        key: len(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+        for key, value in packet.items()
+    }
+    budget = {
+        "policy_version": "common-stock-start-context-budget/1.0.0",
+        "max_bytes": COMMON_STOCK_START_CONTEXT_MAX_BYTES,
+        "serialization": "UTF-8 canonical compact JSON as emitted by SubagentStart Hook",
+        "section_bytes": section_bytes,
+        "actual_bytes": 0,
+    }
+    packet["context_budget"] = budget
+    for _ in range(3):
+        actual = len(serialize_common_stock_dispatch_context(packet).encode("utf-8"))
+        if budget["actual_bytes"] == actual:
+            break
+        budget["actual_bytes"] = actual
+    if budget["actual_bytes"] > budget["max_bytes"]:
+        largest = sorted(section_bytes.items(), key=lambda item: (-item[1], item[0]))[:5]
+        raise CommonStockStageError(
+            "COMMON_STOCK_START_CONTEXT_BUDGET_EXCEEDED:"
+            f"actual={budget['actual_bytes']}:max={budget['max_bytes']}:largest={largest}"
+        )
+    return packet
 
 
 def _build_common_stock_dispatch_packet(
@@ -217,39 +254,21 @@ def _build_common_stock_dispatch_packet(
     request = _read_object(run_dir / task["request_path"])
     invocation = _read_object(run_dir / task["invocation_path"])
     gate = _read_object(run_dir / "evidence/gate.json")
-    evidence = [
+    request_allowed_ids = set(request["allowed_evidence_ids"])
+    all_request_evidence = [
         copy.deepcopy(item) for item in gate["allowed_evidence"]
-        if item["evidence_id"] in set(request["allowed_evidence_ids"])
+        if item["evidence_id"] in request_allowed_ids
     ]
-    evidence_catalog = []
-    for item in evidence:
-        metadata = item.get("metadata") if isinstance(item.get("metadata"), Mapping) else {}
-        evidence_catalog.append({
-            "evidence_id": item["evidence_id"],
-            "semantic_field": item.get("semantic_field"),
-            "kind": item.get("kind"),
-            "usage": item.get("usage"),
-            "source_id": item.get("source_id"),
-            "as_of": item.get("as_of"),
-            "published_at": item.get("published_at"),
-            "retrieved_at": item.get("retrieved_at"),
-            "source_locator": item.get("source_locator") or metadata.get("source_locator"),
-            "unit": item.get("unit") or metadata.get("unit"),
-            "context_type": metadata.get("context_type"),
-            "fiscal_period": metadata.get("fiscal_period"),
-            "form": metadata.get("form"),
-            "section": metadata.get("section"),
-            "period_start": metadata.get("period_start"),
-            "period_end": metadata.get("period_end"),
-            "comparison_policy": metadata.get("comparison_policy"),
-            "comparability_scope": metadata.get("comparability_scope"),
-            "accounting_basis_status": metadata.get("accounting_basis_status"),
-            "share_denominator_status": metadata.get("share_denominator_status"),
-            "trend_interpretation_status": metadata.get("trend_interpretation_status"),
-            "comparison_periods": metadata.get("periods"),
-            "comparison_limitation": metadata.get("comparison_limitation"),
-        })
-    allowed_ids = set(request["allowed_evidence_ids"])
+    evidence = [
+        item for item in all_request_evidence
+        if item.get("semantic_field") not in COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS
+    ]
+    evidence_catalog = _build_evidence_period_index(evidence)
+    catalog_ids = {
+        item["evidence_id"]
+        for group in evidence_catalog
+        for item in group["items"]
+    }
     evidence_conflicts = [
         {
             "conflict_key": item.get("conflict_key"),
@@ -257,13 +276,13 @@ def _build_common_stock_dispatch_packet(
             "evidence_ids": list(item.get("evidence_ids", [])),
         }
         for item in gate.get("conflicts", [])
-        if set(item.get("evidence_ids", [])) & allowed_ids
+        if set(item.get("evidence_ids", [])) & catalog_ids
     ]
     schema = _dynamic_draft_schema(
         repository_root, run_id=request["run_id"], invocation_id=request["invocation_id"],
         allowed_evidence_ids=request["allowed_evidence_ids"],
     )
-    return {
+    packet = {
         "dispatch_contract": DISPATCH_VERSION,
         "identity": {
             "run_id": request["run_id"], "invocation_id": request["invocation_id"],
@@ -275,9 +294,15 @@ def _build_common_stock_dispatch_packet(
             "valuation、catalyst-analysis；本包即使包含 Yahoo/SEC 事实也已冻结为 run-scoped Gate，"
             "必须使用 fixture_runtime.query 查询 Evidence，需要比较两个数值时使用 "
             "fixture_runtime.calculate。"
-            "使用确定性计算工具。evidence_refs 只能原样选择 allowed_evidence_ids，禁止拼接来源、"
+            "evidence_catalog 按 semantic_field 分组；其 items 若含 dataset/source_family，表示已通过同一 Gate 准入的三源"
+            "补充事实，不是另一个未冻结数据源。目录只用于定位，完整 kind、source_type、batch_id 和比较限制必须通过"
+            "fixture_runtime.query 读取，不得由目录缺字段推断。至少查询并核对 identity_profile 或 business_segments、"
+            "financial_history 与当前核心问题相关的事实；若存在 moomoo_sg 的 vendor_money_flow，"
+            "还须查询它，并用一条带明确供应商口径限制的 FACT Claim 呈现当前已完成区间观察，"
+            "不得把正负号解释为真实买卖方身份、预测或交易动作。"
+            "使用确定性计算工具。evidence_refs 只能原样复制 evidence_catalog 各组 items 中的 evidence_id，禁止拼接来源、"
             "时间或说明。只返回 output_schema 的一个 JSON，不输出交易动作、仓位或完整组合结论。"
-            "提交前逐项把每个 evidence_refs 与 allowed_evidence_ids 做完整字符串核对；任何字符增删、"
+            "提交前逐项把每个 evidence_refs 与 evidence_catalog 做完整字符串核对；任何字符增删、"
             "替换或手工重写都属于非法引用，必须改为直接复制允许列表中的原值。"
             "每条 Claim 至少有一个 evidence_ref、assumption_id 或 calculation_ref；"
             "calculation_ref 只能填写本次 calculate 实际返回的 calculation_id，且同一个 ID 必须"
@@ -289,13 +314,14 @@ def _build_common_stock_dispatch_packet(
             "不得写成完整年度或直接比较，来源发布时间不等于报告期末。按 company-research 的"
             "首版研究深度解释关键矛盾与缺口影响，不只摘录数字。同一 FACT Claim 引用多个 duration "
             "Evidence 且任一起止日不同时，Claim 文字必须逐项写出每个 Evidence 的真实起止日；"
-            "即使只差一天也不得归并为一个统一期间。10-K/FY 标签不能证明完整财年；不足一年或"
+            "每个 period_start 和 period_end 都必须在 statement 中原样保留 `YYYY-MM-DD` ASCII 字符串，"
+            "不得只改写为中文日期。即使只差一天也不得归并为一个统一期间。10-K/FY 标签不能证明完整财年；不足一年或"
             "重组后部分期间的 EPS 只能按真实起止日描述为非年化实际期间分母，不得称为年度、"
             "财年、全年或 TTM P/E，分母为负时说明 P/E 不适用，不强行计算。"
-            "先查看 evidence_period_index 中同指标全部可用期间，再核对指标定义、主体、单位、"
+            "先查看 evidence_catalog 中同指标全部可用期间，再核对指标定义、主体、单位、"
             "季度/累计/时点性质和会计基础；该索引排序不代表自动可比或自动采用最后一项，"
             "不得按 retrieved_at 或单一最大日期覆盖。引用旧基线时说明用途，并呈现包内较新且"
-            "适用的重要事实。输出前按每个实际采用的指标逐项自检 evidence_period_index：若存在"
+            "适用的重要事实。输出前按每个实际采用的指标逐项自检 evidence_catalog：若存在"
             "报告期更近且定义、主体、单位、期间性质和会计基础适用的事实，必须纳入主张；若不纳入，"
             "必须明确说明不可比或不适用的具体原因，不能只写旧年度基线。检查 evidence_conflicts，"
             "无法消解的冲突必须保留，禁止静默选择 winner。"
@@ -338,13 +364,32 @@ def _build_common_stock_dispatch_packet(
             },
             "run_directory_binding": "LAUNCHER_ENVIRONMENT",
         },
-        "holding_research_request": request,
-        "allowed_evidence_ids": request["allowed_evidence_ids"],
+        "holding_research_request": {
+            key: copy.deepcopy(value)
+            for key, value in request.items()
+            if key != "allowed_evidence_ids"
+        },
         "evidence_catalog": evidence_catalog,
-        "evidence_period_index": _build_evidence_period_index(evidence),
+        "catalog_policy": {
+            "request_allowed_evidence_count": len(all_request_evidence),
+            "company_research_evidence_count": len(evidence),
+            "excluded_semantic_fields": sorted(COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS),
+            "exclusion_reason": (
+                "逐日技术市场序列由后续 technical-structure 阶段消费，不注入首版公司研究上下文。"
+            ),
+            "period_selection_rule": (
+                "先按 semantic_field 查看全部 evidence_id，再逐项查询并核对指标定义、主体、单位、"
+                "期间性质和会计基础；排序不代表自动可比或自动采用最后一项。"
+            ),
+            "provenance_rule": (
+                "catalog 只提供证据定位、期间和来源路由；kind、source_type、batch_id 及比较限制等"
+                "完整 provenance 必须通过当前 Gate 的 fixture_runtime.query 读取，不能由目录推断。"
+            ),
+        },
         "evidence_conflicts": evidence_conflicts,
         "output_schema": schema,
     }
+    return _bound_common_stock_dispatch_packet(packet)
 
 
 def build_common_stock_dispatch_packet(repository_root: Path, run_dir: Path, task_name: str) -> dict[str, Any]:
@@ -564,7 +609,8 @@ def build_common_stock_stage_prompt(repository_root: Path, run_dir: Path) -> str
 最多同时保持 {concurrency} 个活跃 Subagent。在等待任何一个结果前，先按映射顺序发起最初 {concurrency} 个独立任务；任一任务结束后立即用下一个未派发任务补位，直到全部任务结束。不得一次派发超过并发上限：
 {json.dumps(messages, ensure_ascii=False, sort_keys=True)}
 每个 task_name 必须使用映射中的键；message 仅为非权威启动提示，完整冻结输入由 SubagentStart Hook 按已校验 task_name 注入。不得把研究数据复制进 message。不得启动 runtime_skeptic、runtime_cio、Risk 或完整 Council；不得自行改写 Specialist 输出。
-等待全部任务结束后，只返回：{{"stage":"COMMON_STOCK_RESEARCH","run_id":"{index['run_id']}","dispatched":{len(messages)}}}。
+`wait_agent` 必须显式使用 `timeout_ms=600000`。它可能因子任务启动、进度消息或其他非终态活动提前返回；即使返回空 `receiver_thread_ids`、空 `agents_states` 或仅进度消息，也不是终态，必须立即再次长等待。每次返回后都要检查任务是否真实结束，并继续等待尚无终态的任务。对仍在运行且未请求协助的子任务，不得发送 follow-up 或反复 list；只在真实终态、needs-attention 或宿主硬超时后改变动作。不得以固定 wait 次数、父线程自报 dispatched 数或普通消息推断完成。父线程 Stop Hook 会按冻结 task/invocation 绑定复核终态，缺失时会要求继续等待。
+只有全部任务均已收到真实终态后，才返回：{{"stage":"COMMON_STOCK_RESEARCH","run_id":"{index['run_id']}","dispatched":{len(messages)}}}。
 """
 
 
@@ -594,8 +640,13 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
     completed = set()
     for stop in stops:
         binding = stop.get("output_binding") or {}
+        capture = stop.get("output_capture") or {}
         invocation_id = binding.get("invocation_id")
-        if invocation_id not in by_invocation or stop.get("child_session_id") not in starts:
+        if (
+            invocation_id not in by_invocation
+            or stop.get("child_session_id") not in starts
+            or capture.get("status") != "SAVED"
+        ):
             continue
         task = by_invocation[invocation_id]
         request = _read_object(run_dir / task["request_path"])
@@ -933,6 +984,7 @@ def launch_common_stock_stage(
     events_path = invocation_dir / "codex-events.jsonl"
     hook_events_path = invocation_dir / "subagent-events.jsonl"
     dispatch_events_path = invocation_dir / "subagent-dispatches.jsonl"
+    parent_stop_events_path = invocation_dir / "parent-stop-events.jsonl"
     stderr_path = invocation_dir / "codex-stderr.log"
     raw_final_path = tmp_dir / "final-message.json"
     command = build_nested_codex_command(
@@ -942,6 +994,7 @@ def launch_common_stock_stage(
         hook_recorder_path=product_root / "runtime/codex_hook_recorder.py",
         output_schema_path=schema_path,
         fixture_mcp_run_dir=run_dir,
+        enable_parent_stop_barrier=True,
     )
     environment = dict(os.environ)
     environment.update({
@@ -950,6 +1003,7 @@ def launch_common_stock_stage(
         "STOCK_AGENT_FIXTURE_MCP_RUN_DIR": str(run_dir),
         "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(hook_events_path),
         "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(dispatch_events_path),
+        "STOCK_AGENT_PARENT_STOP_LOG": str(parent_stop_events_path),
         "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst",
         "STOCK_AGENT_COMMON_STOCK_STAGE": STAGE_VERSION,
         **fixture_mcp_runtime_environment(),
@@ -967,6 +1021,7 @@ def launch_common_stock_stage(
         "analyst_model": manifest["analyst_model"],
         "sandbox": "workspace-write", "approval_policy": "never", "ephemeral": True,
         "sqlite_home": str(sqlite_home), "log_dir": str(log_dir), "tmpdir": str(tmp_dir),
+        "parent_stop_log": str(parent_stop_events_path),
         "prompt_hash": file_hash(prompt_path), "source_integrity_before": before,
     }
     _write_object(invocation_dir / "environment-manifest.json", environment_manifest)

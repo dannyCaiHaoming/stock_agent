@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-live = ["yfinance==1.7.0", "akshare==1.18.94", "exchange-calendars==4.13.2", "certifi==2026.7.22"]
+live = ["yfinance==1.7.0", "akshare==1.18.94", "exchange-calendars==4.13.2", "certifi==2026.7.22", "moomoo-api==10.10.7008"]
 
 [tool.setuptools.packages.find]
 include = ["product*", "learning*"]

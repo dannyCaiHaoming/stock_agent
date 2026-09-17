@@ -24,9 +24,10 @@ Company Analyst 默认看不到成本价、浮动盈亏、现金、其他持仓�
 2. 保留完整资产规划，只选择 `company-research=AVAILABLE` 的普通股；
 3. 在任何 Agent 启动前完成公司身份核实、资料冻结和 PIT Gate；
 4. 逐证券建立 `HoldingResearchRequest`，使用有界并行派发 `runtime_company_analyst`；
-5. 对每份报告执行 Schema、Evidence Closure 和内部引用校验；
-6. 生成逐证券 `equity-research.json`、同源中文 `equity-research.md` 和全持仓 `ResearchCoverage`；
-7. 仅在显式验收或用户要求时使用聚焦 Eval，区分结构安全与实际研究质量；普通研究不自动评分。
+5. 父线程用 `wait_agent(timeout_ms=600000)` 持续等待真实 `SubagentStop`；空 Agent 列表、启动或进度活动返回都不代表完成，run-scoped `Stop` Hook 会按同一父会话和冻结 task/invocation 绑定阻止提前结束；
+6. 对每份报告执行 Schema、Evidence Closure 和内部引用校验；
+7. 生成逐证券 `equity-research.json`、同源中文 `equity-research.md` 和全持仓 `ResearchCoverage`；
+8. 仅在显式验收或用户要求时使用聚焦 Eval，区分结构安全与实际研究质量；普通研究不自动评分。
 
 面向已确认 Handoff 的宿主入口为：
 
@@ -40,6 +41,10 @@ bash scripts/run-product-smoke.sh --stage common-stock-research \
 该入口需要现有外置 `LIVE_SOURCE_ACCESS_FILE`、`SEC_USER_AGENT`，可选 `LIVE_CACHE_ROOT`。它会自动生成最小化采集输入、冻结资料、Gate、研究请求和逐证券报告；不会把成本、浮亏、现金或组合约束传给 Company Analyst。`--gate` 仍保留为开发使用的显式冻结样本接缝，不替代真实用户入口。
 
 `--model` 只选择本批 Company Analyst 的研究模型；本次验收使用 `gpt-5.6-terra`。省略时沿用现有产品运行路由，不支持的名称会在模型启动前失败。父运行与研究模型分别记录，Eval 模型另行配置。
+
+父调度不能用固定 `wait` 次数、普通消息、父线程自报 `dispatched` 数或 Codex 退出码代替终态。父线程每次准备结束时，`Stop` Hook 从冻结 dispatch index、允许派发记录及最小化生命周期日志重算缺失任务；缺失时要求继续等待，全部 task/invocation 终态齐备后才允许进入既有 finalizer。该 Hook 不读取研究正文，也不生成或修补报告；非法报告、引用不闭合或报告集合不完整仍由 finalizer 非零失败。审计位于运行目录的 `invocation/parent-stop-events.jsonl`，只保存任务名、父会话、时间和判定，不保存 Prompt、最终消息或 transcript。
+
+Company Analyst 的 dispatch catalog 只包含首版公司研究所需的证据索引。逐日 OHLCV 系列保留在冻结 Gate 中，但不重复注入公司研究上下文，留给后续 `technical-structure` 能力消费。输出 Schema 也不复制整个 Evidence ID 枚举；模型从 catalog 原样选择 ID，finalizer 仍以冻结 `HoldingResearchRequest` 完整校验 Evidence Closure。
 
 ## 报告边界
 

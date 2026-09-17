@@ -92,7 +92,7 @@ class InvocationManifestTests(unittest.TestCase):
         ):
             self.assertEqual(manifest["agent"]["name"], agent)
             expected_version = (
-                "3.0.18" if agent == "runtime_company_analyst" else "2.1.0"
+                "3.0.20" if agent == "runtime_company_analyst" else "2.1.0"
             )
             self.assertEqual(manifest["agent"]["version"], expected_version)
             self.assertEqual(

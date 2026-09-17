@@ -8,7 +8,9 @@ from types import SimpleNamespace
 import unittest
 
 from product.mcp.live.market import MARKET_VERSION, YFINANCE_VERSION
-from product.mcp.live.options import collect_portfolio_option_snapshots, normalize_option_rows
+from product.mcp.live.options import (
+    _parse_option_wire, collect_portfolio_option_snapshots, normalize_option_rows,
+)
 from product.runtime.common_stock_data import merge_option_research_evidence
 
 
@@ -31,6 +33,8 @@ class OptionSnapshotTests(unittest.TestCase):
         self.assertEqual(fact["value"]["ask"], "4.6")
         self.assertTrue(fact["metadata"]["snapshot_only"])
         self.assertFalse(fact["metadata"]["trade_direction_available"])
+        self.assertEqual(fact["value"]["quote_observed_at"], "2026-09-15T20:00:00Z")
+        self.assertEqual(fact["metadata"]["greeks_status"], "PARTIAL")
 
     def test_expired_or_crossed_quote_is_not_accepted(self):
         expired = normalize_option_rows(
@@ -55,6 +59,64 @@ class OptionSnapshotTests(unittest.TestCase):
         )
         self.assertEqual(result["gaps"][0]["reason"], "OPTION_QUOTE_SIDE_MISSING")
         self.assertNotIn("flow", result["evidence"][0]["value"])
+        self.assertTrue(any(item["reason"] == "OPTION_MULTIPLIER_MISSING" for item in result["gaps"]))
+        self.assertTrue(any(item["reason"] == "OPTION_GREEKS_MISSING" for item in result["gaps"]))
+
+    def test_reported_multiplier_and_greeks_are_preserved_not_inferred(self):
+        result = normalize_option_rows(
+            [{
+                "contractSymbol": "TEST261218C00100000", "strike": 100,
+                "bid": 4, "ask": 5, "contractSize": "REGULAR", "contractMultiplier": 100,
+                "delta": 0.5, "gamma": 0.02, "theta": 0.03, "vega": 0.1, "rho": 0.01,
+            }],
+            security_id="TEST", ticker="TEST", expiration="2026-12-18",
+            option_type="CALL", retrieved_at="2026-09-15T20:00:00Z",
+            raw_content_hash="f" * 64,
+        )
+        fact = result["evidence"][0]
+        self.assertEqual(fact["value"]["contract_multiplier"], "100")
+        self.assertEqual(fact["value"]["greeks"]["delta"], "0.5")
+        self.assertEqual(fact["metadata"]["greeks_status"], "REPORTED_NOT_RECALCULATED")
+        self.assertFalse(any(item["reason"] == "OPTION_MULTIPLIER_MISSING" for item in result["gaps"]))
+
+    def test_future_last_trade_and_zero_multiplier_fail_closed(self):
+        base = {"contractSymbol": "TEST261218C00100000", "strike": 100, "bid": 4, "ask": 5}
+        with self.assertRaisesRegex(ValueError, "LAST_TRADE_IN_FUTURE"):
+            normalize_option_rows(
+                [dict(base, lastTradeDate="2026-09-16T00:00:00Z")], security_id="TEST",
+                ticker="TEST", expiration="2026-12-18", option_type="CALL",
+                retrieved_at="2026-09-15T20:00:00Z", raw_content_hash="a" * 64,
+            )
+        with self.assertRaisesRegex(ValueError, "MULTIPLIER_INVALID"):
+            normalize_option_rows(
+                [dict(base, contractMultiplier=0)], security_id="TEST", ticker="TEST",
+                expiration="2026-12-18", option_type="CALL",
+                retrieved_at="2026-09-15T20:00:00Z", raw_content_hash="a" * 64,
+            )
+
+    def test_bounded_wire_parser_binds_underlying_dates_and_dynamic_fields(self):
+        raw = json.dumps({"optionChain": {"error": None, "result": [{
+            "underlyingSymbol": "AAPL",
+            "quote": {"symbol": "AAPL", "quoteType": "EQUITY"},
+            "expirationDates": [1797552000, 1798156800],
+            "options": [{
+                "expirationDate": 1797552000,
+                "calls": [{
+                    "contractSymbol": "AAPL261218C00100000", "strike": 100,
+                    "lastTradeDate": 1797000000, "bid": 4, "ask": 5,
+                    "volume": 12, "openInterest": 120, "impliedVolatility": 0.3,
+                }],
+                "puts": [],
+            }],
+        }]}}).encode()
+        parsed = _parse_option_wire(raw, ticker="AAPL")
+        self.assertEqual(parsed["expiration"], "2026-12-18")
+        self.assertEqual(parsed["calls"][0]["lastTradeDate"], "2026-12-11T14:40:00Z")
+        self.assertEqual(parsed["calls"][0]["openInterest"], 120)
+        body = json.loads(raw)
+        body["optionChain"]["result"][0]["underlyingSymbol"] = "MSFT"
+        with self.assertRaisesRegex(ValueError, "SECURITY_MISMATCH"):
+            _parse_option_wire(json.dumps(body).encode(), ticker="AAPL")
 
     def test_portfolio_collection_isolates_security_failure_and_merge_keeps_scope(self):
         access = [{

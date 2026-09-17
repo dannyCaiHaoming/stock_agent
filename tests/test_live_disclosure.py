@@ -1,7 +1,7 @@
 import hashlib
 import unittest
 
-from product.mcp.live.disclosure import extract_sections, extract_earnings_exhibit
+from product.mcp.live.disclosure import extract_sections, extract_earnings_exhibit, extract_governance_sections
 
 
 class DisclosureTests(unittest.TestCase):
@@ -103,3 +103,39 @@ class DisclosureTests(unittest.TestCase):
             extract_sections(b"bad", {"raw_content_hash": "0" * 64})
         with self.assertRaisesRegex(ValueError, "ENCODING_UNSUPPORTED"):
             self.extract("Item 1. Business", encoding="guess")
+
+    def test_governance_whitelist_preserves_public_names_and_effective_date_candidate(self):
+        source = ("<h2>Executive Officers</h2><p>Jane Public was appointed effective August 1, 2026.</p>"
+                  "<h2>Certain Relationships and Related Transactions</h2><p>No reportable transaction.</p>")
+        raw = source.encode()
+        document = {
+            "raw_content_hash": hashlib.sha256(raw).hexdigest(), "source_id": "synthetic-proxy",
+            "source_locator": "https://www.sec.gov/Archives/proxy.htm", "cik": "0000000001",
+            "accession": "0000000001-26-000002", "form": "DEF 14A",
+            "as_of": "2026-08-01T00:00:00Z", "published_at": "2026-08-01T12:00:00Z",
+            "retrieved_at": "2026-08-02T12:00:00Z",
+        }
+        result = extract_governance_sections(raw, document)
+        self.assertEqual(len(result["evidence"]), 2)
+        self.assertIn("Jane Public", result["evidence"][0]["text"])
+        self.assertEqual(result["evidence"][0]["extraction_status"], "CANDIDATE_REQUIRES_EVIDENCE_REVIEW")
+        self.assertIn("NOT_VERIFIED_COMPLETE", result["coverage"])
+        with self.assertRaisesRegex(ValueError, "FORM_NOT_ALLOWED"):
+            extract_governance_sections(raw, dict(document, form="S-1"))
+
+    def test_repurchase_authorization_text_is_not_converted_to_execution(self):
+        source = ("<h2>Issuer Purchases of Equity Securities</h2>"
+                  "<p>The board authorized up to $100 million; no shares were purchased in the period.</p>")
+        raw = source.encode()
+        document = {
+            "raw_content_hash": hashlib.sha256(raw).hexdigest(), "source_id": "synthetic-10k",
+            "source_locator": "https://www.sec.gov/Archives/10k.htm", "cik": "0000000001",
+            "accession": "0000000001-26-000003", "form": "10-K",
+            "as_of": "2026-08-01T00:00:00Z", "published_at": "2026-08-01T12:00:00Z",
+            "retrieved_at": "2026-08-02T12:00:00Z",
+        }
+        fact = extract_governance_sections(raw, document)["evidence"][0]
+        self.assertEqual(fact["section"], "issuer_purchases")
+        self.assertIn("authorized", fact["text"])
+        self.assertIn("no shares were purchased", fact["text"])
+        self.assertEqual(fact["extraction_status"], "CANDIDATE_REQUIRES_EVIDENCE_REVIEW")

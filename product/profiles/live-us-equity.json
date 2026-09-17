@@ -23,7 +23,7 @@
   ],
   "agents": {
     "runtime_company_analyst": {
-      "version": "3.0.18",
+      "version": "3.0.20",
       "config_file": ".codex/agents/runtime_company_analyst.toml",
       "skills": [
         "evidence-grounding",

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-RECORDER_VERSION = "codex-subagent-hook-recorder/1.12.0"
+RECORDER_VERSION = "codex-subagent-hook-recorder/1.13.0"
 SUPPORTED_EVENTS = {"SubagentStart", "SubagentStop"}
 COMMON_STOCK_STAGE_VERSION = "common-stock-research-runtime/1.0.0"
 MULTIDIMENSIONAL_STAGE_VERSION = "multidimensional-holding-research-runtime/1.0.0"
@@ -334,6 +334,63 @@ def _handle_pre_tool_use(
     tool_input = payload.get("tool_input")
     if not isinstance(tool_input, Mapping):
         raise ValueError("HOOK_DISPATCH_INPUT_INVALID")
+    tool_name = "".join(
+        character for character in str(payload.get("tool_name", "")).lower()
+        if character.isalnum()
+    )
+    research_control = next(
+        (
+            name for name in ("followuptask", "interruptagent", "listagents")
+            if tool_name.endswith(name)
+        ),
+        None,
+    )
+    research_wait = tool_name.endswith("waitagent")
+    if _research_stage(environment) and (research_control is not None or research_wait):
+        parent_session_id = str(payload.get("session_id", ""))
+        event_log = _resolve_scoped_log(environment)
+        active = _allowed_dispatch_tasks(
+            dispatch_log, parent_session_id=parent_session_id,
+        ) - _terminal_research_tasks(
+            event_log,
+            parent_session_id=parent_session_id,
+            environment=environment,
+        )
+        if active and research_control is not None:
+            record = _dispatch_record(payload, decision="DENY_ACTIVE_RESEARCH_CONTROL")
+            lock_path = dispatch_log.with_suffix(dispatch_log.suffix + ".lock")
+            with lock_path.open("a", encoding="utf-8") as lock_handle:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+                _append_record(dispatch_log, record)
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+            return record, {"hookSpecificOutput": {
+                "hookEventName": "PreToolUse", "permissionDecision": "deny",
+                "permissionDecisionReason": (
+                    "研究任务仍在运行；不得 list、follow-up 或 interrupt。"
+                    "请只使用 wait_agent 长等待其真实终态。"
+                ),
+            }}
+        timeout_ms = tool_input.get("timeout_ms")
+        if (
+            active and research_wait
+            and (
+                not isinstance(timeout_ms, int) or isinstance(timeout_ms, bool)
+                or timeout_ms < 300_000
+            )
+        ):
+            record = _dispatch_record(payload, decision="DENY_SHORT_RESEARCH_WAIT")
+            lock_path = dispatch_log.with_suffix(dispatch_log.suffix + ".lock")
+            with lock_path.open("a", encoding="utf-8") as lock_handle:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+                _append_record(dispatch_log, record)
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+            return record, {"hookSpecificOutput": {
+                "hookEventName": "PreToolUse", "permissionDecision": "deny",
+                "permissionDecisionReason": (
+                    "研究任务仍在运行；请调用 wait_agent 并显式设置 timeout_ms=600000。"
+                    "即使 wait 因进度或空状态提前返回，也必须继续等待真实终态。"
+                ),
+            }}
     agent_type = tool_input.get("agent_type")
     if not isinstance(agent_type, str) or not agent_type:
         # A catch-all matcher is intentional: current Codex versions can expose
@@ -546,6 +603,139 @@ def _allowed_dispatch_tasks(log_path: Path, *, parent_session_id: str) -> set[st
         ):
             result.add(item["task_name"])
     return result
+
+
+def _read_jsonl_records(log_path: Path) -> list[dict[str, Any]]:
+    """Read one append-only Hook log while excluding a concurrent writer."""
+
+    lock_path = log_path.with_suffix(log_path.suffix + ".lock")
+    with lock_path.open("a", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        lines = log_path.read_text(encoding="utf-8").splitlines() if log_path.is_file() else []
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+    records: list[dict[str, Any]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            records.append(value)
+    return records
+
+
+def _handle_parent_stop(
+    payload: Mapping[str, Any], *, environment: Mapping[str, str]
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Block common-stock parent completion until every frozen task is terminal.
+
+    A terminal task needs an allowed dispatch, a delivered start context and a
+    SubagentStop from the same child whose structured output names the frozen
+    invocation. Report validity remains the existing finalizer's concern.
+    """
+
+    required = ("session_id", "turn_id", "cwd")
+    if any(not isinstance(payload.get(field), str) or not payload[field] for field in required):
+        raise ValueError("PARENT_STOP_IDENTITY_INCOMPLETE")
+    if not _common_stock_stage(environment):
+        raise ValueError("PARENT_STOP_STAGE_INVALID")
+
+    parent_session_id = str(payload["session_id"])
+    index = _research_index(environment)
+    tasks = {
+        item["task_name"]: item
+        for item in index["tasks"]
+        if isinstance(item.get("task_name"), str)
+        and isinstance(item.get("invocation_id"), str)
+    }
+    if len(tasks) != len(index["tasks"]):
+        raise ValueError("PARENT_STOP_TASK_INDEX_INVALID")
+
+    dispatch_log = _resolve_scoped_log(
+        environment, environment_key="STOCK_AGENT_SUBAGENT_DISPATCH_LOG"
+    )
+    event_log = _resolve_scoped_log(environment)
+    allowed = {
+        item["task_name"]
+        for item in _read_jsonl_records(dispatch_log)
+        if item.get("decision") == "ALLOW"
+        and item.get("parent_session_id") == parent_session_id
+        and item.get("task_name") in tasks
+    }
+    events = _read_jsonl_records(event_log)
+    starts: dict[str, tuple[str, str]] = {}
+    for item in events:
+        binding = item.get("context_binding")
+        task_name = binding.get("task_name") if isinstance(binding, Mapping) else None
+        invocation_id = binding.get("invocation_id") if isinstance(binding, Mapping) else None
+        child_id = item.get("child_session_id")
+        if (
+            item.get("hook_event_name") == "SubagentStart"
+            and item.get("parent_session_id") == parent_session_id
+            and item.get("agent_type") == "runtime_company_analyst"
+            and isinstance(child_id, str)
+            and task_name in tasks
+            and binding.get("status") == "DELIVERED"
+            and invocation_id == tasks[task_name]["invocation_id"]
+        ):
+            starts[child_id] = (task_name, invocation_id)
+
+    completed: set[str] = set()
+    for item in events:
+        child_id = item.get("child_session_id")
+        start = starts.get(child_id) if isinstance(child_id, str) else None
+        binding = item.get("output_binding")
+        if (
+            item.get("hook_event_name") == "SubagentStop"
+            and item.get("parent_session_id") == parent_session_id
+            and item.get("agent_type") == "runtime_company_analyst"
+            and start is not None
+            and isinstance(binding, Mapping)
+            and binding.get("agent") == "runtime_company_analyst"
+            and binding.get("invocation_id") == start[1]
+            and start[0] in allowed
+        ):
+            completed.add(start[0])
+
+    expected = set(tasks)
+    missing = expected - completed
+    decision = "BLOCK" if missing else "ALLOW"
+    record: dict[str, Any] = {
+        "schema_version": "common-stock-parent-stop/1.0.0",
+        "recorder_version": RECORDER_VERSION,
+        "hook_event_name": "Stop",
+        "run_id": index["run_id"],
+        "parent_session_id": parent_session_id,
+        "turn_id": payload["turn_id"],
+        "observed_at": _utc_now(),
+        "expected_task_names": sorted(expected),
+        "completed_task_names": sorted(completed),
+        "missing_task_names": sorted(missing),
+        "decision": decision,
+        "raw_prompt_or_reasoning_retained": False,
+    }
+    record["event_hash"] = _canonical_hash(record)
+    audit_log = _resolve_scoped_log(
+        environment, environment_key="STOCK_AGENT_PARENT_STOP_LOG"
+    )
+    audit_lock = audit_log.with_suffix(audit_log.suffix + ".lock")
+    with audit_lock.open("a", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        _append_record(audit_log, record)
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+
+    if missing:
+        return record, {
+            "decision": "block",
+            "reason": (
+                "普通股研究仍缺少可验证终态，请继续等待这些任务："
+                + ",".join(sorted(missing))
+                + "。wait 可能因非终态活动返回，不能据此结束。"
+            ),
+        }
+    return record, {}
 
 
 def _terminal_research_tasks(
@@ -1001,6 +1191,8 @@ def handle_hook_event(
     environment = os.environ if environ is None else environ
     if payload.get("hook_event_name") == "PreToolUse":
         return _handle_pre_tool_use(payload, environment=environment)
+    if payload.get("hook_event_name") == "Stop":
+        return _handle_parent_stop(payload, environment=environment)
     log_path = _resolve_scoped_log(environment)
     expected = _expected_parallel_agents(environment)
     lock_path = log_path.with_suffix(log_path.suffix + ".lock")
@@ -1051,8 +1243,12 @@ def handle_hook_event(
                 response = {
                     "hookSpecificOutput": {
                         "hookEventName": "SubagentStart",
-                        "additionalContext": json.dumps(
-                            packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                        "additionalContext": (
+                            stage.serialize_common_stock_dispatch_context(packet)
+                            if _common_stock_stage(environment)
+                            else json.dumps(
+                                packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                            )
                         ),
                     }
                 }
