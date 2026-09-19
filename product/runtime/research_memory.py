@@ -29,6 +29,7 @@ PLAN_VERSION = "company-research-incremental-plan/1.0.0"
 VIEW_VERSION = "company-research-view/1.0.0"
 REPORT_REFERENCE_VERSION = "company-research-report-reference/1.0.0"
 POLICY_VERSION = "company-research-dataset-policy/1.0.0"
+VIEW_CONTEXT_FIELDS = frozenset({"freshness_status", "freshness_policy_version"})
 ATTEMPT_STATUSES = frozenset({
     "SKIPPED_FRESH", "CACHE_HIT", "CHECKED_NO_CHANGE",
     "FETCHED_INCREMENTAL", "FETCHED_BOOTSTRAP", "SOURCE_LIMITED",
@@ -159,6 +160,98 @@ def logical_fact_key(fact: Mapping[str, Any]) -> str:
 def fact_content_hash(fact: Mapping[str, Any]) -> str:
     logical_fact_key(fact)
     return canonical_hash(_strip_for_content_version(dict(fact)))
+
+
+def view_compatible_fact_hash(fact: Mapping[str, Any]) -> str:
+    """Hash persisted fact semantics without Gate-only delivery annotations.
+
+    ``freshness_*`` fields describe whether a persisted fact was eligible for a
+    particular run.  They remain part of the delivered Gate fact and its normal
+    content hash, but are not persisted as a second fact version.  This helper is
+    therefore used only to bind a delivered fact back to an already committed
+    version; it does not weaken ``fact_content_hash`` or change existing hashes.
+    """
+
+    value = {
+        str(key): deepcopy(child)
+        for key, child in fact.items()
+        if str(key) not in VIEW_CONTEXT_FIELDS
+    }
+    logical_fact_key(value)
+    return canonical_hash(_strip_for_content_version(value))
+
+
+def resolve_view_fact_versions(
+    connection: sqlite3.Connection,
+    *,
+    security_id: str,
+    facts: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    """Resolve delivered facts to verified, committed Memory versions.
+
+    Exact content hashes win.  Gate-annotated facts may bind to one and only one
+    persisted fact whose content differs solely by the two delivery freshness
+    fields.  Missing, corrupt or ambiguous bindings fail closed.
+    """
+
+    rows = connection.execute(
+        "SELECT version_hash,payload_json FROM fact_versions WHERE security_id=?",
+        (security_id,),
+    ).fetchall()
+    exact: set[str] = set()
+    compatible: dict[str, list[str]] = {}
+    for row in rows:
+        try:
+            payload = json.loads(row["payload_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID") from exc
+        if not isinstance(payload, Mapping):
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID")
+        version = str(row["version_hash"])
+        if payload.get("security_id") != security_id:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_SECURITY_MISMATCH")
+        if fact_content_hash(payload) != version:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_HASH_MISMATCH")
+        exact.add(version)
+        compatible.setdefault(view_compatible_fact_hash(payload), []).append(version)
+
+    selected: set[str] = set()
+    for raw in facts:
+        fact = dict(raw)
+        if fact.get("security_id") != security_id:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_SECURITY_MISMATCH")
+        delivered = fact_content_hash(fact)
+        if delivered in exact:
+            selected.add(delivered)
+            continue
+        candidates = sorted(set(compatible.get(view_compatible_fact_hash(fact), [])))
+        if not candidates:
+            raise ResearchMemoryError("RESEARCH_MEMORY_VIEW_FACT_NOT_PERSISTED")
+        if len(candidates) != 1:
+            raise ResearchMemoryError("RESEARCH_MEMORY_VIEW_FACT_BINDING_AMBIGUOUS")
+        selected.add(candidates[0])
+    return sorted(selected)
+
+
+def resolve_memory_view_fact_versions(
+    memory_root: Path,
+    *,
+    security_id: str,
+    facts: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    """Read-only resolver used by runtime provenance validation."""
+
+    database = Path(memory_root).resolve() / "research-memory.sqlite3"
+    uri = f"file:{database}?mode=ro"
+    try:
+        with closing(sqlite3.connect(uri, uri=True, timeout=5.0)) as connection:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA query_only = ON")
+            return resolve_view_fact_versions(
+                connection, security_id=security_id, facts=facts,
+            )
+    except sqlite3.Error as exc:
+        raise ResearchMemoryError("RESEARCH_MEMORY_VIEW_BINDING_READ_FAILED") from exc
 
 
 def infer_dataset(fact: Mapping[str, Any]) -> str:
@@ -809,25 +902,27 @@ class ResearchMemory:
         facts: Sequence[Mapping[str, Any]], gaps: Sequence[Any], conflicts: Sequence[Any],
     ) -> dict[str, Any]:
         with self.session() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             checkpoints = {
                 row["dataset"]: row["revision"] for row in connection.execute(
                     "SELECT dataset, revision FROM dataset_state WHERE security_id=?", (security_id,),
                 )
             }
-        selected_versions = [fact_content_hash(item) for item in facts]
-        body = {
-            "schema_version": VIEW_VERSION,
-            "view_id": f"research-view:{run_id}:{security_id}", "run_id": run_id,
-            "security_id": security_id, "decision_cutoff": iso_utc(decision_cutoff),
-            "selected_fact_versions": sorted(selected_versions),
-            "checkpoint_revisions": checkpoints,
-            "coverage": sorted({infer_dataset(item) for item in facts}),
-            "gaps": list(gaps), "conflicts": list(conflicts),
-            "policy_version": POLICY_VERSION,
-        }
-        body["view_manifest_hash"] = canonical_hash(body)
-        validate_research_view(body)
-        with self.session() as connection:
+            selected_versions = resolve_view_fact_versions(
+                connection, security_id=security_id, facts=facts,
+            )
+            body = {
+                "schema_version": VIEW_VERSION,
+                "view_id": f"research-view:{run_id}:{security_id}", "run_id": run_id,
+                "security_id": security_id, "decision_cutoff": iso_utc(decision_cutoff),
+                "selected_fact_versions": selected_versions,
+                "checkpoint_revisions": checkpoints,
+                "coverage": sorted({infer_dataset(item) for item in facts}),
+                "gaps": list(gaps), "conflicts": list(conflicts),
+                "policy_version": POLICY_VERSION,
+            }
+            body["view_manifest_hash"] = canonical_hash(body)
+            validate_research_view(body)
             connection.execute(
                 "INSERT OR IGNORE INTO research_views VALUES(?,?,?,?,?)",
                 (body["view_manifest_hash"], run_id, security_id, body["decision_cutoff"], _canonical_json(body)),

@@ -773,9 +773,18 @@ class ResearchMemoryTests(unittest.TestCase):
         )
         raw = self.memory.read_object(stored["object_ref"], stored["object_hash"])
         self.assertEqual(snapshot, json.loads(raw)["snapshot"])
+        fact = self.fact()
+        plan = self.memory.plan(
+            "US:MRVL", "sec", "sec_companyfacts",
+            planning_as_of="2026-09-17T00:00:00Z",
+        )
+        self.memory.ingest_dataset(
+            plan=plan, facts=[fact], status="FETCHED_BOOTSTRAP",
+            completed_at="2026-09-17T00:00:00Z",
+        )
         view = self.memory.save_view(
             run_id="run-1", security_id="US:MRVL", decision_cutoff="2026-09-17T00:00:00Z",
-            facts=[self.fact()], gaps=[], conflicts=[],
+            facts=[fact], gaps=[], conflicts=[],
         )
         self.assertEqual(64, len(view["view_manifest_hash"]))
 

@@ -175,7 +175,7 @@ def _current_source_reuse_status(
     ):
         return None
     from product.runtime.research_memory import (
-        ResearchMemoryError, fact_content_hash, infer_dataset,
+        ResearchMemoryError, infer_dataset, resolve_memory_view_fact_versions,
         validate_incremental_plan, validate_research_view,
     )
     expected_checkpoint_revisions = {}
@@ -272,7 +272,14 @@ def _current_source_reuse_status(
         and fact.get("security_id") == security_id
         and fact.get("evidence_id") not in excluded_sidecar_ids
     ]
-    expected_versions = sorted(fact_content_hash(fact) for fact in expected_facts)
+    try:
+        expected_versions = resolve_memory_view_fact_versions(
+            resolved_memory_root,
+            security_id=security_id,
+            facts=expected_facts,
+        )
+    except (ResearchMemoryError, KeyError, TypeError, ValueError):
+        return None
     expected_coverage = sorted({infer_dataset(fact) for fact in expected_facts})
     if (
         view.get("run_id") != gate.get("run_id")
