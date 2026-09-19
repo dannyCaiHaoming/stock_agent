@@ -27,6 +27,8 @@ bash <repository-root>/scripts/run-product-smoke.sh \
 
 launcher 从运行目录内的一次性隔离源码副本启动并保存当前工作区前后 hash。进程以独立进程组运行；超时后只证明本地 TERM/KILL 与进程回收，远端服务端取消不能证明时写 `UNKNOWN`。任何 timeout、非零退出、缺 Stop、缺/非法报告或引用失败都必须完成 Coverage v1、stage、process 的失败归集，不得留下 `QUEUED`，也不得自动追加模型重试。准备和零模型门槛通过不等于真实模型验收、Runtime Eval 或 Promotion PASS。
 
+自动 live 数据准备还必须配置仓库外 `RESEARCH_MEMORY_ROOT`。增量范围、报告原截止时间、严格复用、`--force-rerun`、补存和备份恢复以 [Company Research Memory 运行说明](../../docs/development/company-research-memory.md) 为准。全复用时 dispatch-index 为空且每只目标均须有有效复用引用，launcher 不创建模型进程；这不是“空任务自动成功”。
+
 ## 2. Artifact Replay
 
 ```text

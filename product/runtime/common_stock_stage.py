@@ -13,6 +13,7 @@ import re
 import os
 import shutil
 import signal
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -51,6 +52,20 @@ COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS = frozenset({
     "high_price",
     "low_price",
     "share_volume",
+})
+
+CURRENT_SOURCE_REUSE_DATASETS = {
+    "live_snapshot": "live",
+    "company_profile": "public",
+    "sec_companyfacts": "sec",
+    "sec_documents": "sec",
+    "sec_identity": "sec",
+    "current_snapshot": "market",
+    "yahoo_daily": "yahoo",
+}
+CURRENT_SOURCE_REUSE_STATUSES = frozenset({
+    "SKIPPED_FRESH", "CACHE_HIT", "CHECKED_NO_CHANGE",
+    "FETCHED_INCREMENTAL", "FETCHED_BOOTSTRAP",
 })
 
 
@@ -103,6 +118,174 @@ def _claimed_hash(value: Mapping[str, Any], field: str) -> str:
     return canonical_hash({key: item for key, item in value.items() if key != field})
 
 
+def _current_source_reuse_status(
+    *, current_request: Mapping[str, Any], original_request: Mapping[str, Any],
+    gate: Mapping[str, Any], source_memory: Mapping[str, Any] | None,
+    source_memory_manifest: Path | None, security_id: str,
+    resolved_memory_root: Path | None,
+    preparation: Mapping[str, Any] | None = None,
+) -> str | None:
+    """证明报告可安全用于本次截止点；无法证明时保守拒绝复用。"""
+
+    if current_request.get("decision_cutoff") == original_request.get("decision_cutoff"):
+        return "FROZEN_INPUT_EXACT"
+    if (
+        gate.get("source_mode") != "live-read-only"
+        or not isinstance(source_memory, Mapping)
+        or source_memory_manifest is None
+        or resolved_memory_root is None
+    ):
+        return None
+    if source_memory.get("manifest_hash") != _claimed_hash(
+        source_memory, "manifest_hash"
+    ):
+        return None
+    if (
+        source_memory.get("schema_version")
+        != "company-research-memory-run/1.0.0"
+        or source_memory.get("run_id") != gate.get("run_id")
+        or current_request.get("decision_cutoff") != gate.get("decision_cutoff")
+    ):
+        return None
+    recorded_root = source_memory.get("memory_root")
+    if not isinstance(recorded_root, str):
+        return None
+    try:
+        if Path(recorded_root).resolve() != resolved_memory_root.resolve():
+            return None
+    except OSError:
+        return None
+
+    results = source_memory.get("results")
+    if not isinstance(results, list):
+        return None
+    matching_results = [
+        item for item in results
+        if isinstance(item, Mapping) and item.get("security_id") == security_id
+    ]
+    if len(matching_results) != 1:
+        return None
+    result = matching_results[0]
+    plans = result.get("plans")
+    outcomes = result.get("dataset_outcomes")
+    if (
+        not isinstance(plans, Mapping)
+        or set(plans) != set(CURRENT_SOURCE_REUSE_DATASETS)
+        or not isinstance(outcomes, Mapping)
+    ):
+        return None
+    from product.runtime.research_memory import (
+        ResearchMemoryError, fact_content_hash, infer_dataset,
+        validate_incremental_plan, validate_research_view,
+    )
+    expected_checkpoint_revisions = {}
+    for dataset, provider in CURRENT_SOURCE_REUSE_DATASETS.items():
+        plan = plans.get(dataset)
+        outcome = (
+            result.get("live_outcome")
+            if dataset == "live_snapshot" and dataset not in outcomes
+            else outcomes.get(dataset)
+        )
+        if not isinstance(plan, Mapping) or not isinstance(outcome, Mapping):
+            return None
+        try:
+            validate_incremental_plan(plan)
+        except (ResearchMemoryError, KeyError, TypeError, ValueError):
+            return None
+        pending_count = outcome.get("pending_count")
+        checkpoint_revision_before = outcome.get("checkpoint_revision_before")
+        checkpoint_revision = outcome.get("checkpoint_revision")
+        plan_revision = int(plan["checkpoint_revision"])
+        optional_not_attempted = (
+            dataset == "company_profile"
+            and outcome.get("status") == "NOT_ATTEMPTED"
+        )
+        expected_revision = plan_revision + (
+            0 if outcome.get("status") in {
+                "SKIPPED_FRESH", "CACHE_HIT", "NOT_ATTEMPTED",
+            } else 1
+        )
+        if (
+            plan.get("security_id") != security_id
+            or plan.get("dataset") != dataset
+            or plan.get("provider") != provider
+            or (
+                outcome.get("status") not in CURRENT_SOURCE_REUSE_STATUSES
+                and not optional_not_attempted
+            )
+            or type(pending_count) is not int
+            or pending_count != 0
+            or type(checkpoint_revision_before) is not int
+            or checkpoint_revision_before != plan_revision
+            or type(checkpoint_revision) is not int
+            or checkpoint_revision != expected_revision
+            or (
+                optional_not_attempted
+                and any(
+                    outcome.get(field) != 0
+                    for field in (
+                        "inserted_versions", "observations", "request_count",
+                        "repair_request_count",
+                    )
+                )
+            )
+        ):
+            return None
+        if not optional_not_attempted:
+            expected_checkpoint_revisions[dataset] = checkpoint_revision
+
+    view_hashes = source_memory.get("view_hashes")
+    if not isinstance(view_hashes, list):
+        return None
+    matching_views = []
+    for view_path in source_memory_manifest.parent.glob("*-view.json"):
+        try:
+            view = _read_object(view_path)
+            validate_research_view(view)
+        except (CommonStockStageError, ResearchMemoryError, OSError, ValueError):
+            return None
+        if view.get("security_id") == security_id:
+            matching_views.append(view)
+    if len(matching_views) != 1:
+        return None
+    view = matching_views[0]
+    excluded_sidecar_ids: set[str] = set()
+    if isinstance(preparation, Mapping):
+        for field in ("options", "research_supplement"):
+            item = preparation.get(field)
+            if isinstance(item, Mapping):
+                excluded_sidecar_ids.update(
+                    value for value in item.get("evidence_ids", [])
+                    if isinstance(value, str)
+                )
+        supplements = preparation.get("research_supplements", [])
+        if isinstance(supplements, list):
+            for item in supplements:
+                if isinstance(item, Mapping):
+                    excluded_sidecar_ids.update(
+                        value for value in item.get("evidence_ids", [])
+                        if isinstance(value, str)
+                    )
+    expected_facts = [
+        fact for fact in gate.get("allowed_evidence", [])
+        if isinstance(fact, Mapping)
+        and fact.get("security_id") == security_id
+        and fact.get("evidence_id") not in excluded_sidecar_ids
+    ]
+    expected_versions = sorted(fact_content_hash(fact) for fact in expected_facts)
+    expected_coverage = sorted({infer_dataset(fact) for fact in expected_facts})
+    if (
+        view.get("run_id") != gate.get("run_id")
+        or view.get("view_manifest_hash") not in view_hashes
+        or view.get("decision_cutoff") != current_request.get("decision_cutoff")
+        or view.get("selected_fact_versions") != expected_versions
+        or view.get("coverage") != expected_coverage
+        or view.get("checkpoint_revisions") != expected_checkpoint_revisions
+    ):
+        return None
+    return "CURRENT_SOURCE_CHECKED"
+
+
 def _delivered_references_for_invocation(
     run_dir: Path, invocation_id: str,
 ) -> tuple[list[str], list[str]]:
@@ -145,6 +328,85 @@ def _delivered_references_for_invocation(
 
 def _calculation_ids_for_invocation(run_dir: Path, invocation_id: str) -> list[str]:
     return _delivered_references_for_invocation(run_dir, invocation_id)[1]
+
+
+def _calculation_records_for_invocation(
+    run_dir: Path, invocation_id: str,
+) -> list[dict[str, Any]]:
+    path = Path(run_dir) / "events/mcp/events.jsonl"
+    if not path.is_file():
+        return []
+    records: dict[str, dict[str, Any]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        if (
+            event.get("event_type") == "mcp_tool_result"
+            and event.get("invocation_id") == invocation_id
+            and event.get("tool") == "fixture_math.calculate"
+            and isinstance(event.get("calculation_id"), str)
+        ):
+            calculation_id = event["calculation_id"]
+            records[calculation_id] = {
+                key: copy.deepcopy(event[key]) for key in (
+                    "calculation_id", "operation", "target_scale",
+                    "evidence_ids", "adapter_version", "input_hash", "output_hash",
+                ) if key in event
+            }
+        elif (
+            event.get("event_type") == "mcp_tool_result"
+            and event.get("invocation_id") == invocation_id
+            and event.get("tool") == "equity_research_attachments.query"
+        ):
+            for calculation_id in event.get("calculation_ids", []):
+                if isinstance(calculation_id, str) and calculation_id:
+                    records.setdefault(calculation_id, {
+                        "calculation_id": calculation_id,
+                        "source_tool": "equity_research_attachments.query",
+                    })
+    return [records[key] for key in sorted(records)]
+
+
+def _collect_calculation_identities(value: Any) -> set[str]:
+    identities: set[str] = set()
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if key in {"calculation_id", "calculation_ref"}:
+                if isinstance(child, str) and child:
+                    identities.add(child)
+            elif key in {"calculation_ids", "calculation_refs"}:
+                if isinstance(child, list):
+                    identities.update(
+                        item for item in child
+                        if isinstance(item, str) and item
+                    )
+            else:
+                identities.update(_collect_calculation_identities(child))
+    elif isinstance(value, list):
+        for child in value:
+            identities.update(_collect_calculation_identities(child))
+    return identities
+
+
+def _report_package_calculation_ids(package: Mapping[str, Any]) -> list[str]:
+    """Recover all calculation identities required to revalidate a report.
+
+    Early report packages stored deterministic calculator records but relied on
+    the frozen attachment for attachment-provided calculation identities. Read
+    both locations so those immutable packages remain reusable.
+    """
+
+    calculation_ids = {
+        item["calculation_id"]
+        for item in package.get("calculations", [])
+        if isinstance(item, Mapping)
+        and isinstance(item.get("calculation_id"), str)
+        and item["calculation_id"]
+    }
+    attachment = package.get("attachment")
+    calculation_ids.update(_collect_calculation_identities(attachment))
+    return sorted(calculation_ids)
 
 
 def validate_delivered_research_references(
@@ -284,6 +546,213 @@ def _build_evidence_period_index(
         }
         for field, items in sorted(groups.items())
     ]
+
+
+def _research_input_fingerprint_for_holding(
+    repository_root: Path, *, request: Mapping[str, Any], gate: Mapping[str, Any],
+    attachment: Mapping[str, Any] | None, model: str,
+    agent: Mapping[str, Any], skills: Sequence[Mapping[str, Any]],
+) -> str:
+    """Build the closed, run-wrapper-independent Company Agent input identity."""
+
+    from product.runtime.research_memory import (
+        POLICY_VERSION, research_input_fingerprint,
+    )
+
+    allowed = set(request["allowed_evidence_ids"])
+    evidence = [
+        copy.deepcopy(item) for item in gate["allowed_evidence"]
+        if item.get("evidence_id") in allowed
+        and item.get("semantic_field") not in COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS
+    ]
+    conflicts = [
+        copy.deepcopy(item) for item in gate.get("conflicts", [])
+        if set(item.get("evidence_ids", [])) & allowed
+    ]
+    attachment_value = copy.deepcopy(attachment) if attachment is not None else None
+    adapter_versions = sorted({
+        str(value)
+        for fact in evidence
+        for value in (
+            fact.get("adapter_version"),
+            (fact.get("metadata") or {}).get("adapter_version")
+            if isinstance(fact.get("metadata"), Mapping) else None,
+        )
+        if isinstance(value, str) and value
+    })
+    time_context = sorted({
+        (field, str(fact[field]))
+        for fact in evidence
+        for field in ("as_of", "published_at", "retrieved_at")
+        if isinstance(fact.get(field), str) and fact[field]
+    })
+    payload = {
+        "security": copy.deepcopy(request["security"]),
+        "evidence": sorted(evidence, key=lambda item: item["evidence_id"]),
+        "gaps": copy.deepcopy(request.get("data_gaps", [])),
+        "conflicts": conflicts,
+        "attachments": attachment_value,
+        # Attachment content is already included in full above. Keep this
+        # normalized compatibility projection stable for existing reuse keys;
+        # nested attachment calculation identities are recovered separately
+        # when validating an immutable report package.
+        "calculations": (
+            sorted({
+                str(ref)
+                for artifact in attachment_value.get("artifacts", [])
+                if isinstance(artifact, Mapping)
+                for ref in artifact.get("calculation_refs", [])
+                if isinstance(ref, str)
+            }) if isinstance(attachment_value, Mapping) else []
+        ),
+        "research_question": request["research_question"],
+        "holding_horizon": request.get("holding_horizon"),
+        "user_context": copy.deepcopy(request.get("user_context", {})),
+        "model": model,
+        "agent_binding": copy.deepcopy(agent),
+        "skill_bindings": copy.deepcopy(list(skills)),
+        "schema_hash": file_hash(
+            Path(repository_root).resolve()
+            / "product/schemas/runtime/equity-research-report.schema.json"
+        ),
+        "prompt_policy": {
+            "dispatch_contract": DISPATCH_VERSION,
+            "agent_version": COMPANY_AGENT_VERSION,
+            "excluded_semantic_fields": sorted(COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS),
+        },
+        "data_policy": {
+            "memory_policy_version": POLICY_VERSION,
+            "source_mode": gate.get("source_mode", "fixture-research"),
+        },
+        "risk_policy": {"investment_actions_forbidden": True},
+        "adapter_versions": adapter_versions,
+        # The outer decision cutoff is deliberately not included: a later
+        # successful freshness check may prove the same selected inputs. All
+        # model-visible fact times and time-derived attachment values are here.
+        "time_context": time_context,
+    }
+    return research_input_fingerprint(payload)
+
+
+def _report_status_to_research_status(report_status: str) -> str:
+    return {
+        "COMPLETE": "VALID_RESEARCH",
+        "LOW_CONFIDENCE": "LOW_CONFIDENCE",
+        "INSUFFICIENT_EVIDENCE": "INSUFFICIENT_EVIDENCE",
+        "TIMEOUT": "FAILED",
+    }[report_status]
+
+
+def _materialize_reused_report(
+    *, package: Mapping[str, Any], reference: Mapping[str, Any],
+    run_dir: Path,
+) -> str:
+    report = package["report"]
+    if canonical_hash(report) != reference["report_hash"]:
+        raise CommonStockStageError("COMMON_STOCK_REUSED_REPORT_HASH_MISMATCH")
+    report_dir = run_dir / "research/reports" / str(reference["security_id"]).replace(":", "_")
+    report_path = report_dir / "equity-research.json"
+    _write_object(report_path, report)
+    markdown_path = report_path.with_suffix(".md")
+    markdown_path.parent.mkdir(parents=True, exist_ok=True)
+    markdown_path.write_text(str(package["markdown"]), encoding="utf-8")
+    return str(report_path.relative_to(run_dir))
+
+
+def _persist_validated_report_package(
+    memory: Any, *, run_dir: Path, task: Mapping[str, Any],
+    request: Mapping[str, Any], gate: Mapping[str, Any],
+    report: Mapping[str, Any], report_path: Path, markdown_path: Path,
+) -> dict[str, Any]:
+    """Publish a self-contained immutable report object, then index it."""
+
+    from product.runtime.research_memory import (
+        REPORT_REFERENCE_VERSION, validate_report_reference,
+    )
+
+    allowed = set(request["allowed_evidence_ids"])
+    evidence = [
+        copy.deepcopy(item) for item in gate["allowed_evidence"]
+        if item.get("evidence_id") in allowed
+    ]
+    calculations = _calculation_records_for_invocation(
+        run_dir, task["invocation_id"]
+    )
+    attachment = (
+        _read_object(run_dir / task["equity_research_package_path"])
+        if task.get("equity_research_package_path") else None
+    )
+    markdown = markdown_path.read_text(encoding="utf-8")
+    report_hash = canonical_hash(report)
+    manifest = {
+        "report_hash": report_hash,
+        "markdown_hash": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "request_hash": canonical_hash(request),
+        "evidence_hash": canonical_hash(evidence),
+        "calculation_hash": canonical_hash(calculations),
+        "attachment_hash": canonical_hash(attachment),
+        "validation": {
+            "equity_report": "PASSED",
+            "evidence_closure": "PASSED",
+            "persisted_pair": "PASSED",
+        },
+    }
+    package = {
+        "schema_version": "company-research-report-package/1.0.0",
+        "security_id": task["security_id"],
+        "research_input_fingerprint": task["research_input_fingerprint"],
+        "reuse_key": task["reuse_key"],
+        "report": copy.deepcopy(dict(report)),
+        "markdown": markdown,
+        "request": copy.deepcopy(dict(request)),
+        "evidence": evidence,
+        "calculations": calculations,
+        "attachment": copy.deepcopy(attachment),
+        "validation": copy.deepcopy(manifest["validation"]),
+        "manifest": manifest,
+    }
+    stored = memory.store_object(package)
+    reference_path = (
+        run_dir / "research/report-references"
+        / invocation_file_name(task["invocation_id"])
+    )
+    if reference_path.is_file():
+        existing = _read_object(reference_path)
+        validate_report_reference(existing)
+        if any(
+            existing.get(field) != expected
+            for field, expected in (
+                ("security_id", task["security_id"]),
+                ("reuse_key", task["reuse_key"]),
+                ("research_input_fingerprint", task["research_input_fingerprint"]),
+                ("report_hash", report_hash),
+                ("package_hash", stored["object_hash"]),
+                ("package_ref", stored["object_ref"]),
+            )
+        ):
+            raise CommonStockStageError("COMMON_STOCK_REPORT_REFERENCE_CONFLICT")
+        memory.save_report_index(existing, metadata=manifest)
+        return existing
+    checked_at = _utc_now()
+    reference = {
+        "schema_version": REPORT_REFERENCE_VERSION,
+        "security_id": task["security_id"],
+        "reuse_key": task["reuse_key"],
+        "research_input_fingerprint": task["research_input_fingerprint"],
+        "report_hash": report_hash,
+        "package_hash": stored["object_hash"],
+        "original_run_id": request["run_id"],
+        "original_invocation_id": request["invocation_id"],
+        "original_report_cutoff": request["decision_cutoff"],
+        "checked_at": checked_at,
+        "research_status": _report_status_to_research_status(report["status"]),
+        "package_ref": stored["object_ref"],
+    }
+    reference["reference_hash"] = canonical_hash(reference)
+    validate_report_reference(reference)
+    memory.save_report_index(reference, metadata=manifest)
+    _write_object(reference_path, reference)
+    return reference
 
 
 def serialize_common_stock_dispatch_context(packet: Mapping[str, Any]) -> str:
@@ -567,6 +1036,7 @@ def prepare_common_stock_stage_run(
     source_bundle_path: Path | None = None,
     focus_security_id: str | None = None,
     equity_research_package_paths: Sequence[Path] = (),
+    memory_root: Path | None = None, force_rerun: bool = False,
 ) -> dict[str, Any]:
     """冻结已确认持仓和 Gate，生成一个可由现有宿主 launcher 执行的阶段包。"""
 
@@ -613,6 +1083,42 @@ def prepare_common_stock_stage_run(
             handoff, gate=gate, preparation=data_preparation,
             source_bundle_path=Path(source_bundle_path).resolve(),
         )
+    from product.runtime.research_memory import (
+        ResearchMemory, ResearchMemoryError, report_reuse_key,
+        resolve_memory_root,
+    )
+    memory = None
+    resolved_memory_root: Path | None = None
+    recorded_memory_root: Path | None = None
+    source_memory: dict[str, Any] | None = None
+    source_memory_manifest: Path | None = None
+    if source_bundle_path is not None:
+        source_memory_manifest = (
+            Path(source_bundle_path).resolve().parent / "research-memory/manifest.json"
+        )
+        if source_memory_manifest.is_file():
+            source_memory = _read_object(source_memory_manifest)
+            if source_memory.get("manifest_hash") != _claimed_hash(
+                source_memory, "manifest_hash"
+            ):
+                raise CommonStockStageError("COMMON_STOCK_MEMORY_MANIFEST_HASH_MISMATCH")
+            if isinstance(source_memory.get("memory_root"), str):
+                recorded_memory_root = Path(source_memory["memory_root"])
+    try:
+        resolved_memory_root = resolve_memory_root(repository_root, memory_root)
+    except ResearchMemoryError as exc:
+        if str(exc) != "RESEARCH_MEMORY_ROOT_REQUIRED":
+            raise
+        if recorded_memory_root is not None:
+            resolved_memory_root = resolve_memory_root(
+                repository_root, recorded_memory_root,
+            )
+        # A prebuilt, already frozen live package remains compatible without
+        # Memory. The network collection entry point itself requires the
+        # stable root before any provider request.
+        pass
+    if resolved_memory_root is not None:
+        memory = ResearchMemory(resolved_memory_root)
     stage = prepare_common_stock_research_stage(
         handoff, request, gate, run_id=run_id, batch_id=f"batch:{run_id}",
         agent_binding=agent, skill_bindings=skills, target_concurrency=target_concurrency,
@@ -638,9 +1144,8 @@ def prepare_common_stock_stage_run(
         shutil.copytree(source_bundle_file.parent, source_package)
         source_bundle_ref = "evidence/source-package/source-bundle.json"
         _write_object(run_dir / "evidence/source-bundle.json", source_bundle)
-    _write_object(run_dir / "research/stage.json", stage)
-    _write_object(run_dir / "research/coverage.json", stage["coverage"])
     tasks = []
+    reuse_items = []
     for position, holding_request in enumerate(stage["holding_requests"]):
         task_name = f"company_research_{position + 1}"
         security_id = holding_request["security"]["security_id"]
@@ -672,7 +1177,6 @@ def prepare_common_stock_stage_run(
         }
         invocation["manifest_hash"] = canonical_hash(invocation)
         invocation_path = f"invocations/by-id/{invocation_file_name(holding_request['invocation_id'])}"
-        _write_object(run_dir / invocation_path, invocation)
         task = {
             "task_name": task_name,
             "security_id": holding_request["security"]["security_id"],
@@ -680,17 +1184,126 @@ def prepare_common_stock_stage_run(
             "request_path": request_path,
             "invocation_path": invocation_path,
         }
+        attachment = None
         if security_id in attachment_packages:
             _source_path, package = attachment_packages[security_id]
+            attachment = package
             attachment_path = f"research/equity-attachments/{invocation_file_name(holding_request['invocation_id'])}"
             _write_object(run_dir / attachment_path, package)
             task["equity_research_package_path"] = attachment_path
             task["equity_research_package_hash"] = package["package_hash"]
+        fingerprint = _research_input_fingerprint_for_holding(
+            repository_root, request=holding_request, gate=gate,
+            attachment=attachment, model=analyst_model, agent=agent, skills=skills,
+        )
+        reuse_key = report_reuse_key(security_id, fingerprint)
+        task.update(
+            research_input_fingerprint=fingerprint,
+            reuse_key=reuse_key,
+        )
+        reusable = None
+        if memory is not None and not force_rerun:
+            reusable = memory.reusable_report(security_id, reuse_key)
+        if reusable is not None:
+            package = memory.load_report_package(
+                reusable["package_ref"], reusable["package_hash"],
+            )
+            original_request = package["request"]
+            reuse_status = _current_source_reuse_status(
+                current_request=holding_request,
+                original_request=original_request,
+                gate=gate,
+                source_memory=source_memory,
+                source_memory_manifest=source_memory_manifest,
+                security_id=security_id,
+                resolved_memory_root=resolved_memory_root,
+                preparation=data_preparation,
+            )
+            if reuse_status is None:
+                reusable = None
+                task["reuse_bypass_reason"] = "CURRENT_SOURCE_FRESHNESS_UNPROVEN"
+        if reusable is not None:
+            report = package["report"]
+            calculation_ids = _report_package_calculation_ids(package)
+            validate_equity_research_report(
+                report, request=original_request,
+                calculation_artifact_ids=calculation_ids,
+            )
+            reference = memory.make_report_reference(
+                reusable, checked_at=_utc_now(),
+            )
+            reference_path = (
+                "research/report-references/"
+                f"{invocation_file_name(holding_request['invocation_id'])}"
+            )
+            _write_object(run_dir / reference_path, reference)
+            report_ref = _materialize_reused_report(
+                package=package, reference=reference, run_dir=run_dir,
+            )
+            memory.record_reuse(reference, run_id=run_id)
+            coverage_item = next(
+                item for item in stage["coverage"]["items"]
+                if item["security_id"] == security_id
+            )
+            coverage_item.update({
+                "execution_status": "COMPLETED",
+                "research_status": reusable["research_status"],
+                "coverage_status": "RESEARCHED",
+                "invocation_id": reusable["original_invocation_id"],
+                "report_ref": report_ref,
+                "report_hash": reusable["report_hash"],
+                "failure_code": None,
+                "research_execution_status": "REUSED",
+                "report_persistence_status": "REUSED",
+                "report_persistence_failure_code": None,
+                "report_checked_at": reference["checked_at"],
+                "original_report_cutoff": reference["original_report_cutoff"],
+            })
+            reuse_items.append({
+                "security_id": security_id,
+                "current_request_path": request_path,
+                "current_invocation_id": holding_request["invocation_id"],
+                "research_input_fingerprint": fingerprint,
+                "reuse_key": reuse_key,
+                "reference_path": reference_path,
+                "report_ref": report_ref,
+                "report_hash": reusable["report_hash"],
+            })
+            continue
+        _write_object(run_dir / invocation_path, invocation)
         packet = _build_common_stock_dispatch_packet(repository_root, run_dir, task)
         packet_path = f"research/dispatch-packets/{invocation_file_name(holding_request['invocation_id'])}"
         _write_object(run_dir / packet_path, packet)
         task.update(packet_path=packet_path, packet_hash=canonical_hash(packet))
         tasks.append(task)
+        coverage_item = next(
+            item for item in stage["coverage"]["items"]
+            if item["security_id"] == security_id
+        )
+        coverage_item.update({
+            "research_execution_status": "RUN",
+            "report_persistence_status": "NOT_ATTEMPTED",
+            "report_persistence_failure_code": None,
+            "report_checked_at": None,
+            "original_report_cutoff": None,
+        })
+    stage["coverage"]["effective_concurrency"] = min(target_concurrency, len(tasks))
+    if not tasks:
+        stage["coverage"]["execution_mode"] = "NOT_STARTED"
+        stage["coverage"]["execution_mode_reason"] = (
+            "全部目标命中严格等价的持久化报告。"
+            if reuse_items and len(reuse_items) == len(stage["holding_requests"])
+            else "没有满足派发或报告复用条件的普通股资料。"
+        )
+    elif len(tasks) == 1:
+        stage["coverage"]["execution_mode"] = "SERIAL"
+        stage["coverage"]["execution_mode_reason"] = "仅一项普通股需要新的模型研究。"
+    stage["coverage"]["coverage_hash"] = _claimed_hash(
+        stage["coverage"], "coverage_hash"
+    )
+    stage["stage_hash"] = _claimed_hash(stage, "stage_hash")
+    _write_object(run_dir / "research/stage.json", stage)
+    _write_object(run_dir / "research/coverage.json", stage["coverage"])
     index = {
         "schema_version": DISPATCH_VERSION,
         "run_id": run_id,
@@ -699,6 +1312,13 @@ def prepare_common_stock_stage_run(
     }
     index["index_hash"] = canonical_hash(index)
     _write_object(run_dir / "research/dispatch-index.json", index)
+    reuse_index = {
+        "schema_version": "common-stock-research-reuse-index/1.0.0",
+        "run_id": run_id,
+        "items": reuse_items,
+    }
+    reuse_index["index_hash"] = canonical_hash(reuse_index)
+    _write_object(run_dir / "research/reuse-index.json", reuse_index)
     fixture = Path(source_fixture).resolve() if source_fixture else (
         repository_root / "evals/fixtures/codex-native/common-stock-two-company-v1.json"
     ).resolve()
@@ -719,6 +1339,9 @@ def prepare_common_stock_stage_run(
         "source_bundle_ref": source_bundle_ref,
         "stage_hash": stage["stage_hash"],
         "dispatch_index_hash": index["index_hash"], "target_concurrency": target_concurrency,
+        "reuse_index_hash": reuse_index["index_hash"],
+        "memory_root": str(resolved_memory_root) if resolved_memory_root is not None else None,
+        "force_rerun": force_rerun,
         "focus_security_id": focus_security_id,
         "equity_research_package_hashes": sorted(
             package["package_hash"] for _path, package in attachment_packages.values()
@@ -727,7 +1350,10 @@ def prepare_common_stock_stage_run(
     }
     manifest["manifest_hash"] = canonical_hash(manifest)
     _write_object(run_dir / "run_manifest.json", manifest)
-    return {"status": "PREPARED", "run_id": run_id, "run_dir": str(run_dir), "task_count": len(tasks)}
+    return {
+        "status": "PREPARED", "run_id": run_id, "run_dir": str(run_dir),
+        "task_count": len(tasks), "reused_count": len(reuse_items),
+    }
 
 
 def build_common_stock_stage_prompt(repository_root: Path, run_dir: Path) -> str:
@@ -752,28 +1378,47 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
     """从底层 Hook 和报告重算覆盖状态及并行证明。"""
 
     run_dir = Path(run_dir).resolve()
+    _validate_common_stock_stage_run_package(repository_root, run_dir)
     manifest = _read_object(run_dir / "run_manifest.json")
     handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
     council_request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
     coverage = _read_object(run_dir / "research/coverage.json")
     index = _read_object(run_dir / "research/dispatch-index.json")
+    reuse_index = _read_object(run_dir / "research/reuse-index.json")
+    reused_security_ids = {
+        item["security_id"] for item in reuse_index.get("items", [])
+    }
     events_path = run_dir / "invocation/subagent-events.jsonl"
     dispatch_path = run_dir / "invocation/subagent-dispatches.jsonl"
-    if not events_path.is_file() or not dispatch_path.is_file():
-        raise CommonStockStageError("COMMON_STOCK_DISPATCH_PROOF_INCOMPLETE")
-    events = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    dispatches = [json.loads(line) for line in dispatch_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    allowed = {item.get("task_name") for item in dispatches if item.get("decision") == "ALLOW"}
     expected = {item["task_name"] for item in index["tasks"]}
+    if expected and (not events_path.is_file() or not dispatch_path.is_file()):
+        raise CommonStockStageError("COMMON_STOCK_DISPATCH_PROOF_INCOMPLETE")
+    events = (
+        [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if events_path.is_file() else []
+    )
+    dispatches = (
+        [json.loads(line) for line in dispatch_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if dispatch_path.is_file() else []
+    )
+    allowed = {item.get("task_name") for item in dispatches if item.get("decision") == "ALLOW"}
     if allowed != expected:
         raise CommonStockStageError("COMMON_STOCK_DISPATCH_PROOF_INCOMPLETE")
     starts = {item["child_session_id"]: item for item in events if item.get("hook_event_name") == "SubagentStart"}
     stops = [item for item in events if item.get("hook_event_name") == "SubagentStop"]
     by_invocation = {item["invocation_id"]: item for item in index["tasks"]}
-    targeted_security_ids = {item["security_id"] for item in index["tasks"]}
+    targeted_security_ids = {
+        item["security_id"] for item in index["tasks"]
+    } | reused_security_ids
     intervals = []
-    completed = set()
+    completed = set(reused_security_ids)
+    memory = None
+    if manifest.get("memory_root") is not None:
+        from product.runtime.research_memory import ResearchMemory, resolve_memory_root
+        memory = ResearchMemory(resolve_memory_root(
+            repository_root, Path(manifest["memory_root"]),
+        ))
     for stop in stops:
         binding = stop.get("output_binding") or {}
         capture = stop.get("output_capture") or {}
@@ -807,6 +1452,26 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
             ],
             calculation_artifact_ids=calculation_ids,
         )
+        persistence_status = "NOT_ATTEMPTED"
+        persistence_failure_code = None
+        persistence_reference = None
+        if memory is not None and report["status"] != "TIMEOUT":
+            try:
+                persistence_reference = _persist_validated_report_package(
+                    memory, run_dir=run_dir, task=task, request=request,
+                    gate=gate, report=report, report_path=report_path,
+                    markdown_path=markdown_path,
+                )
+                persistence_status = "PERSISTED"
+            except (
+                OSError, ValueError, KeyError, TypeError,
+                json.JSONDecodeError, sqlite3.Error,
+            ) as exc:
+                persistence_status = "FAILED"
+                persistence_failure_code = str(exc).split(":", 1)[0]
+        task["_persistence_status"] = persistence_status
+        task["_persistence_failure_code"] = persistence_failure_code
+        task["_persistence_reference"] = persistence_reference
         completed.add(task["security_id"])
         intervals.append({
             "security_id": task["security_id"], "invocation_id": invocation_id,
@@ -815,6 +1480,8 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
             "completed_at": stop["observed_at"],
         })
     for item in coverage["items"]:
+        if item["security_id"] in reused_security_ids:
+            continue
         if item["security_id"] in completed:
             task = next(row for row in index["tasks"] if row["security_id"] == item["security_id"])
             report_path = run_dir / "research/reports" / task["security_id"].replace(":", "_") / "equity-research.json"
@@ -834,6 +1501,15 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
                 "report_ref": f"research/reports/{task['security_id'].replace(':', '_')}/equity-research.json",
                 "report_hash": canonical_hash(report),
                 "failure_code": "RESEARCH_TIMEOUT" if report_status == "TIMEOUT" else None,
+                "research_execution_status": "RUN",
+                "report_persistence_status": task.get("_persistence_status", "NOT_ATTEMPTED"),
+                "report_persistence_failure_code": task.get("_persistence_failure_code"),
+                "report_checked_at": (
+                    (task.get("_persistence_reference") or {}).get("checked_at")
+                ),
+                "original_report_cutoff": (
+                    (task.get("_persistence_reference") or {}).get("original_report_cutoff")
+                ),
             })
         elif (
             item["asset_type"] == "COMMON_STOCK"
@@ -867,8 +1543,10 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
     proof = {
         "schema_version": "common-stock-research-execution-proof/1.0.0",
         "run_id": manifest["run_id"], "expected_tasks": sorted(expected),
+        "reused_security_ids": sorted(reused_security_ids),
         "completed_security_ids": sorted(completed), "intervals": intervals,
-        "parallel_overlap": overlap, "all_reports_valid": len(completed) == len(expected),
+        "parallel_overlap": overlap,
+        "all_reports_valid": bool(targeted_security_ids) and completed == targeted_security_ids,
         "agent": manifest["agent_binding"], "skills": manifest["skill_bindings"],
         "gate_hash": gate["bundle_hash"], "complete_portfolio_decision": False,
     }
@@ -877,7 +1555,85 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
     return {
         "status": "PASSED" if proof["all_reports_valid"] else "FAILED",
         "run_id": manifest["run_id"], "stage_status": coverage["stage_status"],
-        "parallel_overlap": overlap, "completed": len(completed), "expected": len(expected),
+        "parallel_overlap": overlap, "completed": len(completed),
+        "expected": len(targeted_security_ids), "reused": len(reused_security_ids),
+    }
+
+
+def persist_common_stock_report_package(
+    repository_root: Path, run_dir: Path, *, security_id: str,
+) -> dict[str, Any]:
+    """Deterministically backfill one already validated report into Memory."""
+
+    run_dir = Path(run_dir).resolve()
+    manifest = _read_object(run_dir / "run_manifest.json")
+    if not isinstance(manifest.get("memory_root"), str):
+        raise CommonStockStageError("RESEARCH_MEMORY_ROOT_REQUIRED")
+    index = _read_object(run_dir / "research/dispatch-index.json")
+    matches = [item for item in index["tasks"] if item["security_id"] == security_id]
+    if len(matches) != 1:
+        raise CommonStockStageError("COMMON_STOCK_REPORT_BACKFILL_TASK_NOT_FOUND")
+    task = matches[0]
+    request = _read_object(run_dir / task["request_path"])
+    gate = _read_object(run_dir / "evidence/gate.json")
+    report_path = (
+        run_dir / "research/reports" / security_id.replace(":", "_")
+        / "equity-research.json"
+    )
+    markdown_path = report_path.with_suffix(".md")
+    report = _read_object(report_path)
+    if report.get("status") == "TIMEOUT":
+        raise CommonStockStageError("COMMON_STOCK_REPORT_BACKFILL_TIMEOUT_REJECTED")
+    calculation_ids = _calculation_ids_for_invocation(
+        run_dir, task["invocation_id"]
+    )
+    validate_equity_research_report(
+        report, request=request, calculation_artifact_ids=calculation_ids,
+    )
+    if task.get("equity_research_package_path"):
+        validate_delivered_research_references(
+            report, run_dir=run_dir, invocation_id=task["invocation_id"],
+        )
+    validate_persisted_equity_research_pair(
+        json_path=report_path, markdown_path=markdown_path, request=request,
+        evidence=[
+            item for item in gate["allowed_evidence"]
+            if item["evidence_id"] in set(request["allowed_evidence_ids"])
+        ],
+        calculation_artifact_ids=calculation_ids,
+    )
+    from product.runtime.research_memory import ResearchMemory, resolve_memory_root
+    memory = ResearchMemory(resolve_memory_root(
+        repository_root, Path(manifest["memory_root"]),
+    ))
+    reference = _persist_validated_report_package(
+        memory, run_dir=run_dir, task=task, request=request, gate=gate,
+        report=report, report_path=report_path, markdown_path=markdown_path,
+    )
+    coverage_path = run_dir / "research/coverage.json"
+    stage_path = run_dir / "research/stage.json"
+    if coverage_path.is_file() and stage_path.is_file():
+        coverage = _read_object(coverage_path)
+        item = next(
+            row for row in coverage["items"] if row["security_id"] == security_id
+        )
+        item.update({
+            "report_persistence_status": "PERSISTED",
+            "report_persistence_failure_code": None,
+            "report_checked_at": reference["checked_at"],
+            "original_report_cutoff": reference["original_report_cutoff"],
+        })
+        coverage["coverage_hash"] = _claimed_hash(coverage, "coverage_hash")
+        stage = _read_object(stage_path)
+        stage["coverage"] = copy.deepcopy(coverage)
+        stage["stage_hash"] = _claimed_hash(stage, "stage_hash")
+        _replace_object(coverage_path, coverage)
+        _replace_object(stage_path, stage)
+    return {
+        "status": "PERSISTED", "security_id": security_id,
+        "report_hash": reference["report_hash"],
+        "package_hash": reference["package_hash"], "llm_calls": 0,
+        "provider_calls": 0,
     }
 
 
@@ -893,6 +1649,10 @@ def _finalize_failed_common_stock_stage(
     coverage = _read_object(run_dir / "research/coverage.json")
     stage = _read_object(run_dir / "research/stage.json")
     index = _read_object(run_dir / "research/dispatch-index.json")
+    reuse_index = _read_object(run_dir / "research/reuse-index.json")
+    reused_security_ids = {
+        item["security_id"] for item in reuse_index.get("items", [])
+    }
     events_path = run_dir / "invocation/subagent-events.jsonl"
     events: list[dict[str, Any]] = []
     if events_path.is_file():
@@ -977,7 +1737,8 @@ def _finalize_failed_common_stock_stage(
                 "report_ref": None, "report_hash": None,
                 "failure_code": failure_code,
             })
-    coverage["stage_status"] = "PARTIAL_RESEARCH" if successful else "FAILED"
+    covered = successful | reused_security_ids
+    coverage["stage_status"] = "PARTIAL_RESEARCH" if covered else "FAILED"
     coverage["coverage_hash"] = _claimed_hash(coverage, "coverage_hash")
     validate_research_coverage(
         coverage, handoff=handoff, council_request=council_request,
@@ -990,7 +1751,8 @@ def _finalize_failed_common_stock_stage(
         "status": "FAILED", "run_id": index["run_id"],
         "failure_code": failure_code,
         "stage_status": coverage["stage_status"],
-        "completed": len(successful), "expected": len(index["tasks"]),
+        "completed": len(covered),
+        "expected": len(index["tasks"]) + len(reused_security_ids),
     }
 
 
@@ -1017,6 +1779,7 @@ def _validate_common_stock_stage_run_package(
     stage = _read_object(run_dir / "research/stage.json")
     coverage = _read_object(run_dir / "research/coverage.json")
     index = _read_object(run_dir / "research/dispatch-index.json")
+    reuse_index = _read_object(run_dir / "research/reuse-index.json")
     validate_handoff(handoff)
     validate_council_request(request, handoff=handoff)
     if gate.get("bundle_hash") != _claimed_hash(gate, "bundle_hash"):
@@ -1027,6 +1790,8 @@ def _validate_common_stock_stage_run_package(
         raise CommonStockStageError("COMMON_STOCK_RESEARCH_COVERAGE_HASH_MISMATCH")
     if index.get("index_hash") != _claimed_hash(index, "index_hash"):
         raise CommonStockStageError("COMMON_STOCK_DISPATCH_INDEX_HASH_MISMATCH")
+    if reuse_index.get("index_hash") != _claimed_hash(reuse_index, "index_hash"):
+        raise CommonStockStageError("COMMON_STOCK_REUSE_INDEX_HASH_MISMATCH")
     if stage.get("coverage") != coverage:
         raise CommonStockStageError("COMMON_STOCK_STAGE_COVERAGE_BINDING_INVALID")
 
@@ -1038,6 +1803,7 @@ def _validate_common_stock_stage_run_package(
         "gate_hash": gate["bundle_hash"],
         "stage_hash": stage["stage_hash"],
         "dispatch_index_hash": index["index_hash"],
+        "reuse_index_hash": reuse_index["index_hash"],
     }
     if any(manifest.get(key) != value for key, value in expected.items()):
         raise CommonStockStageError("COMMON_STOCK_STAGE_MANIFEST_BINDING_INVALID")
@@ -1087,6 +1853,153 @@ def _validate_common_stock_stage_run_package(
         expected_stage, handoff=handoff, council_request=request,
         focus_security_id=manifest.get("focus_security_id"),
     )
+    from product.runtime.research_memory import (
+        ResearchMemory, report_reuse_key, resolve_memory_root,
+        validate_report_reference,
+    )
+    memory = None
+    resolved_memory_root = None
+    if manifest.get("memory_root") is not None:
+        resolved_memory_root = resolve_memory_root(
+            repository_root, Path(manifest["memory_root"]),
+        )
+        memory = ResearchMemory(resolved_memory_root)
+    source_memory_manifest = (
+        run_dir / "evidence/source-package/research-memory/manifest.json"
+    )
+    source_memory = (
+        _read_object(source_memory_manifest)
+        if source_memory_manifest.is_file() else None
+    )
+    expected_requests = {
+        item["invocation_id"]: item for item in expected_stage["holding_requests"]
+    }
+    reuse_invocations: set[str] = set()
+    for reuse_item in reuse_index.get("items", []):
+        if not isinstance(reuse_item, Mapping):
+            raise CommonStockStageError("COMMON_STOCK_REUSE_ITEM_INVALID")
+        current_request = _read_object(
+            run_dir / str(reuse_item.get("current_request_path", ""))
+        )
+        expected_request = expected_requests.get(
+            reuse_item.get("current_invocation_id")
+        )
+        if current_request != expected_request or memory is None:
+            raise CommonStockStageError("COMMON_STOCK_REUSE_REQUEST_BINDING_INVALID")
+        security_id = current_request["security"]["security_id"]
+        attachment = None
+        attachment_file = (
+            run_dir / "research/equity-attachments"
+            / invocation_file_name(current_request["invocation_id"])
+        )
+        if attachment_file.is_file():
+            attachment = _read_object(attachment_file)
+        fingerprint = _research_input_fingerprint_for_holding(
+            repository_root, request=current_request, gate=gate,
+            attachment=attachment, model=expected_model, agent=agent, skills=skills,
+        )
+        reuse_key = report_reuse_key(security_id, fingerprint)
+        if (
+            reuse_item.get("security_id") != security_id
+            or reuse_item.get("research_input_fingerprint") != fingerprint
+            or reuse_item.get("reuse_key") != reuse_key
+        ):
+            raise CommonStockStageError("COMMON_STOCK_REUSE_FINGERPRINT_MISMATCH")
+        reference = _read_object(run_dir / str(reuse_item.get("reference_path", "")))
+        validate_report_reference(reference)
+        stored = memory.reusable_report(security_id, reuse_key)
+        if stored is None or any(
+            reference.get(field) != stored.get(field)
+            for field in (
+                "security_id", "reuse_key", "research_input_fingerprint",
+                "report_hash", "package_hash", "package_ref", "original_run_id",
+                "original_invocation_id", "original_report_cutoff", "research_status",
+            )
+        ):
+            raise CommonStockStageError("COMMON_STOCK_REUSE_REFERENCE_INVALID")
+        package = memory.load_report_package(
+            reference["package_ref"], reference["package_hash"]
+        )
+        if _current_source_reuse_status(
+            current_request=current_request,
+            original_request=package["request"],
+            gate=gate,
+            source_memory=source_memory,
+            source_memory_manifest=(
+                source_memory_manifest if source_memory_manifest.is_file() else None
+            ),
+            security_id=security_id,
+            resolved_memory_root=resolved_memory_root,
+            preparation=preparation,
+        ) is None:
+            raise CommonStockStageError(
+                "COMMON_STOCK_REUSE_FRESHNESS_PROOF_INVALID"
+            )
+        report_path = (run_dir / str(reuse_item.get("report_ref", ""))).resolve()
+        if (
+            not report_path.is_relative_to(run_dir)
+            or _read_object(report_path) != package["report"]
+            or canonical_hash(package["report"]) != reference["report_hash"]
+        ):
+            raise CommonStockStageError("COMMON_STOCK_REUSE_REPORT_INVALID")
+        coverage_item = next(
+            item for item in expected_stage["coverage"]["items"]
+            if item["security_id"] == security_id
+        )
+        coverage_item.update({
+            "execution_status": "COMPLETED",
+            "research_status": stored["research_status"],
+            "coverage_status": "RESEARCHED",
+            "invocation_id": stored["original_invocation_id"],
+            "report_ref": reuse_item["report_ref"],
+            "report_hash": stored["report_hash"],
+            "failure_code": None,
+            "research_execution_status": "REUSED",
+            "report_persistence_status": "REUSED",
+            "report_persistence_failure_code": None,
+            "report_checked_at": reference["checked_at"],
+            "original_report_cutoff": reference["original_report_cutoff"],
+        })
+        reuse_invocations.add(current_request["invocation_id"])
+    if len(reuse_invocations) != len(reuse_index.get("items", [])):
+        raise CommonStockStageError("COMMON_STOCK_REUSE_ITEM_SET_INVALID")
+    task_invocations = {item.get("invocation_id") for item in index.get("tasks", [])}
+    for holding_request in expected_stage["holding_requests"]:
+        if holding_request["invocation_id"] in reuse_invocations:
+            continue
+        if holding_request["invocation_id"] not in task_invocations:
+            raise CommonStockStageError("COMMON_STOCK_STAGE_TASK_SET_INVALID")
+        coverage_item = next(
+            item for item in expected_stage["coverage"]["items"]
+            if item["security_id"] == holding_request["security"]["security_id"]
+        )
+        coverage_item.update({
+            "research_execution_status": "RUN",
+            "report_persistence_status": "NOT_ATTEMPTED",
+            "report_persistence_failure_code": None,
+            "report_checked_at": None,
+            "original_report_cutoff": None,
+        })
+    expected_stage["coverage"]["effective_concurrency"] = min(
+        manifest["target_concurrency"], len(task_invocations)
+    )
+    if not task_invocations:
+        expected_stage["coverage"]["execution_mode"] = "NOT_STARTED"
+        expected_stage["coverage"]["execution_mode_reason"] = (
+            "全部目标命中严格等价的持久化报告。"
+            if reuse_invocations
+            and len(reuse_invocations) == len(expected_stage["holding_requests"])
+            else "没有满足派发或报告复用条件的普通股资料。"
+        )
+    elif len(task_invocations) == 1:
+        expected_stage["coverage"]["execution_mode"] = "SERIAL"
+        expected_stage["coverage"]["execution_mode_reason"] = (
+            "仅一项普通股需要新的模型研究。"
+        )
+    expected_stage["coverage"]["coverage_hash"] = _claimed_hash(
+        expected_stage["coverage"], "coverage_hash"
+    )
+    expected_stage["stage_hash"] = _claimed_hash(expected_stage, "stage_hash")
     if stage != expected_stage:
         raise CommonStockStageError("COMMON_STOCK_RESEARCH_STAGE_RECONSTRUCTION_MISMATCH")
     validate_research_coverage(coverage, handoff=handoff, council_request=request)
@@ -1102,7 +2015,7 @@ def _validate_common_stock_stage_run_package(
     requests_by_invocation = {
         item.get("invocation_id"): item for item in holding_requests if isinstance(item, Mapping)
     }
-    if len(requests_by_invocation) != len(tasks):
+    if len(requests_by_invocation) != len(tasks) + len(reuse_invocations):
         raise CommonStockStageError("COMMON_STOCK_STAGE_TASK_SET_INVALID")
 
     def package_path(reference: Any) -> Path:
@@ -1114,7 +2027,11 @@ def _validate_common_stock_stage_run_package(
         return path
 
     expected_tasks = []
-    for position, task in enumerate(tasks):
+    holding_positions = {
+        item["invocation_id"]: position
+        for position, item in enumerate(holding_requests)
+    }
+    for task in tasks:
         if not isinstance(task, Mapping):
             raise CommonStockStageError("COMMON_STOCK_STAGE_TASK_INVALID")
         holding_request = _read_object(package_path(task.get("request_path")))
@@ -1136,7 +2053,7 @@ def _validate_common_stock_stage_run_package(
         if packet != rebuilt_packet:
             raise CommonStockStageError("COMMON_STOCK_DISPATCH_PACKET_BINDING_INVALID")
         expected_task = {
-            "task_name": f"company_research_{position + 1}",
+            "task_name": f"company_research_{holding_positions[holding_request['invocation_id']] + 1}",
             "security_id": holding_request["security"]["security_id"],
             "invocation_id": holding_request["invocation_id"],
             "request_path": (
@@ -1149,7 +2066,24 @@ def _validate_common_stock_stage_run_package(
                 f"research/dispatch-packets/{invocation_file_name(holding_request['invocation_id'])}"
             ),
             "packet_hash": canonical_hash(rebuilt_packet),
+            "research_input_fingerprint": task["research_input_fingerprint"],
+            "reuse_key": task["reuse_key"],
         }
+        expected_fingerprint = _research_input_fingerprint_for_holding(
+            repository_root, request=holding_request, gate=gate,
+            attachment=(
+                _read_object(run_dir / task["equity_research_package_path"])
+                if task.get("equity_research_package_path") is not None else None
+            ),
+            model=expected_model, agent=agent, skills=skills,
+        )
+        if (
+            task.get("research_input_fingerprint") != expected_fingerprint
+            or task.get("reuse_key") != report_reuse_key(
+                holding_request["security"]["security_id"], expected_fingerprint
+            )
+        ):
+            raise CommonStockStageError("COMMON_STOCK_RESEARCH_INPUT_FINGERPRINT_INVALID")
         if task.get("equity_research_package_path") is not None:
             attachment_path = package_path(task["equity_research_package_path"])
             attachment = _read_object(attachment_path)
@@ -1173,6 +2107,35 @@ def _validate_common_stock_stage_run_package(
                 ],
                 "equity_research_package_hash": attachment["package_hash"],
             })
+        if memory is not None and not manifest.get("force_rerun"):
+            stored = memory.reusable_report(
+                holding_request["security"]["security_id"],
+                expected_task["reuse_key"],
+            )
+            if stored is not None:
+                stored_package = memory.load_report_package(
+                    stored["package_ref"], stored["package_hash"],
+                )
+                reuse_status = _current_source_reuse_status(
+                    current_request=holding_request,
+                    original_request=stored_package["request"],
+                    gate=gate,
+                    source_memory=source_memory,
+                    source_memory_manifest=(
+                        source_memory_manifest
+                        if source_memory_manifest.is_file() else None
+                    ),
+                    security_id=holding_request["security"]["security_id"],
+                    resolved_memory_root=resolved_memory_root,
+                    preparation=preparation,
+                )
+                if reuse_status is not None:
+                    raise CommonStockStageError(
+                        "COMMON_STOCK_REUSE_DECISION_RECONSTRUCTION_MISMATCH"
+                    )
+                expected_task["reuse_bypass_reason"] = (
+                    "CURRENT_SOURCE_FRESHNESS_UNPROVEN"
+                )
         expected_invocation = {
             "schema_version": "common-stock-research-invocation/1.0.0",
             "run_id": manifest["run_id"],
@@ -1230,6 +2193,26 @@ def _validate_common_stock_stage_run_package(
     elif manifest.get("source_bundle_ref") is not None:
         raise CommonStockStageError("COMMON_STOCK_STAGE_SOURCE_BUNDLE_UNEXPECTED")
     return manifest
+
+
+def validate_common_stock_stage_run_package(
+    repository_root: Path, run_dir: Path,
+) -> dict[str, Any]:
+    """Public deterministic pre-launch validation; never starts a model."""
+
+    manifest = _validate_common_stock_stage_run_package(repository_root, run_dir)
+    dispatch = _read_object(Path(run_dir).resolve() / "research/dispatch-index.json")
+    reuse = _read_object(Path(run_dir).resolve() / "research/reuse-index.json")
+    return {
+        "status": "PREPARED",
+        "run_id": manifest["run_id"],
+        "run_dir": str(Path(run_dir).resolve()),
+        "dispatch_count": len(dispatch["tasks"]),
+        "reused_count": len(reuse["items"]),
+        "model_started": False,
+        "llm_calls": 0,
+        "manifest_hash": manifest["manifest_hash"],
+    }
 
 
 def _run_bounded_process_group(
@@ -1297,6 +2280,29 @@ def launch_common_stock_stage(
     if invocation_dir.exists():
         raise CommonStockStageError("COMMON_STOCK_STAGE_ALREADY_LAUNCHED")
     invocation_dir.mkdir()
+    dispatch_index = _read_object(run_dir / "research/dispatch-index.json")
+    if not dispatch_index["tasks"]:
+        started = _utc_now()
+        result = finalize_common_stock_stage_run(repository_root, run_dir)
+        process_result = {
+            "schema_version": "common-stock-stage-process/1.0.0",
+            "run_id": manifest["run_id"], "started_at": started,
+            "completed_at": _utc_now(), "process_exit_code": 0,
+            "timed_out": False, "process_status": result["status"],
+            "stage_status": result.get("stage_status", result["status"]),
+            "failure_code": None, "source_integrity_unchanged": True,
+            "isolated_source_integrity_unchanged": True,
+            "isolated_source_discarded": True,
+            "local_process_group": {
+                "pid": None, "term_sent": False, "kill_sent": False,
+                "cleanup_complete": True,
+            },
+            "remote_cancellation_status": "NOT_APPLICABLE",
+            "late_output_rejected": False,
+            "model_started": False,
+        }
+        _write_object(invocation_dir / "process-result.json", process_result)
+        return result, 0 if result["status"] == "PASSED" else 7
     runtime_root = run_dir / ".codex-runtime"
     sqlite_home, log_dir, tmp_dir = (
         runtime_root / "sqlite", runtime_root / "logs", runtime_root / "tmp"

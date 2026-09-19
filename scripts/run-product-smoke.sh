@@ -6,7 +6,7 @@ if [ "${1:-}" = "--help" ]; then
   echo '或：bash run-product-smoke.sh --prepared-run <已准备的运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-multidimensional-run <已准备的多维运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-multidimensional-task <已准备的多维运行目录> <task_name> <新的外置调用产物目录>'
-  echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
+  echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
   echo '或：bash run-product-smoke.sh --stage multidimensional-holding-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--peer-candidates <冻结候选池>] [--model <研究模型>] [--company-research-run <已完成普通股研究运行>] <新的外置产物目录>'
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'
   echo '在 macOS Terminal 中执行；默认 normal fixture，模型读取现有路由策略。'
@@ -32,6 +32,7 @@ stock_model=
 stock_focus_security_id=
 company_research_run=
 stock_peer_candidates=
+prepare_only=0
 if [ "${1:-}" = "--resume-multidimensional-run" ]; then
   if [ "$#" -ne 3 ]; then echo '--resume-multidimensional-run 需要已准备运行目录及新的调用产物目录。' >&2; exit 2; fi
   resume_multidimensional_run=$(cd "$2" && pwd -P)
@@ -59,6 +60,7 @@ if [ "${1:-}" = "--stage" ]; then
       --focus-security-id) stock_focus_security_id=${2:-}; shift 2 ;;
       --company-research-run) company_research_run=${2:-}; shift 2 ;;
       --peer-candidates) stock_peer_candidates=${2:-}; shift 2 ;;
+      --prepare-only) prepare_only=1; shift ;;
       *) echo 'RESEARCH_STAGE_ARGUMENTS_INVALID：使用 --help 查看研究阶段参数。' >&2; exit 2 ;;
     esac
   done
@@ -67,6 +69,9 @@ if [ "${1:-}" = "--stage" ]; then
   fi
   if [ "$stage" = "common-stock-research" ] && [ -n "$stock_gate" ] && { [ -z "$stock_data_preparation" ] || [ -z "$stock_source_bundle" ]; }; then
     echo 'COMMON_STOCK_DATA_PACKAGE_REQUIRED：外部 Gate 必须同时提供 data-preparation 与 source-bundle。' >&2; exit 2
+  fi
+  if [ "$prepare_only" = "1" ] && [ "$stage" != "common-stock-research" ]; then
+    echo 'PREPARE_ONLY_STAGE_UNSUPPORTED：当前仅支持普通股公司研究阶段。' >&2; exit 2
   fi
 fi
 if [ "${1:-}" = "--prepared-run" ]; then
@@ -83,23 +88,24 @@ case "$bundle/" in "$repo_root/"*) echo '产物目录必须位于源码之外。
 if [ -e "$bundle/run" ] || [ -e "$bundle/host-proxy" ]; then
   echo '拒绝覆盖已有运行，请使用新目录。' >&2; exit 2
 fi
-bash "$repo_root/scripts/detect-host-proxy.sh" "$bundle/host-proxy" > "$bundle/proxy.env"
-# 不 source/eval 检测输出，只接受明确字段。
-mode=UNKNOWN
-while IFS='=' read -r key value; do
-  case "$key" in
-    PROXY_MODE) mode=$value ;;
-    HTTP_PROXY_URL) export HTTP_PROXY="$value" http_proxy="$value" ;;
-    HTTPS_PROXY_URL) export HTTPS_PROXY="$value" https_proxy="$value" ;;
-    ALL_PROXY_URL) export ALL_PROXY="$value" all_proxy="$value" ;;
-  esac
-done < "$bundle/proxy.env"
-case "$mode" in
-  UNKNOWN) echo 'PROXY_MODE=UNKNOWN；缺少有效系统代理或已连接 VPN 证据，未启动模型。' >&2; exit 2 ;;
-  SYSTEM_SOCKS_PROXY)
-    # SOCKS 必须先通过现有 Codex transport 诊断，不猜测 HTTP 端口。
-    codex doctor --json > "$bundle/socks-transport.json" 2> "$bundle/socks-transport.stderr" || exit 3
-    python3 - "$bundle/socks-transport.json" <<'PY'
+if [ "$prepare_only" = "0" ]; then
+  bash "$repo_root/scripts/detect-host-proxy.sh" "$bundle/host-proxy" > "$bundle/proxy.env"
+  # 不 source/eval 检测输出，只接受明确字段。
+  mode=UNKNOWN
+  while IFS='=' read -r key value; do
+    case "$key" in
+      PROXY_MODE) mode=$value ;;
+      HTTP_PROXY_URL) export HTTP_PROXY="$value" http_proxy="$value" ;;
+      HTTPS_PROXY_URL) export HTTPS_PROXY="$value" https_proxy="$value" ;;
+      ALL_PROXY_URL) export ALL_PROXY="$value" all_proxy="$value" ;;
+    esac
+  done < "$bundle/proxy.env"
+  case "$mode" in
+    UNKNOWN) echo 'PROXY_MODE=UNKNOWN；缺少有效系统代理或已连接 VPN 证据，未启动模型。' >&2; exit 2 ;;
+    SYSTEM_SOCKS_PROXY)
+      # SOCKS 必须先通过现有 Codex transport 诊断，不猜测 HTTP 端口。
+      codex doctor --json > "$bundle/socks-transport.json" 2> "$bundle/socks-transport.stderr" || exit 3
+      python3 - "$bundle/socks-transport.json" <<'PY'
 import json, sys
 report = json.load(open(sys.argv[1]))
 checks = report.get('checks', {})
@@ -107,8 +113,9 @@ transport = checks.get('network.websocket_reachability', {}) if isinstance(check
 if transport.get('status') != 'ok':
     sys.exit('SOCKS_TRANSPORT_NOT_VERIFIED：未启动 Council，不转换代理协议。')
 PY
-    ;;
-esac
+      ;;
+  esac
+fi
 export PYTHONDONTWRITEBYTECODE=1
 if [ -n "$resume_multidimensional_run" ]; then
   case "$resume_multidimensional_run/" in "$repo_root/"*) echo '已准备的产品运行目录必须位于源码之外。' >&2; exit 2;; esac
@@ -156,18 +163,20 @@ PY
     run_id="host-common-stock-$(uuidgen | tr '[:upper:]' '[:lower:]')"
   fi
   if [ -z "$stock_gate" ]; then
-    if [ -z "${LIVE_SOURCE_ACCESS_FILE:-}" ] || [ -z "${SEC_USER_AGENT:-}" ]; then
-      echo 'COMMON_STOCK_SOURCE_CONFIGURATION_REQUIRED：自动准备公司资料需要外置来源配置和 SEC 联系身份。' >&2; exit 2
+    if [ -z "${LIVE_SOURCE_ACCESS_FILE:-}" ] || [ -z "${SEC_USER_AGENT:-}" ] || [ -z "${RESEARCH_MEMORY_ROOT:-}" ]; then
+      echo 'COMMON_STOCK_SOURCE_CONFIGURATION_REQUIRED：自动准备公司资料需要外置来源配置、SEC 联系身份和稳定 RESEARCH_MEMORY_ROOT。' >&2; exit 2
     fi
     if [ "$stage" = "multidimensional-holding-research" ]; then
       python3 "$repo_root/scripts/council-dev.py" collect-common-stock-data --repo "$repo_root" \
         --handoff "$stock_handoff" --source-access "$LIVE_SOURCE_ACCESS_FILE" \
-        --output-dir "$bundle/data" --cache-root "${LIVE_CACHE_ROOT:-$bundle/cache}" \
+        --output-dir "$bundle/data" --cache-root "${LIVE_CACHE_ROOT:-$RESEARCH_MEMORY_ROOT/raw-cache}" \
+        --memory-root "$RESEARCH_MEMORY_ROOT" \
         --run-id "$run_id" --benchmark-id US:SPY --benchmark-ticker SPY
     else
       python3 "$repo_root/scripts/council-dev.py" collect-common-stock-data --repo "$repo_root" \
         --handoff "$stock_handoff" --source-access "$LIVE_SOURCE_ACCESS_FILE" \
-        --output-dir "$bundle/data" --cache-root "${LIVE_CACHE_ROOT:-$bundle/cache}" \
+        --output-dir "$bundle/data" --cache-root "${LIVE_CACHE_ROOT:-$RESEARCH_MEMORY_ROOT/raw-cache}" \
+        --memory-root "$RESEARCH_MEMORY_ROOT" \
         --run-id "$run_id"
     fi
     stock_gate="$bundle/data/gate.json"
@@ -229,6 +238,12 @@ PY
       --handoff "$stock_handoff" --gate "$stock_gate" --run-dir "$bundle/run" \
       --run-id "$run_id" --model "$model" --question '分析已确认的普通股持仓。'
   fi
+  if [ "$stage" != "multidimensional-holding-research" ] && [ -n "${RESEARCH_MEMORY_ROOT:-}" ]; then
+    set -- "$@" --memory-root "$RESEARCH_MEMORY_ROOT"
+  fi
+  if [ "$stage" != "multidimensional-holding-research" ] && [ "${FORCE_COMPANY_RESEARCH_RERUN:-0}" = "1" ]; then
+    set -- "$@" --force-rerun
+  fi
   if [ -n "$stock_focus_security_id" ]; then
     if [ "$stage" = "multidimensional-holding-research" ]; then
       echo 'MULTIDIMENSIONAL_FOCUS_NOT_SUPPORTED：多维阶段必须保留当前全部普通股覆盖。' >&2; exit 2
@@ -243,6 +258,12 @@ PY
   fi
   "$@"
   product_run="$bundle/run"
+  if [ "$prepare_only" = "1" ]; then
+    python3 "$repo_root/scripts/council-dev.py" validate-common-stock-research \
+      --repo "$repo_root" --run-dir "$product_run" > "$bundle/prepare-only-result.json"
+    cat "$bundle/prepare-only-result.json"
+    exit 0
+  fi
   echo "进入宿主研究阶段；进度：$product_run/invocation/codex-events.jsonl" >&2
   if [ "$stage" = "multidimensional-holding-research" ]; then
     python3 "$repo_root/scripts/council-dev.py" launch-multidimensional-research \

@@ -123,7 +123,10 @@ class SecClient:
         self.budget, self.requests, self.events = request_budget, 0, []
         self._last_request = None
 
-    def fetch(self, url: str, *, max_age_seconds: float, refresh: bool = False) -> dict:
+    def fetch(
+        self, url: str, *, max_age_seconds: float, refresh: bool = False,
+        stable_document: bool = False,
+    ) -> dict:
         if self.failure_code:
             raise FetchError(self.failure_code)
         if self.source_access is not None:
@@ -134,12 +137,25 @@ class SecClient:
             raise FetchError("SEC_CACHE_AGE_INVALID")
         key = {"provider": "sec", "url": url, "adapter_version": ADAPTER_VERSION,
                "client_version": CLIENT_VERSION}
-        cached = self.cache.lookup(key)
+        cache_failure = None
+        try:
+            cached = self.cache.lookup(key)
+        except (OSError, ValueError) as exc:
+            if not stable_document or refresh:
+                raise
+            # A stable SEC archive identity can be recovered with one bounded
+            # provider request.  Do not report this as a cache hit.
+            cached = None
+            cache_failure = str(exc).split(":", 1)[0]
         if cached and not refresh:
             age = (self.now() - parse_timestamp(cached["retrieved_at"])).total_seconds()
-            if 0 <= age <= max_age_seconds:
-                self.events.append({"status": "cache_hit", "record_hash": cached["record_hash"],
-                                    "cache_read_at": iso_utc(self.now())})
+            if stable_document or 0 <= age <= max_age_seconds:
+                self.events.append({
+                    "status": "stable_cache_hit" if stable_document else "cache_hit",
+                    "record_hash": cached["record_hash"],
+                    "cache_read_at": iso_utc(self.now()),
+                    "url": url,
+                })
                 return cached
         for attempt in range(3):
             if self.requests >= self.budget:
@@ -170,8 +186,21 @@ class SecClient:
             if response.status == 200:
                 if not isinstance(response.body, bytes) or len(response.body) > MAX_BYTES:
                     raise FetchError("SEC_RESPONSE_INVALID")
-                record = self.cache.store(key, response.body, retrieved_at=event["completed_at"])
+                record = (
+                    self.cache.repair_verified(
+                        key, response.body, retrieved_at=event["completed_at"],
+                    )
+                    if cache_failure is not None
+                    else self.cache.store(
+                        key, response.body, retrieved_at=event["completed_at"],
+                    )
+                )
                 event.update(status="fetched", record_hash=record["record_hash"])
+                if cache_failure is not None:
+                    event.update(
+                        cache_recovery="VERIFIED_PROVIDER_REFETCH",
+                        cache_failure_code=cache_failure,
+                    )
                 return record
             event.update(status="failed", failure_code=f"SEC_HTTP_{response.status}" if response.status else "SEC_TIMEOUT")
             if self.source_access is not None and response.status in (401, 403, 429):
@@ -278,7 +307,7 @@ class SecClient:
         prefix = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/"
         if not url.startswith(prefix):
             raise FetchError("SEC_DOCUMENT_BINDING_MISMATCH")
-        record = self.fetch(url, **policy)
+        record = self.fetch(url, stable_document=True, **policy)
         published = iso_utc(filing["published_at"])
         if parse_timestamp(published) > parse_timestamp(record["retrieved_at"]):
             raise FetchError("SEC_ACCEPTED_AFTER_RETRIEVAL")

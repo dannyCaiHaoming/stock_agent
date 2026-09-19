@@ -62,6 +62,38 @@ class SnapshotCache:
         self._append(self._path("records", record_hash), canonical_json(record).encode())
         return dict(record, record_hash=record_hash)
 
+    def repair_verified(self, key: dict, raw: bytes, *, retrieved_at: str) -> dict:
+        """Repair a missing/corrupt object only after the provider returned its bytes.
+
+        Ordinary reads remain fail-closed.  This narrow recovery path is used for
+        immutable provider documents whose stable identity can be fetched again.
+        A matching content digest is restored atomically; unrelated cache records
+        and objects are never removed or rewritten.
+        """
+
+        digest = hashlib.sha256(raw).hexdigest()
+        path = self._path("objects", digest)
+        if path.exists() and (path.is_symlink() or path.read_bytes() != raw):
+            fd, name = tempfile.mkstemp(dir=path.parent, prefix=".repair-")
+            temporary = Path(name)
+            try:
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(raw)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, path)
+            finally:
+                temporary.unlink(missing_ok=True)
+        elif not path.exists():
+            self._append(path, raw)
+
+        # If a matching record already existed, restoring the object makes the
+        # normal verified lookup usable again.  Otherwise publish a new record.
+        matching = self.lookup(key, raw_hash=digest)
+        if matching is not None:
+            return matching
+        return self.store(key, raw, retrieved_at=retrieved_at)
+
     def lookup(self, key: dict, *, raw_hash: str | None = None) -> dict | None:
         directory = self._path("records", "0" * 64).parent
         matches = []

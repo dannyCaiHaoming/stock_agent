@@ -342,7 +342,8 @@ def validate_live_collection_configuration(access_path: Path, *, at) -> list[dic
 def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir: Path, cache_root: Path,
                           sec_user_agent: str, now=lambda: datetime.now(UTC), sec_factory=SecClient,
                           session_factory=None, market_collector=collect_daily, calendar_factory=ExchangeCalendar,
-                          universe_factory=None, backup_factory=None):
+                          universe_factory=None, backup_factory=None,
+                          market_start: str | None = None, market_end: str | None = None):
     """依赖注入仅用于零网络测试；产品入口不提供 fake/test 开关。"""
     portfolio = load_live_portfolio(portfolio_path)
     started = now()
@@ -403,6 +404,10 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
                 position, exchange=matches[0]["exchange"],
                 cik=matches[0]["cik"], currency="USD",
             ))
+        requested_start = market_start or (started.date() - timedelta(days=365)).isoformat()
+        requested_end = market_end or (started.date() + timedelta(days=1)).isoformat()
+        # The locked calendar continues to cover the complete persisted research
+        # window even when the provider request is only an incremental tail.
         calendar = calendar_factory(start=(started.date() - timedelta(days=370)).isoformat(), end=(started.date() + timedelta(days=2)).isoformat())
         stage = "YAHOO_COLLECTION"
         if session_factory is None:
@@ -410,10 +415,14 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
             session_factory = create_yahoo_session
         session = session_factory(policies["yahoo"], tickers=[p["ticker"] for p in selected], state_dir=destination / "yahoo-state", cache=cache)
         if routed:
-            market = {"evidence": [], "gaps": [], "records": {}}
+            market = {
+                "evidence": [], "gaps": [], "records": {},
+                "sdk_calls": 0, "cache_hits": 0,
+                "actual_http_requests": 0, "fetched_symbols": 0,
+            }
             for security in selected:
                 routed_result = collect_security_market(security,
-                    start=(started.date() - timedelta(days=365)).isoformat(), end=(started.date() + timedelta(days=1)).isoformat(),
+                    start=requested_start, end=requested_end,
                     policies=policies, session=session, cache=cache, calendar=calendar, now=now,
                     backup_client=backup_client, market_collector=market_collector)
                 selections.append(routed_result["selection"])
@@ -428,6 +437,12 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
                 item = routed_result["market"]
                 market["evidence"].extend(item["evidence"])
                 market["gaps"].extend(item["gaps"])
+                for metric in (
+                    "sdk_calls", "cache_hits", "actual_http_requests",
+                    "fetched_symbols",
+                ):
+                    if isinstance(item.get(metric), int):
+                        market[metric] += item[metric]
                 for record in item["records"].values():
                     market["records"][record["record_hash"]] = record
                     key = record.get("key", {})
@@ -450,9 +465,20 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
                 chosen_quotes[security["ticker"]] = item["quote_identity"]
         else:
             market = market_collector([{k:p[k] for k in ("security_id", "ticker", "currency")} for p in selected],
-            start=(started.date() - timedelta(days=365)).isoformat(), end=(started.date() + timedelta(days=1)).isoformat(),
+            start=requested_start, end=requested_end,
             source_access=policies["yahoo"], cache=cache, calendar=calendar, retrieved_at=now,
             max_age_seconds=86400, session=session)
+        events.append({
+            "producer": "yahoo-daily-collector",
+            "completed_at": iso_utc(now()),
+            "status": "checked",
+            "requested_start": requested_start,
+            "requested_end": requested_end,
+            "sdk_calls": market.get("sdk_calls"),
+            "cache_hits": market.get("cache_hits"),
+            "fetched_symbols": market.get("fetched_symbols"),
+            "actual_http_requests": market.get("actual_http_requests"),
+        })
         facts.extend(market["evidence"])
         gaps.extend(market["gaps"])
         for record in market["records"].values():

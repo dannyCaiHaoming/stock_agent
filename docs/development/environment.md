@@ -14,6 +14,7 @@
 | product_root | 对应 repo_root 下的 product；产品子进程和 MCP 必须使用该目录，不依赖操作者当前目录 |
 | run_dir | 显式参数，对应唯一 run_id 与 manifest output_dir；新执行不得覆盖已有 invocation |
 | state_dir | run_dir 下 `.codex-runtime`，每次运行独立 sqlite/logs/tmp，不共用 |
+| research_memory_root | 普通股自动 live 采集的仓库外稳定目录；`--memory-root` 优先于 `RESEARCH_MEMORY_ROOT`，不得使用 run_dir 或源码目录 |
 
 相对参数在入口按原调用 cwd 解析一次，随后传规范路径。活跃源码/模板禁止个人绝对路径；实际环境 manifest 中的绝对路径是审计事实，应保留。内容寻址并密封的 Replay Capsule 物化是合法重放，不等同于临时复制源码绕过加载。
 
@@ -23,7 +24,7 @@
 
 - 开发只修改授权源码；保留当前 Codex 原生权限，不自动提权或修改系统配置。
 - 独立 Reviewer 默认读取代码差异、规格和已有运行包。补跑只报告具体缺口，由用户授权宿主入口执行；不把独立性实现为新建沙箱。
-- 全进程源码强制只读仍为 **UNVERIFIED**。`COMMON_STOCK_RESEARCH` launcher 的窄范围保证是：模型工作区改为运行目录下的一次性隔离源码副本，当前开发工作区做前后 protected-runtime hash；隔离副本写入会被记录并在进程结束后丢弃。Hook/MCP 读取当前运行时模块仍受原生沙箱约束，这不是操作系统级不可变证明，也不推广为其他阶段的全进程只读保证。
+- 全进程源码强制只读为 **UNVERIFIED**。`COMMON_STOCK_RESEARCH` launcher 的窄范围保证是：模型工作区改为运行目录下的一次性隔离源码副本，当前开发工作区做前后 protected-runtime hash；隔离副本写入会被记录并在进程结束后丢弃。Hook/MCP 读取当前运行时模块仍受原生沙箱约束，这不是操作系统级不可变证明，也不推广为其他阶段的全进程只读保证。
 - 历史隔离与 preflight 产物保留供审计，不授权当前启动；旧启动函数明确拒绝，不再根据外部沙箱声明关闭原生沙箱。原生权限、Hook、run-scoped 状态、Evidence/PIT/Risk 和 fail-closed 校验不变。
 - 不重新排查代理、不修改 Shadowrocket 或域名、不关闭 network_proxy、不开放整个 CODEX_HOME、不复制认证或会话。
 - 旧 --review、review-run/review-probe/nested-codex-probe、environment-preflight、permission-probe 和 --preflight-report 在薄入口及底层入口明确非零拒绝，不回退、不读取运行包、不创建产物或调用模型；直接旧启动 API 同样拒绝。
@@ -58,6 +59,8 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 本轮未执行 Replay，不能宣称这条重放链已有真实验收。
 
 普通股专项运行在启动模型前还会验证实际 Hook 紧凑 JSON 不超过 256 KiB。超限、附件绑定不完整或运行包重建漂移都在创建 Codex 进程前失败。模型运行采用独立本地进程组；超时后有界发送 TERM/KILL 并记录清理结果，远端取消状态无法核实时保持 `UNKNOWN`。这些行为不授予自动模型重试或额外模型预算。
+
+普通股自动采集、增量 checkpoint、报告严格复用、确定性补存及备份恢复见 [Company Research Memory 运行说明](company-research-memory.md)。全复用运行会直接确定性收尾，不启动父模型；`checked_at` 不能解释为报告已由模型重新研究到该时间。
 
 ## 模型与消耗
 

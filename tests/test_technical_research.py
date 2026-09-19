@@ -25,7 +25,17 @@ class SyntheticCalendar:
             "2026-09-10": "2026-09-10T20:00:00Z",
             "2026-09-11": "2026-09-11T20:00:00Z",
             "2026-09-12": None,
+            "2026-09-14": "2026-09-14T20:00:00Z",
         }.get(day)
+
+    def completed_sessions(self, cutoff):
+        return [
+            close for close in (
+                "2026-09-10T20:00:00Z", "2026-09-11T20:00:00Z",
+                "2026-09-14T20:00:00Z",
+            )
+            if close <= cutoff.isoformat().replace("+00:00", "Z")
+        ]
 
 
 class ResearchSeriesTests(unittest.TestCase):
@@ -54,6 +64,38 @@ class ResearchSeriesTests(unittest.TestCase):
                 record, raw + b" ", security_id="US:TEST", ticker="TEST", currency="USD",
                 calendar=SyntheticCalendar(),
             )
+
+    def test_cached_series_detects_missing_completed_middle_session(self) -> None:
+        rows = [
+            {
+                "date": day, "open": 10, "high": 12, "low": 9,
+                "close": 11, "adjusted_close": 11, "volume": 1000,
+                "dividends": 0, "stock_splits": 0,
+            }
+            for day in ("2026-09-10", "2026-09-14")
+        ]
+        raw = json.dumps(rows).encode()
+        record = {
+            "key": {
+                "provider": "yahoo", "ticker": "TEST", "security_id": "US:TEST",
+                "currency": "USD", "interval": "1d",
+                "start": "2026-09-10", "end": "2026-09-15",
+                "adapter_version": "yahoo-eod-adapter/0.2.0",
+            },
+            "raw_content_hash": hashlib.sha256(raw).hexdigest(),
+            "retrieved_at": "2026-09-14T21:00:00Z",
+        }
+        result = normalize_cached_research_series(
+            record, raw, security_id="US:TEST", ticker="TEST", currency="USD",
+            calendar=SyntheticCalendar(),
+        )
+        self.assertEqual(
+            [{"date": "2026-09-11", "reason": "YAHOO_COMPLETED_SESSION_MISSING"}],
+            [
+                gap for gap in result["gaps"]
+                if gap["reason"] == "YAHOO_COMPLETED_SESSION_MISSING"
+            ],
+        )
 
     def test_ohlcv_adjustment_and_actions_are_preserved(self) -> None:
         result = normalize_research_daily_rows(

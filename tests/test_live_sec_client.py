@@ -106,6 +106,69 @@ class SecClientTests(unittest.TestCase):
         self.assertNotEqual(first["record_hash"], second["record_hash"])
         self.assertGreaterEqual(self.elapsed, 0.5)
 
+    def test_stable_archive_document_ignores_ttl_and_recovers_missing_object(self):
+        filing = {
+            "cik": "0000000001",
+            "accession": "0000000001-26-000001",
+            "form": "10-K",
+            "published_at": "2026-02-01T00:00:00Z",
+            "published_at_policy": "submission_acceptance_datetime",
+            "document_url": (
+                "https://www.sec.gov/Archives/edgar/data/1/"
+                "000000000126000001/report.htm"
+            ),
+        }
+        raw = b"<html>stable filing</html>"
+        client = self.client([Response(200, raw), Response(200, raw)])
+        first = client.read_document(filing, max_age_seconds=1)
+        self.now += timedelta(days=2)
+        second = client.read_document(filing, max_age_seconds=1)
+        self.assertEqual(first["raw_content_hash"], second["raw_content_hash"])
+        self.assertEqual(1, client.requests)
+        self.assertEqual("stable_cache_hit", client.events[-1]["status"])
+
+        object_path = Path(self.temp.name) / "objects" / first["raw_content_hash"]
+        object_path.unlink()
+        recovered = client.read_document(filing, max_age_seconds=1)
+        self.assertEqual(2, client.requests)
+        self.assertEqual(raw, self.cache.read(recovered["cache_record"]))
+        self.assertEqual(
+            "VERIFIED_PROVIDER_REFETCH", client.events[-1]["cache_recovery"],
+        )
+
+    def test_stable_archive_document_recovers_corrupt_object_and_fails_closed_if_refetch_fails(self):
+        filing = {
+            "cik": "0000000001",
+            "accession": "0000000001-26-000001",
+            "form": "10-K",
+            "published_at": "2026-02-01T00:00:00Z",
+            "published_at_policy": "submission_acceptance_datetime",
+            "document_url": (
+                "https://www.sec.gov/Archives/edgar/data/1/"
+                "000000000126000001/report.htm"
+            ),
+        }
+        raw = b"<html>stable filing</html>"
+        client = self.client([Response(200, raw), Response(200, raw)])
+        first = client.read_document(filing, max_age_seconds=1)
+        object_path = Path(self.temp.name) / "objects" / first["raw_content_hash"]
+        object_path.write_bytes(b"tampered")
+
+        recovered = client.read_document(filing, max_age_seconds=1)
+        self.assertEqual(raw, self.cache.read(recovered["cache_record"]))
+        self.assertEqual(
+            "VERIFIED_PROVIDER_REFETCH", client.events[-1]["cache_recovery"],
+        )
+        self.assertEqual("CACHE_OBJECT_HASH_MISMATCH", client.events[-1]["cache_failure_code"])
+
+        object_path.write_bytes(b"tampered-again")
+        failing = self.client([Response(503, b"")] * 3)
+        with self.assertRaisesRegex(FetchError, "SEC_HTTP_503"):
+            failing.read_document(filing, max_age_seconds=1)
+        self.assertEqual(3, failing.requests)
+        self.assertFalse(any(event.get("status") == "stable_cache_hit" for event in failing.events))
+        self.assertEqual(b"tampered-again", object_path.read_bytes())
+
     def test_endpoint_restriction(self):
         for url in (URL + "?quantity=100", URL.replace("https", "http"),
                     "https://data.sec.gov.evil.test/submissions/CIK0000000001.json",

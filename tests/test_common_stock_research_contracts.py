@@ -3,9 +3,11 @@ import io
 import json
 import os
 import shutil
+import sqlite3
 import sys
 import time
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 import tomllib
 import tempfile
@@ -52,8 +54,11 @@ from product.runtime.common_stock_eval import (
 from product.runtime.common_stock_stage import (
     COMMON_STOCK_START_CONTEXT_MAX_BYTES,
     CommonStockStageError,
+    CURRENT_SOURCE_REUSE_DATASETS,
     STAGE_VERSION,
     _bound_common_stock_dispatch_packet,
+    _current_source_reuse_status,
+    _report_package_calculation_ids,
     _run_bounded_process_group,
     _build_common_stock_dispatch_packet,
     build_common_stock_dispatch_message,
@@ -61,21 +66,25 @@ from product.runtime.common_stock_stage import (
     finalize_common_stock_stage_run,
     _validate_common_stock_stage_run_package,
     launch_common_stock_stage,
+    persist_common_stock_report_package,
     prepare_common_stock_stage_run,
     serialize_common_stock_dispatch_context,
     validate_delivered_research_references,
 )
 from product.runtime.common_stock_data import (
     CommonStockDataError,
+    _collection_failure_code,
     assemble_common_stock_evidence,
     build_common_stock_collection_portfolio,
     collect_common_stock_data_from_handoff,
     validate_common_stock_source_bundle,
 )
 from product.runtime.model_routing import select_product_runtime_model
+from product.runtime.multidimensional_stage import prepare_multidimensional_stage_run
 from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError, serve_stdio
 from product.runtime.equity_research_package import build_equity_research_package
+from product.runtime.research_memory import ResearchMemory
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -216,6 +225,28 @@ def gate_for(handoff, run_id=None):
 
 
 class CommonStockDataPreparationTests(unittest.TestCase):
+    def test_collection_failure_codes_are_canonical_and_sanitized(self):
+        for code in (
+            "SEC_HTTP_403", "YAHOO_TRANSPORT_FAILURE",
+            "NASDAQ_HTTP_429", "EASTMONEY_RESPONSE_INVALID",
+            "MOOMOO_OPEND_UNREACHABLE",
+        ):
+            with self.subTest(code=code):
+                self.assertEqual(code, _collection_failure_code(ValueError(code)))
+
+        for unsafe in (
+            "SEC_HTTP_403\ncontact=user@example.com cookie=secret",
+            "YAHOO TRANSPORT FAILURE",
+            "NASDAQ_" + "A" * 101,
+            "EASTMONEY_failure",
+            "MOOMOO_/tmp/private-token",
+        ):
+            with self.subTest(unsafe=unsafe):
+                self.assertEqual(
+                    "COMMON_STOCK_SECURITY_COLLECTION_FAILED",
+                    _collection_failure_code(ValueError(unsafe)),
+                )
+
     @staticmethod
     def collector_for(handoff, *, future_security_id=None, failed_security_id=None):
         positions = {
@@ -314,10 +345,22 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                 source = Path(kwargs["output_dir"])
                 source.mkdir()
                 security_id = value["positions"][0]["security_id"]
+                result = self.collector_for(handoff)(next(
+                    item for item in handoff["portfolio"]["positions"]
+                    if item["security_id"] == security_id
+                ))
                 snapshot = {
                     "snapshot_id": f"snapshot-{security_id}",
                     "snapshot_hash": canonical_hash(security_id),
-                    "source_access": [],
+                    "request_started_at": "2026-09-11T10:00:00Z",
+                    "decision_cutoff": "2099-09-12T12:00:00Z",
+                    "facts": result["facts"], "source_access": [],
+                    "raw_records": [], "collection_events": [
+                        {"url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000000001.json", "status": "fetched", "request_number": 1},
+                        {"url": "https://data.sec.gov/submissions/CIK0000000001.json", "status": "fetched", "request_number": 2},
+                        {"url": "https://www.sec.gov/Archives/edgar/data/1/000000000126000001/report.htm", "status": "fetched", "request_number": 3},
+                        {"endpoint": "https://query1.finance.yahoo.com/v8/finance/chart/TEST", "status": "fetched", "request_number": 1},
+                    ], "gaps": [],
                     "source_selections": [{
                         "security_id": security_id,
                         "selection_hash": canonical_hash(f"selection:{security_id}"),
@@ -343,18 +386,75 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                     excluded=[], conflicts=[],
                 )
                 return value
+            from product.mcp.live.research_supplement_collection import (
+                build_research_supplements as real_build_research_supplements,
+            )
+
+            def fake_build_research_supplements(positions, *, gate, **kwargs):
+                supplement_gate = copy.deepcopy(gate)
+                supplement_gate["allowed_evidence"] = []
+                supplement_gate["allowed_evidence_ids"] = []
+                return real_build_research_supplements(
+                    positions, gate=supplement_gate, **kwargs,
+                )
+
             with patch("product.mcp.live.collection.validate_live_collection_configuration", return_value=[]), patch(
                 "product.mcp.live.collection.collect_live_snapshot", side_effect=fake_collect
-            ), patch(
+            ) as live_collect, patch(
                 "product.runtime.common_stock_data._security_live_result",
                 side_effect=fake_security_result,
+            ), patch(
+                "product.mcp.live.research_supplement_collection.capture_external_research_results",
+                return_value={},
+            ) as supplement_capture, patch(
+                "product.mcp.live.research_supplement_collection.build_research_supplements",
+                side_effect=fake_build_research_supplements,
             ):
                 # load_locked_calendar is imported inside the function; patch the source module instead.
                 with patch("product.mcp.live.market.load_locked_calendar", return_value=object()):
                     result = collect_common_stock_data_from_handoff(
                         handoff_path, access_path=access_path,
                         output_dir=root / "data", cache_root=root / "cache",
+                        repository_root=Path(__file__).resolve().parents[1],
+                        memory_root=root / "research-memory",
                         sec_user_agent="synthetic contact", run_id="auto-data-run",
+                        collect_research_supplements=True,
+                        planning_now=lambda: datetime(2026, 9, 12, tzinfo=UTC),
+                    )
+                    first_memory = ResearchMemory(root / "research-memory")
+                    for position in build_common_stock_collection_portfolio(handoff)["positions"]:
+                        profile_checkpoint = first_memory.checkpoint(
+                            position["security_id"], "public", "company_profile",
+                        )
+                        self.assertIsNotNone(profile_checkpoint)
+                        self.assertTrue(profile_checkpoint["state"].get("object_ref"))
+                        persisted_profile = json.loads(first_memory.read_object(
+                            profile_checkpoint["state"]["object_ref"],
+                            profile_checkpoint["state"]["object_hash"],
+                        ))
+                        self.assertEqual(
+                            "research-supplement-external-results/1.0.0",
+                            persisted_profile["schema_version"],
+                        )
+                        self.assertEqual(position["security_id"], persisted_profile["security_id"])
+                        self.assertEqual([], persisted_profile["results"])
+                        self.assertEqual(
+                            "SKIP_FRESH",
+                            first_memory.plan(
+                                position["security_id"], "public", "company_profile",
+                                planning_as_of="2026-09-12T00:00:00Z",
+                            )["mode"],
+                            msg=profile_checkpoint,
+                        )
+                    restarted = collect_common_stock_data_from_handoff(
+                        handoff_path, access_path=access_path,
+                        output_dir=root / "data-restarted", cache_root=root / "cache",
+                        repository_root=Path(__file__).resolve().parents[1],
+                        memory_root=root / "research-memory",
+                        sec_user_agent="synthetic contact",
+                        run_id="auto-data-restarted",
+                        collect_research_supplements=True,
+                        planning_now=lambda: datetime(2026, 9, 12, tzinfo=UTC),
                     )
             self.assertEqual("FROZEN", result["status"])
             self.assertTrue((root / "data/gate.json").is_file())
@@ -362,7 +462,26 @@ class CommonStockDataPreparationTests(unittest.TestCase):
             self.assertEqual("portfolio-handoff-v3", data["authoritative_portfolio_source"])
             bundle = json.loads((root / "data/source-bundle.json").read_text())
             self.assertEqual(2, len(bundle["items"]))
-            self.assertEqual({"FROZEN"}, {item["status"] for item in bundle["items"]})
+            self.assertEqual(
+                {"FROZEN"}, {item["status"] for item in bundle["items"]}, msg=bundle,
+            )
+            self.assertEqual(2, live_collect.call_count)
+            self.assertEqual(2, supplement_capture.call_count)
+            restarted_memory = json.loads(
+                (root / "data-restarted/research-memory/manifest.json").read_text()
+            )
+            self.assertEqual(
+                {"CACHE_HIT"},
+                {item["mode"] for item in restarted_memory["results"]},
+            )
+            self.assertEqual(
+                {"SKIPPED_FRESH"},
+                {
+                    item["dataset_outcomes"]["company_profile"]["status"]
+                    for item in restarted_memory["results"]
+                },
+            )
+            self.assertEqual("FROZEN", restarted["status"])
 
     def test_real_handoff_collection_path_isolates_one_security_failure(self):
         handoff = stock_handoff(2)
@@ -386,17 +505,21 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                 source = Path(kwargs["output_dir"])
                 source.mkdir()
                 if security_id == failed:
-                    error = {"status": "FAILED", "failure_code": "LIVE_SECURITY_IDENTITY_AMBIGUOUS_OR_MISSING"}
+                    error = {"status": "FAILED", "failure_code": "SEC_HTTP_403"}
                     (source / "collection-error.json").write_text(json.dumps(error), encoding="utf-8")
-                    raise ValueError("LIVE_SECURITY_IDENTITY_AMBIGUOUS_OR_MISSING:see collection-error.json")
+                    raise ValueError("SEC_HTTP_403:see collection-error.json")
                 selection = {
                     "security_id": security_id,
                     "selection_hash": canonical_hash(f"selection:{security_id}"),
                 }
+                result = collector(original_positions[security_id])
                 snapshot = {
                     "snapshot_id": f"snapshot-{security_id}",
                     "snapshot_hash": canonical_hash(security_id),
-                    "source_access": [],
+                    "request_started_at": "2026-09-11T10:00:00Z",
+                    "decision_cutoff": "2026-09-12T12:00:00Z",
+                    "facts": result["facts"], "source_access": [],
+                    "raw_records": [], "collection_events": [], "gaps": [],
                     "source_selections": [selection],
                 }
                 (source / "portfolio.json").write_text(json.dumps(portfolio), encoding="utf-8")
@@ -420,12 +543,28 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                 "product.mcp.live.collection.collect_live_snapshot", side_effect=fake_collect
             ), patch("product.mcp.live.market.load_locked_calendar", return_value=object()), patch(
                 "product.runtime.common_stock_data._security_live_result", side_effect=fake_security_result
-            ):
+            ), patch(
+                "product.mcp.live.research_supplement_collection.capture_external_research_results",
+                return_value={},
+            ), patch(
+                "product.mcp.live.research_supplement_collection.build_research_supplements",
+                return_value=[],
+            ) as supplement_builder:
                 result = collect_common_stock_data_from_handoff(
                     handoff_path, access_path=access_path, output_dir=root / "data",
                     cache_root=root / "cache", sec_user_agent="synthetic contact",
-                    run_id="isolated-data-run",
+                    repository_root=Path(__file__).resolve().parents[1],
+                    memory_root=root / "research-memory",
+                    run_id="isolated-data-run", collect_research_supplements=True,
                 )
+            supplement_positions = supplement_builder.call_args.args[0]
+            self.assertEqual(
+                [
+                    item["security_id"] for item in handoff["portfolio"]["positions"]
+                    if item["security_id"] != failed
+                ],
+                [item["security_id"] for item in supplement_positions],
+            )
             self.assertEqual(
                 {item["security_id"] for item in handoff["portfolio"]["positions"]}, set(calls)
             )
@@ -435,6 +574,27 @@ class CommonStockDataPreparationTests(unittest.TestCase):
             self.assertIn("READY", states.values())
             bundle = json.loads(Path(result["source_bundle"]).read_text())
             self.assertEqual({"FAILED", "FROZEN"}, {item["status"] for item in bundle["items"]})
+            failed_bundle_item = next(
+                item for item in bundle["items"] if item["security_id"] == failed
+            )
+            self.assertEqual("SEC_HTTP_403", failed_bundle_item["failure_code"])
+            with ResearchMemory(root / "research-memory").session() as connection:
+                attempts = [
+                    (row[0], json.loads(row[1])) for row in connection.execute(
+                        "SELECT dataset, details_json FROM attempts WHERE security_id=?",
+                        (failed,),
+                    )
+                ]
+            self.assertTrue(attempts)
+            self.assertIn("company_profile", {dataset for dataset, _ in attempts})
+            self.assertEqual(
+                {"SEC_HTTP_403"},
+                {
+                    details["failure_code"]
+                    for _, details in attempts
+                    if "failure_code" in details
+                },
+            )
             gate = json.loads(Path(result["gate"]).read_text())
             preparation = json.loads(Path(result["data_preparation"]).read_text())
             with patch("product.mcp.live.contracts.validate_contract"), patch(
@@ -516,6 +676,143 @@ class CommonStockDataPreparationTests(unittest.TestCase):
         self.assertEqual("READY", next(value for key, value in states.items() if key != failed)["status"])
         self.assertEqual(1, len(result["gate"]["allowed_evidence"]))
         self.assertEqual(0, result["preparation"]["model_calls"])
+
+    def test_sqlite_write_failure_isolated_and_shared_failure_stops_batch(self):
+        handoff = stock_handoff(2)
+        failed = handoff["portfolio"]["positions"][0]["security_id"]
+        collector = self.collector_for(handoff)
+        original_positions = {
+            item["security_id"]: item for item in handoff["portfolio"]["positions"]
+        }
+
+        def run_case(
+            root: Path, *, shared_failure: bool,
+            local_error: type[sqlite3.Error] = sqlite3.OperationalError,
+        ):
+            handoff_path = root / "handoff.json"
+            access_path = root / "access.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            access_path.write_text("[]", encoding="utf-8")
+
+            def fake_collect(portfolio_path, **kwargs):
+                portfolio = json.loads(Path(portfolio_path).read_text())
+                security_id = portfolio["positions"][0]["security_id"]
+                source = Path(kwargs["output_dir"])
+                source.mkdir()
+                result = collector(original_positions[security_id])
+                selection = {
+                    "security_id": security_id,
+                    "selection_hash": canonical_hash(f"selection:{security_id}"),
+                }
+                snapshot = {
+                    "snapshot_id": f"snapshot-{security_id}",
+                    "snapshot_hash": canonical_hash(security_id),
+                    "request_started_at": "2026-09-11T10:00:00Z",
+                    "decision_cutoff": "2026-09-11T12:00:00Z",
+                    "facts": result["facts"], "source_access": [],
+                    "raw_records": [], "collection_events": [], "gaps": [],
+                    "source_selections": [selection],
+                }
+                (source / "portfolio.json").write_text(json.dumps(portfolio))
+                (source / "snapshot.json").write_text(json.dumps(snapshot))
+                (source / "calendar.json").write_text("{}")
+                return {
+                    "portfolio_path": str(source / "portfolio.json"),
+                    "snapshot_path": str(source / "snapshot.json"),
+                    "calendar_lock": str(source / "calendar.json"),
+                }
+
+            def fake_security_result(position, **kwargs):
+                value = dict(collector(original_positions[position["security_id"]]))
+                value.update(
+                    input_evidence_ids=[item["evidence_id"] for item in value["facts"]],
+                    excluded=[], conflicts=[],
+                )
+                return value
+
+            original_ingest = ResearchMemory.ingest_dataset
+
+            def injected_ingest(memory, *, plan, **kwargs):
+                if plan["security_id"] == failed:
+                    raise local_error("synthetic security-local write failure")
+                return original_ingest(memory, plan=plan, **kwargs)
+
+            patches = [
+                patch("product.mcp.live.collection.validate_live_collection_configuration", return_value=[]),
+                patch("product.mcp.live.collection.collect_live_snapshot", side_effect=fake_collect),
+                patch("product.mcp.live.market.load_locked_calendar", return_value=object()),
+                patch("product.runtime.common_stock_data._security_live_result", side_effect=fake_security_result),
+                patch.object(ResearchMemory, "ingest_dataset", new=injected_ingest),
+            ]
+            if shared_failure:
+                original_check = ResearchMemory.lightweight_check
+                check_calls = 0
+
+                def injected_check(memory, connection):
+                    nonlocal check_calls
+                    check_calls += 1
+                    if check_calls > 1:
+                        raise sqlite3.IntegrityError("synthetic shared corruption")
+                    return original_check(connection)
+
+                patches.append(patch.object(
+                    ResearchMemory, "lightweight_check",
+                    new=injected_check,
+                ))
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
+                if shared_failure:
+                    with patches[5], self.assertRaisesRegex(
+                        CommonStockDataError, "RESEARCH_MEMORY_SHARED_FAILURE",
+                    ):
+                        collect_common_stock_data_from_handoff(
+                            handoff_path, access_path=access_path,
+                            output_dir=root / "data", cache_root=root / "cache",
+                            repository_root=ROOT, memory_root=root / "research-memory",
+                            sec_user_agent="synthetic contact", run_id="sqlite-shared",
+                            planning_now=lambda: datetime(2026, 9, 11, 10, tzinfo=UTC),
+                        )
+                    return None
+                return collect_common_stock_data_from_handoff(
+                    handoff_path, access_path=access_path,
+                    output_dir=root / "data", cache_root=root / "cache",
+                    repository_root=ROOT, memory_root=root / "research-memory",
+                    sec_user_agent="synthetic contact", run_id="sqlite-isolated",
+                    planning_now=lambda: datetime(2026, 9, 11, 10, tzinfo=UTC),
+                )
+
+        for local_error in (sqlite3.OperationalError, sqlite3.IntegrityError):
+            with self.subTest(local_error=local_error.__name__), tempfile.TemporaryDirectory(
+                dir="/private/tmp",
+            ) as temp:
+                result = run_case(
+                    Path(temp), shared_failure=False, local_error=local_error,
+                )
+                bundle = json.loads(Path(result["source_bundle"]).read_text())
+                by_security = {item["security_id"]: item for item in bundle["items"]}
+                self.assertEqual("FAILED", by_security[failed]["status"])
+                self.assertEqual(
+                    "RESEARCH_MEMORY_PERSISTENCE_FAILED",
+                    by_security[failed]["failure_code"],
+                )
+                self.assertEqual(
+                    "FROZEN",
+                    next(value for key, value in by_security.items() if key != failed)["status"],
+                )
+                diagnostic = (
+                    Path(result["source_bundle"]).parent
+                    / by_security[failed]["collection_error_ref"]
+                )
+                self.assertEqual(
+                    "RESEARCH_MEMORY_PERSISTENCE_FAILED",
+                    json.loads(diagnostic.read_text())["failure_code"],
+                )
+                gate = json.loads(Path(result["gate"]).read_text())
+                self.assertNotIn(
+                    failed, {item["security_id"] for item in gate["allowed_evidence"]},
+                )
+
+        with tempfile.TemporaryDirectory(dir="/private/tmp") as temp:
+            run_case(Path(temp), shared_failure=True)
 
     def test_security_local_cutoff_excludes_future_retrieval_and_keeps_common_cutoff(self):
         handoff = stock_handoff(2)
@@ -3101,6 +3398,495 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertEqual(semantic["result_hash"], evaluated["eval_result_hash"])
             self.assertEqual(evaluated["report_hash"], evaluated["evaluated_report_hash"])
             self.assertTrue((run / evaluated["eval_ref"]).is_file())
+
+    def test_persisted_package_recovers_attachment_calculation_identities(self):
+        package = {
+            "calculations": [{"calculation_id": "calc-runtime"}],
+            "attachment": {
+                "artifacts": [
+                    {"calculation_refs": ["calc-valuation", "calc-runtime"]},
+                    {
+                        "artifact": {
+                            "calculation_id": "calc-peer",
+                            "nested": {"calculation_refs": ["calc-nested"]},
+                        },
+                    },
+                ],
+            },
+        }
+        self.assertEqual(
+            ["calc-nested", "calc-peer", "calc-runtime", "calc-valuation"],
+            _report_package_calculation_ids(package),
+        )
+
+    def test_changed_cutoff_reuse_requires_current_successful_source_manifest(self):
+        with tempfile.TemporaryDirectory(dir="/private/tmp") as temp:
+            root = Path(temp)
+            memory_root = root / "memory"
+            memory = ResearchMemory(memory_root)
+            security_id = "US:COMMON_STOCK:MRVL"
+            run_id = "freshness-run"
+            cutoff = "2026-09-12T12:00:00Z"
+            plans = {
+                dataset: memory.plan(
+                    security_id, provider, dataset,
+                    planning_as_of="2026-09-12T11:59:00Z",
+                )
+                for dataset, provider in CURRENT_SOURCE_REUSE_DATASETS.items()
+            }
+            fact = {
+                "evidence_id": "ev-mrvl-revenue",
+                "security_id": security_id,
+                "source_id": "sec-companyfacts-0001835632",
+                "source_locator": "https://data.sec.gov/example",
+                "semantic_field": "revenue",
+                "value": "100",
+                "unit": "USD",
+                "currency": "USD",
+                "as_of": "2026-06-30T00:00:00Z",
+                "published_at": "2026-09-10T00:00:00Z",
+                "retrieved_at": "2026-09-12T11:58:00Z",
+                "raw_content_hash": "a" * 64,
+                "metadata": {"tag": "Revenues"},
+            }
+            outcomes = {}
+            for dataset, plan in plans.items():
+                outcomes[dataset] = memory.ingest_dataset(
+                    plan=plan,
+                    facts=[fact] if dataset == "sec_companyfacts" else [],
+                    status="FETCHED_BOOTSTRAP",
+                    completed_at=cutoff,
+                )
+            view = memory.save_view(
+                run_id=run_id, security_id=security_id,
+                decision_cutoff=cutoff, facts=[fact], gaps=[], conflicts=[],
+            )
+            artifact_root = root / "source/research-memory"
+            artifact_root.mkdir(parents=True)
+            (artifact_root / "mrvl-view.json").write_text(
+                json.dumps(view), encoding="utf-8"
+            )
+            manifest = {
+                "schema_version": "company-research-memory-run/1.0.0",
+                "run_id": run_id,
+                "memory_root": str(memory_root),
+                "results": [{
+                    "security_id": security_id,
+                    "mode": "CHECKED_NO_CHANGE",
+                    "plans": plans,
+                    "dataset_outcomes": outcomes,
+                }],
+                "view_hashes": [view["view_manifest_hash"]],
+            }
+            manifest["manifest_hash"] = canonical_hash(manifest)
+            manifest_path = artifact_root / "manifest.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            gate = {
+                "run_id": run_id,
+                "source_mode": "live-read-only",
+                "decision_cutoff": cutoff,
+                "allowed_evidence": [fact],
+            }
+            current_request = {"decision_cutoff": cutoff}
+            original_request = {"decision_cutoff": "2026-09-11T12:00:00Z"}
+            self.assertEqual(
+                "CURRENT_SOURCE_CHECKED",
+                _current_source_reuse_status(
+                    current_request=current_request,
+                    original_request=original_request,
+                    gate=gate,
+                    source_memory=manifest,
+                    source_memory_manifest=manifest_path,
+                    security_id=security_id,
+                    resolved_memory_root=memory_root,
+                    preparation={},
+                ),
+            )
+
+            failed = copy.deepcopy(manifest)
+            failed["results"][0]["dataset_outcomes"]["sec_documents"][
+                "status"
+            ] = "SOURCE_LIMITED"
+            failed["manifest_hash"] = canonical_hash({
+                key: value for key, value in failed.items()
+                if key != "manifest_hash"
+            })
+            self.assertIsNone(
+                _current_source_reuse_status(
+                    current_request=current_request,
+                    original_request=original_request,
+                    gate=gate,
+                    source_memory=failed,
+                    source_memory_manifest=manifest_path,
+                    security_id=security_id,
+                    resolved_memory_root=memory_root,
+                    preparation={},
+                )
+            )
+
+            missing_pending = copy.deepcopy(manifest)
+            del missing_pending["results"][0]["dataset_outcomes"][
+                "sec_documents"
+            ]["pending_count"]
+            missing_pending["manifest_hash"] = canonical_hash({
+                key: value for key, value in missing_pending.items()
+                if key != "manifest_hash"
+            })
+            self.assertIsNone(_current_source_reuse_status(
+                current_request=current_request,
+                original_request=original_request,
+                gate=gate,
+                source_memory=missing_pending,
+                source_memory_manifest=manifest_path,
+                security_id=security_id,
+                resolved_memory_root=memory_root,
+                preparation={},
+            ))
+
+            wrong_revision = copy.deepcopy(manifest)
+            wrong_revision["results"][0]["dataset_outcomes"][
+                "sec_documents"
+            ]["checkpoint_revision"] += 1
+            wrong_revision["manifest_hash"] = canonical_hash({
+                key: value for key, value in wrong_revision.items()
+                if key != "manifest_hash"
+            })
+            self.assertIsNone(_current_source_reuse_status(
+                current_request=current_request,
+                original_request=original_request,
+                gate=gate,
+                source_memory=wrong_revision,
+                source_memory_manifest=manifest_path,
+                security_id=security_id,
+                resolved_memory_root=memory_root,
+                preparation={},
+            ))
+
+            mismatched_gate = copy.deepcopy(gate)
+            mismatched_gate["allowed_evidence"][0]["value"] = "101"
+            self.assertIsNone(_current_source_reuse_status(
+                current_request=current_request,
+                original_request=original_request,
+                gate=mismatched_gate,
+                source_memory=manifest,
+                source_memory_manifest=manifest_path,
+                security_id=security_id,
+                resolved_memory_root=memory_root,
+                preparation={},
+            ))
+
+            # The core collector currently has no company-profile boundary.
+            # Its explicit zero-request NOT_ATTEMPTED outcome is acceptable
+            # only when the View likewise contains no profile checkpoint.
+            optional_profile_manifest = copy.deepcopy(manifest)
+            profile_outcome = optional_profile_manifest["results"][0][
+                "dataset_outcomes"
+            ]["company_profile"]
+            profile_outcome.update(
+                status="NOT_ATTEMPTED", inserted_versions=0, observations=0,
+                request_count=0, repair_request_count=0, pending_count=0,
+                checkpoint_revision_before=0, checkpoint_revision=0,
+            )
+            optional_profile_view = copy.deepcopy(view)
+            optional_profile_view["checkpoint_revisions"].pop("company_profile")
+            optional_profile_view["view_manifest_hash"] = canonical_hash({
+                key: value for key, value in optional_profile_view.items()
+                if key != "view_manifest_hash"
+            })
+            (artifact_root / "mrvl-view.json").write_text(
+                json.dumps(optional_profile_view), encoding="utf-8"
+            )
+            optional_profile_manifest["view_hashes"] = [
+                optional_profile_view["view_manifest_hash"]
+            ]
+            optional_profile_manifest["manifest_hash"] = canonical_hash({
+                key: value for key, value in optional_profile_manifest.items()
+                if key != "manifest_hash"
+            })
+            self.assertEqual(
+                "CURRENT_SOURCE_CHECKED",
+                _current_source_reuse_status(
+                    current_request=current_request,
+                    original_request=original_request,
+                    gate=gate,
+                    source_memory=optional_profile_manifest,
+                    source_memory_manifest=manifest_path,
+                    security_id=security_id,
+                    resolved_memory_root=memory_root,
+                    preparation={},
+                ),
+            )
+
+            wrong_view = copy.deepcopy(view)
+            wrong_view["decision_cutoff"] = "2026-09-11T12:00:00Z"
+            wrong_view["view_manifest_hash"] = canonical_hash({
+                key: value for key, value in wrong_view.items()
+                if key != "view_manifest_hash"
+            })
+            (artifact_root / "mrvl-view.json").write_text(
+                json.dumps(wrong_view), encoding="utf-8"
+            )
+            wrong_view_manifest = copy.deepcopy(manifest)
+            wrong_view_manifest["view_hashes"] = [
+                wrong_view["view_manifest_hash"]
+            ]
+            wrong_view_manifest["manifest_hash"] = canonical_hash({
+                key: value for key, value in wrong_view_manifest.items()
+                if key != "manifest_hash"
+            })
+            self.assertIsNone(_current_source_reuse_status(
+                current_request=current_request,
+                original_request=original_request,
+                gate=gate,
+                source_memory=wrong_view_manifest,
+                source_memory_manifest=manifest_path,
+                security_id=security_id,
+                resolved_memory_root=memory_root,
+                preparation={},
+            ))
+
+    def test_persisted_report_restarts_and_finishes_with_zero_model_calls(self):
+        with tempfile.TemporaryDirectory(dir="/private/tmp") as temp:
+            root = Path(temp)
+            memory_root = root / "research-memory"
+            handoff = stock_handoff(1)
+
+            def prepare(
+                run_id, directory, *, force_rerun=False,
+                research_question="分析已确认的普通股持仓。",
+                decision_cutoff=None,
+            ):
+                handoff_path = root / f"{run_id}-handoff.json"
+                gate_path = root / f"{run_id}-gate.json"
+                handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+                gate = gate_for(handoff, run_id)
+                if decision_cutoff is not None:
+                    gate["decision_cutoff"] = decision_cutoff
+                    gate["bundle_hash"] = canonical_hash({
+                        key: value for key, value in gate.items()
+                        if key != "bundle_hash"
+                    })
+                gate_path.write_text(
+                    json.dumps(gate), encoding="utf-8"
+                )
+                return prepare_common_stock_stage_run(
+                    ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                    run_dir=directory, run_id=run_id, model="gpt-5.6-terra",
+                    memory_root=memory_root, force_rerun=force_rerun,
+                    research_question=research_question,
+                )
+
+            first = root / "first-run"
+            prepared = prepare("persistent-first", first)
+            self.assertEqual(1, prepared["task_count"])
+            task = json.loads(
+                (first / "research/dispatch-index.json").read_text()
+            )["tasks"][0]
+            env = self.hook_environment(first)
+            parent = "persistent-parent"
+            allowed, _ = handle_hook_event(
+                self.dispatch_payload(first, task, parent=parent), environ=env,
+            )
+            self.assertEqual("ALLOW", allowed["decision"])
+            handle_hook_event(
+                self.event(
+                    "SubagentStart", parent=parent,
+                    child="persistent-child", turn="persistent-turn",
+                ),
+                environ=env,
+            )
+            request = json.loads((first / task["request_path"]).read_text())
+            native = {
+                "run_id": request["run_id"],
+                "invocation_id": request["invocation_id"],
+                "agent": "runtime_company_analyst",
+                **CommonStockDispatchTests.draft(valid_report(request)),
+            }
+            stopped, _ = handle_hook_event(
+                self.event(
+                    "SubagentStop", parent=parent,
+                    child="persistent-child", turn="persistent-turn",
+                    message=json.dumps(native, ensure_ascii=False),
+                ),
+                environ=env,
+            )
+            self.assertEqual("SAVED", stopped["output_capture"]["status"])
+            with patch(
+                "product.runtime.common_stock_stage._persist_validated_report_package",
+                side_effect=OSError("synthetic memory write failure"),
+            ):
+                self.assertEqual(
+                    "PASSED", finalize_common_stock_stage_run(ROOT, first)["status"]
+                )
+            first_coverage = json.loads(
+                (first / "research/coverage.json").read_text()
+            )
+            self.assertEqual(
+                "FAILED",
+                first_coverage["items"][0]["report_persistence_status"],
+            )
+            self.assertEqual(
+                "synthetic memory write failure",
+                first_coverage["items"][0]["report_persistence_failure_code"],
+            )
+            self.assertTrue(
+                (first / first_coverage["items"][0]["report_ref"]).is_file()
+            )
+            for _ in range(2):
+                backfill = persist_common_stock_report_package(
+                    ROOT, first, security_id=task["security_id"],
+                )
+                self.assertEqual(0, backfill["llm_calls"])
+                self.assertEqual(0, backfill["provider_calls"])
+            recovered_coverage = json.loads(
+                (first / "research/coverage.json").read_text()
+            )
+            self.assertEqual(
+                "PERSISTED",
+                recovered_coverage["items"][0]["report_persistence_status"],
+            )
+            shutil.rmtree(first)
+
+            second = root / "second-run"
+            prepared = prepare("persistent-second", second)
+            self.assertEqual(0, prepared["task_count"])
+            self.assertEqual(1, prepared["reused_count"])
+            with patch(
+                "product.runtime.common_stock_stage._run_bounded_process_group"
+            ) as process:
+                result, code = launch_common_stock_stage(ROOT, run_dir=second)
+            process.assert_not_called()
+            self.assertEqual(0, code)
+            self.assertEqual("PASSED", result["status"])
+            coverage = json.loads(
+                (second / "research/coverage.json").read_text()
+            )
+            self.assertEqual("REUSED", coverage["items"][0]["research_execution_status"])
+            self.assertEqual(
+                gate_for(handoff, "persistent-first")["decision_cutoff"],
+                coverage["items"][0]["original_report_cutoff"],
+            )
+            process_result = json.loads(
+                (second / "invocation/process-result.json").read_text()
+            )
+            self.assertFalse(process_result["model_started"])
+
+            changed_cutoff = prepare(
+                "persistent-new-cutoff", root / "new-cutoff-run",
+                decision_cutoff="2026-09-12T12:00:00Z",
+            )
+            self.assertEqual(1, changed_cutoff["task_count"])
+            self.assertEqual(0, changed_cutoff["reused_count"])
+            changed_task = json.loads(
+                (root / "new-cutoff-run/research/dispatch-index.json").read_text()
+            )["tasks"][0]
+            self.assertEqual(
+                "CURRENT_SOURCE_FRESHNESS_UNPROVEN",
+                changed_task["reuse_bypass_reason"],
+            )
+            _validate_common_stock_stage_run_package(
+                ROOT, root / "new-cutoff-run"
+            )
+
+            multidimensional = root / "multidimensional-from-reuse"
+            prepare_multidimensional_stage_run(
+                ROOT,
+                handoff_path=root / "persistent-second-handoff.json",
+                gate_path=root / "persistent-second-gate.json",
+                run_dir=multidimensional, run_id="persistent-second",
+                model="gpt-5.6-terra", company_research_run_path=second,
+            )
+            imported = json.loads(
+                (multidimensional / "research/imported-company-research/import-manifest.json").read_text()
+            )
+            self.assertEqual(1, len(imported["reports"]))
+            self.assertEqual(
+                gate_for(handoff, "persistent-first")["decision_cutoff"],
+                imported["reports"][0]["source_decision_cutoff"],
+            )
+
+            forced = prepare(
+                "persistent-forced", root / "forced-run", force_rerun=True,
+            )
+            self.assertEqual(1, forced["task_count"])
+            self.assertEqual(0, forced["reused_count"])
+            forced_task = json.loads(
+                (root / "forced-run/research/dispatch-index.json").read_text()
+            )["tasks"][0]
+            forced_request = json.loads(
+                (root / "forced-run" / forced_task["request_path"]).read_text()
+            )
+            self.assertNotIn("historical_report", forced_request)
+            self.assertNotIn("original_report_cutoff", forced_request)
+
+            changed_question = prepare(
+                "persistent-question-change", root / "question-change-run",
+                research_question="重点评估未来三年的定价权。",
+            )
+            self.assertEqual(1, changed_question["task_count"])
+            self.assertEqual(0, changed_question["reused_count"])
+
+            mixed_handoff = stock_handoff(2)
+            mixed_handoff_path = root / "mixed-handoff.json"
+            mixed_gate_path = root / "mixed-gate.json"
+            mixed_handoff_path.write_text(
+                json.dumps(mixed_handoff), encoding="utf-8"
+            )
+            mixed_gate_path.write_text(
+                json.dumps(gate_for(mixed_handoff, "persistent-mixed")),
+                encoding="utf-8",
+            )
+            mixed_run = root / "mixed-run"
+            mixed = prepare_common_stock_stage_run(
+                ROOT, handoff_path=mixed_handoff_path, gate_path=mixed_gate_path,
+                run_dir=mixed_run, run_id="persistent-mixed",
+                model="gpt-5.6-terra", memory_root=memory_root,
+            )
+            self.assertEqual(1, mixed["task_count"])
+            self.assertEqual(1, mixed["reused_count"])
+            mixed_task = json.loads(
+                (mixed_run / "research/dispatch-index.json").read_text()
+            )["tasks"][0]
+            self.assertEqual("company_research_2", mixed_task["task_name"])
+            failed_process = {
+                "stdout": "", "stderr": "synthetic failure",
+                "process_exit_code": 9, "timed_out": False,
+                "local_process_group": {
+                    "pid": 999, "term_sent": False, "kill_sent": False,
+                    "cleanup_complete": True,
+                },
+                "remote_cancellation_status": "NOT_APPLICABLE",
+            }
+            with patch(
+                "product.runtime.common_stock_stage._run_bounded_process_group",
+                return_value=failed_process,
+            ):
+                result, code = launch_common_stock_stage(ROOT, run_dir=mixed_run)
+            self.assertEqual(7, code)
+            self.assertEqual("PARTIAL_RESEARCH", result["stage_status"])
+            mixed_coverage = json.loads(
+                (mixed_run / "research/coverage.json").read_text()
+            )
+            self.assertEqual(
+                {"REUSED", "RUN"},
+                {
+                    item["research_execution_status"]
+                    for item in mixed_coverage["items"]
+                },
+            )
+            reuse_item = json.loads(
+                (second / "research/reuse-index.json").read_text()
+            )["items"][0]
+            reference = json.loads(
+                (second / reuse_item["reference_path"]).read_text()
+            )
+            (memory_root / reference["package_ref"]).write_text(
+                "corrupt", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(
+                ValueError, "RESEARCH_MEMORY_OBJECT_HASH_MISMATCH",
+            ):
+                prepare("persistent-corrupt", root / "corrupt-run")
 
 
 if __name__ == "__main__":

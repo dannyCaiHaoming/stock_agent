@@ -469,6 +469,7 @@ def _import_company_research_reports(
     source_run = Path(source_run).resolve()
     target_run = Path(target_run).resolve()
     manifest = _read_object(source_run / "run_manifest.json")
+    repository_root = Path(manifest["discovery"]["product_root"]).resolve().parent
     if manifest.get("stage") != "COMMON_STOCK_RESEARCH":
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_STAGE_INVALID")
     source_handoff = _read_object(source_run / "audit/portfolio-handoff.json")
@@ -487,6 +488,12 @@ def _import_company_research_reports(
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_CUTOFF_INVALID")
     source_index = _read_object(source_run / "research/dispatch-index.json")
+    source_reuse_index_path = source_run / "research/reuse-index.json"
+    source_reuse_index = (
+        _read_object(source_reuse_index_path)
+        if source_reuse_index_path.is_file()
+        else {"items": []}
+    )
     source_proof = _read_object(source_run / "research/execution-proof.json")
     if (
         source_proof.get("all_reports_valid") is not True
@@ -503,7 +510,13 @@ def _import_company_research_reports(
         if isinstance(security_id, str):
             if security_id in tasks_by_security:
                 raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_DUPLICATE")
-            tasks_by_security[security_id] = task
+            tasks_by_security[security_id] = dict(task, source_kind="RUN")
+    for reused in source_reuse_index.get("items", []):
+        security_id = reused.get("security_id") if isinstance(reused, Mapping) else None
+        if isinstance(security_id, str):
+            if security_id in tasks_by_security:
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_DUPLICATE")
+            tasks_by_security[security_id] = dict(reused, source_kind="REUSED")
     if set(expected_security_ids) - set(tasks_by_security):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_COVERAGE_INCOMPLETE")
     if set(source_proof.get("completed_security_ids", [])) < set(expected_security_ids):
@@ -524,25 +537,51 @@ def _import_company_research_reports(
     seen_report_ids: set[str] = set()
     for security_id in expected_security_ids:
         task = tasks_by_security[security_id]
-        request_path = source_run / str(task.get("request_path", ""))
-        request = _read_object(request_path)
-        validate_holding_research_request(
-            request,
-            handoff=source_handoff,
-            council_request=_read_object(source_run / "council-request.json"),
-            gate=source_gate,
-        )
         source_json = source_run / "research/reports" / security_id.replace(":", "_") / "equity-research.json"
         source_markdown = source_json.with_suffix(".md")
         report = _read_object(source_json)
-        calculation_ids = _calculation_ids_for_invocation(source_run, request["invocation_id"])
-        scoped_evidence = [
-            evidence_by_id[evidence_id]
-            for evidence_id in request["allowed_evidence_ids"]
-            if evidence_id in evidence_by_id
-        ]
-        if len(scoped_evidence) != len(request["allowed_evidence_ids"]):
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_EVIDENCE_INCOMPLETE")
+        if task["source_kind"] == "RUN":
+            request_path = source_run / str(task.get("request_path", ""))
+            request = _read_object(request_path)
+            validate_holding_research_request(
+                request,
+                handoff=source_handoff,
+                council_request=_read_object(source_run / "council-request.json"),
+                gate=source_gate,
+            )
+            calculation_ids = _calculation_ids_for_invocation(
+                source_run, request["invocation_id"]
+            )
+            scoped_evidence = [
+                evidence_by_id[evidence_id]
+                for evidence_id in request["allowed_evidence_ids"]
+                if evidence_id in evidence_by_id
+            ]
+            if len(scoped_evidence) != len(request["allowed_evidence_ids"]):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_EVIDENCE_INCOMPLETE")
+        else:
+            from product.runtime.research_memory import (
+                ResearchMemory, resolve_memory_root, validate_report_reference,
+            )
+            memory_root = manifest.get("memory_root")
+            if not isinstance(memory_root, str):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_REUSE_MEMORY_MISSING")
+            reference = _read_object(source_run / str(task.get("reference_path", "")))
+            validate_report_reference(reference)
+            memory = ResearchMemory(resolve_memory_root(
+                repository_root, Path(memory_root),
+            ))
+            package = memory.load_report_package(
+                reference["package_ref"], reference["package_hash"]
+            )
+            if package["report"] != report:
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_REUSE_REPORT_MISMATCH")
+            request = package["request"]
+            scoped_evidence = list(package["evidence"])
+            from product.runtime.common_stock_stage import (
+                _report_package_calculation_ids,
+            )
+            calculation_ids = _report_package_calculation_ids(package)
         pair_hashes = validate_persisted_equity_research_pair(
             json_path=source_json,
             markdown_path=source_markdown,
@@ -550,6 +589,7 @@ def _import_company_research_reports(
             evidence=scoped_evidence,
             calculation_artifact_ids=calculation_ids,
         )
+        report_cutoff = request["decision_cutoff"]
         report_id = report.get("report_id")
         if not isinstance(report_id, str) or report_id in seen_report_ids:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_REPORT_ID_INVALID")
@@ -568,7 +608,7 @@ def _import_company_research_reports(
                 "report_id": report_id,
                 "status": "INCOMPATIBLE_TARGET_GATE",
                 "source_run_id": manifest.get("run_id"),
-                "source_decision_cutoff": source_cutoff,
+                "source_decision_cutoff": report_cutoff,
                 "source_report_hash": canonical_hash(report),
                 "missing_evidence_ids": missing_ids,
                 "drifted_evidence_ids": drifted_ids,
@@ -596,7 +636,7 @@ def _import_company_research_reports(
             "report_hash": canonical_hash(report),
             "status": report["status"],
             "source_run_id": manifest.get("run_id"),
-            "source_decision_cutoff": source_cutoff,
+            "source_decision_cutoff": report_cutoff,
             "source_manifest_hash": manifest.get("manifest_hash"),
             "source_gate_hash": source_gate.get("bundle_hash"),
             "source_request_hash": request.get("request_hash"),

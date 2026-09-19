@@ -35,7 +35,9 @@ from .environment_preflight import reject_legacy_entry
 from .common_stock_stage import (
     build_common_stock_stage_prompt,
     launch_common_stock_stage,
+    persist_common_stock_report_package,
     prepare_common_stock_stage_run,
+    validate_common_stock_stage_run_package,
 )
 from .common_stock_eval import (
     build_common_stock_eval_prompt,
@@ -113,6 +115,11 @@ def build_parser() -> argparse.ArgumentParser:
     stock_prepare.add_argument("--source-fixture", type=Path)
     stock_prepare.add_argument("--max-concurrency", type=int, default=3)
     stock_prepare.add_argument("--focus-security-id")
+    stock_prepare.add_argument("--memory-root", type=Path)
+    stock_prepare.add_argument(
+        "--force-rerun", action="store_true",
+        help="忽略严格等价的持久化报告并创建新的 Company Agent 调用",
+    )
     stock_prepare.add_argument(
         "--equity-research-package", type=Path, action="append", default=[],
         help="可重复；按 security_id 绑定的冻结估值/基本面/同行附件包",
@@ -137,7 +144,8 @@ def build_parser() -> argparse.ArgumentParser:
     stock_collect.add_argument("--handoff", type=Path, required=True)
     stock_collect.add_argument("--source-access", type=Path, required=True)
     stock_collect.add_argument("--output-dir", type=Path, required=True)
-    stock_collect.add_argument("--cache-root", type=Path, required=True)
+    stock_collect.add_argument("--cache-root", type=Path)
+    stock_collect.add_argument("--memory-root", type=Path)
     stock_collect.add_argument("--run-id", required=True)
     stock_collect.add_argument("--benchmark-id")
     stock_collect.add_argument("--benchmark-ticker")
@@ -154,6 +162,21 @@ def build_parser() -> argparse.ArgumentParser:
     stock_prompt = subparsers.add_parser("common-stock-research-prompt")
     stock_prompt.add_argument("--repo", type=Path, required=True)
     stock_prompt.add_argument("--run-dir", type=Path, required=True)
+
+    stock_validate = subparsers.add_parser(
+        "validate-common-stock-research",
+        help="验证已准备的普通股研究运行包；不启动模型",
+    )
+    stock_validate.add_argument("--repo", type=Path, required=True)
+    stock_validate.add_argument("--run-dir", type=Path, required=True)
+
+    stock_persist = subparsers.add_parser(
+        "persist-common-stock-report",
+        help="重新验证并补存一个既有普通股研究报告；不访问 Provider 或调用模型",
+    )
+    stock_persist.add_argument("--repo", type=Path, required=True)
+    stock_persist.add_argument("--run-dir", type=Path, required=True)
+    stock_persist.add_argument("--security-id", required=True)
 
     stock_launch = subparsers.add_parser(
         "launch-common-stock-research", help="仅宿主入口：运行普通股 Company Analyst 子任务"
@@ -453,6 +476,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 benchmark_id=args.benchmark_id,
                 benchmark_ticker=args.benchmark_ticker,
                 collect_research_supplements=True,
+                repository_root=args.repo, memory_root=args.memory_root,
             )
         except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
             print(json.dumps({
@@ -517,10 +541,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             source_bundle_path=args.source_bundle,
             focus_security_id=args.focus_security_id,
             equity_research_package_paths=args.equity_research_package,
+            memory_root=args.memory_root, force_rerun=args.force_rerun,
         )
     elif args.command == "common-stock-research-prompt":
         print(build_common_stock_stage_prompt(args.repo, args.run_dir))
         return 0
+    elif args.command == "validate-common-stock-research":
+        result = validate_common_stock_stage_run_package(args.repo, args.run_dir)
+    elif args.command == "persist-common-stock-report":
+        result = persist_common_stock_report_package(
+            args.repo, args.run_dir, security_id=args.security_id,
+        )
     elif args.command == "launch-common-stock-research":
         result, exit_code = launch_common_stock_stage(
             args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,

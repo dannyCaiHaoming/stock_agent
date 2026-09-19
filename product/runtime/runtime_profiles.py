@@ -69,7 +69,10 @@ def load_source_profile(repository_root: Path, profile: str = "fixture") -> dict
             or value.get("max_positions") != 3 or value.get("base_currency") != "USD"):
         raise ValueError("LIVE_SOURCE_PROFILE_INVALID")
     expected_skills = {
-        "runtime_company_analyst": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"],
+        "runtime_company_analyst": [
+            "evidence-grounding", "company-research", "valuation",
+            "catalyst-analysis", "research-report-analysis",
+        ],
         "runtime_skeptic": ["evidence-grounding", "counter-thesis"], "runtime_cio": ["portfolio-council"]}
     for name, agent in value["agents"].items():
         expected_tools = ["live_evidence.query", "live_math.calculate"] if name == "runtime_company_analyst" else ["live_evidence.query"]

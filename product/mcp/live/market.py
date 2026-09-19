@@ -266,7 +266,7 @@ def normalize_cached_research_series(
         raise ValueError("YAHOO_RESEARCH_RAW_INVALID") from exc
     if not isinstance(rows, list):
         raise ValueError("YAHOO_RESEARCH_RAW_INVALID")
-    return normalize_research_daily_rows(
+    normalized = normalize_research_daily_rows(
         rows,
         security_id=security_id,
         ticker=ticker,
@@ -275,6 +275,29 @@ def normalize_cached_research_series(
         calendar=calendar,
         raw_content_hash=record["raw_content_hash"],
     )
+    start, end = key.get("start"), key.get("end")
+    completed_sessions = getattr(calendar, "completed_sessions", None)
+    observed = {
+        row.get("date") for row in rows if isinstance(row, dict)
+        and isinstance(row.get("date"), str)
+        and calendar.session_close(row["date"]) is not None
+    }
+    if (
+        isinstance(start, str) and isinstance(end, str)
+        and callable(completed_sessions) and observed
+    ):
+        lower, upper = min(observed), max(observed)
+        expected = {
+            parse_timestamp(close).date().isoformat()
+            for close in completed_sessions(parse_timestamp(record["retrieved_at"]))
+            if start <= parse_timestamp(close).date().isoformat() < end
+            and lower <= parse_timestamp(close).date().isoformat() <= upper
+        }
+        normalized["gaps"].extend(
+            {"date": day, "reason": "YAHOO_COMPLETED_SESSION_MISSING"}
+            for day in sorted(expected - observed)
+        )
+    return normalized
 
 
 def download_daily(*, tickers: list[str], start: str, end: str, source_access: dict, downloader=None, session=None):

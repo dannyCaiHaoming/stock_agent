@@ -479,6 +479,20 @@ class CompanyBackgroundTests(unittest.TestCase):
         self.assertEqual(merged["preparation"]["research_supplement"]["snapshot_hash"], snapshot["snapshot_hash"])
         self.assertNotIn("source_access", snapshot)
 
+        later_prepared = deepcopy(prepared)
+        later_prepared["gate"]["decision_cutoff"] = "2026-09-15T13:00:00Z"
+        later_prepared["preparation"]["common_cutoff"] = "2026-09-15T13:00:00Z"
+        later = merge_research_supplement_evidence(
+            later_prepared, background=snapshot,
+            allowed_security_ids={SECURITY},
+        )
+        self.assertEqual(
+            "2026-09-15T13:00:00Z", later["gate"]["decision_cutoff"],
+        )
+        self.assertEqual(
+            [fact["evidence_id"]], later["gate"]["allowed_evidence_ids"],
+        )
+
         tampered = deepcopy(snapshot)
         tampered["snapshot_hash"] = "0" * 64
         with self.assertRaisesRegex(ValueError, "HASH_MISMATCH"):

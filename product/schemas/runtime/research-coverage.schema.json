@@ -46,7 +46,12 @@
           "eval_ref": {"type": ["string", "null"], "minLength": 1},
           "eval_result_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
           "evaluated_report_hash": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
-          "failure_code": {"type": ["string", "null"], "minLength": 1}
+          "failure_code": {"type": ["string", "null"], "minLength": 1},
+          "research_execution_status": {"enum": ["RUN", "REUSED", "FAILED", "NOT_APPLICABLE"]},
+          "report_persistence_status": {"enum": ["NOT_ATTEMPTED", "PERSISTED", "REUSED", "FAILED"]},
+          "report_persistence_failure_code": {"type": ["string", "null"], "minLength": 1},
+          "report_checked_at": {"type": ["string", "null"], "minLength": 1},
+          "original_report_cutoff": {"type": ["string", "null"], "minLength": 1}
         }
       }
     },

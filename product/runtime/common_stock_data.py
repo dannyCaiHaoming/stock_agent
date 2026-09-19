@@ -7,8 +7,10 @@
 from __future__ import annotations
 
 import copy
+from contextlib import ExitStack
 import json
 import re
+import sqlite3
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -16,6 +18,7 @@ from typing import Any, Callable, Mapping
 from product.intake.v3 import validate_handoff
 from product.mcp.provenance import iso_utc, parse_timestamp
 from product.runtime.hashing import canonical_hash
+from product.runtime.research_memory import fact_content_hash
 
 
 DATA_PREPARATION_VERSION = "common-stock-data-preparation/1.0.0"
@@ -27,12 +30,476 @@ class CommonStockDataError(ValueError):
     pass
 
 
+_COLLECTION_FAILURE_PREFIXES = (
+    "COMMON_STOCK_", "LIVE_", "RESEARCH_MEMORY_", "SEC_", "YAHOO_",
+    "NASDAQ_", "EASTMONEY_", "MOOMOO_",
+)
+
+
+def _collection_failure_code(error: BaseException) -> str:
+    code = str(error).split(":", 1)[0]
+    return (
+        code
+        if code.startswith(_COLLECTION_FAILURE_PREFIXES)
+        and re.fullmatch(r"[A-Z][A-Z0-9_]{2,100}", code)
+        else "COMMON_STOCK_SECURITY_COLLECTION_FAILED"
+    )
+
+
 def _hash_without(value: Mapping[str, Any], field: str) -> str:
     return canonical_hash({key: item for key, item in value.items() if key != field})
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _merge_persisted_snapshot_facts(
+    persisted_facts: list[dict[str, Any]], observed_facts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Build a PIT view without widening the current market selection.
+
+    Memory retains the first canonical payload for a content version while a
+    later provider check records another observation.  Prefer the current
+    observation when the same version was just seen, so its Evidence ID and raw
+    hash remain bound to this run.  Historical research-series facts remain in
+    the view, but current ``close_price`` facts are limited to the provider
+    selection's bounded request window.
+    """
+
+    observed_by_version = {
+        fact_content_hash(item): copy.deepcopy(item) for item in observed_facts
+    }
+    observed_current_prices = {
+        version for version, item in observed_by_version.items()
+        if item.get("kind") == "price"
+        and item.get("semantic_field") == "close_price"
+        and item.get("usage") == "current"
+    }
+    merged: list[dict[str, Any]] = []
+    for canonical in persisted_facts:
+        version = fact_content_hash(canonical)
+        is_current_price = (
+            canonical.get("kind") == "price"
+            and canonical.get("semantic_field") == "close_price"
+            and canonical.get("usage") == "current"
+        )
+        if is_current_price and version not in observed_current_prices:
+            continue
+        merged.append(observed_by_version.get(version, copy.deepcopy(canonical)))
+    return sorted(merged, key=lambda item: item["evidence_id"])
+
+
+def _merge_raw_records(
+    current: list[dict[str, Any]], prior_bundle: Mapping[str, Any] | None,
+    *, required_facts: list[dict[str, Any]], cache_root: Path,
+) -> list[dict[str, Any]]:
+    """Retain only prior raw metadata needed by facts restored from Memory."""
+
+    records: dict[str, dict[str, Any]] = {}
+    required_hashes = {
+        item.get("raw_content_hash") for item in required_facts
+        if item.get("kind") != "derived"
+        and isinstance(item.get("raw_content_hash"), str)
+    }
+    for item in _readable_prior_raw_records(
+        prior_bundle, cache_root=cache_root,
+    ):
+        if item.get("raw_content_hash") in required_hashes:
+            records[item["record_hash"]] = copy.deepcopy(item)
+    for item in current:
+        record_hash = item.get("record_hash")
+        if not isinstance(record_hash, str):
+            raise CommonStockDataError("RESEARCH_MEMORY_RAW_RECORD_INVALID")
+        existing = records.get(record_hash)
+        if existing is not None and existing != item:
+            raise CommonStockDataError("RESEARCH_MEMORY_RAW_RECORD_COLLISION")
+        records[record_hash] = copy.deepcopy(item)
+    return [records[key] for key in sorted(records)]
+
+
+def _readable_prior_raw_records(
+    bundle: Mapping[str, Any] | None, *, cache_root: Path,
+) -> list[dict[str, Any]]:
+    """Return only individually verified prior records from the same cache."""
+
+    from product.mcp.live.cache import SnapshotCache
+    from product.mcp.provenance import content_hash
+
+    if not isinstance(bundle, Mapping) or not isinstance(bundle.get("cache_root"), str):
+        return []
+    try:
+        if Path(bundle["cache_root"]).resolve() != cache_root.resolve():
+            return []
+    except OSError:
+        return []
+    snapshot = bundle.get("snapshot")
+    if not isinstance(snapshot, Mapping):
+        return []
+    cache = SnapshotCache(cache_root)
+    readable = []
+    for raw in snapshot.get("raw_records", []):
+        if not isinstance(raw, Mapping):
+            continue
+        record = dict(raw)
+        try:
+            if (
+                record.get("schema_version") != "live-cache/1.0.0"
+                or record.get("record_hash") != content_hash({
+                    key: value for key, value in record.items()
+                    if key != "record_hash"
+                })
+                or record.get("key_hash") != content_hash(record.get("key"))
+            ):
+                continue
+            cache.read(record)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        readable.append(record)
+    return readable
+
+
+def _validate_snapshot_cache(
+    snapshot: Mapping[str, Any], *, cache_root: Path,
+) -> None:
+    """Prove that every frozen raw reference still resolves to verified bytes."""
+
+    if snapshot.get("schema_version") not in {
+        "live-snapshot/3.0.0", "live-snapshot/4.0.0",
+    }:
+        # Legacy/synthetic test snapshots predate the raw-evidence contract.
+        # Production routed snapshots always use one of the versions above.
+        return
+
+    from product.mcp.live.cache import SnapshotCache
+    from product.runtime.live_context import validate_raw_records
+
+    cache = SnapshotCache(cache_root)
+    records_by_digest: dict[str, list[dict[str, Any]]] = {}
+    for raw in snapshot.get("raw_records", []):
+        if not isinstance(raw, Mapping):
+            raise CommonStockDataError("RESEARCH_MEMORY_RAW_RECORD_INVALID")
+        digest = raw.get("raw_content_hash")
+        if isinstance(digest, str):
+            records_by_digest.setdefault(digest, []).append(dict(raw))
+
+    def read_object(digest: str) -> bytes:
+        records = records_by_digest.get(digest, [])
+        if not records:
+            raise CommonStockDataError("RESEARCH_MEMORY_RAW_EVIDENCE_OBJECT_MISSING")
+        return cache.read(records[0])
+
+    try:
+        validate_raw_records(dict(snapshot), read_object)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise CommonStockDataError(
+            f"RESEARCH_MEMORY_RAW_CLOSURE_INVALID:{type(exc).__name__}"
+        ) from exc
+
+
+def _snapshot_bundle_cache_valid(
+    bundle: Mapping[str, Any] | None, *, cache_root: Path,
+) -> bool:
+    """Accept a persisted bundle only with the same cache identity and closure."""
+
+    if not isinstance(bundle, Mapping):
+        return False
+    recorded_root = bundle.get("cache_root")
+    if not isinstance(recorded_root, str):
+        return False
+    try:
+        if Path(recorded_root).resolve() != cache_root.resolve():
+            return False
+        snapshot = bundle.get("snapshot")
+        if not isinstance(snapshot, Mapping):
+            return False
+        _validate_snapshot_cache(snapshot, cache_root=cache_root)
+    except (OSError, ValueError, KeyError, TypeError, CommonStockDataError):
+        return False
+    return True
+
+
+def _raw_closure_repair_plan(
+    plan: Mapping[str, Any], *, planning_as_of: str,
+    market_window: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Turn an existing checkpoint plan into an explicit bounded repair."""
+
+    repaired = copy.deepcopy(dict(plan))
+    repaired["mode"] = "REFRESH"
+    repaired["reason"] = "RAW_CLOSURE_REPAIR"
+    if market_window is not None and repaired["dataset"] in {
+        "live_snapshot", "current_snapshot", "yahoo_daily",
+    }:
+        repaired["request_range"] = dict(market_window)
+    repaired["planning_as_of"] = planning_as_of
+    repaired["plan_hash"] = canonical_hash({
+        key: value for key, value in repaired.items() if key != "plan_hash"
+    })
+    return repaired
+
+
+def _preflight_repaired_raw_closure(
+    *, memory: Any, security_id: str, snapshot: Mapping[str, Any],
+    prior_bundle: Mapping[str, Any] | None, cache_root: Path,
+) -> None:
+    """Fail before checkpoint writes if a repair cannot cover retained facts."""
+
+    from product.runtime.research_memory import fact_content_hash, logical_fact_key
+
+    observed_facts = [
+        dict(fact) for fact in snapshot.get("facts", [])
+        if isinstance(fact, Mapping)
+    ]
+    observed_by_logical: dict[str, list[dict[str, Any]]] = {}
+    for fact in observed_facts:
+        observed_by_logical.setdefault(logical_fact_key(fact), []).append(fact)
+    observed_versions = {fact_content_hash(fact) for fact in observed_facts}
+    existing_observed_versions = memory.existing_version_hashes(observed_facts)
+    current_raw_hashes = {
+        item.get("raw_content_hash")
+        for item in snapshot.get("raw_records", [])
+        if isinstance(item, Mapping)
+    }
+    current_raw_hashes.update(
+        record["raw_content_hash"] for record in _readable_prior_raw_records(
+            prior_bundle, cache_root=cache_root,
+        )
+    )
+    missing = []
+    for fact in memory.current_facts(security_id, snapshot["decision_cutoff"]):
+        if fact.get("kind") == "derived":
+            continue
+        if (
+            fact.get("kind") == "price"
+            and fact.get("semantic_field") == "close_price"
+            and fact.get("usage") == "current"
+        ):
+            # Current prices outside this run's selected market window are
+            # intentionally not retained in the next View.
+            continue
+        prior_version = fact_content_hash(fact)
+        if prior_version in observed_versions:
+            continue
+        observed_same_logical = observed_by_logical.get(logical_fact_key(fact), [])
+        prior_rank = (
+            parse_timestamp(fact["published_at"]),
+            parse_timestamp(fact["retrieved_at"]),
+            prior_version,
+        )
+        if any(
+            fact_content_hash(candidate) not in existing_observed_versions
+            and (
+                parse_timestamp(candidate["published_at"]),
+                parse_timestamp(candidate["retrieved_at"]),
+                fact_content_hash(candidate),
+            ) > prior_rank
+            for candidate in observed_same_logical
+        ):
+            # A genuinely new version observed now will supersede the prior
+            # selected version after commit. An already-known older version
+            # does not get this exception.
+            continue
+        if fact.get("raw_content_hash") not in current_raw_hashes:
+            missing.append(str(fact.get("evidence_id") or "UNKNOWN"))
+    if missing:
+        raise CommonStockDataError(
+            "RESEARCH_MEMORY_RAW_CLOSURE_REPAIR_INCOMPLETE:"
+            + ",".join(sorted(missing)[:8])
+        )
+
+
+def _structured_snapshot_gaps(
+    gaps: Any, *, security_id: str,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Decode the frozen snapshot's JSON-string gaps for incremental planning."""
+
+    structured: list[dict[str, Any]] = []
+    diagnostics: list[str] = []
+    for item in gaps if isinstance(gaps, list) else []:
+        candidate: Any = item
+        if isinstance(item, str):
+            try:
+                candidate = json.loads(item)
+            except json.JSONDecodeError:
+                diagnostics.append("SNAPSHOT_GAP_NOT_JSON")
+                continue
+        if not isinstance(candidate, Mapping):
+            diagnostics.append("SNAPSHOT_GAP_NOT_OBJECT")
+            continue
+        value = dict(candidate)
+        if value.get("security_id") not in (None, security_id):
+            continue
+        structured.append(value)
+    return structured, sorted(set(diagnostics))
+
+
+def _dataset_request_evidence(
+    snapshot: Mapping[str, Any], dataset: str,
+) -> dict[str, Any]:
+    """Map frozen provider/cache events to one logical dataset outcome."""
+
+    events = [
+        dict(item) for item in snapshot.get("collection_events", [])
+        if isinstance(item, Mapping)
+    ]
+
+    def matches(event: Mapping[str, Any]) -> bool:
+        locator = str(event.get("url") or event.get("endpoint") or "")
+        producer = str(event.get("producer") or "")
+        if dataset == "sec_companyfacts":
+            return "/api/xbrl/companyfacts/" in locator
+        if dataset == "sec_documents":
+            return "/Archives/edgar/data/" in locator
+        if dataset == "sec_identity":
+            return (
+                "/files/company_tickers_exchange.json" in locator
+                or "/submissions/" in locator
+                or producer == "sec-history-parser"
+            )
+        if dataset == "yahoo_daily":
+            return (
+                "/v8/finance/chart/" in locator
+                or producer == "yahoo-daily-collector"
+            )
+        if dataset == "current_snapshot":
+            return (
+                producer == "live-market-routing"
+                or "/v8/finance/chart/" in locator
+                or "push2his.eastmoney.com" in locator
+            )
+        return False
+
+    matched = [event for event in events if matches(event)]
+    if dataset == "sec_identity" and isinstance(snapshot.get("identity"), Mapping):
+        matched.append({"producer": "frozen-sec-identity", "provider": "sec"})
+    actual = [
+        event for event in matched
+        if event.get("request_number") is not None
+        and event.get("status") not in {"cache_hit", "stable_cache_hit"}
+    ]
+    cache_hits = [
+        event for event in matched
+        if event.get("status") in {"cache_hit", "stable_cache_hit"}
+    ]
+    logical_keys = {
+        str(event.get("url") or event.get("endpoint") or event.get("producer"))
+        for event in matched
+    }
+    metric_events = [
+        event for event in matched
+        if event.get("producer") == "yahoo-daily-collector"
+    ]
+    metric_logical = sum(
+        int(event["sdk_calls"]) for event in metric_events
+        if isinstance(event.get("sdk_calls"), int)
+    )
+    metric_http = sum(
+        int(event["actual_http_requests"]) for event in metric_events
+        if isinstance(event.get("actual_http_requests"), int)
+    )
+    providers = set()
+    for event in matched:
+        url = str(event.get("url", ""))
+        if url.startswith(("https://data.sec.gov", "https://www.sec.gov")):
+            providers.add("sec")
+        elif event.get("provider"):
+            providers.add(str(event["provider"]))
+    if dataset == "current_snapshot":
+        providers.update(
+            str(selection["selected_provider"])
+            for selection in snapshot.get("source_selections", [])
+            if isinstance(selection, Mapping)
+            and isinstance(selection.get("selected_provider"), str)
+        )
+    route_logical = sum(
+        1 for event in matched
+        if event.get("producer") == "live-market-routing"
+    )
+    logical_count = (
+        route_logical if dataset == "current_snapshot" and route_logical
+        else metric_logical or len(logical_keys)
+    )
+    actual_count = metric_http or len(actual)
+    return {
+        "attempted": bool(matched),
+        "logical_request_count": logical_count,
+        "actual_http_requests": actual_count,
+        "cache_hit_count": len(cache_hits),
+        "retry_count": max(
+            0,
+            actual_count - logical_count,
+        ),
+        "actual_providers": sorted(providers),
+    }
+
+
+def _yahoo_pending_from_gaps(
+    gaps: list[Mapping[str, Any]],
+) -> list[dict[str, str]]:
+    """Only completed-session data gaps become retry ranges."""
+
+    return [
+        {
+            "start": str(gap["date"]),
+            "end": str(gap["date"]),
+            "reason": str(gap.get("reason", "UNKNOWN")),
+        }
+        for gap in gaps
+        if isinstance(gap.get("date"), str)
+        and gap.get("reason") != "NOT_COMPLETED_REGULAR_SESSION"
+    ]
+
+
+def _failed_dataset_statuses(
+    plans: Mapping[str, Mapping[str, Any]], *, snapshot_dir: Path,
+    failure_code: str,
+) -> dict[str, str]:
+    """Map a failed production collection stage without inventing attempts.
+
+    A source-boundary failure affects the aggregate snapshot and only the
+    datasets owned by that stage. Datasets whose boundary was never reached are
+    recorded as ``NOT_ATTEMPTED``. Contract/freeze failures are validation
+    failures, not source limitations.
+    """
+
+    if failure_code == "RESEARCH_MEMORY_DATASET_LOCK_TIMEOUT":
+        return {dataset: "LOCK_TIMEOUT" for dataset in plans}
+    error_path = snapshot_dir / "collection-error.json"
+    error: Mapping[str, Any] | None = None
+    if error_path.is_file():
+        try:
+            candidate = json.loads(error_path.read_text(encoding="utf-8"))
+            if isinstance(candidate, Mapping) and candidate.get("failure_code") == failure_code:
+                error = candidate
+        except (OSError, json.JSONDecodeError):
+            error = None
+    if error is None:
+        return {dataset: "FAILED_VALIDATION" for dataset in plans}
+
+    stage = str(error.get("failed_stage", ""))
+    stage_datasets = {
+        "NASDAQ_UNIVERSE": set(),
+        "SEC_MAPPING": {"sec_identity"},
+        "YAHOO_COLLECTION": {"yahoo_daily", "current_snapshot"},
+        "SEC_COMPANY_COLLECTION": {"sec_companyfacts", "sec_documents"},
+        "SEC_YAHOO_IDENTITY_BINDING": {"sec_identity", "current_snapshot"},
+    }
+    affected = set(stage_datasets.get(stage, ())) | {"live_snapshot"}
+    source_boundary_failure = stage in stage_datasets and any(
+        marker in failure_code
+        for marker in (
+            "TRANSPORT", "HTTP_", "TIMEOUT", "BUDGET_EXHAUSTED",
+            "REQUEST_BUDGET_EXHAUSTED", "NO_COMPLETED_PRICE",
+            "NO_FRESH_PRICE", "IDENTITY_AMBIGUOUS_OR_MISSING",
+            "IDENTITY_SOURCE_MISSING",
+        )
+    )
+    failed_status = "SOURCE_LIMITED" if source_boundary_failure else "FAILED_VALIDATION"
+    return {
+        dataset: failed_status if dataset in affected else "NOT_ATTEMPTED"
+        for dataset in plans
+    }
 
 
 def build_common_stock_collection_portfolio(
@@ -516,9 +983,12 @@ def validate_common_stock_source_bundle(
 
 
 def collect_common_stock_data_from_handoff(
-    handoff_path: Path, *, access_path: Path, output_dir: Path, cache_root: Path,
+    handoff_path: Path, *, access_path: Path, output_dir: Path, cache_root: Path | None,
     sec_user_agent: str, run_id: str, benchmark_id: str | None = None,
     benchmark_ticker: str | None = None, collect_research_supplements: bool = False,
+    repository_root: Path | None = None, memory_root: Path | None = None,
+    collection_options: Mapping[str, Any] | None = None,
+    planning_now: Callable[[], datetime] | None = None,
 ) -> dict[str, Any]:
     """通过现有只读适配器自动生成 Gate；不启动模型或完整组合估值。"""
 
@@ -529,14 +999,25 @@ def collect_common_stock_data_from_handoff(
     from product.mcp.live.contracts import external_path, validate_contract
     from product.mcp.live.market import load_locked_calendar
     from product.mcp.provenance import content_hash
+    from product.runtime.research_memory import (
+        ResearchMemory, infer_dataset, resolve_memory_root,
+    )
+    from product.runtime.live_input import freeze_snapshot
 
     handoff_file = external_path(handoff_path)
     handoff = json.loads(handoff_file.read_text(encoding="utf-8"))
     collection_portfolio = build_common_stock_collection_portfolio(handoff)
     validate_contract("portfolio", collection_portfolio)
     access_file = external_path(access_path)
-    validation_time = datetime.now(timezone.utc)
+    clock = planning_now or (lambda: datetime.now(timezone.utc))
+    validation_time = clock()
     access = validate_live_collection_configuration(access_file, at=validation_time)
+    repository = Path(repository_root or Path(__file__).resolve().parents[2]).resolve()
+    resolved_memory_root = resolve_memory_root(repository, memory_root)
+    memory = ResearchMemory(resolved_memory_root)
+    # Automatic live collection always shares the stable raw cache with the
+    # Research Memory unless a caller explicitly supplies that same location.
+    cache_root = Path(cache_root or (resolved_memory_root / "raw-cache")).resolve()
     destination = external_path(output_dir)
     if destination.exists():
         raise CommonStockDataError("COMMON_STOCK_DATA_OUTPUT_EXISTS")
@@ -547,19 +1028,52 @@ def collect_common_stock_data_from_handoff(
         encoding="utf-8",
     )
     external_research_results: dict[str, list[dict[str, Any]]] = {}
-    if collect_research_supplements:
-        from product.mcp.live.research_supplement_collection import (
-            capture_external_research_results,
-        )
-        external_research_results = capture_external_research_results(
-            collection_portfolio["positions"], access=access, cache_root=cache_root,
-            state_root=destination / "research-supplement-capture",
-        )
+    company_profile_plans: dict[str, dict[str, Any]] = {}
+    company_profile_outcomes: dict[str, dict[str, Any]] = {}
     collected_results: dict[str, Mapping[str, Any]] = {}
     source_items: list[dict[str, Any]] = []
+    memory_results: list[dict[str, Any]] = []
     successful_snapshots: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = []
     source_root = destination / "source-snapshots"
     source_root.mkdir(mode=0o700)
+
+    def failed_source_item(
+        *, security_id: str, scoped_input: Path, scoped_portfolio: Mapping[str, Any],
+        snapshot_dir: Path, failure_code: str, diagnostic: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        error_path = snapshot_dir / "collection-error.json"
+        if diagnostic is not None:
+            snapshot_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            error_path = snapshot_dir / "persistence-error.json"
+            error_path.write_text(
+                json.dumps(diagnostic, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        error_ref = (
+            str(error_path.relative_to(destination)) if error_path.is_file() else None
+        )
+        error_value = (
+            json.loads(error_path.read_text(encoding="utf-8")) if error_ref else None
+        )
+        return {
+            "security_id": security_id,
+            "status": "FAILED",
+            "collection_input_ref": str(scoped_input.relative_to(destination)),
+            "collection_input_hash": canonical_hash(scoped_portfolio),
+            "portfolio_ref": None,
+            "portfolio_hash": None,
+            "snapshot_ref": None,
+            "snapshot_id": None,
+            "snapshot_hash": None,
+            "calendar_ref": None,
+            "calendar_hash": None,
+            "source_selection": None,
+            "source_selection_hash": None,
+            "failure_code": failure_code,
+            "collection_error_ref": error_ref,
+            "collection_error_hash": content_hash(error_value) if error_value else None,
+        }
+
     for ordinal, position in enumerate(collection_portfolio["positions"], start=1):
         security_id = position["security_id"]
         item_root = source_root / f"{ordinal:04d}-{_safe_security_component(security_id)}"
@@ -571,11 +1085,467 @@ def collect_common_stock_data_from_handoff(
             encoding="utf-8",
         )
         snapshot_dir = item_root / "snapshot"
+        plans: dict[str, dict[str, Any]] = {}
         try:
-            collected = collect_live_snapshot(
-                scoped_input, access_path=access_file, output_dir=snapshot_dir,
-                cache_root=cache_root, sec_user_agent=sec_user_agent,
+            planning_as_of = iso_utc(clock())
+            dataset_specs = (
+                ("live", "live_snapshot"), ("public", "company_profile"),
+                ("sec", "sec_companyfacts"), ("sec", "sec_documents"),
+                ("sec", "sec_identity"), ("market", "current_snapshot"),
+                ("yahoo", "yahoo_daily"),
             )
+            # Acquire every affected dataset lock in a stable order, then plan
+            # again under those locks. This keeps independent securities
+            # concurrent while preventing duplicate refreshes for any one
+            # dataset and avoiding cross-process lock-order deadlocks.
+            with ExitStack() as dataset_locks:
+                for provider, dataset in dataset_specs:
+                    dataset_locks.enter_context(
+                        memory.dataset_lock(security_id, provider, dataset)
+                    )
+                for provider, dataset in dataset_specs:
+                    plans[dataset] = memory.plan(
+                        security_id, provider, dataset, planning_as_of=planning_as_of,
+                    )
+                if collect_research_supplements:
+                    from product.mcp.live.research_supplement_collection import (
+                        capture_external_research_results,
+                    )
+
+                    profile_plan = plans["company_profile"]
+                    profile_checkpoint = memory.checkpoint(
+                        security_id, "public", "company_profile",
+                    )
+                    if profile_plan["mode"] == "SKIP_FRESH" and profile_checkpoint:
+                        try:
+                            state = profile_checkpoint.get("state", {})
+                            raw = memory.read_object(
+                                str(state.get("object_ref")),
+                                str(state.get("object_hash")),
+                            )
+                            persisted = json.loads(raw)
+                            required = {
+                                "schema_version", "security_id", "ticker", "results",
+                            }
+                            if set(persisted) != required \
+                                    or persisted["schema_version"] \
+                                    != "research-supplement-external-results/1.0.0" \
+                                    or persisted["security_id"] != security_id \
+                                    or persisted["ticker"] != position["ticker"] \
+                                    or not isinstance(persisted["results"], list) \
+                                    or any(
+                                        not isinstance(item, Mapping)
+                                        for item in persisted["results"]
+                                    ):
+                                raise ValueError("RESEARCH_SUPPLEMENT_MEMORY_BINDING_INVALID")
+                            external_research_results[security_id] = [
+                                dict(item) for item in persisted["results"]
+                            ]
+                        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+                            profile_plan = _raw_closure_repair_plan(
+                                profile_plan, planning_as_of=planning_as_of,
+                            )
+                            plans["company_profile"] = profile_plan
+                    if profile_plan["mode"] != "SKIP_FRESH" \
+                            or security_id not in external_research_results:
+                        captured = capture_external_research_results(
+                            [position], access=access, cache_root=cache_root,
+                            state_root=(
+                                destination / "research-supplement-capture"
+                                / _safe_security_component(security_id)
+                            ),
+                        )
+                        external_research_results[security_id] = list(
+                            captured.get(security_id, [])
+                        )
+                        completed_at = iso_utc(clock())
+                        stored = memory.store_object({
+                            "schema_version": "research-supplement-external-results/1.0.0",
+                            "security_id": security_id,
+                            "ticker": position["ticker"],
+                            "results": external_research_results[security_id],
+                        })
+                        status = (
+                            "FETCHED_BOOTSTRAP" if profile_plan["mode"] == "BOOTSTRAP"
+                            else "CHECKED_NO_CHANGE" if profile_checkpoint
+                            and profile_checkpoint.get("state", {}).get("object_hash")
+                            == stored["object_hash"]
+                            else "FETCHED_INCREMENTAL"
+                        )
+                        profile_outcome = memory.ingest_dataset(
+                            plan=profile_plan, facts=[], status=status,
+                            completed_at=completed_at, watermark=completed_at,
+                            details={
+                                "request_count": 1, "repair_request_count": 0,
+                                "source_result": "SUPPLEMENT_BATCH_CAPTURED",
+                                "supplement_object_hash": stored["object_hash"],
+                            },
+                            state=stored,
+                        )
+                    else:
+                        attempt_id = memory.record_attempt_only(
+                            plan=profile_plan, status="SKIPPED_FRESH",
+                            completed_at=iso_utc(clock()),
+                            details={
+                                "request_count": 0, "repair_request_count": 0,
+                                "source_result": "PERSISTED_SUPPLEMENT_REUSED",
+                            },
+                        )
+                        profile_outcome = {
+                            "attempt_id": attempt_id, "status": "SKIPPED_FRESH",
+                            "inserted_versions": 0, "observations": 0,
+                            "request_range": dict(profile_plan["request_range"]),
+                            "request_count": 0, "repair_request_count": 0,
+                            "pending_count": len(profile_checkpoint.get("pending", [])),
+                            "checkpoint_revision_before": profile_plan["checkpoint_revision"],
+                            "checkpoint_revision": profile_plan["checkpoint_revision"],
+                        }
+                    company_profile_plans[security_id] = profile_plan
+                    company_profile_outcomes[security_id] = profile_outcome
+                snapshot_plan = plans["live_snapshot"]
+                snapshot_checkpoint = memory.checkpoint(
+                    security_id, "live", "live_snapshot",
+                )
+                prior_bundle = None
+                prior_bundle_valid = False
+                if snapshot_checkpoint is not None:
+                    try:
+                        prior_bundle = memory.load_snapshot_bundle(snapshot_checkpoint)
+                        prior_bundle_valid = _snapshot_bundle_cache_valid(
+                            prior_bundle, cache_root=cache_root,
+                        )
+                    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+                        prior_bundle = None
+                        prior_bundle_valid = False
+                raw_closure_repair_required = bool(
+                    snapshot_checkpoint is not None and not prior_bundle_valid
+                )
+                if raw_closure_repair_required:
+                    policy = plans["yahoo_daily"]["policy"]
+                    market_window = {
+                        "start": (
+                            parse_timestamp(planning_as_of).date()
+                            - timedelta(days=int(policy["bootstrap_days"]))
+                        ).isoformat(),
+                        "end": (
+                            parse_timestamp(planning_as_of).date()
+                            + timedelta(days=1)
+                        ).isoformat(),
+                    }
+                    plans = {
+                        dataset: (
+                            plan if dataset == "company_profile"
+                            else _raw_closure_repair_plan(
+                                plan, planning_as_of=planning_as_of,
+                                market_window=market_window,
+                            )
+                        )
+                        for dataset, plan in plans.items()
+                    }
+                    snapshot_plan = plans["live_snapshot"]
+                reused_bundle = None
+                dataset_outcomes = {}
+                if (
+                    snapshot_plan["mode"] == "SKIP_FRESH"
+                    and all(
+                        plan["mode"] == "SKIP_FRESH"
+                        for dataset, plan in plans.items()
+                        if dataset != "company_profile"
+                    )
+                    and snapshot_checkpoint is not None
+                ):
+                    try:
+                        if (
+                            prior_bundle_valid
+                            and prior_bundle is not None
+                            and prior_bundle["portfolio"] == scoped_portfolio
+                            and canonical_hash(prior_bundle["snapshot"]["source_access"])
+                            == canonical_hash(access)
+                        ):
+                            reused_bundle = prior_bundle
+                    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+                        reused_bundle = None
+                if reused_bundle is not None:
+                    snapshot_dir.mkdir(mode=0o700)
+                    reused_snapshot = copy.deepcopy(reused_bundle["snapshot"])
+                    if reused_snapshot.get("schema_version") in {
+                        "live-snapshot/1.0.0", "live-snapshot/2.0.0",
+                        "live-snapshot/3.0.0", "live-snapshot/4.0.0",
+                    }:
+                        reused_snapshot = freeze_snapshot(
+                            snapshot_id=f"live-snapshot:{run_id}:{security_id}",
+                            portfolio=reused_bundle["portfolio"],
+                            request_started_at=reused_snapshot["request_started_at"],
+                            decision_cutoff=iso_utc(clock()),
+                            facts=reused_snapshot["facts"],
+                            source_access=reused_snapshot["source_access"],
+                            raw_records=reused_snapshot["raw_records"],
+                            collection_events=reused_snapshot["collection_events"],
+                            gaps=reused_snapshot["gaps"],
+                            identity=reused_snapshot.get("identity"),
+                            universe=reused_snapshot.get("universe"),
+                            source_selections=reused_snapshot.get("source_selections"),
+                        )
+                    for name, value in (
+                        ("portfolio.json", reused_bundle["portfolio"]),
+                        ("snapshot.json", reused_snapshot),
+                        ("calendar.json", reused_bundle["calendar"]),
+                    ):
+                        (snapshot_dir / name).write_text(
+                            json.dumps(value, ensure_ascii=False, sort_keys=True),
+                            encoding="utf-8",
+                        )
+                    collected = {
+                        "status": "FROZEN", "collection_version": "research-memory-reuse/1.0.0",
+                        "snapshot_hash": reused_snapshot["snapshot_hash"],
+                        "snapshot_path": str(snapshot_dir / "snapshot.json"),
+                        "portfolio_path": str(snapshot_dir / "portfolio.json"),
+                        "calendar_lock": str(snapshot_dir / "calendar.json"),
+                        "cache_root": str(cache_root),
+                    }
+                    collection_mode = "CACHE_HIT"
+                    completed_at = planning_as_of
+                    for dataset, plan in plans.items():
+                        if dataset == "company_profile" and collect_research_supplements:
+                            continue
+                        attempt_status = (
+                            "CACHE_HIT" if dataset == "live_snapshot"
+                            else "SKIPPED_FRESH" if plan["mode"] == "SKIP_FRESH"
+                            else "NOT_ATTEMPTED"
+                        )
+                        attempt_id = memory.record_attempt_only(
+                            plan=plan, status=attempt_status,
+                            completed_at=completed_at,
+                            details={"request_count": 0, "repair_request_count": 0},
+                        )
+                        dataset_outcomes[dataset] = {
+                            "attempt_id": attempt_id, "status": attempt_status,
+                            "inserted_versions": 0, "observations": 0,
+                            "request_range": dict(plan["request_range"]),
+                            "request_count": 0, "repair_request_count": 0,
+                            "pending_count": len(
+                                (memory.checkpoint(
+                                    plan["security_id"], plan["provider"],
+                                    plan["dataset"], plan["scope"],
+                                ) or {}).get("pending", [])
+                            ),
+                            "checkpoint_revision_before": plan["checkpoint_revision"],
+                            "checkpoint_revision": plan["checkpoint_revision"],
+                        }
+                else:
+                    yahoo_range = plans["yahoo_daily"]["request_range"]
+                    collected = collect_live_snapshot(
+                        scoped_input, access_path=access_file, output_dir=snapshot_dir,
+                        cache_root=cache_root, sec_user_agent=sec_user_agent,
+                        market_start=yahoo_range.get("start"),
+                        market_end=yahoo_range.get("end"),
+                        **dict(collection_options or {}),
+                    )
+                    live_portfolio = json.loads(Path(collected["portfolio_path"]).read_text(encoding="utf-8"))
+                    snapshot = json.loads(Path(collected["snapshot_path"]).read_text(encoding="utf-8"))
+                    calendar_record = json.loads(Path(collected["calendar_lock"]).read_text(encoding="utf-8"))
+                    grouped: dict[str, list[dict[str, Any]]] = {}
+                    for fact in snapshot["facts"]:
+                        grouped.setdefault(infer_dataset(fact), []).append(fact)
+                    price_series_repair_pending = False
+                    structured_gaps, gap_diagnostics = _structured_snapshot_gaps(
+                        snapshot.get("gaps", []), security_id=security_id,
+                    )
+                    if (
+                        raw_closure_repair_required
+                        and snapshot.get("schema_version") in {
+                            "live-snapshot/3.0.0", "live-snapshot/4.0.0",
+                        }
+                    ):
+                        _preflight_repaired_raw_closure(
+                            memory=memory, security_id=security_id,
+                            snapshot=snapshot, prior_bundle=prior_bundle,
+                            cache_root=cache_root,
+                        )
+                    for dataset, plan in plans.items():
+                        if dataset == "live_snapshot":
+                            continue
+                        if dataset == "company_profile" and collect_research_supplements:
+                            continue
+                        facts = grouped.get(dataset, [])
+                        request_evidence = _dataset_request_evidence(snapshot, dataset)
+                        if not facts and not request_evidence["attempted"]:
+                            attempt_id = memory.record_attempt_only(
+                                plan=plan, status="NOT_ATTEMPTED",
+                                completed_at=snapshot["decision_cutoff"],
+                                details={
+                                    **request_evidence,
+                                    "source_result": "NOT_ATTEMPTED",
+                                    "failure_code": (
+                                        "COMPANY_PROFILE_SOURCE_NOT_IN_CORE_COLLECTION"
+                                        if dataset == "company_profile"
+                                        else "DATASET_NOT_ATTEMPTED"
+                                    ),
+                                },
+                            )
+                            dataset_outcomes[dataset] = {
+                                "attempt_id": attempt_id,
+                                "status": "NOT_ATTEMPTED",
+                                "inserted_versions": 0,
+                                "observations": 0,
+                                "request_range": dict(plan["request_range"]),
+                                "request_count": 0,
+                                "repair_request_count": 0,
+                                "pending_count": 0,
+                                "checkpoint_revision_before": plan["checkpoint_revision"],
+                                "checkpoint_revision": plan["checkpoint_revision"],
+                            }
+                            continue
+                        new_versions = memory.new_version_count(facts)
+                        revision_count = memory.revision_count(facts)
+                        status = (
+                            "FETCHED_BOOTSTRAP" if plan["mode"] == "BOOTSTRAP"
+                            else "FETCHED_INCREMENTAL" if new_versions
+                            else "CHECKED_NO_CHANGE"
+                        )
+                        watermark = max(
+                            (fact["as_of"] for fact in facts), default=None,
+                            key=parse_timestamp,
+                        )
+                        pending = []
+                        if dataset == "yahoo_daily":
+                            pending = _yahoo_pending_from_gaps(structured_gaps)
+                            prior_checkpoint = memory.checkpoint(
+                                security_id, plan["provider"], dataset,
+                                plan["scope"],
+                            )
+                            revision_repair_in_progress = bool(
+                                plan["reason"] == "KNOWN_GAP"
+                                and prior_checkpoint
+                                and any(
+                                    item.get("reason") == "PRICE_BASIS_REVISION"
+                                    for item in prior_checkpoint.get("pending", [])
+                                    if isinstance(item, Mapping)
+                                )
+                            )
+                            if revision_count and not revision_repair_in_progress:
+                                repair_start = (
+                                    parse_timestamp(planning_as_of).date()
+                                    - timedelta(days=int(plan["policy"]["bootstrap_days"]))
+                                ).isoformat()
+                                pending.append({
+                                    "start": repair_start,
+                                    "end": plan["request_range"].get("end"),
+                                    "reason": "PRICE_BASIS_REVISION",
+                                })
+                            elif revision_repair_in_progress and pending:
+                                pending.append({
+                                    "start": plan["request_range"].get("start"),
+                                    "end": plan["request_range"].get("end"),
+                                    "reason": "PRICE_BASIS_REVISION",
+                                })
+                            price_series_repair_pending = any(
+                                item.get("reason") == "PRICE_BASIS_REVISION"
+                                for item in pending
+                            )
+                        dataset_outcomes[dataset] = memory.ingest_dataset(
+                            plan=plan, facts=facts, status=status,
+                            completed_at=snapshot["decision_cutoff"], watermark=watermark,
+                            coverage=([{"start": plan["request_range"].get("start"),
+                                       "end": plan["request_range"].get("end")}]
+                                      if plan["request_range"].get("start") else []),
+                            pending=pending,
+                            details={
+                                **request_evidence,
+                                "source_result": (
+                                    "CHECKED" if request_evidence["attempted"] or facts
+                                    else "EMPTY_WITHOUT_EVENT"
+                                ),
+                                "new_versions": new_versions,
+                                "revision_count": revision_count,
+                                "observed_facts": len(facts),
+                                "request_count": request_evidence["logical_request_count"],
+                                "repair_request_count": (
+                                    min(
+                                        int(plan["policy"].get("repair_budget", 0)),
+                                        1 if plan["reason"] == "KNOWN_GAP" else 0,
+                                    )
+                                ),
+                                "gap_diagnostics": gap_diagnostics,
+                            },
+                        )
+                    persisted_facts = memory.current_facts(
+                        security_id, snapshot["decision_cutoff"],
+                    )
+                    persisted_facts = _merge_persisted_snapshot_facts(
+                        persisted_facts, snapshot["facts"],
+                    )
+                    merged_raw_records = _merge_raw_records(
+                        snapshot["raw_records"],
+                        prior_bundle, required_facts=persisted_facts,
+                        cache_root=cache_root,
+                    )
+                    snapshot_gaps = list(snapshot["gaps"])
+                    if price_series_repair_pending:
+                        inconsistent_fields = {
+                            "open_price", "high_price", "low_price",
+                            "historical_close_price", "adjusted_close_price",
+                            "share_volume", "cash_dividend",
+                            "stock_split_ratio",
+                        }
+                        persisted_facts = [
+                            fact for fact in persisted_facts
+                            if fact.get("semantic_field") not in inconsistent_fields
+                        ]
+                        snapshot_gaps.append(json.dumps({
+                            "security_id": security_id,
+                            "reason": "YAHOO_PRICE_SERIES_REPAIR_PENDING",
+                            "impact": (
+                                "价格/公司行动重叠区出现修订；在有界 365 日"
+                                "修复完成前不将该序列交给依赖其一致性的派生计算。"
+                            ),
+                        }, ensure_ascii=False, sort_keys=True))
+                    if (
+                        persisted_facts != snapshot["facts"]
+                        or merged_raw_records != snapshot["raw_records"]
+                        or snapshot_gaps != snapshot["gaps"]
+                    ):
+                        snapshot = freeze_snapshot(
+                            snapshot_id=snapshot["snapshot_id"], portfolio=live_portfolio,
+                            request_started_at=snapshot["request_started_at"],
+                            decision_cutoff=snapshot["decision_cutoff"], facts=persisted_facts,
+                            source_access=snapshot["source_access"],
+                            raw_records=merged_raw_records,
+                            collection_events=snapshot["collection_events"], gaps=snapshot_gaps,
+                            identity=snapshot.get("identity"), universe=snapshot.get("universe"),
+                            source_selections=snapshot.get("source_selections"),
+                        )
+                        Path(collected["snapshot_path"]).write_text(
+                            json.dumps(snapshot, ensure_ascii=False, sort_keys=True), encoding="utf-8",
+                        )
+                    _validate_snapshot_cache(snapshot, cache_root=cache_root)
+                    stored_bundle = memory.store_snapshot_bundle(
+                        security_id=security_id, portfolio=live_portfolio,
+                        snapshot=snapshot, calendar=calendar_record,
+                        cache_root=cache_root,
+                    )
+                    live_status = (
+                        "FETCHED_BOOTSTRAP" if snapshot_plan["mode"] == "BOOTSTRAP"
+                        else "FETCHED_INCREMENTAL" if any(
+                            value["inserted_versions"] for value in dataset_outcomes.values()
+                        ) else "CHECKED_NO_CHANGE"
+                    )
+                    live_outcome = memory.ingest_dataset(
+                        plan=snapshot_plan, facts=[], status=live_status,
+                        completed_at=snapshot["decision_cutoff"],
+                        watermark=snapshot["decision_cutoff"],
+                        details={
+                            "snapshot_hash": snapshot["snapshot_hash"],
+                            "request_count": 1, "repair_request_count": 0,
+                        },
+                        state=stored_bundle,
+                    )
+                    collection_mode = live_status
+                    memory_results.append({
+                        "security_id": security_id, "mode": collection_mode,
+                        "plans": plans, "dataset_outcomes": dataset_outcomes,
+                        "live_outcome": live_outcome,
+                    })
             live_portfolio = json.loads(Path(collected["portfolio_path"]).read_text(encoding="utf-8"))
             snapshot = json.loads(Path(collected["snapshot_path"]).read_text(encoding="utf-8"))
             calendar_record = json.loads(Path(collected["calendar_lock"]).read_text(encoding="utf-8"))
@@ -606,28 +1576,82 @@ def collect_common_stock_data_from_handoff(
                 "source_selection_hash": selection["selection_hash"],
                 "failure_code": None,
             })
+            if reused_bundle is not None:
+                memory_results.append({
+                    "security_id": security_id, "mode": collection_mode,
+                    "plans": plans, "dataset_outcomes": dataset_outcomes,
+                })
+        except sqlite3.Error as exc:
+            # A transient/security-local write failure is isolated.  If even a
+            # fresh quick check cannot use the shared database, continuing would
+            # misrepresent every later security, so stop the batch explicitly.
+            try:
+                with memory.session() as connection:
+                    memory.lightweight_check(connection)
+            except (OSError, ValueError, sqlite3.Error) as health_error:
+                raise CommonStockDataError(
+                    "RESEARCH_MEMORY_SHARED_FAILURE"
+                ) from health_error
+            completed_at = iso_utc(datetime.now(timezone.utc))
+            for dataset, plan in plans.items():
+                if dataset == "company_profile" and security_id in company_profile_outcomes:
+                    continue
+                try:
+                    memory.record_failed_attempt(
+                        plan=plan, status="FAILED_PERSISTENCE",
+                        completed_at=completed_at,
+                        details={"failure_code": "RESEARCH_MEMORY_PERSISTENCE_FAILED"},
+                    )
+                except (OSError, ValueError, sqlite3.Error):
+                    pass
+            source_items.append(failed_source_item(
+                security_id=security_id, scoped_input=scoped_input,
+                scoped_portfolio=scoped_portfolio, snapshot_dir=snapshot_dir,
+                failure_code="RESEARCH_MEMORY_PERSISTENCE_FAILED",
+                diagnostic={
+                    "status": "FAILED",
+                    "failure_code": "RESEARCH_MEMORY_PERSISTENCE_FAILED",
+                    "failure_type": type(exc).__name__,
+                    "completed_at": completed_at,
+                    "llm_calls": 0,
+                },
+            ))
         except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
-            code = str(exc).split(":", 1)[0]
+            code = _collection_failure_code(exc)
+            failure_statuses = _failed_dataset_statuses(
+                plans, snapshot_dir=snapshot_dir, failure_code=code,
+            )
+            error_stage = None
             error_path = snapshot_dir / "collection-error.json"
-            error_ref = str(error_path.relative_to(destination)) if error_path.is_file() else None
-            source_items.append({
-                "security_id": security_id,
-                "status": "FAILED",
-                "collection_input_ref": str(scoped_input.relative_to(destination)),
-                "collection_input_hash": canonical_hash(scoped_portfolio),
-                "portfolio_ref": None,
-                "portfolio_hash": None,
-                "snapshot_ref": None,
-                "snapshot_id": None,
-                "snapshot_hash": None,
-                "calendar_ref": None,
-                "calendar_hash": None,
-                "source_selection": None,
-                "source_selection_hash": None,
-                "failure_code": code if code.startswith("LIVE_") else "COMMON_STOCK_SECURITY_COLLECTION_FAILED",
-                "collection_error_ref": error_ref,
-                "collection_error_hash": content_hash(json.loads(error_path.read_text(encoding="utf-8"))) if error_ref else None,
-            })
+            if error_path.is_file():
+                try:
+                    error_stage = json.loads(
+                        error_path.read_text(encoding="utf-8")
+                    ).get("failed_stage")
+                except (OSError, AttributeError, json.JSONDecodeError):
+                    error_stage = None
+            for dataset, plan in plans.items():
+                if dataset == "company_profile" and security_id in company_profile_outcomes:
+                    continue
+                try:
+                    status = failure_statuses[dataset]
+                    recorder = (
+                        memory.record_attempt_only
+                        if status == "NOT_ATTEMPTED"
+                        else memory.record_failed_attempt
+                    )
+                    recorder(
+                        plan=plan, status=status,
+                        completed_at=iso_utc(datetime.now(timezone.utc)),
+                        details={"failure_code": code, "failed_stage": error_stage},
+                    )
+                except (OSError, ValueError, sqlite3.Error):
+                    pass
+            source_items.append(failed_source_item(
+                security_id=security_id, scoped_input=scoped_input,
+                scoped_portfolio=scoped_portfolio, snapshot_dir=snapshot_dir,
+                failure_code=code,
+            ))
 
     def collected_security(position: Mapping[str, Any]) -> Mapping[str, Any]:
         result = collected_results.get(position["security_id"])
@@ -639,18 +1663,22 @@ def collect_common_stock_data_from_handoff(
     prepared = assemble_common_stock_evidence(
         handoff, run_id=run_id, collect_security=collected_security,
     )
+    memory_artifact_root = destination / "research-memory"
+    memory_artifact_root.mkdir(mode=0o700)
     research_supplement_paths: list[str] = []
     if collect_research_supplements:
         from product.mcp.live.research_supplement import render_company_background_markdown
         from product.mcp.live.research_supplement_collection import build_research_supplements
 
+        supplement_positions = [
+            position for position in collection_portfolio["positions"]
+            if position["security_id"] in collected_results
+        ]
         supplements = build_research_supplements(
-            collection_portfolio["positions"], gate=prepared["gate"],
+            supplement_positions, gate=prepared["gate"],
             external_results=external_research_results, run_id=run_id,
         )
-        allowed_security_ids = {
-            item["security_id"] for item in collection_portfolio["positions"]
-        }
+        allowed_security_ids = {item["security_id"] for item in supplement_positions}
         supplement_root = destination / "research-supplements"
         supplement_root.mkdir(mode=0o700)
         for supplement in supplements:
@@ -681,7 +1709,38 @@ def collect_common_stock_data_from_handoff(
                 package=supplement["package"], batch=supplement["batch"],
                 allowed_security_ids=allowed_security_ids, artifact_refs=refs,
             )
+            memory_result = next(
+                item for item in memory_results if item["security_id"] == security_id
+            )
+            memory_result["plans"]["company_profile"] = company_profile_plans[security_id]
+            memory_result["dataset_outcomes"]["company_profile"] = (
+                company_profile_outcomes[security_id]
+            )
             research_supplement_paths.append(str(item_root))
+    views = []
+    for security_id, result in collected_results.items():
+        view = memory.save_view(
+            run_id=run_id, security_id=security_id,
+            decision_cutoff=prepared["gate"]["decision_cutoff"],
+            facts=result["facts"],
+            gaps=result.get("data_gaps", result.get("gaps", [])),
+            conflicts=result["conflicts"],
+        )
+        views.append(view)
+        (memory_artifact_root / f"{_safe_security_component(security_id)}-view.json").write_text(
+            json.dumps(view, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    memory_manifest = {
+        "schema_version": "company-research-memory-run/1.0.0", "run_id": run_id,
+        "memory_root": str(resolved_memory_root), "results": memory_results,
+        "view_hashes": sorted(item["view_manifest_hash"] for item in views),
+    }
+    memory_manifest["manifest_hash"] = canonical_hash(memory_manifest)
+    (memory_artifact_root / "manifest.json").write_text(
+        json.dumps(memory_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
     source_bundle = {
         "schema_version": SOURCE_BUNDLE_VERSION,
         "bundle_id": f"common-stock-source:{run_id}",
@@ -1260,8 +2319,9 @@ def merge_research_supplement_evidence(
             raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_PACKAGE_INVALID") from exc
         facts.extend(package["extra_evidence"])
     snapshot_cutoff = parse_timestamp(background["decision_cutoff"])
-    if parse_timestamp(gate["decision_cutoff"]) != snapshot_cutoff \
-            or parse_timestamp(preparation["common_cutoff"]) != snapshot_cutoff:
+    gate_cutoff = parse_timestamp(gate["decision_cutoff"])
+    if parse_timestamp(preparation["common_cutoff"]) != gate_cutoff \
+            or snapshot_cutoff > gate_cutoff:
         raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_CUTOFF_MISMATCH")
     existing_ids = set(gate.get("input_evidence_ids", []))
     allowed = list(gate.get("allowed_evidence", []))
@@ -1292,7 +2352,7 @@ def merge_research_supplement_evidence(
         if fact["evidence_id"] not in excluded_ids
     }
     gate.update({
-        "decision_cutoff": iso_utc(snapshot_cutoff),
+        "decision_cutoff": iso_utc(gate_cutoff),
         "input_evidence_ids": sorted(existing_ids),
         "allowed_evidence": sorted(allowed, key=lambda item: item["evidence_id"]),
         "allowed_evidence_ids": sorted(item["evidence_id"] for item in allowed),
@@ -1405,11 +2465,7 @@ def assemble_common_stock_evidence(
             })
             successful.append((position, result))
         except Exception as exc:
-            code = str(exc).split(":", 1)[0]
-            row["failure_code"] = (
-                code if code.startswith(("COMMON_STOCK_", "LIVE_"))
-                else "COMMON_STOCK_SECURITY_COLLECTION_FAILED"
-            )
+            row["failure_code"] = _collection_failure_code(exc)
         rows.append(row)
     cutoffs = [parse_timestamp(result["decision_cutoff"]) for _, result in successful]
     common_cutoff = max(cutoffs).isoformat().replace("+00:00", "Z") if cutoffs else handoff["confirmation"]["confirmed_at"]

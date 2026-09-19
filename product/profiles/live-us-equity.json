@@ -29,7 +29,8 @@
         "evidence-grounding",
         "company-research",
         "valuation",
-        "catalyst-analysis"
+        "catalyst-analysis",
+        "research-report-analysis"
       ],
       "tool_permissions": [
         "live_evidence.query",
