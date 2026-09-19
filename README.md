@@ -294,6 +294,46 @@ python3 -m unittest discover -s tests
 
 开始改动前先阅读 [AGENTS.md](AGENTS.md)。涉及产品方向或 Capability 取舍时再阅读 [PRODUCT.md](PRODUCT.md)；涉及产品运行契约时阅读 [product/AGENTS.md](product/AGENTS.md)。不要把所有专项文档都作为每次任务的固定前置。
 
+### 本机研究资料浏览器
+
+`add-local-research-browser` 提供一个只读网页，用于浏览 Research Memory 中已经保存的 Company 事实、View、披露事件和研究报告，以及显式配置的 Macro、Market 冻结产物。它不会联网补采、调用模型、启动研究调度或修改持久化数据。
+
+先检查 Memory 是否可读：
+
+```bash
+python3 scripts/research-browser.py \
+  --memory-root "/path/to/existing/research-memory" \
+  --check
+```
+
+只查看 Company 持久化资料时，直接启动：
+
+```bash
+python3 scripts/research-browser.py \
+  --memory-root "/path/to/existing/research-memory" \
+  --port 8765
+```
+
+如果还要浏览已有 Macro、Market 或补充研究产物，可追加一个或多个冻结运行目录：
+
+```bash
+python3 scripts/research-browser.py \
+  --memory-root "/path/to/existing/research-memory" \
+  --run-dir "/path/to/an/exact/frozen-run" \
+  --run-root "/path/to/a/run-root" \
+  --port 8765
+```
+
+启动后打开 `http://127.0.0.1:8765/`。服务只监听本机；在启动它的 Terminal 中按 `Ctrl-C` 停止。
+
+- `--memory-root` 必须指向已经存在的 Research Memory；缺库不会自动创建或迁移。
+- `--run-dir` 精确读取一个冻结运行目录，可重复指定。
+- `--run-root` 只发现根目录下直属且包含已知 manifest 的运行目录，可重复指定，不递归扫描其他位置。
+- 页面中的“重新扫描已配置目录”只重读本地文件，不会刷新外部数据。
+- `AVAILABLE` 表示保存产物存在且版本绑定闭合；`BINDING_FAILED` 表示候选产物与当前 security/run/cutoff/Evidence 不匹配；`NOT_GENERATED` 只表示没有可展示的保存产物，不代表现实中不存在相关事件或观点。
+
+完整的页面含义、支持格式、View 引用诊断和离线修复方式见 [本机研究资料浏览器说明](docs/product/local-research-browser.md)。
+
 ### 真实产品运行
 
 真实 Smoke 和 Execution Replay 通过宿主 Terminal 的统一 launcher 运行：
@@ -314,6 +354,7 @@ bash scripts/run-product-smoke.sh --help
 | 持仓输入 | [docs/product/portfolio-intake.md](docs/product/portfolio-intake.md) |
 | 普通股持仓分析 | [docs/product/common-stock-holding-analysis.md](docs/product/common-stock-holding-analysis.md) |
 | 多维持仓研究 | [docs/product/multi-dimensional-holding-research.md](docs/product/multi-dimensional-holding-research.md) |
+| 本机 Research Memory 网页浏览 | [docs/product/local-research-browser.md](docs/product/local-research-browser.md) |
 | 开发与归档流程 | [docs/development/workflow.md](docs/development/workflow.md) |
 | 环境和启动排障 | [docs/development/environment.md](docs/development/environment.md) |
 | Runtime Replay / Eval | [reviews/runtime/runtime-replay-eval-runbook.md](reviews/runtime/runtime-replay-eval-runbook.md) |

@@ -8,19 +8,20 @@
 - 行为变更使用 OpenSpec：先 propose/update，再显式 apply；实施前阅读当前 Proposal、Specs、Design、Tasks。
 - 已获 apply 授权后持续推进范围内实现、普通错误修复和聚焦检查，阶段汇报后继续；只有真实阻断或人工完成批准才暂停相应工作，不突破权限、范围或模型预算。
 - 开发自检在当前 Codex 环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。
-- Agent Package Milestone 0 使用显式 `python3 scripts/council-dev.py demo run ...` 运行零 LLM 合成装配演示；它不属于真实产品 Smoke，不证明 Skill 推理、Codex Subagent、主线程 CIO 或候选晋升。Demo 完成后，产品开发优先级回到真实单股研究闭环。
+- 使用显式 `python3 scripts/council-dev.py demo run ...` 运行零 LLM 合成装配演示；它不属于真实产品 Smoke，不证明 Skill 推理、Codex Subagent、主线程 CIO 或候选晋升。
 - 真实 Smoke 与 Execution Replay 仅从宿主 Terminal 使用 [宿主 launcher](scripts/run-product-smoke.sh)；重放使用 `--prepared-run`，准备及收尾见运行手册。底层 `python3 -m product.runtime.cli` 仅为内部实现及确定性工具入口，不另造编排后端、不绕过宿主入口直接启动模型。
 - 独立复核默认读取差异、规格与已有证据；缺证据只提出具体宿主补跑需求，不自行启动产品或额外沙箱。旧 review/probe/preflight 启动入口已退役。
 - 实施、验收或归档时读取 [开发流程](docs/development/workflow.md)；配置、路径、权限或启动排障时读取 [开发环境](docs/development/environment.md)；实际运行/重放/Eval 时读取 [运行手册](reviews/runtime/runtime-replay-eval-runbook.md) 的对应章节。无关专项文档不必全部加载。
 
-- 涉及产品方向、Capability 优先级或是否扩大工程基础设施时，
-  先读取 `PRODUCT.md`；若工程优化不能直接解除当前产品交付阻断，
-  默认继续当前产品 Capability，而不是扩建基础设施。
+- 当前任务与优先级以用户在会话中的明确指示为准，范围、进度与停止条件由对应 OpenSpec Change 记录；多个活跃 Change 不代表执行顺序，未明确时结合会话确认，不按名称、时间或任务数量自行排序。
+- 涉及产品方向或架构取舍时读取 [PRODUCT.md](PRODUCT.md) 的长期目标与架构边界。每项改动须对应当前授权目标的可观察结果，如研究质量、重复运行成本、等待时间或历史可读取性，不因未来可能需要而扩建基础设施。根开发指令和产品方向文档不维护当前阶段、任务状态或固定开发顺序，正常推进 Change 无需刷新它们。
 
 ## 职责边界
 
 - LLM 组件可以开展研究、解释、形成 Thesis、质疑证据、分析冲突并综合决策。
 - Python 组件可以获取和标准化数据、执行数学计算、核算组合、实施明确的硬风险约束、验证契约并持久化产物。
+- Agent 按研究、解释和判断职责设置，不按数据源或存储机制拆分。缓存、增量计划、checkpoint、事务和机械版本选择属于确定性 Tool/Python；Research Memory 是共享支撑能力，沿用现有调度入口，不新增持久化 Agent 或第二套编排器。
+- Agent 可在对应 Capability 授权后经受限工具检索历史；数据库写入与 checkpoint 推进由确定性层负责。历史报告保留为当时的判断，不自动升级为事实 Evidence，也不绕过 Skeptic 独立首轮的信息隔离。
 - 禁止将主观投资判断编码为确定性评分或大型条件规则引擎。
 - 禁止增加券商接入、订单路由、账户修改或其他真实交易能力。
 - 开发 Agent 只能为已授权的实现任务编辑本仓库，不继承产品运行时 CIO 权限。
@@ -29,7 +30,7 @@
 ## 完成标准与安全
 
 - 所有承载事实的契约都必须包含 `source_id`、`as_of` 和 `retrieved_at`。
-- 所有运行时能力都必须包含 Input、Tool/Data、Skill/Reasoning、Structured Output 和 Eval。
+- 研究能力说明输入、工具、推理方法和结构化输出；确定性能力说明输入、处理和结构化输出。验证与实际行为对应，不为确定性能力强制新增 Agent、Skill 或 LLM Eval。
 - 候选版本必须锁定模型、Skill、Agent、Schema、MCP Adapter、Risk Policy 和数据版本。
 - 日常开发按纵向切片做聚焦验证，验证后才勾选；Change 按既定 Specs/Tasks、独立复核和人工批准收尾；晋升另需版本锁、OpenSpec、完整确定性测试、Eval/Regression 和架构评审及人工批准。复用有效证据，不把发布级检查作为每步前置；Change 完成不代表 Promotion PASS。
 - Runtime Eval、Execution Replay、Regression、Calibration、Ablation 与 Promotion 只能由对应的显式维护或晋升任务触发；普通开发、自检、Demo、差异复核和归档准备不得隐式启动，也不得把“未运行”伪造成 PASS。
