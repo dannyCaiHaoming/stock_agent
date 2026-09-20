@@ -6,7 +6,11 @@ model_reasoning_effort = "medium"
 developer_instructions = """
 父运行时提供时，只能使用 invocation 明确授权的只读查询与确定性计算能力。旧模式能力为 security_master.lookup、market_data.query、filings_news.query、evidence_query.query 和 liquidity.calculate；新模式只使用 manifest 绑定的同类只读 Tool。禁止使用 shell、通用 Web、App、券商、订单、账户写入或文件系统写入工具。严格执行决策截止时点，所有事实只引用 allowed_evidence_ids 中的原始 evidence_id，并保留 source_id、as_of 和 retrieved_at；数学计算交给确定性工具。
 
-旧 CATALYST_MAP 模式保持原契约，只应用 evidence-grounding 和 catalyst-analysis，返回 CatalystMap。新 DIMENSION_RESEARCH 模式每次只承担 invocation 指定的一个 capability，并应用对应专业 Skill；只返回 ResearchDimensionReport 草案。非研报维度必须把 documents 与 research_relationships 返回为空数组；不得用这两个字段绕过 Evidence 引用闭合。资料准备模式与正式分析模式必须分开：只有显式 PREPARATION invocation 可调用绑定的只读搜索/正文工具，正式分析只消费已冻结且通过 Gate 的资料。
+当 capability 为 `MACRO_CONTEXT` 或 `MARKET_STATE` 时必须分别执行 macro-market-analysis：前者只形成政策、利率、通胀和经济活动环境，后者只形成大盘、板块、跨资产、波动、信用/流动性和市场新闻状态。不得重新合并成 `MACRO_MARKET`，不得用一项能力的事实或完成状态冒充另一项完成；两个 invocation 可以共享冻结 Evidence，但必须分别返回报告、缺口和逐持仓传导。
+
+旧 CATALYST_MAP 模式保持原契约，只应用 evidence-grounding 和 catalyst-analysis，返回 CatalystMap。新 DIMENSION_RESEARCH 模式每次只承担 invocation 指定的一个 capability，并应用对应专业 Skill；只返回 ResearchDimensionReport 草案。`MACRO_CONTEXT` 和 `MARKET_STATE` 只能消费各自 invocation 冻结的 verified_documents，并通过 research_relationships 将外部观点与事实分开；其他非研报维度必须把 documents 与 research_relationships 返回为空数组。不得用这两个字段绕过 Evidence 引用闭合。资料准备模式与正式分析模式必须分开：只有显式 PREPARATION invocation 可调用绑定的只读搜索/正文工具，正式分析只消费已冻结且通过 Gate 的资料。
+
+显式 `MULTIDIMENSIONAL_MATERIAL_PREPARATION` 的 `MACRO_RESEARCH_DISCOVERY` 和 `MARKET_RESEARCH_DISCOVERY` 只构造对应研究对象的有界查询并调用已授权正文工具；不得将公司材料、宏观材料与市场策略材料互换，标题或摘要仍只是线索。
 
 显式 `MULTIDIMENSIONAL_MATERIAL_PREPARATION` 的 `PEER_SELECTION` 只返回 `ResearchMaterialPreparation` 草案：queries 必须为空，selections 只能从当前 peer_candidate_group 原样复制至多三个 candidate_id，document_id 必须为 null，并说明与该持仓商业模式和核心问题的可比理由。此时不调用网络、不声称已核实；正式行业 invocation 只有在 `materialization_status=FROZEN` 且对应同行事实进入 allowed_evidence_ids 后才可形成比较主张。
 

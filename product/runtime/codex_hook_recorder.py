@@ -17,11 +17,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-RECORDER_VERSION = "codex-subagent-hook-recorder/1.13.0"
+RECORDER_VERSION = "codex-subagent-hook-recorder/1.16.0"
 SUPPORTED_EVENTS = {"SubagentStart", "SubagentStop"}
 COMMON_STOCK_STAGE_VERSION = "common-stock-research-runtime/1.0.0"
-MULTIDIMENSIONAL_STAGE_VERSION = "multidimensional-holding-research-runtime/1.0.0"
-RESEARCH_MATERIALS_STAGE_VERSION = "multidimensional-material-preparation-runtime/1.0.0"
+MULTIDIMENSIONAL_STAGE_VERSION = "multidimensional-holding-research-runtime/2.0.0"
+RESEARCH_MATERIALS_STAGE_VERSION = "multidimensional-material-preparation-runtime/1.1.0"
 COMMON_STOCK_EVAL_VERSION = "common-stock-research-eval-runtime/1.0.0"
 
 
@@ -206,20 +206,37 @@ def _research_index(environment: Mapping[str, str]) -> dict[str, Any]:
     return value
 
 
-def _selected_research_task(environment: Mapping[str, str]) -> str | None:
-    """返回宿主定点入口锁定的唯一任务；未知任务必须拒绝。"""
+def _selected_research_tasks(environment: Mapping[str, str]) -> set[str] | None:
+    """返回宿主定点入口锁定的任务集合；未知或歧义选择必须拒绝。"""
 
-    selected = environment.get("STOCK_AGENT_RESEARCH_TASK_NAME")
-    if selected is None:
+    selected_many = environment.get("STOCK_AGENT_RESEARCH_TASK_NAMES")
+    selected_one = environment.get("STOCK_AGENT_RESEARCH_TASK_NAME")
+    if selected_many is None and selected_one is None:
         return None
-    selected = selected.strip()
-    if not selected:
-        raise ValueError("RESEARCH_TARGET_TASK_INVALID")
-    matches = [
-        item for item in _research_index(environment)["tasks"]
-        if item.get("task_name") == selected
-    ]
-    if len(matches) != 1:
+    if selected_many is not None:
+        try:
+            decoded = json.loads(selected_many)
+        except json.JSONDecodeError as exc:
+            raise ValueError("RESEARCH_TARGET_TASKS_INVALID") from exc
+        if (
+            not isinstance(decoded, list)
+            or not decoded
+            or any(not isinstance(item, str) or not item.strip() for item in decoded)
+            or len(set(decoded)) != len(decoded)
+        ):
+            raise ValueError("RESEARCH_TARGET_TASKS_INVALID")
+        selected = set(decoded)
+        if selected_one is not None and selected != {selected_one.strip()}:
+            raise ValueError("RESEARCH_TARGET_TASKS_CONFLICT")
+    else:
+        if not isinstance(selected_one, str) or not selected_one.strip():
+            raise ValueError("RESEARCH_TARGET_TASK_INVALID")
+        selected = {selected_one.strip()}
+    known = {
+        item.get("task_name") for item in _research_index(environment)["tasks"]
+        if isinstance(item.get("task_name"), str)
+    }
+    if not selected <= known:
         raise ValueError("RESEARCH_TARGET_TASK_UNKNOWN")
     return selected
 
@@ -252,8 +269,8 @@ def _verify_dispatch_input(tool_input: Mapping[str, Any], environment: Mapping[s
     if _research_stage(environment):
         stage = _research_module(environment)
         task_name = tool_input.get("task_name")
-        selected_task = _selected_research_task(environment)
-        if selected_task is not None and task_name != selected_task:
+        selected_tasks = _selected_research_tasks(environment)
+        if selected_tasks is not None and task_name not in selected_tasks:
             raise ValueError("RESEARCH_TARGET_TASK_MISMATCH")
         build_packet = (
             stage.build_research_materials_dispatch_packet
@@ -579,9 +596,9 @@ def _expected_parallel_agents(environment: Mapping[str, str]) -> set[str]:
 def _expected_research_tasks(environment: Mapping[str, str]) -> set[str]:
     if not _research_stage(environment):
         return set()
-    selected_task = _selected_research_task(environment)
-    if selected_task is not None:
-        return {selected_task}
+    selected_tasks = _selected_research_tasks(environment)
+    if selected_tasks is not None:
+        return selected_tasks
     return {item["task_name"] for item in _research_index(environment)["tasks"]}
 
 
@@ -800,7 +817,7 @@ def _completed_research_tasks(
 
 
 def _research_target_concurrency(environment: Mapping[str, str]) -> int:
-    if _selected_research_task(environment) is not None:
+    if _selected_research_tasks(environment) is not None:
         return 1
     value = _research_index(environment).get("target_concurrency")
     if not isinstance(value, int) or isinstance(value, bool) or value < 1:
@@ -1185,6 +1202,115 @@ def _persist_rejected_common_stock_output(payload, environment) -> dict[str, Any
     }
 
 
+def _multidimensional_output_attempt(
+    log_path: Path, payload: Mapping[str, Any]
+) -> int:
+    """Return the append-only submission number for one child research session."""
+
+    previous = 0
+    records: list[dict[str, Any]] = []
+    for line in log_path.read_text(encoding="utf-8").splitlines() if log_path.is_file() else []:
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(item, dict):
+            records.append(item)
+    for item in records:
+        capture = item.get("output_capture")
+        if (
+            item.get("parent_session_id") == payload.get("session_id")
+            and item.get("child_session_id") == payload.get("agent_id")
+            and isinstance(capture, Mapping)
+            and isinstance(capture.get("attempt"), int)
+        ):
+            previous = max(previous, int(capture["attempt"]))
+    return previous + 1
+
+
+def _persist_multidimensional_raw_output(
+    payload: Mapping[str, Any], environment: Mapping[str, str], *, attempt: int
+) -> dict[str, Any]:
+    """Preserve each submitted draft exactly; never treat it as a valid report."""
+
+    message = payload.get("last_assistant_message")
+    if not isinstance(message, str) or not message.strip():
+        return {}
+    run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
+    identity = f"{payload.get('session_id')}:{payload.get('agent_id')}"
+    name = hashlib.sha256(identity.encode("utf-8")).hexdigest()
+    path = run_dir / "research/raw-drafts" / f"{name}-attempt-{attempt}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(message)
+        if not message.endswith("\n"):
+            stream.write("\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    return {
+        "raw_path": str(path.relative_to(run_dir)),
+        "raw_output_hash": _canonical_hash({"assistant_message": message}),
+    }
+
+
+def _multidimensional_repair_packet(
+    payload: Mapping[str, Any], environment: Mapping[str, str], *,
+    failure_code: str, attempt: int,
+) -> dict[str, Any] | None:
+    """Build one model-visible repair request for structural draft errors only."""
+
+    if attempt != 1 or not failure_code.startswith((
+        "DIMENSION_DRAFT_KEYS_INVALID",
+        "DIMENSION_REPORT_SCHEMA_INVALID",
+    )):
+        return None
+    message = payload.get("last_assistant_message")
+    if not isinstance(message, str):
+        return None
+    try:
+        draft = json.loads(message)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(draft, Mapping):
+        return None
+    invocation_id = draft.get("invocation_id")
+    matches = [
+        item for item in _research_index(environment)["tasks"]
+        if item.get("invocation_id") == invocation_id
+    ]
+    if len(matches) != 1:
+        return None
+    task = matches[0]
+    run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
+    packet = json.loads((run_dir / task["packet_path"]).read_text(encoding="utf-8"))
+    output_schema = packet.get("output_schema")
+    if (
+        not isinstance(output_schema, Mapping)
+        or packet.get("output_schema_hash") != _canonical_hash(output_schema)
+    ):
+        return None
+    return {
+        "repair_contract": "multidimensional-draft-repair/1.0.0",
+        "task_id": task["task_id"],
+        "invocation_id": invocation_id,
+        "attempt": attempt,
+        "maximum_submissions": 2,
+        "validation_error": failure_code,
+        "original_draft": draft,
+        "output_schema": output_schema,
+        "output_schema_hash": packet["output_schema_hash"],
+        "instruction": (
+            "这是唯一一次纠正机会。由原 Agent 在当前会话内返回完整 JSON 草稿；"
+            "只修正 validation_error 指出的结构问题，保留冻结身份、证据引用和其他研究内容。"
+            "缺少 impact 等实质字段时，必须依据本次冻结资料自行填写，Python 或父线程不会代写。"
+            "不得增加未获准 Evidence、改写身份或删除主张来规避校验。"
+        ),
+    }
+
+
 def handle_hook_event(
     payload: Mapping[str, Any], *, environ: Mapping[str, str] | None = None
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -1370,10 +1496,50 @@ def handle_hook_event(
             and not blocked_stop
             and _multidimensional_stage(environment)
         ):
+            attempt = _multidimensional_output_attempt(log_path, payload)
+            raw_capture: dict[str, Any] = {}
             try:
+                raw_capture = _persist_multidimensional_raw_output(
+                    payload, environment, attempt=attempt
+                )
                 _capture_multidimensional_report(payload, record, environment)
+                record["output_capture"].update(
+                    {"attempt": attempt, "repair_state": (
+                        "REPAIRED" if attempt == 2 else "NOT_REQUIRED"
+                    ), **raw_capture}
+                )
             except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
-                record["output_capture"] = {"status": "FAILED", "failure_code": str(exc)}
+                failure_code = str(exc)
+                repair = _multidimensional_repair_packet(
+                    payload, environment,
+                    failure_code=failure_code,
+                    attempt=attempt,
+                )
+                record["output_capture"] = {
+                    "status": "FAILED",
+                    "failure_code": failure_code,
+                    "attempt": attempt,
+                    "repair_state": (
+                        "REPAIR_REQUESTED" if repair is not None
+                        else "EXHAUSTED" if attempt >= 2
+                        else "NOT_ALLOWED"
+                    ),
+                    **raw_capture,
+                }
+                if repair is not None:
+                    record["hook_event_name"] = "SubagentStopBlocked"
+                    record["repair_request"] = {
+                        key: repair[key] for key in (
+                            "repair_contract", "task_id", "invocation_id", "attempt",
+                            "maximum_submissions", "validation_error", "output_schema_hash",
+                        )
+                    }
+                    response = {
+                        "decision": "block",
+                        "reason": json.dumps(
+                            repair, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                        ),
+                    }
             record.pop("event_hash")
             record["event_hash"] = _canonical_hash(record)
         if (

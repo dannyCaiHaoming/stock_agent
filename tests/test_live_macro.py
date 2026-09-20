@@ -7,8 +7,11 @@ import tempfile
 import unittest
 
 from product.mcp.live.macro import (
-    BLS_VERSION, TREASURY_VERSION, collect_official_macro_snapshot,
-    load_research_source_policy, normalize_bls_response, normalize_treasury_csv,
+    BLS_CALENDAR_VERSION, BLS_VERSION, FED_POLICY_VERSION, TREASURY_VERSION,
+    collect_official_macro_snapshot, load_research_source_policy,
+    normalize_bls_calendar_ics, normalize_bls_response,
+    normalize_federal_reserve_document, normalize_federal_reserve_feed,
+    normalize_treasury_csv,
 )
 from product.mcp.live.sec_client import Response
 from product.runtime.common_stock_data import merge_macro_research_evidence
@@ -25,9 +28,11 @@ class OfficialMacroTests(unittest.TestCase):
         )
         self.assertEqual(policy["sources"]["bls"]["adapter_version"], BLS_VERSION)
         self.assertEqual(policy["sources"]["treasury"]["adapter_version"], TREASURY_VERSION)
+        self.assertEqual(policy["sources"]["federal_reserve"]["adapter_version"], FED_POLICY_VERSION)
+        self.assertEqual(policy["sources"]["bls_calendar"]["adapter_version"], BLS_CALENDAR_VERSION)
         self.assertTrue(all(
             policy["sources"][name]["authentication"] == "none"
-            for name in ("bls", "treasury")
+            for name in ("bls", "treasury", "federal_reserve", "bls_calendar")
         ))
 
     def test_bls_uses_retrieval_as_conservative_publication_time(self):
@@ -56,6 +61,36 @@ class OfficialMacroTests(unittest.TestCase):
         self.assertEqual(fact["as_of"], "2026-09-15T00:00:00Z")
         self.assertEqual(fact["published_at"], "2026-09-15T20:00:00Z")
 
+    def test_federal_reserve_policy_uses_official_publication_and_body(self):
+        feed = b"""<?xml version='1.0'?><rss><channel><item>
+        <title>Federal Reserve issues FOMC statement</title>
+        <link>https://www.federalreserve.gov/newsevents/pressreleases/monetary20260910a.htm</link>
+        <pubDate>Thu, 10 Sep 2026 18:00:00 GMT</pubDate>
+        </item></channel></rss>"""
+        candidate = normalize_federal_reserve_feed(
+            feed, decision_cutoff="2026-09-15T00:00:00Z"
+        )
+        result = normalize_federal_reserve_document(
+            ("<html><body><main><h1>FOMC statement</h1><p>" + "Policy text. " * 20
+             + "</p></main></body></html>").encode(),
+            candidate=candidate, retrieved_at="2026-09-15T10:00:00Z",
+        )
+        fact = result["evidence"][0]
+        self.assertEqual(fact["published_at"], "2026-09-10T18:00:00Z")
+        self.assertEqual(fact["metadata"]["document_kind"], "OFFICIAL_POLICY_TEXT")
+        self.assertIn("Policy text", fact["value"])
+
+    def test_bls_calendar_keeps_only_announced_bounded_events(self):
+        raw = b"""BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:cpi-1\r\nDTSTART;TZID=America/New_York:20260920T083000\r\nSUMMARY:Consumer Price Index\r\nSTATUS:CONFIRMED\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"""
+        fact = normalize_bls_calendar_ics(
+            raw, retrieved_at="2026-09-15T10:00:00Z",
+            endpoint="https://www.bls.gov/schedule/news_release/bls.ics",
+            decision_cutoff="2026-09-15T10:00:00Z",
+        )["evidence"][0]
+        events = json.loads(fact["value"])
+        self.assertEqual(events[0]["scheduled_at"], "2026-09-20T12:30:00Z")
+        self.assertTrue(fact["metadata"]["announced_not_predicted"])
+
     def test_future_retrieval_is_really_excluded_and_source_failures_are_isolated(self):
         bls = json.dumps({
             "status": "REQUEST_SUCCEEDED",
@@ -64,7 +99,10 @@ class OfficialMacroTests(unittest.TestCase):
                 "data": [{"year": "2026", "period": "M08", "periodName": "August", "value": "4.2", "footnotes": []}],
             }]},
         }).encode()
-        replies = iter([Response(200, bls), Response(503, b"")])
+        replies = iter([
+            Response(200, bls), Response(503, b""), Response(503, b""),
+            Response(503, b""),
+        ])
         with tempfile.TemporaryDirectory() as temp:
             result = collect_official_macro_snapshot(
                 policy_path=ROOT / "product/mcp/live/research-source-policy.json",

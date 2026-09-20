@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,7 @@ from product.mcp.live.peer_candidates import build_peer_candidate_pool
 from product.mcp.provenance import content_hash
 from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError
 from product.runtime.research_materials_stage import (
+    DISCOVERY_KINDS,
     STAGE_VERSION,
     _output_schema,
     _parent_output_schema,
@@ -102,9 +104,14 @@ class ResearchMaterialsStageTests(unittest.TestCase):
 
         self.assertEqual(
             set(manifest),
-            {"query", "calculate", "research_search", "research_fetch"},
+            {
+                "query", "calculate", "equity_research_attachments.query",
+                "research_search", "research_fetch",
+            },
         )
-        for name in ("research_search", "research_fetch"):
+        for name in (
+            "equity_research_attachments.query", "research_search", "research_fetch",
+        ):
             schema = manifest[name]["inputSchema"]
             self.assertNotIn("run_dir", schema["properties"])
             self.assertNotIn("run_dir", schema["required"])
@@ -160,7 +167,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         prepare_research_materials_stage(
             ROOT, handoff_path=handoff_path, gate_path=gate_path,
             peer_candidate_pool_path=pool_path, run_dir=run,
-            run_id="materials-run", model="gpt-5.6-terra",
+            run_id="materials-run", model="gpt-5.6-terra", target_concurrency=8,
         )
         return run
 
@@ -206,8 +213,9 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 "run_id": task["run_id"], "invocation_id": task["invocation_id"],
                 "agent": task["agent"], "security_id": task["security_id"],
             }
-            if task["preparation_kind"] == "RESEARCH_REPORT_DISCOVERY":
-                query = f"{task['security']['display_symbol']} public research"
+            if task["preparation_kind"] in DISCOVERY_KINDS:
+                subject = task["security"]["display_symbol"] or task["security"]["display_name"]
+                query = f"{subject} public research"
                 search = tools.research_search(
                     **identity, decision_cutoff=task["decision_cutoff"], query=query
                 )
@@ -240,13 +248,24 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             run = self.prepare(Path(temp))
             index = json.loads((run / "research/dispatch-index.json").read_text())
-            self.assertEqual(len(index["tasks"]), 4)
+            self.assertEqual(len(index["tasks"]), 6)
             research = next(item for item in index["tasks"] if item["preparation_kind"] == "RESEARCH_REPORT_DISCOVERY")
             peer = next(item for item in index["tasks"] if item["preparation_kind"] == "PEER_SELECTION")
+            macro = next(item for item in index["tasks"] if item["preparation_kind"] == "MACRO_RESEARCH_DISCOVERY")
+            market = next(item for item in index["tasks"] if item["preparation_kind"] == "MARKET_RESEARCH_DISCOVERY")
             research_invocation = json.loads((run / research["invocation_path"]).read_text())
             peer_invocation = json.loads((run / peer["invocation_path"]).read_text())
             self.assertEqual(research_invocation["tool_permissions"], ["public_research.search", "public_research.fetch"])
             self.assertEqual(peer_invocation["tool_permissions"], [])
+            for task, capability in ((macro, "MACRO_CONTEXT"), (market, "MARKET_STATE")):
+                invocation = json.loads((run / task["invocation_path"]).read_text())
+                self.assertEqual(task["agent"], "runtime_market_catalyst")
+                self.assertEqual(task["target_capabilities"], [capability])
+                self.assertEqual(
+                    invocation["tool_permissions"],
+                    ["public_research.search", "public_research.fetch"],
+                )
+                self.assertEqual(invocation["skill"]["name"], "macro-market-analysis")
             self.assertEqual(json.loads((run / "run_manifest.json").read_text())["schema_version"], STAGE_VERSION)
             self.assertIsNotNone(build_research_materials_dispatch_packet(ROOT, run, research["task_name"]))
             packet = build_research_materials_dispatch_packet(ROOT, run, research["task_name"])
@@ -402,10 +421,13 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             result = self.execute_with_hooks(run)
             self.assertEqual(result["status"], "PASSED")
             manifest = json.loads((run / "research/material-preparation-manifest.json").read_text())
-            self.assertEqual(len(manifest["outputs"]), 2)
+            self.assertEqual(len(manifest["outputs"]), 4)
             self.assertEqual(
                 {item["preparation_kind"] for item in manifest["outputs"]},
-                {"RESEARCH_REPORT_DISCOVERY", "PEER_SELECTION"},
+                {
+                    "RESEARCH_REPORT_DISCOVERY", "PEER_SELECTION",
+                    "MACRO_RESEARCH_DISCOVERY", "MARKET_RESEARCH_DISCOVERY",
+                },
             )
 
     def test_finalizer_preserves_one_failed_preparation_as_explicit_gap(self):
@@ -431,6 +453,47 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                         "output_capture": {
                             "status": "FAILED",
                             "failure_code": "RESEARCH_MATERIALS_SEARCH_PROOF_MISSING",
+                        },
+                    })
+                    continue
+                if task["preparation_kind"] in {
+                    "MACRO_RESEARCH_DISCOVERY", "MARKET_RESEARCH_DISCOVERY",
+                }:
+                    query = f"{task['security']['display_name']} public research"
+                    material_dir = run / "research/materials" / hashlib.sha256(
+                        task["invocation_id"].encode("utf-8")
+                    ).hexdigest()[:16]
+                    material_dir.mkdir(parents=True)
+                    search_path = material_dir / "search-1.json"
+                    search_path.write_text(json.dumps({
+                        "query": query, "candidates": [], "excluded": [],
+                        "raw_content_hash": None, "attempt_status": "SOURCE_LIMITED",
+                        "failure_code": "PUBLIC_RESEARCH_SEARCH_HTTP_503",
+                        "provider_events": [],
+                    }), encoding="utf-8")
+                    output = {
+                        "run_id": task["run_id"], "invocation_id": task["invocation_id"],
+                        "agent": task["agent"], "preparation_kind": task["preparation_kind"],
+                        "security_id": task["security_id"], "status": "SOURCE_LIMITED",
+                        "summary": "当前正文来源受限。",
+                        "queries": [{"query": query, "purpose": "核对共享研究材料"}],
+                        "selections": [],
+                        "gaps": [{
+                            "reason_code": "PUBLIC_RESEARCH_SEARCH_HTTP_503",
+                            "description": "本次查询未返回候选。",
+                            "impact": "该维度无可冻结外部正文。",
+                        }],
+                        "artifact_refs": [str(search_path.relative_to(run))],
+                    }
+                    result_dir = run / "research/material-results" / task["task_name"]
+                    result_dir.mkdir(parents=True)
+                    result_path = result_dir / "preparation-result.json"
+                    result_path.write_text(json.dumps(output), encoding="utf-8")
+                    events.append({
+                        "hook_event_name": "SubagentStop",
+                        "output_capture": {
+                            "status": "SAVED", "task_id": task["task_id"],
+                            "path": str(result_path.relative_to(run)),
                         },
                     })
                     continue
@@ -644,6 +707,25 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 evidence_id.startswith("candidate:")
                 for evidence_id in industry_packet["allowed_evidence_ids"]
             ))
+            macro_task = next(item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT")
+            market_task = next(item for item in index["tasks"] if item["capability"] == "MARKET_STATE")
+            macro_packet = build_multidimensional_dispatch_packet(
+                ROOT, formal, macro_task["task_name"], include_dependency_reports=False
+            )
+            market_packet = build_multidimensional_dispatch_packet(
+                ROOT, formal, market_task["task_name"], include_dependency_reports=False
+            )
+            self.assertEqual(
+                macro_packet["verified_documents"][0]["content"]["security_id"],
+                "US:MACRO",
+            )
+            self.assertEqual(
+                market_packet["verified_documents"][0]["content"]["security_id"],
+                "US:MARKET",
+            )
+            self.assertEqual(macro_packet["material_preparation"]["status"], "READY")
+            self.assertEqual(market_packet["material_preparation"]["status"], "READY")
+            self.assertIn("外部观点", macro_packet["instruction"])
 
 
 if __name__ == "__main__":

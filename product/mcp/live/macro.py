@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import csv
+from email.utils import parsedate_to_datetime
 import hashlib
+import html
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from io import StringIO
 import json
 from pathlib import Path
+import re
 from typing import Any, Callable, Mapping
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPSHandler, Request, build_opener
+from xml.etree import ElementTree
+from zoneinfo import ZoneInfo
 
 from product.mcp.live.cache import SnapshotCache
 from product.mcp.live.contracts import validate_contract
@@ -20,13 +25,16 @@ from product.mcp.live.tls import verified_https_context
 from product.mcp.provenance import content_hash, iso_utc, parse_timestamp
 
 
-POLICY_VERSION = "research-source-policy/1.0.0"
+POLICY_VERSION = "research-source-policy/1.1.0"
 BLS_VERSION = "bls-public-v1/1.0.0"
 TREASURY_VERSION = "treasury-yield-csv/1.0.0"
+FED_POLICY_VERSION = "federal-reserve-monetary-rss/1.0.0"
+BLS_CALENDAR_VERSION = "bls-release-calendar-ics/1.0.0"
 MAX_BYTES = 2 * 1024 * 1024
 SERIES = {
     "CUUR0000SA0": ("us_cpi_all_items", "index_1982_84_100"),
     "LNS14000000": ("us_unemployment_rate", "percent"),
+    "CES0000000001": ("us_total_nonfarm_payrolls", "thousands_persons"),
 }
 
 
@@ -36,12 +44,14 @@ def load_research_source_policy(path: Path) -> dict[str, Any]:
         not isinstance(value, dict)
         or value.get("schema_version") != POLICY_VERSION
         or value.get("purpose") != "personal-read-only-research"
-        or not {"bls", "treasury"} <= set(value.get("sources", {}))
+        or not {"bls", "treasury", "federal_reserve", "bls_calendar"} <= set(value.get("sources", {}))
     ):
         raise ValueError("RESEARCH_SOURCE_POLICY_INVALID")
     expected = {
         "bls": (BLS_VERSION, ["api.bls.gov"], 1),
         "treasury": (TREASURY_VERSION, ["home.treasury.gov"], 1),
+        "federal_reserve": (FED_POLICY_VERSION, ["www.federalreserve.gov"], 2),
+        "bls_calendar": (BLS_CALENDAR_VERSION, ["www.bls.gov"], 1),
     }
     for name, (version, domains, budget) in expected.items():
         source = value["sources"][name]
@@ -94,6 +104,8 @@ def _fact(
     *, semantic_field: str, value: str, unit: str, source_id: str,
     source_type: str, source_locator: str, source_version: str, as_of: str,
     retrieved_at: str, raw_content_hash: str, metadata: Mapping[str, Any],
+    published_at: str | None = None,
+    published_at_policy: str = "retrieval_time_conservative/no_historical_vintage",
 ) -> dict[str, Any]:
     fact = {
         "schema_version": "live-fact/1.0.0",
@@ -109,8 +121,8 @@ def _fact(
         "as_of": iso_utc(as_of),
         # 两个免费响应均缺少足以重建历史 vintage 的精确发布时间；
         # 以获取时间作为保守最早已知时间，宁可排除，不回填观察日。
-        "published_at": iso_utc(retrieved_at),
-        "published_at_policy": "retrieval_time_conservative/no_historical_vintage",
+        "published_at": iso_utc(published_at or retrieved_at),
+        "published_at_policy": published_at_policy,
         "retrieved_at": iso_utc(retrieved_at),
         "raw_content_hash": raw_content_hash,
         "kind": "macro",
@@ -213,6 +225,143 @@ def normalize_treasury_csv(
     return {"evidence": [fact], "gaps": [], "raw_content_hash": raw_hash}
 
 
+def _visible_text(raw: bytes) -> str:
+    try:
+        text = raw.decode("utf-8", "replace")
+    except (AttributeError, UnicodeDecodeError) as exc:
+        raise ValueError("FEDERAL_RESERVE_DOCUMENT_INVALID") from exc
+    text = re.sub(r"(?is)<(script|style|nav|footer).*?>.*?</\1>", " ", text)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    return " ".join(html.unescape(text).split())
+
+
+def normalize_federal_reserve_feed(
+    raw: bytes, *, decision_cutoff: str,
+) -> dict[str, Any]:
+    """从官方货币政策 RSS 选出 cutoff 前最新正文候选。"""
+
+    try:
+        root = ElementTree.fromstring(raw)
+    except ElementTree.ParseError as exc:
+        raise ValueError("FEDERAL_RESERVE_FEED_INVALID") from exc
+    cutoff = parse_timestamp(decision_cutoff)
+    candidates = []
+    for item in root.findall(".//item"):
+        title = (item.findtext("title") or "").strip()
+        link = (item.findtext("link") or "").strip()
+        published = (item.findtext("pubDate") or "").strip()
+        try:
+            published_at = parsedate_to_datetime(published).astimezone(timezone.utc)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if (
+            title and link.startswith("https://www.federalreserve.gov/")
+            and published_at <= cutoff
+        ):
+            candidates.append((published_at, title, link))
+    if not candidates:
+        raise ValueError("FEDERAL_RESERVE_POLICY_NOT_AVAILABLE_AT_CUTOFF")
+    published_at, title, link = max(candidates, key=lambda item: item[0])
+    return {
+        "title": title, "source_locator": link,
+        "published_at": iso_utc(published_at),
+        "feed_raw_content_hash": hashlib.sha256(raw).hexdigest(),
+    }
+
+
+def normalize_federal_reserve_document(
+    raw: bytes, *, candidate: Mapping[str, Any], retrieved_at: str,
+) -> dict[str, Any]:
+    text = _visible_text(raw)
+    if len(text) < 120:
+        raise ValueError("FEDERAL_RESERVE_DOCUMENT_EMPTY")
+    raw_hash = hashlib.sha256(raw).hexdigest()
+    fact = _fact(
+        semantic_field="federal_reserve_monetary_policy_text",
+        value=text[:12000], unit="text",
+        source_id="federal-reserve-monetary-policy",
+        source_type="federal_reserve",
+        source_locator=str(candidate["source_locator"]),
+        source_version=FED_POLICY_VERSION,
+        as_of=str(candidate["published_at"]), published_at=str(candidate["published_at"]),
+        published_at_policy="official_rss_pub_date",
+        retrieved_at=retrieved_at, raw_content_hash=raw_hash,
+        metadata={
+            "title": candidate["title"], "document_kind": "OFFICIAL_POLICY_TEXT",
+            "feed_raw_content_hash": candidate["feed_raw_content_hash"],
+            "revision_handling": "new retrieval creates a new raw-content version",
+        },
+    )
+    return {"evidence": [fact], "gaps": [], "raw_content_hash": raw_hash}
+
+
+def _unfold_ics(raw: bytes) -> list[str]:
+    try:
+        lines = raw.decode("utf-8-sig").replace("\r\n", "\n").split("\n")
+    except UnicodeDecodeError as exc:
+        raise ValueError("BLS_CALENDAR_INVALID") from exc
+    unfolded: list[str] = []
+    for line in lines:
+        if line.startswith((" ", "\t")) and unfolded:
+            unfolded[-1] += line[1:]
+        else:
+            unfolded.append(line)
+    return unfolded
+
+
+def normalize_bls_calendar_ics(
+    raw: bytes, *, retrieved_at: str, endpoint: str, decision_cutoff: str,
+) -> dict[str, Any]:
+    cutoff = parse_timestamp(decision_cutoff)
+    events, current = [], None
+    for line in _unfold_ics(raw):
+        if line == "BEGIN:VEVENT":
+            current = {}
+        elif line == "END:VEVENT" and isinstance(current, dict):
+            dtstart = current.get("DTSTART")
+            summary = current.get("SUMMARY")
+            if dtstart and summary:
+                try:
+                    if dtstart.endswith("Z"):
+                        scheduled = datetime.strptime(dtstart, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+                    elif "T" in dtstart:
+                        scheduled = datetime.strptime(dtstart, "%Y%m%dT%H%M%S").replace(
+                            tzinfo=ZoneInfo("America/New_York")
+                        ).astimezone(timezone.utc)
+                    else:
+                        scheduled = datetime.strptime(dtstart, "%Y%m%d").replace(tzinfo=timezone.utc)
+                except ValueError:
+                    current = None
+                    continue
+                if scheduled >= cutoff - timedelta(days=7) and scheduled <= cutoff + timedelta(days=180):
+                    events.append({
+                        "event_id": current.get("UID") or content_hash({"summary": summary, "scheduled": iso_utc(scheduled)}),
+                        "summary": summary.replace("\\,", ","),
+                        "scheduled_at": iso_utc(scheduled),
+                        "status": current.get("STATUS", "CONFIRMED"),
+                    })
+            current = None
+        elif isinstance(current, dict) and ":" in line:
+            key, value = line.split(":", 1)
+            current[key.split(";", 1)[0]] = value.strip()
+    if not events:
+        raise ValueError("BLS_CALENDAR_EVENTS_EMPTY")
+    raw_hash = hashlib.sha256(raw).hexdigest()
+    fact = _fact(
+        semantic_field="bls_announced_release_calendar",
+        value=json.dumps(sorted(events, key=lambda item: item["scheduled_at"]), ensure_ascii=False),
+        unit="event_list", source_id="bls-release-calendar", source_type="bls",
+        source_locator=endpoint, source_version=BLS_CALENDAR_VERSION,
+        as_of=retrieved_at, retrieved_at=retrieved_at, raw_content_hash=raw_hash,
+        metadata={
+            "event_count": len(events), "timezone_policy": "TZID America/New_York to UTC",
+            "calendar_window": "cutoff_minus_7d_to_plus_180d",
+            "announced_not_predicted": True,
+        },
+    )
+    return {"evidence": [fact], "gaps": [], "raw_content_hash": raw_hash}
+
+
 def collect_official_macro_snapshot(
     *, policy_path: Path, output_path: Path, cache_root: Path,
     decision_cutoff: str | None = None,
@@ -244,6 +393,14 @@ def collect_official_macro_snapshot(
             None,
             normalize_treasury_csv,
         ),
+        (
+            "bls_calendar", policy["sources"]["bls_calendar"]["endpoint"],
+            None,
+            lambda raw, *, retrieved_at, endpoint: normalize_bls_calendar_ics(
+                raw, retrieved_at=retrieved_at, endpoint=endpoint,
+                decision_cutoff=iso_utc(requested_cutoff or initial_time),
+            ),
+        ),
     ]
     for name, endpoint, request, normalizer in requests:
         request = request or Request(endpoint, headers={"Accept": "text/csv", "User-Agent": "stock-agent-readonly/1.0"}, method="GET")
@@ -266,6 +423,58 @@ def collect_official_macro_snapshot(
             code = str(exc).split(":", 1)[0]
             event.update(status="FAILED", failure_code=code, completed_at=event.get("completed_at", iso_utc(now())))
             gaps.append({"provider": name, "reason": code})
+    fed = policy["sources"]["federal_reserve"]
+    feed_endpoint = fed["feed_endpoint"]
+    feed_event = {"provider": "federal_reserve", "request_number": 1, "started_at": iso_utc(now())}
+    events.append(feed_event)
+    try:
+        feed_response = transport(Request(
+            feed_endpoint,
+            headers={"Accept": "application/rss+xml, application/xml", "User-Agent": "stock-agent-readonly/1.0"},
+            method="GET",
+        ))
+        feed_event.update(http_status=feed_response.status, completed_at=iso_utc(now()))
+        if feed_response.status != 200:
+            raise ValueError(f"FEDERAL_RESERVE_HTTP_{feed_response.status}")
+        candidate = normalize_federal_reserve_feed(
+            feed_response.body,
+            decision_cutoff=iso_utc(requested_cutoff or initial_time),
+        )
+        feed_record = cache.store(
+            {"provider": "federal_reserve", "endpoint": feed_endpoint,
+             "adapter_version": FED_POLICY_VERSION, "operation": "feed"},
+            feed_response.body, retrieved_at=feed_event["completed_at"],
+        )
+        feed_event.update(status="FETCHED", record_hash=feed_record["record_hash"])
+        document_event = {
+            "provider": "federal_reserve", "request_number": 2,
+            "started_at": iso_utc(now()), "source_locator": candidate["source_locator"],
+        }
+        events.append(document_event)
+        document_response = transport(Request(
+            candidate["source_locator"],
+            headers={"Accept": "text/html", "User-Agent": "stock-agent-readonly/1.0"},
+            method="GET",
+        ))
+        document_event.update(http_status=document_response.status, completed_at=iso_utc(now()))
+        if document_response.status != 200:
+            raise ValueError(f"FEDERAL_RESERVE_DOCUMENT_HTTP_{document_response.status}")
+        document_record = cache.store(
+            {"provider": "federal_reserve", "endpoint": candidate["source_locator"],
+             "adapter_version": FED_POLICY_VERSION, "operation": "policy_document"},
+            document_response.body, retrieved_at=document_event["completed_at"],
+        )
+        normalized = normalize_federal_reserve_document(
+            document_response.body, candidate=candidate,
+            retrieved_at=document_record["retrieved_at"],
+        )
+        document_event.update(status="FETCHED", record_hash=document_record["record_hash"])
+        evidence.extend(normalized["evidence"])
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        code = str(exc).split(":", 1)[0]
+        active = events[-1] if events and events[-1].get("provider") == "federal_reserve" else feed_event
+        active.update(status="FAILED", failure_code=code, completed_at=active.get("completed_at", iso_utc(now())))
+        gaps.append({"provider": "federal_reserve", "reason": code})
     cutoff = requested_cutoff or now()
     admitted = []
     for fact in evidence:
@@ -277,7 +486,7 @@ def collect_official_macro_snapshot(
         else:
             excluded.append({"evidence_id": fact["evidence_id"], "reason": "PIT_AFTER_DECISION_CUTOFF"})
     snapshot = {
-        "schema_version": "official-macro-snapshot/1.0.0",
+        "schema_version": "official-macro-snapshot/1.1.0",
         "status": "FROZEN" if admitted else "SOURCE_LIMITED",
         "decision_cutoff": iso_utc(cutoff),
         "evidence": sorted(admitted, key=lambda item: item["evidence_id"]),

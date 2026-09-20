@@ -76,7 +76,7 @@ REPORT_INDEX_STATUS_BY_REPORT_STATUS = {
 KNOWN_RUN_MARKERS = ("run_manifest.json", "source-bundle.json", "data-preparation.json")
 KNOWN_DIRECT_ARTIFACTS = (
     "official-macro-snapshot.json", "benchmark-snapshot.json",
-    "market-state-calculation.json",
+    "market-context-snapshot.json", "market-state-calculation.json",
 )
 PRIVATE_KEYS = {
     "request", "user_request", "original_request", "private_request",
@@ -1207,9 +1207,12 @@ class ArtifactCatalog:
         schema = str(value.get("schema_version", ""))
         supported = {
             "official-macro-snapshot/1.0.0": "macro_snapshot",
+            "official-macro-snapshot/1.1.0": "macro_snapshot",
+            "market-context-snapshot/1.0.0": "market_context_snapshot",
             "benchmark-research-snapshot/1.0.0": "benchmark_snapshot",
             "market-state-calculation/1.0.0": "market_calculation",
             "research-dimension-report/1.1.0": "dimension_report",
+            "research-dimension-report/2.0.0": "dimension_report",
             "equity-research-attachments/1.0.0": "equity_attachment",
         }
         return supported.get(schema, "unsupported"), schema in supported
@@ -1236,6 +1239,9 @@ class ArtifactCatalog:
             if value.get("snapshot_hash") != canonical_hash({key: item for key, item in value.items() if key != "snapshot_hash"}):
                 # Macro uses content_hash with the same canonical JSON hashing semantics.
                 raise ValueError("MACRO_SNAPSHOT_HASH_MISMATCH")
+        elif kind == "market_context_snapshot":
+            if value.get("snapshot_hash") != canonical_hash({key: item for key, item in value.items() if key != "snapshot_hash"}):
+                raise ValueError("MARKET_CONTEXT_SNAPSHOT_HASH_MISMATCH")
         elif kind == "benchmark_snapshot":
             if value.get("snapshot_hash") != canonical_hash({key: item for key, item in value.items() if key != "snapshot_hash"}):
                 raise ValueError("BENCHMARK_SNAPSHOT_HASH_MISMATCH")
@@ -1266,7 +1272,7 @@ class ArtifactCatalog:
                         "value": value, "source_label": root.name,
                         "source_ids": [source_id], "source_labels": [root.name],
                     }
-                    if kind in {"macro_snapshot", "equity_attachment"}:
+                    if kind in {"macro_snapshot", "market_context_snapshot", "equity_attachment"}:
                         self._source_contexts[source_id]["decision_cutoff"] = str(
                             self._source_contexts[source_id].get("decision_cutoff") or value.get("decision_cutoff") or ""
                         ) or None
@@ -1500,12 +1506,23 @@ class ArtifactCatalog:
         selected = self._select_artifact(snapshots, identity)
         candidates = [
             item for item in self.by_kind("dimension_report")
-            if item["value"].get("capability") == "MACRO_MARKET"
+            if item["value"].get("capability") in {"MACRO_CONTEXT", "MACRO_MARKET"}
         ]
         reports = [
             item for item in candidates if selected is not None and self._report_matches(
                 item, selected, selected_cutoff=str(selected["value"].get("decision_cutoff") or "") or None,
             )
+        ]
+        reports = [
+            {
+                **item,
+                "coverage_label": (
+                    "LEGACY_COMBINED_COVERAGE"
+                    if item["value"].get("capability") == "MACRO_MARKET"
+                    else "MACRO_CONTEXT"
+                ),
+            }
+            for item in reports
         ]
         issues = deepcopy(self.issues)
         if selected is not None and len(reports) != len(candidates):
@@ -1519,12 +1536,23 @@ class ArtifactCatalog:
         calculations = [item for item in calculation_candidates if selected is not None and self._calculation_matches(item, selected)]
         report_candidates = [
             item for item in self.by_kind("dimension_report")
-            if item["value"].get("capability") == "MACRO_MARKET"
+            if item["value"].get("capability") in {"MARKET_STATE", "MACRO_MARKET"}
         ]
         reports = [
             item for item in report_candidates if selected is not None and self._report_matches(
                 item, selected, selected_cutoff=None,
             )
+        ]
+        reports = [
+            {
+                **item,
+                "coverage_label": (
+                    "LEGACY_COMBINED_COVERAGE"
+                    if item["value"].get("capability") == "MACRO_MARKET"
+                    else "MARKET_STATE"
+                ),
+            }
+            for item in reports
         ]
         issues = deepcopy(self.issues)
         if selected is not None and len(calculations) != len(calculation_candidates):

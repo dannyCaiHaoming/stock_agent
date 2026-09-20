@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holding-research-bundle/2.0.0",
+  "title": "HoldingResearchBundleV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "bundle_id", "run_id", "bindings", "decision_cutoff",
+    "common_stock_security_ids", "report_refs", "coverage", "consumability",
+    "package_provenance", "unresolved_cross_dimension_questions",
+    "no_unresolved_reason", "summary", "artifact_refs", "bundle_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "holding-research-bundle/2.0.0"},
+    "bundle_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"},
+    "run_id": {"type": "string", "minLength": 1},
+    "bindings": {"type": "object"},
+    "decision_cutoff": {"type": "string", "minLength": 1},
+    "common_stock_security_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "report_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["report_id", "report_hash", "report_type", "capability", "security_ids", "artifact_ref"],
+        "properties": {
+          "report_id": {"type": "string", "minLength": 1},
+          "report_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "report_type": {"enum": ["EQUITY_RESEARCH_REPORT", "RESEARCH_DIMENSION_REPORT"]},
+          "capability": {"enum": ["COMPANY_RESEARCH", "TECHNICAL_STRUCTURE", "FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "MACRO_CONTEXT", "MARKET_STATE", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"]},
+          "security_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+          "artifact_ref": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "coverage": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["security_id", "capability", "status", "report_id", "gap_reason"],
+        "properties": {
+          "security_id": {"type": "string", "minLength": 1},
+          "capability": {"enum": ["COMPANY_RESEARCH", "TECHNICAL_STRUCTURE", "FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "MACRO_CONTEXT", "MARKET_STATE", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"]},
+          "status": {"enum": ["COMPLETE", "LOW_CONFIDENCE", "INSUFFICIENT_EVIDENCE", "SOURCE_LIMITED", "FAILED", "TIMEOUT", "NOT_RESEARCHED", "LEGACY_COMBINED_COVERAGE"]},
+          "report_id": {"type": ["string", "null"]},
+          "gap_reason": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "consumability": {"enum": ["STRUCTURALLY_CONSUMABLE", "DOWNSTREAM_READY"]},
+    "package_provenance": {"type": "object"},
+    "unresolved_cross_dimension_questions": {"type": "array", "items": {"type": "object"}},
+    "no_unresolved_reason": {"type": ["string", "null"]},
+    "summary": {"type": "string", "minLength": 1},
+    "artifact_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "bundle_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

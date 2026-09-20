@@ -1,0 +1,118 @@
+{
+  "schema_version": "holding-research-input-topology/1.0.0",
+  "profile_id": "holding-research-inputs/1.0.0",
+  "lifecycle_status": "CURRENT",
+  "domains": [
+    {
+      "domain": "COMPANY",
+      "capabilities": [
+        {
+          "capability": "FUNDAMENTAL_EVENT",
+          "agent": "runtime_company_analyst",
+          "agent_path": ".codex/agents/runtime_company_analyst.toml",
+          "skill": "company-research",
+          "skill_path": "skills/company-research/SKILL.md",
+          "scope": "PER_SECURITY",
+          "output_contract": {
+            "schema_version": "research-dimension-report/2.0.0",
+            "path": "schemas/runtime/research-dimension-report-v2.schema.json"
+          }
+        },
+        {
+          "capability": "RESEARCH_REPORT",
+          "agent": "runtime_company_analyst",
+          "agent_path": ".codex/agents/runtime_company_analyst.toml",
+          "skill": "research-report-analysis",
+          "skill_path": "skills/research-report-analysis/SKILL.md",
+          "scope": "PER_SECURITY",
+          "output_contract": {
+            "schema_version": "research-dimension-report/2.0.0",
+            "path": "schemas/runtime/research-dimension-report-v2.schema.json"
+          }
+        }
+      ]
+    },
+    {
+      "domain": "MACRO",
+      "capabilities": [
+        {
+          "capability": "MACRO_CONTEXT",
+          "agent": "runtime_market_catalyst",
+          "agent_path": ".codex/agents/runtime_market_catalyst.toml",
+          "skill": "macro-market-analysis",
+          "skill_path": "skills/macro-market-analysis/SKILL.md",
+          "scope": "SHARED_MARKET",
+          "output_contract": {
+            "schema_version": "research-dimension-report/2.0.0",
+            "path": "schemas/runtime/research-dimension-report-v2.schema.json"
+          }
+        }
+      ]
+    },
+    {
+      "domain": "MARKET",
+      "capabilities": [
+        {
+          "capability": "MARKET_STATE",
+          "agent": "runtime_market_catalyst",
+          "agent_path": ".codex/agents/runtime_market_catalyst.toml",
+          "skill": "macro-market-analysis",
+          "skill_path": "skills/macro-market-analysis/SKILL.md",
+          "scope": "SHARED_MARKET",
+          "output_contract": {
+            "schema_version": "research-dimension-report/2.0.0",
+            "path": "schemas/runtime/research-dimension-report-v2.schema.json"
+          }
+        }
+      ]
+    }
+  ],
+  "provider_planes": [
+    {
+      "plane": "BASE_DISCLOSURE",
+      "providers": [
+        {"provider": "sec", "region": "US", "access": "public_read_only", "status": "AVAILABLE", "role": "公司披露与法定事实锚点", "limitations": []},
+        {"provider": "yahoo", "region": "US", "access": "public_read_only", "status": "AVAILABLE", "role": "行情、板块、跨资产代理与市场新闻补充", "limitations": ["非官方披露来源", "ETF 代理不是现货、指数原值或资金流", "新闻搜索结果只是标题线索"]},
+        {"provider": "nasdaq", "region": "US", "access": "public_read_only", "status": "AVAILABLE", "role": "证券身份与目录候选", "limitations": ["目录候选不是 Gate Evidence"]},
+        {"provider": "eastmoney", "region": "US", "access": "public_read_only", "status": "PARTIAL", "role": "身份与行情后备", "limitations": ["仅按来源路由策略使用"]}
+      ]
+    },
+    {
+      "plane": "OFFICIAL_MACRO",
+      "providers": [
+        {"provider": "bls", "region": "US", "access": "public_api", "status": "AVAILABLE", "role": "通胀与就业", "limitations": ["公开 v1 不提供可验证历史 vintage"]},
+        {"provider": "treasury", "region": "US", "access": "public_csv", "status": "AVAILABLE", "role": "美国国债收益率", "limitations": ["日表不提供精确发布时刻"]},
+        {"provider": "federal_reserve", "region": "US", "access": "public_read_only", "status": "AVAILABLE", "role": "cutoff 前最新货币政策发布与官方正文", "limitations": ["通过 RSS 发现后只有界获取一份正文", "每批仍以实际 events/gaps 表达可用性"]},
+        {"provider": "bea", "region": "US", "access": "public_api", "status": "NOT_VERIFIED", "role": "GDP/PCE 经济活动候选", "limitations": ["本 Change 尚需真实取数验证"]},
+        {"provider": "fred", "region": "US", "access": "public_api", "status": "NOT_VERIFIED", "role": "信用与宏观代理候选", "limitations": ["需要逐序列核实 vintage 和认证条件"]}
+      ]
+    },
+    {
+      "plane": "RESEARCH_SUPPLEMENT",
+      "providers": [
+        {"provider": "sec", "region": "US", "access": "public_read_only", "status": "AVAILABLE", "role": "公司补充披露", "limitations": []},
+        {"provider": "yahoo", "region": "US", "access": "public_read_only", "status": "PARTIAL", "role": "预期、事件、期权和市场补充", "limitations": ["逐数据集状态决定实际覆盖"]},
+        {"provider": "moomoo_sg", "region": "SG", "access": "loopback_opend_quote_only", "status": "PARTIAL", "role": "逐数据集只读研究补充", "limitations": ["不提供 Cookie、Trade Context、账户、持仓、资金或订单能力", "不可替代 SEC/Yahoo"]},
+        {"provider": "openalex", "region": "GLOBAL", "access": "public_api", "status": "PARTIAL", "role": "公开研究发现和正文候选", "limitations": ["不等同于券商研报库", "正文接口可能需要外置 API key"]}
+      ]
+    }
+  ],
+  "source_references": [
+    {"reference_id": "research_source_policy", "path": "mcp/live/research-source-policy.json", "version": "research-source-policy/1.1.0", "sha256": "694f520b60b3f82f4af6196e885972dd9b8e778e57fbc4fd5597180e08fff1dd"},
+    {"reference_id": "research_supplement_source_plan", "path": "mcp/live/research-supplement-source-plan.json", "version": "research-supplement-source-plan/1.0.0", "sha256": "6177d30482b369f0a37878d6d86b52665334e33fdf9ec5a9b78ed03228ec2b71"},
+    {"reference_id": "moomoo_opend_quote_manifest", "path": "mcp/live/moomoo-opend-quote-manifest.json", "version": "moomoo-opend-quote-manifest/1.0.0", "sha256": "f05f0600065050ec1ded50c7fb89c1cc5d0b72036bda82b09731be198969870c"},
+    {"reference_id": "research_source_capability_contract", "path": "schemas/runtime/research-source-capability.schema.json", "version": "research-source-capability/1.2.0", "sha256": "543c42dfe1f7a0369c850b0f97c81ba690de91b6b360dfeacd85bb4073ec1fd0"},
+    {"reference_id": "retired_live_profile", "path": "profiles/live-us-equity.json", "version": "live-us-equity/4.0.0", "sha256": "c7ad40d3a9323ecd5c72a53df916f1cf10b853da198d159ef6110fde5bb0d497"}
+  ],
+  "compatibility_profiles": [
+    {
+      "profile_id": "live-us-equity/4.0.0",
+      "path": "profiles/live-us-equity.json",
+      "sha256": "c7ad40d3a9323ecd5c72a53df916f1cf10b853da198d159ef6110fde5bb0d497",
+      "lifecycle_status": "RETIRED",
+      "compatibility_mode": "COMPATIBILITY_ONLY",
+      "successor_profile_id": "holding-research-inputs/1.0.0"
+    }
+  ],
+  "topology_hash": "71ef995c52e463b18f73eb44eddeefc1c21eb92a18eb373868f545cbd11a9c0c"
+}

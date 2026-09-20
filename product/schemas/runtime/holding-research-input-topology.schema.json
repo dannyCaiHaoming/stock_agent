@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "holding-research-input-topology/1.0.0",
+  "title": "HoldingResearchInputTopology",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "profile_id", "lifecycle_status", "domains",
+    "provider_planes", "source_references", "compatibility_profiles",
+    "topology_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "holding-research-input-topology/1.0.0"},
+    "profile_id": {"const": "holding-research-inputs/1.0.0"},
+    "lifecycle_status": {"const": "CURRENT"},
+    "domains": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["domain", "capabilities"],
+        "properties": {
+          "domain": {"enum": ["COMPANY", "MACRO", "MARKET"]},
+          "capabilities": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["capability", "agent", "agent_path", "skill", "skill_path", "scope", "output_contract"],
+              "properties": {
+                "capability": {"enum": ["FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "MACRO_CONTEXT", "MARKET_STATE"]},
+                "agent": {"enum": ["runtime_company_analyst", "runtime_market_catalyst"]},
+                "agent_path": {"type": "string", "minLength": 1},
+                "skill": {"enum": ["company-research", "research-report-analysis", "macro-market-analysis"]},
+                "skill_path": {"type": "string", "minLength": 1},
+                "scope": {"enum": ["PER_SECURITY", "SHARED_MARKET"]},
+                "output_contract": {
+                  "type": "object", "additionalProperties": false,
+                  "required": ["schema_version", "path"],
+                  "properties": {
+                    "schema_version": {"const": "research-dimension-report/2.0.0"},
+                    "path": {"const": "schemas/runtime/research-dimension-report-v2.schema.json"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "provider_planes": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["plane", "providers"],
+        "properties": {
+          "plane": {"enum": ["BASE_DISCLOSURE", "OFFICIAL_MACRO", "RESEARCH_SUPPLEMENT"]},
+          "providers": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["provider", "region", "access", "status", "role", "limitations"],
+              "properties": {
+                "provider": {"type": "string", "minLength": 1},
+                "region": {"type": "string", "minLength": 1},
+                "access": {"type": "string", "minLength": 1},
+                "status": {"enum": ["AVAILABLE", "PARTIAL", "NOT_VERIFIED", "SOURCE_LIMITED"]},
+                "role": {"type": "string", "minLength": 1},
+                "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "source_references": {
+      "type": "array", "minItems": 5,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["reference_id", "path", "version", "sha256"],
+        "properties": {
+          "reference_id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "version": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "compatibility_profiles": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["profile_id", "path", "sha256", "lifecycle_status", "compatibility_mode", "successor_profile_id"],
+        "properties": {
+          "profile_id": {"const": "live-us-equity/4.0.0"},
+          "path": {"const": "profiles/live-us-equity.json"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "lifecycle_status": {"const": "RETIRED"},
+          "compatibility_mode": {"const": "COMPATIBILITY_ONLY"},
+          "successor_profile_id": {"const": "holding-research-inputs/1.0.0"}
+        }
+      }
+    },
+    "topology_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

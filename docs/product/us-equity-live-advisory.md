@@ -43,8 +43,9 @@ bash scripts/run-product-smoke.sh \
 
 如需采集，宿主环境须设置仓库外 `LIVE_SOURCE_ACCESS_FILE`、`SEC_USER_AGENT` 和可选 `LIVE_CACHE_ROOT`。真实持仓、联系邮箱、cookies、凭据、原始数据及运行包不得提交 Git。Provider 只接收证券、日期等必要取数参数，不接收数量、成本、现金或研究问题。
 
-底层 `collect-live`、`prepare-live` 仍作为冻结数据和历史运行包的确定性内部工具，不是用户产品入口。以下旧入口已退役：
+底层 `collect-live` 的共享采集与校验仍被当前 Handoff 流程复用。`prepare-live` 已改为显式拒绝：它不会读取输入文件、访问网络或启动模型；历史包继续由只读 Replay/校验器读取。以下旧入口已退役：
 
+- `prepare-live`；
 - `--profile live-us-equity --portfolio ...`；
 - `prepare-live-batch`；
 - `launch-live-batch`；

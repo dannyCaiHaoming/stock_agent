@@ -32,7 +32,37 @@ def _type_matches(value: Any, expected: str) -> bool:
     raise SchemaValidationError(f"SCHEMA_KEYWORD_UNSUPPORTED:type={expected}")
 
 
-def validate_schema_instance(value: Any, schema: Mapping[str, Any], *, path: str = "$") -> None:
+def _resolve_local_ref(reference: str, root_schema: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not reference.startswith("#/"):
+        raise SchemaValidationError(f"SCHEMA_REF_UNSUPPORTED:{reference}")
+    current: Any = root_schema
+    for raw_part in reference[2:].split("/"):
+        part = raw_part.replace("~1", "/").replace("~0", "~")
+        if not isinstance(current, Mapping) or part not in current:
+            raise SchemaValidationError(f"SCHEMA_REF_UNKNOWN:{reference}")
+        current = current[part]
+    if not isinstance(current, Mapping):
+        raise SchemaValidationError(f"SCHEMA_REF_INVALID:{reference}")
+    return current
+
+
+def validate_schema_instance(
+    value: Any,
+    schema: Mapping[str, Any],
+    *,
+    path: str = "$",
+    _root_schema: Mapping[str, Any] | None = None,
+) -> None:
+    root_schema = schema if _root_schema is None else _root_schema
+    reference = schema.get("$ref")
+    if isinstance(reference, str):
+        validate_schema_instance(
+            value,
+            _resolve_local_ref(reference, root_schema),
+            path=path,
+            _root_schema=root_schema,
+        )
+        return
     one_of = schema.get("oneOf")
     if isinstance(one_of, list):
         matches = 0
@@ -40,13 +70,28 @@ def validate_schema_instance(value: Any, schema: Mapping[str, Any], *, path: str
             if not isinstance(branch, Mapping):
                 raise SchemaValidationError("SCHEMA_KEYWORD_INVALID:oneOf")
             try:
-                validate_schema_instance(value, branch, path=path)
+                validate_schema_instance(
+                    value, branch, path=path, _root_schema=root_schema
+                )
             except SchemaValidationError:
                 continue
             matches += 1
         if matches != 1:
             raise SchemaValidationError(f"SCHEMA_ONE_OF_INVALID:{path}:matches={matches}")
         return
+    any_of = schema.get("anyOf")
+    if isinstance(any_of, list):
+        for branch in any_of:
+            if not isinstance(branch, Mapping):
+                raise SchemaValidationError("SCHEMA_KEYWORD_INVALID:anyOf")
+            try:
+                validate_schema_instance(
+                    value, branch, path=path, _root_schema=root_schema
+                )
+            except SchemaValidationError:
+                continue
+            return
+        raise SchemaValidationError(f"SCHEMA_ANY_OF_INVALID:{path}:matches=0")
     expected_type = schema.get("type")
     if isinstance(expected_type, list):
         if not any(_type_matches(value, item) for item in expected_type):
@@ -70,12 +115,19 @@ def validate_schema_instance(value: Any, schema: Mapping[str, Any], *, path: str
     if isinstance(value, list):
         if "minItems" in schema and len(value) < int(schema["minItems"]):
             raise SchemaValidationError(f"SCHEMA_MIN_ITEMS:{path}")
+        if "maxItems" in schema and len(value) > int(schema["maxItems"]):
+            raise SchemaValidationError(f"SCHEMA_MAX_ITEMS:{path}")
         if schema.get("uniqueItems") and len({repr(item) for item in value}) != len(value):
             raise SchemaValidationError(f"SCHEMA_UNIQUE_ITEMS:{path}")
         item_schema = schema.get("items")
         if isinstance(item_schema, Mapping):
             for index, item in enumerate(value):
-                validate_schema_instance(item, item_schema, path=f"{path}[{index}]")
+                validate_schema_instance(
+                    item,
+                    item_schema,
+                    path=f"{path}[{index}]",
+                    _root_schema=root_schema,
+                )
     if isinstance(value, Mapping):
         required = schema.get("required", [])
         missing = [key for key in required if key not in value]
@@ -89,4 +141,9 @@ def validate_schema_instance(value: Any, schema: Mapping[str, Any], *, path: str
         for key, item in value.items():
             child = properties.get(key) if isinstance(properties, Mapping) else None
             if isinstance(child, Mapping):
-                validate_schema_instance(item, child, path=f"{path}.{key}")
+                validate_schema_instance(
+                    item,
+                    child,
+                    path=f"{path}.{key}",
+                    _root_schema=root_schema,
+                )

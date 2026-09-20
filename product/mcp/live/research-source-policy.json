@@ -1,6 +1,6 @@
 {
-  "schema_version": "research-source-policy/1.0.0",
-  "checked_at": "2026-09-15T00:00:00Z",
+  "schema_version": "research-source-policy/1.1.0",
+  "checked_at": "2026-09-19T00:00:00Z",
   "purpose": "personal-read-only-research",
   "sources": {
     "bls": {
@@ -9,7 +9,7 @@
       "domains": ["api.bls.gov"],
       "endpoint": "https://api.bls.gov/publicAPI/v1/timeseries/data/",
       "request_budget": 1,
-      "series": ["CUUR0000SA0", "LNS14000000"],
+      "series": ["CUUR0000SA0", "LNS14000000", "CES0000000001"],
       "limitations": [
         "公开 v1 响应不提供可验证的原始发布时间或历史 vintage",
         "因此 published_at 采用 retrieved_at 的保守口径，不用于重建更早历史时点"
@@ -24,6 +24,40 @@
       "limitations": [
         "日度收益率表不提供精确发布时刻",
         "因此 published_at 采用 retrieved_at 的保守口径"
+      ]
+    },
+    "federal_reserve": {
+      "adapter_version": "federal-reserve-monetary-rss/1.0.0",
+      "authentication": "none",
+      "domains": ["www.federalreserve.gov"],
+      "feed_endpoint": "https://www.federalreserve.gov/feeds/press_monetary.xml",
+      "request_budget": 2,
+      "limitations": [
+        "RSS 用于发现 cutoff 前最新货币政策发布，第二次请求只获取该条官方正文",
+        "修订以新的 raw content hash 保留，不静默覆盖已冻结版本"
+      ]
+    },
+    "bls_calendar": {
+      "adapter_version": "bls-release-calendar-ics/1.0.0",
+      "authentication": "none",
+      "domains": ["www.bls.gov"],
+      "endpoint": "https://www.bls.gov/schedule/news_release/bls.ics",
+      "request_budget": 1,
+      "limitations": [
+        "只表达 BLS 已公布日程，不包含模型预测或未公布日期",
+        "日程可更改，每次冻结保留获取时间与原始 hash"
+      ]
+    },
+    "yahoo_market_context": {
+      "adapter_version": "yahoo-public-market-context/1.0.0",
+      "authentication": "none",
+      "domains": ["query1.finance.yahoo.com"],
+      "chart_endpoint_template": "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
+      "news_endpoint": "https://query1.finance.yahoo.com/v1/finance/search",
+      "request_budget": {"series": 18, "news": 1, "days": 90},
+      "limitations": [
+        "板块、债券、美元、商品和信用中的 ETF 只是明确代理，不是现货、原始指数或资金流",
+        "Yahoo 新闻搜索只冻结标题、发布者和原始链接线索，不冒充已读正文"
       ]
     },
     "openalex": {

@@ -869,6 +869,10 @@ def validate_common_stock_source_bundle(
         expected = merge_macro_research_evidence(
             expected, macro=read_snapshot("official-macro-snapshot.json")
         )
+    if "market_context" in preparation:
+        expected = merge_market_context_evidence(
+            expected, market_context=read_snapshot("market-context-snapshot.json")
+        )
     if "options" in preparation:
         expected = merge_option_research_evidence(
             expected, options=read_snapshot("portfolio-option-snapshot.json")
@@ -1861,6 +1865,13 @@ def collect_common_stock_data_from_handoff(
             cache_root=cache_root,
         )
         prepared = merge_macro_research_evidence(prepared, macro=macro)
+        from product.mcp.live.market_context import collect_market_context_snapshot
+        market_context = collect_market_context_snapshot(
+            policy_path=Path(__file__).resolve().parents[1] / "mcp/live/research-source-policy.json",
+            output_path=destination / "market-context-snapshot.json",
+            cache_root=cache_root,
+        )
+        prepared = merge_market_context_evidence(prepared, market_context=market_context)
         from product.mcp.live.options import collect_portfolio_option_snapshots
         option_securities = [
             {"security_id": item["security_id"], "ticker": item["display_symbol"].upper()}
@@ -1931,6 +1942,7 @@ def collect_common_stock_data_from_handoff(
         **({
             "benchmark_snapshot": str(destination / "benchmark-snapshot.json"),
             "official_macro_snapshot": str(destination / "official-macro-snapshot.json"),
+            "market_context_snapshot": str(destination / "market-context-snapshot.json"),
             "portfolio_option_snapshot": str(destination / "portfolio-option-snapshot.json"),
         } if benchmark_id and calendar_record is not None else {}),
     }
@@ -2220,6 +2232,64 @@ def merge_macro_research_evidence(
             "evidence_ids": sorted(item["evidence_id"] for item in facts),
             "excluded": copy.deepcopy(list(macro.get("excluded", []))),
             "gaps": copy.deepcopy(list(macro.get("gaps", []))),
+        },
+    })
+    preparation["preparation_hash"] = canonical_hash({
+        key: value for key, value in preparation.items() if key != "preparation_hash"
+    })
+    return result
+
+
+def merge_market_context_evidence(
+    prepared: Mapping[str, Any], *, market_context: Mapping[str, Any],
+) -> dict[str, Any]:
+    """把大盘/板块/跨资产/波动信用代理及 24h 新闻冻结进同一 Gate。"""
+
+    result = copy.deepcopy(dict(prepared))
+    gate = result.get("gate")
+    preparation = result.get("preparation")
+    facts = market_context.get("evidence")
+    snapshot_cutoff = market_context.get("decision_cutoff")
+    if (
+        not isinstance(gate, dict) or not isinstance(preparation, dict)
+        or not isinstance(facts, list) or not isinstance(snapshot_cutoff, str)
+    ):
+        raise CommonStockDataError("COMMON_STOCK_MARKET_CONTEXT_SNAPSHOT_INVALID")
+    cutoff = max(parse_timestamp(gate["decision_cutoff"]), parse_timestamp(snapshot_cutoff))
+    existing_ids = set(gate.get("input_evidence_ids", []))
+    allowed = list(gate.get("allowed_evidence", []))
+    for fact in facts:
+        if not isinstance(fact, Mapping) or not str(fact.get("security_id", "")).startswith("US:MARKET"):
+            raise CommonStockDataError("COMMON_STOCK_MARKET_CONTEXT_FACT_SCOPE_INVALID")
+        for key in ("evidence_id", "source_id", "as_of", "published_at", "retrieved_at"):
+            if not isinstance(fact.get(key), str) or not fact[key]:
+                raise CommonStockDataError(f"COMMON_STOCK_MARKET_CONTEXT_PROVENANCE_MISSING:{key}")
+        if max(
+            parse_timestamp(fact["as_of"]), parse_timestamp(fact["published_at"]),
+            parse_timestamp(fact["retrieved_at"]),
+        ) > parse_timestamp(snapshot_cutoff):
+            raise CommonStockDataError("COMMON_STOCK_MARKET_CONTEXT_PIT_INVALID")
+        if fact["evidence_id"] in existing_ids:
+            raise CommonStockDataError("COMMON_STOCK_MARKET_CONTEXT_EVIDENCE_DUPLICATE")
+        existing_ids.add(fact["evidence_id"])
+        allowed.append(copy.deepcopy(dict(fact)))
+    gate.update({
+        "decision_cutoff": iso_utc(cutoff),
+        "input_evidence_ids": sorted(existing_ids),
+        "allowed_evidence": sorted(allowed, key=lambda item: item["evidence_id"]),
+        "allowed_evidence_ids": sorted(item["evidence_id"] for item in allowed),
+    })
+    gate["bundle_hash"] = canonical_hash({
+        key: value for key, value in gate.items() if key != "bundle_hash"
+    })
+    preparation.update({
+        "common_cutoff": gate["decision_cutoff"],
+        "market_context": {
+            "status": market_context.get("status"),
+            "snapshot_hash": market_context.get("snapshot_hash"),
+            "adapter_version": market_context.get("adapter_version"),
+            "evidence_ids": sorted(item["evidence_id"] for item in facts),
+            "gaps": copy.deepcopy(list(market_context.get("gaps", []))),
         },
     })
     preparation["preparation_hash"] = canonical_hash({

@@ -18,10 +18,23 @@ from product.runtime.validation import ArtifactValidationError, validate_evidenc
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ROOT = REPO_ROOT / "product" / "schemas" / "runtime"
-DIMENSION_REPORT_VERSION = "research-dimension-report/1.1.0"
-HOLDING_RESEARCH_BUNDLE_VERSION = "holding-research-bundle/1.1.0"
+DIMENSION_REPORT_VERSION = "research-dimension-report/2.0.0"
+LEGACY_DIMENSION_REPORT_VERSION = "research-dimension-report/1.1.0"
+HOLDING_RESEARCH_BUNDLE_VERSION = "holding-research-bundle/2.0.0"
+LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION = "holding-research-bundle/1.1.0"
 
 RESEARCH_CAPABILITIES = (
+    "TECHNICAL_STRUCTURE",
+    "FUNDAMENTAL_EVENT",
+    "RESEARCH_REPORT",
+    "INDUSTRY_COMPARISON",
+    "MACRO_CONTEXT",
+    "MARKET_STATE",
+    "OWNERSHIP_DISCLOSURE",
+    "OPTIONS_FLOW",
+)
+BUNDLE_CAPABILITIES = ("COMPANY_RESEARCH", *RESEARCH_CAPABILITIES)
+LEGACY_RESEARCH_CAPABILITIES = (
     "TECHNICAL_STRUCTURE",
     "FUNDAMENTAL_EVENT",
     "RESEARCH_REPORT",
@@ -30,7 +43,7 @@ RESEARCH_CAPABILITIES = (
     "OWNERSHIP_DISCLOSURE",
     "OPTIONS_FLOW",
 )
-BUNDLE_CAPABILITIES = ("COMPANY_RESEARCH", *RESEARCH_CAPABILITIES)
+LEGACY_BUNDLE_CAPABILITIES = ("COMPANY_RESEARCH", *LEGACY_RESEARCH_CAPABILITIES)
 REPORT_STATUSES = {
     "COMPLETE",
     "LOW_CONFIDENCE",
@@ -101,18 +114,31 @@ def validate_research_dimension_report(
 ) -> set[str]:
     """验证一个维度报告及其原始 Evidence / 派生主张引用。"""
 
-    try:
-        validate_schema_instance(value, _schema("research-dimension-report.schema.json"))
-    except SchemaValidationError as exc:
-        raise MultiDimensionalResearchError(f"DIMENSION_REPORT_SCHEMA_INVALID:{exc}") from exc
+    schema_version = value.get("schema_version")
+    schema_name = (
+        "research-dimension-report-v2.schema.json"
+        if schema_version == DIMENSION_REPORT_VERSION
+        else "research-dimension-report.schema.json"
+        if schema_version == LEGACY_DIMENSION_REPORT_VERSION
+        else None
+    )
+    if schema_name is None:
+        raise MultiDimensionalResearchError("DIMENSION_REPORT_VERSION_INVALID")
     forbidden = _find_forbidden_keys(value)
     if forbidden:
         raise MultiDimensionalResearchError(
             f"DIMENSION_REPORT_ACTION_FIELD_FORBIDDEN:{','.join(sorted(forbidden))}"
         )
-    if value.get("schema_version") != DIMENSION_REPORT_VERSION:
-        raise MultiDimensionalResearchError("DIMENSION_REPORT_VERSION_INVALID")
-    if value.get("capability") not in RESEARCH_CAPABILITIES:
+    try:
+        validate_schema_instance(value, _schema(schema_name))
+    except SchemaValidationError as exc:
+        raise MultiDimensionalResearchError(f"DIMENSION_REPORT_SCHEMA_INVALID:{exc}") from exc
+    supported_capabilities = (
+        RESEARCH_CAPABILITIES
+        if schema_version == DIMENSION_REPORT_VERSION
+        else LEGACY_RESEARCH_CAPABILITIES
+    )
+    if value.get("capability") not in supported_capabilities:
         raise MultiDimensionalResearchError("DIMENSION_REPORT_CAPABILITY_INVALID")
     expected = dict(expected_bindings)
     if value.get("bindings") != expected:
@@ -145,6 +171,7 @@ def validate_research_dimension_report(
         raise MultiDimensionalResearchError("DIMENSION_REPORT_AGENT_CAPABILITY_MISMATCH")
     if capability in {
         "TECHNICAL_STRUCTURE", "INDUSTRY_COMPARISON", "MACRO_MARKET",
+        "MACRO_CONTEXT", "MARKET_STATE",
         "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW",
     } and agent_name != "runtime_market_catalyst":
         raise MultiDimensionalResearchError("DIMENSION_REPORT_AGENT_CAPABILITY_MISMATCH")
@@ -198,6 +225,12 @@ def validate_research_dimension_report(
     artifact_refs = set(value.get("artifact_refs", []))
     extra_evidence_refs: set[str] = set()
     for claim in claims:
+        if not isinstance(claim.get("question"), str) or not claim["question"].strip():
+            raise MultiDimensionalResearchError("DIMENSION_REPORT_CLAIM_QUESTION_INVALID")
+        if not isinstance(claim.get("statement"), str) or not claim["statement"].strip():
+            raise MultiDimensionalResearchError("DIMENSION_REPORT_CLAIM_STATEMENT_INVALID")
+        if claim.get("kind") not in {"FACT", "INTERPRETATION", "COMPARISON"}:
+            raise MultiDimensionalResearchError("DIMENSION_REPORT_CLAIM_KIND_INVALID")
         evidence_refs = set(_canonical_ids(claim.get("evidence_refs"), "claim.evidence_refs"))
         research_refs = set(
             _canonical_ids(claim.get("research_claim_refs"), "claim.research_claim_refs")
@@ -246,10 +279,14 @@ def validate_research_dimension_report(
             raise MultiDimensionalResearchError("DIMENSION_REPORT_RELATIONSHIP_RESULT_DANGLING")
         if relationship.get("effect") != "NO_NEW_INFORMATION" and not result_refs:
             raise MultiDimensionalResearchError("DIMENSION_REPORT_RELATIONSHIP_RESULT_REQUIRED")
-    if capability != "RESEARCH_REPORT" and (documents or relationships):
+    document_capabilities = {"RESEARCH_REPORT", "MACRO_CONTEXT", "MARKET_STATE"}
+    if capability not in document_capabilities and (documents or relationships):
         raise MultiDimensionalResearchError("DIMENSION_REPORT_DOCUMENTS_CAPABILITY_MISMATCH")
-    if capability == "RESEARCH_REPORT" and status == "COMPLETE" and not any(
-        item.get("verification_status") == "BODY_VERIFIED" for item in documents
+    if (
+        status == "COMPLETE"
+        and (capability == "RESEARCH_REPORT" or documents)
+        and capability in document_capabilities
+        and not any(item.get("verification_status") == "BODY_VERIFIED" for item in documents)
     ):
         raise MultiDimensionalResearchError("DIMENSION_REPORT_VERIFIED_DOCUMENT_REQUIRED")
     for calculation in calculations:
@@ -264,6 +301,12 @@ def validate_research_dimension_report(
     for condition in conditions:
         if set(_canonical_ids(condition.get("claim_refs"), "condition.claim_refs")) - claim_ids:
             raise MultiDimensionalResearchError("DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING")
+    for gap in gaps:
+        for field in ("reason_code", "description", "impact"):
+            if not isinstance(gap.get(field), str) or not gap[field].strip():
+                raise MultiDimensionalResearchError(
+                    f"DIMENSION_REPORT_GAP_FIELD_INVALID:{field}"
+                )
 
     try:
         refs = validate_evidence_closure(value, allowed_evidence_ids=allowed_evidence_ids)
@@ -291,10 +334,16 @@ def validate_holding_research_bundle(
 
     schema_version = value.get("schema_version")
     schema_name = (
-        "holding-research-bundle-v1.1.schema.json"
+        "holding-research-bundle-v2.schema.json"
         if schema_version == HOLDING_RESEARCH_BUNDLE_VERSION
+        else "holding-research-bundle-v1.1.schema.json"
+        if schema_version == LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION
         else "holding-research-bundle.schema.json"
+        if schema_version == "holding-research-bundle/1.0.0"
+        else None
     )
+    if schema_name is None:
+        raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_VERSION_INVALID")
     try:
         validate_schema_instance(value, _schema(schema_name))
     except SchemaValidationError as exc:
@@ -337,10 +386,15 @@ def validate_holding_research_bundle(
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_EQUITY_REPORT_BINDING_INVALID")
 
     coverage = value.get("coverage", [])
+    bundle_capabilities = (
+        BUNDLE_CAPABILITIES
+        if schema_version == HOLDING_RESEARCH_BUNDLE_VERSION
+        else LEGACY_BUNDLE_CAPABILITIES
+    )
     expected_pairs = {
         (security_id, capability)
         for security_id in common_ids
-        for capability in BUNDLE_CAPABILITIES
+        for capability in bundle_capabilities
     }
     actual_pairs = [(item.get("security_id"), item.get("capability")) for item in coverage]
     if len(actual_pairs) != len(set(actual_pairs)) or set(actual_pairs) != expected_pairs:
@@ -373,13 +427,16 @@ def validate_holding_research_bundle(
     for question in value.get("unresolved_cross_dimension_questions", []):
         if set(question.get("security_ids", [])) - set(common_ids):
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_QUESTION_SECURITY_DANGLING")
-        if set(question.get("capabilities", [])) - set(BUNDLE_CAPABILITIES):
+        if set(question.get("capabilities", [])) - set(bundle_capabilities):
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_QUESTION_CAPABILITY_DANGLING")
         if set(question.get("claim_refs", [])) - known_claim_ids:
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_QUESTION_CLAIM_DANGLING")
         if set(question.get("report_refs", [])) - known_report_ids:
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_QUESTION_REPORT_DANGLING")
-    if schema_version == HOLDING_RESEARCH_BUNDLE_VERSION:
+    if schema_version in {
+        HOLDING_RESEARCH_BUNDLE_VERSION,
+        LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION,
+    }:
         questions = value.get("unresolved_cross_dimension_questions", [])
         no_unresolved_reason = value.get("no_unresolved_reason")
         if questions and no_unresolved_reason is not None:
@@ -519,8 +576,15 @@ def envelope_research_dimension_draft(
 ) -> dict[str, Any]:
     """添加冻结的身份与执行元数据；不修复模型主张、状态或引用。"""
 
-    if not isinstance(draft, Mapping) or set(draft) != DIMENSION_DRAFT_KEYS:
-        raise MultiDimensionalResearchError("DIMENSION_DRAFT_KEYS_INVALID")
+    if not isinstance(draft, Mapping):
+        raise MultiDimensionalResearchError("DIMENSION_DRAFT_KEYS_INVALID:not_object")
+    actual_keys = set(draft)
+    if actual_keys != DIMENSION_DRAFT_KEYS:
+        missing = ",".join(sorted(DIMENSION_DRAFT_KEYS - actual_keys)) or "none"
+        extra = ",".join(sorted(actual_keys - DIMENSION_DRAFT_KEYS)) or "none"
+        raise MultiDimensionalResearchError(
+            f"DIMENSION_DRAFT_KEYS_INVALID:missing={missing};extra={extra}"
+        )
     if (
         draft.get("run_id") != task.get("run_id")
         or draft.get("invocation_id") != task.get("invocation_id")

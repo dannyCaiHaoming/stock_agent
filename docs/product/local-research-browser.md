@@ -36,8 +36,8 @@ Memory 目录必须已经存在且包含受支持的数据库。缺库不会创�
 
 ## 页面与状态
 
-- `Macro`：官方宏观快照中的 CPI 指数、失业率和 10Y 收益率，以及已有 `MACRO_MARKET` 报告。单次观测不画伪趋势；没有 historical vintage 时会明确提示。
-- `Market`：基准价格事实、已有 20/60/252 日计算和已有报告。页面不补算缺失统计。
+- `Macro`：官方宏观快照中的 CPI 指数、失业率和 10Y 收益率，以及新版本 `MACRO_CONTEXT` 报告。历史 `MACRO_MARKET` 只显示为 `LEGACY_COMBINED_COVERAGE`；单次观测不画伪趋势，没有 historical vintage 时会明确提示。
+- `Market`：基准价格事实、已有 20/60/252 日计算和新版本 `MARKET_STATE` 报告。历史 `MACRO_MARKET` 可兼容阅读但不算作独立 Market 通过；页面不补算缺失统计。
 - `Company`：所有已保存公司，不推断“当前持仓”。默认先展示营收、净利润、稀释 EPS、经营现金流，再按相同指标和可比期间绘制趋势；资本开支、现金和债务保留在可展开的指标表。价格与成交量分图，原始长表和采集诊断默认收起或进入独立分页页。披露事件与模型研究严格分层：前者只呈现已保存事实，后者只呈现通过契约和版本绑定校验的报告。
 
 公司只有事实版本但尚无 View 时，页面明确标为“未冻结事实目录”：可以分页查原始版本，但不显示 View 完整率，也不把全部修订聚合为当前指标、趋势或行情图。保存合格 View 后才进入默认阅读路径。
@@ -99,9 +99,10 @@ python3 scripts/research-memory-repair.py \
 | schema | 页面用途 |
 | --- | --- |
 | `company-research-memory` schema `2` | Company 事实、View、报告索引和状态 |
-| `official-macro-snapshot/1.0.0` | Macro 指标 |
+| `official-macro-snapshot/1.0.0` / `1.1.0` | Macro 指标、官方政策正文与已公布发布日历 |
 | `benchmark-research-snapshot/1.0.0` | Market 基准 |
 | `market-state-calculation/1.0.0` | Market 窗口统计 |
+| `research-dimension-report/2.0.0` | 当前 Macro / Market 及其他多维研究报告 |
 | `research-dimension-report/1.1.0` | 已有研究报告 |
 | `equity-research-report/1.0.0` | 已保存 Company Agent 研究报告 |
 | `equity-research-attachments/1.0.0` | Company 估值、基本面与图表附件 |

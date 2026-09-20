@@ -37,6 +37,85 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MultidimensionalStageTests(unittest.TestCase):
+    @staticmethod
+    def dimension_draft(task: dict, *, include_impact: bool = True) -> dict:
+        gap = {
+            "gap_id": f"gap:{task['task_id']}",
+            "reason_code": "UNKNOWN",
+            "description": "测试资料不足。",
+        }
+        if include_impact:
+            gap["impact"] = "不形成研究主张。"
+        return {
+            "run_id": task["run_id"],
+            "invocation_id": task["invocation_id"],
+            "agent": task["agent"],
+            "status": "INSUFFICIENT_EVIDENCE",
+            "sufficiency": "INSUFFICIENT",
+            "evaluation_status": "NOT_EVALUATED",
+            "summary": "测试报告明确保留资料缺口。",
+            "claims": [],
+            "assumptions": [],
+            "calculations": [],
+            "documents": [],
+            "research_relationships": [],
+            "limitations": ["测试资料不足。"],
+            "observation_conditions": [],
+            "data_gaps": [gap],
+            "artifact_refs": [],
+        }
+
+    @staticmethod
+    def targeted_environment(run: Path, task: dict) -> dict[str, str]:
+        invocation_dir = run / "invocation"
+        invocation_dir.mkdir(exist_ok=True)
+        return {
+            "STOCK_AGENT_RUN_DIR": str(run),
+            "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(
+                invocation_dir / "subagent-events.jsonl"
+            ),
+            "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(
+                invocation_dir / "subagent-dispatches.jsonl"
+            ),
+            "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": task["agent"],
+            "STOCK_AGENT_MULTIDIMENSIONAL_STAGE": STAGE_VERSION,
+            "STOCK_AGENT_RESEARCH_TASK_NAME": task["task_name"],
+        }
+
+    @staticmethod
+    def dispatch_payload(task: dict, *, parent: str) -> dict:
+        return {
+            "hook_event_name": "PreToolUse",
+            "session_id": parent,
+            "turn_id": f"turn:{parent}",
+            "tool_name": "spawn_agent",
+            "tool_use_id": f"tool:{parent}",
+            "cwd": str(ROOT / "product"),
+            "model": "gpt-5.6-terra",
+            "permission_mode": "workspace-write",
+            "tool_input": {
+                "agent_type": task["agent"],
+                "task_name": task["task_name"],
+                "fork_turns": "none",
+                "message": "启动冻结多维研究任务。",
+            },
+        }
+
+    @staticmethod
+    def stop_payload(task: dict, draft: dict, *, parent: str, child: str) -> dict:
+        return {
+            "hook_event_name": "SubagentStop",
+            "session_id": parent,
+            "turn_id": f"turn:{parent}",
+            "agent_id": child,
+            "agent_type": task["agent"],
+            "model": "gpt-5.6-terra",
+            "cwd": str(ROOT / "product"),
+            "permission_mode": "read-only",
+            "stop_hook_active": False,
+            "last_assistant_message": json.dumps(draft),
+        }
+
     def complete_with_explicit_gaps(self, run: Path) -> None:
         invocation_dir = run / "invocation"
         invocation_dir.mkdir()
@@ -158,18 +237,140 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertEqual(manifest["downstream_stages_started"], [])
             index = json.loads((run / "research/dispatch-index.json").read_text())
             self.assertEqual(index["schema_version"], DISPATCH_VERSION)
-            self.assertEqual(len(index["tasks"]), 13)  # 六个逐股维度 + 一个共享宏观
+            self.assertEqual(len(index["tasks"]), 14)  # 六个逐股维度 + Macro/Market 两项共享研究
             self.assertEqual(
                 {item["agent"] for item in index["tasks"]},
                 {"runtime_company_analyst", "runtime_market_catalyst"},
             )
-            macro = [item for item in index["tasks"] if item["capability"] == "MACRO_MARKET"]
+            macro = [item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT"]
+            market = [item for item in index["tasks"] if item["capability"] == "MARKET_STATE"]
             self.assertEqual(len(macro), 1)
+            self.assertEqual(len(market), 1)
             self.assertEqual(
                 macro[0]["security_ids"],
                 ["US:COMMON_STOCK:AAPL", "US:COMMON_STOCK:MSFT"],
             )
             self.assertEqual(macro[0]["depends_on"], [])
+            self.assertEqual(market[0]["depends_on"], [])
+            self.assertEqual(
+                manifest["research_input_topology"]["domains"]["MACRO"],
+                ["MACRO_CONTEXT"],
+            )
+            self.assertEqual(macro[0]["agent"], market[0]["agent"])
+            task = index["tasks"][0]
+            packet = json.loads((run / task["packet_path"]).read_text())
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+            self.assertEqual(packet["output_schema"]["$id"], "research-dimension-draft/2.0.0")
+            self.assertEqual(packet["output_schema_hash"], canonical_hash(packet["output_schema"]))
+            self.assertEqual(
+                invocation["output_contract"]["draft_schema_hash"],
+                packet["output_schema_hash"],
+            )
+            self.assertEqual(
+                invocation["output_contract"]["sha256"],
+                manifest["research_input_topology"]["default_output_contract"]["sha256"],
+            )
+
+    def test_company_report_routes_issuer_body_guidance_and_expectations_separately(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff = stock_handoff(1)
+            gate = gate_for(handoff)
+            security_id = handoff["portfolio"]["positions"][0]["security_id"]
+            issuer = {
+                "evidence_id": "ev-issuer-body", "security_id": security_id,
+                "semantic_field": "earnings_release", "value": (
+                    "Issuer earnings release discussion provides a verified operating update. " * 30
+                ),
+                "source_id": "sec-filing:test", "source_type": "sec",
+                "source_locator": "https://www.sec.gov/Archives/example.htm",
+                "as_of": "2026-09-10T20:00:00Z", "published_at": "2026-09-10T20:00:00Z",
+                "retrieved_at": "2026-09-11T11:00:00Z", "raw_content_hash": "a" * 64,
+                "section": "earnings_release", "metadata": {"description": "Issuer earnings release"},
+            }
+            issuer_toc = {
+                **issuer, "evidence_id": "ev-issuer-toc",
+                "value": "Item 2. Management Discussion and Analysis 28",
+                "semantic_field": "management_discussion",
+            }
+            guidance = {
+                **issuer, "evidence_id": "ev-guidance", "semantic_field": "sec_issuer_guidance_candidate_text",
+                "source_id": "sec-guidance:test", "source_family": "sec",
+            }
+            expectation = {
+                **issuer, "evidence_id": "ev-expectation", "semantic_field": "yahoo_earnings_trend",
+                "source_id": "yahoo-quote-summary:AAPL", "source_type": "yahoo",
+                "source_family": "yahoo",
+            }
+            gate["allowed_evidence"].extend([issuer, issuer_toc, guidance, expectation])
+            gate["allowed_evidence_ids"] = sorted(
+                item["evidence_id"] for item in gate["allowed_evidence"]
+            )
+            gate["input_evidence_ids"] = list(gate["allowed_evidence_ids"])
+            gate["bundle_hash"] = canonical_hash({
+                key: value for key, value in gate.items() if key != "bundle_hash"
+            })
+            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            run = root / "run"
+            prepare_multidimensional_stage_run(
+                ROOT, handoff_path=handoff_path, gate_path=gate_path, run_dir=run,
+                run_id="issuer-material-routing", model="gpt-5.6-terra",
+            )
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+            packet = build_multidimensional_dispatch_packet(
+                ROOT, run, task["task_name"], include_dependency_reports=False
+            )
+            self.assertEqual(packet["company_material_coverage"]["issuer_body_count"], 1)
+            self.assertEqual(packet["company_material_coverage"]["guidance_evidence_ids"], ["ev-guidance"])
+            self.assertEqual(packet["company_material_coverage"]["expectation_evidence_ids"], ["ev-expectation"])
+            self.assertEqual(packet["task"]["allowed_documents"][0]["material_type"], "ISSUER_MATERIAL")
+            self.assertNotEqual(
+                packet["task"]["allowed_documents"][0]["body_hash"],
+                issuer["raw_content_hash"],
+            )
+            self.assertEqual(
+                packet["task"]["allowed_documents"][0]["body_hash"],
+                packet["verified_documents"][0]["content"]["body_hash"],
+            )
+            self.assertEqual(
+                packet["verified_documents"][0]["content"]["evidence_id"],
+                "ev-issuer-body",
+            )
+            self.assertEqual(
+                packet["task"]["allowed_documents"][0]["retrieved_at"],
+                issuer["retrieved_at"],
+            )
+            self.assertEqual(
+                packet["task"]["allowed_documents"][0]["interest_disclosure"]["status"],
+                "DECLARED",
+            )
+            self.assertIn("不得省略问题字段", packet["instruction"])
+            self.assertIn("limitations 必须是纯字符串数组", packet["instruction"])
+            self.assertIn("gap_id、reason_code、description、impact", packet["instruction"])
+            self.assertEqual(packet["verified_documents"][0]["content"]["classification"], "ISSUER_IR_OR_ANNOUNCEMENT_BODY")
+            self.assertIn("ev-guidance", packet["allowed_evidence_ids"])
+            self.assertIn("ev-expectation", packet["allowed_evidence_ids"])
+            macro = [item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT"]
+            market = [item for item in index["tasks"] if item["capability"] == "MARKET_STATE"]
+            self.assertEqual(macro[0]["skill_name"], market[0]["skill_name"])
+            self.assertNotEqual(macro[0]["invocation_id"], market[0]["invocation_id"])
+            macro_packet = json.loads((run / macro[0]["packet_path"]).read_text())
+            market_packet = json.loads((run / market[0]["packet_path"]).read_text())
+            self.assertNotEqual(
+                macro_packet["minimum_questions"], market_packet["minimum_questions"]
+            )
+            self.assertEqual(
+                macro_packet["research_input_topology"],
+                market_packet["research_input_topology"],
+            )
+            macro_invocation = json.loads((run / macro[0]["invocation_path"]).read_text())
+            self.assertEqual(
+                macro_invocation["research_input_topology"],
+                macro_packet["research_input_topology"],
+            )
             industry = [
                 item for item in index["tasks"]
                 if item["capability"] == "INDUSTRY_COMPARISON"
@@ -200,7 +401,7 @@ class MultidimensionalStageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare(Path(temp))
             index = json.loads((run / "research/dispatch-index.json").read_text())
-            macro = next(item for item in index["tasks"] if item["capability"] == "MACRO_MARKET")
+            macro = next(item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT")
             prompt = build_multidimensional_task_prompt(ROOT, run, macro["task_name"])
             self.assertIn(f"task_name={macro['task_name']}", prompt)
             self.assertIn("只派发一次", prompt)
@@ -209,10 +410,18 @@ class MultidimensionalStageTests(unittest.TestCase):
             }
             self.assertTrue(all(name not in prompt for name in other_names))
             dependent = next(item for item in index["tasks"] if item["depends_on"])
-            with self.assertRaisesRegex(
-                ValueError, "MULTIDIMENSIONAL_TARGET_TASK_DEPENDENT"
-            ):
-                build_multidimensional_task_prompt(ROOT, run, dependent["task_name"])
+            dependency = next(
+                item for item in index["tasks"]
+                if item["task_id"] == dependent["depends_on"][0]
+            )
+            chain_prompt = build_multidimensional_task_prompt(
+                ROOT, run, dependent["task_name"]
+            )
+            self.assertIn(dependent["task_name"], chain_prompt)
+            self.assertIn(dependency["task_name"], chain_prompt)
+            self.assertIn("最小依赖闭包", chain_prompt)
+            self.assertNotIn("跨批次复制或注入报告", prompt)
+            self.assertIn("不得跨批次复制或注入报告", chain_prompt)
 
     def test_targeted_hook_scopes_dispatch_and_stop_barrier_to_one_task(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -221,7 +430,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             invocation_dir.mkdir()
             index = json.loads((run / "research/dispatch-index.json").read_text())
             target = next(
-                item for item in index["tasks"] if item["capability"] == "MACRO_MARKET"
+                item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT"
             )
             other = next(item for item in index["tasks"] if item is not target)
             environment = {
@@ -300,11 +509,202 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertEqual(stopped["output_capture"]["task_id"], target["task_id"])
             self.assertEqual(response, {})
 
+    def test_structural_failure_blocks_once_then_original_agent_repair_is_saved(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            environment = self.targeted_environment(run, task)
+            parent, child = "parent-repair", "child-repair"
+            allowed, _ = handle_hook_event(
+                self.dispatch_payload(task, parent=parent), environ=environment
+            )
+            self.assertEqual(allowed["decision"], "ALLOW")
+
+            first, response = handle_hook_event(
+                self.stop_payload(
+                    task,
+                    self.dimension_draft(task, include_impact=False),
+                    parent=parent,
+                    child=child,
+                ),
+                environ=environment,
+            )
+            self.assertEqual(first["hook_event_name"], "SubagentStopBlocked")
+            self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED")
+            self.assertEqual(response["decision"], "block")
+            repair = json.loads(response["reason"])
+            self.assertIn("$.data_gaps[0]:impact", repair["validation_error"])
+            self.assertEqual(
+                repair["output_schema_hash"], canonical_hash(repair["output_schema"])
+            )
+            self.assertNotIn("impact", repair["original_draft"]["data_gaps"][0])
+            self.assertTrue((run / first["output_capture"]["raw_path"]).is_file())
+            redispatch = self.dispatch_payload(task, parent=parent)
+            redispatch["tool_use_id"] = "tool:repair-redispatch"
+            redispatch_record, _ = handle_hook_event(
+                redispatch, environ=environment
+            )
+            self.assertEqual(
+                redispatch_record["decision"], "DENY_DUPLICATE_AGENT"
+            )
+
+            second, response = handle_hook_event(
+                self.stop_payload(
+                    task,
+                    self.dimension_draft(task, include_impact=True),
+                    parent=parent,
+                    child=child,
+                ),
+                environ=environment,
+            )
+            self.assertEqual(second["hook_event_name"], "SubagentStop")
+            self.assertEqual(second["output_capture"]["status"], "SAVED")
+            self.assertEqual(second["output_capture"]["attempt"], 2)
+            self.assertEqual(second["output_capture"]["repair_state"], "REPAIRED")
+            self.assertEqual(response, {})
+            self.assertTrue((run / second["output_capture"]["raw_path"]).is_file())
+            self.assertNotEqual(
+                first["output_capture"]["raw_path"],
+                second["output_capture"]["raw_path"],
+            )
+
+    def test_targeted_company_dependency_chain_is_scoped_and_finalized(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            target = next(
+                item for item in index["tasks"]
+                if item["capability"] == "RESEARCH_REPORT"
+            )
+            dependency = next(
+                item for item in index["tasks"]
+                if item["task_id"] == target["depends_on"][0]
+            )
+            outside = next(
+                item for item in index["tasks"]
+                if item["task_id"] not in {dependency["task_id"], target["task_id"]}
+            )
+            invocation_dir = run / "invocation"
+            invocation_dir.mkdir()
+            environment = {
+                "STOCK_AGENT_RUN_DIR": str(run),
+                "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(
+                    invocation_dir / "subagent-events.jsonl"
+                ),
+                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(
+                    invocation_dir / "subagent-dispatches.jsonl"
+                ),
+                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": target["agent"],
+                "STOCK_AGENT_MULTIDIMENSIONAL_STAGE": STAGE_VERSION,
+                "STOCK_AGENT_RESEARCH_TASK_NAMES": json.dumps(
+                    [dependency["task_name"], target["task_name"]]
+                ),
+            }
+            parent = "parent-company-chain"
+
+            outside_record, _ = handle_hook_event(
+                self.dispatch_payload(outside, parent=parent), environ=environment
+            )
+            self.assertEqual(outside_record["decision"], "DENY_UNAPPROVED_AGENT")
+            early_record, _ = handle_hook_event(
+                self.dispatch_payload(target, parent=parent), environ=environment
+            )
+            self.assertEqual(early_record["decision"], "DENY_DISPATCH_CONTRACT")
+            self.assertEqual(
+                early_record["dispatch_binding"]["failure_code"],
+                "RESEARCH_DEPENDENCY_NOT_READY",
+            )
+
+            dependency_record, _ = handle_hook_event(
+                self.dispatch_payload(dependency, parent=parent), environ=environment
+            )
+            self.assertEqual(dependency_record["decision"], "ALLOW")
+            stopped, _ = handle_hook_event(
+                self.stop_payload(
+                    dependency, self.dimension_draft(dependency),
+                    parent=parent, child="child-company-foundation",
+                ),
+                environ=environment,
+            )
+            self.assertEqual(stopped["output_capture"]["status"], "SAVED")
+
+            target_record, _ = handle_hook_event(
+                self.dispatch_payload(target, parent=parent), environ=environment
+            )
+            self.assertEqual(target_record["decision"], "ALLOW")
+            stopped, _ = handle_hook_event(
+                self.stop_payload(
+                    target, self.dimension_draft(target),
+                    parent=parent, child="child-company-report",
+                ),
+                environ=environment,
+            )
+            self.assertEqual(stopped["output_capture"]["status"], "SAVED")
+
+            proof = finalize_multidimensional_task_evidence(
+                ROOT, run, target["task_name"]
+            )
+            self.assertEqual(proof["status"], "PASSED")
+            self.assertEqual(proof["scope"], "DEPENDENCY_CHAIN_EVIDENCE")
+            self.assertEqual(
+                proof["task_names"],
+                [dependency["task_name"], target["task_name"]],
+            )
+            self.assertEqual(len(proof["report_inventory"]), 2)
+            self.assertTrue(proof["dependency_chain_complete"])
+
+    def test_repair_budget_exhausts_and_identity_failure_is_not_repairable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            environment = self.targeted_environment(run, task)
+            parent, child = "parent-exhausted", "child-exhausted"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            invalid = self.dimension_draft(task, include_impact=False)
+            first, first_response = handle_hook_event(
+                self.stop_payload(task, invalid, parent=parent, child=child),
+                environ=environment,
+            )
+            self.assertEqual(first_response["decision"], "block")
+            second, second_response = handle_hook_event(
+                self.stop_payload(task, invalid, parent=parent, child=child),
+                environ=environment,
+            )
+            self.assertEqual(second["hook_event_name"], "SubagentStop")
+            self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
+            self.assertEqual(second["output_capture"]["attempt"], 2)
+            self.assertEqual(second_response, {})
+
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            environment = self.targeted_environment(run, task)
+            parent = "parent-binding"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            wrong_identity = self.dimension_draft(task)
+            wrong_identity["agent"] = "runtime_market_catalyst"
+            stopped, response = handle_hook_event(
+                self.stop_payload(
+                    task, wrong_identity, parent=parent, child="child-binding"
+                ),
+                environ=environment,
+            )
+            self.assertEqual(stopped["hook_event_name"], "SubagentStop")
+            self.assertEqual(stopped["output_capture"]["repair_state"], "NOT_ALLOWED")
+            self.assertIn(
+                "MULTIDIMENSIONAL_OUTPUT_BINDING_INVALID",
+                stopped["output_capture"]["failure_code"],
+            )
+            self.assertEqual(response, {})
+
     def test_targeted_finalizer_proves_only_requested_task(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare(Path(temp), count=1)
             index = json.loads((run / "research/dispatch-index.json").read_text())
-            task = next(item for item in index["tasks"] if item["capability"] == "MACRO_MARKET")
+            task = next(item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT")
             invocation = json.loads((run / task["invocation_path"]).read_text())
             handoff = json.loads((run / "audit/portfolio-handoff.json").read_text())
             request = json.loads((run / "council-request.json").read_text())
@@ -404,7 +804,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             index = json.loads((run / "research/dispatch-index.json").read_text())
             macro = next(
                 item for item in index["tasks"]
-                if item["capability"] == "MACRO_MARKET"
+                if item["capability"] == "MACRO_CONTEXT"
             )
             self.assertEqual(macro["depends_on"], [])
             self.assertTrue(
@@ -452,8 +852,8 @@ class MultidimensionalStageTests(unittest.TestCase):
                 run_dir=run, run_id="macro-market-state", model="gpt-5.6-terra",
             )
             index = json.loads((run / "research/dispatch-index.json").read_text())
-            macro = next(item for item in index["tasks"] if item["capability"] == "MACRO_MARKET")
-            packet = build_multidimensional_dispatch_packet(ROOT, run, macro["task_name"])
+            market = next(item for item in index["tasks"] if item["capability"] == "MARKET_STATE")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, market["task_name"])
             prepared = packet["prepared_analysis"]
             self.assertEqual(
                 prepared["calculation"]["schema_version"],
@@ -465,8 +865,8 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertEqual(
                 packet["allowed_artifact_refs"], [prepared["calculation_ref"]]
             )
-            self.assertIn("大盘风险状态", packet["instruction"])
-            self.assertIn("不能只说所有公司都受融资条件影响", packet["instruction"])
+            self.assertIn("共享市场状态报告", packet["instruction"])
+            self.assertIn("不得把股票波动称为信用", packet["instruction"])
 
     def test_peer_candidate_pool_is_bound_but_not_promoted_to_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -522,6 +922,8 @@ class MultidimensionalStageTests(unittest.TestCase):
                 & set(packet["allowed_evidence_ids"])
             )
             self.assertIn("未核实候选池", packet["instruction"])
+            self.assertIn("claims 必须为空", packet["instruction"])
+            self.assertEqual(packet["output_schema"]["properties"]["claims"]["maxItems"], 0)
 
     def test_prepare_revalidates_and_freezes_existing_company_reports(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -1155,6 +1557,24 @@ class MultidimensionalStageTests(unittest.TestCase):
                             "invocation_id": task["invocation_id"],
                         },
                     })
+                    events.append({
+                        "hook_event_name": "SubagentStopBlocked",
+                        "child_session_id": "child-repair-unavailable",
+                        "output_binding": {"invocation_id": task["invocation_id"]},
+                        "repair_request": {
+                            "task_id": task["task_id"],
+                            "invocation_id": task["invocation_id"],
+                            "validation_error": "DIMENSION_REPORT_SCHEMA_INVALID",
+                            "output_schema_hash": "a" * 64,
+                        },
+                        "output_capture": {
+                            "status": "FAILED",
+                            "attempt": 1,
+                            "repair_state": "REPAIR_REQUESTED",
+                            "raw_output_hash": "b" * 64,
+                            "raw_path": "research/raw-drafts/unavailable.json",
+                        },
+                    })
                     continue
                 invocation = json.loads((run / task["invocation_path"]).read_text())
                 report = envelope_research_dimension_draft(
@@ -1224,6 +1644,13 @@ class MultidimensionalStageTests(unittest.TestCase):
                 "START_WITHOUT_STOP_AFTER_PARENT_EXIT",
             )
             self.assertIsNone(proof["failed_tasks"][0]["rejected_output_hash"])
+            self.assertEqual(len(proof["repair_attempts"]), 1)
+            self.assertEqual(
+                proof["repair_attempts"][0]["task_id"], missing_task["task_id"]
+            )
+            self.assertIsNone(
+                proof["repair_attempts"][0]["terminal_status"]
+            )
 
 
 if __name__ == "__main__":

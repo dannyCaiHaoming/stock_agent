@@ -717,7 +717,13 @@ def _dimension_reports(reports: Sequence[Mapping[str, Any]]) -> str:
         summary = value.get("summary")
         if isinstance(summary, (dict, list)):
             summary = _json_text(summary)
-        rows.append((value.get("report_id"), value.get("status"), value.get("capability"), summary, item.get("identity")))
+        capability = value.get("capability")
+        coverage_label = item.get("coverage_label")
+        display_capability = (
+            f"{capability} / {coverage_label}"
+            if coverage_label and coverage_label != capability else capability
+        )
+        rows.append((value.get("report_id"), value.get("status"), display_capability, summary, item.get("identity")))
     return '<section><h2>已有研究报告</h2>' + _table(["报告","状态","能力","摘要","稳定 ID"], rows, label="研究报告") + '</section>'
 
 

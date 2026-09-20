@@ -5,7 +5,7 @@ if [ "${1:-}" = "--help" ]; then
   echo '用法：bash run-product-smoke.sh [新的外置产物目录]'
   echo '或：bash run-product-smoke.sh --prepared-run <已准备的运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-multidimensional-run <已准备的多维运行目录> <新的外置调用产物目录>'
-  echo '或：bash run-product-smoke.sh --resume-multidimensional-task <已准备的多维运行目录> <task_name> <新的外置调用产物目录>'
+  echo '或：bash run-product-smoke.sh --resume-multidimensional-task <已准备的多维运行目录> <task_name> <新的外置调用产物目录>（自动包含最小依赖闭包）'
   echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
   echo '或：bash run-product-smoke.sh --stage multidimensional-holding-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--peer-candidates <冻结候选池>] [--model <研究模型>] [--company-research-run <已完成普通股研究运行>] <新的外置产物目录>'
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'

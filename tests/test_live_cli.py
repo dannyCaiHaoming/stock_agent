@@ -1,4 +1,4 @@
-"""冻结数据准备入口的零网络/零模型接缝；不证明真实采集或研究。"""
+"""退役 live 创建入口的前置拒绝接缝。"""
 import contextlib
 import io
 import json
@@ -38,40 +38,21 @@ class LiveCLITests(unittest.TestCase):
                 "--run-dir", str(directory / "run"), "--run-id", "cli-offline",
                 "--model", "test-only", "--focus-security-id", "TEST"]
 
-    def test_prepare_forwards_frozen_inputs_without_launching_model(self):
+    def test_prepare_live_rejects_before_data_network_or_model(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp).resolve()
-            record = {"synthetic": True}
-            (directory / "calendar.json").write_text(json.dumps(record))
-            calendar = object()
-            with patch("product.mcp.live.market.load_locked_calendar", return_value=calendar) as load, \
-                    patch("product.runtime.cli.prepare_live_run", return_value={"next_state": "DISPATCH_REQUIRED"}) as prepare, \
-                    patch("product.runtime.cli.launch_nested_codex", side_effect=AssertionError("隐式模型启动")), \
-                    contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(main(self.arguments(directory)), 0)
-            load.assert_called_once_with(record)
-            self.assertEqual(prepare.call_args.kwargs["calendar"], calendar)
-            self.assertEqual(prepare.call_args.kwargs["focus_security_id"], "TEST")
-            self.assertNotIn("authenticity_required", prepare.call_args.kwargs)
-
-    def test_invalid_calendar_fails_before_prepare(self):
-        with tempfile.TemporaryDirectory() as tmp:
             output = io.StringIO()
-            with patch("product.runtime.cli.prepare_live_run", side_effect=AssertionError("错误输入进入 prepare")), \
-                    contextlib.redirect_stdout(output):
-                self.assertEqual(main(self.arguments(Path(tmp))), 2)
-            result = json.loads(output.getvalue())
-            self.assertEqual(result["status"], "FAILED")
-            self.assertEqual(result["llm_calls"], 0)
-
-    def test_failed_validation_exit_is_nonzero(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            directory = Path(tmp).resolve()
-            (directory / "calendar.json").write_text("{}")
-            with patch("product.mcp.live.market.load_locked_calendar"), \
-                    patch("product.runtime.cli.prepare_live_run", return_value={"next_state": "FAILED_VALIDATION"}), \
+            with patch("pathlib.Path.read_text", side_effect=AssertionError("退役入口读取了数据")), \
+                    patch("product.runtime.cli.launch_nested_codex", side_effect=AssertionError("退役入口启动了模型")), \
                     contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(main(self.arguments(directory)), 2)
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(self.arguments(directory)), 2)
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["failure_code"], "LIVE_COUNCIL_ENTRY_RETIRED")
+            self.assertEqual(result["data_reads"], 0)
+            self.assertEqual(result["network_calls"], 0)
+            self.assertEqual(result["llm_calls"], 0)
 
     def test_unknown_profile_and_test_authenticity_flag_are_rejected(self):
         for change in ("unknown", "--allow-test-artifacts"):

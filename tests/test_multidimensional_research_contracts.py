@@ -10,11 +10,13 @@ from product.runtime.hashing import canonical_hash
 
 from product.council.multidimensional_research import (
     BUNDLE_CAPABILITIES,
+    LEGACY_BUNDLE_CAPABILITIES,
     MultiDimensionalResearchError,
     finalize_holding_research_bundle,
     finalize_research_dimension_report,
     validate_holding_research_bundle,
     validate_research_dimension_report,
+    envelope_research_dimension_draft,
 )
 from product.runtime.multidimensional_stage import check_multidimensional_bundle_consumable
 
@@ -43,7 +45,7 @@ def _report(
 ) -> dict:
     ids = list(security_ids or ["US:AAPL"])
     report = {
-        "schema_version": "research-dimension-report/1.1.0",
+        "schema_version": "research-dimension-report/2.0.0",
         "report_id": f"report:{capability.lower()}:1",
         "run_id": "run-1",
         "invocation_id": "invocation-1",
@@ -113,9 +115,11 @@ def _report(
 
 
 def _bundle(report: dict) -> dict:
+    legacy = report["schema_version"] == "research-dimension-report/1.1.0"
+    capabilities = LEGACY_BUNDLE_CAPABILITIES if legacy else BUNDLE_CAPABILITIES
     coverage = []
     for security_id in SECURITIES:
-        for capability in BUNDLE_CAPABILITIES:
+        for capability in capabilities:
             linked = capability == report["capability"] and security_id in report["security_ids"]
             coverage.append({
                 "security_id": security_id,
@@ -125,7 +129,10 @@ def _bundle(report: dict) -> dict:
                 "gap_reason": None if linked else "该维度尚未执行。",
             })
     value = {
-        "schema_version": "holding-research-bundle/1.1.0",
+        "schema_version": (
+            "holding-research-bundle/1.1.0"
+            if legacy else "holding-research-bundle/2.0.0"
+        ),
         "bundle_id": "bundle-1",
         "run_id": "run-1",
         "bindings": copy.deepcopy(BUNDLE_BINDINGS),
@@ -177,6 +184,30 @@ class ResearchDimensionContractTests(unittest.TestCase):
         )
         self.assertEqual(refs, {"ev-price-1"})
 
+    def test_v2_rejects_legacy_combined_capability(self) -> None:
+        report = _report(capability="MACRO_CONTEXT", security_ids=SECURITIES, scope="SHARED_MARKET")
+        report["capability"] = "MACRO_MARKET"
+        report = finalize_research_dimension_report(report)
+        with self.assertRaisesRegex(MultiDimensionalResearchError, "SCHEMA_INVALID"):
+            validate_research_dimension_report(
+                report,
+                expected_bindings=BINDINGS,
+                allowed_security_ids=SECURITIES,
+                allowed_evidence_ids=["ev-price-1"],
+            )
+
+    def test_legacy_report_rejects_v2_capability(self) -> None:
+        report = _report(capability="MACRO_CONTEXT", security_ids=SECURITIES, scope="SHARED_MARKET")
+        report["schema_version"] = "research-dimension-report/1.1.0"
+        report = finalize_research_dimension_report(report)
+        with self.assertRaisesRegex(MultiDimensionalResearchError, "SCHEMA_INVALID"):
+            validate_research_dimension_report(
+                report,
+                expected_bindings=BINDINGS,
+                allowed_security_ids=SECURITIES,
+                allowed_evidence_ids=["ev-price-1"],
+            )
+
     def test_dangling_evidence_fails_closed(self) -> None:
         report = _report()
         report["claims"][0]["evidence_refs"] = ["ev-missing"]
@@ -204,6 +235,39 @@ class ResearchDimensionContractTests(unittest.TestCase):
         report["claims"][0]["action"] = "BUY"
         report = finalize_research_dimension_report(report)
         with self.assertRaisesRegex(MultiDimensionalResearchError, "ACTION_FIELD_FORBIDDEN"):
+            validate_research_dimension_report(
+                report,
+                expected_bindings=BINDINGS,
+                allowed_security_ids=SECURITIES,
+                allowed_evidence_ids=["ev-price-1"],
+            )
+
+    def test_claim_requires_explicit_question_before_rendering(self) -> None:
+        report = _report()
+        del report["claims"][0]["question"]
+        report = finalize_research_dimension_report(report)
+        with self.assertRaisesRegex(
+            MultiDimensionalResearchError,
+            r"SCHEMA_REQUIRED_MISSING:\$\.claims\[0\]:question",
+        ):
+            validate_research_dimension_report(
+                report,
+                expected_bindings=BINDINGS,
+                allowed_security_ids=SECURITIES,
+                allowed_evidence_ids=["ev-price-1"],
+            )
+
+    def test_gap_requires_impact_before_rendering(self) -> None:
+        report = _report(status="SOURCE_LIMITED", evaluation_status="SOURCE_LIMITED")
+        report["data_gaps"] = [{
+            "gap_id": "gap-1", "reason_code": "SOURCE_LIMITED",
+            "description": "公开正文暂不可得。",
+        }]
+        report = finalize_research_dimension_report(report)
+        with self.assertRaisesRegex(
+            MultiDimensionalResearchError,
+            r"SCHEMA_REQUIRED_MISSING:\$\.data_gaps\[0\]:impact",
+        ):
             validate_research_dimension_report(
                 report,
                 expected_bindings=BINDINGS,
@@ -327,7 +391,7 @@ class ResearchDimensionContractTests(unittest.TestCase):
 
     def test_shared_report_can_cover_multiple_holdings(self) -> None:
         report = _report(
-            capability="MACRO_MARKET", security_ids=SECURITIES, scope="SHARED_MARKET"
+            capability="MACRO_CONTEXT", security_ids=SECURITIES, scope="SHARED_MARKET"
         )
         validate_research_dimension_report(
             report,
@@ -342,6 +406,32 @@ class ResearchDimensionContractTests(unittest.TestCase):
             expected_common_stock_ids=SECURITIES,
             dimension_reports=[report],
         )
+
+    def test_legacy_combined_report_and_bundle_remain_readable(self) -> None:
+        report = _report(
+            capability="MACRO_CONTEXT", security_ids=SECURITIES, scope="SHARED_MARKET"
+        )
+        report["schema_version"] = "research-dimension-report/1.1.0"
+        report["capability"] = "MACRO_MARKET"
+        report = finalize_research_dimension_report(report)
+        validate_research_dimension_report(
+            report,
+            expected_bindings=BINDINGS,
+            allowed_security_ids=SECURITIES,
+            allowed_evidence_ids=["ev-price-1"],
+        )
+        bundle = _bundle(report)
+        validate_holding_research_bundle(
+            bundle,
+            expected_bindings=BUNDLE_BINDINGS,
+            expected_common_stock_ids=SECURITIES,
+            dimension_reports=[report],
+        )
+        self.assertFalse(any(
+            item["capability"] in {"MACRO_CONTEXT", "MARKET_STATE"}
+            and item["status"] == "COMPLETE"
+            for item in bundle["coverage"]
+        ))
 
     def test_bundle_accepts_a_bound_equity_research_report(self) -> None:
         report = _report()
@@ -458,8 +548,6 @@ class ResearchDimensionContractTests(unittest.TestCase):
             )
 
     def test_configuration_block_cannot_be_relabelled_as_source_limited(self) -> None:
-        from product.council.multidimensional_research import envelope_research_dimension_draft
-
         task = {
             "run_id": "run-1", "invocation_id": "invocation-1",
             "task_id": "research-report-aapl", "agent": "runtime_company_analyst",
@@ -488,6 +576,16 @@ class ResearchDimensionContractTests(unittest.TestCase):
             envelope_research_dimension_draft(
                 draft, task=task, invocation=invocation, expected_bindings=BINDINGS,
                 allowed_security_ids=SECURITIES, allowed_evidence_ids=[], allowed_documents=[],
+            )
+        invalid_keys = {**draft, "schema_version": "research-dimension-report/2.0.0"}
+        with self.assertRaisesRegex(
+            MultiDimensionalResearchError,
+            "DRAFT_KEYS_INVALID:missing=none;extra=schema_version",
+        ):
+            envelope_research_dimension_draft(
+                invalid_keys, task=task, invocation=invocation,
+                expected_bindings=BINDINGS, allowed_security_ids=SECURITIES,
+                allowed_evidence_ids=[], allowed_documents=[],
             )
 
     def test_bundle_requires_every_security_capability_pair(self) -> None:

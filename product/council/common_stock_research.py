@@ -300,6 +300,21 @@ def validate_equity_research_report(
 ) -> set[str]:
     """Validate report bindings, internal references and Evidence Closure."""
 
+    # Preserve the versioned semantic error expected by historical readers.
+    # The strict schema validator now follows local $ref values and would
+    # otherwise replace this stable contract with a generic enum error.
+    allowed_gap_reasons = {
+        "NOT_FETCHED", "NOT_YET_DISCLOSED", "SOURCE_UNSUPPORTED", "UNKNOWN"
+    }
+    candidate_gaps = value.get("data_gaps")
+    if isinstance(candidate_gaps, list):
+        for gap in candidate_gaps:
+            if (
+                isinstance(gap, Mapping)
+                and "reason_code" in gap
+                and gap["reason_code"] not in allowed_gap_reasons
+            ):
+                raise CommonStockResearchError("EQUITY_RESEARCH_GAP_REASON_INVALID")
     try:
         validate_schema_instance(value, _schema("equity-research-report.schema.json"))
     except SchemaValidationError as exc:
@@ -407,9 +422,6 @@ def validate_equity_research_report(
                 raise CommonStockResearchError(
                     f"EQUITY_RESEARCH_MONITORING_CONTEXT_INVALID:{field}"
                 )
-    allowed_gap_reasons = {
-        "NOT_FETCHED", "NOT_YET_DISCLOSED", "SOURCE_UNSUPPORTED", "UNKNOWN"
-    }
     for gap in gaps:
         if "reason_code" in gap and gap["reason_code"] not in allowed_gap_reasons:
             raise CommonStockResearchError("EQUITY_RESEARCH_GAP_REASON_INVALID")

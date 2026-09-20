@@ -33,12 +33,13 @@ from product.web.read_only import ArtifactCatalog, BrowserDataError, ReadOnlyRes
 def dimension_report(
     *, decision_cutoff: str = "2026-09-01T00:00:00Z", run_id: str = "run-1",
     capability: str = "MACRO_MARKET", report_id: str | None = None,
+    schema_version: str = "research-dimension-report/1.1.0",
     summary: str = "已保存研究，不在浏览时重算。",
     evidence_id: str = "ev-market-1",
 ) -> dict:
     company_capabilities = {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT"}
     value = {
-        "schema_version": "research-dimension-report/1.1.0",
+        "schema_version": schema_version,
         "report_id": report_id or f"dimension-report:{capability.casefold().replace('_', '-')}", "run_id": run_id,
         "invocation_id": "inv-1", "capability": capability,
         "scope": "PER_SECURITY", "security_ids": ["US:MRVL"],
@@ -741,8 +742,17 @@ class LocalResearchBrowserTests(unittest.TestCase):
         snapshot["snapshot_hash"] = canonical_hash(snapshot)
         (run / "official-macro-snapshot.json").write_text(json.dumps(snapshot))
         (nested / "official-macro-snapshot.json").write_text(json.dumps(snapshot))
+        market = {
+            "schema_version": "market-context-snapshot/1.0.0", "status": "FROZEN",
+            "decision_cutoff": "2026-09-01T00:00:00Z", "evidence": [], "gaps": [],
+            "events": [], "record_hashes": [],
+            "adapter_version": "yahoo-public-market-context/1.0.0",
+        }
+        market["snapshot_hash"] = canonical_hash(market)
+        (run / "market-context-snapshot.json").write_text(json.dumps(market))
         catalog = ArtifactCatalog(run_roots=[root], run_dirs=[run])
         self.assertEqual(1, len(catalog.by_kind("macro_snapshot")))
+        self.assertEqual(1, len(catalog.by_kind("market_context_snapshot")))
         self.assertEqual("run-a", catalog.by_kind("macro_snapshot")[0]["source_label"])
         first = run / "research" / "equity-attachments"
         first.mkdir(parents=True)
@@ -837,6 +847,8 @@ class LocalResearchBrowserTests(unittest.TestCase):
         self.assertNotIn("dimension-report:macro-market", macro_page)
         self.assertIn("dimension-report:macro-market", old_page)
         self.assertIn("dimension-report:macro-market", market_page)
+        self.assertIn("LEGACY_COMBINED_COVERAGE", old_page)
+        self.assertIn("LEGACY_COMBINED_COVERAGE", market_page)
 
     def test_same_basename_runs_do_not_cross_bind_reports(self):
         left = self.base / "left" / "same-run"

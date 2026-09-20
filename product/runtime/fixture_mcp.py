@@ -51,7 +51,8 @@ def _load_object(path: Path) -> dict[str, Any]:
 
 
 def _tool_manifest(
-    *, stateless: bool = False, include_research_tools: bool = False
+    *, stateless: bool = False, include_research_tools: bool = False,
+    include_attachment_tool: bool = False,
 ) -> tuple[dict[str, Any], ...]:
     common_properties: dict[str, Any] = {
         "run_id": {"type": "string"},
@@ -144,14 +145,14 @@ def _tool_manifest(
             },
         },
     ]
-    if stateless or include_research_tools:
+    if stateless or include_research_tools or include_attachment_tool:
         identity = {
             "run_id": {"type": "string"},
             "agent": {"type": "string"}, "invocation_id": {"type": "string"},
         }
         if stateless:
             identity = {"run_dir": {"type": "string"}, **identity}
-        tools.extend([
+        additional_tools = [
             {
                 "name": "equity_research_attachments.query",
                 "description": (
@@ -210,7 +211,14 @@ def _tool_manifest(
                     },
                 },
             },
-        ])
+        ]
+        # The attachment reader is specific to a launcher-bound common-stock
+        # run.  The unbound fixture/live servers still expose research tools,
+        # but must not widen their historical attachment surface.
+        if include_attachment_tool:
+            tools.append(additional_tools[0])
+        if stateless or include_research_tools:
+            tools.extend(additional_tools[1:])
     return tuple(tools)
 
 
@@ -473,6 +481,7 @@ class StatelessFixtureTools:
         return _tool_manifest(
             stateless=self.default_run_dir is None,
             include_research_tools=True,
+            include_attachment_tool=self.default_run_dir is not None,
         )
 
     def _bound_tools(
@@ -592,7 +601,10 @@ class StatelessFixtureTools:
 
     def research_search(self, **arguments: Any) -> dict[str, Any]:
         root, task = self._research_context(arguments, "public_research.search")
-        if task.get("preparation_kind") != "RESEARCH_REPORT_DISCOVERY":
+        if task.get("preparation_kind") not in {
+            "RESEARCH_REPORT_DISCOVERY", "MACRO_RESEARCH_DISCOVERY",
+            "MARKET_RESEARCH_DISCOVERY",
+        }:
             raise ToolAccessError("RESEARCH_SEARCH_TASK_KIND_INVALID")
         if arguments.get("decision_cutoff") != task.get("decision_cutoff"):
             raise ToolAccessError("RESEARCH_SEARCH_CUTOFF_MISMATCH")
@@ -703,7 +715,10 @@ class StatelessFixtureTools:
 
     def research_fetch(self, **arguments: Any) -> dict[str, Any]:
         root, task = self._research_context(arguments, "public_research.fetch")
-        if task.get("preparation_kind") != "RESEARCH_REPORT_DISCOVERY":
+        if task.get("preparation_kind") not in {
+            "RESEARCH_REPORT_DISCOVERY", "MACRO_RESEARCH_DISCOVERY",
+            "MARKET_RESEARCH_DISCOVERY",
+        }:
             raise ToolAccessError("RESEARCH_FETCH_TASK_KIND_INVALID")
         directory = root / "research/materials" / hashlib.sha256(
             str(arguments["invocation_id"]).encode("utf-8")

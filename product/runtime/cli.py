@@ -14,7 +14,7 @@ from .execution_proof import (
     build_run_specialist_execution_proof,
     discover_and_build_run_specialist_execution_proof,
 )
-from .run_package import fail_run, finalize_cio, prepare_cio, prepare_run, prepare_live_run
+from .run_package import fail_run, finalize_cio, prepare_cio, prepare_run
 from .replay import replay_run, write_replay_result
 from .native_eval import evaluate_run, persist_eval_result
 from .native_rerun import prepare_native_rerun
@@ -80,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--ablation-profile", choices=("cio-only", "analyst-cio", "full-council"))
     prepare.add_argument("--trigger-reason", default="product_council")
 
-    live = subparsers.add_parser("prepare-live", help="仅验证并准备外置冻结数据；不采集、不启动模型")
+    live = subparsers.add_parser("prepare-live", help="已退役：仅保留显式失败以防旧调用静默回退")
     live.add_argument("--repo", type=Path, required=True)
     live.add_argument("--profile", choices=("live-us-equity",), required=True)
     live.add_argument("--portfolio", type=Path, required=True)
@@ -223,7 +223,7 @@ def build_parser() -> argparse.ArgumentParser:
     multi_launch.add_argument("--timeout-seconds", type=int, default=2400)
     multi_launch.add_argument(
         "--task-name",
-        help="只执行一个无依赖任务并保存定点执行证明；不生成完整研究包",
+        help="只执行目标任务及其最小依赖闭包并保存定点执行证明；不生成完整研究包",
     )
 
     multi_consume = subparsers.add_parser(
@@ -652,20 +652,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                               "failure_code": code}, ensure_ascii=False))
             return 2
     elif args.command == "prepare-live":
-        try:
-            from product.mcp.live.contracts import external_path
-            from product.mcp.live.market import load_locked_calendar
-            calendar_path = external_path(args.calendar_lock)
-            calendar = load_locked_calendar(json.loads(calendar_path.read_text(encoding="utf-8")))
-            result = prepare_live_run(
-                args.repo, portfolio_path=args.portfolio, snapshot_path=args.snapshot,
-                cache_root=args.cache_root, calendar=calendar, run_dir=args.run_dir,
-                run_id=args.run_id, model=args.model, focus_security_id=args.focus_security_id,
-            )
-        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
-            print(json.dumps({"status": "FAILED", "failure_code": str(exc),
-                              "command": args.command, "llm_calls": 0}, ensure_ascii=False))
-            return 2
+        print(json.dumps({
+            "status": "FAILED",
+            "failure_code": "LIVE_COUNCIL_ENTRY_RETIRED",
+            "command": args.command,
+            "successor": "common-stock-research",
+            "data_reads": 0,
+            "network_calls": 0,
+            "llm_calls": 0,
+        }, ensure_ascii=False))
+        return 2
     elif args.command == "prepare-cio":
         result = prepare_cio(args.repo, run_dir=args.run_dir, model=args.model)
     elif args.command == "finalize-cio":

@@ -23,8 +23,13 @@ from .multidimensional_stage import (
 )
 
 
-STAGE_VERSION = "multidimensional-material-preparation-runtime/1.0.0"
-DISPATCH_VERSION = "multidimensional-material-preparation-dispatch/1.0.0"
+STAGE_VERSION = "multidimensional-material-preparation-runtime/1.1.0"
+DISPATCH_VERSION = "multidimensional-material-preparation-dispatch/1.1.0"
+DISCOVERY_KINDS = {
+    "RESEARCH_REPORT_DISCOVERY",
+    "MACRO_RESEARCH_DISCOVERY",
+    "MARKET_RESEARCH_DISCOVERY",
+}
 
 
 def _parent_output_schema(run_id: str, task_count: int) -> dict[str, Any]:
@@ -92,7 +97,7 @@ def _output_schema(*, run_id: str, invocation_id: str, agent: str, kind: str) ->
                     },
                 },
             },
-            "selections": {"type": "array", "maxItems": 5 if kind == "RESEARCH_REPORT_DISCOVERY" else 3, "items": selection},
+            "selections": {"type": "array", "maxItems": 5 if kind in DISCOVERY_KINDS else 3, "items": selection},
             "gaps": {
                 "type": "array", "items": {
                     "type": "object", "additionalProperties": False,
@@ -160,7 +165,7 @@ def prepare_research_materials_stage(
     }
     skills = {
         name: _skill_binding(product_root, name)
-        for name in ("research-report-analysis", "industry-comparison")
+        for name in ("research-report-analysis", "industry-comparison", "macro-market-analysis")
     }
     run_dir.mkdir(parents=True)
     _write_object(run_dir / "audit/portfolio-handoff.json", handoff)
@@ -249,6 +254,89 @@ def prepare_research_materials_stage(
                 **task, "task_path": task_path, "invocation_path": invocation_path,
                 "packet_path": packet_path, "packet_hash": canonical_hash(packet), "depends_on": [],
             })
+    for kind, capability, security_id, display_name in (
+        ("MACRO_RESEARCH_DISCOVERY", "MACRO_CONTEXT", "US:MACRO", "美国宏观环境"),
+        ("MARKET_RESEARCH_DISCOVERY", "MARKET_STATE", "US:MARKET", "美国市场状态"),
+    ):
+        ordinal += 1
+        agent, skill = "runtime_market_catalyst", "macro-market-analysis"
+        task_id = f"material:{kind.lower()}:shared"
+        invocation_id = f"{run_id}:{agent}:{task_id}"
+        task_name = f"research_material_preparation_{ordinal}"
+        task = {
+            "task_id": task_id, "task_name": task_name, "run_id": run_id,
+            "invocation_id": invocation_id, "preparation_kind": kind,
+            "agent": agent, "skill_name": skill, "security_id": security_id,
+            "security": {
+                "security_id": security_id, "display_symbol": None,
+                "display_name": display_name, "market": "US", "asset_type": "RESEARCH_SCOPE",
+            },
+            "decision_cutoff": cutoff, "peer_candidate_group": None,
+            "target_capabilities": [capability],
+        }
+        task["task_hash"] = canonical_hash(task)
+        task_path = f"research/tasks/{canonical_hash({'task_id': task_id})}.json"
+        _write_object(run_dir / task_path, task)
+        boundary = (
+            "只搜索宏观策略与官方政策解读，围绕利率、通胀、就业、经济活动和已公布日历；"
+            if capability == "MACRO_CONTEXT" else
+            "只搜索市场策略正文，围绕大盘、板块、跨资产、波动、信用/流动性和市场风险状态；"
+        )
+        instruction = (
+            "这是资料准备而非正式投资研究。" + boundary +
+            "根据当前持仓与截止时点构造至多三条精确查询，实际调用 research_search；"
+            "只对返回候选调用 research_fetch。搜索标题/摘要只是线索，只有 BODY_VERIFIED 正文"
+            "可选择。不得使用通用 Web、模型记忆或输出投资动作；来源受限时保留实际错误"
+            "和影响。缺少正文 API key 等配置问题必须输出 BLOCKED_CONFIGURATION。"
+        )
+        invocation = {
+            "schema_version": "research-material-preparation-invocation/1.1.0",
+            "run_id": run_id, "invocation_id": invocation_id,
+            "agent_binding": agents[agent], "skill": skills[skill],
+            "model": selected_model,
+            "prompt_hash": canonical_hash({"instruction": instruction}),
+            "task_path": task_path,
+            "tool_permissions": ["public_research.search", "public_research.fetch"],
+            "analysis_mode": "MATERIAL_PREPARATION_ONLY",
+        }
+        invocation["manifest_hash"] = canonical_hash(invocation)
+        invocation_path = f"invocations/by-id/{canonical_hash({'invocation_id': invocation_id})}.json"
+        _write_object(run_dir / invocation_path, invocation)
+        facts = _facts_for_capability(
+            gate.get("allowed_evidence", []), capability=capability,
+            security_ids=[item["security_id"] for item in common], benchmark_id=None,
+        )
+        packet = {
+            "dispatch_contract": DISPATCH_VERSION,
+            "identity": {
+                "run_id": run_id, "invocation_id": invocation_id, "task_id": task_id,
+                "task_name": task_name, "agent": agent, "security_id": security_id,
+            },
+            "instruction": instruction, "task": task,
+            "evidence_catalog": [
+                {key: fact.get(key) for key in (
+                    "evidence_id", "semantic_field", "source_id", "as_of", "retrieved_at"
+                )}
+                for fact in facts
+            ],
+            "peer_candidate_group": None,
+            "tool_context": {
+                "mcp_server": "fixture_runtime",
+                "logical_permissions": ["public_research.search", "public_research.fetch"],
+                "required_identity_arguments": {
+                    "run_id": run_id, "agent": agent, "invocation_id": invocation_id,
+                },
+            },
+            "output_schema": _output_schema(
+                run_id=run_id, invocation_id=invocation_id, agent=agent, kind=kind,
+            ),
+        }
+        packet_path = f"research/dispatch-packets/{canonical_hash({'packet': invocation_id})}.json"
+        _write_object(run_dir / packet_path, packet)
+        tasks.append({
+            **task, "task_path": task_path, "invocation_path": invocation_path,
+            "packet_path": packet_path, "packet_hash": canonical_hash(packet), "depends_on": [],
+        })
     index = {
         "schema_version": DISPATCH_VERSION, "run_id": run_id,
         "target_concurrency": target_concurrency, "tasks": tasks,
@@ -338,7 +426,7 @@ def validate_material_preparation_output(
             for item in value["selections"]
         ):
             raise ResearchMaterialsStageError("RESEARCH_MATERIALS_PEER_SELECTION_INVALID")
-    else:
+    elif task["preparation_kind"] in DISCOVERY_KINDS:
         # fixture_mcp uses raw sha256(invocation_id) for the run-scoped directory.
         import hashlib
         material_root = run_dir / "research/materials" / hashlib.sha256(
@@ -393,6 +481,8 @@ def validate_material_preparation_output(
             raise ResearchMaterialsStageError("RESEARCH_MATERIALS_CONFIGURATION_MASQUERADED_AS_SOURCE_LIMITED")
         if value["status"] != "READY" and not value["gaps"]:
             raise ResearchMaterialsStageError("RESEARCH_MATERIALS_LIMITATION_GAP_REQUIRED")
+    else:
+        raise ResearchMaterialsStageError("RESEARCH_MATERIALS_KIND_INVALID")
 
 
 def finalize_research_materials_stage(repository_root: Path, run_dir: Path) -> dict[str, Any]:

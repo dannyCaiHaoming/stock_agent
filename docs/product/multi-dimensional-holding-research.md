@@ -19,7 +19,7 @@ PortfolioHandoff v3
 ## Agent、Skill 与工具边界
 
 - `runtime_company_analyst`：公司基本面深化、公司事件和公司研报分析；复用已有公司研究报告，不重复生成同一份基础报告。
-- `runtime_market_catalyst`：技术结构、行业同行、共享宏观市场、所有权披露及期权市场结构。每个 invocation 只执行一个 capability。
+- `runtime_market_catalyst`：技术结构、行业同行、宏观环境、市场状态、所有权披露及期权市场结构。`MACRO_CONTEXT` 与 `MARKET_STATE` 是两个独立 capability、两个独立 invocation；前者解释利率、通胀、经济活动和政策传导，后者解释基准、板块、跨资产、波动/信用代理与短期市场事件。每个 invocation 只执行一个 capability。
 - Skills：定义各维度应回答的问题、证据分层、反向条件和表达边界。
 - 只读工具：获取与标准化公开资料、计算指标、冻结正文、核实同行身份；不得形成投资评级。
 - Python：执行 PIT、Schema、引用闭合、依赖调度、哈希、渲染和存储；不得代替 LLM 选择 Thesis、同行赢家或交易动作。
@@ -37,11 +37,11 @@ PortfolioHandoff v3
 
 ## 并发和依赖
 
-默认最多三个活跃 Subagent。技术、基本面和共享宏观等独立任务可并行；正式研报分析等待正文准备与公司基础报告，正式同行比较等待候选选择、有限采集、Gate 与公司基础报告。某一资料路径失败只阻塞真实依赖项，不能阻止其他维度运行。共享宏观任务每批只执行一次。
+默认最多三个活跃 Subagent。技术、基本面、宏观和市场等独立任务可并行；正式研报分析等待正文准备与公司基础报告，正式同行比较等待候选选择、有限采集、Gate 与公司基础报告。某一资料路径失败只阻塞真实依赖项，不能阻止其他维度运行。共享 `MACRO_CONTEXT` 与 `MARKET_STATE` 各自每批只执行一次，不能再用一份历史 `MACRO_MARKET` 报告冒充两个维度均已覆盖。
 
 ## 输出
 
-每个维度输出 `ResearchDimensionReport/1.1.0`，至少包含：
+新运行的每个维度输出 `ResearchDimensionReport/2.0.0`，至少包含：
 
 - 研究身份、Agent/Skill/模型及输入绑定；
 - 具体问题、Claim、原始 Evidence、计算、假设和反向观察条件；
@@ -49,7 +49,9 @@ PortfolioHandoff v3
 - 可比性、时效、来源和资料缺口；
 - `COMPLETE`、`LOW_CONFIDENCE`、`INSUFFICIENT_EVIDENCE`、`SOURCE_LIMITED`、`FAILED` 或 `TIMEOUT` 状态。
 
-最终 `HoldingResearchBundle/1.1.0` 同时引用已有 `EquityResearchReport`、新增维度报告、原始 Evidence 与产物哈希，按每只普通股列出每个维度的覆盖状态。它分别报告 `STRUCTURALLY_CONSUMABLE` 与 `DOWNSTREAM_READY`：前者只证明结构、绑定和引用可解析，后者还要求每只普通股的公司报告已经重新验证并纳入、补证来源处理完整、待反证问题或空值原因明确。
+最终 `HoldingResearchBundle/2.0.0` 同时引用已有 `EquityResearchReport`、新增维度报告、原始 Evidence 与产物哈希，按每只普通股列出每个维度的覆盖状态。它分别报告 `STRUCTURALLY_CONSUMABLE` 与 `DOWNSTREAM_READY`：前者只证明结构、绑定和引用可解析，后者还要求每只普通股的公司报告已经重新验证并纳入、补证来源处理完整、待反证问题或空值原因明确。
+
+历史 `ResearchDimensionReport/1.1.0` 与 `HoldingResearchBundle/1.1.0` 仍可只读和确定性重组，其中 `MACRO_MARKET` 明确标记为 `LEGACY_COMBINED_COVERAGE`。兼容读取不自动升级历史结论，也不把一份合并报告判为 `MACRO_CONTEXT`、`MARKET_STATE` 两项通过。
 
 历史阶段产物可通过确定性 `assemble-canonical-holding-research` 入口重组。该入口选择一个基础 run 和统一 decision cutoff，重新验证公司报告并复制到新的外置交接目录；它不会修改原运行包或调用模型。不同 run、cutoff、CouncilRequest 或 Evidence 集合的补证保留在 `package_provenance.excluded_supplements`，不能静默拼成同一次用户研究。
 
@@ -61,13 +63,16 @@ PortfolioHandoff v3
 - 基本面与事件：业务与增长驱动、盈利质量、现金流/资本配置、适用估值假设、关键事件和未知项。
 - 研报：作者依据、预测/估值假设、与其他资料的分歧、对已有研究判断的具体作用及利益披露限制。
 - 行业：同行相对位置、行业与公司因素、需求/价格/周期传导和可比性限制。
-- 宏观：相关利率、通胀、活动与市场状态，对不同持仓的传导和反向情景。
+- 宏观：相关利率、通胀、经济活动、央行政策与发布日历，对不同持仓的传导、敏感性和反向情景。
+- 市场：大盘与相关板块、跨资产序列、波动/信用指标或明确代理，以及 24 小时市场事件；所有代理、时点和不能推断的方向必须显式说明。
 - 所有权与期权：只解释实际取得的披露或快照、滞后和覆盖，不从单期数据推断资金方向。
 
 ## 当前来源与限制
 
-来源、预算和实测状态见 [免费公开资料能力表](../data/free-source-capability-matrix.md)。公开来源并不保证持续可用；外部配置或来源受限必须原样保留。首版不包含付费卖方数据库、历史期权持仓量、完整 13F 反向检索、全市场选股、ETF/期权持仓专项研究或自动下单。
+当前三域及 provider 平面的权威映射见 [`holding-research-inputs.json`](../../product/profiles/holding-research-inputs.json)，来源、预算和实测状态见 [免费公开资料能力表](../data/free-source-capability-matrix.md)。新运行会在 manifest 中锁定该拓扑、引用版本与 hash；历史 `live-us-equity/4.0.0` 仅作 `RETIRED/COMPATIBILITY_ONLY` 读取，不再代表当前创建入口。
 
-首版尚未取得的公开研报正文深化、13F 两期机构持仓、期权链及可验证资金行为真实快照，已明确延期至 `capture-futu-client-research-data`。延期状态必须在 coverage 与来源记录中保留，不表示对应能力已经通过。
+基础披露层以 SEC 与 Yahoo 为主：SEC 承担公司身份、申报、财务事实与公开事件，Yahoo 承担冻结行情、基准及可确定性派生的市场/估值输入。研究补充层可以接入本机 `127.0.0.1` Moomoo OpenD，但其当前契约只允许新加坡区域、只读 quote capability；OpenD 不可达、未授权或字段不足时，只降低对应 supplement 数据集状态，SEC/Yahoo 合格资料仍继续，不得回退到客户端 Cookie、私有接口或登录绕过。
+
+公开研报正文、13F 两期机构持仓、历史期权结构和可验证资金行为等仍按能力矩阵逐项记录 `AVAILABLE`、`PARTIAL`、`SOURCE_LIMITED` 或准确失败状态。它们不是因为某个已归档 Change 而自动完成；只有真实采集、PIT Gate、冻结引用和对应 Agent 实际消费闭合后，才可提升本批次 coverage。
 
 完成本阶段只证明 canonical 研究包可以供下一 Agent 消费，不代表 Skeptic、CIO、Risk 或候选版本晋升已经通过。

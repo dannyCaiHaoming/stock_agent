@@ -91,7 +91,7 @@ class SkillConfigTests(unittest.TestCase):
                 "technical-structure": "1.1.0",
                 "research-report-analysis": "1.2.0",
                 "industry-comparison": "1.4.0",
-                "macro-market-analysis": "1.0.0",
+                "macro-market-analysis": "2.1.0",
                 "ownership-disclosure": "1.0.0",
                 "options-market-structure": "1.0.0",
             }[skill_name]

@@ -20,10 +20,10 @@ from product.mcp.provenance import parse_timestamp
 from product.runtime.hashing import canonical_hash, file_hash
 
 
-STAGE_VERSION = "multidimensional-holding-research-runtime/1.0.0"
-DISPATCH_VERSION = "multidimensional-research-dispatch/1.0.0"
+STAGE_VERSION = "multidimensional-holding-research-runtime/2.0.0"
+DISPATCH_VERSION = "multidimensional-research-dispatch/2.0.0"
 COMPANY_AGENT_VERSION = "3.0.20"
-MARKET_AGENT_VERSION = "1.0.1"
+MARKET_AGENT_VERSION = "1.2.0"
 
 
 def _parent_output_schema(run_id: str, task_count: int) -> dict[str, Any]:
@@ -44,7 +44,8 @@ CAPABILITY_BINDINGS = {
     "FUNDAMENTAL_EVENT": ("runtime_company_analyst", "company-research", "PER_SECURITY"),
     "RESEARCH_REPORT": ("runtime_company_analyst", "research-report-analysis", "PER_SECURITY"),
     "INDUSTRY_COMPARISON": ("runtime_market_catalyst", "industry-comparison", "PER_SECURITY"),
-    "MACRO_MARKET": ("runtime_market_catalyst", "macro-market-analysis", "SHARED_MARKET"),
+    "MACRO_CONTEXT": ("runtime_market_catalyst", "macro-market-analysis", "SHARED_MARKET"),
+    "MARKET_STATE": ("runtime_market_catalyst", "macro-market-analysis", "SHARED_MARKET"),
     "OWNERSHIP_DISCLOSURE": ("runtime_market_catalyst", "ownership-disclosure", "PER_SECURITY"),
     "OPTIONS_FLOW": ("runtime_market_catalyst", "options-market-structure", "PER_SECURITY"),
 }
@@ -54,7 +55,8 @@ MINIMUM_QUESTIONS = {
     "FUNDAMENTAL_EVENT": ["核心经营驱动是什么？", "盈利与现金流是什么关系？", "估值依赖哪些显式假设？", "关键未知和已公告事件如何影响判断？"],
     "RESEARCH_REPORT": ["作者使用了哪些依据与假设？", "报告之间或与公司资料有哪些真实分歧？", "报告对已有研究主张是支持、挑战、修订还是无新增信息？"],
     "INDUSTRY_COMPARISON": ["公司相对同行处于什么位置？", "行业与公司因素如何区分？", "可比性限制和传导机制是什么？"],
-    "MACRO_MARKET": ["哪些宏观与市场变量与持仓相关？", "传导机制和显式假设是什么？", "不同持仓的敏感性和反向情景是什么？"],
+    "MACRO_CONTEXT": ["利率、通胀、经济活动与政策事实是什么？", "观察期、发布时间与修订边界是什么？", "这些因素怎样分别传导到持仓，什么反向情景会推翻解释？"],
+    "MARKET_STATE": ["大盘、相关板块、跨资产、波动与信用状态是什么？", "哪些指标是代理且有什么边界？", "市场状态怎样分别传导到持仓，什么反向情景会推翻解释？"],
     "OWNERSHIP_DISCLOSURE": ["实际披露发生了什么变化？", "交易类型、披露滞后和覆盖限制是什么？", "哪些内容不能从披露推断？"],
     "OPTIONS_FLOW": ["当前快照实际支持什么结构观察？", "时效、覆盖和直接/代理指标边界是什么？", "哪些资金方向结论不能成立？"],
 }
@@ -117,6 +119,7 @@ def _facts_for_capability(
     for fact in evidence:
         field = str(fact.get("semantic_field", ""))
         source = str(fact.get("source_type", ""))
+        source_family = str(fact.get("source_family", ""))
         metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
         form = str(metadata.get("form", ""))
         security_id = fact.get("security_id")
@@ -137,15 +140,24 @@ def _facts_for_capability(
         elif capability == "RESEARCH_REPORT":
             matches = security_id in scoped_ids and (
                 source in {"public_research", "issuer_research"}
-                or source == "sec" and field == "earnings_release"
+                or source_family in {"sec", "yahoo", "moomoo_sg"}
+                and field in {
+                    "sec_issuer_guidance_candidate_text", "yahoo_earnings_trend",
+                    "yahoo_recommendation_trend", "moomoo_analyst_consensus",
+                }
+                or source == "sec" and field in {"earnings_release", "management_discussion"}
             )
         elif capability == "INDUSTRY_COMPARISON":
             matches = security_id in scoped_ids and (
                 source in {"sec", "yahoo", "public_research"} or field.startswith("industry_")
             )
-        elif capability == "MACRO_MARKET":
+        elif capability == "MACRO_CONTEXT":
             matches = security_id in {"MARKET", "US:MARKET"} or source in {
                 "fred", "bls", "bea", "federal_reserve", "treasury"
+            }
+        elif capability == "MARKET_STATE":
+            matches = security_id in {"MARKET", "US:MARKET"} or source in {
+                "yahoo", "market", "fred", "treasury", "eia"
             }
         elif capability == "OWNERSHIP_DISCLOSURE":
             matches = security_id in scoped_ids and (form in {"3", "4", "5", "13F-HR", "13F-HR/A"} or field.startswith("ownership_"))
@@ -395,8 +407,11 @@ def _dynamic_draft_schema(
     repository_root: Path, *, run_id: str, invocation_id: str, agent: str,
     allowed_evidence_ids: Sequence[str], allowed_artifact_refs: Sequence[str],
     allowed_documents: Sequence[Mapping[str, Any]] = (),
+    claims_forbidden: bool = False,
 ) -> dict[str, Any]:
-    schema = _read_object(repository_root / "product/schemas/runtime/research-dimension-report.schema.json")
+    schema = _read_object(
+        repository_root / "product/schemas/runtime/research-dimension-report-v2.schema.json"
+    )
     technical = {
         "schema_version", "report_id", "capability", "scope", "security_ids",
         "bindings", "time_context", "execution", "report_hash",
@@ -405,7 +420,7 @@ def _dynamic_draft_schema(
         schema["properties"].pop(key)
         schema["required"].remove(key)
     schema["title"] = "ResearchDimensionDraft"
-    schema["$id"] = "research-dimension-draft/1.1.0"
+    schema["$id"] = "research-dimension-draft/2.0.0"
     schema["properties"]["run_id"] = {"type": "string", "const": run_id}
     schema["properties"]["invocation_id"] = {"type": "string", "const": invocation_id}
     schema["properties"]["agent"] = {"type": "string", "const": agent}
@@ -422,6 +437,8 @@ def _dynamic_draft_schema(
             "type": "object", "enum": [copy.deepcopy(dict(item)) for item in allowed_documents]
         }
     }
+    if claims_forbidden:
+        schema["properties"]["claims"]["maxItems"] = 0
     return schema
 
 
@@ -686,6 +703,111 @@ def _report_document_from_verified(value: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _issuer_documents_from_gate(
+    evidence: Sequence[Mapping[str, Any]], *, security_ids: Sequence[str],
+) -> dict[str, list[dict[str, Any]]]:
+    """把已由 SEC 采集/解析并通过 Gate 的公司正文投影为 issuer documents。"""
+
+    result = {security_id: [] for security_id in security_ids}
+    candidates: dict[str, list[tuple[Mapping[str, Any], str, str]]] = {
+        security_id: [] for security_id in security_ids
+    }
+    for fact in evidence:
+        security_id = fact.get("security_id")
+        if security_id not in candidates:
+            continue
+        source_type = str(fact.get("source_type", ""))
+        source_id = str(fact.get("source_id", "")).lower()
+        if fact.get("semantic_field") not in {"earnings_release", "management_discussion"}:
+            continue
+        if source_type != "sec" and "sec" not in source_id:
+            continue
+        metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
+        body_text = metadata.get("text") if isinstance(metadata.get("text"), str) else fact.get("value")
+        if not isinstance(body_text, str):
+            continue
+        body_text = " ".join(body_text.split())
+        # SEC 目录抽取通常只有 Item 标题和页码。它可作定位线索，但不是已读正文。
+        if len(body_text) < 300 or len(body_text.split()) < 50:
+            continue
+        body_hash = canonical_hash({
+            "text": body_text,
+            "normalized_text_range": metadata.get("normalized_text_range"),
+            "raw_character_spans": metadata.get("raw_character_spans"),
+        })
+        candidates[security_id].append((fact, body_text, body_hash))
+    for security_id, items in candidates.items():
+        # 同一 filing 的同一语义段只保留最长、最完整的抽取，避免把重叠段落计成多份正文。
+        deduplicated: dict[tuple[str, str], tuple[Mapping[str, Any], str, str]] = {}
+        for item in items:
+            fact, body_text, _ = item
+            raw_identity = str(
+                fact.get("raw_content_hash") or fact.get("source_locator") or fact.get("source_id")
+            )
+            identity = (raw_identity, str(fact.get("semantic_field")))
+            incumbent = deduplicated.get(identity)
+            if incumbent is None or len(body_text) > len(incumbent[1]):
+                deduplicated[identity] = item
+        facts = list(deduplicated.values())
+        for fact in sorted(
+            facts,
+            key=lambda item: (
+                str(item[0].get("published_at", "")), str(item[0].get("evidence_id", "")),
+            ),
+            reverse=True,
+        )[:4]:
+            fact, body_text, body_hash = fact
+            metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
+            locator = str(fact.get("source_locator", ""))
+            raw_hash = str(fact.get("raw_content_hash", ""))
+            report_document = {
+                "document_id": "issuer-document-" + canonical_hash({
+                    "evidence_id": fact["evidence_id"], "raw_content_hash": raw_hash,
+                })[:24],
+                "source_id": str(fact["source_id"]),
+                "title": str(
+                    metadata.get("description")
+                    or metadata.get("attachment_description")
+                    or "SEC issuer earnings material"
+                ),
+                "authors": [], "institution": security_id,
+                "material_type": "ISSUER_MATERIAL",
+                "source_url": locator, "original_source_url": locator,
+                "published_at": fact["published_at"], "as_of": fact["as_of"],
+                "retrieved_at": fact["retrieved_at"],
+                "body_hash": body_hash,
+                "locations": [
+                    str(fact.get("section") or fact.get("semantic_field")),
+                    f"gate-evidence:{fact['evidence_id']}",
+                ],
+                "parse_scope": "SEC_GATE_VERIFIED_EVIDENCE_RANGE",
+                "duplicate_of": None, "revision_of": None,
+                "interest_disclosure": {
+                    "status": "DECLARED", "statement": None, "location": None,
+                },
+                "verification_status": "BODY_VERIFIED",
+            }
+            result[security_id].append({
+                "report_document": report_document,
+                "content": {
+                    "schema_version": "gate-verified-issuer-document/1.0.0",
+                    "document_id": report_document["document_id"],
+                    "security_id": security_id,
+                    "evidence_id": fact["evidence_id"],
+                    "source_id": fact["source_id"],
+                    "source_locator": locator,
+                    "published_at": fact["published_at"], "as_of": fact["as_of"],
+                    "retrieved_at": fact["retrieved_at"],
+                    "body_hash": body_hash,
+                    "raw_content_hash": raw_hash,
+                    "body_character_count": len(body_text),
+                    "classification": "ISSUER_IR_OR_ANNOUNCEMENT_BODY",
+                    "body_access": "query the bound Gate evidence_id",
+                },
+            })
+    return result
+
+
 def _import_research_materials(
     *, source_run: Path, target_run: Path, expected_handoff: Mapping[str, Any],
     target_gate: Mapping[str, Any], expected_security_ids: Sequence[str],
@@ -739,8 +861,10 @@ def _import_research_materials(
     if set(output_by_task) != set(tasks):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_OUTPUT_INCOMPLETE")
     documents_by_security = {security_id: [] for security_id in expected_security_ids}
+    documents_by_capability = {"MACRO_CONTEXT": [], "MARKET_STATE": []}
     peers_by_security = {security_id: [] for security_id in expected_security_ids}
     report_preparation_by_security = {security_id: None for security_id in expected_security_ids}
+    shared_preparation_by_capability = {"MACRO_CONTEXT": None, "MARKET_STATE": None}
     peer_preparation_by_security = {security_id: None for security_id in expected_security_ids}
     copied_refs: list[str] = []
     import_entries = []
@@ -749,7 +873,12 @@ def _import_research_materials(
     for task_id, task in tasks.items():
         output_entry = output_by_task[task_id]
         security_id = task["security_id"]
-        if security_id not in documents_by_security:
+        preparation_kind = task["preparation_kind"]
+        shared_capability = {
+            "MACRO_RESEARCH_DISCOVERY": "MACRO_CONTEXT",
+            "MARKET_RESEARCH_DISCOVERY": "MARKET_STATE",
+        }.get(preparation_kind)
+        if shared_capability is None and security_id not in documents_by_security:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_SECURITY_INVALID")
         if output_entry.get("status") == "FAILED":
             failure_code = str(
@@ -762,8 +891,10 @@ def _import_research_materials(
                 "artifact_refs": [],
                 "failure_code": failure_code,
             }
-            if task["preparation_kind"] == "RESEARCH_REPORT_DISCOVERY":
+            if preparation_kind == "RESEARCH_REPORT_DISCOVERY":
                 report_preparation_by_security[security_id] = preparation
+            elif shared_capability is not None:
+                shared_preparation_by_capability[shared_capability] = preparation
             else:
                 peer_preparation_by_security[security_id] = preparation
             import_entries.append({
@@ -795,8 +926,11 @@ def _import_research_materials(
             copied_ref = str(copied.relative_to(target_run))
             copied_refs.append(copied_ref)
             copied_artifacts.append({"artifact_ref": copied_ref, "file_hash": file_hash(copied)})
-        if task["preparation_kind"] == "RESEARCH_REPORT_DISCOVERY":
-            report_preparation_by_security[security_id] = {
+        if preparation_kind in {
+            "RESEARCH_REPORT_DISCOVERY", "MACRO_RESEARCH_DISCOVERY",
+            "MARKET_RESEARCH_DISCOVERY",
+        }:
+            preparation = {
                 "status": output["status"], "summary": output["summary"],
                 "gaps": copy.deepcopy(output["gaps"]),
                 "artifact_refs": list(output["artifact_refs"]),
@@ -816,7 +950,12 @@ def _import_research_materials(
                     "report_document": _report_document_from_verified(matches[0]),
                     "content": copy.deepcopy(matches[0]),
                 })
-            documents_by_security[security_id] = documents
+            if shared_capability is None:
+                report_preparation_by_security[security_id] = preparation
+                documents_by_security[security_id] = documents
+            else:
+                shared_preparation_by_capability[shared_capability] = preparation
+                documents_by_capability[shared_capability] = documents
         else:
             peer_preparation_by_security[security_id] = {
                 "status": output["status"], "summary": output["summary"],
@@ -860,8 +999,10 @@ def _import_research_materials(
     copied_refs.append(str((destination_root / "import-manifest.json").relative_to(target_run)))
     return {
         "documents_by_security": documents_by_security,
+        "documents_by_capability": documents_by_capability,
         "peers_by_security": peers_by_security,
         "report_preparation_by_security": report_preparation_by_security,
+        "shared_preparation_by_capability": shared_preparation_by_capability,
         "peer_preparation_by_security": peer_preparation_by_security,
         "artifact_refs": copied_refs,
         "import_hash": proof["import_hash"],
@@ -925,6 +1066,72 @@ def build_multidimensional_dispatch_message(
     )
 
 
+def _load_research_capture_batches(
+    *, gate_path: Path, gate: Mapping[str, Any], security_ids: Sequence[str],
+) -> list[dict[str, Any]]:
+    """从 Gate 同目录的已验证 preparation 引用中读取逐股 capability batch。"""
+
+    preparation_path = gate_path.parent / "data-preparation.json"
+    if not preparation_path.is_file():
+        return []
+    preparation = _read_object(preparation_path)
+    if preparation.get("common_cutoff") != gate.get("decision_cutoff"):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_PREPARATION_CUTOFF_MISMATCH")
+    records = preparation.get("research_supplements", [])
+    if not records and isinstance(preparation.get("research_supplement"), Mapping):
+        record = dict(preparation["research_supplement"])
+        record["batch_ref"] = "research-capture-batch.json"
+        records = [record]
+    if not isinstance(records, list):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_PREPARATION_INVALID")
+    expected_ids = set(security_ids)
+    batches = []
+    seen_ids: set[str] = set()
+    from product.mcp.live.research_supplement import validate_capture_batch
+    for record in records:
+        if not isinstance(record, Mapping) or not isinstance(record.get("batch_ref"), str):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_BATCH_REFERENCE_INVALID")
+        security_id = record.get("security_id")
+        if security_id not in expected_ids or security_id in seen_ids:
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_BATCH_SCOPE_INVALID")
+        batch_path = (preparation_path.parent / record["batch_ref"]).resolve()
+        if not batch_path.is_relative_to(preparation_path.parent.resolve()) or not batch_path.is_file():
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_BATCH_REFERENCE_INVALID")
+        batch = _read_object(batch_path)
+        try:
+            validate_capture_batch(batch)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_BATCH_INVALID") from exc
+        if (
+            batch.get("security_id") != security_id
+            or batch.get("batch_id") != record.get("batch_id")
+            or parse_timestamp(str(batch.get("decision_cutoff")))
+            > parse_timestamp(str(gate.get("decision_cutoff")))
+        ):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_BATCH_BINDING_INVALID")
+        batch_evidence_ids = {
+            evidence_id
+            for capability in batch.get("capabilities", [])
+            for evidence_id in capability.get("evidence_ids", [])
+            if isinstance(evidence_id, str)
+        }
+        if not batch_evidence_ids <= set(gate.get("allowed_evidence_ids", [])):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_BATCH_EVIDENCE_INVALID")
+        seen_ids.add(str(security_id))
+        batches.append(batch)
+    return batches
+
+
+def _provider_scope(capability: str) -> set[str]:
+    if capability == "MACRO_CONTEXT":
+        return {"bls", "treasury", "federal_reserve", "bea", "fred"}
+    if capability == "MARKET_STATE":
+        return {"yahoo", "treasury", "fred", "eastmoney"}
+    if capability in {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"}:
+        return {"sec", "yahoo", "moomoo_sg", "openalex", "nasdaq"}
+    return {"yahoo", "nasdaq", "eastmoney"}
+
+
 def prepare_multidimensional_stage_run(
     repository_root: Path, *, handoff_path: Path, gate_path: Path, run_dir: Path,
     run_id: str, model: str, research_question: str = "补全普通股持仓的免费多维研究资料。",
@@ -942,9 +1149,10 @@ def prepare_multidimensional_stage_run(
         raise MultidimensionalStageError("MULTIDIMENSIONAL_CONCURRENCY_INVALID")
     from product.runtime.model_routing import select_product_runtime_model
     selected_model = select_product_runtime_model(product_root, requested_model=model)
+    resolved_gate_path = Path(gate_path).resolve()
     handoff = _read_object(Path(handoff_path).resolve())
     validate_handoff(handoff)
-    gate = _read_object(Path(gate_path).resolve())
+    gate = _read_object(resolved_gate_path)
     if gate.get("run_id") not in {None, run_id}:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_GATE_RUN_MISMATCH")
     gate["run_id"] = run_id
@@ -973,6 +1181,9 @@ def prepare_multidimensional_stage_run(
     ]
     if not common_ids:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMMON_STOCK_REQUIRED")
+    issuer_documents_by_security = _issuer_documents_from_gate(
+        evidence, security_ids=common_ids
+    )
     peer_candidate_pool = None
     peer_groups: dict[str, dict[str, Any]] = {}
     if peer_candidate_pool_path is not None:
@@ -989,17 +1200,41 @@ def prepare_multidimensional_stage_run(
         "portfolio_hash": handoff["portfolio_hash"], "council_request_id": request["request_id"],
         "council_request_hash": request["request_hash"], "decision_cutoff": cutoff,
     }
+    from product.runtime.research_input_topology import (
+        load_research_input_topology,
+        research_input_topology_lock,
+    )
+    topology = load_research_input_topology(repository_root)
+    topology_lock = research_input_topology_lock(repository_root)
+    from product.runtime.research_input_topology import build_research_provider_coverage
+    capture_batches = _load_research_capture_batches(
+        gate_path=resolved_gate_path, gate=gate, security_ids=common_ids,
+    )
+    provider_coverage = build_research_provider_coverage(
+        repository_root,
+        evidence=evidence,
+        capture_batches=capture_batches,
+        decision_cutoff=cutoff,
+    )
+    configured_capability_bindings = dict(CAPABILITY_BINDINGS)
+    for domain in topology["domains"]:
+        for capability in domain["capabilities"]:
+            configured_capability_bindings[capability["capability"]] = (
+                capability["agent"], capability["skill"], capability["scope"]
+            )
     agent_bindings = {
         name: _agent_binding(product_root, name)
-        for name in {item[0] for item in CAPABILITY_BINDINGS.values()}
+        for name in {item[0] for item in configured_capability_bindings.values()}
     }
     skill_bindings = {
-        item[1]: _skill_binding(product_root, item[1]) for item in CAPABILITY_BINDINGS.values()
+        item[1]: _skill_binding(product_root, item[1])
+        for item in configured_capability_bindings.values()
     }
     run_dir.mkdir(parents=True)
     _write_object(run_dir / "audit/portfolio-handoff.json", handoff)
     _write_object(run_dir / "council-request.json", request)
     _write_object(run_dir / "evidence/gate.json", gate)
+    _write_object(run_dir / "audit/provider-coverage.json", provider_coverage)
     if peer_candidate_pool is not None:
         _write_object(run_dir / "research/peer-candidate-pool.json", peer_candidate_pool)
     company_research_import = None
@@ -1021,7 +1256,7 @@ def prepare_multidimensional_stage_run(
     tasks: list[dict[str, Any]] = []
     ordinal = 0
     for capability in RESEARCH_CAPABILITIES:
-        agent, skill_name, scope = CAPABILITY_BINDINGS[capability]
+        agent, skill_name, scope = configured_capability_bindings[capability]
         scopes = [(None, common_ids)] if scope == "SHARED_MARKET" else [(security_id, [security_id]) for security_id in common_ids]
         for security_id, security_ids in scopes:
             ordinal += 1
@@ -1043,7 +1278,7 @@ def prepare_multidimensional_stage_run(
                 evidence, capability=capability,
                 security_ids=fact_security_ids, benchmark_id=benchmark_id,
             )
-            if capability == "MACRO_MARKET":
+            if capability in {"MACRO_CONTEXT", "MARKET_STATE"}:
                 analysis_facts = sorted(
                     [
                         *analysis_facts,
@@ -1060,7 +1295,7 @@ def prepare_multidimensional_stage_run(
             facts = (
                 [] if capability == "TECHNICAL_STRUCTURE"
                 else _bounded_latest_facts(analysis_facts)
-                if capability == "INDUSTRY_COMPARISON"
+                if capability in {"INDUSTRY_COMPARISON", "MARKET_STATE"}
                 else analysis_facts
             )
             allowed_ids = [item["evidence_id"] for item in facts]
@@ -1074,21 +1309,42 @@ def prepare_multidimensional_stage_run(
                 "depends_on": dependencies, "allowed_evidence_ids": allowed_ids,
                 "time_context": {
                     "window_start": None, "window_end": cutoff,
-                    "benchmark_id": benchmark_id if capability in {"TECHNICAL_STRUCTURE", "INDUSTRY_COMPARISON", "MACRO_MARKET"} else None,
+                    "benchmark_id": benchmark_id if capability in {"TECHNICAL_STRUCTURE", "INDUSTRY_COMPARISON", "MARKET_STATE"} else None,
                     "price_adjustment": "ADJUSTED_CLOSE" if capability == "TECHNICAL_STRUCTURE" else None,
                     "timezone": "America/New_York" if capability == "TECHNICAL_STRUCTURE" else "UTC",
                 },
+                "provider_coverage_ref": "audit/provider-coverage.json",
+                "provider_scope": sorted(_provider_scope(capability)),
             }
-            task["allowed_documents"] = (
-                [item["report_document"] for item in research_materials_import["documents_by_security"].get(security_id, [])]
-                if research_materials_import is not None and capability == "RESEARCH_REPORT" and security_id
-                else []
-            )
+            if research_materials_import is not None and capability == "RESEARCH_REPORT" and security_id:
+                task["allowed_documents"] = [
+                    item["report_document"]
+                    for item in [
+                        *issuer_documents_by_security.get(security_id, []),
+                        *research_materials_import["documents_by_security"].get(security_id, []),
+                    ]
+                ]
+            elif capability == "RESEARCH_REPORT" and security_id:
+                task["allowed_documents"] = [
+                    item["report_document"]
+                    for item in issuer_documents_by_security.get(security_id, [])
+                ]
+            elif research_materials_import is not None and capability in {"MACRO_CONTEXT", "MARKET_STATE"}:
+                task["allowed_documents"] = [
+                    item["report_document"]
+                    for item in research_materials_import["documents_by_capability"].get(capability, [])
+                ]
+            else:
+                task["allowed_documents"] = []
             if research_materials_import is not None and capability == "INDUSTRY_COMPARISON" and security_id:
                 task["selected_peer_candidates"] = copy.deepcopy(
                     research_materials_import["peers_by_security"].get(security_id, [])
                 )
-            if research_materials_import is not None and security_id:
+            if research_materials_import is not None and capability in {"MACRO_CONTEXT", "MARKET_STATE"}:
+                task["material_preparation"] = copy.deepcopy(
+                    research_materials_import["shared_preparation_by_capability"].get(capability)
+                )
+            elif research_materials_import is not None and security_id:
                 if capability == "RESEARCH_REPORT":
                     task["material_preparation"] = copy.deepcopy(
                         research_materials_import["report_preparation_by_security"].get(security_id)
@@ -1126,7 +1382,7 @@ def prepare_multidimensional_stage_run(
                     evidence=analysis_facts,
                     as_of=cutoff,
                 )
-            elif capability == "MACRO_MARKET":
+            elif capability == "MARKET_STATE":
                 prepared_analysis = _prepare_macro_market_artifacts(
                     run_dir,
                     task_id=task_id,
@@ -1142,7 +1398,18 @@ def prepare_multidimensional_stage_run(
             instruction = (
                 "只分析本任务指定维度并回答 minimum_questions。只使用 Gate 允许的原始 evidence_id；"
                 "禁止拼接来源、时间或说明。没有足够资料时输出具体 gap 及影响，不能使用模型记忆补齐。"
+                " claims 中每条主张必须保留非空 question、statement 和 kind，并且 question 对应本任务"
+                "实际回答的 minimum_questions；不得省略问题字段。"
+                " 顶层只能包含 output_schema 声明的 draft 字段；不得补写 schema_version、report_id、"
+                "capability、scope、security_ids、bindings、time_context、execution 或 report_hash，"
+                "这些冻结字段由确定性封装器添加。"
+                " limitations 必须是纯字符串数组；observation_conditions 与 data_gaps 必须是"
+                " output_schema 定义的对象数组，不能把 limitation 写成对象或把 gap 写成字符串；"
+                "每个 data_gaps 项都必须包含 gap_id、reason_code、description、impact。"
                 "不得生成 action、目标仓位、推荐数量、对冲或订单。"
+                " provider_coverage 是本批次的来源观测而非能力宣传；必须按 observed_status、"
+                "failure_codes 和 dataset_observations 处理缺口。Moomoo 补充层失败时仍可使用"
+                "已通过 Gate 的 SEC/Yahoo Evidence，不得回退到客户端 Cookie、私有 API 或登录绕过。"
             )
             if capability == "INDUSTRY_COMPARISON":
                 instruction += (
@@ -1159,6 +1426,12 @@ def prepare_multidimensional_stage_run(
                         "说明选择过程，不能替代已核实的经营或估值事实。调用 query 时只选与比较问题直接相关的"
                         "非空 evidence_ids 子集，禁止发送空数组。"
                     )
+                else:
+                    instruction += (
+                        " 本任务没有完成身份核验与 PIT 冻结的 selected_peer_candidates，因此 claims 必须为空；"
+                        "必须用 data_gaps 明确记录缺少可比较同行 Evidence 的原因和影响。不得仅凭目标公司资料、"
+                        "候选目录或模型记忆形成任何行业比较主张。"
+                    )
             if capability == "TECHNICAL_STRUCTURE":
                 instruction += (
                     " 本任务的 prepared_analysis.calculation 与 chart 是确定性计算产物，完整原始 Evidence lineage"
@@ -1168,6 +1441,32 @@ def prepare_multidimensional_stage_run(
                     "工具不可用。"
                 )
             if capability == "RESEARCH_REPORT":
+                company_facts = [
+                    fact for fact in facts if fact.get("security_id") == security_id
+                ]
+                task["company_material_coverage"] = {
+                    "issuer_body_count": len(issuer_documents_by_security.get(security_id, [])),
+                    "independent_body_count": (
+                        len(research_materials_import["documents_by_security"].get(security_id, []))
+                        if research_materials_import is not None else 0
+                    ),
+                    "guidance_evidence_ids": sorted(
+                        fact["evidence_id"] for fact in company_facts
+                        if fact.get("semantic_field") == "sec_issuer_guidance_candidate_text"
+                    ),
+                    "expectation_evidence_ids": sorted(
+                        fact["evidence_id"] for fact in company_facts
+                        if str(fact.get("semantic_field", "")).startswith((
+                            "yahoo_earnings_trend", "yahoo_recommendation_trend",
+                            "moomoo_analyst_consensus",
+                        ))
+                    ),
+                    "classification_policy": {
+                        "ISSUER_MATERIAL": "SEC Gate-verified issuer/IR body",
+                        "INDEPENDENT_RESEARCH": "separately fetched BODY_VERIFIED public research",
+                        "EXPECTATION": "third-party snapshot Evidence, never issuer guidance",
+                    },
+                }
                 instruction += (
                     " verified_documents 是资料准备阶段通过正文工具取得并冻结的唯一可用研报；"
                     "documents 必须逐字复制其 report_document 元数据。正文不足时输出 SOURCE_LIMITED，"
@@ -1175,15 +1474,27 @@ def prepare_multidimensional_stage_run(
                     " 为 BLOCKED_CONFIGURATION，正式报告必须输出 FAILED / evaluation_status=FAIL，并逐项"
                     "保留配置缺口，不能改写成 SOURCE_LIMITED。"
                 )
-            if capability == "MACRO_MARKET":
+            if capability in {"MACRO_CONTEXT", "MARKET_STATE"}:
                 instruction += (
-                    " 本任务的 allowed_evidence_ids 同时包含官方宏观事实与按证券分组的精选公司事实。"
-                    " prepared_analysis.calculation 是广泛市场基准的确定性市场状态产物；有完整窗口时"
-                    "必须使用其收益、波动和回撤解释大盘风险状态，并通过 calculation.artifact_ref 引用，"
-                    "不得用主观标签代替计算事实。"
+                    " verified_documents 仅包含已通过正文核验且与当前能力匹配的"
+                    "策略或政策材料；documents 必须逐字复制 report_document 元数据，并用"
+                    " research_relationships 明确标记它是外部观点、支持或冲突，不得将"
+                    "外部观点自动升级为事实。一个能力的材料不得借给另一个能力。"
+                )
+            if capability == "MACRO_CONTEXT":
+                instruction += (
+                    " 本任务只形成宏观环境报告。allowed_evidence_ids 同时包含官方宏观事实与按证券分组的精选公司事实。"
+                    "必须区分观察期、发布时间、获取时间和修订边界，不得用市场价格走势替代政策或经济活动事实。"
                     "必须读取至少两只持仓的公司事实，再比较其利率、通胀或经济活动敏感性；"
                     "至少形成一组有区别的公司传导机制，不能只说所有公司都受融资条件影响；"
                     "不得仅凭 ticker、行业常识或相同宏观套话推断。Evidence 不足时明确列出具体公司缺口。"
+                )
+            if capability == "MARKET_STATE":
+                instruction += (
+                    " 本任务只形成共享市场状态报告。prepared_analysis.calculation 是广泛市场基准的确定性"
+                    "市场状态产物；有完整窗口时必须使用其收益、波动和回撤，并通过 calculation.artifact_ref"
+                    "引用。跨资产、板块、波动或信用指标必须保留原指标或代理身份，不得把股票波动称为信用。"
+                    "必须读取持仓相关的公司暴露事实并解释差异化传导；不得用主观风险标签替代计算和冻结 Evidence。"
                 )
             if task.get("material_preparation", {}).get("status") == "FAILED":
                 instruction += (
@@ -1191,27 +1502,51 @@ def prepare_multidimensional_stage_run(
                     " FAILED / evaluation_status=FAIL，并保留 failure_code 与具体影响，不得将"
                     "实现或契约失败伪装成 SOURCE_LIMITED。"
                 )
-            input_refs = ["audit/portfolio-handoff.json", "council-request.json", "evidence/gate.json", task_path]
+            input_refs = [
+                "audit/portfolio-handoff.json", "council-request.json",
+                "evidence/gate.json", "audit/provider-coverage.json", task_path,
+            ]
             if capability == "INDUSTRY_COMPARISON" and peer_candidate_pool is not None:
                 input_refs.append("research/peer-candidate-pool.json")
+            output_schema = _dynamic_draft_schema(
+                repository_root, run_id=run_id, invocation_id=invocation_id,
+                agent=agent, allowed_evidence_ids=allowed_ids,
+                allowed_artifact_refs=task["allowed_artifact_refs"],
+                allowed_documents=task["allowed_documents"],
+                claims_forbidden=(
+                    capability == "INDUSTRY_COMPARISON"
+                    and not task.get("selected_peer_candidates")
+                ),
+            )
+            output_contract = topology_lock["output_contracts"].get(
+                capability, topology_lock.get("default_output_contract")
+            )
+            if not isinstance(output_contract, Mapping):
+                raise MultidimensionalStageError(
+                    f"MULTIDIMENSIONAL_OUTPUT_CONTRACT_MISSING:{capability}"
+                )
             invocation = {
-                "schema_version": "multidimensional-research-invocation/1.0.0",
+                "schema_version": "multidimensional-research-invocation/2.0.0",
                 "run_id": run_id, "invocation_id": invocation_id,
                 "task_id": task_id, "agent_binding": agent_bindings[agent], "skill": skill,
                 "model": selected_model, "prompt_hash": canonical_hash({"instruction": instruction, "questions": MINIMUM_QUESTIONS[capability]}),
                 "input_refs": input_refs,
                 "tool_permissions": ["fixture_evidence.query"],
                 "analysis_mode": "FORMAL_GATE_ONLY",
+                "research_input_topology": {
+                    "profile_id": topology_lock["profile_id"],
+                    "topology_hash": topology_lock["topology_hash"],
+                    "lock_hash": topology_lock["lock_hash"],
+                },
+                "output_contract": {
+                    **copy.deepcopy(output_contract),
+                    "draft_schema_version": output_schema["$id"],
+                    "draft_schema_hash": canonical_hash(output_schema),
+                },
             }
             invocation["manifest_hash"] = canonical_hash(invocation)
             invocation_path = f"invocations/by-id/{canonical_hash({'invocation_id': invocation_id})}.json"
             _write_object(run_dir / invocation_path, invocation)
-            output_schema = _dynamic_draft_schema(
-                repository_root, run_id=run_id, invocation_id=invocation_id,
-                agent=agent, allowed_evidence_ids=allowed_ids,
-                allowed_artifact_refs=task["allowed_artifact_refs"],
-                allowed_documents=task["allowed_documents"],
-            )
             packet = {
                 "dispatch_contract": DISPATCH_VERSION,
                 "identity": {"run_id": run_id, "invocation_id": invocation_id, "task_id": task_id,
@@ -1228,9 +1563,18 @@ def prepare_multidimensional_stage_run(
                 ),
                 "selected_peer_candidates": copy.deepcopy(task.get("selected_peer_candidates", [])),
                 "material_preparation": copy.deepcopy(task.get("material_preparation")),
+                "company_material_coverage": copy.deepcopy(task.get("company_material_coverage")),
                 "verified_documents": copy.deepcopy(
-                    research_materials_import["documents_by_security"].get(security_id, [])
-                    if research_materials_import is not None and capability == "RESEARCH_REPORT" and security_id
+                    [
+                        *issuer_documents_by_security.get(security_id, []),
+                        *(
+                            research_materials_import["documents_by_security"].get(security_id, [])
+                            if research_materials_import is not None else []
+                        ),
+                    ]
+                    if capability == "RESEARCH_REPORT" and security_id
+                    else research_materials_import["documents_by_capability"].get(capability, [])
+                    if research_materials_import is not None and capability in {"MACRO_CONTEXT", "MARKET_STATE"}
                     else []
                 ),
                 "evidence_catalog": [
@@ -1242,7 +1586,18 @@ def prepare_multidimensional_stage_run(
                     "query_tool": "fixture_runtime.query", "logical_permissions": invocation["tool_permissions"],
                     "required_identity_arguments": {"run_id": run_id, "agent": agent, "invocation_id": invocation_id},
                 },
+                "research_input_topology": copy.deepcopy(invocation["research_input_topology"]),
+                "provider_coverage": {
+                    "schema_version": provider_coverage["schema_version"],
+                    "coverage_hash": provider_coverage["coverage_hash"],
+                    "fallback_policy": copy.deepcopy(provider_coverage["fallback_policy"]),
+                    "providers": [
+                        copy.deepcopy(item) for item in provider_coverage["providers"]
+                        if item["provider"] in task["provider_scope"]
+                    ],
+                },
                 "output_schema": output_schema,
+                "output_schema_hash": canonical_hash(output_schema),
             }
             packet_path = f"research/dispatch-packets/{canonical_hash({'packet': invocation_id})}.json"
             _write_object(run_dir / packet_path, packet)
@@ -1261,6 +1616,9 @@ def prepare_multidimensional_stage_run(
         "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "source_mode": "frozen-gate",
         "model": selected_model, "parent_model": selected_model, "output_dir": str(run_dir),
         "discovery": {"product_root": str(product_root)},
+        "research_input_topology": topology_lock,
+        "provider_coverage_hash": provider_coverage["coverage_hash"],
+        "provider_coverage_ref": "audit/provider-coverage.json",
         "agent_bindings": agent_bindings, "skill_bindings": skill_bindings,
         "handoff_hash": handoff["handoff_hash"], "portfolio_hash": handoff["portfolio_hash"],
         "council_request_hash": request["request_hash"], "gate_hash": gate["bundle_hash"],
@@ -1308,44 +1666,106 @@ def build_multidimensional_stage_prompt(repository_root: Path, run_dir: Path) ->
 """
 
 
+def _target_task_closure(index: Mapping[str, Any], task_name: str) -> list[dict[str, Any]]:
+    """按依赖先行顺序返回目标任务的最小闭包。"""
+
+    tasks = index.get("tasks")
+    if not isinstance(tasks, list):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_DISPATCH_INDEX_INVALID")
+    by_name = {
+        item.get("task_name"): item for item in tasks
+        if isinstance(item, Mapping) and isinstance(item.get("task_name"), str)
+    }
+    by_id = {
+        item.get("task_id"): item for item in tasks
+        if isinstance(item, Mapping) and isinstance(item.get("task_id"), str)
+    }
+    target = by_name.get(task_name)
+    if target is None:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_TASK_UNKNOWN")
+    ordered: list[dict[str, Any]] = []
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(task: Mapping[str, Any]) -> None:
+        task_id = str(task["task_id"])
+        if task_id in visited:
+            return
+        if task_id in visiting:
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_DEPENDENCY_CYCLE")
+        visiting.add(task_id)
+        dependencies = task.get("depends_on", [])
+        if not isinstance(dependencies, list):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_DEPENDENCY_INVALID")
+        for dependency_id in dependencies:
+            dependency = by_id.get(dependency_id)
+            if dependency is None:
+                raise MultidimensionalStageError(
+                    f"MULTIDIMENSIONAL_DEPENDENCY_UNKNOWN:{dependency_id}"
+                )
+            visit(dependency)
+        visiting.remove(task_id)
+        visited.add(task_id)
+        ordered.append(dict(task))
+
+    visit(target)
+    return ordered
+
+
 def build_multidimensional_task_prompt(
     repository_root: Path, run_dir: Path, task_name: str,
 ) -> str:
-    """构造单个独立维度的定点补证 Prompt，避免重跑未受影响任务。"""
+    """构造目标维度及其依赖闭包的定点补证 Prompt。"""
 
     del repository_root
     index = _read_object(Path(run_dir).resolve() / "research/dispatch-index.json")
-    task = next(
-        (item for item in index["tasks"] if item["task_name"] == task_name), None
-    )
-    if task is None:
-        raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_TASK_UNKNOWN")
-    if task.get("depends_on"):
-        raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_TASK_DEPENDENT")
-    message = build_multidimensional_dispatch_message(Path(), Path(run_dir), task_name)
-    return f"""你是多维持仓研究阶段的 Codex 主线程。本次只执行一个独立维度的定点补证，不担任 CIO。
+    closure = _target_task_closure(index, task_name)
+    if len(closure) == 1:
+        task = closure[0]
+        message = build_multidimensional_dispatch_message(Path(), Path(run_dir), task_name)
+        return f"""你是多维持仓研究阶段的 Codex 主线程。本次只执行一个独立维度的定点补证，不担任 CIO。
 读取 product/AGENTS.md 与 portfolio-council Skill 的多维持仓研究阶段。
 使用 Agent 工具且只派发一次：agent_type={task['agent']}，task_name={task_name}，fork_turns=none，message={json.dumps(message, ensure_ascii=False)}。
 等待该 Subagent 形成终态；不得启动映射外任务、runtime_skeptic、runtime_cio 或 Risk，不得改写 Specialist 输出。
 完成后只返回：{{"stage":"MULTI_DIMENSIONAL_HOLDING_RESEARCH","run_id":"{index['run_id']}","dispatched":1,"completed":1}}。
+"""
+    closure_ids = {item["task_id"] for item in closure}
+    task_map = {
+        item["task_name"]: {
+            "agent_type": item["agent"],
+            "depends_on_task_names": [
+                candidate["task_name"] for dependency_id in item.get("depends_on", [])
+                for candidate in closure if candidate["task_id"] == dependency_id
+            ],
+            "message": build_multidimensional_dispatch_message(
+                Path(), Path(run_dir), item["task_name"]
+            ),
+        }
+        for item in closure if item["task_id"] in closure_ids
+    }
+    return f"""你是多维持仓研究阶段的 Codex 主线程。本次只执行目标任务及其最小依赖闭包，不担任 CIO。
+读取 product/AGENTS.md 与 portfolio-council Skill 的多维持仓研究阶段。严格使用以下任务映射：
+{json.dumps(task_map, ensure_ascii=False, sort_keys=True)}
+
+按 depends_on_task_names 顺序逐个派发，任一时刻最多一个活跃 Subagent。每次使用 Agent 工具时，agent_type、task_name 和 message 必须来自映射，fork_turns=none。只有直接依赖已经结束且合法报告已保存，才能派发下游；若上游失败，只对下游尝试一次派发，让 Hook 留下 dependency-blocked 拒绝记录，不得跨批次复制或注入报告。
+每次派发后使用 wait 等待真实终态；不得启动映射外任务、runtime_skeptic、runtime_cio 或 Risk，不得改写 Specialist 输出。
+全部 {len(closure)} 个任务形成合法报告、显式失败或 dependency-blocked 终态后，只返回：{{"stage":"MULTI_DIMENSIONAL_HOLDING_RESEARCH","run_id":"{index['run_id']}","dispatched":{len(closure)},"completed":{len(closure)}}}。
 """
 
 
 def finalize_multidimensional_task_evidence(
     repository_root: Path, run_dir: Path, task_name: str,
 ) -> dict[str, Any]:
-    """验证一个定点研究任务的真实派发、合法报告与 Evidence Closure。"""
+    """验证目标任务及其依赖闭包的真实派发、合法报告与 Evidence Closure。"""
 
     from product.council.multidimensional_research import validate_research_dimension_report
 
     del repository_root
     run_dir = Path(run_dir).resolve()
     index = _read_object(run_dir / "research/dispatch-index.json")
-    task = next(
-        (item for item in index["tasks"] if item["task_name"] == task_name), None
-    )
-    if task is None or task.get("depends_on"):
-        raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_TASK_INVALID")
+    closure = _target_task_closure(index, task_name)
+    expected_names = [item["task_name"] for item in closure]
+    expected_ids = {item["task_id"] for item in closure}
     dispatches = [
         json.loads(line)
         for line in (run_dir / "invocation/subagent-dispatches.jsonl").read_text(
@@ -1356,7 +1776,7 @@ def finalize_multidimensional_task_evidence(
     allowed_names = [
         item.get("task_name") for item in dispatches if item.get("decision") == "ALLOW"
     ]
-    if allowed_names != [task_name]:
+    if allowed_names != expected_names:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_DISPATCH_INVALID")
     events = [
         json.loads(line)
@@ -1370,49 +1790,85 @@ def finalize_multidimensional_task_evidence(
         if item.get("hook_event_name") == "SubagentStop"
         and item.get("output_capture", {}).get("status") == "SAVED"
     ]
-    if len(saved) != 1 or saved[0].get("output_capture", {}).get("task_id") != task["task_id"]:
+    saved_by_task = {
+        item.get("output_capture", {}).get("task_id"): item for item in saved
+        if item.get("output_capture", {}).get("task_id") in expected_ids
+    }
+    if len(saved) != len(closure) or set(saved_by_task) != expected_ids:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_OUTPUT_INVALID")
-    report_path = run_dir / saved[0]["output_capture"]["path"]
-    report = _read_object(report_path)
     handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
     request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
-    validate_research_dimension_report(
-        report,
-        expected_bindings={
-            "handoff_id": handoff["handoff_id"],
-            "handoff_hash": handoff["handoff_hash"],
-            "portfolio_hash": handoff["portfolio_hash"],
-            "council_request_id": request["request_id"],
-            "council_request_hash": request["request_hash"],
-            "decision_cutoff": gate["decision_cutoff"],
-        },
-        allowed_security_ids=[
-            item["security_id"] for item in handoff["portfolio"]["positions"]
-            if item["asset_type"] == "COMMON_STOCK"
-        ],
-        allowed_evidence_ids=task["allowed_evidence_ids"],
-        known_research_claim_ids=[],
-        allowed_documents=task.get("allowed_documents", []),
-    )
-    if (
-        report.get("capability") != task["capability"]
-        or report.get("security_ids") != task["security_ids"]
-        or report.get("invocation_id") != task["invocation_id"]
-    ):
-        raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_REPORT_BINDING_INVALID")
+    bindings = {
+        "handoff_id": handoff["handoff_id"],
+        "handoff_hash": handoff["handoff_hash"],
+        "portfolio_hash": handoff["portfolio_hash"],
+        "council_request_id": request["request_id"],
+        "council_request_hash": request["request_hash"],
+        "decision_cutoff": gate["decision_cutoff"],
+    }
+    security_ids = [
+        item["security_id"] for item in handoff["portfolio"]["positions"]
+        if item["asset_type"] == "COMMON_STOCK"
+    ]
+    validated_reports: dict[str, dict[str, Any]] = {}
+    report_inventory: list[dict[str, Any]] = []
+    for task in closure:
+        event = saved_by_task[task["task_id"]]
+        report_path = run_dir / event["output_capture"]["path"]
+        report = _read_object(report_path)
+        dependency_claim_ids = [
+            claim["claim_id"]
+            for dependency_id in task.get("depends_on", [])
+            for claim in validated_reports[dependency_id].get("claims", [])
+        ]
+        validate_research_dimension_report(
+            report,
+            expected_bindings=bindings,
+            allowed_security_ids=security_ids,
+            allowed_evidence_ids=task["allowed_evidence_ids"],
+            known_research_claim_ids=dependency_claim_ids,
+            allowed_documents=task.get("allowed_documents", []),
+        )
+        if (
+            report.get("capability") != task["capability"]
+            or report.get("security_ids") != task["security_ids"]
+            or report.get("invocation_id") != task["invocation_id"]
+        ):
+            raise MultidimensionalStageError(
+                "MULTIDIMENSIONAL_TARGET_REPORT_BINDING_INVALID"
+            )
+        validated_reports[task["task_id"]] = report
+        report_inventory.append({
+            "task_name": task["task_name"],
+            "task_id": task["task_id"],
+            "capability": task["capability"],
+            "report_status": report["status"],
+            "report_ref": str(report_path.relative_to(run_dir)),
+            "report_file_hash": file_hash(report_path),
+            "report_hash": report["report_hash"],
+        })
+    target = closure[-1]
+    target_report = validated_reports[target["task_id"]]
+    target_record = report_inventory[-1]
     proof = {
-        "schema_version": "multidimensional-task-execution-proof/1.0.0",
+        "schema_version": "multidimensional-task-execution-proof/2.0.0",
         "status": "PASSED",
-        "scope": "SINGLE_TASK_EVIDENCE",
+        "scope": (
+            "SINGLE_TASK_EVIDENCE" if len(closure) == 1
+            else "DEPENDENCY_CHAIN_EVIDENCE"
+        ),
         "run_id": index["run_id"],
         "task_name": task_name,
-        "task_id": task["task_id"],
-        "capability": task["capability"],
-        "report_status": report["status"],
-        "report_ref": str(report_path.relative_to(run_dir)),
-        "report_file_hash": file_hash(report_path),
-        "report_hash": report["report_hash"],
+        "task_id": target["task_id"],
+        "capability": target["capability"],
+        "report_status": target_report["status"],
+        "report_ref": target_record["report_ref"],
+        "report_file_hash": target_record["report_file_hash"],
+        "report_hash": target_report["report_hash"],
+        "task_names": expected_names,
+        "report_inventory": report_inventory,
+        "dependency_chain_complete": True,
         "dispatch_events_hash": file_hash(
             run_dir / "invocation/subagent-dispatches.jsonl"
         ),
@@ -1492,8 +1948,14 @@ def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) ->
                 "failure_code": str(
                     capture.get("failure_code") or "MULTIDIMENSIONAL_OUTPUT_INVALID"
                 ),
-                "output_hash": item.get("final_structured_output_hash"),
+                "output_hash": (
+                    capture.get("raw_output_hash")
+                    or item.get("final_structured_output_hash")
+                ),
                 "failure_source": "SUBAGENT_STOP_OUTPUT_VALIDATION",
+                "attempt": capture.get("attempt"),
+                "repair_state": capture.get("repair_state"),
+                "raw_path": capture.get("raw_path"),
             }
     started_invocations = {
         item.get("context_binding", {}).get("invocation_id")
@@ -1800,8 +2262,41 @@ def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) ->
     )
     markdown_path = run_dir / "research/holding-research-bundle.md"
     markdown_path.write_text(markdown, encoding="utf-8")
+    terminal_by_child = {
+        item.get("child_session_id"): item
+        for item in events
+        if item.get("hook_event_name") == "SubagentStop"
+        and isinstance(item.get("child_session_id"), str)
+    }
+    repair_attempts = []
+    for item in events:
+        request = item.get("repair_request")
+        capture = item.get("output_capture")
+        child_id = item.get("child_session_id")
+        if (
+            item.get("hook_event_name") != "SubagentStopBlocked"
+            or not isinstance(request, Mapping)
+            or not isinstance(capture, Mapping)
+        ):
+            continue
+        terminal = terminal_by_child.get(child_id)
+        terminal_capture = (
+            terminal.get("output_capture", {}) if isinstance(terminal, Mapping) else {}
+        )
+        repair_attempts.append({
+            "task_id": request.get("task_id"),
+            "invocation_id": request.get("invocation_id"),
+            "validation_error": request.get("validation_error"),
+            "output_schema_hash": request.get("output_schema_hash"),
+            "original_output_hash": capture.get("raw_output_hash"),
+            "original_output_path": capture.get("raw_path"),
+            "terminal_status": terminal_capture.get("status"),
+            "terminal_repair_state": terminal_capture.get("repair_state"),
+            "terminal_output_hash": terminal_capture.get("raw_output_hash"),
+            "terminal_output_path": terminal_capture.get("raw_path"),
+        })
     proof = {
-        "schema_version": "multidimensional-research-execution-proof/1.0.0",
+        "schema_version": "multidimensional-research-execution-proof/2.0.0",
         "run_id": manifest["run_id"], "expected_tasks": sorted(expected_names),
         "completed_task_ids": sorted(completed_events),
         "failed_tasks": [
@@ -1817,6 +2312,7 @@ def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) ->
             len(completed_events) + len(failed_events) == len(index["tasks"])
         ),
         "all_reports_valid": not failed_events and len(completed_events) == len(index["tasks"]),
+        "repair_attempts": repair_attempts,
         "gate_hash": gate["bundle_hash"], "bundle_hash": bundle["bundle_hash"],
         "company_research_import_hash": manifest.get("company_research_import_hash"),
         "research_materials_import_hash": manifest.get("research_materials_import_hash"),
@@ -1885,6 +2381,8 @@ def assemble_canonical_holding_research_package(
     from product.council.multidimensional_research import (
         BUNDLE_CAPABILITIES,
         HOLDING_RESEARCH_BUNDLE_VERSION,
+        LEGACY_BUNDLE_CAPABILITIES,
+        LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION,
         derive_unresolved_research_questions,
         finalize_holding_research_bundle,
         validate_holding_research_bundle,
@@ -1933,6 +2431,15 @@ def assemble_canonical_holding_research_package(
         dimension_reports=base_dimension_reports,
         equity_reports=base_equity_reports,
     )
+    assembly_capabilities = (
+        BUNDLE_CAPABILITIES
+        if base_bundle.get("schema_version") == HOLDING_RESEARCH_BUNDLE_VERSION
+        else LEGACY_BUNDLE_CAPABILITIES
+        if base_bundle.get("schema_version") == LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION
+        else None
+    )
+    if assembly_capabilities is None:
+        raise MultidimensionalStageError("CANONICAL_PACKAGE_BASE_VERSION_UNSUPPORTED")
     canonical_evidence: dict[str, dict[str, Any]] = {}
     _merge_gate_evidence(
         canonical_evidence,
@@ -2116,7 +2623,7 @@ def assemble_canonical_holding_research_package(
     }
     coverage: list[dict[str, Any]] = []
     for security_id in common_ids:
-        for capability in BUNDLE_CAPABILITIES:
+        for capability in assembly_capabilities:
             if capability == "COMPANY_RESEARCH":
                 report, _ = imported_by_security[security_id]
             else:
@@ -2150,7 +2657,7 @@ def assemble_canonical_holding_research_package(
         "excluded_supplements": excluded_supplements,
     }
     bundle = finalize_holding_research_bundle({
-        "schema_version": HOLDING_RESEARCH_BUNDLE_VERSION,
+        "schema_version": base_bundle["schema_version"],
         "bundle_id": f"canonical-holding-research-bundle:{base_bundle['run_id']}",
         "run_id": base_bundle["run_id"],
         "bindings": copy.deepcopy(base_bundle["bindings"]),
@@ -2432,11 +2939,10 @@ def launch_multidimensional_stage(
     prompt_path = invocation_dir / "prompt.txt"
     prompt_path.write_text(prompt, encoding="utf-8")
     index = _read_object(run_dir / "research/dispatch-index.json")
-    task_count = 1 if task_name is not None else len(index["tasks"])
-    target_task = (
-        next(item for item in index["tasks"] if item["task_name"] == task_name)
-        if task_name is not None else None
+    target_tasks = (
+        _target_task_closure(index, task_name) if task_name is not None else []
     )
+    task_count = len(target_tasks) if task_name is not None else len(index["tasks"])
     parent_schema = _parent_output_schema(manifest["run_id"], task_count)
     schema_path = invocation_dir / "parent-output.schema.json"
     _write_object(schema_path, parent_schema)
@@ -2460,16 +2966,23 @@ def launch_multidimensional_stage(
         "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(hook_events_path),
         "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(dispatch_events_path),
         "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": (
-            target_task["agent"] if target_task is not None
+            ",".join(sorted({item["agent"] for item in target_tasks}))
+            if target_tasks
             else "runtime_company_analyst,runtime_market_catalyst"
         ),
         "STOCK_AGENT_MULTIDIMENSIONAL_STAGE": STAGE_VERSION,
         **fixture_mcp_runtime_environment(),
     })
     if task_name is not None:
-        environment["STOCK_AGENT_RESEARCH_TASK_NAME"] = task_name
+        selected_names = [item["task_name"] for item in target_tasks]
+        environment["STOCK_AGENT_RESEARCH_TASK_NAMES"] = json.dumps(selected_names)
+        if len(selected_names) == 1:
+            environment["STOCK_AGENT_RESEARCH_TASK_NAME"] = task_name
+        else:
+            environment.pop("STOCK_AGENT_RESEARCH_TASK_NAME", None)
     else:
         environment.pop("STOCK_AGENT_RESEARCH_TASK_NAME", None)
+        environment.pop("STOCK_AGENT_RESEARCH_TASK_NAMES", None)
     environment.pop("STOCK_AGENT_START_CONTEXT", None)
     environment.pop("STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT", None)
     before = integrity_snapshot(repository_root)
@@ -2481,6 +2994,7 @@ def launch_multidimensional_stage(
         "approval_policy": "never", "ephemeral": True, "sqlite_home": str(sqlite_home),
         "log_dir": str(log_dir), "tmpdir": str(tmp_dir), "prompt_hash": file_hash(prompt_path),
         "task_name": task_name,
+        "selected_task_names": [item["task_name"] for item in target_tasks],
         "source_integrity_before": before,
     })
     try:

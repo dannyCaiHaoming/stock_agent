@@ -682,7 +682,7 @@ def _prepare_specialist_invocations(root: Path, *, run_dir: Path, run_id: str,
 def prepare_live_run(repository_root: Path, *, portfolio_path: Path, snapshot_path: Path,
                      cache_root: Path, calendar, run_dir: Path, run_id: str, model: str,
                      focus_security_id: str | None = None, authenticity_required: bool = True) -> dict[str, Any]:
-    """复用运行包生命周期准备 live；此函数不采集数据、不委派模型。"""
+    """仅供历史包兼容测试构造；当前 CLI/产品入口不得调用。"""
     from product.mcp.live.contracts import external_path, validate_contract
     from product.mcp.live.market import load_locked_calendar
     from product.runtime.live_context import validate_raw_records, live_artifact_hashes, live_resource_hashes, source_topology_lock
