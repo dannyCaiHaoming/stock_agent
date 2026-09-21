@@ -73,6 +73,14 @@ PortfolioHandoff v3
 
 基础披露层以 SEC 与 Yahoo 为主：SEC 承担公司身份、申报、财务事实与公开事件，Yahoo 承担冻结行情、基准及可确定性派生的市场/估值输入。研究补充层可以接入本机 `127.0.0.1` Moomoo OpenD，但其当前契约只允许新加坡区域、只读 quote capability；OpenD 不可达、未授权或字段不足时，只降低对应 supplement 数据集状态，SEC/Yahoo 合格资料仍继续，不得回退到客户端 Cookie、私有接口或登录绕过。
 
+Moomoo 补充按资料语义进入既有能力，不新增数据源 Agent：分章节 Morningstar、评级与目标价进入 Company 的 `RESEARCH_REPORT`；营收分部与管理层进入 Company 的既有事实输入；供应商宏观历史、Calendar 与 Dot Plot 进入 `MACRO_CONTEXT`；涨跌分布、全市场期权统计和 FedWatch 进入 `MARKET_STATE`；逐股动态期权及供应商资金流进入 Market Catalyst 的 `OPTIONS_FLOW`；机构、内部人与空头补充进入 `OWNERSHIP_DISCLOSURE`。官方宏观、SEC 和 Yahoo 的主源职责不被覆盖。
+
+同一冻结 Gate 可供各专项复用，但 Company Analyst 的旧通用启动目录不再重复展开上述已有专门消费者的数据集；该边界用于避免上下文膨胀和跨能力误用，Evidence 仍保留在 Gate，并由对应专项的 `allowed_evidence_ids` 交付。
+
+动态期权先复用 Yahoo 正式 Collector；只有其数据集失败时才用 Moomoo 的到期日、静态链、确定性近价选约和批量动态快照回退。最多选择三个代表到期日和 48 个合约。只有静态合约目录时必须标为受限，不能用全市场 Put/Call、资金流或 Short Interest 替代合约级 bid/ask、volume、OI 和 IV。
+
+2026-09-21 的 MRVL 真实持仓验收已按该策略把 19 个可用到期日、388 个候选收敛为三个到期日的 48 个合约，并在 Capture、PIT Gate 和 `OPTIONS_FLOW` 交付保持同一数量；报告因缺 Greeks、multiplier、完整链与主动买卖方向而保持 `SOURCE_LIMITED/PARTIAL`，该受限状态是正确完成而非数据可用性的夸大。
+
 公开研报正文、13F 两期机构持仓、历史期权结构和可验证资金行为等仍按能力矩阵逐项记录 `AVAILABLE`、`PARTIAL`、`SOURCE_LIMITED` 或准确失败状态。它们不是因为某个已归档 Change 而自动完成；只有真实采集、PIT Gate、冻结引用和对应 Agent 实际消费闭合后，才可提升本批次 coverage。
 
 完成本阶段只证明 canonical 研究包可以供下一 Agent 消费，不代表 Skeptic、CIO、Risk 或候选版本晋升已经通过。

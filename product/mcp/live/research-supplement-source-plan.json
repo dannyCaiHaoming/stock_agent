@@ -2,12 +2,12 @@
   "schema_version": "research-supplement-source-plan/1.0.0",
   "datasets": [
     {"dataset": "identity_profile", "primary": "sec", "fallback": null, "supplemental_sources": ["yahoo", "moomoo_sg"], "max_fallback_attempts": 0},
-    {"dataset": "business_segments", "primary": "sec", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
-    {"dataset": "management_governance", "primary": "sec", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
-    {"dataset": "relationships", "primary": "sec", "fallback": "moomoo_sg", "supplemental_sources": [], "max_fallback_attempts": 1},
+    {"dataset": "business_segments", "primary": "sec", "fallback": null, "supplemental_sources": ["moomoo_sg"], "max_fallback_attempts": 0},
+    {"dataset": "management_governance", "primary": "sec", "fallback": null, "supplemental_sources": ["moomoo_sg"], "max_fallback_attempts": 0},
+    {"dataset": "relationships", "primary": "sec", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
     {"dataset": "financial_history", "primary": "sec", "fallback": "yahoo", "supplemental_sources": [], "max_fallback_attempts": 1},
     {"dataset": "capital_allocation", "primary": "sec", "fallback": "yahoo", "supplemental_sources": [], "max_fallback_attempts": 1},
-    {"dataset": "earnings_guidance", "primary": "sec", "fallback": "moomoo_sg", "supplemental_sources": [], "max_fallback_attempts": 1},
+    {"dataset": "earnings_guidance", "primary": "sec", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
     {"dataset": "analyst_expectations", "primary": "yahoo", "fallback": null, "supplemental_sources": ["moomoo_sg"], "max_fallback_attempts": 0},
     {"dataset": "event_context", "primary": "sec", "fallback": "yahoo", "supplemental_sources": ["moomoo_sg"], "max_fallback_attempts": 1},
     {"dataset": "share_short_context", "primary": "yahoo", "fallback": "moomoo_sg", "supplemental_sources": ["sec"], "max_fallback_attempts": 1},
@@ -15,6 +15,13 @@
     {"dataset": "insider_transactions", "primary": "sec", "fallback": null, "supplemental_sources": ["moomoo_sg"], "max_fallback_attempts": 0},
     {"dataset": "options_snapshot", "primary": "yahoo", "fallback": "moomoo_sg", "supplemental_sources": [], "max_fallback_attempts": 1},
     {"dataset": "vendor_money_flow", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
-    {"dataset": "research_discovery", "primary": "moomoo_sg", "fallback": "yahoo", "supplemental_sources": [], "max_fallback_attempts": 1}
+    {"dataset": "research_discovery", "primary": "moomoo_sg", "fallback": "yahoo", "supplemental_sources": [], "max_fallback_attempts": 1},
+    {"dataset": "options_underlying_context", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
+    {"dataset": "option_market_statistics", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
+    {"dataset": "market_breadth", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
+    {"dataset": "macro_history", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
+    {"dataset": "economic_calendar", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
+    {"dataset": "fedwatch_expectations", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
+    {"dataset": "dot_plot", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0}
   ]
 }

@@ -193,7 +193,16 @@ def normalize_treasury_csv(
     if not rows:
         raise ValueError("TREASURY_RESPONSE_EMPTY")
     date_key = next((key for key in rows[0] if key and "date" in key.casefold()), None)
-    rate_key = next((key for key in rows[0] if key and key.strip().casefold() in {"10-year", "10 year", "10 yr"}), None)
+    tenor_aliases = {
+        "2Y": {"2-year", "2 year", "2 yr"},
+        "10Y": {"10-year", "10 year", "10 yr"},
+        "30Y": {"30-year", "30 year", "30 yr"},
+    }
+    tenor_keys = {
+        tenor: next((key for key in rows[0] if key and key.strip().casefold() in aliases), None)
+        for tenor, aliases in tenor_aliases.items()
+    }
+    rate_key = tenor_keys["10Y"]
     if date_key is None or rate_key is None:
         raise ValueError("TREASURY_COLUMNS_MISSING")
     candidates = [row for row in rows if row.get(date_key) and row.get(rate_key)]
@@ -222,7 +231,43 @@ def normalize_treasury_csv(
         raw_content_hash=raw_hash,
         metadata={"tenor": "10Y", "historical_vintage_available": False},
     )
-    return {"evidence": [fact], "gaps": [], "raw_content_hash": raw_hash}
+    evidence = [fact]
+    gaps = []
+    rates: dict[str, Decimal] = {"10Y": rate}
+    for tenor in ("2Y", "30Y"):
+        key = tenor_keys[tenor]
+        raw_value = row.get(key, "") if key is not None else ""
+        if not raw_value:
+            gaps.append({"reason": "TREASURY_TENOR_MISSING", "tenor": tenor,
+                         "observation_date": parsed_day(row).isoformat()})
+            continue
+        try:
+            value = Decimal(raw_value.strip())
+        except InvalidOperation as exc:
+            raise ValueError("TREASURY_RATE_INVALID") from exc
+        if not value.is_finite():
+            raise ValueError("TREASURY_RATE_INVALID")
+        rates[tenor] = value
+        evidence.append(_fact(
+            semantic_field=f"us_treasury_{tenor.lower()}_yield", value=format(value, "f"),
+            unit="percent", source_id="us-treasury-daily-yield-curve",
+            source_type="treasury", source_locator=endpoint, source_version=TREASURY_VERSION,
+            as_of=f"{parsed_day(row).isoformat()}T00:00:00Z", retrieved_at=retrieved_at,
+            raw_content_hash=raw_hash,
+            metadata={"tenor": tenor, "historical_vintage_available": False},
+        ))
+    if "2Y" in rates:
+        spread = rates["10Y"] - rates["2Y"]
+        evidence.append(_fact(
+            semantic_field="us_treasury_10y_2y_spread", value=format(spread, "f"),
+            unit="percentage_points", source_id="us-treasury-daily-yield-curve",
+            source_type="treasury", source_locator=endpoint, source_version=TREASURY_VERSION,
+            as_of=f"{parsed_day(row).isoformat()}T00:00:00Z", retrieved_at=retrieved_at,
+            raw_content_hash=raw_hash,
+            metadata={"tenors": ["10Y", "2Y"], "same_observation_date": True,
+                      "derivation": "10Y_MINUS_2Y", "historical_vintage_available": False},
+        ))
+    return {"evidence": evidence, "gaps": gaps, "raw_content_hash": raw_hash}
 
 
 def _visible_text(raw: bytes) -> str:

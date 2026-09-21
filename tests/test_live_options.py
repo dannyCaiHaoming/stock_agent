@@ -6,10 +6,12 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from product.mcp.live.market import MARKET_VERSION, YFINANCE_VERSION
 from product.mcp.live.options import (
-    _parse_option_wire, collect_portfolio_option_snapshots, normalize_option_rows,
+    _parse_option_wire, collect_option_snapshot, collect_portfolio_option_snapshots,
+    normalize_option_rows, select_option_contract_evidence, select_option_expirations,
 )
 from product.runtime.common_stock_data import merge_option_research_evidence
 
@@ -97,7 +99,9 @@ class OptionSnapshotTests(unittest.TestCase):
     def test_bounded_wire_parser_binds_underlying_dates_and_dynamic_fields(self):
         raw = json.dumps({"optionChain": {"error": None, "result": [{
             "underlyingSymbol": "AAPL",
-            "quote": {"symbol": "AAPL", "quoteType": "EQUITY"},
+            "quote": {
+                "symbol": "AAPL", "quoteType": "EQUITY", "regularMarketPrice": 250,
+            },
             "expirationDates": [1797552000, 1798156800],
             "options": [{
                 "expirationDate": 1797552000,
@@ -113,10 +117,118 @@ class OptionSnapshotTests(unittest.TestCase):
         self.assertEqual(parsed["expiration"], "2026-12-18")
         self.assertEqual(parsed["calls"][0]["lastTradeDate"], "2026-12-11T14:40:00Z")
         self.assertEqual(parsed["calls"][0]["openInterest"], 120)
+        self.assertEqual(parsed["underlying_price"], "250")
         body = json.loads(raw)
         body["optionChain"]["result"][0]["underlyingSymbol"] = "MSFT"
         with self.assertRaisesRegex(ValueError, "SECURITY_MISMATCH"):
             _parse_option_wire(json.dumps(body).encode(), ticker="AAPL")
+
+    def test_expiry_selector_replaces_farthest_non_holding_expiry(self):
+        selected = select_option_expirations(
+            ["2026-09-25", "2026-10-16", "2026-12-18", "2027-06-18"],
+            decision_date="2026-09-20",
+            held_contracts=["US.AAPL270618C00100000"],
+        )
+        self.assertEqual(
+            selected["selected_expirations"],
+            ["2026-09-25", "2026-10-16", "2027-06-18"],
+        )
+        self.assertEqual(selected["held_expirations_missing"], [])
+        shortage = select_option_expirations(
+            ["2026-09-25"], decision_date="2026-09-20",
+        )
+        self.assertEqual(shortage["selected_expirations"], ["2026-09-25"])
+
+    def test_contract_selector_deduplicates_atm_and_never_expands_holding_budget(self):
+        evidence = []
+        for option_type, letter in (("CALL", "C"), ("PUT", "P")):
+            for strike in range(90, 111, 2):
+                symbol = f"AAPL261218{letter}{strike * 1000:08d}"
+                evidence.append({"value": {
+                    "contract_symbol": symbol, "option_type": option_type,
+                    "expiration": "2026-12-18", "strike": str(strike),
+                }})
+        selected = select_option_contract_evidence(
+            evidence, underlying_price=100, decision_date="2026-09-20",
+        )
+        self.assertEqual(selected["selected_count"], 14)
+        self.assertEqual(
+            len(selected["selected_contract_symbols"]),
+            len(set(selected["selected_contract_symbols"])),
+        )
+        with self.assertRaisesRegex(ValueError, "UNDERLYING_PRICE_INVALID"):
+            select_option_contract_evidence(
+                evidence, underlying_price=None, decision_date="2026-09-20",
+            )
+
+        held_evidence = []
+        held = []
+        for strike in range(100, 149):
+            symbol = f"AAPL261218C{strike * 1000:08d}"
+            held.append(symbol)
+            held_evidence.append({"value": {
+                "contract_symbol": symbol, "option_type": "CALL",
+                "expiration": "2026-12-18", "strike": str(strike),
+            }})
+        over_budget = select_option_contract_evidence(
+            held_evidence, underlying_price=100, decision_date="2026-09-20",
+            held_contracts=held,
+        )
+        self.assertEqual(over_budget["selected_count"], 48)
+        self.assertEqual(len(over_budget["held_contracts_missing"]), 1)
+
+    def test_yahoo_main_collector_selects_representative_near_money_contracts(self):
+        class Frame:
+            def __init__(self, rows):
+                self.rows = rows
+            def to_dict(self, orient):
+                self.assert_orient = orient
+                return list(self.rows)
+
+        class Target:
+            options = ("2026-09-25", "2026-10-16", "2026-12-18", "2027-06-18")
+            fast_info = {"last_price": 100}
+            def option_chain(self, expiration):
+                suffix = datetime.fromisoformat(expiration).strftime("%y%m%d")
+                def rows(letter):
+                    return [{
+                        "contractSymbol": f"AAPL{suffix}{letter}{strike * 1000:08d}",
+                        "strike": strike, "bid": 1, "ask": 2,
+                    } for strike in range(91, 110, 2)]
+                return SimpleNamespace(calls=Frame(rows("C")), puts=Frame(rows("P")))
+
+        access = {
+            "schema_version": "live-source-access/3.0.0", "provider": "yahoo",
+            "data_role": "primary_market", "client_version": f"yfinance/{YFINANCE_VERSION}",
+            "adapter_version": MARKET_VERSION, "status": "AUTHORIZED",
+            "purpose": "personal-research", "terms_url": "https://example.test/terms",
+            "checked_at": "2026-09-14T00:00:00Z", "free_features": ["synthetic"],
+            "limitations": ["synthetic"], "domains": ["query2.finance.yahoo.com"],
+            "request_budget": 4,
+        }
+        session = SimpleNamespace(live_boundary=SimpleNamespace(events=[]))
+        with patch("product.mcp.live.options.version", return_value=YFINANCE_VERSION):
+            result = collect_option_snapshot(
+                security_id="US:COMMON_STOCK:AAPL", ticker="AAPL",
+                source_access=access, session=session,
+                retrieved_at=lambda: datetime(2026, 9, 20, 12, tzinfo=timezone.utc),
+                ticker_factory=lambda ticker, session: Target(),
+                held_contracts=["AAPL270618C00101000"],
+            )
+        self.assertEqual(result["expirations"], [
+            "2026-09-25", "2026-10-16", "2027-06-18",
+        ])
+        self.assertLessEqual(len(result["evidence"]), 48)
+        self.assertIn(
+            "AAPL270618C00101000",
+            {item["value"]["contract_symbol"] for item in result["evidence"]},
+        )
+        coverage = next(
+            item for item in result["gaps"]
+            if item["reason"] == "YAHOO_OPTION_SELECTION_COVERAGE"
+        )
+        self.assertEqual(coverage["available_expiration_count"], 4)
+        self.assertEqual(coverage["held_contracts_missing"], [])
 
     def test_portfolio_collection_isolates_security_failure_and_merge_keeps_scope(self):
         access = [{

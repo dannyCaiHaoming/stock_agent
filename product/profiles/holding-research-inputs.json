@@ -99,8 +99,8 @@
   ],
   "source_references": [
     {"reference_id": "research_source_policy", "path": "mcp/live/research-source-policy.json", "version": "research-source-policy/1.1.0", "sha256": "694f520b60b3f82f4af6196e885972dd9b8e778e57fbc4fd5597180e08fff1dd"},
-    {"reference_id": "research_supplement_source_plan", "path": "mcp/live/research-supplement-source-plan.json", "version": "research-supplement-source-plan/1.0.0", "sha256": "6177d30482b369f0a37878d6d86b52665334e33fdf9ec5a9b78ed03228ec2b71"},
-    {"reference_id": "moomoo_opend_quote_manifest", "path": "mcp/live/moomoo-opend-quote-manifest.json", "version": "moomoo-opend-quote-manifest/1.0.0", "sha256": "f05f0600065050ec1ded50c7fb89c1cc5d0b72036bda82b09731be198969870c"},
+    {"reference_id": "research_supplement_source_plan", "path": "mcp/live/research-supplement-source-plan.json", "version": "research-supplement-source-plan/1.0.0", "sha256": "4709159d60259ab0e6d04dd4eb8d4e09a2e2fd3987164a106a578485e3758c0d"},
+    {"reference_id": "moomoo_opend_quote_manifest", "path": "mcp/live/moomoo-opend-quote-manifest.json", "version": "moomoo-opend-quote-manifest/1.0.0", "sha256": "6a9acbf70b28b73e412ef4a90e07f9795b72beb029413e46cdf02d164bcbaa1b"},
     {"reference_id": "research_source_capability_contract", "path": "schemas/runtime/research-source-capability.schema.json", "version": "research-source-capability/1.2.0", "sha256": "543c42dfe1f7a0369c850b0f97c81ba690de91b6b360dfeacd85bb4073ec1fd0"},
     {"reference_id": "retired_live_profile", "path": "profiles/live-us-equity.json", "version": "live-us-equity/4.0.0", "sha256": "c7ad40d3a9323ecd5c72a53df916f1cf10b853da198d159ef6110fde5bb0d497"}
   ],
@@ -114,5 +114,5 @@
       "successor_profile_id": "holding-research-inputs/1.0.0"
     }
   ],
-  "topology_hash": "71ef995c52e463b18f73eb44eddeefc1c21eb92a18eb373868f545cbd11a9c0c"
+  "topology_hash": "caf45e1f607bef0a345e74821366b470adb6c1ba42304a1e6f71660fa2572f0e"
 }

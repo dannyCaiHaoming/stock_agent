@@ -407,6 +407,9 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                 "product.mcp.live.research_supplement_collection.capture_external_research_results",
                 return_value={},
             ) as supplement_capture, patch(
+                "product.mcp.live.research_supplement_collection.capture_shared_research_results",
+                return_value=[],
+            ) as shared_capture, patch(
                 "product.mcp.live.research_supplement_collection.build_research_supplements",
                 side_effect=fake_build_research_supplements,
             ):
@@ -467,6 +470,7 @@ class CommonStockDataPreparationTests(unittest.TestCase):
             )
             self.assertEqual(2, live_collect.call_count)
             self.assertEqual(2, supplement_capture.call_count)
+            self.assertEqual(2, shared_capture.call_count)
             restarted_memory = json.loads(
                 (root / "data-restarted/research-memory/manifest.json").read_text()
             )
@@ -547,6 +551,9 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                 "product.mcp.live.research_supplement_collection.capture_external_research_results",
                 return_value={},
             ), patch(
+                "product.mcp.live.research_supplement_collection.capture_shared_research_results",
+                return_value=[],
+            ) as shared_capture, patch(
                 "product.mcp.live.research_supplement_collection.build_research_supplements",
                 return_value=[],
             ) as supplement_builder:
@@ -557,6 +564,7 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                     memory_root=root / "research-memory",
                     run_id="isolated-data-run", collect_research_supplements=True,
                 )
+            self.assertEqual(1, shared_capture.call_count)
             supplement_positions = supplement_builder.call_args.args[0]
             self.assertEqual(
                 [
@@ -2497,7 +2505,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
                     broken, run_dir=run, invocation_id="inv-1",
                 )
 
-    def test_dispatch_catalog_exposes_frozen_research_supplement_routing(self):
+    def test_dispatch_catalog_keeps_specialized_supplement_in_gate_but_out_of_company_context(self):
         handoff = stock_handoff(1)
         gate = gate_for(handoff, "native-stage-run")
         fact = gate["allowed_evidence"][0]
@@ -2514,14 +2522,17 @@ class CommonStockNativeStageTests(unittest.TestCase):
             run, _ = self.prepare_stage(temp, count=1)
             task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
             packet = _build_common_stock_dispatch_packet(ROOT, run, task)
-        catalog = next(
-            item for item in flattened_evidence_catalog(packet)
-            if item["evidence_id"] == fact["evidence_id"]
+        self.assertIn(fact["evidence_id"], gate["allowed_evidence_ids"])
+        self.assertNotIn(
+            fact["evidence_id"],
+            {item["evidence_id"] for item in flattened_evidence_catalog(packet)},
         )
-        self.assertEqual("vendor_money_flow", catalog["dataset"])
-        self.assertEqual("moomoo_sg", catalog["source_family"])
-        self.assertNotIn("source_type", catalog)
-        self.assertNotIn("batch_id", catalog)
+        self.assertIn("vendor_money_flow", packet["catalog_policy"]["excluded_datasets"])
+        self.assertEqual(
+            1,
+            packet["catalog_policy"]["request_allowed_evidence_count"]
+            - packet["catalog_policy"]["company_research_evidence_count"],
+        )
         self.assertIn("fixture_runtime.query", packet["catalog_policy"]["provenance_rule"])
 
     def test_dispatch_excludes_daily_technical_market_series_from_company_research(self):

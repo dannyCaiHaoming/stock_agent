@@ -13,6 +13,8 @@ from product.runtime.multidimensional_stage import (
     DISPATCH_VERSION,
     STAGE_VERSION,
     _bounded_latest_facts,
+    _facts_for_capability,
+    _capability_routing_coverage,
     _dynamic_draft_schema,
     _parent_output_schema,
     build_multidimensional_dispatch_packet,
@@ -37,6 +39,86 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MultidimensionalStageTests(unittest.TestCase):
+    def test_moomoo_datasets_route_to_existing_capabilities_without_new_domain(self):
+        def fact(evidence_id, security_id, dataset, field):
+            return {
+                "evidence_id": evidence_id, "security_id": security_id,
+                "dataset": dataset, "semantic_field": field,
+                "source_family": "moomoo_sg", "source_type": "SECONDARY_VENDOR",
+            }
+        evidence = [
+            fact("rating", "US:COMMON_STOCK:AAPL", "research_discovery", "moomoo_rating_item:x"),
+            fact("owner", "US:COMMON_STOCK:AAPL", "institutional_ownership", "moomoo_institutional_aggregate:x"),
+            fact("option", "US:COMMON_STOCK:AAPL", "options_snapshot", "moomoo_option_quote:x"),
+            fact("macro", "US:MARKET", "macro_history", "moomoo_us_cpi_yoy:x"),
+            fact("market", "US:MARKET", "fedwatch_expectations", "moomoo_fedwatch:x"),
+        ]
+        expected = {
+            "RESEARCH_REPORT": {"rating"}, "OWNERSHIP_DISCLOSURE": {"owner"},
+            "OPTIONS_FLOW": {"option"}, "MACRO_CONTEXT": {"macro"},
+            "MARKET_STATE": {"market"},
+        }
+        for capability, ids in expected.items():
+            selected = _facts_for_capability(
+                evidence, capability=capability,
+                security_ids=["US:COMMON_STOCK:AAPL"], benchmark_id="US:SPY",
+            )
+            self.assertEqual(ids, {item["evidence_id"] for item in selected})
+
+    def test_provider_neutral_routing_coverage_separates_delivery_from_actual_use(self):
+        evidence = [{
+            "evidence_id": "ev-option", "security_id": "US:COMMON_STOCK:AAPL",
+            "dataset": "options_snapshot", "semantic_field": "moomoo_option_quote:x",
+            "source_family": "moomoo_sg", "source_type": "SECONDARY_VENDOR",
+        }]
+        coverage = _capability_routing_coverage(
+            evidence, capture_batches=[{"capabilities": [{
+                "source": "moomoo_sg", "dataset": "options_snapshot",
+                "evidence_ids": ["ev-option"],
+            }]}], security_ids=["US:COMMON_STOCK:AAPL"], benchmark_id="US:SPY",
+        )
+        option = next(
+            item for item in coverage["dataset_observations"]
+            if item["dataset"] == "options_snapshot"
+        )
+        self.assertEqual("CLOSED", coverage["status"])
+        self.assertEqual(1, option["capture_evidence_count"])
+        self.assertEqual(1, option["gate_eligible_evidence_count"])
+        self.assertEqual(1, option["delivered_evidence_count"])
+        self.assertEqual("NOT_EVALUATED_AT_PREPARATION", option["actual_research_use_status"])
+
+        wrong_scope = [dict(evidence[0], security_id="US:COMMON_STOCK:MSFT")]
+        failed = _capability_routing_coverage(
+            wrong_scope, capture_batches=[],
+            security_ids=["US:COMMON_STOCK:AAPL"], benchmark_id="US:SPY",
+        )
+        self.assertEqual("FAILED", failed["status"])
+        self.assertTrue(failed["failure_codes"][0].startswith(
+            "CAPABILITY_EVIDENCE_NOT_ROUTED:OPTIONS_FLOW:"
+        ))
+
+    def test_provider_neutral_routing_counts_yahoo_primary_options(self):
+        evidence = [{
+            "evidence_id": "ev-yahoo-option", "security_id": "US:COMMON_STOCK:AAPL",
+            "dataset": "options_snapshot", "semantic_field": "option_chain_contract:AAPL",
+            "source_family": "yahoo", "source_type": "options",
+        }]
+        coverage = _capability_routing_coverage(
+            evidence, capture_batches=[{"capabilities": [{
+                "source": "yahoo", "dataset": "options_snapshot",
+                "evidence_ids": ["ev-yahoo-option"],
+            }]}], security_ids=["US:COMMON_STOCK:AAPL"], benchmark_id="US:SPY",
+        )
+        option = next(
+            item for item in coverage["dataset_observations"]
+            if item["dataset"] == "options_snapshot"
+        )
+        self.assertEqual("CLOSED", coverage["status"])
+        self.assertEqual("DELIVERED", option["delivery_status"])
+        self.assertEqual(1, option["capture_evidence_count"])
+        self.assertEqual(1, option["gate_eligible_evidence_count"])
+        self.assertEqual(1, option["delivered_evidence_count"])
+
     @staticmethod
     def dimension_draft(task: dict, *, include_impact: bool = True) -> dict:
         gap = {

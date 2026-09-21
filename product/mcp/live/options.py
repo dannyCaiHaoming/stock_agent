@@ -8,6 +8,7 @@ from importlib.metadata import version
 import hashlib
 import json
 from pathlib import Path
+import re
 from typing import Any, Callable, Mapping, Sequence
 
 from product.mcp.live.contracts import require_source_admission, validate_contract
@@ -17,6 +18,10 @@ from product.mcp.provenance import content_hash, iso_utc, parse_timestamp
 
 
 OPTIONS_VERSION = "yahoo-option-snapshot/1.0.0"
+OPTION_SELECTION_VERSION = "bounded-option-selection/1.0.0"
+_OCC_SYMBOL = re.compile(
+    r"^(?:US\.)?[A-Z0-9.-]+(?P<expiry>\d{6})[CP](?P<strike>\d{8})$"
+)
 
 
 def _number(value: Any, field: str, *, nullable: bool = True) -> str | None:
@@ -24,7 +29,7 @@ def _number(value: Any, field: str, *, nullable: bool = True) -> str | None:
         return None if nullable else _raise(field)
     try:
         number = Decimal(str(value))
-    except InvalidOperation as exc:
+    except (InvalidOperation, TypeError, ValueError) as exc:
         raise ValueError(f"YAHOO_OPTION_VALUE_INVALID:{field}") from exc
     if not number.is_finite() or number < 0:
         raise ValueError(f"YAHOO_OPTION_VALUE_INVALID:{field}")
@@ -35,12 +40,154 @@ def _raise(field: str):
     raise ValueError(f"YAHOO_OPTION_VALUE_MISSING:{field}")
 
 
+def _canonical_option_symbol(value: Any) -> str:
+    symbol = str(value or "").strip().upper()
+    return symbol[3:] if symbol.startswith("US.") else symbol
+
+
+def _contract_expiration(value: Any) -> date | None:
+    match = _OCC_SYMBOL.fullmatch(str(value or "").strip().upper())
+    if match is None:
+        return None
+    try:
+        return datetime.strptime(match.group("expiry"), "%y%m%d").date()
+    except ValueError:
+        return None
+
+
+def select_option_expirations(
+    expirations: Sequence[str], *, decision_date: str,
+    held_contracts: Sequence[str] = (), max_expiries: int = 3,
+) -> dict[str, Any]:
+    """Select nearest/~30/~90 day expiries and replace the farthest for holdings."""
+
+    if type(max_expiries) is not int or not 1 <= max_expiries <= 3:
+        raise ValueError("OPTION_EXPIRY_SELECTION_BUDGET_INVALID")
+    base = date.fromisoformat(decision_date)
+    available = sorted({date.fromisoformat(str(value)) for value in expirations})
+    available = [value for value in available if value >= base]
+    selected: list[date] = []
+    for target in (0, 30, 90)[:max_expiries]:
+        remaining = [value for value in available if value not in selected]
+        if remaining:
+            selected.append(min(
+                remaining, key=lambda value: (abs((value - base).days - target), value),
+            ))
+
+    held_expiries = sorted({
+        expiry for expiry in (_contract_expiration(value) for value in held_contracts)
+        if expiry is not None and expiry in available
+    })
+    for held_expiry in held_expiries:
+        if held_expiry in selected:
+            continue
+        if len(selected) < max_expiries:
+            selected.append(held_expiry)
+            continue
+        replaceable = [value for value in selected if value not in held_expiries]
+        if not replaceable:
+            break
+        selected[selected.index(max(replaceable))] = held_expiry
+    selected = sorted(set(selected))[:max_expiries]
+    return {
+        "policy_version": OPTION_SELECTION_VERSION,
+        "selected_expirations": [value.isoformat() for value in selected],
+        "available_expiration_count": len(available),
+        "held_expirations_requested": [value.isoformat() for value in held_expiries],
+        "held_expirations_missing": [
+            value.isoformat() for value in held_expiries if value not in selected
+        ],
+    }
+
+
+def select_option_contract_evidence(
+    evidence: Sequence[Mapping[str, Any]], *, underlying_price: Any,
+    decision_date: str, held_contracts: Sequence[str] = (), max_contracts: int = 48,
+) -> dict[str, Any]:
+    """Select four strikes on each side per call/put while retaining holdings first."""
+
+    if type(max_contracts) is not int or not 1 <= max_contracts <= 48:
+        raise ValueError("OPTION_CONTRACT_SELECTION_BUDGET_INVALID")
+    try:
+        spot = Decimal(str(underlying_price))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError("OPTION_UNDERLYING_PRICE_INVALID") from exc
+    if not spot.is_finite() or spot <= 0:
+        raise ValueError("OPTION_UNDERLYING_PRICE_INVALID")
+    rows: list[tuple[Mapping[str, Any], date, Decimal, str, str]] = []
+    for fact in evidence:
+        value = fact.get("value")
+        if not isinstance(value, Mapping):
+            continue
+        symbol = _canonical_option_symbol(value.get("contract_symbol"))
+        option_type = str(value.get("option_type") or "")
+        if not symbol or option_type not in {"CALL", "PUT"}:
+            continue
+        try:
+            expiry = date.fromisoformat(str(value.get("expiration")))
+            strike = Decimal(str(value.get("strike")))
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+        if expiry < date.fromisoformat(decision_date):
+            continue
+        if not strike.is_finite() or strike <= 0:
+            continue
+        rows.append((fact, expiry, strike, option_type, symbol))
+    expiry_selection = select_option_expirations(
+        [row[1].isoformat() for row in rows], decision_date=decision_date,
+        held_contracts=held_contracts,
+    )
+    selected_expiries = {
+        date.fromisoformat(value) for value in expiry_selection["selected_expirations"]
+    }
+    candidates = [row for row in rows if row[1] in selected_expiries]
+    held = {_canonical_option_symbol(value) for value in held_contracts}
+    near: dict[str, tuple[Mapping[str, Any], date, Decimal, str, str]] = {}
+    for expiry in sorted(selected_expiries):
+        for option_type in ("CALL", "PUT"):
+            typed = [
+                row for row in candidates if row[1] == expiry and row[3] == option_type
+            ]
+            below = sorted(
+                (row for row in typed if row[2] <= spot),
+                key=lambda row: (spot - row[2], row[2], row[4]),
+            )[:4]
+            above = sorted(
+                (row for row in typed if row[2] >= spot),
+                key=lambda row: (row[2] - spot, row[2], row[4]),
+            )[:4]
+            for row in below + above:
+                near[row[4]] = row
+
+    def order(row: tuple[Mapping[str, Any], date, Decimal, str, str]):
+        return row[1], row[3], row[2], row[4]
+
+    held_rows = sorted((row for row in candidates if row[4] in held), key=order)
+    held_symbols = {row[4] for row in held_rows}
+    other_rows = sorted(
+        (row for symbol, row in near.items() if symbol not in held_symbols), key=order,
+    )
+    selected_rows = (held_rows + other_rows)[:max_contracts]
+    selected_symbols = {row[4] for row in selected_rows}
+    return {
+        **expiry_selection,
+        "selected_evidence": [dict(row[0]) for row in selected_rows],
+        "selected_contract_symbols": [row[4] for row in selected_rows],
+        "candidate_count": len(rows),
+        "selected_count": len(selected_rows),
+        "excluded_count": max(0, len(rows) - len(selected_rows)),
+        "held_contracts_requested": sorted(held),
+        "held_contracts_missing": sorted(held - selected_symbols),
+        "underlying_price": format(spot, "f"),
+    }
+
+
 def _signed_number(value: Any, field: str) -> str | None:
     if value is None or value == "":
         return None
     try:
         number = Decimal(str(value))
-    except InvalidOperation as exc:
+    except (InvalidOperation, TypeError, ValueError) as exc:
         raise ValueError(f"YAHOO_OPTION_VALUE_INVALID:{field}") from exc
     if not number.is_finite():
         raise ValueError(f"YAHOO_OPTION_VALUE_INVALID:{field}")
@@ -196,6 +343,9 @@ def _parse_option_wire(raw: bytes, *, ticker: str) -> dict[str, Any]:
     return {
         "expiration_dates": expiration_dates,
         "expiration": datetime.fromtimestamp(expiration_epoch, tz=timezone.utc).date().isoformat(),
+        "underlying_price": _number(
+            quote.get("regularMarketPrice"), "underlying_price", nullable=False,
+        ),
         "calls": rows("calls"), "puts": rows("puts"),
     }
 
@@ -203,9 +353,10 @@ def _parse_option_wire(raw: bytes, *, ticker: str) -> dict[str, Any]:
 def collect_option_snapshot(
     *, security_id: str, ticker: str, source_access: Mapping[str, Any], session: Any,
     retrieved_at: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-    max_expiries: int = 2, ticker_factory: Callable[..., Any] | None = None,
+    max_expiries: int = 3, ticker_factory: Callable[..., Any] | None = None,
+    held_contracts: Sequence[str] = (), underlying_price: Any | None = None,
 ) -> dict[str, Any]:
-    if type(max_expiries) is not int or not 1 <= max_expiries <= 2:
+    if type(max_expiries) is not int or not 1 <= max_expiries <= 3:
         raise ValueError("YAHOO_OPTION_EXPIRY_BUDGET_INVALID")
     validate_contract("source-access", dict(source_access))
     require_source_admission(dict(source_access), at=retrieved_at())
@@ -215,36 +366,57 @@ def collect_option_snapshot(
         raise ValueError("YAHOO_CLIENT_VERSION_MISMATCH")
     evidence, gaps = [], []
     expirations: tuple[str, ...]
+    decision_date: str
+    selection: dict[str, Any]
     if ticker_factory is None:
         from product.mcp.live.yahoo_transport import acquire_anonymous_crumb
         crumb = acquire_anonymous_crumb(session)
-        pending_dates: list[int | None] = [None]
-        completed_expirations: list[str] = []
-        for index in range(max_expiries):
-            requested_date = pending_dates[index]
-            params = {"crumb": crumb}
-            if requested_date is not None:
-                params["date"] = requested_date
+        first_response = session.get(
+            f"https://query2.finance.yahoo.com/v7/finance/options/{ticker}",
+            params={"crumb": crumb},
+        )
+        first_parsed = _parse_option_wire(first_response.content, ticker=ticker)
+        first_completed = iso_utc(retrieved_at())
+        decision_date = parse_timestamp(first_completed).date().isoformat()
+        expiry_by_date = {
+            datetime.fromtimestamp(value, tz=timezone.utc).date().isoformat(): value
+            for value in first_parsed["expiration_dates"]
+        }
+        expiry_selection = select_option_expirations(
+            list(expiry_by_date), decision_date=decision_date,
+            held_contracts=held_contracts, max_expiries=max_expiries,
+        )
+        selected_expirations = list(expiry_selection["selected_expirations"])
+        parsed_by_expiry = {
+            first_parsed["expiration"]: (
+                first_parsed, first_response.content, first_completed,
+            )
+        }
+        for expiration in selected_expirations:
+            if expiration in parsed_by_expiry:
+                continue
+            if expiration not in expiry_by_date:
+                raise ValueError("YAHOO_OPTION_SELECTED_EXPIRATION_UNAVAILABLE")
             response = session.get(
-                f"https://query2.finance.yahoo.com/v7/finance/options/{ticker}", params=params,
+                f"https://query2.finance.yahoo.com/v7/finance/options/{ticker}",
+                params={"crumb": crumb, "date": expiry_by_date[expiration]},
             )
             parsed = _parse_option_wire(response.content, ticker=ticker)
-            if index == 0:
-                pending_dates = list(parsed["expiration_dates"][:max_expiries])
-                if not pending_dates:
-                    break
-                if pending_dates[0] != int(datetime.fromisoformat(parsed["expiration"]).replace(
-                    tzinfo=timezone.utc,
-                ).timestamp()):
-                    # Yahoo may encode midnight in a market timezone. The payload's
-                    # explicit chain expiration remains authoritative for this row.
-                    pending_dates[0] = None
-            expiration = parsed["expiration"]
-            if expiration in completed_expirations:
-                raise ValueError("YAHOO_OPTION_DUPLICATE_EXPIRATION")
-            completed_expirations.append(expiration)
+            if parsed["expiration"] != expiration:
+                raise ValueError("YAHOO_OPTION_EXPIRATION_BINDING_MISMATCH")
             completed = iso_utc(retrieved_at())
-            raw_hash = hashlib.sha256(response.content).hexdigest()
+            parsed_by_expiry[expiration] = (parsed, response.content, completed)
+
+        observed_prices = {
+            str(parsed_by_expiry[value][0]["underlying_price"])
+            for value in selected_expirations
+        }
+        if len(observed_prices) > 1:
+            raise ValueError("YAHOO_OPTION_UNDERLYING_PRICE_DRIFT")
+        spot = observed_prices.pop() if observed_prices else first_parsed["underlying_price"]
+        for expiration in selected_expirations:
+            parsed, raw_content, completed = parsed_by_expiry[expiration]
+            raw_hash = hashlib.sha256(raw_content).hexdigest()
             for rows, option_type in ((parsed["calls"], "CALL"), (parsed["puts"], "PUT")):
                 normalized = normalize_option_rows(
                     rows, security_id=security_id, ticker=ticker, expiration=expiration,
@@ -252,12 +424,22 @@ def collect_option_snapshot(
                 )
                 evidence.extend(normalized["evidence"])
                 gaps.extend(normalized["gaps"])
-            if index + 1 >= len(pending_dates):
-                break
-        expirations = tuple(completed_expirations)
+        expirations = tuple(selected_expirations)
     else:
         target = ticker_factory(ticker, session=session)
-        expirations = tuple(target.options or ())[:max_expiries]
+        decision_date = parse_timestamp(iso_utc(retrieved_at())).date().isoformat()
+        expiry_selection = select_option_expirations(
+            tuple(target.options or ()), decision_date=decision_date,
+            held_contracts=held_contracts, max_expiries=max_expiries,
+        )
+        expirations = tuple(expiry_selection["selected_expirations"])
+        spot = underlying_price
+        if spot is None:
+            fast_info = getattr(target, "fast_info", None)
+            spot = (
+                fast_info.get("last_price") if isinstance(fast_info, Mapping)
+                else getattr(fast_info, "last_price", None)
+            )
         for expiration in expirations:
             chain = target.option_chain(expiration)
             completed = iso_utc(retrieved_at())
@@ -273,6 +455,23 @@ def collect_option_snapshot(
                 )
                 evidence.extend(normalized["evidence"])
                 gaps.extend(normalized["gaps"])
+    selection = select_option_contract_evidence(
+        evidence, underlying_price=spot, decision_date=decision_date,
+        held_contracts=held_contracts,
+    )
+    for key in (
+        "available_expiration_count", "held_expirations_requested",
+        "held_expirations_missing",
+    ):
+        selection[key] = expiry_selection[key]
+    selected_symbols = set(selection["selected_contract_symbols"])
+    evidence = list(selection.pop("selected_evidence"))
+    gaps = [
+        item for item in gaps
+        if not item.get("contract_symbol")
+        or _canonical_option_symbol(item.get("contract_symbol")) in selected_symbols
+    ]
+    gaps.append({"reason": "YAHOO_OPTION_SELECTION_COVERAGE", **selection})
     if not expirations:
         gaps.append({"reason": "YAHOO_OPTION_EXPIRATIONS_EMPTY"})
     return {
@@ -320,7 +519,7 @@ def collect_portfolio_option_snapshots(
             )
             result = option_collector(
                 security_id=security_id, ticker=ticker, source_access=policy,
-                session=session, retrieved_at=now, max_expiries=1,
+                session=session, retrieved_at=now, max_expiries=3,
             )
             evidence.extend(result["evidence"])
             gaps.extend(dict(item, security_id=security_id) for item in result["gaps"])

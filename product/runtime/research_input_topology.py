@@ -313,10 +313,13 @@ def build_research_provider_coverage(
     cutoff = iso_utc(decision_cutoff)
     cutoff_time = parse_timestamp(cutoff)
     evidence_counts: dict[str, int] = {}
+    delivered_ids: dict[str, set[str]] = {}
     for fact in evidence:
         provider = _fact_provider(fact)
         if provider is not None:
             evidence_counts[provider] = evidence_counts.get(provider, 0) + 1
+            if isinstance(fact.get("evidence_id"), str):
+                delivered_ids.setdefault(provider, set()).add(fact["evidence_id"])
 
     observations: dict[str, list[dict[str, Any]]] = {}
     for original in capture_batches:
@@ -360,6 +363,15 @@ def build_research_provider_coverage(
                 "declared_status": provider["status"],
                 "observed_status": observed_status,
                 "evidence_count": evidence_counts.get(name, 0),
+                "capture_evidence_count": len({
+                    evidence_id for item in attempts for evidence_id in item["evidence_ids"]
+                }),
+                "gate_delivered_evidence_count": len(delivered_ids.get(name, set())),
+                "delivery_status": (
+                    "DELIVERED" if delivered_ids.get(name)
+                    else "NOT_DELIVERED" if attempts else "NOT_ATTEMPTED"
+                ),
+                "actual_research_use_status": "NOT_EVALUATED_AT_PREPARATION",
                 "dataset_observations": attempts,
                 "failure_codes": sorted({
                     item["failure_code"] for item in attempts

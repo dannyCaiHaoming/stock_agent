@@ -44,6 +44,10 @@ BACKGROUND_GROUPS = (
     "event_context",
     "share_short_context",
 )
+SHARED_MARKET_DATASETS = {
+    "macro_history", "economic_calendar", "fedwatch_expectations",
+    "dot_plot", "market_breadth", "option_market_statistics",
+}
 BACKGROUND_STATUSES = {
     "COVERED", "PARTIAL", "UNKNOWN", "NOT_ATTEMPTED",
     "SOURCE_LIMITED", "BLOCKED_CONFIGURATION",
@@ -797,7 +801,10 @@ def assemble_company_background(
         for fact in facts:
             validate_supplement_fact(fact)
             if fact["source_family"] != source or fact["dataset"] != dataset \
-                    or fact["security_id"] != security_id:
+                    or fact["security_id"] not in (
+                        {security_id, "US:MARKET"}
+                        if dataset in SHARED_MARKET_DATASETS else {security_id}
+                    ):
                 raise ValueError("COMPANY_BACKGROUND_DATASET_RESULT_BINDING_INVALID")
         if status in {"AVAILABLE", "PARTIAL"} and not facts:
             raise ValueError("COMPANY_BACKGROUND_DATASET_FALSE_SUCCESS")
@@ -859,7 +866,10 @@ def build_research_supplement_package(
     identifiers = {item["evidence_id"] for item in background["evidence"]}
     for fact in extras:
         validate_supplement_fact(fact)
-        if fact["security_id"] != batch["security_id"] \
+        if fact["security_id"] not in (
+            {batch["security_id"], "US:MARKET"}
+            if fact["dataset"] in SHARED_MARKET_DATASETS else {batch["security_id"]}
+        ) \
                 or fact["batch_id"] != batch["batch_id"] \
                 or fact["evidence_id"] in identifiers:
             raise ValueError("RESEARCH_SUPPLEMENT_PACKAGE_EVIDENCE_INVALID")
@@ -907,7 +917,10 @@ def validate_research_supplement_package(
     identifiers = {item["evidence_id"] for item in background["evidence"]}
     for fact in value["extra_evidence"]:
         validate_supplement_fact(fact)
-        if fact["security_id"] != value["security_id"] \
+        if fact["security_id"] not in (
+            {value["security_id"], "US:MARKET"}
+            if fact["dataset"] in SHARED_MARKET_DATASETS else {value["security_id"]}
+        ) \
                 or fact["batch_id"] != value["batch_id"] \
                 or fact["evidence_id"] in identifiers:
             raise ValueError("RESEARCH_SUPPLEMENT_PACKAGE_EVIDENCE_INVALID")

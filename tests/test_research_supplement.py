@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from product.mcp.live.research_supplement import (
     BACKGROUND_GROUPS,
@@ -29,6 +30,12 @@ from product.mcp.provenance import content_hash
 from product.runtime.common_stock_data import attach_research_supplement, merge_research_supplement_evidence
 from product.runtime.fixture_mcp import ToolAccessError
 from product.runtime.research_supplement_mcp import GateScopedResearchSupplementTools
+from product.mcp.live.research_supplement_collection import (
+    _yahoo_option_result,
+    build_research_supplements,
+    capture_external_research_results,
+    capture_shared_research_results,
+)
 
 
 NOW = "2026-09-15T12:00:00Z"
@@ -78,6 +85,15 @@ class SourcePlanTests(unittest.TestCase):
         plan = load_source_plan()
         route = next(item for item in plan["datasets"] if item["dataset"] == "vendor_money_flow")
         self.assertEqual(route["primary"], "moomoo_sg")
+
+    def test_unimplemented_relationship_and_guidance_fallbacks_are_not_claimed(self):
+        plan = load_source_plan()
+        routes = {item["dataset"]: item for item in plan["datasets"]}
+        route = routes["vendor_money_flow"]
+        self.assertIsNone(routes["relationships"]["fallback"])
+        self.assertIsNone(routes["earnings_guidance"]["fallback"])
+        self.assertEqual(routes["options_snapshot"]["primary"], "yahoo")
+        self.assertEqual(routes["options_snapshot"]["fallback"], "moomoo_sg")
         self.assertIsNone(route["fallback"])
         selected = select_dataset_source(
             plan,
@@ -97,6 +113,27 @@ class SourcePlanTests(unittest.TestCase):
                     {"source": "yahoo", "status": "AVAILABLE"},
                 ],
             )
+
+    def test_shared_market_fact_may_be_attached_once_without_widening_security_scope(self):
+        shared = build_supplement_fact(
+            security_id="US:MARKET", dataset="market_breadth",
+            semantic_field="moomoo_us_rise_fall_distribution", value={"ranges": []},
+            source_id="moomoo-sg-market", source_family="moomoo_sg",
+            source_locator="moomoo-opend://get_rise_fall_distribution/US",
+            source_version=("moomoo-opend-research-normalization/1.3.0;opend/1010;"
+                            "sdk/10.10.7008;method/get_rise_fall_distribution;manifest/" + "b" * 16),
+            as_of="2026-09-15T11:00:00Z", published_at="2026-09-15T11:00:00Z",
+            retrieved_at="2026-09-15T11:00:00Z", raw_content_hash="c" * 64,
+        )
+        result = build_research_supplements(
+            [{"security_id": SECURITY, "ticker": "AAPL"}],
+            gate={"decision_cutoff": NOW, "allowed_evidence": []}, run_id="shared-test",
+            external_results={SECURITY: [{
+                "source": "moomoo_sg", "dataset": "market_breadth", "status": "AVAILABLE",
+                "failure_code": None, "evidence": [shared], "gaps": [], "limitations": [],
+            }]},
+        )[0]
+        self.assertEqual(result["package"]["extra_evidence"][0]["security_id"], "US:MARKET")
 
     def test_cross_region_or_two_fallback_plan_is_rejected(self):
         plan = load_source_plan()
@@ -546,6 +583,314 @@ class CompanyBackgroundTests(unittest.TestCase):
                 security_id=SECURITY, datasets=["identity_profile"],
                 decision_cutoff=NOW, batch_id="other",
             )
+
+
+class ResearchSupplementCollectionTests(unittest.TestCase):
+    @staticmethod
+    def _normalized(dataset):
+        return {"evidence": [{"dataset": dataset, "evidence_id": f"ev-{dataset}"}], "gaps": []}
+
+    def test_shared_collector_is_one_bounded_batch_and_isolates_datasets(self):
+        calls = []
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                calls.append(("client", kwargs))
+
+            def readiness(self):
+                calls.append(("readiness", {}))
+
+            def read(self, *, capability_id, params):
+                calls.append((capability_id, dict(params)))
+                return {"capability_id": capability_id}
+
+        def shared_normalizer(capture, *, dataset, **kwargs):
+            return self._normalized(dataset)
+
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", FakeClient,
+        ), patch(
+            "product.mcp.live.moomoo_opend.load_quote_manifest", return_value={},
+        ), patch(
+            "product.mcp.live.moomoo_normalize.normalize_opend_market_breadth",
+            side_effect=lambda capture: self._normalized("market_breadth"),
+        ), patch(
+            "product.mcp.live.moomoo_normalize.normalize_opend_macro_history",
+            side_effect=lambda capture, **kwargs: self._normalized("macro_history"),
+        ), patch(
+            "product.mcp.live.moomoo_normalize.normalize_opend_shared_frame",
+            side_effect=shared_normalizer,
+        ):
+            results = capture_shared_research_results(
+                cache_root=Path(temp), now=lambda: NOW,
+            )
+
+        self.assertEqual(1, sum(name == "client" for name, _ in calls))
+        self.assertEqual(1, sum(name == "readiness" for name, _ in calls))
+        reads = [(name, params) for name, params in calls if name not in {"client", "readiness"}]
+        self.assertEqual(14, len(reads))
+        self.assertEqual(8, sum(name == "macro-indicator-history-v1" for name, _ in reads))
+        self.assertEqual(
+            {"market_breadth", "option_market_statistics", "macro_history",
+             "fedwatch_expectations", "dot_plot", "economic_calendar"},
+            {item["dataset"] for item in results},
+        )
+        self.assertLessEqual(max(
+            params.get("max_count", 0) for _, params in reads
+        ), 24)
+
+    def test_shared_collector_full_time_budget_exhaustion_makes_no_data_reads(self):
+        calls = []
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+            def readiness(self):
+                calls.append("readiness")
+            def read(self, *, capability_id, params):
+                calls.append(capability_id)
+                raise AssertionError("budget-exhausted shared collector must not read")
+
+        ticks = iter([0.0] + [121.0] * 20)
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", FakeClient,
+        ), patch(
+            "product.mcp.live.moomoo_opend.load_quote_manifest", return_value={},
+        ), patch(
+            "product.mcp.live.research_supplement_collection.time.monotonic",
+            side_effect=lambda: next(ticks),
+        ):
+            results = capture_shared_research_results(
+                cache_root=Path(temp), now=lambda: NOW,
+            )
+
+        self.assertEqual(calls, ["readiness"])
+        self.assertEqual(
+            {item["dataset"] for item in results},
+            {"market_breadth", "option_market_statistics", "macro_history",
+             "fedwatch_expectations", "dot_plot", "economic_calendar"},
+        )
+        self.assertTrue(all(
+            "MOOMOO_SHARED_TIME_BUDGET_EXHAUSTED" in item["gaps"]
+            for item in results
+        ))
+
+    def test_security_collector_does_not_retry_failure_and_budget_protects_enhancements(self):
+        calls = []
+        core_datasets = {
+            "capital-flow-v1": "vendor_money_flow",
+            "analyst-consensus-v1": "analyst_expectations",
+            "institutional-aggregate-v1": "institutional_ownership",
+            "morningstar-report-v1": "research_discovery",
+        }
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+            def readiness(self):
+                calls.append("readiness")
+            def read(self, *, capability_id, params):
+                calls.append(capability_id)
+                if capability_id == "company-profile-v1":
+                    raise ValueError("ONE_SHOT_FAILURE")
+                if capability_id in core_datasets:
+                    return {"capability_id": capability_id}
+                raise AssertionError(f"enhancement read escaped budget: {capability_id}")
+
+        def normalized(dataset):
+            return lambda capture, **kwargs: self._normalized(dataset)
+
+        ticks = iter([0.0] + [121.0] * 30)
+        patches = (
+            patch("product.mcp.live.yahoo_transport.create_yahoo_session",
+                  side_effect=ValueError("YAHOO_UNAVAILABLE")),
+            patch("product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", FakeClient),
+            patch("product.mcp.live.moomoo_opend.load_quote_manifest", return_value={}),
+            patch("product.mcp.live.moomoo_normalize.normalize_opend_capital_flow",
+                  side_effect=normalized("vendor_money_flow")),
+            patch("product.mcp.live.moomoo_normalize.normalize_opend_analyst_consensus",
+                  side_effect=normalized("analyst_expectations")),
+            patch("product.mcp.live.moomoo_normalize.normalize_opend_institutional_aggregate",
+                  side_effect=normalized("institutional_ownership")),
+            patch("product.mcp.live.moomoo_normalize.normalize_opend_morningstar_report",
+                  side_effect=normalized("research_discovery")),
+            patch("product.mcp.live.research_supplement_collection.time.monotonic",
+                  side_effect=lambda: next(ticks)),
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            entered = []
+            try:
+                for item in patches:
+                    entered.append(item)
+                    item.start()
+                result = capture_external_research_results(
+                    [{"security_id": SECURITY, "ticker": "AAPL"}],
+                    access=[{"provider": "yahoo"}],
+                    cache_root=Path(temp) / "cache", state_root=Path(temp) / "state",
+                    now=lambda: NOW,
+                )
+            finally:
+                for item in reversed(entered):
+                    item.stop()
+
+        self.assertEqual(calls.count("company-profile-v1"), 1)
+        self.assertTrue(all(calls.count(capability) == 1 for capability in core_datasets))
+        self.assertFalse(any(capability in calls for capability in (
+            "capital-distribution-v1", "revenue-breakdown-v1",
+            "company-executives-v1", "insider-holder-list-v1",
+            "insider-trade-list-v1", "institution-rating-summary-v1",
+            "analyst-rating-summary-v1", "short-interest-v1",
+        )))
+        moomoo = [item for item in result[SECURITY] if item["source"] == "moomoo_sg"]
+        self.assertTrue(any(
+            item["dataset"] == "business_segments"
+            and "MOOMOO_BATCH_TIME_BUDGET_EXHAUSTED" in item["gaps"]
+            for item in moomoo
+        ))
+        self.assertTrue(any(
+            item["dataset"] == "share_short_context"
+            and "MOOMOO_BATCH_TIME_BUDGET_EXHAUSTED" in item["gaps"]
+            for item in moomoo
+        ))
+
+    def test_yahoo_dynamic_options_prevent_duplicate_moomoo_option_requests(self):
+        calls = []
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def readiness(self):
+                return None
+
+            def read(self, *, capability_id, params):
+                calls.append(capability_id)
+                raise ValueError("SOURCE_LIMITED")
+
+        yahoo_fact = build_supplement_fact(
+            security_id=SECURITY, dataset="options_snapshot",
+            semantic_field="option_contract:AAPL", value={"last": "1.0"},
+            source_id="yahoo-options:AAPL", source_family="yahoo",
+            source_locator="https://query2.finance.yahoo.com/options/AAPL",
+            source_version="yahoo-options/1.0.0", as_of=NOW,
+            published_at=NOW, retrieved_at=NOW, raw_content_hash="a" * 64,
+            limitations=["test fixture"],
+        )
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.yahoo_transport.create_yahoo_session", return_value=object(),
+        ), patch(
+            "product.mcp.live.yahoo_transport.acquire_anonymous_crumb", return_value="crumb",
+        ), patch(
+            "product.mcp.live.yahoo_research.collect_quote_summary",
+            return_value={"evidence": [], "gaps": []},
+        ), patch(
+            "product.mcp.live.options.collect_option_snapshot",
+            return_value={"evidence": [yahoo_fact], "gaps": []},
+        ), patch(
+            "product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", FakeClient,
+        ), patch(
+            "product.mcp.live.moomoo_opend.load_quote_manifest", return_value={},
+        ):
+            result = capture_external_research_results(
+                [{"security_id": SECURITY, "ticker": "AAPL"}],
+                access=[{"provider": "yahoo"}], cache_root=Path(temp) / "cache",
+                state_root=Path(temp) / "state", now=lambda: NOW,
+            )
+
+        yahoo_options = next(
+            item for item in result[SECURITY]
+            if item["source"] == "yahoo" and item["dataset"] == "options_snapshot"
+        )
+        self.assertEqual("AVAILABLE", yahoo_options["status"])
+        self.assertNotIn("option-expirations-v1", calls)
+        self.assertNotIn("option-chain-static-v1", calls)
+        self.assertNotIn("market-snapshot-v1", calls)
+
+    def test_yahoo_option_conversion_keeps_contract_identity_in_evidence_key(self):
+        base = {
+            "security_id": SECURITY, "semantic_field": "option_chain_contract",
+            "source_id": "yahoo-options-AAPL", "source_locator": "https://example.test/options",
+            "source_version": "yahoo-option-snapshot/1.0.0", "as_of": NOW,
+            "published_at": NOW, "retrieved_at": NOW, "raw_content_hash": "c" * 64,
+        }
+        converted = _yahoo_option_result({"evidence": [
+            {**base, "value": {"contract_symbol": "AAPL261218C00100000"}},
+            {**base, "value": {"contract_symbol": "AAPL261218P00100000"}},
+        ], "gaps": []})
+        self.assertEqual(2, len(converted["evidence"]))
+        self.assertEqual(2, len({item["evidence_id"] for item in converted["evidence"]}))
+        self.assertEqual(2, len({item["semantic_field"] for item in converted["evidence"]}))
+
+    def test_yahoo_option_failure_uses_moomoo_dynamic_fallback(self):
+        calls = []
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def readiness(self):
+                return None
+
+            def read(self, *, capability_id, params):
+                calls.append(capability_id)
+                if capability_id == "market-snapshot-v1":
+                    return {"payload": {"rows": [{"last_price": "250"}]}}
+                if capability_id == "option-expirations-v1":
+                    return {"payload": {"rows": [{"strike_time": "2026-09-18"}]}}
+                if capability_id == "option-chain-static-v1":
+                    return {"payload": {"rows": [{"code": "US.AAPL260918C00250000"}]}}
+                raise ValueError("SOURCE_LIMITED")
+
+        moomoo_fact = build_supplement_fact(
+            security_id=SECURITY, dataset="options_snapshot",
+            semantic_field="moomoo_option_contract:AAPL", value={"last": "1.1"},
+            source_id="moomoo-sg-opend-options:AAPL", source_family="moomoo_sg",
+            source_locator="moomoo-opend://get_market_snapshot/US.AAPL",
+            source_version=(
+                "moomoo-test/1.0.0;opend/1010;sdk/10.10.7008;"
+                "method/get_market_snapshot;manifest/abc123"
+            ), as_of=NOW,
+            published_at=NOW, retrieved_at=NOW, raw_content_hash="b" * 64,
+            limitations=["test fixture"],
+        )
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.yahoo_transport.create_yahoo_session", return_value=object(),
+        ), patch(
+            "product.mcp.live.yahoo_transport.acquire_anonymous_crumb", return_value="crumb",
+        ), patch(
+            "product.mcp.live.yahoo_research.collect_quote_summary",
+            return_value={"evidence": [], "gaps": []},
+        ), patch(
+            "product.mcp.live.options.collect_option_snapshot",
+            side_effect=ValueError("YAHOO_OPTIONS_FAILED"),
+        ), patch(
+            "product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", FakeClient,
+        ), patch(
+            "product.mcp.live.moomoo_opend.load_quote_manifest", return_value={},
+        ), patch(
+            "product.mcp.live.moomoo_normalize.select_opend_option_contracts",
+            return_value={
+                "selected_codes": ["US.AAPL260918C00250000"],
+                "held_contracts_requested": [], "held_contracts_missing": [],
+            },
+        ), patch(
+            "product.mcp.live.moomoo_normalize.normalize_opend_market_snapshot",
+            return_value={"evidence": [moomoo_fact], "gaps": []},
+        ):
+            result = capture_external_research_results(
+                [{"security_id": SECURITY, "ticker": "AAPL"}],
+                access=[{"provider": "yahoo"}], cache_root=Path(temp) / "cache",
+                state_root=Path(temp) / "state", now=lambda: NOW,
+            )
+
+        moomoo_options = next(
+            item for item in result[SECURITY]
+            if item["source"] == "moomoo_sg" and item["dataset"] == "options_snapshot"
+        )
+        self.assertEqual("PARTIAL", moomoo_options["status"])
+        self.assertEqual(2, calls.count("market-snapshot-v1"))
+        self.assertIn("option-expirations-v1", calls)
+        self.assertIn("option-chain-static-v1", calls)
 
 if __name__ == "__main__":
     unittest.main()

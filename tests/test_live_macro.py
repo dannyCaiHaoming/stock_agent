@@ -61,6 +61,45 @@ class OfficialMacroTests(unittest.TestCase):
         self.assertEqual(fact["as_of"], "2026-09-15T00:00:00Z")
         self.assertEqual(fact["published_at"], "2026-09-15T20:00:00Z")
 
+    def test_treasury_reuses_only_latest_row_for_all_tenors_and_spread(self):
+        raw = (
+            b"Date,2-Year,10-Year,30-Year\n"
+            b"09/14/2026,3.90,4.20,4.80\n"
+            b"09/15/2026,4.00,4.30,4.90\n"
+        )
+        result = normalize_treasury_csv(
+            raw, retrieved_at="2026-09-15T20:00:00Z",
+            endpoint="https://home.treasury.gov/example",
+        )
+        by_field = {item["semantic_field"]: item for item in result["evidence"]}
+        self.assertEqual(by_field["us_treasury_2y_yield"]["value"], "4.00")
+        self.assertEqual(by_field["us_treasury_10y_yield"]["value"], "4.30")
+        self.assertEqual(by_field["us_treasury_30y_yield"]["value"], "4.90")
+        self.assertEqual(by_field["us_treasury_10y_2y_spread"]["value"], "0.30")
+        self.assertEqual(
+            {item["as_of"] for item in result["evidence"]},
+            {"2026-09-15T00:00:00Z"},
+        )
+
+    def test_treasury_never_backfills_missing_latest_tenor_from_older_day(self):
+        raw = (
+            b"Date,2-Year,10-Year,30-Year\n"
+            b"09/14/2026,3.90,4.20,4.80\n"
+            b"09/15/2026,,4.30,4.90\n"
+        )
+        result = normalize_treasury_csv(
+            raw, retrieved_at="2026-09-15T20:00:00Z",
+            endpoint="https://home.treasury.gov/example",
+        )
+        fields = {item["semantic_field"] for item in result["evidence"]}
+        self.assertNotIn("us_treasury_2y_yield", fields)
+        self.assertNotIn("us_treasury_10y_2y_spread", fields)
+        self.assertIn(
+            {"reason": "TREASURY_TENOR_MISSING", "tenor": "2Y",
+             "observation_date": "2026-09-15"},
+            result["gaps"],
+        )
+
     def test_federal_reserve_policy_uses_official_publication_and_body(self):
         feed = b"""<?xml version='1.0'?><rss><channel><item>
         <title>Federal Reserve issues FOMC statement</title>

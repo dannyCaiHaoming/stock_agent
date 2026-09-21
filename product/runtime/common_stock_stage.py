@@ -54,6 +54,34 @@ COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS = frozenset({
     "share_volume",
 })
 
+# These datasets have dedicated consumers in the multidimensional stage.  Keep
+# them in the frozen Gate, but do not duplicate them into the legacy Company
+# Analyst start context.  Company datasets without a dedicated capability
+# consumer remain visible.
+COMPANY_RESEARCH_EXCLUDED_DATASETS = frozenset({
+    "share_short_context",
+    "institutional_ownership",
+    "insider_transactions",
+    "analyst_expectations",
+    "research_discovery",
+    "options_snapshot",
+    "vendor_money_flow",
+    "options_underlying_context",
+    "option_market_statistics",
+    "market_breadth",
+    "macro_history",
+    "economic_calendar",
+    "fedwatch_expectations",
+    "dot_plot",
+})
+
+
+def _is_company_research_evidence(fact: Mapping[str, Any]) -> bool:
+    return (
+        fact.get("semantic_field") not in COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS
+        and fact.get("dataset") not in COMPANY_RESEARCH_EXCLUDED_DATASETS
+    )
+
 CURRENT_SOURCE_REUSE_DATASETS = {
     "live_snapshot": "live",
     "company_profile": "public",
@@ -570,7 +598,7 @@ def _research_input_fingerprint_for_holding(
     evidence = [
         copy.deepcopy(item) for item in gate["allowed_evidence"]
         if item.get("evidence_id") in allowed
-        and item.get("semantic_field") not in COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS
+        and _is_company_research_evidence(item)
     ]
     conflicts = [
         copy.deepcopy(item) for item in gate.get("conflicts", [])
@@ -626,6 +654,7 @@ def _research_input_fingerprint_for_holding(
             "dispatch_contract": DISPATCH_VERSION,
             "agent_version": COMPANY_AGENT_VERSION,
             "excluded_semantic_fields": sorted(COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS),
+            "excluded_datasets": sorted(COMPANY_RESEARCH_EXCLUDED_DATASETS),
         },
         "data_policy": {
             "memory_policy_version": POLICY_VERSION,
@@ -808,7 +837,7 @@ def _build_common_stock_dispatch_packet(
     ]
     evidence = [
         item for item in all_request_evidence
-        if item.get("semantic_field") not in COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS
+        if _is_company_research_evidence(item)
     ]
     evidence_catalog = _build_evidence_period_index(evidence)
     catalog_ids = {
@@ -953,8 +982,10 @@ def _build_common_stock_dispatch_packet(
             "request_allowed_evidence_count": len(all_request_evidence),
             "company_research_evidence_count": len(evidence),
             "excluded_semantic_fields": sorted(COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS),
+            "excluded_datasets": sorted(COMPANY_RESEARCH_EXCLUDED_DATASETS),
             "exclusion_reason": (
-                "逐日技术市场序列由后续 technical-structure 阶段消费，不注入首版公司研究上下文。"
+                "逐日技术序列及已有专门能力消费者的宏观、市场、持仓披露和期权数据保留在冻结 Gate，"
+                "由多维研究阶段消费，不重复注入 Company Analyst 启动上下文。"
             ),
             "period_selection_rule": (
                 "先按 semantic_field 查看全部 evidence_id，再逐项查询并核对指标定义、主体、单位、"

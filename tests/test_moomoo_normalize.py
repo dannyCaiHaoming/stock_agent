@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import unittest
 
 from product.mcp.live.moomoo_normalize import (
@@ -11,6 +12,7 @@ from product.mcp.live.moomoo_normalize import (
     normalize_expectation_rows,
     normalize_opend_company_profile,
     normalize_opend_capital_flow,
+    normalize_opend_capital_distribution,
     normalize_opend_analyst_consensus,
     normalize_opend_morningstar_report,
     normalize_opend_institutional_aggregate,
@@ -19,6 +21,11 @@ from product.mcp.live.moomoo_normalize import (
     normalize_opend_option_chain,
     normalize_opend_rating_summary,
     normalize_opend_short_interest,
+    normalize_opend_company_executives,
+    normalize_opend_macro_history,
+    normalize_opend_market_snapshot,
+    normalize_opend_revenue_breakdown,
+    select_opend_option_contracts,
 )
 
 
@@ -216,6 +223,38 @@ class MoomooNormalizationTests(unittest.TestCase):
             {gap["reason"] for gap in result["gaps"]},
         )
 
+    def test_capital_distribution_keeps_regular_session_and_vendor_labels(self):
+        capture = self.capture(
+            method="get_capital_distribution", payload={
+                "kind": "DATAFRAME", "columns": [], "dtypes": {}, "attrs": {}, "rows": [{
+                    "capital_in_super": 8, "capital_in_big": 7,
+                    "capital_in_mid": 6, "capital_in_small": 5,
+                    "capital_out_super": 4, "capital_out_big": 3,
+                    "capital_out_mid": 2, "capital_out_small": 1,
+                    "update_time": "2026-09-16 09:44:00",
+                }],
+            },
+        )
+        capture["retrieved_at"] = "2026-09-16T14:00:00Z"
+        result = normalize_opend_capital_distribution(
+            capture, security_id=COMMON["security_id"], ticker="AAPL",
+        )
+        self.assertEqual(len(result["evidence"]), 4)
+        self.assertTrue(all(item["source_type"] == "VENDOR_CALCULATED_FLOW"
+                            for item in result["evidence"]))
+        self.assertIn("常规交易时段", " ".join(result["evidence"][0]["limitations"]))
+
+        pre_open = deepcopy(capture)
+        pre_open["payload"]["rows"][0]["update_time"] = "2026-09-16 08:44:00"
+        limited = normalize_opend_capital_distribution(
+            pre_open, security_id=COMMON["security_id"], ticker="AAPL",
+        )
+        self.assertEqual([], limited["evidence"])
+        self.assertEqual(
+            "MOOMOO_CAPITAL_DISTRIBUTION_OUTSIDE_REGULAR_SESSION",
+            limited["gaps"][0]["reason"],
+        )
+
     def test_real_opend_consensus_is_current_opinion_not_fiscal_expectation(self):
         result = normalize_opend_analyst_consensus(self.capture(
             method="get_research_analyst_consensus", payload={"kind": "DICT", "value": {
@@ -247,6 +286,9 @@ class MoomooNormalizationTests(unittest.TestCase):
         fact = result["evidence"][0]
         self.assertEqual(fact["value"]["content_tier"], "LICENSED_API_CONTENT")
         self.assertIn("不声明再分发许可", " ".join(fact["limitations"]))
+        self.assertGreaterEqual(len(result["evidence"]), 9)
+        self.assertTrue(all("moomoo_morningstar_section:" in item["semantic_field"]
+                            for item in result["evidence"]))
 
     def test_real_opend_institutional_rows_are_aggregate_periods_not_manager_13f(self):
         result = normalize_opend_institutional_aggregate(self.capture(
@@ -346,8 +388,145 @@ class MoomooNormalizationTests(unittest.TestCase):
         ), security_id=COMMON["security_id"], ticker="AAPL")
         fact = result["evidence"][0]
         self.assertEqual(fact["value"]["content_tier"], "RATING_SUMMARY")
+        self.assertNotEqual(fact["as_of"], fact["published_at"])
         self.assertIn("不是研报正文", " ".join(fact["limitations"]))
         self.assertEqual(result["gaps"][0]["reason"], "MOOMOO_RATING_MORE_PAGES")
+
+        analyst = normalize_opend_rating_summary(self.capture(
+            method="get_research_rating_summary", payload={"kind": "DICT", "value": {
+                "analyst_rating_summary_list": [{
+                    "analyst_info": {
+                        "analyst_uid": "a-1", "analyst_name": "Public Analyst",
+                        "institution_info": {
+                            "institution_uid": "i-1", "institution_name": "Research Co",
+                        },
+                    },
+                    "rating_item_list": [{
+                        "analyst_uid": "a-1", "recommendation_date": 1789448400,
+                        "recommendation_date_str": "2026-09-15", "rating": "BUY",
+                        "target_price": 365, "update_time": 1789482701110206,
+                    }],
+                }], "next_key": "-1",
+            }},
+        ), security_id=COMMON["security_id"], ticker="AAPL")
+        analyst_value = analyst["evidence"][0]["value"]
+        self.assertEqual("ANALYST", analyst_value["rating_dimension"])
+        self.assertEqual("a-1", analyst_value["outer_entity_uid"])
+        self.assertEqual("i-1", analyst_value["institution_uid"])
+
+    def test_option_selection_is_bounded_stable_and_market_snapshot_splits_time(self):
+        chain = []
+        for expiry in ("2026-09-25", "2026-10-16", "2026-12-18"):
+            for option_type in ("CALL", "PUT"):
+                for strike in range(90, 111, 2):
+                    chain.append({
+                        "code": f"US.AAPL-{expiry}-{option_type}-{strike}",
+                        "option_type": option_type, "strike_time": expiry,
+                        "strike_price": strike,
+                    })
+        first = select_opend_option_contracts(
+            chain, underlying_price=100, decision_date="2026-09-20",
+        )
+        second = select_opend_option_contracts(
+            list(reversed(chain)), underlying_price=100, decision_date="2026-09-20",
+        )
+        self.assertEqual(first["selected_codes"], second["selected_codes"])
+        self.assertLessEqual(first["selected_count"], 48)
+        capture = self.capture(method="get_market_snapshot", payload={
+            "kind": "DATAFRAME", "columns": [], "dtypes": {}, "attrs": {}, "rows": [{
+                "code": first["selected_codes"][0], "stock_owner": "US.AAPL",
+                "update_time": "2026-09-16 09:14:00", "last_price": 3.0,
+                "bid_price": 2.9, "ask_price": 3.1, "volume": 10,
+                "option_open_interest": 100, "option_implied_volatility": 0.25,
+                "option_delta": 0.5, "option_gamma": 0.1, "option_vega": 0.2,
+                "option_theta": -0.1, "option_rho": 0.01,
+            }],
+        })
+        capture["security_codes"] = [first["selected_codes"][0]]
+        result = normalize_opend_market_snapshot(
+            capture, security_id=COMMON["security_id"], ticker="AAPL",
+        )
+        self.assertEqual(len(result["evidence"]), 2)
+        self.assertNotEqual(result["evidence"][0]["as_of"], result["evidence"][1]["as_of"])
+        self.assertEqual(result["gaps"][0]["reason"], "PROVIDER_EFFECTIVE_TIME_UNAVAILABLE")
+
+    def test_option_selection_keeps_far_holding_and_reports_over_budget(self):
+        chain = []
+        for expiry, suffix in (
+            ("2026-09-25", "260925"), ("2026-10-16", "261016"),
+            ("2026-12-18", "261218"), ("2027-06-18", "270618"),
+        ):
+            for option_type, letter in (("CALL", "C"), ("PUT", "P")):
+                for strike in range(90, 151):
+                    chain.append({
+                        "code": f"US.AAPL{suffix}{letter}{strike * 1000:08d}",
+                        "option_type": option_type, "strike_time": expiry,
+                        "strike_price": strike,
+                    })
+        held = "AAPL270618C00150000"
+        selected = select_opend_option_contracts(
+            chain, underlying_price=100, decision_date="2026-09-20",
+            held_contracts=[held],
+        )
+        self.assertEqual(selected["selected_expirations"], [
+            "2026-09-25", "2026-10-16", "2027-06-18",
+        ])
+        self.assertIn("US." + held, selected["selected_codes"])
+        self.assertEqual(selected["held_contracts_missing"], [])
+        self.assertLessEqual(selected["selected_count"], 48)
+
+        too_many = [
+            f"AAPL261218C{strike * 1000:08d}" for strike in range(100, 149)
+        ]
+        over_budget = select_opend_option_contracts(
+            chain, underlying_price=100, decision_date="2026-09-20",
+            held_contracts=too_many,
+        )
+        self.assertEqual(over_budget["selected_count"], 48)
+        self.assertEqual(len(over_budget["held_contracts_missing"]), 1)
+        with self.assertRaisesRegex(ValueError, "UNDERLYING_PRICE_INVALID"):
+            select_opend_option_contracts(
+                chain, underlying_price=None, decision_date="2026-09-20",
+            )
+
+        shortage = select_opend_option_contracts(
+            [row for row in chain if row["strike_time"] == "2026-09-25"],
+            underlying_price=100, decision_date="2026-09-20",
+        )
+        self.assertEqual(shortage["selected_expirations"], ["2026-09-25"])
+
+    def test_company_and_macro_additions_preserve_secondary_vendor_semantics(self):
+        revenue = normalize_opend_revenue_breakdown(self.capture(
+            method="get_financials_revenue_breakdown", payload={"kind": "DICT", "value": {
+                "breakdown_list": [{"type": "PRODUCT", "item_list": []}],
+                "currency_code": "USD", "period": "ANNUAL", "screen_date_list": [],
+            }},
+        ), security_id=COMMON["security_id"], ticker="AAPL")
+        self.assertEqual(revenue["evidence"][0]["dataset"], "business_segments")
+        executives = normalize_opend_company_executives(self.capture(
+            method="get_company_executives", payload={
+                "kind": "DATAFRAME", "columns": [], "dtypes": {}, "attrs": {}, "rows": [{
+                    "display_leader_name": "Public Executive", "leader_name": "Public Executive",
+                    "position_name": "CEO", "begin_date_str": "2023-01-01",
+                    "issue_date_str": "2026-09-01",
+                }],
+            },
+        ), security_id=COMMON["security_id"], ticker="AAPL")
+        self.assertEqual(executives["evidence"][0]["dataset"], "management_governance")
+        macro_capture = self.capture(method="get_macro_indicator_history", payload={
+            "kind": "DATAFRAME", "columns": [], "dtypes": {}, "attrs": {}, "rows": [{
+                "data_time": "2026-08-01", "release_time": "2026-09-01 08:30:00",
+                "value": 3.0, "predict_value": 2.9, "previous_value": 2.8,
+                "unit_type": "PERCENT",
+            }],
+        })
+        macro_capture["security_market"] = None
+        macro_capture["security_code"] = None
+        macro = normalize_opend_macro_history(macro_capture, indicator_id=1003000002)
+        fact = macro["evidence"][0]
+        self.assertEqual(fact["security_id"], "US:MARKET")
+        self.assertEqual(fact["published_at"], macro_capture["retrieved_at"])
+        self.assertEqual(fact["value"]["vintage_status"], "CURRENT_VENDOR_SNAPSHOT")
 
     def test_real_opend_short_interest_is_not_short_volume_or_borrow_fee(self):
         result = normalize_opend_short_interest(self.capture(

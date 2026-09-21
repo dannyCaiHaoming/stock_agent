@@ -50,6 +50,24 @@ CAPABILITY_BINDINGS = {
     "OPTIONS_FLOW": ("runtime_market_catalyst", "options-market-structure", "PER_SECURITY"),
 }
 
+DATASET_CAPABILITY_ROUTES = {
+    "FUNDAMENTAL_EVENT": {
+        "identity_profile", "business_segments", "management_governance",
+        "financial_history", "capital_allocation", "earnings_guidance", "event_context",
+    },
+    "RESEARCH_REPORT": {"analyst_expectations", "research_discovery"},
+    "OWNERSHIP_DISCLOSURE": {
+        "institutional_ownership", "insider_transactions", "share_short_context",
+    },
+    "MACRO_CONTEXT": {"macro_history", "economic_calendar", "dot_plot"},
+    "MARKET_STATE": {
+        "market_breadth", "option_market_statistics", "fedwatch_expectations",
+    },
+    "OPTIONS_FLOW": {
+        "options_snapshot", "options_underlying_context", "vendor_money_flow",
+    },
+}
+
 MINIMUM_QUESTIONS = {
     "TECHNICAL_STRUCTURE": ["趋势与关键价格结构是什么？", "相对广泛市场基准表现如何？", "波动、回撤和量价是否支持解释？", "什么观察信号会推翻解释？"],
     "FUNDAMENTAL_EVENT": ["核心经营驱动是什么？", "盈利与现金流是什么关系？", "估值依赖哪些显式假设？", "关键未知和已公告事件如何影响判断？"],
@@ -118,6 +136,7 @@ def _facts_for_capability(
         scoped_ids.add(benchmark_id)
     for fact in evidence:
         field = str(fact.get("semantic_field", ""))
+        dataset = str(fact.get("dataset", ""))
         source = str(fact.get("source_type", ""))
         source_family = str(fact.get("source_family", ""))
         metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
@@ -136,9 +155,12 @@ def _facts_for_capability(
             source_id = str(fact.get("source_id", "")).lower()
             matches = security_id in scoped_ids and (
                 source == "sec" or "sec" in source_id
+                or dataset in DATASET_CAPABILITY_ROUTES[capability]
             )
         elif capability == "RESEARCH_REPORT":
             matches = security_id in scoped_ids and (
+                dataset in DATASET_CAPABILITY_ROUTES[capability]
+                or
                 source in {"public_research", "issuer_research"}
                 or source_family in {"sec", "yahoo", "moomoo_sg"}
                 and field in {
@@ -152,20 +174,111 @@ def _facts_for_capability(
                 source in {"sec", "yahoo", "public_research"} or field.startswith("industry_")
             )
         elif capability == "MACRO_CONTEXT":
-            matches = security_id in {"MARKET", "US:MARKET"} or source in {
+            matches = (security_id in {"MARKET", "US:MARKET"} and dataset in DATASET_CAPABILITY_ROUTES[capability]) or source in {
                 "fred", "bls", "bea", "federal_reserve", "treasury"
             }
         elif capability == "MARKET_STATE":
-            matches = security_id in {"MARKET", "US:MARKET"} or source in {
+            matches = (security_id in {"MARKET", "US:MARKET"} and dataset in DATASET_CAPABILITY_ROUTES[capability]) or source in {
                 "yahoo", "market", "fred", "treasury", "eia"
             }
         elif capability == "OWNERSHIP_DISCLOSURE":
-            matches = security_id in scoped_ids and (form in {"3", "4", "5", "13F-HR", "13F-HR/A"} or field.startswith("ownership_"))
+            matches = security_id in scoped_ids and (
+                dataset in DATASET_CAPABILITY_ROUTES[capability]
+                or form in {"3", "4", "5", "13F-HR", "13F-HR/A"}
+                or field.startswith("ownership_")
+            )
         elif capability == "OPTIONS_FLOW":
-            matches = security_id in scoped_ids and (source == "options" or field.startswith(("option_", "short_", "fund_flow_")))
+            matches = security_id in scoped_ids and (
+                dataset in DATASET_CAPABILITY_ROUTES[capability]
+                or source == "options" or field.startswith(("option_", "short_", "fund_flow_", "moomoo_option_"))
+            )
         if matches:
             selected.append(copy.deepcopy(dict(fact)))
     return sorted(selected, key=lambda item: str(item.get("evidence_id")))
+
+
+def _capability_routing_coverage(
+    evidence: Sequence[Mapping[str, Any]], *, capture_batches: Sequence[Mapping[str, Any]],
+    security_ids: Sequence[str], benchmark_id: str | None,
+) -> dict[str, Any]:
+    """审计本次启用的数据集是否真正进入目标专业任务。"""
+
+    route_by_dataset = {
+        dataset: capability
+        for capability, datasets in DATASET_CAPABILITY_ROUTES.items()
+        for dataset in datasets
+    }
+    captured: dict[str, set[str]] = {dataset: set() for dataset in route_by_dataset}
+    for batch in capture_batches:
+        for item in batch.get("capabilities", []):
+            dataset = str(item.get("dataset", ""))
+            if dataset not in captured:
+                continue
+            captured[dataset].update(
+                str(value) for value in item.get("evidence_ids", [])
+                if isinstance(value, str)
+            )
+
+    gate_by_dataset: dict[str, list[Mapping[str, Any]]] = {
+        dataset: [] for dataset in route_by_dataset
+    }
+    for fact in evidence:
+        dataset = str(fact.get("dataset", ""))
+        if dataset in gate_by_dataset:
+            gate_by_dataset[dataset].append(fact)
+
+    delivered_by_capability: dict[str, set[str]] = {}
+    for capability in DATASET_CAPABILITY_ROUTES:
+        scoped = _facts_for_capability(
+            evidence, capability=capability, security_ids=security_ids,
+            benchmark_id=benchmark_id,
+        )
+        if capability == "MARKET_STATE":
+            scoped = _bounded_latest_facts(scoped)
+        delivered_by_capability[capability] = {
+            str(item["evidence_id"]) for item in scoped
+            if isinstance(item.get("evidence_id"), str)
+        }
+
+    observations = []
+    failure_codes: list[str] = []
+    for dataset in sorted(route_by_dataset):
+        capability = route_by_dataset[dataset]
+        gate_facts = gate_by_dataset[dataset]
+        gate_ids = {
+            str(item["evidence_id"]) for item in gate_facts
+            if isinstance(item.get("evidence_id"), str)
+        }
+        delivered_ids = gate_ids & delivered_by_capability[capability]
+        exclusions = []
+        for fact in gate_facts:
+            evidence_id = str(fact.get("evidence_id", ""))
+            if evidence_id in delivered_ids:
+                continue
+            reason = "BOUNDED_LATEST" if capability == "MARKET_STATE" else None
+            if reason is None:
+                failure_codes.append(
+                    f"CAPABILITY_EVIDENCE_NOT_ROUTED:{capability}:{evidence_id}"
+                )
+                reason = "CAPABILITY_EVIDENCE_NOT_ROUTED"
+            exclusions.append({"evidence_id": evidence_id, "reason": reason})
+        observations.append({
+            "dataset": dataset, "target_capability": capability,
+            "capture_evidence_count": len(captured[dataset]),
+            "gate_eligible_evidence_count": len(gate_ids),
+            "delivered_evidence_count": len(delivered_ids),
+            "delivery_status": (
+                "DELIVERED" if delivered_ids else "NOT_DELIVERED"
+                if gate_ids else "NO_GATE_EVIDENCE"
+            ),
+            "exclusions": exclusions,
+            "actual_research_use_status": "NOT_EVALUATED_AT_PREPARATION",
+        })
+    return {
+        "dataset_observations": observations,
+        "failure_codes": sorted(failure_codes),
+        "status": "FAILED" if failure_codes else "CLOSED",
+    }
 
 
 def _bounded_latest_facts(
@@ -1124,9 +1237,9 @@ def _load_research_capture_batches(
 
 def _provider_scope(capability: str) -> set[str]:
     if capability == "MACRO_CONTEXT":
-        return {"bls", "treasury", "federal_reserve", "bea", "fred"}
+        return {"bls", "treasury", "federal_reserve", "bea", "fred", "moomoo_sg"}
     if capability == "MARKET_STATE":
-        return {"yahoo", "treasury", "fred", "eastmoney"}
+        return {"yahoo", "treasury", "fred", "eastmoney", "moomoo_sg"}
     if capability in {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"}:
         return {"sec", "yahoo", "moomoo_sg", "openalex", "nasdaq"}
     return {"yahoo", "nasdaq", "eastmoney"}
@@ -1216,6 +1329,14 @@ def prepare_multidimensional_stage_run(
         capture_batches=capture_batches,
         decision_cutoff=cutoff,
     )
+    provider_coverage["capability_routing"] = _capability_routing_coverage(
+        evidence, capture_batches=capture_batches, security_ids=common_ids,
+        benchmark_id=benchmark_id,
+    )
+    provider_coverage["coverage_hash"] = canonical_hash({
+        key: value for key, value in provider_coverage.items()
+        if key != "coverage_hash"
+    })
     configured_capability_bindings = dict(CAPABILITY_BINDINGS)
     for domain in topology["domains"]:
         for capability in domain["capabilities"]:
@@ -1591,6 +1712,9 @@ def prepare_multidimensional_stage_run(
                     "schema_version": provider_coverage["schema_version"],
                     "coverage_hash": provider_coverage["coverage_hash"],
                     "fallback_policy": copy.deepcopy(provider_coverage["fallback_policy"]),
+                    "capability_routing": copy.deepcopy(
+                        provider_coverage["capability_routing"]
+                    ),
                     "providers": [
                         copy.deepcopy(item) for item in provider_coverage["providers"]
                         if item["provider"] in task["provider_scope"]

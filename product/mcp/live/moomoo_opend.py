@@ -24,7 +24,7 @@ from product.mcp.provenance import content_hash, iso_utc, parse_timestamp
 
 
 QUOTE_MANIFEST_VERSION = "moomoo-opend-quote-manifest/1.0.0"
-ADAPTER_VERSION = "moomoo-opend-quote-adapter/1.0.0"
+ADAPTER_VERSION = "moomoo-opend-quote-adapter/2.0.0"
 SDK_DISTRIBUTION = "moomoo-api"
 DEFAULT_MANIFEST = Path(__file__).with_name("moomoo-opend-quote-manifest.json")
 
@@ -106,7 +106,7 @@ def validate_quote_manifest(manifest: Mapping[str, Any]) -> None:
         if not isinstance(capability["response_fields"], list) or not capability["response_fields"]:
             raise ValueError("MOOMOO_OPEND_RESPONSE_FIELDS_INVALID")
         limits = {
-            "max_requests": 5,
+            "max_requests": 8,
             "max_rows": 10_000,
             "max_response_bytes": 8_000_000,
             "timeout_seconds": 30,
@@ -180,6 +180,58 @@ def _validate_holder_id(value: Any) -> None:
         return
     if isinstance(value, bool) or not isinstance(value, (int, str)):
         raise ValueError("MOOMOO_OPEND_HOLDER_ID_INVALID")
+
+
+def _validate_code_list(value: Any) -> None:
+    if not isinstance(value, list) or not 1 <= len(value) <= 48:
+        raise ValueError("MOOMOO_OPEND_CODE_LIST_INVALID")
+    for item in value:
+        _validate_code(item)
+    if len(value) != len(set(value)):
+        raise ValueError("MOOMOO_OPEND_CODE_LIST_INVALID")
+
+
+def _validate_rating_dimension(value: Any) -> None:
+    if value not in {1, 2, "INSTITUTION", "ANALYST"}:
+        raise ValueError("MOOMOO_OPEND_RATING_DIMENSION_INVALID")
+
+
+def _validate_indicator_id(value: Any) -> None:
+    approved = {
+        1003000001, 1003000002, 1003000003, 1003000004,
+        1003000010, 1003000007, 1003000006, 1003000026,
+    }
+    try:
+        candidate = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("MOOMOO_OPEND_MACRO_INDICATOR_INVALID") from exc
+    if candidate not in approved:
+        raise ValueError("MOOMOO_OPEND_MACRO_INDICATOR_INVALID")
+
+
+def _validate_region(value: Any) -> None:
+    if value != "US":
+        raise ValueError("MOOMOO_OPEND_REGION_INVALID")
+
+
+def _validate_max_count(value: Any) -> None:
+    if type(value) is not int or not 1 <= value <= 24:
+        raise ValueError("MOOMOO_OPEND_MAX_COUNT_INVALID")
+
+
+def _validate_calendar_count(value: Any) -> None:
+    if type(value) is not int or not 1 <= value <= 100:
+        raise ValueError("MOOMOO_OPEND_CALENDAR_COUNT_INVALID")
+
+
+def _validate_option_market(value: Any) -> None:
+    if value != "US_SECURITY":
+        raise ValueError("MOOMOO_OPEND_OPTION_MARKET_INVALID")
+
+
+def _validate_statistic_type(value: Any) -> None:
+    if value not in {"VOLUME", "OPEN_INTEREST"}:
+        raise ValueError("MOOMOO_OPEND_STATISTIC_TYPE_INVALID")
     if isinstance(value, int) and value <= 0:
         raise ValueError("MOOMOO_OPEND_HOLDER_ID_INVALID")
     if isinstance(value, str) and (not value or len(value) > 64):
@@ -194,6 +246,14 @@ _PARAMETER_VALIDATORS: dict[str, Callable[[Any], None]] = {
     "num": _validate_page_size,
     "next_key": _validate_next_key,
     "holder_id": _validate_holder_id,
+    "code_list": _validate_code_list,
+    "rating_dimension_type": _validate_rating_dimension,
+    "indicator_id": _validate_indicator_id,
+    "region": _validate_region,
+    "max_count": _validate_max_count,
+    "count": _validate_calendar_count,
+    "option_market": _validate_option_market,
+    "data_type": _validate_statistic_type,
 }
 
 
@@ -250,9 +310,10 @@ def _call_option_chain(context: Any, params: Mapping[str, Any]) -> Any:
 
 
 def _call_rating_summary(context: Any, params: Mapping[str, Any]) -> Any:
-    return context.get_research_rating_summary(
-        params["code"], num=params.get("num"), next_key=params.get("next_key"),
-    )
+    kwargs = {"num": params.get("num"), "next_key": params.get("next_key")}
+    if "rating_dimension_type" in params:
+        kwargs["rating_dimension_type"] = params["rating_dimension_type"]
+    return context.get_research_rating_summary(params["code"], **kwargs)
 
 
 def _call_short_interest(context: Any, params: Mapping[str, Any]) -> Any:
@@ -263,6 +324,89 @@ def _call_short_interest(context: Any, params: Mapping[str, Any]) -> Any:
         raise ValueError("MOOMOO_OPEND_SHORT_INTEREST_RESPONSE_INVALID")
     ret, us_frame, _hk_frame = result
     return ret, us_frame
+
+
+def _with_page_key(result: Any, error_code: str) -> Any:
+    if not isinstance(result, tuple) or len(result) != 3:
+        raise ValueError(error_code)
+    ret, frame, page_key = result
+    if hasattr(frame, "attrs"):
+        frame.attrs["next_key"] = page_key
+    return ret, frame
+
+
+def _call_market_snapshot(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_market_snapshot(params["code_list"])
+
+
+def _call_capital_distribution(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_capital_distribution(params["code"])
+
+
+def _call_revenue_breakdown(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_financials_revenue_breakdown(params["code"])
+
+
+def _call_company_executives(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_company_executives(params["code"])
+
+
+def _call_rise_fall_distribution(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_rise_fall_distribution(params["region"])
+
+
+def _call_option_underlying_overview(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_option_underlying_overview(params["code_list"])
+
+
+def _call_option_underlying_history(context: Any, params: Mapping[str, Any]) -> Any:
+    return _with_page_key(context.get_option_underlying_his_statistic(
+        params["code"], params.get("start"), params.get("end"),
+    ), "MOOMOO_OPEND_OPTION_HISTORY_RESPONSE_INVALID")
+
+
+def _call_option_underlying_volatility(context: Any, params: Mapping[str, Any]) -> Any:
+    return _with_page_key(context.get_option_underlying_his_volatility(
+        params["code"], params.get("start"), params.get("end"),
+    ), "MOOMOO_OPEND_OPTION_VOLATILITY_RESPONSE_INVALID")
+
+
+def _call_option_market_statistic(context: Any, params: Mapping[str, Any]) -> Any:
+    return _with_page_key(context.get_option_market_statistic(
+        params["option_market"], params["data_type"],
+        params.get("start"), params.get("end"),
+    ), "MOOMOO_OPEND_OPTION_MARKET_RESPONSE_INVALID")
+
+
+def _call_macro_indicator_list(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_macro_indicator_list(params["region"])
+
+
+def _call_macro_indicator_history(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_macro_indicator_history(
+        int(params["indicator_id"]), max_count=params.get("max_count", 24),
+    )
+
+
+def _call_fedwatch_target_rate(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_fed_watch_target_rate()
+
+
+def _call_fedwatch_dot_plot(context: Any, params: Mapping[str, Any]) -> Any:
+    return context.get_fed_watch_dot_plot()
+
+
+def _call_economic_calendar(context: Any, params: Mapping[str, Any]) -> Any:
+    result = context.get_economic_calendar(
+        params.get("start"), params.get("end"), market_list=["US"],
+        count=params.get("count", 100),
+    )
+    if not isinstance(result, tuple) or len(result) != 4:
+        raise ValueError("MOOMOO_OPEND_ECONOMIC_CALENDAR_RESPONSE_INVALID")
+    ret, frame, next_page, has_more = result
+    if hasattr(frame, "attrs"):
+        frame.attrs.update({"next_page": next_page, "has_more": bool(has_more)})
+    return ret, frame
 
 
 _METHOD_CALLS: dict[str, Callable[[Any, Mapping[str, Any]], Any]] = {
@@ -278,6 +422,20 @@ _METHOD_CALLS: dict[str, Callable[[Any, Mapping[str, Any]], Any]] = {
     "get_option_chain": _call_option_chain,
     "get_research_rating_summary": _call_rating_summary,
     "get_short_interest": _call_short_interest,
+    "get_market_snapshot": _call_market_snapshot,
+    "get_capital_distribution": _call_capital_distribution,
+    "get_financials_revenue_breakdown": _call_revenue_breakdown,
+    "get_company_executives": _call_company_executives,
+    "get_rise_fall_distribution": _call_rise_fall_distribution,
+    "get_option_underlying_overview": _call_option_underlying_overview,
+    "get_option_underlying_his_statistic": _call_option_underlying_history,
+    "get_option_underlying_his_volatility": _call_option_underlying_volatility,
+    "get_option_market_statistic": _call_option_market_statistic,
+    "get_macro_indicator_list": _call_macro_indicator_list,
+    "get_macro_indicator_history": _call_macro_indicator_history,
+    "get_fed_watch_target_rate": _call_fedwatch_target_rate,
+    "get_fed_watch_dot_plot": _call_fedwatch_dot_plot,
+    "get_economic_calendar": _call_economic_calendar,
 }
 
 
@@ -384,6 +542,7 @@ class MoomooOpenDQuoteClient:
         self.cache = cache
         self.now = now
         self.requests = {item["capability_id"]: 0 for item in manifest["capabilities"]}
+        self.total_requests = 0
         self.open_circuits: set[str] = set()
         self.events: list[dict[str, Any]] = []
         self.server_version: str | None = None
@@ -407,6 +566,20 @@ class MoomooOpenDQuoteClient:
             _PARAMETER_VALIDATORS[name](value)
         if params.get("start") and params.get("end") and params["start"] > params["end"]:
             raise ValueError("MOOMOO_OPEND_DATE_RANGE_INVALID")
+        method = capability["method"]
+        if method == "get_research_rating_summary" and params.get("num", 20) > 20:
+            raise ValueError("MOOMOO_OPEND_RATING_PAGE_SIZE_INVALID")
+        if params.get("start") and params.get("end"):
+            days = (date.fromisoformat(params["end"]) - date.fromisoformat(params["start"])).days
+            limits = {
+                "get_option_underlying_his_statistic": 31,
+                "get_option_underlying_his_volatility": 31,
+                "get_option_market_statistic": 31,
+                "get_economic_calendar": 37,
+                "get_option_chain": 120,
+            }
+            if method in limits and days > limits[method]:
+                raise ValueError("MOOMOO_OPEND_DATE_WINDOW_EXCEEDED")
 
     def _sdk_version(self) -> str:
         version = self.sdk_version_loader()
@@ -427,14 +600,20 @@ class MoomooOpenDQuoteClient:
         self._validate_params(capability, params)
         if self.requests[capability_id] >= capability["max_requests"]:
             raise MoomooOpenDError("MOOMOO_OPEND_REQUEST_BUDGET_EXHAUSTED")
+        if self.total_requests >= 25:
+            raise MoomooOpenDError("MOOMOO_OPEND_BATCH_REQUEST_BUDGET_EXHAUSTED")
         sdk_version = self._sdk_version()
         if capability_id != "global-state-v1" and not self._readiness_approved:
             raise MoomooOpenDError("MOOMOO_OPEND_READINESS_REQUIRED")
         self.requests[capability_id] += 1
+        self.total_requests += 1
         started_dt = self.now()
         context = self._connect()
         try:
             ret, value = _METHOD_CALLS[capability["method"]](context, params)
+        except AttributeError as exc:
+            self.open_circuits.add(capability_id)
+            raise MoomooOpenDError("MOOMOO_OPEND_METHOD_UNAVAILABLE") from exc
         except (OSError, TimeoutError, ConnectionError) as exc:
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_CALL_FAILED") from exc
@@ -477,6 +656,7 @@ class MoomooOpenDQuoteClient:
             raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_BUDGET_EXCEEDED")
         scan_committable_payload(payload)
         security_code = params.get("code")
+        security_codes = set(params.get("code_list", []))
         if security_code is not None:
             candidate_codes: set[str] = set()
             if capability["method"] == "get_option_chain":
@@ -497,13 +677,25 @@ class MoomooOpenDQuoteClient:
             if candidate_codes and candidate_codes != {security_code}:
                 self.open_circuits.add(capability_id)
                 raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_SECURITY_MISMATCH")
+        elif security_codes:
+            candidate_codes = {
+                str(row.get("stock_owner") or row.get("code"))
+                for row in payload.get("rows", [])
+                if row.get("stock_owner") or row.get("code")
+            }
+            if capability["method"] == "get_market_snapshot":
+                candidate_codes = {code for code in candidate_codes if code in security_codes}
+            if candidate_codes and not candidate_codes <= security_codes:
+                self.open_circuits.add(capability_id)
+                raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_SECURITY_MISMATCH")
         raw_hash = hashlib.sha256(raw).hexdigest()
         result = {
             "adapter_version": ADAPTER_VERSION,
             "manifest_hash": self.manifest["manifest_hash"],
             "region": "SG",
-            "security_market": "US" if security_code else None,
+            "security_market": "US" if security_code or security_codes else None,
             "security_code": security_code,
+            "security_codes": sorted(security_codes),
             "dataset": capability["dataset"],
             "capability_id": capability_id,
             "method": capability["method"],

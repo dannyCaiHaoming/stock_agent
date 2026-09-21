@@ -1011,6 +1011,16 @@ def collect_common_stock_data_from_handoff(
     handoff_file = external_path(handoff_path)
     handoff = json.loads(handoff_file.read_text(encoding="utf-8"))
     collection_portfolio = build_common_stock_collection_portfolio(handoff)
+    held_option_contracts: dict[str, list[str]] = {}
+    for item in handoff["portfolio"]["positions"]:
+        contract = item.get("option_contract")
+        if item.get("asset_type") != "OPTION" or not isinstance(contract, Mapping):
+            continue
+        raw_symbol = contract.get("raw_contract_symbol")
+        underlying = contract.get("underlying_symbol")
+        if isinstance(raw_symbol, str) and raw_symbol and isinstance(underlying, str):
+            code = raw_symbol if raw_symbol.startswith("US.") else f"US.{raw_symbol}"
+            held_option_contracts.setdefault(underlying.upper(), []).append(code)
     validate_contract("portfolio", collection_portfolio)
     access_file = external_path(access_path)
     clock = planning_now or (lambda: datetime.now(timezone.utc))
@@ -1032,6 +1042,14 @@ def collect_common_stock_data_from_handoff(
         encoding="utf-8",
     )
     external_research_results: dict[str, list[dict[str, Any]]] = {}
+    shared_research_results: list[dict[str, Any]] = []
+    if collect_research_supplements:
+        from product.mcp.live.research_supplement_collection import (
+            capture_shared_research_results,
+        )
+        shared_research_results = capture_shared_research_results(
+            cache_root=cache_root, now=lambda: iso_utc(clock()),
+        )
     company_profile_plans: dict[str, dict[str, Any]] = {}
     company_profile_outcomes: dict[str, dict[str, Any]] = {}
     collected_results: dict[str, Mapping[str, Any]] = {}
@@ -1154,6 +1172,7 @@ def collect_common_stock_data_from_handoff(
                             or security_id not in external_research_results:
                         captured = capture_external_research_results(
                             [position], access=access, cache_root=cache_root,
+                            held_option_contracts=held_option_contracts,
                             state_root=(
                                 destination / "research-supplement-capture"
                                 / _safe_security_component(security_id)
@@ -1672,12 +1691,19 @@ def collect_common_stock_data_from_handoff(
     research_supplement_paths: list[str] = []
     if collect_research_supplements:
         from product.mcp.live.research_supplement import render_company_background_markdown
-        from product.mcp.live.research_supplement_collection import build_research_supplements
+        from product.mcp.live.research_supplement_collection import (
+            build_research_supplements,
+        )
 
         supplement_positions = [
             position for position in collection_portfolio["positions"]
             if position["security_id"] in collected_results
         ]
+        if supplement_positions:
+            first_security_id = supplement_positions[0]["security_id"]
+            external_research_results.setdefault(first_security_id, []).extend(
+                shared_research_results
+            )
         supplements = build_research_supplements(
             supplement_positions, gate=prepared["gate"],
             external_results=external_research_results, run_id=run_id,
@@ -2364,6 +2390,7 @@ def merge_research_supplement_evidence(
     """把三源研究 sidecar 合入同一 Gate，不改变基础四源快照契约。"""
 
     from product.mcp.live.research_supplement import (
+        SHARED_MARKET_DATASETS,
         validate_company_background_snapshot,
         validate_research_supplement_package,
     )
@@ -2400,7 +2427,11 @@ def merge_research_supplement_evidence(
         fact = copy.deepcopy(dict(original))
         if fact["evidence_id"] in existing_ids:
             raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_EVIDENCE_DUPLICATE")
-        if fact["security_id"] != background["security_id"]:
+        if fact["security_id"] not in (
+            {background["security_id"], "US:MARKET"}
+            if fact.get("dataset") in SHARED_MARKET_DATASETS
+            else {background["security_id"]}
+        ):
             raise CommonStockDataError("COMMON_STOCK_SUPPLEMENT_SECURITY_MISMATCH")
         existing_ids.add(fact["evidence_id"])
         if max(

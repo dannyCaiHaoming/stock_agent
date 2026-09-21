@@ -15,8 +15,8 @@
 | 来源 | 官方说明 | 用途 | 自动化边界 | 当前结论 |
 |---|---|---|---|---|
 | SEC | [EDGAR APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)、[Form 13F Data Sets](https://www.sec.gov/files/form_13f.pdf) | submissions、Companyfacts、Archives、13F、Forms 3/4/5、原始申报 | 只读 GET、标识 User-Agent、有界请求与缓存；不使用申报提交 API | `AVAILABLE`；AAPL 基础披露、最新 10-K、Form 4 与 Berkshire 两期 13F 已真实验收，分部样本保留实际解析限制 |
-| Yahoo | [Exchanges and data providers](https://help.yahoo.com/kb/SLN2310.html)、[Download historical data](https://help.yahoo.com/kb/sln2311.html) | OHLCV、公司行动、期权、公司档案、日历、预期和空头快照 | 仅允许既有固定域名/path/modules，关闭重定向，受 source access 预算约束；匿名 crumb 只驻留同一内存会话 | `AVAILABLE`；AAPL/SPY 日线、AAPL QuoteSummary 和两个到期日动态期权已真实验收 |
-| Moomoo SG OpenD | [OpenD Overview](https://openapi.moomoo.com/moomoo-api-doc/en/opend/opend-intro.html)、[Authorities and Quota](https://openapi.moomoo.com/moomoo-api-doc/en/intro/authority.html)、[Quote API Overview](https://openapi.moomoo.com/moomoo-api-doc/en/quote/overview.html) | 公司档案、资金流、分析师共识/评级、Morningstar、机构/内部人、空头资料和期权静态链 | 官方 SDK、loopback、Quote-only、版本化方法 allowlist；每方法当前最多 1 次正式纵向验证，无远程 OpenD | `OPEND_QUOTE_FEASIBLE`；11 个 AAPL 研究/元数据方法真实成功，动态期权字段明确不可由静态链替代 |
+| Yahoo | [Exchanges and data providers](https://help.yahoo.com/kb/SLN2310.html)、[Download historical data](https://help.yahoo.com/kb/sln2311.html) | OHLCV、公司行动、期权、公司档案、日历、预期和空头快照 | 仅允许既有固定域名/path/modules，关闭重定向，受 source access 预算约束；匿名 crumb 只驻留同一内存会话 | `AVAILABLE`；除早期 AAPL/SPY 验收外，当前 MRVL 正式链路已验证三个代表到期日、48 合约上限 |
+| Moomoo SG OpenD | [OpenD Overview](https://openapi.moomoo.com/moomoo-api-doc/en/opend/opend-intro.html)、[Authorities and Quota](https://openapi.moomoo.com/moomoo-api-doc/en/intro/authority.html)、[Quote API Overview](https://openapi.moomoo.com/moomoo-api-doc/en/quote/overview.html) | 公司档案/分部/管理层、资金与所有权补充、研究观点、动态期权、二级 Macro/Market | 官方 SDK、loopback、Quote-only、逐方法 allowlist 与固定参数预算，无远程 OpenD | `OPEND_QUOTE_FEASIBLE`；正式能力以当前 manifest、每批 capability 和下游交付状态为准，方法可调用不等于已消费 |
 
 Moomoo API 权限与 App 权限不完全一致。方法在官方文档中存在不等于当前账号有 entitlement；每项必须保留真实成功、部分字段或准确失败状态。
 
@@ -44,7 +44,7 @@ stock_agent research request
 - `product/mcp/live/moomoo_normalize.py`：将官方 DataFrame/dict 响应转换为供应商语义 Evidence。
 - `product/mcp/live/research_supplement.py` 与 runtime schemas：能力矩阵、批次、背景包、PIT 与冻结查询。
 
-Manifest 当前批准：
+Manifest 当前批准的能力组：
 
 - `get_global_state`
 - `get_company_profile`
@@ -58,8 +58,60 @@ Manifest 当前批准：
 - `get_option_chain`
 - `get_research_rating_summary`
 - `get_short_interest`
+- `get_market_snapshot`（标的与选定期权合约动态快照）
+- `get_financials_revenue_breakdown`、`get_company_executives`
+- `get_rise_fall_distribution`
+- `get_option_underlying_overview`、`get_option_underlying_his_statistic`、`get_option_underlying_his_volatility`
+- `get_option_market_statistic`
+- `get_macro_indicator_list`、`get_macro_indicator_history`
+- `get_fed_watch_target_rate`、`get_fed_watch_dot_plot`、`get_economic_calendar`
 
 未知方法、额外参数、非 `US.*` 证券、远程 host、SDK 版本漂移、Trade Context 或账户/交易语义均在调用前拒绝。
+
+## expand-moomoo-research-capabilities 能力矩阵（2026-09-21）
+
+“文档存在”“当前账号 Spike 成功”“进入正式 Collector/Gate”“交给专业任务”和“报告实际引用”是五种不同状态。下表是本 Change 的单一取舍清单；正式运行仍以每批 provider coverage 为准。
+
+| 研究问题/候选 | 当前运行证据 | 取舍 | 正式 Collector / PIT | 目标消费 |
+|---|---|---|---|---|
+| 动态期权合约 `get_market_snapshot` | AAPL 股票及期权快照成功 | 接入，核心能力 | Yahoo 动态期权优先；失败后 Moomoo 到期日→静态链→确定性选约→最多 48 合约快照。价格使用 `update_time`，OI/IV/Greeks 用检索时点保守冻结 | `OPTIONS_FLOW` |
+| 期权标的总览、30 日历史统计/波动 | 三项各 21 行成功 | 批准为有界增强；不替代合约快照 | manifest 已批准；逐证券数据集独立保留，分页不追 | `OPTIONS_FLOW` |
+| 美国期权市场 volume/OI | 两类分别 13/12 行成功 | 接入共享 Market | 每批各一次；volume/OI 分系列，缺日不拼接 | `MARKET_STATE`，不得归因个股 |
+| 营收分部 | AAPL dict，含 breakdown/currency/period/screen dates | 接入，补 SEC 结构化缺口 | 当前供应商 snapshot，不回填历史 vintage；SEC 仍为事实锚点 | Company `FUNDAMENTAL_EVENT` |
+| 管理层 | AAPL 15 行成功 | 接入，不逐人深挖 | 当前列表，任职日不冒充首次公开日 | Company `FUNDAMENTAL_EVENT` |
+| 财报日历 | 当前代表证券请求失败 | `SOURCE_LIMITED`；继续使用 Yahoo/SEC | 不进入 manifest，不伪造 Moomoo fallback | 既有事件输入 |
+| 新闻搜索 | 10 条成功但只有标题、来源、时间、URL | 不重复接入 | Yahoo 已有标题线索；两者均不等于正文 | 仅保留候选评估，不算研报正文 |
+| 涨跌分布 | US dict 成功 | 接入共享 Market | 每批一次，检索时点快照 | `MARKET_STATE` |
+| Macro list/history | US 列表 24 项；目标历史响应成功 | 接入 8 个固定 ID，每系列最多 24 项 | actual/consensus/previous 分离；release 时区/vintage 未证实时 published_at 使用检索时点 | `MACRO_CONTEXT`，始终为 `SECONDARY_VENDOR` |
+| Economic Calendar | 100 行成功 | 接入，每批一页 | 过去 7 天到未来 30 天；事件目标时间与资料可知时间分开 | `MACRO_CONTEXT` |
+| FedWatch / Dot Plot | 59/12 行成功 | 接入，分别保留市场预期/供应商转引 | FedWatch 最多未来三次会议；Dot Plot 最新一版，不冒充 Fed 原文 | `MARKET_STATE` / `MACRO_CONTEXT` |
+| 机构/分析师双维度 rating | 锁定 SDK/OpenD 实测两种响应分别使用 `inst_rating_summary_list` / `analyst_rating_summary_list`，一页分别形成 288/279 条 rating item Evidence | 拆成两个 capability，各固定维度、每次一页 20 outer entity | recommendation date 为 `as_of`；update time 为 `published_at`；两者均有后续页并保留 gap；不得用机构 schema 接收分析师响应 | `RESEARCH_REPORT` |
+| Morningstar | 正文可读 | 接入 section 级 Evidence | 星级、fair value、moat、财务健康、资本配置、thesis、bull/bear、note 分开；缺 section 形成 gap；不自动下载 PDF | `RESEARCH_REPORT` |
+| 机构、内部人、空头、capital flow | 既有实测成功 | 接线并修正显式 dataset 路由 | SEC 为原始披露锚点；供应商聚合/计算流保持二级语义 | `OWNERSHIP_DISCLOSURE` / `OPTIONS_FLOW` |
+| 财务报表、估值、公司行动 | SEC/Yahoo 已覆盖核心问题 | 暂不重复接入 | 避免第二套财务选择、复权和估值口径 | 复用既有 Company/Valuation |
+| industry/plate 关系、复杂关系图 | 需遍历且身份语义复杂 | 暂缓 | 不把方法存在写成 `relationships` fallback | 复用既有有限同行流程 |
+
+同一份已确认 MRVL 普通股 Handoff 的修复后真实验收位于
+`/private/tmp/expand-moomoo-research-capabilities-prepare-20260921-v5` 与
+`/private/tmp/expand-moomoo-research-capabilities-multidimensional-20260921-v4/run`。
+Yahoo 从 19 个可用到期日确定性选择 `2026-09-25`、`2026-10-23`、
+`2026-12-18`，在 388 个已读取候选中只冻结 48 个近价 call/put 合约；
+`options_snapshot` 在 Capture、Gate 和 `OPTIONS_FLOW` dispatch 三层均为 48 条，
+没有再把整条链注入模型。宿主 launcher 的单任务执行证明为 `PASSED`，报告
+正确引用三个到期日、标的汇总和供应商资金流，并因 Greeks、multiplier、完整链
+及主动买卖方向缺失而保持 `SOURCE_LIMITED/PARTIAL`，没有把有限快照外推为方向结论。
+
+同一批次还通过修正后的官方 SDK 方法 `get_fed_watch_dot_plot` 取得 12 条
+`dot_plot` Evidence，capability 为 `AVAILABLE`；SDK 方法缺失时 wrapper 返回稳定的
+`MOOMOO_OPEND_METHOD_UNAVAILABLE`，不泄露原始异常。首次独立复核发现的 Yahoo
+全链 252 条注入、持仓合约优先级、Dot Plot 方法名和预算 fixture 缺口均已对应修复，
+最终独立复核结论以本 Change 的 7.3 记录为准。
+
+运行契约继续精确锁定 `moomoo-api==10.10.7008` 与 OpenD server `1010`；官方网页 v10.11 只用于候选发现，不放宽 runtime version。当前 Quote manifest 内容 hash 为 `b94064cf8a74bc8da99535b4806362f7e689d942c2c070e2a256450059e4cfbe`。
+
+共享 Macro/Market 在全批采集一次，再以 `US:MARKET` 身份进入首个补充包；允许共享能力读取，禁止其他证券的逐股能力读取。正式采集预算为每证券新增请求不超过 24、共享请求不超过 16；预算耗尽只裁剪增强项，不阻塞 SEC/Yahoo/官方宏观主流程。
+
+冻结 Gate 保留全部合格资料，但旧 `common-stock-research` 的 Company Analyst 启动目录不重复注入已有专门消费者的研报、所有权、Macro、Market 和 Options 数据集；它们分别由多维阶段的 `RESEARCH_REPORT`、`OWNERSHIP_DISCLOSURE`、`MACRO_CONTEXT`、`MARKET_STATE` 与 `OPTIONS_FLOW` 消费。该隔离只收窄启动上下文，不删除 Gate Evidence，也不改变主源与回退状态。
 
 ## 本机使用方式
 
@@ -87,7 +139,7 @@ Manifest 当前批准：
 
 资金流真实修复验证：5 个可用分类生成 5 个唯一 Evidence ID；`main_in_flow` 不可用和供应商时钟偏差均显式保留，未补零、未推断机构买卖方向。
 
-扩展 Quote-only manifest hash 为 `1c8259cb75f1edda2475a0658dd47c12e1a3147bf7dc1fc4b52be3439c03be17`。同日正式适配器完成以下 Capture → Normalize 检查：
+下列记录使用 2026-09-16 当时的旧 Quote-only manifest（历史 hash `1c8259cb75f1edda2475a0658dd47c12e1a3147bf7dc1fc4b52be3439c03be17`），只证明当日直接适配器的 Capture → Normalize 可行性，不代表当前 manifest 已完成正式消费；当前状态以上文能力矩阵和每批路由覆盖为准：
 
 | 方法 | 返回规模 | 扩展 manifest 下 raw SHA-256 | 标准化结果与限制 |
 |---|---:|---|---|
@@ -115,7 +167,7 @@ Moomoo 端到端冻结验收另以当前 manifest 重新读取公司档案、资
 | AAPL QuoteSummary | 成功 | 6 个 Evidence；wire raw hash `eaa1896ac3c0699122492bb51ec13b7ac6da96ad08ade3fa908c3c0b0f93c220` | 覆盖档案、财报日历、预期/修订、评级分布、空头快照和分红；均为当前供应商快照，无历史 vintage 不生成历史预期差 |
 | AAPL 动态期权 | 成功 | 到期日 2026-09-16、2026-09-18，共 274 个唯一合约；wire hashes `f7542fd340852bee0d64ded2bfd24f7bce98bbf96feec422babcce8b062da6ae`、`ec362739c57ae106bb6b18f9ab539eac5ec3bc1c4d5724b5316039cd9a0fa5d5` | last/IV/OI 274，bid 273，ask 274，volume 270；Greeks 与 multiplier 缺失逐合约记 gap，不推断方向 |
 
-Yahoo 与 Moomoo 的期权响应保持为两份独立快照：Yahoo 提供动态字段，Moomoo 当前已验证方法只提供静态合约属性，二者不按行静默拼接。
+Yahoo 与 Moomoo 的期权响应保持为两份独立快照：Yahoo 为正式主源；仅在 Yahoo 数据集失败时，Moomoo 才按同源的静态发现与动态快照闭环回退。两者从不按行静默拼接；只有静态链成功时保持 `PARTIAL/STATIC_CHAIN_ONLY`。
 
 ## 2026-09-16 真实 SEC 验证
 
@@ -153,10 +205,11 @@ SEC 联系信息只在运行时进入 EDGAR `User-Agent`，未写入仓库、缓
 权威计划位于 `product/mcp/live/research-supplement-source-plan.json`。每个数据集只有一个 primary 和至多一个 fallback；补充来源只提供并列证据。
 
 - `vendor_money_flow` 只能来自 Moomoo SG OpenD，SEC 13F 或 Yahoo volume 不得替代。
-- `options_snapshot` 先 Yahoo；只有 Yahoo 明确失败且 Moomoo 对应 Quote API 已逐项验证时才单次回退。
+- `options_snapshot` 先 Yahoo；只有 Yahoo 明确失败才执行 Moomoo 的有界动态回退，静态链不能标记完整快照。
 - `institutional_ownership` 以 SEC 原始 13F 为主，Moomoo 只能保留为二级供应商资料。
 - `insider_transactions` 以 SEC Forms 3/4/5 为主，Moomoo 仅作为并列的二级供应商补充，不参与失败回退。
 - 档案、财务、分部和治理以 SEC 为主；Moomoo 当前摘要不能冒充历史原始披露。
+- `relationships` 和 `earnings_guidance` 不再声明未实现的 Moomoo fallback；前者保持真实缺口，后者仍以 SEC 发行人材料为准。
 
 ## Background 与 Skill 接入
 

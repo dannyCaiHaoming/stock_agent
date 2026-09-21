@@ -162,10 +162,22 @@ class FakeContext:
             "option_standard_type": "STANDARD", "option_settlement_mode": "N/A",
         }])
 
-    def get_research_rating_summary(self, code, num=None, next_key=None):
+    def get_research_rating_summary(
+        self, code, rating_dimension_type=None, num=None, next_key=None,
+    ):
         self.calls.append(("get_research_rating_summary", {
-            "code": code, "num": num, "next_key": next_key,
+            "code": code, "rating_dimension_type": rating_dimension_type,
+            "num": num, "next_key": next_key,
         }))
+        if rating_dimension_type == 2:
+            return 0, {"analyst_rating_summary_list": [{
+                "analyst_info": {"analyst_uid": 2, "analyst_name": "Public Analyst"},
+                "rating_item_list": [{
+                    "recommendation_date": 1789448400,
+                    "recommendation_date_str": "2026-09-15", "rating": "BUY",
+                    "target_price": 365, "update_time": 1789482701110206,
+                }],
+            }], "next_key": "-1"}
         return 0, {"inst_rating_summary_list": [{
             "institution_info": {"institution_uid": 1, "institution_name": "Research Co"},
             "rating_item_list": [{
@@ -184,6 +196,13 @@ class FakeContext:
             "avg_daily_share_volume": 50, "days_to_cover": 2,
             "close_price": 200, "last_close_price": 199,
         }], attrs={"next_key": "-1"}), FakeFrame([])
+
+    def get_fed_watch_dot_plot(self):
+        self.calls.append(("get_fed_watch_dot_plot", {}))
+        return 0, FakeFrame([{
+            "year": 2026, "rate": 4.0, "vote_count": 5,
+            "is_median": True, "median_rate": 4.0, "current_rate": 4.25,
+        }])
 
 
 class MoomooOpenDTests(unittest.TestCase):
@@ -298,6 +317,22 @@ class MoomooOpenDTests(unittest.TestCase):
             client.read(capability_id="company-profile-v1", params={"code": "US.AAPL", "account_id": "1"})
         with self.assertRaisesRegex(ValueError, "CAPABILITY_UNKNOWN"):
             client.read(capability_id="trade-order", params={})
+        with self.assertRaisesRegex(ValueError, "CODE_LIST_INVALID"):
+            client.read(capability_id="market-snapshot-v1", params={
+                "code_list": [f"US.X{index}" for index in range(49)],
+            })
+        with self.assertRaisesRegex(ValueError, "MACRO_INDICATOR_INVALID"):
+            client.read(capability_id="macro-indicator-history-v1", params={
+                "indicator_id": 999, "max_count": 24,
+            })
+        with self.assertRaisesRegex(ValueError, "RATING_PAGE_SIZE_INVALID"):
+            client.read(capability_id="institution-rating-summary-v1", params={
+                "code": "US.AAPL", "rating_dimension_type": 1, "num": 21,
+            })
+        with self.assertRaisesRegex(ValueError, "DATE_WINDOW_EXCEEDED"):
+            client.read(capability_id="option-underlying-history-v1", params={
+                "code": "US.AAPL", "start": "2026-07-01", "end": "2026-09-20",
+            })
 
     def test_profile_capture_is_deterministic_cached_and_request_bound(self):
         context = FakeContext()
@@ -319,7 +354,12 @@ class MoomooOpenDTests(unittest.TestCase):
             ("option-chain-static-v1", {
                 "code": "US.AAPL", "start": "2026-09-18", "end": "2026-09-18",
             }),
-            ("analyst-rating-summary-v1", {"code": "US.AAPL", "num": 20}),
+            ("institution-rating-summary-v1", {
+                "code": "US.AAPL", "rating_dimension_type": 1, "num": 20,
+            }),
+            ("analyst-rating-summary-v1", {
+                "code": "US.AAPL", "rating_dimension_type": 2, "num": 20,
+            }),
             ("short-interest-v1", {"code": "US.AAPL", "num": 20}),
         ]
         contexts = [FakeContext() for _ in cases]
@@ -338,6 +378,25 @@ class MoomooOpenDTests(unittest.TestCase):
             self.client([]).read(capability_id="option-chain-static-v1", params={
                 "code": "US.AAPL", "start": "2026-09-19", "end": "2026-09-18",
             })
+
+    def test_dot_plot_uses_official_method_name_and_missing_sdk_method_is_sanitized(self):
+        context = FakeContext()
+        result = self.client([context]).read(
+            capability_id="fedwatch-dot-plot-v1", params={},
+        )
+        self.assertEqual(result["method"], "get_fed_watch_dot_plot")
+        self.assertIn(("get_fed_watch_dot_plot", {}), context.calls)
+
+        class MissingDotPlot(FakeContext):
+            def __getattribute__(self, name):
+                if name == "get_fed_watch_dot_plot":
+                    raise AttributeError(name)
+                return super().__getattribute__(name)
+
+        with self.assertRaisesRegex(MoomooOpenDError, "METHOD_UNAVAILABLE"):
+            self.client([MissingDotPlot()]).read(
+                capability_id="fedwatch-dot-plot-v1", params={},
+            )
 
     def test_option_contract_codes_do_not_fail_underlying_security_binding(self):
         result = self.client([FakeContext()]).read(
