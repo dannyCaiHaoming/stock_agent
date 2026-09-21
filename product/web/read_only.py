@@ -67,6 +67,69 @@ COMPANY_RESEARCH_CAPABILITIES = (
     "FUNDAMENTAL_EVENT", "RESEARCH_REPORT",
     "OWNERSHIP_DISCLOSURE", "INDUSTRY_COMPARISON",
 )
+DOMAIN_COVERAGE_CAPABILITIES = {
+    "MACRO": ("MACRO_CONTEXT",),
+    "MARKET": ("MARKET_STATE", "OPTIONS_FLOW"),
+    "COMPANY": COMPANY_RESEARCH_CAPABILITIES,
+}
+KNOWN_COVERAGE_CAPABILITIES = frozenset(
+    capability
+    for capabilities in DOMAIN_COVERAGE_CAPABILITIES.values()
+    for capability in capabilities
+)
+SHARED_ENVIRONMENT_DATASETS = frozenset({
+    "dot_plot", "economic_calendar", "macro_history",
+    "fedwatch_expectations", "market_breadth", "option_market_statistics",
+})
+EVIDENCE_DATASET_PREFIXES = {
+    "dot_plot": ("moomoo_dot_plot:",),
+    "economic_calendar": ("moomoo_economic_calendar:",),
+    "macro_history": (
+        "moomoo_us_cpi_yoy:", "moomoo_us_core_cpi_yoy:",
+        "moomoo_us_pce_yoy:", "moomoo_us_ppi_yoy:",
+        "moomoo_us_unemployment_rate_vendor:",
+        "moomoo_us_nonfarm_payrolls_vendor:",
+        "moomoo_us_retail_sales_mom:",
+        "moomoo_us_federal_funds_rate_vendor:",
+    ),
+    "fedwatch_expectations": ("moomoo_fedwatch:",),
+    "option_market_statistics": (
+        "moomoo_option_market_open_interest:", "moomoo_option_market_volume:",
+    ),
+    "options_snapshot": ("option_chain_contract:",),
+    "options_underlying_context": ("moomoo_option_underlying_overview:",),
+    "vendor_money_flow": (
+        "moomoo_vendor_money_flow:", "moomoo_vendor_capital_distribution:",
+    ),
+}
+EVIDENCE_DATASET_VALUE_KEYS = {
+    "dot_plot": {"year", "rate", "vote_count", "median_rate", "is_median", "current_rate"},
+    "economic_calendar": {"title", "country", "timestamp", "star", "actual", "consensus", "previous"},
+    "macro_history": {
+        "label", "actual", "consensus", "previous", "unit_type",
+        "raw_release_time", "vintage_status", "indicator_id",
+    },
+    "fedwatch_expectations": {"meeting_date", "target_range", "probability"},
+    "option_market_statistics": {"time", "timestamp", "call_value", "put_value", "total_value", "ratio"},
+    "options_snapshot": {
+        "contract_symbol", "expiration", "strike", "option_type", "bid", "ask",
+        "last_price", "volume", "open_interest", "implied_volatility", "in_the_money",
+        "contract_multiplier", "contract_size_label", "last_trade_at", "quote_observed_at",
+        "open_interest_observed_at", "greeks",
+    },
+    "options_underlying_context": {
+        "code", "name", "iv", "pre_iv", "iv_percentile", "iv_rank",
+        "hv_30d", "hv_30d_percentile", "hv_60d", "hv_60d_percentile",
+        "hv_90d", "hv_90d_percentile", "hv_120d", "hv_120d_percentile",
+        "hv_365d", "hv_365d_percentile", "call_volume", "put_volume",
+        "call_open_interest", "put_open_interest",
+    },
+    "vendor_money_flow": {
+        "category", "amount", "capital_in", "capital_out", "currency", "unit",
+        "period_start", "period_end", "provider_valid_time", "definition",
+        "provider_direction_label",
+    },
+}
 REPORT_INDEX_STATUS_BY_REPORT_STATUS = {
     "COMPLETE": "VALID_RESEARCH",
     "LOW_CONFIDENCE": "LOW_CONFIDENCE",
@@ -83,6 +146,7 @@ PRIVATE_KEYS = {
     "account", "account_context", "portfolio", "portfolio_context",
     "credential", "credentials", "api_key", "token", "password",
 }
+UNSAFE_PROJECTION_VALUE = object()
 REPORT_KEYS = {
     "schema_version", "report_id", "research_id", "title", "status",
     "evaluation_status", "decision_cutoff", "security", "security_id",
@@ -137,6 +201,26 @@ def _safe_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
     except (TypeError, ValueError):
         return default
     return min(maximum, max(minimum, parsed))
+
+
+def _safe_projection_scalar(value: Any) -> Any:
+    """只允许不会携带嵌套私人结构或本机路径的展示标量。"""
+
+    if value is None or isinstance(value, (bool, int)):
+        return value
+    if isinstance(value, float):
+        return value if value == value and value not in {float("inf"), float("-inf")} else UNSAFE_PROJECTION_VALUE
+    if not isinstance(value, str):
+        return UNSAFE_PROJECTION_VALUE
+    candidate = value.strip()
+    if (
+        len(value) > 4096
+        or
+        candidate.startswith(("/", "file://", "\\\\"))
+        or (len(candidate) >= 3 and candidate[1] == ":" and candidate[2] in {"/", "\\"})
+    ):
+        return UNSAFE_PROJECTION_VALUE
+    return value
 
 
 def _semantic_field(fact: Mapping[str, Any]) -> str:
@@ -1151,6 +1235,8 @@ class ArtifactCatalog:
         fixed = [
             *(root / name for name in KNOWN_DIRECT_ARTIFACTS),
             *(root / "evidence/source-package" / name for name in KNOWN_DIRECT_ARTIFACTS),
+            root / "audit/provider-coverage.json",
+            root / "evidence/gate.json",
         ]
         for path in fixed:
             if _safe_regular_file(root, path):
@@ -1170,7 +1256,7 @@ class ArtifactCatalog:
         schema = str(value.get("schema_version", "UNKNOWN"))
         identifier = next((str(value[key]) for key in (
             "snapshot_hash", "artifact_hash", "report_hash", "package_hash", "bundle_hash",
-            "report_id", "package_id", "snapshot_id", "artifact_id",
+            "coverage_hash", "report_id", "package_id", "snapshot_id", "artifact_id",
         ) if value.get(key)), digest)
         return schema, identifier
 
@@ -1182,6 +1268,8 @@ class ArtifactCatalog:
     def _source_context(cls, root: Path) -> dict[str, str | None]:
         context: dict[str, str | None] = {
             "source_id": cls._source_id(root), "run_id": None, "decision_cutoff": None,
+            "manifest_run_id": None, "manifest_decision_cutoff": None,
+            "manifest_gate_hash": None, "manifest_provider_coverage_hash": None,
         }
         for name in KNOWN_RUN_MARKERS:
             path = root / name
@@ -1197,6 +1285,12 @@ class ArtifactCatalog:
             context["run_id"] = str(value.get("run_id") or execution.get("run_id") or "") or None
             context["decision_cutoff"] = str(
                 value.get("decision_cutoff") or value.get("as_of") or execution.get("decision_cutoff") or ""
+            ) or None
+            context["manifest_run_id"] = context["run_id"]
+            context["manifest_decision_cutoff"] = context["decision_cutoff"]
+            context["manifest_gate_hash"] = str(value.get("gate_hash") or "") or None
+            context["manifest_provider_coverage_hash"] = str(
+                value.get("provider_coverage_hash") or ""
             ) or None
             if context["run_id"] or context["decision_cutoff"]:
                 break
@@ -1214,6 +1308,8 @@ class ArtifactCatalog:
             "research-dimension-report/1.1.0": "dimension_report",
             "research-dimension-report/2.0.0": "dimension_report",
             "equity-research-attachments/1.0.0": "equity_attachment",
+            "research-provider-coverage/1.0.0": "provider_coverage",
+            "common-stock-research-evidence-gate/1.0.0": "evidence_gate",
         }
         return supported.get(schema, "unsupported"), schema in supported
 
@@ -1245,6 +1341,87 @@ class ArtifactCatalog:
         elif kind == "benchmark_snapshot":
             if value.get("snapshot_hash") != canonical_hash({key: item for key, item in value.items() if key != "snapshot_hash"}):
                 raise ValueError("BENCHMARK_SNAPSHOT_HASH_MISMATCH")
+        elif kind == "provider_coverage":
+            if value.get("coverage_hash") != canonical_hash({
+                key: item for key, item in value.items() if key != "coverage_hash"
+            }):
+                raise ValueError("PROVIDER_COVERAGE_HASH_MISMATCH")
+            if not isinstance(value.get("decision_cutoff"), str) or not value["decision_cutoff"]:
+                raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+            if not isinstance(value.get("providers"), list):
+                raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+            routing = value.get("capability_routing")
+            observations = routing.get("dataset_observations") if isinstance(routing, Mapping) else None
+            if not isinstance(observations, list):
+                raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+            for observation in observations:
+                if not isinstance(observation, Mapping):
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                if not isinstance(observation.get("dataset"), str) or not observation["dataset"]:
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                if observation.get("target_capability") not in KNOWN_COVERAGE_CAPABILITIES:
+                    raise ValueError("PROVIDER_COVERAGE_CAPABILITY_INVALID")
+                for key in (
+                    "capture_evidence_count", "gate_eligible_evidence_count",
+                    "delivered_evidence_count",
+                ):
+                    if isinstance(observation.get(key), bool) or not isinstance(observation.get(key), int) or observation[key] < 0:
+                        raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                if not isinstance(observation.get("delivery_status"), str):
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                if not isinstance(observation.get("actual_research_use_status"), str):
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                if not isinstance(observation.get("exclusions", []), list):
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+            for provider in value["providers"]:
+                if not isinstance(provider, Mapping):
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                if not isinstance(provider.get("provider"), str) or not isinstance(provider.get("plane"), str):
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                provider_observations = provider.get("dataset_observations", [])
+                if not isinstance(provider_observations, list):
+                    raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                for observation in provider_observations:
+                    if not isinstance(observation, Mapping) or not isinstance(observation.get("dataset"), str):
+                        raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                    if not isinstance(observation.get("security_id"), str):
+                        raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                    if not isinstance(observation.get("evidence_ids", []), list):
+                        raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+                    if not isinstance(observation.get("limitations", []), list):
+                        raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
+        elif kind == "evidence_gate":
+            if value.get("bundle_hash") != canonical_hash({
+                key: item for key, item in value.items() if key != "bundle_hash"
+            }):
+                raise ValueError("EVIDENCE_GATE_HASH_MISMATCH")
+            if not isinstance(value.get("run_id"), str) or not value["run_id"]:
+                raise ValueError("EVIDENCE_GATE_STRUCTURE_INVALID")
+            if not isinstance(value.get("decision_cutoff"), str) or not value["decision_cutoff"]:
+                raise ValueError("EVIDENCE_GATE_STRUCTURE_INVALID")
+            allowed = value.get("allowed_evidence")
+            allowed_ids = value.get("allowed_evidence_ids")
+            if not isinstance(allowed, list) or not isinstance(allowed_ids, list):
+                raise ValueError("EVIDENCE_GATE_STRUCTURE_INVALID")
+            if not all(isinstance(item, str) and item for item in allowed_ids):
+                raise ValueError("EVIDENCE_GATE_STRUCTURE_INVALID")
+            evidence_ids = []
+            for fact in allowed:
+                if not isinstance(fact, Mapping):
+                    raise ValueError("EVIDENCE_GATE_STRUCTURE_INVALID")
+                for key in (
+                    "evidence_id", "security_id", "semantic_field", "source_id",
+                    "source_type", "as_of", "retrieved_at",
+                ):
+                    if not isinstance(fact.get(key), str) or not fact[key]:
+                        raise ValueError("EVIDENCE_GATE_STRUCTURE_INVALID")
+                evidence_ids.append(str(fact["evidence_id"]))
+            if (
+                len(evidence_ids) != len(set(evidence_ids))
+                or len(allowed_ids) != len(set(allowed_ids))
+                or set(evidence_ids) != set(allowed_ids)
+            ):
+                raise ValueError("EVIDENCE_GATE_ALLOWLIST_MISMATCH")
 
     def rescan(self) -> dict[str, int]:
         self.artifacts = []
@@ -1253,6 +1430,7 @@ class ArtifactCatalog:
         grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
         for root in self._directories():
             context = self._source_context(root)
+            context["source_label"] = root.name
             source_id = str(context["source_id"])
             self._source_contexts[source_id] = context
             for path in self._candidates(root):
@@ -1272,19 +1450,22 @@ class ArtifactCatalog:
                         "value": value, "source_label": root.name,
                         "source_ids": [source_id], "source_labels": [root.name],
                     }
-                    if kind in {"macro_snapshot", "market_context_snapshot", "equity_attachment"}:
+                    if kind in {
+                        "macro_snapshot", "market_context_snapshot", "equity_attachment",
+                        "provider_coverage", "evidence_gate",
+                    }:
                         self._source_contexts[source_id]["decision_cutoff"] = str(
                             self._source_contexts[source_id].get("decision_cutoff") or value.get("decision_cutoff") or ""
                         ) or None
                     if (
-                        kind == "equity_attachment" and value.get("run_id")
+                        kind in {"equity_attachment", "evidence_gate"} and value.get("run_id")
                         and not self._source_contexts[source_id].get("run_id")
                     ):
                         self._source_contexts[source_id]["run_id"] = str(value["run_id"])
                     if not supported:
                         self.issues.append({
                             "code": "ARTIFACT_SCHEMA_UNSUPPORTED",
-                            "label": f"{item['schema_version']}:{item['identity']}",
+                            "label": f"{item['schema_version']}:{digest[:16]}",
                         })
                     grouped.setdefault(identity, []).append(item)
                 except (OSError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
@@ -1301,7 +1482,11 @@ class ArtifactCatalog:
             if len(unique) == 1:
                 self.artifacts.append(next(iter(unique.values())))
             else:
-                self.issues.append({"code": "ARTIFACT_IDENTITY_CONTENT_CONFLICT", "label": f"{identity[0]}:{identity[1]}"})
+                safe_identity = hashlib.sha256(identity[1].encode("utf-8")).hexdigest()[:16]
+                self.issues.append({
+                    "code": "ARTIFACT_IDENTITY_CONTENT_CONFLICT",
+                    "label": f"{identity[0]}:{safe_identity}",
+                })
         self.artifacts.sort(key=lambda item: (item["kind"], item["identity"], item["content_hash"]))
         return {"artifact_count": len(self.artifacts), "issue_count": len(self.issues)}
 
@@ -1436,6 +1621,556 @@ class ArtifactCatalog:
             return True
         return False
 
+    def _coverage_source_manifest_bound(
+        self, coverage: Mapping[str, Any], source_id: str,
+    ) -> bool:
+        """统一验证 coverage 与准入运行 manifest 的显式绑定。"""
+
+        value = coverage.get("value") if isinstance(coverage.get("value"), Mapping) else {}
+        context = self._source_contexts.get(source_id, {})
+        manifest_run = str(context.get("manifest_run_id") or "")
+        manifest_cutoff = str(context.get("manifest_decision_cutoff") or "")
+        manifest_coverage_hash = str(context.get("manifest_provider_coverage_hash") or "")
+        coverage_hash = str(value.get("coverage_hash") or "")
+        coverage_cutoff = str(value.get("decision_cutoff") or "")
+        if not manifest_run:
+            return False
+        if manifest_coverage_hash and manifest_coverage_hash != coverage_hash:
+            return False
+        if manifest_cutoff:
+            return coverage_cutoff == manifest_cutoff
+        return bool(manifest_coverage_hash and manifest_coverage_hash == coverage_hash)
+
+    def _coverage_matches(
+        self, coverage: Mapping[str, Any], *, selected: Mapping[str, Any] | None = None,
+        decision_cutoff: str | None = None, run_id: str | None = None,
+    ) -> bool:
+        value = coverage.get("value") if isinstance(coverage.get("value"), Mapping) else {}
+        coverage_cutoff = str(value.get("decision_cutoff") or "")
+        selected_sources = set(str(item) for item in selected.get("source_ids", [])) if selected else None
+        selected_value = selected.get("value") if selected and isinstance(selected.get("value"), Mapping) else {}
+        for source_id in coverage.get("source_ids", []):
+            source_id = str(source_id)
+            if selected_sources is not None and source_id not in selected_sources:
+                continue
+            if not self._coverage_source_manifest_bound(coverage, source_id):
+                continue
+            context = self._source_contexts.get(source_id, {})
+            expected_cutoff = str(
+                decision_cutoff
+                or selected_value.get("decision_cutoff")
+                or context.get("manifest_decision_cutoff")
+                or coverage_cutoff
+                or ""
+            )
+            context_run = str(context.get("manifest_run_id") or context.get("run_id") or "")
+            if not expected_cutoff or coverage_cutoff != expected_cutoff:
+                continue
+            if run_id and context_run != run_id:
+                continue
+            return True
+        return False
+
+    def _select_coverage(
+        self, *, selected: Mapping[str, Any] | None = None,
+        decision_cutoff: str | None = None, run_id: str | None = None,
+    ) -> tuple[dict[str, Any] | None, str]:
+        candidates = self._coverage_instances()
+        if candidates and selected is None and not decision_cutoff and not run_id:
+            manifest_matches = []
+            for item in candidates:
+                source_id = str(item.get("source_ids", [""])[0])
+                if self._coverage_source_manifest_bound(item, source_id):
+                    manifest_matches.append(item)
+            if manifest_matches:
+                return self._select_artifact(manifest_matches, None), "AVAILABLE"
+            return None, "BINDING_FAILED"
+        matches = [
+            item for item in candidates
+            if self._coverage_matches(
+                item, selected=selected, decision_cutoff=decision_cutoff, run_id=run_id,
+            )
+        ]
+        if len(matches) == 1:
+            return self._select_artifact(matches, None), "AVAILABLE"
+        if len(matches) > 1:
+            return None, "BINDING_FAILED"
+        related = candidates
+        if selected is not None:
+            related = [item for item in candidates if self._shared_sources(item, selected)]
+        elif run_id:
+            related = [
+                item for item in candidates
+                if any(
+                    self._source_contexts.get(str(source_id), {}).get("run_id") == run_id
+                    for source_id in item.get("source_ids", [])
+                )
+            ]
+        return None, "BINDING_FAILED" if related else "NOT_SAVED"
+
+    def _coverage_instances(self) -> list[dict[str, Any]]:
+        """将内容去重后的 coverage 重新展开为唯一 source/run 绑定实例。"""
+
+        instances = []
+        for item in self.by_kind("provider_coverage"):
+            source_ids = [str(source_id) for source_id in item.get("source_ids", [])]
+            for source_id in source_ids:
+                instance = deepcopy(item)
+                instance["source_ids"] = [source_id]
+                source_label = str(
+                    self._source_contexts.get(source_id, {}).get("source_label")
+                    or item.get("source_label") or "run"
+                )
+                instance["source_label"] = source_label
+                instance["source_labels"] = [source_label]
+                instances.append(instance)
+        return instances
+
+    def _gate_instances(self) -> list[dict[str, Any]]:
+        """将内容去重后的 Gate 展开为唯一 source/run 绑定实例。"""
+
+        instances = []
+        for item in self.by_kind("evidence_gate"):
+            for raw_source_id in item.get("source_ids", []):
+                source_id = str(raw_source_id)
+                instance = deepcopy(item)
+                source_label = str(
+                    self._source_contexts.get(source_id, {}).get("source_label")
+                    or item.get("source_label") or "run"
+                )
+                instance["source_ids"] = [source_id]
+                instance["source_label"] = source_label
+                instance["source_labels"] = [source_label]
+                instances.append(instance)
+        return instances
+
+    def _select_evidence_gate(
+        self, coverage: Mapping[str, Any],
+    ) -> tuple[dict[str, Any] | None, str]:
+        coverage_value = coverage.get("value") if isinstance(coverage.get("value"), Mapping) else {}
+        coverage_cutoff = str(coverage_value.get("decision_cutoff") or "")
+        matches = []
+        for gate in self._gate_instances():
+            if not self._shared_sources(gate, coverage):
+                continue
+            value = gate.get("value") if isinstance(gate.get("value"), Mapping) else {}
+            if str(value.get("decision_cutoff") or "") != coverage_cutoff:
+                continue
+            source_id = str(gate.get("source_ids", [""])[0])
+            context = self._source_contexts.get(source_id, {})
+            manifest_run = str(context.get("manifest_run_id") or "")
+            manifest_cutoff = str(context.get("manifest_decision_cutoff") or "")
+            manifest_gate_hash = str(context.get("manifest_gate_hash") or "")
+            manifest_coverage_hash = str(context.get("manifest_provider_coverage_hash") or "")
+            gate_hash = str(value.get("bundle_hash") or "")
+            coverage_hash = str(coverage_value.get("coverage_hash") or "")
+            if not manifest_run:
+                continue
+            if str(value.get("run_id") or "") != manifest_run:
+                continue
+            if manifest_gate_hash and manifest_gate_hash != gate_hash:
+                continue
+            if manifest_coverage_hash and manifest_coverage_hash != coverage_hash:
+                continue
+            if manifest_cutoff:
+                if coverage_cutoff != manifest_cutoff:
+                    continue
+            elif not (
+                manifest_gate_hash == gate_hash
+                and manifest_coverage_hash == coverage_hash
+            ):
+                continue
+            matches.append(gate)
+        if len(matches) == 1:
+            return matches[0], "AVAILABLE"
+        if len(matches) > 1:
+            return None, "BINDING_FAILED"
+        related = [gate for gate in self._gate_instances() if self._shared_sources(gate, coverage)]
+        return None, "BINDING_FAILED" if related else "NOT_SAVED"
+
+    @staticmethod
+    def _project_evidence(dataset: str, fact: Mapping[str, Any]) -> dict[str, Any] | None:
+        semantic_field = str(fact.get("semantic_field") or "")
+        prefixes = EVIDENCE_DATASET_PREFIXES.get(dataset, ())
+        if not prefixes or not semantic_field.startswith(prefixes):
+            return None
+        raw_value = fact.get("value")
+        if not isinstance(raw_value, Mapping):
+            return None
+        allowed_keys = EVIDENCE_DATASET_VALUE_KEYS[dataset]
+        value = {}
+        for key in allowed_keys:
+            if key not in raw_value or key in PRIVATE_KEYS:
+                continue
+            if dataset == "options_snapshot" and key == "greeks":
+                raw_greeks = raw_value.get("greeks")
+                if not isinstance(raw_greeks, Mapping):
+                    continue
+                greeks = {}
+                for greek in ("delta", "gamma", "theta", "vega", "rho"):
+                    projected = _safe_projection_scalar(raw_greeks.get(greek))
+                    if projected is not UNSAFE_PROJECTION_VALUE:
+                        greeks[greek] = projected
+                value["greeks"] = greeks
+                continue
+            projected = _safe_projection_scalar(raw_value[key])
+            if projected is not UNSAFE_PROJECTION_VALUE:
+                value[key] = projected
+        safe_text = {}
+        for key in (
+            "security_id", "source_id", "source_type", "as_of", "retrieved_at",
+            "published_at", "unit", "currency",
+        ):
+            projected = _safe_projection_scalar(fact.get(key))
+            if projected is UNSAFE_PROJECTION_VALUE:
+                return None
+            safe_text[key] = str(projected or "")
+        return {
+            "dataset": dataset,
+            "semantic_field": semantic_field.split(":", 1)[0],
+            "security_id": safe_text["security_id"],
+            "source_id": safe_text["source_id"],
+            "source_type": safe_text["source_type"],
+            "as_of": safe_text["as_of"],
+            "retrieved_at": safe_text["retrieved_at"],
+            "published_at": safe_text["published_at"] or None,
+            "unit": safe_text["unit"] or None,
+            "currency": safe_text["currency"] or None,
+            "value": value,
+        }
+
+    def _evidence_projection(
+        self, coverage: Mapping[str, Any], datasets: Sequence[str],
+    ) -> dict[str, Any]:
+        gate, gate_status = self._select_evidence_gate(coverage)
+        coverage_value = coverage.get("value") if isinstance(coverage.get("value"), Mapping) else {}
+        if gate is None:
+            return {
+                "status": gate_status, "datasets": {},
+                "decision_cutoff": coverage_value.get("decision_cutoff"),
+                "run_id": self._coverage_run_id(coverage),
+                "code": "EVIDENCE_GATE_BINDING_MISMATCH" if gate_status == "BINDING_FAILED" else "EVIDENCE_GATE_NOT_SAVED",
+            }
+        gate_value = gate.get("value") if isinstance(gate.get("value"), Mapping) else {}
+        allowed_ids = {
+            str(item) for item in gate_value.get("allowed_evidence_ids", []) if isinstance(item, str)
+        }
+        facts_by_id = {
+            str(item.get("evidence_id")): item
+            for item in gate_value.get("allowed_evidence", []) if isinstance(item, Mapping)
+            and isinstance(item.get("evidence_id"), str)
+        }
+        declared: dict[str, set[str]] = {dataset: set() for dataset in datasets}
+        declared_security: dict[str, dict[str, set[str]]] = {
+            dataset: {} for dataset in datasets
+        }
+        for observation in self._coverage_provider_observations(coverage_value):
+            dataset = observation["dataset"]
+            if dataset in declared:
+                declared[dataset].update(observation["evidence_ids"])
+                for evidence_id in observation["evidence_ids"]:
+                    declared_security[dataset].setdefault(evidence_id, set()).add(
+                        observation["security_id"]
+                    )
+        projected = {}
+        for dataset in datasets:
+            rows = []
+            for evidence_id in sorted(declared[dataset] & allowed_ids):
+                fact = facts_by_id.get(evidence_id)
+                if fact is None:
+                    continue
+                if (
+                    dataset not in SHARED_ENVIRONMENT_DATASETS
+                    and str(fact.get("security_id") or "")
+                    not in declared_security[dataset].get(evidence_id, set())
+                ):
+                    continue
+                row = self._project_evidence(dataset, fact)
+                if row is not None:
+                    rows.append(row)
+            projected[dataset] = rows
+        return {
+            "status": "AVAILABLE", "datasets": projected,
+            "decision_cutoff": coverage_value.get("decision_cutoff"),
+            "run_id": self._coverage_run_id(coverage),
+            "source_label": coverage.get("source_label"),
+        }
+
+    @staticmethod
+    def _coverage_dataset_routes(coverage: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+        routing = coverage.get("capability_routing")
+        values = routing.get("dataset_observations") if isinstance(routing, Mapping) else []
+        return [item for item in values if isinstance(item, Mapping)]
+
+    @staticmethod
+    def _coverage_provider_observations(coverage: Mapping[str, Any]) -> list[dict[str, Any]]:
+        observations: list[dict[str, Any]] = []
+        for provider in coverage.get("providers", []) if isinstance(coverage.get("providers"), list) else []:
+            if not isinstance(provider, Mapping):
+                continue
+            for item in provider.get("dataset_observations", []) if isinstance(provider.get("dataset_observations"), list) else []:
+                if not isinstance(item, Mapping):
+                    continue
+                observations.append({
+                    "provider": str(provider.get("provider") or ""),
+                    "source_layer": str(provider.get("plane") or ""),
+                    "dataset": str(item.get("dataset") or ""),
+                    "security_id": str(item.get("security_id") or ""),
+                    "status": str(item.get("status") or ""),
+                    "failure_code": str(item.get("failure_code") or "") or None,
+                    "checked_at": str(item.get("checked_at") or "") or None,
+                    "as_of": str(item.get("as_of") or "") or None,
+                    "evidence_ids": [
+                        str(value) for value in item.get("evidence_ids", [])
+                        if isinstance(value, str)
+                    ],
+                    "limitations": [
+                        str(value) for value in item.get("limitations", [])
+                        if isinstance(value, str)
+                    ],
+                })
+        return observations
+
+    def _coverage_reports(
+        self, coverage: Mapping[str, Any], capabilities: Sequence[str],
+        *, security_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        reports = []
+        coverage_value = coverage.get("value") if isinstance(coverage.get("value"), Mapping) else {}
+        routes = {
+            str(item.get("dataset")): str(item.get("target_capability"))
+            for item in self._coverage_dataset_routes(coverage_value)
+        }
+        provider_observations = self._coverage_provider_observations(coverage_value)
+        option_evidence_by_security: dict[str, set[str]] = {}
+        for observation in provider_observations:
+            if routes.get(observation["dataset"]) != "OPTIONS_FLOW" or not observation["security_id"]:
+                continue
+            option_evidence_by_security.setdefault(observation["security_id"], set()).update(
+                observation["evidence_ids"]
+            )
+        all_option_evidence = set().union(*option_evidence_by_security.values()) if option_evidence_by_security else set()
+        for item in self.by_kind("dimension_report"):
+            value = item.get("value") if isinstance(item.get("value"), Mapping) else {}
+            capability = str(value.get("capability") or "")
+            if capability not in capabilities:
+                continue
+            if security_id and security_id not in value.get("security_ids", []):
+                continue
+            if capability == "OPTIONS_FLOW":
+                report_security_ids = {
+                    str(value) for value in value.get("security_ids", []) if isinstance(value, str)
+                }
+                if not report_security_ids or not report_security_ids <= set(option_evidence_by_security):
+                    continue
+                allowed_option_evidence = set().union(*(
+                    option_evidence_by_security[report_security]
+                    for report_security in report_security_ids
+                ))
+                report_option_evidence = _string_refs(value, "evidence_refs") & all_option_evidence
+                if not report_option_evidence or not report_option_evidence <= allowed_option_evidence:
+                    continue
+            if not self._report_matches(
+                item, coverage,
+                selected_cutoff=str((coverage.get("value") or {}).get("decision_cutoff") or "") or None,
+            ):
+                continue
+            reports.append(item)
+        return reports
+
+    def _coverage_projection(
+        self, coverage: Mapping[str, Any], capabilities: Sequence[str],
+        *, security_id: str | None = None, reports: Sequence[Mapping[str, Any]] = (),
+    ) -> dict[str, Any]:
+        value = coverage.get("value") if isinstance(coverage.get("value"), Mapping) else {}
+        routes = [
+            item for item in self._coverage_dataset_routes(value)
+            if item.get("target_capability") in capabilities
+        ]
+        provider_observations = self._coverage_provider_observations(value)
+        if security_id:
+            route_by_dataset = {
+                str(item.get("dataset")): str(item.get("target_capability"))
+                for item in routes
+            }
+            scoped_security_ids = {
+                item["security_id"] for item in provider_observations
+                if route_by_dataset.get(item["dataset"]) in capabilities and item["security_id"]
+            }
+            if not scoped_security_ids:
+                return {
+                    "status": "BINDING_FAILED", "items": [],
+                    "decision_cutoff": value.get("decision_cutoff"),
+                    "run_id": self._coverage_run_id(coverage),
+                    "code": "PROVIDER_COVERAGE_SECURITY_SCOPE_UNAVAILABLE",
+                }
+            if scoped_security_ids and scoped_security_ids != {security_id}:
+                return {
+                    "status": "AMBIGUOUS_SECURITY_SCOPE", "items": [],
+                    "decision_cutoff": value.get("decision_cutoff"),
+                    "run_id": self._coverage_run_id(coverage),
+                    "code": "PROVIDER_COVERAGE_SECURITY_SCOPE_AMBIGUOUS",
+                }
+            provider_observations = [
+                item for item in provider_observations if item["security_id"] == security_id
+            ]
+
+        report_refs: dict[str, set[str]] = {}
+        report_ids: dict[str, list[str]] = {}
+        report_statuses: dict[str, list[str]] = {}
+        report_security_ids: dict[str, set[str]] = {}
+        for report in reports:
+            report_value = report.get("value") if isinstance(report.get("value"), Mapping) else {}
+            capability = str(report_value.get("capability") or "")
+            report_refs.setdefault(capability, set()).update(_string_refs(report_value, "evidence_refs"))
+            if report_value.get("report_id"):
+                report_ids.setdefault(capability, []).append(str(report_value["report_id"]))
+            if report_value.get("status"):
+                report_statuses.setdefault(capability, []).append(str(report_value["status"]))
+            report_security_ids.setdefault(capability, set()).update(
+                str(item) for item in report_value.get("security_ids", []) if isinstance(item, str)
+            )
+
+        items = []
+        for route in routes:
+            dataset = str(route.get("dataset") or "")
+            capability = str(route.get("target_capability") or "")
+            sources = [item for item in provider_observations if item["dataset"] == dataset]
+            evidence_ids = {
+                evidence_id for item in sources for evidence_id in item["evidence_ids"]
+            }
+            used_refs = evidence_ids & report_refs.get(capability, set())
+            limitations = sorted({
+                limitation for item in sources for limitation in item["limitations"]
+            })
+            failure_codes = sorted({
+                str(item["failure_code"]) for item in sources if item.get("failure_code")
+            })
+            source_security_ids = sorted({
+                item["security_id"] for item in sources if item["security_id"]
+            })
+            shared_dataset = dataset in SHARED_ENVIRONMENT_DATASETS
+            items.append({
+                "dataset": dataset,
+                "target_capability": capability,
+                "capture_evidence_count": route.get("capture_evidence_count"),
+                "gate_eligible_evidence_count": route.get("gate_eligible_evidence_count"),
+                "delivered_evidence_count": route.get("delivered_evidence_count"),
+                "delivery_status": route.get("delivery_status"),
+                "actual_research_use_status": route.get("actual_research_use_status"),
+                "providers": sorted({item["provider"] for item in sources if item["provider"]}),
+                "source_layers": sorted({item["source_layer"] for item in sources if item["source_layer"]}),
+                "scope_label": (
+                    "共享宏观环境" if dataset in {"dot_plot", "economic_calendar", "macro_history"}
+                    else "共享市场环境" if shared_dataset
+                    else "证券级 · " + (", ".join(source_security_ids) or "范围未声明")
+                ),
+                "security_ids": [] if shared_dataset else source_security_ids,
+                "capture_statuses": sorted({item["status"] for item in sources if item["status"]}),
+                "checked_at": max((str(item["checked_at"] or "") for item in sources), default="") or None,
+                "as_of": max((str(item["as_of"] or "") for item in sources), default="") or None,
+                "failure_codes": failure_codes,
+                "limitations": limitations,
+                "exclusion_count": len(route.get("exclusions", [])),
+                "research_use_proof": ({
+                    "status": "EVIDENCE_REFERENCED",
+                    "referenced_evidence_count": len(used_refs),
+                    "report_ids": sorted(set(report_ids.get(capability, []))),
+                    "security_ids": sorted(report_security_ids.get(capability, set())),
+                } if used_refs else None),
+                "report_statuses": sorted(set(report_statuses.get(capability, []))),
+            })
+        return {
+            "status": "AVAILABLE", "items": items,
+            "decision_cutoff": value.get("decision_cutoff"),
+            "run_id": self._coverage_run_id(coverage),
+            "source_label": coverage.get("source_label"),
+            "routing_status": (value.get("capability_routing") or {}).get("status"),
+            "routing_failure_codes": list((value.get("capability_routing") or {}).get("failure_codes", [])),
+            "coverage_hash": value.get("coverage_hash"),
+        }
+
+    def _coverage_run_id(self, coverage: Mapping[str, Any]) -> str | None:
+        for source_id in coverage.get("source_ids", []):
+            context = self._source_contexts.get(str(source_id), {})
+            if context.get("run_id"):
+                return str(context["run_id"])
+        return None
+
+    def coverage_overview(self) -> dict[str, Any]:
+        runs = []
+        issues = []
+        for coverage in sorted(
+            self._coverage_instances(),
+            key=lambda item: (self._artifact_time(item), str(item.get("content_hash"))),
+            reverse=True,
+        ):
+            source_id = str(coverage.get("source_ids", [""])[0])
+            context = self._source_contexts.get(source_id, {})
+            if not self._coverage_source_manifest_bound(coverage, source_id):
+                issues.append({
+                    "code": "PROVIDER_COVERAGE_BINDING_MISMATCH",
+                    "label": str(context.get("manifest_run_id") or coverage.get("source_label") or "run"),
+                })
+                continue
+            domains = []
+            for domain, capabilities in DOMAIN_COVERAGE_CAPABILITIES.items():
+                projection = self._coverage_projection(coverage, capabilities)
+                domains.append({
+                    "domain": domain,
+                    "dataset_count": len(projection["items"]),
+                    "delivered_dataset_count": sum(
+                        1 for item in projection["items"] if item["delivery_status"] == "DELIVERED"
+                    ),
+                    "gap_count": sum(
+                        1 for item in projection["items"] if item["delivery_status"] != "DELIVERED"
+                    ),
+                })
+            runs.append({
+                "run_id": self._coverage_run_id(coverage),
+                "decision_cutoff": coverage["value"].get("decision_cutoff"),
+                "source_label": coverage.get("source_label"),
+                "domains": domains,
+            })
+        return {
+            "status": "AVAILABLE" if runs else "NOT_SAVED",
+            "runs": runs, "issues": issues,
+        }
+
+    def company_coverage(
+        self, security_id: str, decision_cutoff: str | None, run_id: str | None,
+    ) -> dict[str, Any]:
+        if not decision_cutoff or not run_id:
+            return {
+                "status": "BINDING_FAILED", "items": [],
+                "code": "COMPANY_PROVIDER_COVERAGE_VIEW_REQUIRED",
+            }
+        coverage, status = self._select_coverage(decision_cutoff=decision_cutoff, run_id=run_id)
+        if coverage is None:
+            return {
+                "status": status, "items": [],
+                "code": "PROVIDER_COVERAGE_BINDING_MISMATCH" if status == "BINDING_FAILED" else None,
+            }
+        capabilities = (*DOMAIN_COVERAGE_CAPABILITIES["COMPANY"], "OPTIONS_FLOW")
+        reports = self._coverage_reports(coverage, capabilities, security_id=security_id)
+        projection = self._coverage_projection(
+            coverage, capabilities, security_id=security_id, reports=reports,
+        )
+        projection["related_reports"] = [
+            {
+                "report_id": item["value"].get("report_id"),
+                "capability": item["value"].get("capability"),
+                "status": item["value"].get("status"),
+                "security_ids": [
+                    str(value) for value in item["value"].get("security_ids", [])
+                    if isinstance(value, str)
+                ],
+                "identity": item.get("identity"),
+            }
+            for item in reports
+        ]
+        return projection
+
     def company_reports(
         self, security_id: str, decision_cutoff: str | None, run_id: str | None,
         allowed_evidence_ids: Sequence[str] = (),
@@ -1527,7 +2262,31 @@ class ArtifactCatalog:
         issues = deepcopy(self.issues)
         if selected is not None and len(reports) != len(candidates):
             issues.append({"code": "ARTIFACT_BINDING_MISMATCH", "label": "macro-report"})
-        return {"snapshots": snapshots, "selected": selected, "reports": reports, "issues": issues}
+        coverage, coverage_status = self._select_coverage(selected=selected)
+        evidence_content = {"status": "NOT_SAVED", "datasets": {}, "code": "EVIDENCE_GATE_NOT_SAVED"}
+        if coverage is None:
+            coverage_model = {
+                "status": coverage_status, "items": [],
+                "code": "PROVIDER_COVERAGE_BINDING_MISMATCH" if coverage_status == "BINDING_FAILED" else None,
+            }
+        else:
+            evidence_content = self._evidence_projection(
+                coverage, ("dot_plot", "economic_calendar", "macro_history"),
+            )
+            coverage_reports = self._coverage_reports(coverage, DOMAIN_COVERAGE_CAPABILITIES["MACRO"])
+            known_report_ids = {item.get("content_hash") for item in reports}
+            reports.extend(
+                deepcopy(item) for item in coverage_reports
+                if item.get("content_hash") not in known_report_ids
+            )
+            reports.sort(key=lambda item: (str(item["value"].get("report_id") or ""), str(item.get("content_hash") or "")))
+            coverage_model = self._coverage_projection(
+                coverage, DOMAIN_COVERAGE_CAPABILITIES["MACRO"], reports=coverage_reports,
+            )
+        return {
+            "snapshots": snapshots, "selected": selected, "reports": reports,
+            "coverage": coverage_model, "evidence_content": evidence_content, "issues": issues,
+        }
 
     def market(self, identity: str | None = None) -> dict[str, Any]:
         snapshots = self.by_kind("benchmark_snapshot")
@@ -1559,7 +2318,42 @@ class ArtifactCatalog:
             issues.append({"code": "ARTIFACT_BINDING_MISMATCH", "label": "market-calculation"})
         if selected is not None and len(reports) != len(report_candidates):
             issues.append({"code": "ARTIFACT_BINDING_MISMATCH", "label": "market-report"})
-        return {"snapshots": snapshots, "selected": selected, "calculations": calculations, "reports": reports, "issues": issues}
+        coverage, coverage_status = self._select_coverage(selected=selected)
+        option_reports: list[dict[str, Any]] = []
+        evidence_content = {"status": "NOT_SAVED", "datasets": {}, "code": "EVIDENCE_GATE_NOT_SAVED"}
+        if coverage is None:
+            coverage_model = {
+                "status": coverage_status, "items": [],
+                "code": "PROVIDER_COVERAGE_BINDING_MISMATCH" if coverage_status == "BINDING_FAILED" else None,
+            }
+        else:
+            evidence_content = self._evidence_projection(
+                coverage,
+                (
+                    "fedwatch_expectations", "market_breadth", "option_market_statistics",
+                    "options_snapshot", "options_underlying_context", "vendor_money_flow",
+                ),
+            )
+            coverage_reports = self._coverage_reports(coverage, DOMAIN_COVERAGE_CAPABILITIES["MARKET"])
+            known_report_ids = {item.get("content_hash") for item in reports}
+            reports.extend(
+                deepcopy(item) for item in coverage_reports
+                if item["value"].get("capability") == "MARKET_STATE"
+                and item.get("content_hash") not in known_report_ids
+            )
+            reports.sort(key=lambda item: (str(item["value"].get("report_id") or ""), str(item.get("content_hash") or "")))
+            option_reports = [
+                deepcopy(item) for item in coverage_reports
+                if item["value"].get("capability") == "OPTIONS_FLOW"
+            ]
+            coverage_model = self._coverage_projection(
+                coverage, DOMAIN_COVERAGE_CAPABILITIES["MARKET"], reports=coverage_reports,
+            )
+        return {
+            "snapshots": snapshots, "selected": selected, "calculations": calculations,
+            "reports": reports, "option_reports": option_reports,
+            "coverage": coverage_model, "evidence_content": evidence_content, "issues": issues,
+        }
 
     def diagnostic(self) -> dict[str, Any]:
         return {"status": "READY", "artifact_count": len(self.artifacts), "issue_count": len(self.issues)}

@@ -35,14 +35,14 @@ def dimension_report(
     capability: str = "MACRO_MARKET", report_id: str | None = None,
     schema_version: str = "research-dimension-report/1.1.0",
     summary: str = "已保存研究，不在浏览时重算。",
-    evidence_id: str = "ev-market-1",
+    evidence_id: str = "ev-market-1", security_id: str = "US:MRVL",
 ) -> dict:
     company_capabilities = {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT"}
     value = {
         "schema_version": schema_version,
         "report_id": report_id or f"dimension-report:{capability.casefold().replace('_', '-')}", "run_id": run_id,
         "invocation_id": "inv-1", "capability": capability,
-        "scope": "PER_SECURITY", "security_ids": ["US:MRVL"],
+        "scope": "PER_SECURITY", "security_ids": [security_id],
         "status": "COMPLETE", "sufficiency": "SUFFICIENT", "evaluation_status": "PASS",
         "bindings": {
             "handoff_id": "handoff-1", "handoff_hash": "a" * 64,
@@ -91,6 +91,148 @@ def dimension_report(
         "artifact_refs": ["research/precomputed/market/market-state-calculation.json"],
     }
     return finalize_research_dimension_report(value)
+
+
+def provider_coverage_fixture(
+    *, decision_cutoff: str = "2026-03-02T00:00:00Z",
+    security_id: str = "US:MRVL",
+) -> dict:
+    definitions = (
+        ("dot_plot", "MACRO_CONTEXT", 12, "DELIVERED", "ev-dot-1", "AVAILABLE"),
+        ("economic_calendar", "MACRO_CONTEXT", 100, "DELIVERED", "ev-calendar-1", "PARTIAL"),
+        ("macro_history", "MACRO_CONTEXT", 192, "DELIVERED", "ev-macro-1", "PARTIAL"),
+        ("fedwatch_expectations", "MARKET_STATE", 3, "DELIVERED", "ev-fed-1", "AVAILABLE"),
+        ("market_breadth", "MARKET_STATE", 0, "NO_GATE_EVIDENCE", None, "SOURCE_LIMITED"),
+        ("option_market_statistics", "MARKET_STATE", 37, "DELIVERED", "ev-option-stat-1", "PARTIAL"),
+        ("options_snapshot", "OPTIONS_FLOW", 48, "DELIVERED", "ev-option-1", "PARTIAL"),
+        ("options_underlying_context", "OPTIONS_FLOW", 1, "DELIVERED", "ev-underlying-1", "PARTIAL"),
+        ("vendor_money_flow", "OPTIONS_FLOW", 9, "DELIVERED", "ev-flow-1", "PARTIAL"),
+        ("financial_history", "FUNDAMENTAL_EVENT", 200, "DELIVERED", "ev-financial-1", "PARTIAL"),
+        ("event_context", "FUNDAMENTAL_EVENT", 0, "NO_GATE_EVIDENCE", None, "NOT_ATTEMPTED"),
+        ("analyst_expectations", "RESEARCH_REPORT", 3, "DELIVERED", "ev-analyst-1", "PARTIAL"),
+        ("institutional_ownership", "OWNERSHIP_DISCLOSURE", 0, "NO_GATE_EVIDENCE", None, "SOURCE_LIMITED"),
+        ("peer_comparison", "INDUSTRY_COMPARISON", 2, "DELIVERED", "ev-peer-1", "AVAILABLE"),
+    )
+    routes = []
+    observations = []
+    for dataset, capability, count, delivery, evidence_id, status in definitions:
+        routes.append({
+            "dataset": dataset, "target_capability": capability,
+            "capture_evidence_count": count,
+            "gate_eligible_evidence_count": count,
+            "delivered_evidence_count": count,
+            "delivery_status": delivery, "exclusions": [],
+            "actual_research_use_status": "NOT_EVALUATED_AT_PREPARATION",
+        })
+        observations.append({
+            "security_id": security_id, "dataset": dataset, "status": status,
+            "failure_code": "FIXTURE_SOURCE_LIMITED" if count == 0 else None,
+            "checked_at": decision_cutoff, "as_of": decision_cutoff,
+            "evidence_ids": [evidence_id] if evidence_id else [],
+            "limitations": ["确定性测试限制"] if count == 0 else [],
+        })
+    value = {
+        "schema_version": "research-provider-coverage/1.0.0",
+        "profile_id": "holding-research-inputs/1.0.0",
+        "topology_hash": "a" * 64,
+        "decision_cutoff": decision_cutoff,
+        "providers": [{
+            "plane": "RESEARCH_SUPPLEMENT", "provider": "moomoo_sg",
+            "region": "SG", "access": "public_read_only",
+            "declared_status": "ACTIVE", "observed_status": "PARTIAL",
+            "evidence_count": sum(item[2] for item in definitions),
+            "capture_evidence_count": sum(item[2] for item in definitions),
+            "gate_delivered_evidence_count": sum(item[2] for item in definitions),
+            "delivery_status": "DELIVERED",
+            "actual_research_use_status": "NOT_EVALUATED_AT_PREPARATION",
+            "dataset_observations": observations,
+            "failure_codes": ["FIXTURE_SOURCE_LIMITED"],
+            "limitations": [],
+        }],
+        "fallback_policy": {
+            "supplement_failure_isolated": True,
+            "base_sources_continue": ["sec", "yahoo"],
+            "forbidden_fallbacks": ["CLIENT_COOKIE", "PRIVATE_API", "LOGIN_BYPASS"],
+            "credential": "must-not-render",
+            "local_path": "/private/must-not-render",
+        },
+        "capability_routing": {
+            "dataset_observations": routes,
+            "failure_codes": [], "status": "CLOSED",
+        },
+    }
+    value["coverage_hash"] = canonical_hash(value)
+    return value
+
+
+def evidence_gate_fixture(
+    *, decision_cutoff: str = "2026-03-02T00:00:00Z",
+    run_id: str = "run-1", security_id: str = "US:MRVL",
+) -> dict:
+    def fact(evidence_id: str, semantic_field: str, value: dict, *, scope: str = security_id) -> dict:
+        return {
+            "schema_version": "live-fact/1.0.0",
+            "evidence_id": evidence_id,
+            "security_id": scope,
+            "semantic_field": semantic_field,
+            "source_id": "fixture-provider",
+            "source_type": "SECONDARY_VENDOR",
+            "as_of": decision_cutoff,
+            "retrieved_at": decision_cutoff,
+            "value": value,
+            "credentials": "must-not-render",
+        }
+
+    allowed = [
+        fact("ev-dot-1", "moomoo_dot_plot:2026-4.125", {
+            "year": 2026, "rate": 4.125, "vote_count": 12,
+            "median_rate": 4.125, "is_median": True, "current_rate": 3.88,
+        }, scope="US:MARKET"),
+        fact("ev-calendar-1", "moomoo_economic_calendar:cpi", {
+            "title": "美国 CPI 同比", "country": "US", "timestamp": 1772409600,
+            "star": 3, "actual": "3.4%", "consensus": "3.2%", "previous": "3.1%",
+        }, scope="US:MARKET"),
+        fact("ev-macro-1", "moomoo_us_cpi_yoy:2026-02", {
+            "label": "CPI 同比", "actual": 0.034, "consensus": 0.032,
+            "previous": 0.031, "unit_type": "PERCENT", "indicator_id": "us_cpi_yoy",
+        }, scope="US:MARKET"),
+        fact("ev-fed-1", "moomoo_fedwatch:2026-10-28-4.00-4.25", {
+            "meeting_date": "2026-10-28", "target_range": "4.00%-4.25%", "probability": 53.1,
+        }, scope="US:MARKET"),
+        fact("ev-option-stat-1", "moomoo_option_market_volume:2026-03-02", {
+            "time": "2026-03-02", "call_value": 1000, "put_value": 707,
+            "total_value": 1707, "ratio": 0.707,
+        }, scope="US:MARKET"),
+        fact("ev-option-1", "option_chain_contract:MRVL260925C00100000", {
+            "contract_symbol": "MRVL260925C00100000", "expiration": "2026-09-25",
+            "strike": 100, "option_type": "CALL", "bid": 1.1, "ask": 1.3,
+            "last_price": 1.2, "volume": 42, "open_interest": 84,
+            "implied_volatility": 0.67922, "greeks": {"delta": None, "token": "must-not-render"},
+        }),
+        fact("ev-underlying-1", "moomoo_option_underlying_overview:MRVL", {
+            "code": "US.MRVL", "name": "Marvell Technology", "iv": 67.922,
+            "iv_percentile": 43.65, "iv_rank": 35.158, "hv_30d": 49.2,
+            "call_volume": 120, "put_volume": 90,
+            "call_open_interest": 1000, "put_open_interest": 743,
+        }),
+        fact("ev-flow-1", "moomoo_vendor_money_flow:overall", {
+            "category": "overall", "amount": -62027577.937,
+            "capital_in": 1000000, "capital_out": 63027577.937,
+            "currency": "USD", "unit": "currency", "definition": "供应商订单规模分类",
+        }),
+        fact("ev-not-declared", "moomoo_vendor_money_flow:private", {
+            "category": "SHOULD_NOT_RENDER", "amount": 999999,
+        }),
+    ]
+    value = {
+        "schema_version": "common-stock-research-evidence-gate/1.0.0",
+        "run_id": run_id, "decision_cutoff": decision_cutoff,
+        "allowed_evidence_ids": [item["evidence_id"] for item in allowed],
+        "allowed_evidence": allowed,
+        "excluded_evidence_ids": [], "excluded": [], "conflicts": [],
+    }
+    value["bundle_hash"] = canonical_hash(value)
+    return value
 
 
 def equity_report_fixture(
@@ -781,6 +923,674 @@ class LocalResearchBrowserTests(unittest.TestCase):
         catalog = ArtifactCatalog(run_dirs=[run])
         self.assertFalse(catalog.by_kind("macro_snapshot"))
 
+    def test_provider_coverage_registry_projection_and_field_allowlist(self):
+        run = self.base / "coverage-run"
+        audit = run / "audit"
+        audit.mkdir(parents=True)
+        cutoff = "2026-03-02T00:00:00Z"
+        (run / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        coverage = provider_coverage_fixture(decision_cutoff=cutoff)
+        (audit / "provider-coverage.json").write_text(json.dumps(coverage))
+        catalog = ArtifactCatalog(run_dirs=[run])
+
+        self.assertEqual(1, len(catalog.by_kind("provider_coverage")))
+        overview = catalog.coverage_overview()
+        self.assertEqual("AVAILABLE", overview["status"])
+        self.assertEqual(
+            {"MACRO", "MARKET", "COMPANY"},
+            {item["domain"] for item in overview["runs"][0]["domains"]},
+        )
+        company = catalog.company_coverage("US:MRVL", cutoff, "run-1")
+        self.assertEqual("AVAILABLE", company["status"])
+        self.assertEqual(
+            {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "OWNERSHIP_DISCLOSURE", "INDUSTRY_COMPARISON", "OPTIONS_FLOW"},
+            {item["target_capability"] for item in company["items"]},
+        )
+        serialized = json.dumps(company, ensure_ascii=False)
+        self.assertNotIn("must-not-render", serialized)
+        self.assertNotIn("/private/", serialized)
+        self.assertNotIn("ev-option-1", serialized)
+        other = catalog.company_coverage("US:OTHER", cutoff, "run-1")
+        self.assertEqual("AMBIGUOUS_SECURITY_SCOPE", other["status"])
+        wrong_run = catalog.company_coverage("US:MRVL", cutoff, "run-other")
+        self.assertNotEqual("AVAILABLE", wrong_run["status"])
+
+    def test_provider_coverage_invalid_unknown_and_symlink_are_isolated(self):
+        cutoff = "2026-03-02T00:00:00Z"
+        invalid = self.base / "invalid-coverage"
+        (invalid / "audit").mkdir(parents=True)
+        (invalid / "run_manifest.json").write_text(json.dumps({
+            "run_id": "invalid", "decision_cutoff": cutoff,
+        }))
+        broken = provider_coverage_fixture(decision_cutoff=cutoff)
+        broken["coverage_hash"] = "0" * 64
+        (invalid / "audit" / "provider-coverage.json").write_text(json.dumps(broken))
+
+        future = self.base / "future-coverage"
+        (future / "audit").mkdir(parents=True)
+        (future / "run_manifest.json").write_text("{}")
+        (future / "audit" / "provider-coverage.json").write_text(json.dumps({
+            "schema_version": "research-provider-coverage/2.0.0",
+            "artifact_id": "/private/must-not-render",
+            "coverage_hash": "f" * 64,
+        }))
+
+        outside = self.base / "outside-provider-coverage.json"
+        outside.write_text(json.dumps(provider_coverage_fixture(decision_cutoff=cutoff)))
+        linked = self.base / "linked-coverage"
+        (linked / "audit").mkdir(parents=True)
+        (linked / "run_manifest.json").write_text("{}")
+        (linked / "audit" / "provider-coverage.json").symlink_to(outside)
+
+        catalog = ArtifactCatalog(run_dirs=[invalid, future, linked])
+        self.assertFalse(catalog.by_kind("provider_coverage"))
+        self.assertTrue(any(item["code"] == "PROVIDER_COVERAGE_HASH_MISMATCH" for item in catalog.issues))
+        self.assertTrue(any(item["code"] == "ARTIFACT_SCHEMA_UNSUPPORTED" for item in catalog.issues))
+        self.assertNotIn("/private/must-not-render", json.dumps(catalog.issues))
+
+    def test_evidence_gate_projection_requires_valid_hash_allowlist_and_run_binding(self):
+        cutoff = "2026-03-02T00:00:00Z"
+        valid = self.base / "valid-gate"
+        (valid / "audit").mkdir(parents=True)
+        (valid / "evidence").mkdir()
+        (valid / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (valid / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        (valid / "evidence" / "gate.json").write_text(json.dumps(
+            evidence_gate_fixture(decision_cutoff=cutoff)
+        ))
+
+        catalog = ArtifactCatalog(run_dirs=[valid])
+        self.assertEqual(1, len(catalog.by_kind("evidence_gate")))
+        macro = catalog.macro()["evidence_content"]
+        market = catalog.market()["evidence_content"]
+        self.assertEqual("AVAILABLE", macro["status"])
+        self.assertEqual("AVAILABLE", market["status"])
+        serialized = json.dumps({"macro": macro, "market": market}, ensure_ascii=False)
+        self.assertIn("CPI 同比", serialized)
+        self.assertIn("MRVL260925C00100000", serialized)
+        self.assertNotIn("must-not-render", serialized)
+        self.assertNotIn("SHOULD_NOT_RENDER", serialized)
+        self.assertNotIn("ev-option-1", serialized)
+
+        security_mismatch = self.base / "security-mismatched-gate"
+        (security_mismatch / "audit").mkdir(parents=True)
+        (security_mismatch / "evidence").mkdir()
+        (security_mismatch / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (security_mismatch / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        mismatched_security_gate = evidence_gate_fixture(decision_cutoff=cutoff)
+        next(
+            item for item in mismatched_security_gate["allowed_evidence"]
+            if item["evidence_id"] == "ev-option-1"
+        )["security_id"] = "US:AAPL"
+        mismatched_security_gate["bundle_hash"] = canonical_hash({
+            key: value for key, value in mismatched_security_gate.items() if key != "bundle_hash"
+        })
+        (security_mismatch / "evidence" / "gate.json").write_text(json.dumps(
+            mismatched_security_gate
+        ))
+        mismatched_options = ArtifactCatalog(run_dirs=[security_mismatch]).market()[
+            "evidence_content"
+        ]["datasets"]["options_snapshot"]
+        self.assertEqual([], mismatched_options)
+
+        unsafe_values = self.base / "unsafe-gate-values"
+        (unsafe_values / "audit").mkdir(parents=True)
+        (unsafe_values / "evidence").mkdir()
+        (unsafe_values / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (unsafe_values / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        unsafe_gate = evidence_gate_fixture(decision_cutoff=cutoff)
+        unsafe_flow = next(
+            item for item in unsafe_gate["allowed_evidence"]
+            if item["evidence_id"] == "ev-flow-1"
+        )
+        unsafe_flow["value"]["definition"] = {
+            "account_context": "NESTED_SECRET",
+        }
+        unsafe_flow["value"]["provider_direction_label"] = "/Users/private/research.txt"
+        unsafe_contract = next(
+            item for item in unsafe_gate["allowed_evidence"]
+            if item["evidence_id"] == "ev-option-1"
+        )
+        unsafe_contract["value"]["greeks"]["delta"] = {
+            "credentials": "NESTED_GREEK_SECRET",
+        }
+        unsafe_gate["bundle_hash"] = canonical_hash({
+            key: value for key, value in unsafe_gate.items() if key != "bundle_hash"
+        })
+        (unsafe_values / "evidence" / "gate.json").write_text(json.dumps(unsafe_gate))
+        unsafe_market = ArtifactCatalog(run_dirs=[unsafe_values]).market()["evidence_content"]
+        unsafe_serialized = json.dumps(unsafe_market, ensure_ascii=False)
+        self.assertNotIn("NESTED_SECRET", unsafe_serialized)
+        self.assertNotIn("NESTED_GREEK_SECRET", unsafe_serialized)
+        self.assertNotIn("/Users/private", unsafe_serialized)
+
+        mismatched = self.base / "mismatched-gate"
+        (mismatched / "audit").mkdir(parents=True)
+        (mismatched / "evidence").mkdir()
+        (mismatched / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (mismatched / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        (mismatched / "evidence" / "gate.json").write_text(json.dumps(
+            evidence_gate_fixture(decision_cutoff=cutoff, run_id="run-other")
+        ))
+        self.assertEqual(
+            "BINDING_FAILED",
+            ArtifactCatalog(run_dirs=[mismatched]).macro()["evidence_content"]["status"],
+        )
+
+        cutoff_mismatch = self.base / "cutoff-mismatched-gate"
+        (cutoff_mismatch / "audit").mkdir(parents=True)
+        (cutoff_mismatch / "evidence").mkdir()
+        (cutoff_mismatch / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (cutoff_mismatch / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        (cutoff_mismatch / "evidence" / "gate.json").write_text(json.dumps(
+            evidence_gate_fixture(decision_cutoff="2026-03-03T00:00:00Z")
+        ))
+        self.assertEqual(
+            "BINDING_FAILED",
+            ArtifactCatalog(run_dirs=[cutoff_mismatch]).market()["evidence_content"]["status"],
+        )
+
+        jointly_wrong = self.base / "jointly-wrong-manifest-binding"
+        (jointly_wrong / "audit").mkdir(parents=True)
+        (jointly_wrong / "evidence").mkdir()
+        (jointly_wrong / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": "2026-03-01T00:00:00Z",
+        }))
+        (jointly_wrong / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        (jointly_wrong / "evidence" / "gate.json").write_text(json.dumps(
+            evidence_gate_fixture(decision_cutoff=cutoff)
+        ))
+        jointly_wrong_catalog = ArtifactCatalog(run_dirs=[jointly_wrong])
+        self.assertEqual("BINDING_FAILED", jointly_wrong_catalog.macro()["coverage"]["status"])
+        self.assertNotEqual(
+            "AVAILABLE", jointly_wrong_catalog.market()["evidence_content"]["status"],
+        )
+
+        missing_manifest_binding = self.base / "missing-manifest-binding"
+        (missing_manifest_binding / "audit").mkdir(parents=True)
+        (missing_manifest_binding / "evidence").mkdir()
+        (missing_manifest_binding / "run_manifest.json").write_text("{}")
+        (missing_manifest_binding / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        (missing_manifest_binding / "evidence" / "gate.json").write_text(json.dumps(
+            evidence_gate_fixture(decision_cutoff=cutoff)
+        ))
+        missing_catalog = ArtifactCatalog(run_dirs=[missing_manifest_binding])
+        self.assertEqual("BINDING_FAILED", missing_catalog.macro()["coverage"]["status"])
+        self.assertNotEqual("AVAILABLE", missing_catalog.macro()["evidence_content"]["status"])
+
+        hash_bound = self.base / "hash-bound-manifest"
+        (hash_bound / "audit").mkdir(parents=True)
+        (hash_bound / "evidence").mkdir()
+        hash_bound_coverage = provider_coverage_fixture(decision_cutoff=cutoff)
+        hash_bound_gate = evidence_gate_fixture(decision_cutoff=cutoff)
+        (hash_bound / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1",
+            "provider_coverage_hash": hash_bound_coverage["coverage_hash"],
+            "gate_hash": hash_bound_gate["bundle_hash"],
+        }))
+        (hash_bound / "audit" / "provider-coverage.json").write_text(json.dumps(
+            hash_bound_coverage
+        ))
+        (hash_bound / "evidence" / "gate.json").write_text(json.dumps(hash_bound_gate))
+        hash_bound_catalog = ArtifactCatalog(run_dirs=[hash_bound])
+        self.assertEqual("AVAILABLE", hash_bound_catalog.macro()["coverage"]["status"])
+        self.assertEqual("AVAILABLE", hash_bound_catalog.macro()["evidence_content"]["status"])
+        hash_bound_benchmark = {
+            "schema_version": "benchmark-research-snapshot/1.0.0",
+            "status": "FROZEN", "benchmark_id": "US:ETF:SPY",
+            "benchmark_ticker": "SPY", "gaps": [], "evidence": [],
+        }
+        hash_bound_benchmark["snapshot_hash"] = canonical_hash(hash_bound_benchmark)
+        (hash_bound / "benchmark-snapshot.json").write_text(json.dumps(hash_bound_benchmark))
+        hash_bound_with_snapshot = ArtifactCatalog(run_dirs=[hash_bound])
+        self.assertEqual("AVAILABLE", hash_bound_with_snapshot.market()["coverage"]["status"])
+        self.assertEqual(
+            "AVAILABLE", hash_bound_with_snapshot.market()["evidence_content"]["status"],
+        )
+
+        bad_hash_bound = self.base / "bad-hash-bound-manifest"
+        (bad_hash_bound / "audit").mkdir(parents=True)
+        (bad_hash_bound / "evidence").mkdir()
+        (bad_hash_bound / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+            "provider_coverage_hash": "f" * 64,
+            "gate_hash": hash_bound_gate["bundle_hash"],
+        }))
+        (bad_hash_bound / "audit" / "provider-coverage.json").write_text(json.dumps(
+            hash_bound_coverage
+        ))
+        (bad_hash_bound / "evidence" / "gate.json").write_text(json.dumps(hash_bound_gate))
+        bad_hash_macro = {
+            "schema_version": "official-macro-snapshot/1.0.0", "status": "FROZEN",
+            "decision_cutoff": cutoff, "evidence": [], "excluded": [], "gaps": [],
+            "events": [], "policy_version": "v1", "policy_hash": "a" * 64,
+        }
+        bad_hash_macro["snapshot_hash"] = canonical_hash(bad_hash_macro)
+        (bad_hash_bound / "official-macro-snapshot.json").write_text(json.dumps(bad_hash_macro))
+        bad_hash_catalog = ArtifactCatalog(run_dirs=[bad_hash_bound])
+        self.assertEqual("BINDING_FAILED", bad_hash_catalog.market()["coverage"]["status"])
+        self.assertEqual("BINDING_FAILED", bad_hash_catalog.macro()["coverage"]["status"])
+        self.assertEqual("NOT_SAVED", bad_hash_catalog.coverage_overview()["status"])
+
+        invalid = self.base / "invalid-gate"
+        (invalid / "audit").mkdir(parents=True)
+        (invalid / "evidence").mkdir()
+        (invalid / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (invalid / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        broken = evidence_gate_fixture(decision_cutoff=cutoff)
+        broken["bundle_hash"] = "0" * 64
+        (invalid / "evidence" / "gate.json").write_text(json.dumps(broken))
+        invalid_catalog = ArtifactCatalog(run_dirs=[invalid])
+        self.assertFalse(invalid_catalog.by_kind("evidence_gate"))
+        self.assertEqual("NOT_SAVED", invalid_catalog.market()["evidence_content"]["status"])
+        self.assertTrue(any(
+            item["code"] == "EVIDENCE_GATE_HASH_MISMATCH"
+            for item in invalid_catalog.issues
+        ))
+
+        outside_gate = self.base / "outside-evidence-gate.json"
+        outside_gate.write_text(json.dumps(evidence_gate_fixture(decision_cutoff=cutoff)))
+        linked = self.base / "linked-gate"
+        (linked / "audit").mkdir(parents=True)
+        (linked / "evidence").mkdir()
+        (linked / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (linked / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        (linked / "evidence" / "gate.json").symlink_to(outside_gate)
+        linked_catalog = ArtifactCatalog(run_dirs=[linked])
+        self.assertFalse(linked_catalog.by_kind("evidence_gate"))
+        self.assertEqual("NOT_SAVED", linked_catalog.macro()["evidence_content"]["status"])
+
+    def test_provider_coverage_binding_and_old_run_empty_state(self):
+        cutoff = "2026-03-02T00:00:00Z"
+        run = self.base / "coverage-binding-run"
+        (run / "audit").mkdir(parents=True)
+        (run / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        coverage = provider_coverage_fixture(decision_cutoff=cutoff)
+        (run / "audit" / "provider-coverage.json").write_text(json.dumps(coverage))
+        macro = {
+            "schema_version": "official-macro-snapshot/1.0.0", "status": "FROZEN",
+            "decision_cutoff": "2026-03-03T00:00:00Z", "evidence": [], "excluded": [],
+            "gaps": [], "events": [], "policy_version": "v1", "policy_hash": "a" * 64,
+        }
+        macro["snapshot_hash"] = canonical_hash(macro)
+        (run / "official-macro-snapshot.json").write_text(json.dumps(macro))
+        catalog = ArtifactCatalog(run_dirs=[run])
+        self.assertEqual("BINDING_FAILED", catalog.macro()["coverage"]["status"])
+
+        manifest_mismatch = self.base / "coverage-manifest-cutoff-mismatch"
+        (manifest_mismatch / "audit").mkdir(parents=True)
+        (manifest_mismatch / "run_manifest.json").write_text(json.dumps({
+            "run_id": "mismatch", "decision_cutoff": "2026-03-03T00:00:00Z",
+        }))
+        (manifest_mismatch / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        mismatch_overview = ArtifactCatalog(run_dirs=[manifest_mismatch]).coverage_overview()
+        self.assertEqual("NOT_SAVED", mismatch_overview["status"])
+        self.assertEqual([], mismatch_overview["runs"])
+        self.assertTrue(any(
+            item["code"] == "PROVIDER_COVERAGE_BINDING_MISMATCH"
+            for item in mismatch_overview["issues"]
+        ))
+
+        old = self.base / "old-run-without-coverage"
+        old.mkdir()
+        (old / "run_manifest.json").write_text(json.dumps({
+            "run_id": "old", "decision_cutoff": "2026-02-01T00:00:00Z",
+        }))
+        old_macro = dict(macro, decision_cutoff="2026-02-01T00:00:00Z")
+        old_macro["snapshot_hash"] = canonical_hash({
+            key: value for key, value in old_macro.items() if key != "snapshot_hash"
+        })
+        (old / "official-macro-snapshot.json").write_text(json.dumps(old_macro))
+        old_catalog = ArtifactCatalog(run_dirs=[old])
+        self.assertEqual("NOT_SAVED", old_catalog.macro()["coverage"]["status"])
+
+        same_cutoff_runs = []
+        shared_macro = dict(macro, decision_cutoff=cutoff)
+        shared_macro["snapshot_hash"] = canonical_hash({
+            key: value for key, value in shared_macro.items() if key != "snapshot_hash"
+        })
+        for index in (1, 2):
+            sibling = self.base / f"same-cutoff-{index}"
+            (sibling / "audit").mkdir(parents=True)
+            (sibling / "run_manifest.json").write_text(json.dumps({
+                "run_id": f"same-{index}", "decision_cutoff": cutoff,
+            }))
+            (sibling / "official-macro-snapshot.json").write_text(json.dumps(shared_macro))
+            sibling_coverage = provider_coverage_fixture(decision_cutoff=cutoff)
+            (sibling / "audit" / "provider-coverage.json").write_text(json.dumps(sibling_coverage))
+            same_cutoff_runs.append(sibling)
+        ambiguous = ArtifactCatalog(run_dirs=same_cutoff_runs)
+        self.assertEqual("BINDING_FAILED", ambiguous.macro()["coverage"]["status"])
+
+    def test_identical_coverage_content_remains_bound_to_each_run_and_its_reports(self):
+        cutoff = "2026-03-02T00:00:00Z"
+        runs = []
+        for suffix in ("a", "b"):
+            run = self.base / f"identical-coverage-{suffix}"
+            (run / "audit").mkdir(parents=True)
+            report_dir = run / "research" / "reports" / "options"
+            report_dir.mkdir(parents=True)
+            run_id = f"run-{suffix}"
+            (run / "run_manifest.json").write_text(json.dumps({
+                "run_id": run_id, "decision_cutoff": cutoff,
+            }))
+            (run / "audit" / "provider-coverage.json").write_text(json.dumps(
+                provider_coverage_fixture(decision_cutoff=cutoff)
+            ))
+            report = dimension_report(
+                decision_cutoff=cutoff, capability="OPTIONS_FLOW", run_id=run_id,
+                schema_version="research-dimension-report/2.0.0",
+                report_id=f"dimension-report:options-{suffix}", evidence_id="ev-option-1",
+            )
+            (report_dir / "dimension-report.json").write_text(json.dumps(report))
+            runs.append(run)
+
+        catalog = ArtifactCatalog(run_dirs=runs)
+        self.assertEqual(1, len(catalog.by_kind("provider_coverage")))
+        overview = catalog.coverage_overview()
+        self.assertEqual({"run-a", "run-b"}, {item["run_id"] for item in overview["runs"]})
+        for suffix in ("a", "b"):
+            model = catalog.company_coverage("US:MRVL", cutoff, f"run-{suffix}")
+            self.assertEqual("AVAILABLE", model["status"])
+            self.assertEqual(f"run-{suffix}", model["run_id"])
+            self.assertEqual(
+                [f"dimension-report:options-{suffix}"],
+                [
+                    item["report_id"] for item in model["related_reports"]
+                    if item["capability"] == "OPTIONS_FLOW"
+                ],
+            )
+
+    def test_three_domain_coverage_and_options_rendering(self):
+        cutoff = "2026-03-02T00:00:00Z"
+        run = self.base / "three-domain-run"
+        report_root = run / "research" / "reports"
+        (run / "audit").mkdir(parents=True)
+        (run / "evidence").mkdir(parents=True)
+        (run / "research" / "precomputed" / "market").mkdir(parents=True)
+        (run / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        coverage = provider_coverage_fixture(decision_cutoff=cutoff)
+        (run / "audit" / "provider-coverage.json").write_text(json.dumps(coverage))
+        (run / "evidence" / "gate.json").write_text(json.dumps(
+            evidence_gate_fixture(decision_cutoff=cutoff)
+        ))
+        macro = {
+            "schema_version": "official-macro-snapshot/1.0.0", "status": "FROZEN",
+            "decision_cutoff": cutoff, "evidence": [], "excluded": [], "gaps": [],
+            "events": [], "policy_version": "v1", "policy_hash": "a" * 64,
+        }
+        macro["snapshot_hash"] = canonical_hash(macro)
+        (run / "official-macro-snapshot.json").write_text(json.dumps(macro))
+        benchmark = {
+            "schema_version": "benchmark-research-snapshot/1.0.0", "status": "FROZEN",
+            "benchmark_id": "US:ETF:SPY", "benchmark_ticker": "SPY", "gaps": [],
+            "evidence": [],
+        }
+        benchmark["snapshot_hash"] = canonical_hash(benchmark)
+        (run / "benchmark-snapshot.json").write_text(json.dumps(benchmark))
+        for name, capability, evidence_id in (
+            ("macro", "MACRO_CONTEXT", "ev-dot-1"),
+            ("market", "MARKET_STATE", "ev-fed-1"),
+            ("options", "OPTIONS_FLOW", "ev-option-1"),
+        ):
+            directory = report_root / name
+            directory.mkdir(parents=True)
+            report = dimension_report(
+                decision_cutoff=cutoff, capability=capability, run_id="run-1",
+                schema_version="research-dimension-report/2.0.0",
+                report_id=f"dimension-report:{name}", evidence_id=evidence_id,
+            )
+            (directory / "dimension-report.json").write_text(json.dumps(report))
+        wrong_options = report_root / "wrong-options"
+        wrong_options.mkdir(parents=True)
+        (wrong_options / "dimension-report.json").write_text(json.dumps(dimension_report(
+            decision_cutoff=cutoff, capability="OPTIONS_FLOW", run_id="run-1",
+            schema_version="research-dimension-report/2.0.0",
+            report_id="dimension-report:wrong-options", evidence_id="ev-option-1",
+            security_id="US:OTHER",
+        )))
+
+        catalog = ArtifactCatalog(run_dirs=[run])
+        application = ResearchBrowser(self.reader(), catalog)
+        overview = application.dispatch("GET", "/", {"Host": "localhost"}).body.decode()
+        macro_page = application.dispatch("GET", "/macro", {"Host": "localhost"}).body.decode()
+        market_page = application.dispatch("GET", "/market", {"Host": "localhost"}).body.decode()
+        company_page = application.dispatch("GET", "/companies/US%3AMRVL", {"Host": "localhost"}).body.decode()
+
+        self.assertIn("三域数据覆盖", overview)
+        self.assertIn("重新读取本地资料", overview)
+        self.assertIn("dot_plot", macro_page)
+        self.assertIn("economic_calendar", macro_page)
+        self.assertIn("macro_history", macro_page)
+        self.assertIn("共享美国宏观环境", macro_page)
+        self.assertIn("CPI 同比", macro_page)
+        self.assertIn("3.4%", macro_page)
+        self.assertIn("美国 CPI 同比", macro_page)
+        self.assertIn("4.125%", macro_page)
+        self.assertIn("共享宏观环境", macro_page)
+        self.assertIn("fedwatch_expectations", market_page)
+        self.assertIn("option_market_statistics", market_page)
+        self.assertIn("options_snapshot", market_page)
+        self.assertIn("options_underlying_context", market_page)
+        self.assertIn("vendor_money_flow", market_page)
+        self.assertIn("共享市场环境", market_page)
+        self.assertIn("53.1%", market_page)
+        self.assertIn("MRVL260925C00100000", market_page)
+        self.assertIn("67.922%", market_page)
+        self.assertIn("供应商资金流分类", market_page)
+        self.assertIn("查看 Capture / Gate / Delivered 与来源审计", market_page)
+        self.assertNotIn("SHOULD_NOT_RENDER", market_page)
+        self.assertIn("dimension-report:options", market_page)
+        self.assertNotIn("dimension-report:wrong-options", market_page)
+        self.assertIn("实际研究使用未评估", market_page)
+        self.assertIn("Evidence 已被报告引用", market_page)
+        self.assertIn("financial_history", company_page)
+        self.assertIn("NO_GATE_EVIDENCE", company_page)
+        self.assertIn("SOURCE_LIMITED", company_page)
+        self.assertIn("NOT_ATTEMPTED", company_page)
+        self.assertIn("institutional_ownership", company_page)
+        self.assertIn("analyst_expectations", company_page)
+        combined = overview + macro_page + market_page + company_page
+        self.assertNotIn("must-not-render", combined)
+        self.assertNotIn("/private/must-not-render", combined)
+        self.assertNotIn("ev-option-1", combined)
+
+    def test_macro_full_size_gate_projection_renders_values_not_coverage_placeholders(self):
+        cutoff = "2026-03-02T00:00:00Z"
+        run = self.base / "full-size-macro-gate"
+        (run / "audit").mkdir(parents=True)
+        (run / "evidence").mkdir()
+        (run / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+
+        base_gate = evidence_gate_fixture(decision_cutoff=cutoff)
+        templates = {
+            item["evidence_id"]: item
+            for item in base_gate["allowed_evidence"]
+        }
+        dot_facts = []
+        for index in range(12):
+            item = deepcopy(templates["ev-dot-1"])
+            item["evidence_id"] = f"ev-dot-{index}"
+            item["semantic_field"] = f"moomoo_dot_plot:{index}"
+            item["value"] = {
+                "year": 2026 + index // 4, "rate": 3.5 + index * 0.125,
+                "vote_count": index + 1, "median_rate": 4.125,
+                "is_median": index in {3, 7, 11}, "current_rate": 3.88,
+            }
+            dot_facts.append(item)
+        calendar_facts = []
+        for index in range(100):
+            item = deepcopy(templates["ev-calendar-1"])
+            item["evidence_id"] = f"ev-calendar-{index}"
+            item["semantic_field"] = f"moomoo_economic_calendar:event-{index}"
+            item["value"] = {
+                "title": f"美国宏观事件 {index + 1}", "country": "US",
+                "timestamp": 1772409600 + index * 3600, "star": index % 3 + 1,
+                "actual": str(index), "consensus": str(index - 1), "previous": str(index - 2),
+            }
+            calendar_facts.append(item)
+        history_definitions = (
+            ("moomoo_us_cpi_yoy", "CPI 同比"),
+            ("moomoo_us_core_cpi_yoy", "核心 CPI 同比"),
+            ("moomoo_us_pce_yoy", "PCE 同比"),
+            ("moomoo_us_ppi_yoy", "PPI 同比"),
+            ("moomoo_us_unemployment_rate_vendor", "失业率"),
+            ("moomoo_us_nonfarm_payrolls_vendor", "非农就业人数"),
+            ("moomoo_us_retail_sales_mom", "零售销售环比"),
+            ("moomoo_us_federal_funds_rate_vendor", "联邦基金利率"),
+        )
+        history_facts = []
+        for series_index, (prefix, label) in enumerate(history_definitions):
+            for period in range(24):
+                item = deepcopy(templates["ev-macro-1"])
+                item["evidence_id"] = f"ev-macro-{series_index}-{period}"
+                item["semantic_field"] = f"{prefix}:{period}"
+                item["as_of"] = f"2025-{period % 12 + 1:02d}-{series_index + 1:02d}T00:00:00Z"
+                item["value"] = {
+                    "label": label, "actual": 0.01 + period / 1000,
+                    "consensus": 0.01, "previous": 0.009,
+                    "unit_type": "PERCENT", "indicator_id": f"series-{series_index}",
+                }
+                history_facts.append(item)
+        macro_facts = dot_facts + calendar_facts + history_facts
+        retained = [
+            item for item in base_gate["allowed_evidence"]
+            if item["evidence_id"] not in {"ev-dot-1", "ev-calendar-1", "ev-macro-1"}
+        ]
+        base_gate["allowed_evidence"] = retained + macro_facts
+        base_gate["allowed_evidence_ids"] = [
+            item["evidence_id"] for item in base_gate["allowed_evidence"]
+        ]
+        base_gate["bundle_hash"] = canonical_hash({
+            key: value for key, value in base_gate.items() if key != "bundle_hash"
+        })
+        (run / "evidence" / "gate.json").write_text(json.dumps(base_gate))
+
+        coverage = provider_coverage_fixture(decision_cutoff=cutoff)
+        evidence_ids = {
+            "dot_plot": [item["evidence_id"] for item in dot_facts],
+            "economic_calendar": [item["evidence_id"] for item in calendar_facts],
+            "macro_history": [item["evidence_id"] for item in history_facts],
+        }
+        for provider in coverage["providers"]:
+            for observation in provider["dataset_observations"]:
+                if observation["dataset"] in evidence_ids:
+                    observation["evidence_ids"] = evidence_ids[observation["dataset"]]
+        coverage["coverage_hash"] = canonical_hash({
+            key: value for key, value in coverage.items() if key != "coverage_hash"
+        })
+        (run / "audit" / "provider-coverage.json").write_text(json.dumps(coverage))
+
+        catalog = ArtifactCatalog(run_dirs=[run])
+        content = catalog.macro()["evidence_content"]
+        self.assertEqual(12, len(content["datasets"]["dot_plot"]))
+        self.assertEqual(100, len(content["datasets"]["economic_calendar"]))
+        self.assertEqual(192, len(content["datasets"]["macro_history"]))
+        page = ResearchBrowser(self.reader(), catalog).dispatch(
+            "GET", "/macro", {"Host": "localhost"},
+        ).body.decode()
+        self.assertIn("查看 8 组历史趋势", page)
+        self.assertIn("经济日历 · 100 条冻结事件", page)
+        self.assertIn("美国宏观事件 100", page)
+        self.assertIn("4.125%", page)
+
+    def test_options_reports_reject_cross_security_evidence_and_show_scope(self):
+        cutoff = "2026-03-02T00:00:00Z"
+        run = self.base / "options-security-binding"
+        (run / "audit").mkdir(parents=True)
+        (run / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        coverage = provider_coverage_fixture(decision_cutoff=cutoff)
+        coverage["providers"][0]["dataset_observations"].append({
+            "security_id": "US:AAPL", "dataset": "options_snapshot", "status": "PARTIAL",
+            "failure_code": None, "checked_at": cutoff, "as_of": cutoff,
+            "evidence_ids": ["ev-option-aapl"], "limitations": [],
+        })
+        coverage["coverage_hash"] = canonical_hash({
+            key: value for key, value in coverage.items() if key != "coverage_hash"
+        })
+        (run / "audit" / "provider-coverage.json").write_text(json.dumps(coverage))
+        for name, evidence_id in (("valid", "ev-option-1"), ("cross-security", "ev-option-aapl")):
+            report_dir = run / "research" / "reports" / name
+            report_dir.mkdir(parents=True)
+            report = dimension_report(
+                decision_cutoff=cutoff, capability="OPTIONS_FLOW", run_id="run-1",
+                schema_version="research-dimension-report/2.0.0",
+                report_id=f"dimension-report:{name}", evidence_id=evidence_id,
+                security_id="US:MRVL",
+            )
+            (report_dir / "dimension-report.json").write_text(json.dumps(report))
+        mixed_dir = run / "research" / "reports" / "mixed-security"
+        mixed_dir.mkdir(parents=True)
+        mixed = dimension_report(
+            decision_cutoff=cutoff, capability="OPTIONS_FLOW", run_id="run-1",
+            schema_version="research-dimension-report/2.0.0",
+            report_id="dimension-report:mixed-security", evidence_id="ev-option-1",
+            security_id="US:MRVL",
+        )
+        mixed["claims"][0]["evidence_refs"].append("ev-option-aapl")
+        mixed = finalize_research_dimension_report(mixed)
+        (mixed_dir / "dimension-report.json").write_text(json.dumps(mixed))
+
+        catalog = ArtifactCatalog(run_dirs=[run])
+        option_reports = catalog.market()["option_reports"]
+        self.assertEqual(
+            ["dimension-report:valid"],
+            [item["value"]["report_id"] for item in option_reports],
+        )
+        page = ResearchBrowser(self.reader(), catalog).dispatch(
+            "GET", "/market", {"Host": "localhost"},
+        ).body.decode()
+        self.assertIn("dimension-report:valid", page)
+        self.assertNotIn("dimension-report:cross-security", page)
+        self.assertNotIn("dimension-report:mixed-security", page)
+        self.assertIn("适用证券", page)
+        self.assertIn("US:MRVL", page)
+        self.assertIn("US:AAPL", page)
+
     def test_macro_market_and_shared_report_render_from_saved_artifacts(self):
         run = self.base / "frozen-run"
         report_dir = run / "research" / "reports" / "macro"
@@ -978,6 +1788,14 @@ class LocalResearchBrowserTests(unittest.TestCase):
 
     def test_http_server_security_headers_and_rescan(self):
         application = ResearchBrowser(self.reader(), ArtifactCatalog())
+        self.assertEqual(303, application.dispatch(
+            "POST", "/rescan",
+            {"Host": "localhost", "Origin": "null", "Sec-Fetch-Site": "same-origin"},
+        ).status)
+        self.assertEqual(403, application.dispatch(
+            "POST", "/rescan",
+            {"Host": "localhost", "Origin": "null", "Sec-Fetch-Site": "cross-site"},
+        ).status)
         server = build_server(application, port=0)
         thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05})
         thread.start()
@@ -995,10 +1813,58 @@ class LocalResearchBrowserTests(unittest.TestCase):
             self.assertEqual(403, response.status)
             response.read()
             connection.close()
+            with mock.patch.object(
+                application.artifacts, "rescan", wraps=application.artifacts.rescan,
+            ) as rescan:
+                connection = http.client.HTTPConnection(
+                    "127.0.0.1", server.server_address[1], timeout=3,
+                )
+                connection.request(
+                    "POST", "/rescan",
+                    headers={"Origin": f"http://127.0.0.1:{server.server_address[1]}"},
+                )
+                response = connection.getresponse()
+                self.assertEqual(303, response.status)
+                self.assertEqual("/", response.headers["Location"])
+                response.read()
+                connection.close()
+                rescan.assert_called_once_with()
         finally:
             server.shutdown()
             thread.join(timeout=3)
             server.server_close()
+
+    def test_browsing_and_local_rescan_do_not_modify_memory_or_run(self):
+        def tree_hash(root: Path) -> str:
+            digest = hashlib.sha256()
+            # SQLite 的只读 WAL 打开可能创建空 -wal/-shm 协调文件；持久化数据库与对象必须不变。
+            for path in sorted(
+                item for item in root.rglob("*")
+                if item.is_file()
+                and not item.name.endswith((".sqlite3-shm", ".sqlite3-wal"))
+            ):
+                digest.update(str(path.relative_to(root)).encode())
+                digest.update(path.read_bytes())
+            return digest.hexdigest()
+
+        run = self.base / "read-only-coverage-run"
+        (run / "audit").mkdir(parents=True)
+        cutoff = "2026-03-02T00:00:00Z"
+        (run / "run_manifest.json").write_text(json.dumps({
+            "run_id": "run-1", "decision_cutoff": cutoff,
+        }))
+        (run / "audit" / "provider-coverage.json").write_text(json.dumps(
+            provider_coverage_fixture(decision_cutoff=cutoff)
+        ))
+        memory_before, run_before = tree_hash(self.root), tree_hash(run)
+        application = ResearchBrowser(self.reader(), ArtifactCatalog(run_dirs=[run]))
+        for path in ("/", "/macro", "/market", "/companies", "/companies/US%3AMRVL"):
+            self.assertEqual(200, application.dispatch("GET", path, {"Host": "localhost"}).status)
+        self.assertEqual(303, application.dispatch(
+            "POST", "/rescan", {"Host": "localhost", "Origin": "http://localhost:8765"},
+        ).status)
+        self.assertEqual(memory_before, tree_hash(self.root))
+        self.assertEqual(run_before, tree_hash(run))
 
     def test_concurrent_writer_commits_complete_transaction(self):
         reader = self.reader()

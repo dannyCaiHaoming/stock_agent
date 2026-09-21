@@ -30,15 +30,33 @@ python3 scripts/research-browser.py \
 
 - `--run-dir` 精确读取指定运行目录或 source-package 目录。
 - `--run-root` 只检查根目录的直属子目录，且只接纳含已知 manifest 的子目录；不会递归扫描其他磁盘位置。
-- 页面内“重新扫描已配置目录”只重读这些本地目录，不访问 Provider 或刷新数据。
+- 页面内“重新读取本地资料”只重读这些本地目录，不访问 Provider、OpenD、模型或研究调度，也不写入任何产物。
 
 Memory 目录必须已经存在且包含受支持的数据库。缺库不会创建，版本不兼容不会迁移。Macro/Market 目录与 Memory 相互独立：其中一类不可用时，另一类仍可浏览。浏览器只会选择引用完整的最新 View 作为默认版本；历史不完整 View 仍可显式打开，但会显示引用总数、成功解析数、缺失数和校验失败数，且不会用数据库中的其他最新事实补齐。
 
 ## 页面与状态
 
-- `Macro`：官方宏观快照中的 CPI 指数、失业率和 10Y 收益率，以及新版本 `MACRO_CONTEXT` 报告。历史 `MACRO_MARKET` 只显示为 `LEGACY_COMBINED_COVERAGE`；单次观测不画伪趋势，没有 historical vintage 时会明确提示。
-- `Market`：基准价格事实、已有 20/60/252 日计算和新版本 `MARKET_STATE` 报告。历史 `MACRO_MARKET` 可兼容阅读但不算作独立 Market 通过；页面不补算缺失统计。
-- `Company`：所有已保存公司，不推断“当前持仓”。默认先展示营收、净利润、稀释 EPS、经营现金流，再按相同指标和可比期间绘制趋势；资本开支、现金和债务保留在可展开的指标表。价格与成交量分图，原始长表和采集诊断默认收起或进入独立分页页。披露事件与模型研究严格分层：前者只呈现已保存事实，后者只呈现通过契约和版本绑定校验的报告。
+- `Macro`：主区先展示同一运行 Gate 中的宏观实际值、预期值、前值、24 期供应商历史、Dot Plot 分布和有界经济日历，并明确标注共享美国宏观环境、来源和观察时点；随后才展示官方宏观快照与 `MACRO_CONTEXT` 报告。官方事实、供应商实际值、共识、前值和官方预测不会互相替代。历史 `MACRO_MARKET` 只显示为 `LEGACY_COMBINED_COVERAGE`；供应商历史明确标为 current vendor snapshot，不冒充官方 historical vintage。
+- `Market`：主区先展示共享 FedWatch 概率、全市场 Put/Call volume/OI 趋势与市场宽度缺口，再展示证券级期权标的 IV/HV、合约报价及供应商资金流分类；随后才展示基准价格、已有 20/60/252 日计算及研究报告。`OPTIONS_FLOW` 仍属于 Market 域下的证券专项，不增加第四个顶级栏目；证券级期权快照、标的上下文和供应商资金流不会被解释为共享大盘状态、账户资金流、机构行为或确定买卖方向。
+- `Company`：所有已保存公司，不推断“当前持仓”。默认先展示营收、净利润、稀释 EPS、经营现金流，再按相同指标和可比期间绘制趋势；资本开支、现金和债务保留在可展开的指标表。价格与成交量分图，原始长表和采集诊断默认收起或进入独立分页页。披露事件与模型研究严格分层：前者只呈现已保存事实，后者只呈现通过契约和版本绑定校验的报告。所选 View 若能与单证券 coverage 精确闭合，数据来源区还会显示 financial history、analyst expectations、management/governance、ownership 等数据集的交付与缺口。
+
+### 三域数据覆盖与状态
+
+浏览器可从每个显式准入运行的固定位置读取 `audit/provider-coverage.json`（`research-provider-coverage/1.0.0`）。它只消费通过版本、canonical hash、必要结构和 run/cutoff 绑定校验的审计摘要，并按目标 capability 投影到 Macro、Market、Company；不会遍历任意 JSON 或把完整原始对象交给页面。
+
+Macro/Market 的实际值只从同一运行固定位置 `evidence/gate.json`（`common-stock-research-evidence-gate/1.0.0`）读取。Gate 必须通过 canonical `bundle_hash`、Evidence allowlist、必要来源/时间字段及 manifest 绑定校验：manifest 有 `decision_cutoff` 时须与 Gate/coverage 精确一致；生产 manifest 没有该字段时，只接受 manifest 同时以 `gate_hash` 和 `provider_coverage_hash` 精确引用这两个产物，且 `run_id` 与 Gate/coverage cutoff 仍须相互闭合。页面随后再取 Gate allowlist、coverage 对应 dataset 声明的 Evidence ID 与已知语义前缀三者交集，并只投影每类数据的字段允许列表。Gate 中未被 coverage 声明的事实、未知语义、嵌套对象、私人字段、本机绝对路径和原始完整对象均不会进入页面 model。Gate 缺失或错绑定时，页面保留 coverage 审计并明确显示冻结内容不可读，不用计数反造数值。
+
+共享环境与证券专项的范围在展示层显式分开：Dot Plot、经济日历、宏观历史、FedWatch 与全市场期权统计标为共享环境，不因运行以 MRVL 为研究证券就标成 MRVL 数据；期权合约、标的波动率和供应商资金流保留实际 security。技术性的 Capture / Gate / Delivered 长表位于页面底部并默认折叠，不能代替主区实际内容。
+
+页面分别显示以下状态，不能互换：
+
+- `Capture`：Provider 响应中形成的 Evidence 数量。
+- `Gate eligible`：通过当前证据 Gate、可供路由的数量。
+- `Delivered`：已交付给目标 capability 输入的数量。
+- `Actual research use`：实际研究是否引用；`NOT_EVALUATED_AT_PREPARATION` 表示准备阶段没有评估实际采用情况，即使 Delivered 大于零也不能显示为“Agent 已采用”。
+- 报告状态：与同一 security、run、cutoff、capability 和 Evidence 绑定闭合的研究产物状态；它不会反向改写 coverage。
+
+`NO_GATE_EVIDENCE`、`SOURCE_LIMITED`、`NOT_ATTEMPTED` 和其他失败码分别保留。旧运行没有 coverage 时显示“该运行未保存数据覆盖审计”，不解释为零覆盖；同一公司运行包含多个证券而审计只提供聚合计数时，Company 页面拒绝借用为单一证券覆盖。首页按冻结运行逐行展示三域摘要，不跨运行累加。
 
 公司只有事实版本但尚无 View 时，页面明确标为“未冻结事实目录”：可以分页查原始版本，但不显示 View 完整率，也不把全部修订聚合为当前指标、趋势或行情图。保存合格 View 后才进入默认阅读路径。
 
@@ -106,6 +124,8 @@ python3 scripts/research-memory-repair.py \
 | `research-dimension-report/1.1.0` | 已有研究报告 |
 | `equity-research-report/1.0.0` | 已保存 Company Agent 研究报告 |
 | `equity-research-attachments/1.0.0` | Company 估值、基本面与图表附件 |
+| `research-provider-coverage/1.0.0` | 三域 Provider、Dataset、Capability 路由及 Capture / Gate / Delivered / Actual research use 审计 |
+| `common-stock-research-evidence-gate/1.0.0` | 与 coverage、run、cutoff 闭合的 Macro / Market / Options 实际冻结值；仅按语义和字段允许列表投影 |
 
 相同稳定身份和内容 hash 只显示一次；同身份不同内容会隔离为冲突。未知 schema 只显示版本/身份和“不支持”提示，不猜测字段，也不影响已有页面或任何 Agent 的开发、运行、验收与调度。增加同类证券或同类记录无需改网页；增加全新产物类型时，只需在 `product/web/read_only.py` 的小型 registry 和对应渲染映射中增加适配。
 
@@ -132,3 +152,5 @@ Macro/Market 内部使用 resolved run root 的不可逆标识区分来源，不
 - `ARTIFACT_RUN_DIR_UNAVAILABLE`：显式运行目录消失或不含已知入口。
 - `ARTIFACT_IDENTITY_CONTENT_CONFLICT`：相同稳定身份对应不同内容，已隔离。
 - `ARTIFACT_SCHEMA_UNSUPPORTED`：发现已知候选位置中的新格式，当前只提示、不解释其正文。
+- `EVIDENCE_GATE_HASH_MISMATCH`：Gate canonical hash 不一致，实际值已隔离。
+- `EVIDENCE_GATE_BINDING_MISMATCH`：Gate 与 coverage 的运行或资料截止不闭合，实际值未采用。

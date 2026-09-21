@@ -73,7 +73,14 @@ class ResearchBrowser:
             origin = headers.get("Origin")
             if origin:
                 origin_parts = urlsplit(origin)
-                if origin_parts.scheme not in {"http", "https"} or _host_name(origin_parts.netloc) not in ALLOWED_HOSTS:
+                local_origin = (
+                    origin_parts.scheme in {"http", "https"}
+                    and _host_name(origin_parts.netloc) in ALLOWED_HOSTS
+                )
+                opaque_same_origin = (
+                    origin == "null" and headers.get("Sec-Fetch-Site") == "same-origin"
+                )
+                if not (local_origin or opaque_same_origin):
                     return self._error("BROWSER_ORIGIN_REJECTED", HTTPStatus.FORBIDDEN)
             self.artifacts.rescan()
             return WebResponse(HTTPStatus.SEE_OTHER, b"", headers={"Location": "/"})
@@ -87,7 +94,12 @@ class ResearchBrowser:
                     "artifacts": self.artifacts.diagnostic(),
                 })
             if path == "/":
-                return self._html(rendering.overview(self.memory.diagnostic() if self.memory else None, self.artifacts.diagnostic(), memory_error=self.memory_error))
+                return self._html(rendering.overview(
+                    self.memory.diagnostic() if self.memory else None,
+                    self.artifacts.diagnostic(),
+                    coverage=self.artifacts.coverage_overview(),
+                    memory_error=self.memory_error,
+                ))
             if path == "/macro":
                 return self._html(rendering.macro_page(self.artifacts.macro(_first(query, "version") or None)))
             if path == "/market":
@@ -127,6 +139,11 @@ class ResearchBrowser:
                             for item in model.get("facts", [])
                             if isinstance(item, Mapping) and item.get("evidence_id")
                         }),
+                    )
+                    model["data_coverage"] = self.artifacts.company_coverage(
+                        security_id,
+                        selected_view.get("decision_cutoff"),
+                        selected_view.get("run_id"),
                     )
                     return self._html(rendering.company_page(model))
                 if parts[3] == "facts":

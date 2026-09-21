@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from html import escape
 import json
@@ -55,7 +56,7 @@ def _layout(title: str, active: str, body: str, *, subtitle: str = "只读 · �
 <title>{h(title)} · Research Browser</title><style>{CSS}</style></head>
 <body><header><div><a class="brand" href="/">Research Browser</a><span class="sub">{h(subtitle)}</span></div><nav>{nav}</nav></header>
 <main><div class="page-title"><div><p class="eyebrow">LOCAL RESEARCH MEMORY</p><h1>{h(title)}</h1></div>
-<form method="post" action="/rescan"><button type="submit" class="secondary">重新扫描已配置目录</button></form></div>{body}</main>
+<form method="post" action="/rescan"><button type="submit" class="secondary">重新读取本地资料</button></form></div>{body}</main>
 <footer>页面读取已保存资料；不会联网刷新、调用模型或修改 Research Memory。</footer></body></html>"""
 
 
@@ -69,7 +70,10 @@ def error_page(code: str, status: int = 500) -> str:
     return _layout(labels.get(code, "资料暂时无法读取"), "", _empty(labels.get(code, "资料暂时无法读取"), "其他独立栏目仍可继续使用。", code=code), subtitle=f"HTTP {status}")
 
 
-def overview(memory: Mapping[str, Any] | None, artifacts: Mapping[str, Any], *, memory_error: str | None = None) -> str:
+def overview(
+    memory: Mapping[str, Any] | None, artifacts: Mapping[str, Any], *,
+    coverage: Mapping[str, Any] | None = None, memory_error: str | None = None,
+) -> str:
     count = memory.get("company_count", 0) if memory else 0
     cards = f"""
     <section class="grid three">
@@ -82,7 +86,103 @@ def overview(memory: Mapping[str, Any] | None, artifacts: Mapping[str, Any], *, 
         if memory_error else
         f'<section class="card"><h2>读取状态</h2><div class="metric-row"><div><span>Memory schema</span><strong>{h(memory.get("memory_schema_version"))}</strong></div><div><span>冻结产物</span><strong>{h(artifacts.get("artifact_count", 0))}</strong></div><div><span>目录提示</span><strong>{h(artifacts.get("issue_count", 0))}</strong></div></div></section>'
     )
-    return _layout("研究资料总览", "/", cards + status)
+    coverage_rows = []
+    for run in (coverage or {}).get("runs", []):
+        for domain in run.get("domains", []):
+            coverage_rows.append((
+                run.get("decision_cutoff"), run.get("run_id") or "manifest 未声明",
+                domain.get("domain"), domain.get("dataset_count"),
+                domain.get("delivered_dataset_count"), domain.get("gap_count"),
+            ))
+    coverage_block = '<section><h2>三域数据覆盖</h2><p class="note">每行属于一个冻结运行，不跨运行累加；交付不等于 Agent 已采用。</p>'
+    coverage_block += (
+        _table(
+            ["资料截止", "Run", "研究域", "数据集", "已交付", "明确缺口"],
+            coverage_rows, label="三域数据覆盖摘要",
+        )
+        if coverage_rows else
+        _empty("尚无数据覆盖审计", "现有快照和报告仍可阅读；这不表示数据覆盖为零。")
+    )
+    coverage_block += _artifact_issues((coverage or {}).get("issues", [])) + "</section>"
+    return _layout("研究资料总览", "/", cards + status + coverage_block)
+
+
+def _coverage_block(
+    model: Mapping[str, Any] | None, *, title: str, note: str,
+    audit_collapsed: bool = False,
+) -> str:
+    model = model or {}
+    status = str(model.get("status") or "NOT_SAVED")
+    if status == "NOT_SAVED":
+        return f'<section><h2>{h(title)}</h2>{_empty("该运行未保存数据覆盖审计", "已有快照、计算和报告仍可独立阅读；不能据此推断为零覆盖或采集失败。")}</section>'
+    if status == "BINDING_FAILED":
+        code = str(model.get("code") or "PROVIDER_COVERAGE_BINDING_MISMATCH")
+        detail = (
+            "尚无所选冻结 View，不能把运行级 coverage 归属到当前公司。"
+            if code == "COMPANY_PROVIDER_COVERAGE_VIEW_REQUIRED" else
+            "发现 coverage，但 security、run 或资料截止与当前所选版本不一致。"
+        )
+        return f'<section><h2>{h(title)}</h2>{_empty("数据覆盖未采用", detail, code=code)}</section>'
+    if status == "AMBIGUOUS_SECURITY_SCOPE":
+        return f'<section><h2>{h(title)}</h2>{_empty("公司覆盖范围无法安全拆分", "该运行包含多个证券，而审计计数是运行级汇总，因此未借用为当前公司的覆盖。", code=str(model.get("code") or "PROVIDER_COVERAGE_SECURITY_SCOPE_AMBIGUOUS"))}</section>'
+    items = model.get("items") if isinstance(model.get("items"), list) else []
+    delivered = sum(1 for item in items if item.get("delivery_status") == "DELIVERED")
+    gaps = len(items) - delivered
+    summary = f'''<div class="metric-row"><div><span>数据集</span><strong>{h(len(items))}</strong></div><div><span>已交付</span><strong>{h(delivered)}</strong></div><div><span>明确缺口</span><strong>{h(gaps)}</strong></div></div>'''
+    rows = []
+    detail_rows = []
+    for item in items:
+        use_status = str(item.get("actual_research_use_status") or "")
+        if use_status == "NOT_EVALUATED_AT_PREPARATION":
+            use_status += " / 实际研究使用未评估"
+        proof = item.get("research_use_proof") if isinstance(item.get("research_use_proof"), Mapping) else None
+        if proof:
+            use_status += f'；Evidence 已被报告引用 {proof.get("referenced_evidence_count", 0)} 条'
+        rows.append((
+            item.get("dataset"), item.get("target_capability"),
+            item.get("scope_label") or ", ".join(item.get("security_ids", [])) or "共享",
+            ", ".join(item.get("source_layers", [])), ", ".join(item.get("providers", [])),
+            item.get("capture_evidence_count"), item.get("gate_eligible_evidence_count"),
+            item.get("delivered_evidence_count"), item.get("delivery_status"),
+            use_status, ", ".join(item.get("report_statuses", [])) or "尚无绑定报告",
+        ))
+        detail_rows.append((
+            item.get("dataset"), ", ".join(item.get("capture_statuses", [])),
+            item.get("as_of"), item.get("checked_at"),
+            ", ".join(item.get("failure_codes", [])),
+            "；".join(item.get("limitations", [])), item.get("exclusion_count"),
+        ))
+    table = _table(
+        ["Dataset", "目标能力", "数据范围", "来源层", "Provider", "Capture", "Gate", "Delivered", "交付状态", "实际研究使用", "报告状态"],
+        rows, label=title,
+    )
+    details = _details(
+        "Provider、时间、限制与排除",
+        _table(
+            ["Dataset", "采集状态", "As of", "Checked at", "失败码", "限制", "排除数"],
+            detail_rows, label=f"{title}细节",
+        ),
+    )
+    related_reports = model.get("related_reports") if isinstance(model.get("related_reports"), list) else []
+    related = ""
+    if related_reports:
+        related = _details(
+            "关联研究产物（保持原身份）",
+            _table(
+                ["报告", "能力", "适用证券", "状态", "稳定 ID"],
+                ((
+                    item.get("report_id"), item.get("capability"),
+                    ", ".join(item.get("security_ids", [])) or "共享",
+                    item.get("status"), item.get("identity"),
+                ) for item in related_reports),
+                label=f"{title}关联研究产物",
+            ),
+        )
+    meta = f'<p class="note">run {h(model.get("run_id") or "manifest 未声明")} · cutoff {h(model.get("decision_cutoff"))} · routing {h(model.get("routing_status"))}</p>'
+    audit = table + details + related + meta
+    if audit_collapsed:
+        audit = _details("查看 Capture / Gate / Delivered 与来源审计", audit)
+    return f'<section class="coverage"><h2>{h(title)}</h2><p class="note">{h(note)}</p>{summary}{audit}</section>'
 
 
 def companies_page(result: Mapping[str, Any], *, query: str, status: str) -> str:
@@ -163,7 +263,7 @@ def company_page(model: Mapping[str, Any]) -> str:
     {financial}
     {market}
     <section id="research"><h2>研究记录</h2>{_research_records(summary, model['views'], model['reports'])}{_company_dimension_research(model.get('dimension_research', {}))}</section>
-    <section id="sources"><h2>数据来源</h2>{_source_state(model)}{_fact_issues(model.get('fact_issues', []))}</section>"""
+    <div id="sources">{_coverage_block(model.get('data_coverage'), title='公司数据集交付', note='这里只展示与所选 View 精确绑定的数据准备状态；已交付不等于 Company Agent 已采用。')}<section><h2>数据来源</h2>{_source_state(model)}{_fact_issues(model.get('fact_issues', []))}</section></div>"""
     return _layout(heading, "/companies", body)
 
 
@@ -650,11 +750,275 @@ def report_page(left: Mapping[str, Any], right: Mapping[str, Any] | None = None)
     return _layout("已保存研究报告" if right is None else "报告原文并排", "/companies", f'<div class="report-grid {"two" if right else ""}">{panels}</div>')
 
 
+def _formatted_number(value: Any, *, percent_ratio: bool = False) -> str:
+    number = _number(value)
+    if number is None:
+        return str(value) if value not in (None, "") else "—"
+    if percent_ratio:
+        return f"{number * 100:.2f}%"
+    if abs(number) >= 1_000:
+        return f"{number:,.0f}"
+    return f"{number:.3f}".rstrip("0").rstrip(".")
+
+
+def _timestamp_text(value: Any) -> str:
+    number = _number(value)
+    if number is None:
+        return str(value) if value not in (None, "") else "—"
+    try:
+        return datetime.fromtimestamp(number, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    except (OverflowError, OSError, ValueError):
+        return str(value)
+
+
+def _content_unavailable(model: Mapping[str, Any], domain: str) -> str:
+    code = str(model.get("code") or "EVIDENCE_GATE_NOT_SAVED")
+    return _empty(
+        f"{domain} 冻结内容暂不可读",
+        "数据交付审计仍可在页面底部查看；没有通过 Gate 与 coverage 绑定的值不会被猜测补齐。",
+        code=code,
+    )
+
+
+def _macro_evidence_content(model: Mapping[str, Any]) -> str:
+    if model.get("status") != "AVAILABLE":
+        return _content_unavailable(model, "Macro")
+    datasets = model.get("datasets") if isinstance(model.get("datasets"), Mapping) else {}
+    history = datasets.get("macro_history") if isinstance(datasets.get("macro_history"), list) else []
+    dot_plot = datasets.get("dot_plot") if isinstance(datasets.get("dot_plot"), list) else []
+    calendar = datasets.get("economic_calendar") if isinstance(datasets.get("economic_calendar"), list) else []
+
+    groups: dict[str, list[Mapping[str, Any]]] = {}
+    for item in history:
+        value = item.get("value") if isinstance(item.get("value"), Mapping) else {}
+        label = str(value.get("label") or "未命名指标")
+        groups.setdefault(label, []).append(item)
+    cards = []
+    charts = []
+    for label, values in sorted(groups.items()):
+        ordered = sorted(values, key=lambda item: str(item.get("as_of") or ""))
+        latest = ordered[-1]
+        latest_value = latest.get("value") if isinstance(latest.get("value"), Mapping) else {}
+        is_percent = latest_value.get("unit_type") == "PERCENT"
+        actual = _formatted_number(latest_value.get("actual"), percent_ratio=is_percent)
+        consensus = _formatted_number(latest_value.get("consensus"), percent_ratio=is_percent)
+        previous = _formatted_number(latest_value.get("previous"), percent_ratio=is_percent)
+        cards.append(
+            f'<article class="metric"><span>{h(label)}</span><strong>{h(actual)}</strong>'
+            f'<small>预期 {h(consensus)} · 前值 {h(previous)} · 观察期 {h(latest.get("as_of"))}'
+            f' · 来源 {h(latest.get("source_id"))}</small></article>'
+        )
+        charts.append(_chart({
+            "title": label, "status": "AVAILABLE", "unit": "%" if is_percent else "原始单位",
+            "data": [
+                {
+                    "date": item.get("as_of"),
+                    "value": (
+                        round((_number((item.get("value") or {}).get("actual")) or 0) * 100, 6)
+                        if is_percent and _number((item.get("value") or {}).get("actual")) is not None
+                        else (item.get("value") or {}).get("actual")
+                    ),
+                }
+                for item in ordered
+            ],
+            "basis": "Moomoo SG 当前供应商快照；不是官方 historical vintage，实际值、预期值与前值保持分列。",
+        }))
+    history_block = (
+        '<section><div class="section-head"><div><span class="kicker">共享美国宏观环境</span><h2>最新宏观指标</h2></div>'
+        f'<span class="note">cutoff {h(model.get("decision_cutoff"))}</span></div><div class="grid metrics">{"".join(cards)}</div>'
+        + _details(f"查看 {len(groups)} 组历史趋势", '<div class="chart-grid">' + "".join(charts) + "</div>")
+        + '</section>'
+        if history else _empty("宏观历史尚无可展示值", "coverage 状态仍可在页面底部查看。")
+    )
+
+    dot_rows = []
+    for item in sorted(dot_plot, key=lambda item: (
+        (item.get("value") or {}).get("year", 0), (item.get("value") or {}).get("rate", 0),
+    )):
+        value = item.get("value") if isinstance(item.get("value"), Mapping) else {}
+        dot_rows.append((
+            value.get("year"), f'{value.get("rate")}%', value.get("vote_count"),
+            "中位点" if value.get("is_median") else "", f'{value.get("median_rate")}%',
+            item.get("source_id"), item.get("as_of"),
+        ))
+    current_rate = next((
+        (item.get("value") or {}).get("current_rate")
+        for item in dot_plot
+        if (item.get("value") or {}).get("current_rate") is not None
+    ), None)
+    dot_block = '<section><span class="kicker">供应商补充 · 非官方原文替代</span><h2>利率点阵分布</h2>'
+    if current_rate is not None:
+        dot_block += f'<p class="note">供应商当前利率参考 {h(current_rate)}%；点阵分布不是官方原始文件替代。</p>'
+    dot_block += (
+        _table(
+            ["年份", "利率点", "票数", "标记", "该年中位数", "来源", "观察时点"],
+            dot_rows, label="利率点阵分布",
+        )
+        if dot_rows else _empty("尚无点阵数据", "未用 coverage 计数生成点阵。")
+    ) + '</section>'
+
+    calendar_rows = []
+    for item in sorted(calendar, key=lambda item: (
+        str((item.get("value") or {}).get("timestamp") or ""), str((item.get("value") or {}).get("title") or ""),
+    ), reverse=True)[:100]:
+        value = item.get("value") if isinstance(item.get("value"), Mapping) else {}
+        calendar_rows.append((
+            value.get("title"), value.get("star"), value.get("actual"),
+            value.get("consensus"), value.get("previous"),
+            _timestamp_text(value.get("timestamp")), item.get("source_id"), item.get("as_of"),
+        ))
+    calendar_block = _details(
+        f"经济日历 · {len(calendar_rows)} 条冻结事件",
+        _table(
+            ["事件", "重要性", "实际", "预期", "前值", "事件时间", "来源", "获取时点"],
+            calendar_rows, label="经济日历",
+        ),
+    ) if calendar_rows else _empty("尚无经济日历值", "未用 coverage 计数生成事件。")
+    return history_block + dot_block + calendar_block
+
+
+def _market_evidence_content(model: Mapping[str, Any]) -> str:
+    if model.get("status") != "AVAILABLE":
+        return _content_unavailable(model, "Market")
+    datasets = model.get("datasets") if isinstance(model.get("datasets"), Mapping) else {}
+    fedwatch = datasets.get("fedwatch_expectations") if isinstance(datasets.get("fedwatch_expectations"), list) else []
+    market_stats = datasets.get("option_market_statistics") if isinstance(datasets.get("option_market_statistics"), list) else []
+    breadth = datasets.get("market_breadth") if isinstance(datasets.get("market_breadth"), list) else []
+    contracts = datasets.get("options_snapshot") if isinstance(datasets.get("options_snapshot"), list) else []
+    underlying = datasets.get("options_underlying_context") if isinstance(datasets.get("options_underlying_context"), list) else []
+    money_flow = datasets.get("vendor_money_flow") if isinstance(datasets.get("vendor_money_flow"), list) else []
+
+    fedwatch_block = '<section><span class="kicker">共享市场环境 · 市场隐含概率</span><h2>FedWatch 利率预期</h2>'
+    fedwatch_block += (
+        _table(
+            ["会议日期", "目标区间", "概率", "来源", "观察时点"],
+            ((
+                (item.get("value") or {}).get("meeting_date"),
+                (item.get("value") or {}).get("target_range"),
+                f'{(item.get("value") or {}).get("probability")}%',
+                item.get("source_id"), item.get("as_of"),
+            ) for item in sorted(fedwatch, key=lambda item: (
+                str((item.get("value") or {}).get("meeting_date") or ""),
+                str((item.get("value") or {}).get("target_range") or ""),
+            ))),
+            label="FedWatch 利率预期",
+        ) if fedwatch else _empty("尚无 FedWatch 值", "市场隐含概率未保存；这不表示利率路径已确定。")
+    ) + '<p class="note">概率来自供应商市场模型，不是 Federal Reserve 承诺，也不是利率预测结论。</p></section>'
+
+    stat_groups = {
+        "moomoo_option_market_volume": ("全市场期权成交量 Put/Call", "volume"),
+        "moomoo_option_market_open_interest": ("全市场期权持仓量 Put/Call", "open interest"),
+    }
+    stat_cards = []
+    stat_charts = []
+    for field, (title, label) in stat_groups.items():
+        values = sorted(
+            [item for item in market_stats if item.get("semantic_field") == field],
+            key=lambda item: str((item.get("value") or {}).get("time") or ""),
+        )
+        if not values:
+            continue
+        latest = values[-1].get("value") or {}
+        stat_cards.append(
+            f'<article class="metric"><span>{h(title)}</span><strong>{h(_formatted_number(latest.get("ratio")))}</strong>'
+            f'<small>Put {h(_formatted_number(latest.get("put_value")))} · Call {h(_formatted_number(latest.get("call_value")))} · {h(latest.get("time"))}</small></article>'
+        )
+        stat_charts.append(_chart({
+            "title": title, "status": "AVAILABLE", "unit": "Put/Call ratio",
+            "data": [{"date": (item.get("value") or {}).get("time"), "value": (item.get("value") or {}).get("ratio")} for item in values],
+            "basis": f"Moomoo SG 全市场 {label} 汇总；不代表单一证券方向。",
+        }))
+    stats_block = '<section><span class="kicker">共享市场环境</span><h2>全市场期权结构</h2>'
+    stats_block += '<div class="grid metrics">' + "".join(stat_cards) + '</div><div class="chart-grid">' + "".join(stat_charts) + '</div>'
+    stats_block += (
+        '<p class="note warn-text">市场宽度当前没有 Gate Evidence；不会用期权或持仓数据替代。</p>'
+        if not breadth else ''
+    ) + '</section>'
+
+    underlying_sections = []
+    for item in sorted(underlying, key=lambda row: str(row.get("security_id") or "")):
+        underlying_cards = []
+        security_id = str(item.get("security_id") or "")
+        value = item.get("value") if isinstance(item.get("value"), Mapping) else {}
+        for label, key, suffix in (
+            ("隐含波动率 IV", "iv", "%"), ("IV Percentile", "iv_percentile", "%"),
+            ("IV Rank", "iv_rank", "%"), ("30 日历史波动率", "hv_30d", "%"),
+            ("Call 持仓量", "call_open_interest", ""), ("Put 持仓量", "put_open_interest", ""),
+            ("Call 成交量", "call_volume", ""), ("Put 成交量", "put_volume", ""),
+        ):
+            suffix_text = suffix if suffix else ""
+            underlying_cards.append(
+                f'<article class="metric"><span>{h(label)}</span><strong>{h(_formatted_number(value.get(key)))}{suffix_text}</strong>'
+                f'<small>as of {h(item.get("as_of"))} · 来源 {h(item.get("source_id"))}</small></article>'
+            )
+        underlying_sections.append(
+            '<section><span class="kicker">证券级 Options · '
+            + h(security_id or "范围未声明")
+            + '</span><h2>标的波动率与期权概览</h2><div class="grid metrics">'
+            + "".join(underlying_cards) + '</div></section>'
+        )
+    underlying_block = "".join(underlying_sections) or _empty(
+        "尚无标的期权概览", "不会从合约表反推 IV/HV 汇总。",
+    )
+
+    contract_rows = []
+    missing_greeks = False
+    missing_multiplier = False
+    for item in sorted(contracts, key=lambda item: (
+        str(item.get("security_id") or ""),
+        str((item.get("value") or {}).get("expiration") or ""),
+        str((item.get("value") or {}).get("option_type") or ""),
+        _number((item.get("value") or {}).get("strike")) or 0,
+    ))[:100]:
+        value = item.get("value") if isinstance(item.get("value"), Mapping) else {}
+        greeks = value.get("greeks") if isinstance(value.get("greeks"), Mapping) else {}
+        missing_greeks = missing_greeks or not any(item is not None for item in greeks.values())
+        missing_multiplier = missing_multiplier or value.get("contract_multiplier") is None
+        contract_rows.append((
+            item.get("security_id"), value.get("contract_symbol"), value.get("expiration"), value.get("option_type"),
+            value.get("strike"), value.get("bid"), value.get("ask"), value.get("last_price"),
+            value.get("volume"), value.get("open_interest"),
+            _formatted_number(value.get("implied_volatility"), percent_ratio=True),
+        ))
+    contract_note = []
+    if missing_greeks: contract_note.append("Greeks 缺失")
+    if missing_multiplier: contract_note.append("合约乘数缺失")
+    contract_sources = sorted({str(item.get("source_id")) for item in contracts if item.get("source_id")})
+    contract_block = _details(
+        f"期权合约明细 · {len(contract_rows)} 条",
+        _table(
+            ["证券", "合约", "到期日", "类型", "行权价", "Bid", "Ask", "Last", "成交量", "持仓量", "IV"],
+            contract_rows, label="证券级期权合约",
+        ) + f'<p class="note">{h("；".join(contract_note) or "字段完整")} · 来源 {h(", ".join(contract_sources))}</p>',
+    ) if contract_rows else _empty("尚无期权合约明细", "未用 coverage 计数生成合约。")
+
+    flow_rows = []
+    for item in sorted(money_flow, key=lambda item: (
+        str(item.get("security_id") or ""),
+        str((item.get("value") or {}).get("category") or ""),
+    )):
+        value = item.get("value") if isinstance(item.get("value"), Mapping) else {}
+        flow_rows.append((
+            item.get("security_id"), value.get("category"), _formatted_number(value.get("amount")),
+            _formatted_number(value.get("capital_in")), _formatted_number(value.get("capital_out")),
+            value.get("currency"), value.get("period_start"), value.get("period_end"),
+            value.get("definition"), item.get("source_id"),
+        ))
+    flow_block = '<section><span class="kicker">证券级供应商口径</span><h2>供应商资金流分类</h2>'
+    flow_block += (
+        _table(
+            ["证券", "分类", "净额", "流入", "流出", "币种", "期间开始", "期间结束", "定义", "来源"],
+            flow_rows, label="供应商资金流分类",
+        ) if flow_rows else _empty("尚无供应商资金流", "不会根据成交量推断资金方向。")
+    ) + '<p class="note">这是供应商按订单规模定义的分类，不含主动买卖方验证，不能直接解释为机构净买入或净卖出。</p></section>'
+    return fedwatch_block + stats_block + underlying_block + contract_block + flow_block
+
+
 def macro_page(model: Mapping[str, Any]) -> str:
     selected = model.get("selected")
     selector = _artifact_selector("/macro", model.get("snapshots", []), selected)
     if not selected:
-        content = _empty("尚无 Macro 快照", "请通过启动参数配置包含已知 manifest 的冻结运行目录；浏览不会联网补采。")
+        content = _empty("官方 Macro 快照未保存", "上方仍可读取同一运行中通过 Gate 的供应商宏观补充；浏览不会联网补采。")
     else:
         snapshot = selected["value"]
         wanted = {"us_cpi_all_items": "CPI 指数", "us_unemployment_rate": "失业率", "us_treasury_10y_yield": "10Y 收益率"}
@@ -667,14 +1031,20 @@ def macro_page(model: Mapping[str, Any]) -> str:
         content = f'<p class="note">单次快照只展示观测，不推断趋势；无 historical vintage 时历史修订不可见。</p><div class="grid metrics">{"".join(cards) or _empty("快照无核心指标", "该快照已保存，但没有匹配首版核心字段。")}</div>'
         gaps = [{key: item.get(key) for key in ("provider", "series_id", "reason", "impact") if key in item} for item in snapshot.get("gaps", []) if isinstance(item, Mapping)]
         content += _details("快照状态与缺口", f'<pre>{h(_json_text({"status": snapshot.get("status"), "decision_cutoff": snapshot.get("decision_cutoff"), "gaps": gaps}))}</pre>')
-    return _layout("Macro", "/macro", selector + content + _dimension_reports(model["reports"]) + _artifact_issues(model["issues"]))
+    coverage = _coverage_block(
+        model.get("coverage"), title="Macro 数据集覆盖",
+        note="官方宏观观测与供应商补充保持分层；coverage 只说明准备和交付，不生成宏观数值、趋势或结论。",
+        audit_collapsed=True,
+    )
+    evidence_content = _macro_evidence_content(model.get("evidence_content", {}))
+    return _layout("Macro", "/macro", selector + evidence_content + content + _dimension_reports(model["reports"], title="已有 Macro 报告") + coverage + _artifact_issues(model["issues"]))
 
 
 def market_page(model: Mapping[str, Any]) -> str:
     selected = model.get("selected")
     selector = _artifact_selector("/market", model.get("snapshots", []), selected)
     if not selected:
-        content = _empty("尚无 Market 基准快照", "配置冻结运行目录后可读取已保存基准；浏览不会触发补采。")
+        content = _empty("Market 基准快照未保存", "上方仍可读取同一运行中通过 Gate 的 FedWatch、全市场期权及证券级 Options 内容；浏览不会触发补采。")
     else:
         snapshot = selected["value"]
         evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), list) else []
@@ -690,7 +1060,19 @@ def market_page(model: Mapping[str, Any]) -> str:
         for window in value.get("windows", []) if isinstance(value.get("windows"), list) else []:
             calculations.append((window.get("window_sessions"), window.get("status"), _json_text(window.get("metrics")), window.get("reason")))
     content += '<section><h2>已保存窗口统计</h2>' + (_table(["交易日","状态","指标","限制"], calculations, label="市场窗口统计") if calculations else _empty("尚无市场计算", "缺少计算不会阻止基准资料阅读。")) + '</section>'
-    return _layout("Market", "/market", selector + content + _dimension_reports(model["reports"]) + _artifact_issues(model["issues"]))
+    coverage = _coverage_block(
+        model.get("coverage"), title="Market 与 Options 数据集覆盖",
+        note="共享 MARKET_STATE 与证券级 OPTIONS_FLOW 分开呈现；期权成交、持仓和供应商资金流不代表确定买卖方向。",
+        audit_collapsed=True,
+    )
+    market_reports = _dimension_reports(model["reports"], title="已有 Market State 报告")
+    option_reports = _dimension_reports(
+        model.get("option_reports", []), title="Options Flow 证券专项报告",
+        empty_title="尚无绑定的 Options Flow 报告",
+        empty_detail="期权资料可能已交付，但在报告与 security/run/cutoff/Evidence 绑定闭合前不会展示研究结论。",
+    )
+    evidence_content = _market_evidence_content(model.get("evidence_content", {}))
+    return _layout("Market", "/market", selector + evidence_content + content + market_reports + option_reports + coverage + _artifact_issues(model["issues"]))
 
 
 def _artifact_selector(path: str, items: Sequence[Mapping[str, Any]], selected: Mapping[str, Any] | None) -> str:
@@ -708,9 +1090,13 @@ def _artifact_selector(path: str, items: Sequence[Mapping[str, Any]], selected: 
     return f'<section class="toolbar"><form method="get" action="{h(path)}"><label>已保存版本 <select name="version">{"".join(options)}</select></label><button>选择</button></form></section>'
 
 
-def _dimension_reports(reports: Sequence[Mapping[str, Any]]) -> str:
+def _dimension_reports(
+    reports: Sequence[Mapping[str, Any]], *, title: str = "已有研究报告",
+    empty_title: str = "尚无相关研究报告",
+    empty_detail: str = "已保存快照与计算仍可独立阅读。",
+) -> str:
     if not reports:
-        return _empty("尚无相关研究报告", "已保存快照与计算仍可独立阅读。")
+        return _empty(empty_title, empty_detail)
     rows = []
     for item in reports:
         value = item["value"]
@@ -723,8 +1109,12 @@ def _dimension_reports(reports: Sequence[Mapping[str, Any]]) -> str:
             f"{capability} / {coverage_label}"
             if coverage_label and coverage_label != capability else capability
         )
-        rows.append((value.get("report_id"), value.get("status"), display_capability, summary, item.get("identity")))
-    return '<section><h2>已有研究报告</h2>' + _table(["报告","状态","能力","摘要","稳定 ID"], rows, label="研究报告") + '</section>'
+        rows.append((
+            value.get("report_id"), value.get("status"), display_capability,
+            ", ".join(str(security) for security in value.get("security_ids", []) if isinstance(security, str)) or "共享",
+            summary, item.get("identity"),
+        ))
+    return f'<section><h2>{h(title)}</h2>' + _table(["报告","状态","能力","适用证券","摘要","稳定 ID"], rows, label=title) + '</section>'
 
 
 def _artifact_issues(issues: Sequence[Mapping[str, Any]]) -> str:
@@ -735,6 +1125,6 @@ def _artifact_issues(issues: Sequence[Mapping[str, Any]]) -> str:
 
 CSS = r"""
 :root{color-scheme:dark;--bg:#081018;--panel:#101b24;--panel2:#152430;--line:#263846;--text:#e8f0f4;--muted:#91a4b2;--accent:#37d6c0;--warn:#ffb86b;--danger:#ff7387;--violet:#9f9bff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
-*{box-sizing:border-box}html{scroll-behavior:smooth;max-width:100%;overflow-x:hidden}body{margin:0;max-width:100%;overflow-x:hidden;background:radial-gradient(circle at 80% -20%,#183244 0,transparent 35%),var(--bg);color:var(--text);line-height:1.55}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;max-width:100%;padding:16px max(24px,calc((100vw - 1280px)/2));background:rgba(8,16,24,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.brand{color:var(--text);font-weight:750;letter-spacing:.02em}.sub{color:var(--muted);font-size:12px;margin-left:12px}nav{display:flex;gap:8px;min-width:0}header nav a,.anchors a,.filter{color:var(--muted);padding:7px 11px;border-radius:9px}header nav a.active,.anchors a:hover,.filter.active{color:var(--text);background:var(--panel2);text-decoration:none}main{max-width:1280px;min-width:0;margin:auto;padding:40px 24px 80px}.page-title,.company-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;min-width:0;margin-bottom:26px}.page-title h1,.company-head h1{margin:3px 0;font-size:clamp(28px,4vw,48px);line-height:1.08}.eyebrow,.kicker{font-size:11px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;margin:0}.grid{display:grid;gap:16px;min-width:0}.three{grid-template-columns:repeat(3,1fr)}.metrics{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.card,.metric,.chart,.empty,.toolbar,details,.report,.event-card,.dimension-card,.report-section,.report-summary,.confidence{min-width:0;background:linear-gradient(145deg,var(--panel),#0d1820);border:1px solid var(--line);border-radius:16px;padding:20px}.link-card{color:var(--text);min-height:165px}.link-card:hover{border-color:var(--accent);text-decoration:none}.card h2,.chart h3{margin:6px 0}.card p,.note,.chart p,.empty p{color:var(--muted)}section{min-width:0;margin:28px 0}section>h2{font-size:22px;margin:0 0 14px}.metric-row,.time-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.metric-row div,.time-strip div,.metric{display:flex;flex-direction:column;gap:5px;min-width:0}.metric-row span,.time-strip span,.metric span{font-size:12px;color:var(--muted)}.metric-row strong,.metric strong{font-size:24px}.time-strip{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}.time-strip strong{font-size:13px;overflow-wrap:anywhere}.anchors{position:sticky;top:74px;z-index:4;max-width:100%;overflow:auto;white-space:nowrap;background:rgba(8,16,24,.95);padding:8px 0;border-bottom:1px solid var(--line)}button,input,select{max-width:100%;font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px}button{background:var(--accent);color:#05211e;border-color:var(--accent);font-weight:700;cursor:pointer}.secondary{background:transparent;color:var(--text);border-color:var(--line)}.toolbar form{display:flex;gap:8px;min-width:0}.toolbar input[type=search]{flex:1;min-width:0}.filters{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.note{font-size:13px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--line);border-radius:13px}table{border-collapse:collapse;width:100%;min-width:780px;background:var(--panel)}th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}th{color:var(--muted);font-weight:600;background:#0b151d}td small{display:block;color:var(--muted);margin-top:3px}.badge{display:inline-block;font-size:11px;padding:3px 7px;border-radius:99px;background:var(--panel2);margin:2px}.badge.accent{color:var(--accent)}.badge.warn{color:var(--warn)}.badge.danger{color:var(--danger)}.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}.chart{margin:0;min-width:0}.chart.limited{border-style:dashed;min-height:210px}.chart-title,.event-head{display:flex;justify-content:space-between;align-items:start;gap:16px}.event-head h3,.event-head h4{margin:3px 0}.event-timeline{display:grid;gap:14px}.event-card,.dimension-card{margin:0}.event-card p,.dimension-card p,.disclosure-body{overflow-wrap:anywhere}.supplemental-research,.disclosure-section{margin-top:24px}.dimension-group{margin:18px 0}.report-section,.report-summary,.confidence{margin:14px 0}.confidence strong{display:block;font-size:30px;color:var(--accent)}.plot{display:block;width:100%;height:auto;margin-top:12px}.chart li{color:var(--muted);font-size:13px}.pagination{display:flex;justify-content:space-between;margin-top:16px}.pagination a{padding:8px 12px;border:1px solid var(--line);border-radius:9px}details{margin:12px 0;padding:0}summary{cursor:pointer;padding:15px 18px;font-weight:650}.details-body{min-width:0;padding:0 18px 18px}.details-body>*{min-width:0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#071018;padding:14px;border-radius:10px;border:1px solid var(--line);font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}.report-grid{display:grid;grid-template-columns:1fr;gap:16px;min-width:0}.report-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.report{min-width:0;margin:0}.report-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px}footer{color:var(--muted);font-size:12px;text-align:center;padding:24px;border-top:1px solid var(--line)}code{color:var(--warn)}
-@media(max-width:720px){header{position:static;display:block;padding:14px 16px;overflow:hidden}.sub{display:none}header nav{max-width:100%;margin-top:12px;overflow:auto;flex-wrap:nowrap}header nav a,.anchors a{white-space:nowrap;flex:0 0 auto}main{padding:26px 14px 60px}.page-title,.company-head,.event-head{display:block}.page-title form,.company-head form{max-width:100%;margin-top:14px}.company-head label,.company-head select{display:block;width:100%}.company-head button{margin-top:8px}.three,.chart-grid,.time-strip,.metric-row,.report-grid.two{grid-template-columns:minmax(0,1fr)}.anchors{top:0}.toolbar form{display:grid;grid-template-columns:minmax(0,1fr) auto}.chart,.event-card,.dimension-card,.report{padding:15px}h1{overflow-wrap:anywhere}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;max-width:100%;overflow-x:hidden}body{margin:0;max-width:100%;overflow-x:hidden;background:radial-gradient(circle at 80% -20%,#183244 0,transparent 35%),var(--bg);color:var(--text);line-height:1.55}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;max-width:100%;padding:16px max(24px,calc((100vw - 1280px)/2));background:rgba(8,16,24,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.brand{color:var(--text);font-weight:750;letter-spacing:.02em}.sub{color:var(--muted);font-size:12px;margin-left:12px}nav{display:flex;gap:8px;min-width:0}header nav a,.anchors a,.filter{color:var(--muted);padding:7px 11px;border-radius:9px}header nav a.active,.anchors a:hover,.filter.active{color:var(--text);background:var(--panel2);text-decoration:none}main{max-width:1280px;min-width:0;margin:auto;padding:40px 24px 80px}.page-title,.company-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;min-width:0;margin-bottom:26px}.page-title h1,.company-head h1{margin:3px 0;font-size:clamp(28px,4vw,48px);line-height:1.08}.eyebrow,.kicker{font-size:11px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;margin:0}.grid{display:grid;gap:16px;min-width:0}.three{grid-template-columns:repeat(3,1fr)}.metrics{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.card,.metric,.chart,.empty,.toolbar,details,.report,.event-card,.dimension-card,.report-section,.report-summary,.confidence{min-width:0;background:linear-gradient(145deg,var(--panel),#0d1820);border:1px solid var(--line);border-radius:16px;padding:20px}.link-card{color:var(--text);min-height:165px}.link-card:hover{border-color:var(--accent);text-decoration:none}.card h2,.chart h3{margin:6px 0}.card p,.note,.chart p,.empty p{color:var(--muted)}section{min-width:0;margin:28px 0}section>h2{font-size:22px;margin:0 0 14px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:16px}.section-head h2{margin:3px 0}.warn-text{color:var(--warn)!important}.metric-row,.time-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.metric-row div,.time-strip div,.metric{display:flex;flex-direction:column;gap:5px;min-width:0}.metric-row span,.time-strip span,.metric span{font-size:12px;color:var(--muted)}.metric-row strong,.metric strong{font-size:24px}.time-strip{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}.time-strip strong{font-size:13px;overflow-wrap:anywhere}.anchors{position:sticky;top:74px;z-index:4;max-width:100%;overflow:auto;white-space:nowrap;background:rgba(8,16,24,.95);padding:8px 0;border-bottom:1px solid var(--line)}button,input,select{max-width:100%;font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px}button{background:var(--accent);color:#05211e;border-color:var(--accent);font-weight:700;cursor:pointer}.secondary{background:transparent;color:var(--text);border-color:var(--line)}.toolbar form{display:flex;gap:8px;min-width:0}.toolbar input[type=search]{flex:1;min-width:0}.filters{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.note{font-size:13px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--line);border-radius:13px}table{border-collapse:collapse;width:100%;min-width:780px;background:var(--panel)}th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}th{color:var(--muted);font-weight:600;background:#0b151d}td small{display:block;color:var(--muted);margin-top:3px}.badge{display:inline-block;font-size:11px;padding:3px 7px;border-radius:99px;background:var(--panel2);margin:2px}.badge.accent{color:var(--accent)}.badge.warn{color:var(--warn)}.badge.danger{color:var(--danger)}.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}.chart{margin:0;min-width:0}.chart.limited{border-style:dashed;min-height:210px}.chart-title,.event-head{display:flex;justify-content:space-between;align-items:start;gap:16px}.event-head h3,.event-head h4{margin:3px 0}.event-timeline{display:grid;gap:14px}.event-card,.dimension-card{margin:0}.event-card p,.dimension-card p,.disclosure-body{overflow-wrap:anywhere}.supplemental-research,.disclosure-section{margin-top:24px}.dimension-group{margin:18px 0}.report-section,.report-summary,.confidence{margin:14px 0}.confidence strong{display:block;font-size:30px;color:var(--accent)}.plot{display:block;width:100%;height:auto;margin-top:12px}.chart li{color:var(--muted);font-size:13px}.pagination{display:flex;justify-content:space-between;margin-top:16px}.pagination a{padding:8px 12px;border:1px solid var(--line);border-radius:9px}details{margin:12px 0;padding:0}summary{cursor:pointer;padding:15px 18px;font-weight:650}.details-body{min-width:0;padding:0 18px 18px}.details-body>*{min-width:0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#071018;padding:14px;border-radius:10px;border:1px solid var(--line);font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}.report-grid{display:grid;grid-template-columns:1fr;gap:16px;min-width:0}.report-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.report{min-width:0;margin:0}.report-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px}footer{color:var(--muted);font-size:12px;text-align:center;padding:24px;border-top:1px solid var(--line)}code{color:var(--warn)}
+@media(max-width:720px){header{position:static;display:block;padding:14px 16px;overflow:hidden}.sub{display:none}header nav{max-width:100%;margin-top:12px;overflow:auto;flex-wrap:nowrap}header nav a,.anchors a{white-space:nowrap;flex:0 0 auto}main{padding:26px 14px 60px}.page-title,.company-head,.event-head,.section-head{display:block}.section-head>.note{display:block;margin-top:6px;overflow-wrap:anywhere}.page-title form,.company-head form{max-width:100%;margin-top:14px}.company-head label,.company-head select{display:block;width:100%}.company-head button{margin-top:8px}.three,.chart-grid,.time-strip,.metric-row,.report-grid.two{grid-template-columns:minmax(0,1fr)}.anchors{top:0}.toolbar form{display:grid;grid-template-columns:minmax(0,1fr) auto}.chart,.event-card,.dimension-card,.report{padding:15px}h1{overflow-wrap:anywhere}}
 """
