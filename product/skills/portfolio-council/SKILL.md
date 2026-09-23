@@ -2,7 +2,7 @@
 name: portfolio-council
 description: 用户提供已确认 PortfolioHandoff 并调用投资委员会时，主持普通股持仓研究或多维研究阶段；fixture 兼容链路可完成专业研究、CIO 综合和确定性风险校验；不用于开发任务。
 metadata:
-  version: "3.4.2"
+  version: "3.5.0"
 ---
 
 # Portfolio Council
@@ -30,6 +30,14 @@ Company Analyst 必须实际使用 `evidence-grounding`、`company-research`、`
 主线程只负责依赖调度与产物归集，不担任 CIO。`runtime_company_analyst` 负责基本面深化、公司事件及公司研报；`runtime_market_catalyst` 按隔离 invocation 负责技术结构、行业、宏观市场、所有权披露、期权/资金结构及行业研报。每次 invocation 只执行一个 capability；共享宏观任务只运行一次。具备合格输入的独立任务在三槽内有界并行，同行比较等待身份和资料核实，研报正式分析等待正文冻结及 PIT Gate。单项失败只阻塞其真实依赖项，每个已验证报告立即展示路径和进度。
 
 所有新维度返回 `ResearchDimensionReport`；最终只组装 `HoldingResearchBundle` 及同源中文报告。报告不得包含 `action`、目标权重、推荐数量或订单。最终包必须区分 `STRUCTURALLY_CONSUMABLE` 与 `DOWNSTREAM_READY`；后者要求兼容的逐股 `EquityResearchReport` 已纳入，且补证来源、Evidence closure 及待反证问题完整。不同 run、cutoff 或 CouncilRequest 的报告不得静默拼接。不同维度的观察与失效条件按原报告引用归集为 `unresolved_cross_dimension_questions`，拼接程序不得代替后续 Skeptic/CIO 解决。本阶段明确停止在研究包，不启动 Skeptic、CIO 或 Risk。
+
+## 正向研究与独立反证阶段
+
+仅当用户明确要求正向多维研究后继续独立反证时，选择 `stage=INDEPENDENT_COUNTER_THESIS_RESEARCH`。在一个新冻结运行中复用上述资料准备、多维正向研究与 `HoldingResearchBundle`；本次 bundle 必须通过 Schema、run/cutoff/Gate/Request 绑定、Evidence Closure、`DOWNSTREAM_READY` 及核心 Company、Technical、Fundamental/Event、Industry、Macro、Market 覆盖门禁后，才启动逐普通股 `runtime_skeptic`。原多维阶段仍停于正向包，不自动补写反证。
+
+每只普通股独立派发 `INDEPENDENT_FIRST_PASS`，使用不继承父会话的上下文与只读 Gate-scoped 查询。输入由原始 Gate 和非结论性请求单独构造，不读取正向报告、bundle 正文、摘要、未解决问题或其 hash；服务端按逐 Invocation 允许集合拒绝其他持仓资料。原始报告和中文正文逐股保存。合法 `COMPLETE` 或已完成研究的 `LOW_CONFIDENCE` 可使交接包达到 `DOWNSTREAM_READY`；`INSUFFICIENT_EVIDENCE`、`TIMEOUT` 和系统失败只保留部分交接。`DOWNSTREAM_READY` 仅表示结构与执行可供后续研究消费，不代表研究质量、投资建议或 Eval 通过。
+
+本阶段只输出正向包、逐股 Counter Thesis、`PreDecisionResearchPackage` 和同源中文摘要；不启动 CIO、Risk，不生成 `decision.json`、动作、Outcome 或回测。ETF、期权及账户项的未覆盖状态继续展示。
 
 ## 必要输入
 

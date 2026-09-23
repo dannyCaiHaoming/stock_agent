@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pre-decision-research-package/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "package_id", "run_id", "handoff_id", "handoff_hash", "portfolio_hash", "request_id", "request_hash", "decision_cutoff", "gate_hash", "forward_bundle", "dispatch_index", "execution_proof", "counter_theses", "coverage", "consumability", "complete_portfolio_decision", "artifact_refs", "package_hash"],
+  "properties": {
+    "schema_version": {"const": "pre-decision-research-package/1.0.0"},
+    "package_id": {"type": "string", "minLength": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "handoff_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "portfolio_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "request_id": {"type": "string", "minLength": 1},
+    "request_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "decision_cutoff": {"type": "string", "minLength": 1},
+    "gate_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "forward_bundle": {"$ref": "#/$defs/artifact"},
+    "dispatch_index": {"$ref": "#/$defs/artifact"},
+    "execution_proof": {"$ref": "#/$defs/artifact"},
+    "counter_theses": {"type": "array", "items": {"$ref": "#/$defs/counter"}},
+    "coverage": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/coverage"}},
+    "consumability": {"enum": ["STRUCTURALLY_CONSUMABLE", "DOWNSTREAM_READY"]},
+    "complete_portfolio_decision": {"const": false},
+    "artifact_refs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "package_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_ref", "file_hash", "content_hash"],
+      "properties": {
+        "artifact_ref": {"type": "string", "minLength": 1},
+        "file_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "counter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["security_id", "invocation_id", "status", "validation_status", "report", "markdown_ref"],
+      "properties": {
+        "security_id": {"type": "string", "minLength": 1},
+        "invocation_id": {"type": "string", "minLength": 1},
+        "status": {"enum": ["COMPLETE", "LOW_CONFIDENCE", "INSUFFICIENT_EVIDENCE", "TIMEOUT", "NOT_RESEARCHED", "SYSTEM_FAILED"]},
+        "validation_status": {"enum": ["PASSED", "MISSING", "FAILED"]},
+        "report": {"anyOf": [{"$ref": "#/$defs/artifact"}, {"type": "null"}]},
+        "markdown_ref": {"type": ["string", "null"]}
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["security_id", "asset_type", "status", "gap_reason"],
+      "properties": {
+        "security_id": {"type": "string", "minLength": 1},
+        "asset_type": {"type": "string", "minLength": 1},
+        "status": {"enum": ["READY", "PARTIAL", "CAPABILITY_GAP"]},
+        "gap_reason": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

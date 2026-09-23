@@ -285,13 +285,22 @@ def build_specialist_output_schema(
     *,
     agent_name: str,
     allowed_evidence_ids: Sequence[str],
+    report_schema_version: str | None = None,
 ) -> dict[str, Any]:
     """Compile a run-scoped specialist schema with Gate-bound Evidence ID enums."""
 
     if agent_name not in SPECIALIST_AGENTS:
         raise ValueError(f"not a specialist agent: {agent_name}")
     product_root = (repository_root.resolve() / "product").resolve()
-    source_path = (product_root / OUTPUT_SCHEMAS[agent_name]).resolve()
+    if report_schema_version not in {None, "counter-thesis-report/2.1.0"}:
+        raise ValueError("SPECIALIST_REPORT_SCHEMA_VERSION_INVALID")
+    if report_schema_version is not None and agent_name != "runtime_skeptic":
+        raise ValueError("SPECIALIST_REPORT_SCHEMA_VERSION_INVALID")
+    source_relative = (
+        "schemas/runtime/counter-thesis-report-v2.1.schema.json"
+        if report_schema_version is not None else OUTPUT_SCHEMAS[agent_name]
+    )
+    source_path = (product_root / source_relative).resolve()
     schema = json.loads(source_path.read_text(encoding="utf-8"))
     if not isinstance(schema, Mapping):
         raise ValueError(f"specialist output schema is not an object: {source_path}")
@@ -558,8 +567,13 @@ def create_invocation_manifest(
     if agent_name not in AGENT_FILES:
         raise ValueError(f"unknown runtime agent: {agent_name}")
     source_mode = agent_input.get("source_mode", "fixture")
-    if source_mode not in ("fixture", "live"):
+    if source_mode not in ("fixture", "live", "frozen-gate"):
         raise ValueError("UNKNOWN_SOURCE_MODE")
+    if source_mode == "frozen-gate":
+        if agent_name != "runtime_skeptic":
+            raise ValueError("FROZEN_GATE_AGENT_INVALID")
+        from .independent_skeptic_stage import validate_first_pass_input
+        validate_first_pass_input(agent_input, allowed_ids=evidence_ids)
     source_profile = "live-us-equity" if source_mode == "live" else "fixture"
     discovery = discover_product_resources(repository_root, source_profile=source_profile)
     product_root = Path(discovery.product_root)
@@ -611,6 +625,7 @@ def create_invocation_manifest(
             repository_root,
             agent_name=agent_name,
             allowed_evidence_ids=evidence_ids,
+            report_schema_version=agent_input.get("report_schema_version"),
         )
         try:
             actual_schema = json.loads(output_schema_path.read_text(encoding="utf-8"))
@@ -717,8 +732,15 @@ def verify_invocation_manifest(
     if manifest.get("input_hash") != canonical_hash(agent_input):
         raise ValueError("invocation input hash mismatch")
     source_mode = agent_input.get("source_mode", "fixture")
-    if source_mode not in ("fixture", "live"):
+    if source_mode not in ("fixture", "live", "frozen-gate"):
         raise ValueError("UNKNOWN_SOURCE_MODE")
+    if source_mode == "frozen-gate":
+        if manifest.get("agent", {}).get("name") != "runtime_skeptic":
+            raise ValueError("FROZEN_GATE_AGENT_INVALID")
+        from .independent_skeptic_stage import validate_first_pass_input
+        validate_first_pass_input(agent_input, allowed_ids=manifest.get("evidence_ids", []))
+        if manifest.get("tool_permissions") != ["fixture_evidence.query", "fixture_math.calculate"]:
+            raise ValueError("FROZEN_GATE_TOOL_PERMISSIONS_INVALID")
     if source_mode == "live":
         from .runtime_profiles import load_source_profile
         discovery = discover_product_resources(repository_root, source_profile="live-us-equity")
@@ -753,6 +775,7 @@ def verify_invocation_manifest(
             repository_root,
             agent_name=agent_name,
             allowed_evidence_ids=allowed,
+            report_schema_version=agent_input.get("report_schema_version"),
         )
         try:
             actual_schema = json.loads(output_schema.read_text(encoding="utf-8"))

@@ -124,17 +124,40 @@ def validate_company_report(
 def validate_skeptic_report(
     value: Mapping[str, Any], *, run_id: str, manifest: Mapping[str, Any]
 ) -> set[str]:
-    _require_exact_keys(value, SKEPTIC_REQUIRED, "CounterThesisReport")
-    if value.get("schema_version") != "counter-thesis-report/2.0.0":
+    version = value.get("schema_version")
+    if version not in {"counter-thesis-report/2.0.0", "counter-thesis-report/2.1.0"}:
         raise ArtifactValidationError("SCHEMA_VERSION_MISMATCH")
+    _require_exact_keys(
+        value, SKEPTIC_REQUIRED | ({"assumptions"} if version.endswith("2.1.0") else set()),
+        "CounterThesisReport",
+    )
     _validate_common(value, run_id=run_id, manifest=manifest, agent="runtime_skeptic")
     if value.get("mode") != "INDEPENDENT_FIRST_PASS":
         raise ArtifactValidationError("CONTEXT_ISOLATION_VIOLATION")
+    assumption_ids: set[str] = set()
+    if version.endswith("2.1.0"):
+        for assumption in value["assumptions"]:
+            if (not isinstance(assumption, Mapping)
+                    or set(assumption) != {"assumption_id", "statement"}
+                    or not isinstance(assumption["assumption_id"], str)
+                    or not assumption["assumption_id"].strip()
+                    or not isinstance(assumption["statement"], str)
+                    or not assumption["statement"].strip()):
+                raise ArtifactValidationError("INVALID_ASSUMPTION")
+            if assumption["assumption_id"] in assumption_ids:
+                raise ArtifactValidationError("DUPLICATE_ASSUMPTION")
+            assumption_ids.add(assumption["assumption_id"])
     for challenge in value["challenges"]:
         if not isinstance(challenge, Mapping):
             raise ArtifactValidationError("INVALID_CHALLENGE")
         if not challenge.get("evidence_refs") and not challenge.get("assumption_ids"):
             raise ArtifactValidationError("UNGROUNDED_CHALLENGE")
+        if version.endswith("2.1.0"):
+            references = challenge.get("assumption_ids", [])
+            if not isinstance(references, list) or any(
+                not isinstance(item, str) for item in references
+            ) or set(references) - assumption_ids:
+                raise ArtifactValidationError("UNKNOWN_ASSUMPTION")
     return validate_evidence_closure(value, allowed_evidence_ids=manifest["evidence_ids"])
 
 

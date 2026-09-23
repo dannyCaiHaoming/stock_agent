@@ -23,6 +23,7 @@ from product.council import (
     CouncilPlanningError,
     build_common_stock_council_request,
     build_multidimensional_holding_research_request,
+    build_independent_counter_thesis_research_request,
     build_council_request,
     validate_council_request,
     validate_equity_research_report,
@@ -119,6 +120,25 @@ def stock_handoff(count=4):
 
 
 class CommonStockCouncilRequestTests(unittest.TestCase):
+    def test_independent_counter_thesis_stage_is_explicit(self):
+        handoff = confirmed_handoff()
+        request = build_independent_counter_thesis_research_request(
+            handoff, request_id="counter-request-1",
+            research_question="完成正向研究及独立反证。", benchmark_id="US:SPY",
+        )
+        self.assertEqual("INDEPENDENT_COUNTER_THESIS_RESEARCH", request["stage"])
+        self.assertEqual(
+            sorted(item["security_id"] for item in handoff["portfolio"]["positions"]),
+            request["research_security_ids"],
+        )
+        validate_council_request(request, handoff=handoff)
+        request["stage"] = "UNKNOWN_COUNTER_STAGE"
+        request["request_hash"] = canonical_hash({
+            key: value for key, value in request.items() if key != "request_hash"
+        })
+        with self.assertRaises(CouncilPlanningError):
+            validate_council_request(request, handoff=handoff)
+
     def test_multidimensional_stage_is_explicit_and_preserves_all_positions(self):
         handoff = confirmed_handoff()
         request = build_multidimensional_holding_research_request(
@@ -1620,6 +1640,47 @@ class CommonStockDispatchTests(unittest.TestCase):
             prepare_common_stock_research_stage(
                 handoff, council_request, gate_for(handoff, "stage-run"), run_id="stage-run",
                 batch_id="stage-batch", agent_binding=agent, skill_bindings=skills,
+            )
+
+    def test_company_preparation_may_be_subset_of_same_frozen_gate(self):
+        handoff = stock_handoff(1)
+        security_id = handoff["portfolio"]["positions"][0]["security_id"]
+        gate = gate_for(handoff, "stage-run")
+        base_ids = list(gate["allowed_evidence_ids"])
+        supplemental = {
+            "evidence_id": "ev-official-macro-extra", "security_id": "US:MARKET",
+            "semantic_field": "official_macro_context", "value": "测试补充事实",
+            "source_id": "official-macro-test", "as_of": "2026-06-30T00:00:00Z",
+            "retrieved_at": "2026-07-01T00:00:00Z",
+        }
+        gate["allowed_evidence"].append(supplemental)
+        gate["allowed_evidence_ids"] = sorted([*base_ids, supplemental["evidence_id"]])
+        gate["input_evidence_ids"] = list(gate["allowed_evidence_ids"])
+        gate["bundle_hash"] = canonical_hash({key: value for key, value in gate.items() if key != "bundle_hash"})
+        request = build_common_stock_council_request(
+            handoff, request_id="research-stage", research_question="分析普通股持仓",
+        )
+        preparation = {
+            "run_id": "stage-run", "handoff_id": handoff["handoff_id"],
+            "handoff_hash": handoff["handoff_hash"], "portfolio_hash": handoff["portfolio_hash"],
+            "common_cutoff": gate["decision_cutoff"],
+            "items": [{"security_id": security_id, "status": "READY", "evidence_ids": base_ids}],
+        }
+        preparation["preparation_hash"] = canonical_hash(preparation)
+        agent, skills = bindings()
+        stage = prepare_common_stock_research_stage(
+            handoff, request, gate, run_id="stage-run", batch_id="stage-batch",
+            agent_binding=agent, skill_bindings=skills, data_preparation=preparation,
+        )
+        self.assertEqual(1, len(stage["holding_requests"]))
+        self.assertIn(supplemental["evidence_id"], stage["holding_requests"][0]["allowed_evidence_ids"])
+        invalid = copy.deepcopy(preparation)
+        invalid["items"][0]["evidence_ids"] = sorted([*base_ids, "ev-not-in-gate"])
+        invalid["preparation_hash"] = canonical_hash({key: value for key, value in invalid.items() if key != "preparation_hash"})
+        with self.assertRaisesRegex(CommonStockResearchError, "RESEARCH_DATA_PREPARATION_EVIDENCE_MISMATCH"):
+            prepare_common_stock_research_stage(
+                handoff, request, gate, run_id="stage-run", batch_id="stage-batch",
+                agent_binding=agent, skill_bindings=skills, data_preparation=invalid,
             )
 
     def test_missing_etf_option_prices_and_margin_do_not_block_stock_research(self):
@@ -3264,16 +3325,6 @@ class CommonStockNativeStageTests(unittest.TestCase):
             wrong["invocation_id"] = "wrong-invocation"
             handle_hook_event(
                 self.event(
-                    "SubagentStop", parent=parent, child=child, turn="child-turn",
-                    message=json.dumps(wrong, ensure_ascii=False),
-                ),
-                environ=env,
-            )
-            record, _ = handle_hook_event(parent_stop, environ=env)
-            self.assertEqual("BLOCK", record["decision"])
-
-            handle_hook_event(
-                self.event(
                     "SubagentStop", parent="other-parent", child=child, turn="other-turn",
                     message=json.dumps(native, ensure_ascii=False),
                 ),
@@ -3282,12 +3333,17 @@ class CommonStockNativeStageTests(unittest.TestCase):
             record, _ = handle_hook_event(parent_stop, environ=env)
             self.assertEqual("BLOCK", record["decision"])
 
-            handle_hook_event(
+            stopped, _ = handle_hook_event(
                 self.event(
                     "SubagentStop", parent=parent, child=child, turn="child-turn",
-                    message=json.dumps(native, ensure_ascii=False),
+                    message=json.dumps(wrong, ensure_ascii=False),
                 ),
                 environ=env,
+            )
+            self.assertEqual("FAILED", stopped["output_capture"]["status"])
+            self.assertIn(
+                "RESEARCH_OUTPUT_IDENTITY_CONFLICT",
+                stopped["output_capture"]["failure_code"],
             )
             record, response = handle_hook_event(parent_stop, environ=env)
             self.assertEqual("ALLOW", record["decision"])

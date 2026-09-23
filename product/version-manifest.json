@@ -9,22 +9,22 @@
     "plugin": "13c673d1acc350de7257b19b294ee085b622f429b9614f3a98f3db51bc09adeb",
     "plugin_mcp": "a1ce66ea0285c24a781be52983c125e9553992fe0a3eef18139df19568caea09",
     "runtime_config": "3f1b605f88b903ccb6e4b1084b592bef3282d4cd717b397d8a2cf3dd35700a94",
-    "runtime_profile": "ea4a3de6f5b94a548dafb01edddd25945f2fd978766099af59f8ac107bad7a98",
+    "runtime_profile": "e984ae9ea48aa5993c5dedbc39f545a1fe4bbc8a554838b8135bc2af452dae3a",
     "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
-    "council_skill": "ed69a4603d431b5b7d4576c917021987e03719dc97bef772e9e3a1b22e345095",
+    "council_skill": "156e08acbddffb8b86943cb7694d638f1a255873623d8736ecf826712d3d8430",
     "cio_agent": "96cb7e312c110072e9d55fb19f2e959a85a93e3d41ce13b89377ef88ab69ef77",
     "company_agent": "b03e6b5c3b98b11b94d319379e6fb98abaf872628716c0fe06597ccdb49b44f5",
-    "skeptic_agent": "2d3babcd379677fe94cd21040b663b2e1cec6bda6711a379698718d40c32a62b"
+    "skeptic_agent": "0e977c45aaba3f8ca03ef083ccc48afe393a0cf68aa0adb2de04ebe93144986f"
   },
   "skills": {
-    "portfolio-council": "3.4.2",
+    "portfolio-council": "3.5.0",
     "evidence-grounding": "2.1.0",
     "company-research": "2.8.0",
     "valuation": "2.5.0",
-    "counter-thesis": "2.0.0",
+    "counter-thesis": "2.1.0",
     "catalyst-analysis": "1.3.0",
     "industry-comparison": "1.4.0",
-    "macro-market-analysis": "2.1.0",
+    "macro-market-analysis": "2.2.0",
     "options-market-structure": "1.0.0",
     "ownership-disclosure": "1.0.0",
     "research-report-analysis": "1.2.0",
@@ -34,7 +34,7 @@
     "runtime-cio": "3.1.0",
     "runtime-company-analyst": "3.0.20",
     "runtime-market-catalyst": "1.2.0",
-    "runtime-skeptic": "2.1.0"
+    "runtime-skeptic": "2.2.0"
   },
   "schemas": {
     "artifact-envelope": "1.0.0",
@@ -63,6 +63,8 @@
     "common-stock-research-eval": "1.0.0",
     "research-dimension-report": "2.0.0",
     "holding-research-bundle": "2.0.0",
+    "counter-thesis-report": "2.1.0",
+    "pre-decision-research-package": "1.0.0",
     "holding-research-input-topology": "1.0.0",
     "common-stock-collection-portfolio": "2.0.0",
     "common-stock-data-preparation": "1.0.0",

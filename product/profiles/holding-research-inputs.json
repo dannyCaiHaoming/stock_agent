@@ -102,17 +102,17 @@
     {"reference_id": "research_supplement_source_plan", "path": "mcp/live/research-supplement-source-plan.json", "version": "research-supplement-source-plan/1.0.0", "sha256": "4709159d60259ab0e6d04dd4eb8d4e09a2e2fd3987164a106a578485e3758c0d"},
     {"reference_id": "moomoo_opend_quote_manifest", "path": "mcp/live/moomoo-opend-quote-manifest.json", "version": "moomoo-opend-quote-manifest/1.0.0", "sha256": "6a9acbf70b28b73e412ef4a90e07f9795b72beb029413e46cdf02d164bcbaa1b"},
     {"reference_id": "research_source_capability_contract", "path": "schemas/runtime/research-source-capability.schema.json", "version": "research-source-capability/1.2.0", "sha256": "543c42dfe1f7a0369c850b0f97c81ba690de91b6b360dfeacd85bb4073ec1fd0"},
-    {"reference_id": "retired_live_profile", "path": "profiles/live-us-equity.json", "version": "live-us-equity/4.0.0", "sha256": "c7ad40d3a9323ecd5c72a53df916f1cf10b853da198d159ef6110fde5bb0d497"}
+    {"reference_id": "retired_live_profile", "path": "profiles/live-us-equity.json", "version": "live-us-equity/4.0.0", "sha256": "af29d628337b19283f5663a3da7298da34ed221dac093a4624f1d65ad9c1edf5"}
   ],
   "compatibility_profiles": [
     {
       "profile_id": "live-us-equity/4.0.0",
       "path": "profiles/live-us-equity.json",
-      "sha256": "c7ad40d3a9323ecd5c72a53df916f1cf10b853da198d159ef6110fde5bb0d497",
+      "sha256": "af29d628337b19283f5663a3da7298da34ed221dac093a4624f1d65ad9c1edf5",
       "lifecycle_status": "RETIRED",
       "compatibility_mode": "COMPATIBILITY_ONLY",
       "successor_profile_id": "holding-research-inputs/1.0.0"
     }
   ],
-  "topology_hash": "caf45e1f607bef0a345e74821366b470adb6c1ba42304a1e6f71660fa2572f0e"
+  "topology_hash": "37f275e96498688af9df5060f358384db090fcf682668e890fc16d0e9c12c0bf"
 }

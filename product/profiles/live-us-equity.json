@@ -38,7 +38,7 @@
       ]
     },
     "runtime_skeptic": {
-      "version": "2.1.0",
+      "version": "2.2.0",
       "config_file": ".codex/agents/runtime_skeptic.toml",
       "skills": [
         "evidence-grounding",

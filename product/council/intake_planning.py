@@ -23,6 +23,7 @@ REQUEST_SCHEMA_VERSION = "council-request/1.0.0"
 RESEARCH_REQUEST_SCHEMA_VERSION = "council-request/2.0.0"
 COMMON_STOCK_RESEARCH_STAGE = "COMMON_STOCK_RESEARCH"
 MULTI_DIMENSIONAL_HOLDING_RESEARCH_STAGE = "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+INDEPENDENT_COUNTER_THESIS_RESEARCH_STAGE = "INDEPENDENT_COUNTER_THESIS_RESEARCH"
 FULL_COUNCIL_STAGE = "FULL_COUNCIL"
 PLAN_SCHEMA_VERSION = "council-research-plan/1.0.0"
 RESEARCH_SCOPE = "ALL_INPUT_POSITIONS"
@@ -154,6 +155,25 @@ def build_multidimensional_holding_research_request(
     return request
 
 
+def build_independent_counter_thesis_research_request(
+    handoff: Mapping[str, Any], *, request_id: str, research_question: str,
+    holding_horizon: str | None = None, benchmark_id: str | None = None,
+    mandate_artifact_id: str | None = None,
+    constraints: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """绑定同一份确认 Handoff 的显式正向研究及独立反证请求。"""
+
+    request = build_multidimensional_holding_research_request(
+        handoff, request_id=request_id, research_question=research_question,
+        holding_horizon=holding_horizon, benchmark_id=benchmark_id,
+        mandate_artifact_id=mandate_artifact_id, constraints=constraints,
+    )
+    request["stage"] = INDEPENDENT_COUNTER_THESIS_RESEARCH_STAGE
+    request["request_hash"] = canonical_hash(_without_hash(request, "request_hash"))
+    validate_council_request(request, handoff=handoff)
+    return request
+
+
 def validate_council_request(
     request: Mapping[str, Any], *, handoff: Mapping[str, Any] | None = None
 ) -> None:
@@ -178,6 +198,7 @@ def validate_council_request(
         if stage not in {
             COMMON_STOCK_RESEARCH_STAGE,
             MULTI_DIMENSIONAL_HOLDING_RESEARCH_STAGE,
+            INDEPENDENT_COUNTER_THESIS_RESEARCH_STAGE,
             FULL_COUNCIL_STAGE,
         }:
             raise CouncilPlanningError("COUNCIL_REQUEST_STAGE_INVALID")

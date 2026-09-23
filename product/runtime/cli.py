@@ -63,6 +63,11 @@ from .research_materials_stage import (
     prepare_research_materials_stage,
     materialize_selected_peers,
 )
+from .independent_skeptic_stage import (
+    prepare_skeptic_phase, launch_skeptic_phase, finalize_skeptic_phase,
+    prepare_skeptic_resume,
+    validate_forward_gate,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -196,6 +201,10 @@ def build_parser() -> argparse.ArgumentParser:
     multi_prepare.add_argument("--run-dir", type=Path, required=True)
     multi_prepare.add_argument("--run-id", required=True)
     multi_prepare.add_argument("--model", required=True)
+    multi_prepare.add_argument(
+        "--stage", default="MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+        choices=("MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH"),
+    )
     multi_prepare.add_argument("--question", default="补全普通股持仓的免费多维研究资料。")
     multi_prepare.add_argument("--benchmark-id", default="US:SPY")
     multi_prepare.add_argument("--peer-candidates", type=Path)
@@ -232,6 +241,40 @@ def build_parser() -> argparse.ArgumentParser:
     )
     multi_consume.add_argument("--repo", type=Path, required=True)
     multi_consume.add_argument("--run-dir", type=Path, required=True)
+
+    counter_prepare = subparsers.add_parser(
+        "prepare-independent-skeptic", help="只在当前运行正向包就绪后准备逐证券独立反证；不启动模型",
+    )
+    counter_prepare.add_argument("--repo", type=Path, required=True)
+    counter_prepare.add_argument("--run-dir", type=Path, required=True)
+
+    counter_launch = subparsers.add_parser(
+        "launch-independent-skeptic", help="仅宿主入口：逐证券派发只读独立反证",
+    )
+    counter_launch.add_argument("--repo", type=Path, required=True)
+    counter_launch.add_argument("--run-dir", type=Path, required=True)
+    counter_launch.add_argument("--codex-binary", default="codex")
+    counter_launch.add_argument("--timeout-seconds", type=int, default=2400)
+
+    counter_resume = subparsers.add_parser(
+        "resume-independent-skeptic", help="仅宿主入口：冻结输入不变时只重试未完成的反证任务",
+    )
+    counter_resume.add_argument("--repo", type=Path, required=True)
+    counter_resume.add_argument("--run-dir", type=Path, required=True)
+    counter_resume.add_argument("--codex-binary", default="codex")
+    counter_resume.add_argument("--timeout-seconds", type=int, default=2400)
+
+    counter_check = subparsers.add_parser(
+        "check-independent-skeptic", help="只读验证本次正向研究包的反证前置门禁",
+    )
+    counter_check.add_argument("--repo", type=Path, required=True)
+    counter_check.add_argument("--run-dir", type=Path, required=True)
+
+    counter_finalize = subparsers.add_parser(
+        "finalize-independent-skeptic", help="确定性归集真实反证报告和执行证明；不启动模型",
+    )
+    counter_finalize.add_argument("--repo", type=Path, required=True)
+    counter_finalize.add_argument("--run-dir", type=Path, required=True)
 
     multi_assemble = subparsers.add_parser(
         "assemble-canonical-holding-research",
@@ -568,6 +611,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             peer_candidate_pool_path=args.peer_candidates,
             company_research_run_path=args.company_research_run,
             research_materials_run_path=args.research_materials_run,
+            stage=args.stage,
         )
     elif args.command == "multidimensional-research-prompt":
         print(build_multidimensional_stage_prompt(args.repo, args.run_dir))
@@ -581,6 +625,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         return exit_code
     elif args.command == "check-multidimensional-consumption":
         result = check_multidimensional_bundle_consumable(args.repo, args.run_dir)
+    elif args.command == "prepare-independent-skeptic":
+        result = prepare_skeptic_phase(args.repo, args.run_dir)
+    elif args.command == "launch-independent-skeptic":
+        result, exit_code = launch_skeptic_phase(
+            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "resume-independent-skeptic":
+        prepared = prepare_skeptic_resume(args.repo, args.run_dir)
+        result, exit_code = launch_skeptic_phase(
+            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
+            timeout_seconds=args.timeout_seconds, index_ref=prepared["dispatch_index"],
+            task_names=prepared["retry_task_names"],
+        )
+        print(json.dumps({"resume": prepared, "result": result}, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "check-independent-skeptic":
+        result = validate_forward_gate(args.repo, args.run_dir)
+    elif args.command == "finalize-independent-skeptic":
+        result = finalize_skeptic_phase(args.repo, args.run_dir)
     elif args.command == "assemble-canonical-holding-research":
         result = assemble_canonical_holding_research_package(
             args.repo,

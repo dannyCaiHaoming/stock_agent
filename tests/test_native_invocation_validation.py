@@ -92,7 +92,7 @@ class InvocationManifestTests(unittest.TestCase):
         ):
             self.assertEqual(manifest["agent"]["name"], agent)
             expected_version = (
-                "3.0.20" if agent == "runtime_company_analyst" else "2.1.0"
+                "3.0.20" if agent == "runtime_company_analyst" else "2.2.0"
             )
             self.assertEqual(manifest["agent"]["version"], expected_version)
             self.assertEqual(
@@ -283,6 +283,27 @@ class StructuredArtifactValidationTests(unittest.TestCase):
             ),
             {"ev-normal-debt", "ev-normal-margin"},
         )
+
+    def test_skeptic_v21_assumption_references_are_closed(self):
+        report = self.valid_skeptic()
+        report["schema_version"] = "counter-thesis-report/2.1.0"
+        report["assumptions"] = [{
+            "assumption_id": "maturity-pressure", "statement": "若再融资成本上升，债务约束可能增强。",
+        }]
+        report["challenges"][0]["assumption_ids"] = ["maturity-pressure"]
+        validate_skeptic_report(report, run_id="run-validation", manifest=self.skeptic_manifest)
+        unknown = copy.deepcopy(report)
+        unknown["challenges"][0]["assumption_ids"] = ["undefined"]
+        with self.assertRaisesRegex(ArtifactValidationError, "UNKNOWN_ASSUMPTION"):
+            validate_skeptic_report(unknown, run_id="run-validation", manifest=self.skeptic_manifest)
+        duplicate = copy.deepcopy(report)
+        duplicate["assumptions"].append(copy.deepcopy(report["assumptions"][0]))
+        with self.assertRaisesRegex(ArtifactValidationError, "DUPLICATE_ASSUMPTION"):
+            validate_skeptic_report(duplicate, run_id="run-validation", manifest=self.skeptic_manifest)
+        scenario = copy.deepcopy(report)
+        scenario["challenges"][0]["evidence_refs"] = []
+        scenario["evidence_refs"] = []
+        validate_skeptic_report(scenario, run_id="run-validation", manifest=self.skeptic_manifest)
 
     def test_specialist_evidence_id_contract_matrix(self):
         correct = self.valid_company()

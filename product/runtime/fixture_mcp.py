@@ -238,6 +238,7 @@ class GateScopedFixtureTools:
             "fixture_evidence.query",
             "fixture_math.calculate",
         ),
+        allowed_evidence_ids: Sequence[str] | None = None,
     ) -> None:
         if gate_artifact.get("run_id") != run_id:
             raise ToolAccessError("CROSS_RUN_GATE")
@@ -256,6 +257,11 @@ class GateScopedFixtureTools:
         self._excluded = set(gate_artifact.get("excluded_evidence_ids", []))
         if set(self._facts) != set(gate_artifact.get("allowed_evidence_ids", [])):
             raise ToolAccessError("INVALID_GATE_ARTIFACT")
+        if allowed_evidence_ids is not None and not set(allowed_evidence_ids) <= set(self._facts):
+            raise ToolAccessError("INVOCATION_EVIDENCE_OUTSIDE_GATE")
+        self._invocation_evidence_ids = (
+            frozenset(allowed_evidence_ids) if allowed_evidence_ids is not None else None
+        )
         self.events: list[dict[str, Any]] = []
         self.dynamic_event_log: Path | None = None
 
@@ -287,6 +293,9 @@ class GateScopedFixtureTools:
             raise ToolAccessError("EMPTY_EVIDENCE_QUERY")
         facts: list[dict[str, Any]] = []
         for evidence_id in evidence_ids:
+            if (self._invocation_evidence_ids is not None
+                    and evidence_id not in self._invocation_evidence_ids):
+                raise ToolAccessError(f"INVOCATION_EVIDENCE_NOT_AUTHORIZED:{evidence_id}")
             if evidence_id in self._excluded:
                 raise ToolAccessError(f"EXCLUDED_EVIDENCE:{evidence_id}")
             fact = self._facts.get(evidence_id)
@@ -316,6 +325,7 @@ class GateScopedFixtureTools:
             event["operation"] = inputs["operation"]
         if "target_scale" in inputs:
             event["target_scale"] = inputs["target_scale"]
+        event["event_hash"] = content_hash(event)
         self.events.append(event)
 
     def query(
@@ -498,8 +508,19 @@ class StatelessFixtureTools:
             raise ToolAccessError("RUN_DIRECTORY_MISSING")
         run_manifest_path = root / "run_manifest.json"
         gate_path = root / "evidence" / "gate.json"
+        run_manifest = _load_object(run_manifest_path)
+        skeptic_scope = None
+        if run_manifest.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH" and agent == "runtime_skeptic":
+            from product.runtime.independent_skeptic_stage import resolve_skeptic_tool_scope
+            skeptic_scope = resolve_skeptic_tool_scope(
+                root, run_id=run_id, invocation_id=invocation_id,
+                gate=_load_object(gate_path),
+                index_ref=os.environ.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
+            )
         invocation_path = root / "invocations" / f"{agent}.json"
-        if not invocation_path.is_file():
+        if skeptic_scope is not None:
+            invocation_path = skeptic_scope[0]
+        elif not invocation_path.is_file():
             invocation_path = (
                 root / "invocations" / "by-id"
                 / (hashlib.sha256(invocation_id.encode("utf-8")).hexdigest() + ".json")
@@ -522,7 +543,6 @@ class StatelessFixtureTools:
             for path in (run_manifest_path, gate_path, invocation_path)
         ):
             raise ToolAccessError("RUN_PACKAGE_BINDING_MISSING")
-        run_manifest = _load_object(run_manifest_path)
         gate = _load_object(gate_path)
         invocation = _load_object(invocation_path)
         if Path(str(run_manifest.get("output_dir", ""))).resolve() != root:
@@ -552,6 +572,7 @@ class StatelessFixtureTools:
             raise ToolAccessError("INVALID_PRODUCT_DISCOVERY_ROOT")
         if run_manifest.get("stage") in {
             "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+            "INDEPENDENT_COUNTER_THESIS_RESEARCH",
             "MULTIDIMENSIONAL_MATERIAL_PREPARATION",
         }:
             if (
@@ -575,6 +596,7 @@ class StatelessFixtureTools:
             agent=agent,
             invocation_id=invocation_id,
             allowed_tools=invocation.get("tool_permissions", []),
+            allowed_evidence_ids=skeptic_scope[1] if skeptic_scope is not None else None,
         )
 
     def _research_context(self, arguments: dict[str, Any], permission: str) -> tuple[Path, dict[str, Any]]:

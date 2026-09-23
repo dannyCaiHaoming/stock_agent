@@ -6,8 +6,11 @@ if [ "${1:-}" = "--help" ]; then
   echo '或：bash run-product-smoke.sh --prepared-run <已准备的运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-multidimensional-run <已准备的多维运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-multidimensional-task <已准备的多维运行目录> <task_name> <新的外置调用产物目录>（自动包含最小依赖闭包）'
+  echo '或：bash run-product-smoke.sh --launch-independent-skeptic-run <已完成正向多维运行目录> <新的外置调用产物目录>'
+  echo '或：bash run-product-smoke.sh --resume-independent-skeptic-run <已运行的独立反证目录> <新的外置调用产物目录>（只重试未完成股票）'
   echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
   echo '或：bash run-product-smoke.sh --stage multidimensional-holding-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--peer-candidates <冻结候选池>] [--model <研究模型>] [--company-research-run <已完成普通股研究运行>] <新的外置产物目录>'
+  echo '或：bash run-product-smoke.sh --stage independent-counter-thesis-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--model <研究模型>] <新的外置产物目录>（同次正向研究后逐股独立反证；不启动 CIO/Risk）'
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'
   echo '在 macOS Terminal 中执行；默认 normal fixture，模型读取现有路由策略。'
   echo '仅限宿主产品执行；不创建项目沙箱。--review 已停用并明确拒绝。'
@@ -23,6 +26,8 @@ fi
 prepared_run=
 resume_multidimensional_run=
 resume_multidimensional_task=
+launch_independent_skeptic_run=
+resume_independent_skeptic_run=
 stage=full-council
 stock_handoff=
 stock_gate=
@@ -33,6 +38,7 @@ stock_focus_security_id=
 company_research_run=
 stock_peer_candidates=
 prepare_only=0
+multidimensional_stage=0
 if [ "${1:-}" = "--resume-multidimensional-run" ]; then
   if [ "$#" -ne 3 ]; then echo '--resume-multidimensional-run 需要已准备运行目录及新的调用产物目录。' >&2; exit 2; fi
   resume_multidimensional_run=$(cd "$2" && pwd -P)
@@ -44,8 +50,18 @@ if [ "${1:-}" = "--resume-multidimensional-task" ]; then
   resume_multidimensional_task=$3
   shift 3
 fi
+if [ "${1:-}" = "--resume-independent-skeptic-run" ]; then
+  if [ "$#" -ne 3 ]; then echo '--resume-independent-skeptic-run 需要已运行目录及新的外置调用产物目录。' >&2; exit 2; fi
+  resume_independent_skeptic_run=$(cd "$2" && pwd -P)
+  shift 2
+fi
+if [ "${1:-}" = "--launch-independent-skeptic-run" ]; then
+  if [ "$#" -ne 3 ]; then echo '--launch-independent-skeptic-run 需要已完成正向多维运行目录及新的外置调用产物目录。' >&2; exit 2; fi
+  launch_independent_skeptic_run=$(cd "$2" && pwd -P)
+  shift 2
+fi
 if [ "${1:-}" = "--stage" ]; then
-  if [ "$#" -lt 5 ] || { [ "$2" != "common-stock-research" ] && [ "$2" != "multidimensional-holding-research" ]; }; then
+  if [ "$#" -lt 5 ] || { [ "$2" != "common-stock-research" ] && [ "$2" != "multidimensional-holding-research" ] && [ "$2" != "independent-counter-thesis-research" ]; }; then
     echo 'RESEARCH_STAGE_ARGUMENTS_INVALID：使用 --help 查看研究阶段参数。' >&2; exit 2
   fi
   stage=$2
@@ -72,6 +88,12 @@ if [ "${1:-}" = "--stage" ]; then
   fi
   if [ "$prepare_only" = "1" ] && [ "$stage" != "common-stock-research" ]; then
     echo 'PREPARE_ONLY_STAGE_UNSUPPORTED：当前仅支持普通股公司研究阶段。' >&2; exit 2
+  fi
+  if [ "$stage" = "multidimensional-holding-research" ] || [ "$stage" = "independent-counter-thesis-research" ]; then
+    multidimensional_stage=1
+  fi
+  if [ "$stage" = "independent-counter-thesis-research" ] && [ -n "$company_research_run" ]; then
+    echo 'COUNTER_HISTORICAL_COMPANY_RUN_FORBIDDEN：新阶段必须在本次运行创建公司研究。' >&2; exit 2
   fi
 fi
 if [ "${1:-}" = "--prepared-run" ]; then
@@ -130,6 +152,22 @@ if [ -n "$resume_multidimensional_run" ]; then
   fi
   exit $?
 fi
+if [ -n "$resume_independent_skeptic_run" ]; then
+  case "$resume_independent_skeptic_run/" in "$repo_root/"*) echo '反证运行目录必须位于源码之外。' >&2; exit 2;; esac
+  echo "恢复宿主独立反证阶段；运行目录：$resume_independent_skeptic_run" >&2
+  python3 "$repo_root/scripts/council-dev.py" resume-independent-skeptic \
+    --repo "$repo_root" --run-dir "$resume_independent_skeptic_run"
+  exit $?
+fi
+if [ -n "$launch_independent_skeptic_run" ]; then
+  case "$launch_independent_skeptic_run/" in "$repo_root/"*) echo '反证运行目录必须位于源码之外。' >&2; exit 2;; esac
+  echo "继续宿主独立反证阶段；运行目录：$launch_independent_skeptic_run" >&2
+  python3 "$repo_root/scripts/council-dev.py" prepare-independent-skeptic \
+    --repo "$repo_root" --run-dir "$launch_independent_skeptic_run"
+  python3 "$repo_root/scripts/council-dev.py" launch-independent-skeptic \
+    --repo "$repo_root" --run-dir "$launch_independent_skeptic_run"
+  exit $?
+fi
 if [ -z "$prepared_run" ]; then
 model=$(python3 - "$repo_root" <<'PY'
 import pathlib, sys
@@ -138,7 +176,7 @@ from product.runtime.model_routing import select_model
 print(select_model(pathlib.Path(sys.argv[1]) / 'product', route='runtime_repeated'))
 PY
 )
-if [ "$stage" = "common-stock-research" ] || [ "$stage" = "multidimensional-holding-research" ]; then
+if [ "$stage" = "common-stock-research" ] || [ "$multidimensional_stage" = "1" ]; then
   if [ -n "$stock_model" ]; then
     model=$(python3 - "$repo_root" "$stock_model" <<'PY'
 import pathlib, sys
@@ -166,7 +204,7 @@ PY
     if [ -z "${LIVE_SOURCE_ACCESS_FILE:-}" ] || [ -z "${SEC_USER_AGENT:-}" ] || [ -z "${RESEARCH_MEMORY_ROOT:-}" ]; then
       echo 'COMMON_STOCK_SOURCE_CONFIGURATION_REQUIRED：自动准备公司资料需要外置来源配置、SEC 联系身份和稳定 RESEARCH_MEMORY_ROOT。' >&2; exit 2
     fi
-    if [ "$stage" = "multidimensional-holding-research" ]; then
+    if [ "$multidimensional_stage" = "1" ]; then
       python3 "$repo_root/scripts/council-dev.py" collect-common-stock-data --repo "$repo_root" \
         --handoff "$stock_handoff" --source-access "$LIVE_SOURCE_ACCESS_FILE" \
         --output-dir "$bundle/data" --cache-root "${LIVE_CACHE_ROOT:-$RESEARCH_MEMORY_ROOT/raw-cache}" \
@@ -186,7 +224,19 @@ PY
       stock_peer_candidates="$bundle/data/peer-candidate-pool.json"
     fi
   fi
-  if [ "$stage" = "multidimensional-holding-research" ]; then
+  if [ "$stage" = "independent-counter-thesis-research" ]; then
+    set -- python3 "$repo_root/scripts/council-dev.py" prepare-common-stock-research --repo "$repo_root" \
+      --handoff "$stock_handoff" --gate "$stock_gate" --run-dir "$bundle/company-run" \
+      --run-id "$run_id" --model "$model" --question '研究当前确认的普通股持仓。' --force-rerun
+    if [ -n "$stock_data_preparation" ]; then
+      set -- "$@" --data-preparation "$stock_data_preparation" --source-bundle "$stock_source_bundle"
+    fi
+    "$@"
+    python3 "$repo_root/scripts/council-dev.py" launch-common-stock-research \
+      --repo "$repo_root" --run-dir "$bundle/company-run"
+    company_research_run="$bundle/company-run"
+  fi
+  if [ "$multidimensional_stage" = "1" ]; then
     research_materials_run=
     if [ -n "$stock_peer_candidates" ]; then
       python3 "$repo_root/scripts/council-dev.py" prepare-research-materials --repo "$repo_root" \
@@ -218,6 +268,9 @@ PY
     set -- python3 "$repo_root/scripts/council-dev.py" prepare-multidimensional-research --repo "$repo_root" \
       --handoff "$stock_handoff" --gate "$stock_gate" --run-dir "$bundle/run" \
       --run-id "$run_id" --model "$model" --question '补全已确认普通股持仓的免费多维研究资料。'
+    if [ "$stage" = "independent-counter-thesis-research" ]; then
+      set -- "$@" --stage INDEPENDENT_COUNTER_THESIS_RESEARCH
+    fi
     if [ -n "$stock_peer_candidates" ]; then
       set -- "$@" --peer-candidates "$stock_peer_candidates"
     fi
@@ -238,20 +291,20 @@ PY
       --handoff "$stock_handoff" --gate "$stock_gate" --run-dir "$bundle/run" \
       --run-id "$run_id" --model "$model" --question '分析已确认的普通股持仓。'
   fi
-  if [ "$stage" != "multidimensional-holding-research" ] && [ -n "${RESEARCH_MEMORY_ROOT:-}" ]; then
+  if [ "$multidimensional_stage" != "1" ] && [ -n "${RESEARCH_MEMORY_ROOT:-}" ]; then
     set -- "$@" --memory-root "$RESEARCH_MEMORY_ROOT"
   fi
-  if [ "$stage" != "multidimensional-holding-research" ] && [ "${FORCE_COMPANY_RESEARCH_RERUN:-0}" = "1" ]; then
+  if [ "$multidimensional_stage" != "1" ] && [ "${FORCE_COMPANY_RESEARCH_RERUN:-0}" = "1" ]; then
     set -- "$@" --force-rerun
   fi
   if [ -n "$stock_focus_security_id" ]; then
-    if [ "$stage" = "multidimensional-holding-research" ]; then
+    if [ "$multidimensional_stage" = "1" ]; then
       echo 'MULTIDIMENSIONAL_FOCUS_NOT_SUPPORTED：多维阶段必须保留当前全部普通股覆盖。' >&2; exit 2
     fi
     set -- "$@" --focus-security-id "$stock_focus_security_id"
   fi
   if [ -n "${EQUITY_RESEARCH_PACKAGE_FILE:-}" ]; then
-    if [ "$stage" = "multidimensional-holding-research" ]; then
+    if [ "$multidimensional_stage" = "1" ]; then
       echo 'EQUITY_RESEARCH_PACKAGE_STAGE_UNSUPPORTED：冻结估值附件只接入普通股公司研究阶段。' >&2; exit 2
     fi
     set -- "$@" --equity-research-package "$EQUITY_RESEARCH_PACKAGE_FILE"
@@ -265,9 +318,15 @@ PY
     exit 0
   fi
   echo "进入宿主研究阶段；进度：$product_run/invocation/codex-events.jsonl" >&2
-  if [ "$stage" = "multidimensional-holding-research" ]; then
+  if [ "$multidimensional_stage" = "1" ]; then
     python3 "$repo_root/scripts/council-dev.py" launch-multidimensional-research \
       --repo "$repo_root" --run-dir "$product_run"
+    if [ "$stage" = "independent-counter-thesis-research" ]; then
+      python3 "$repo_root/scripts/council-dev.py" prepare-independent-skeptic \
+        --repo "$repo_root" --run-dir "$product_run"
+      python3 "$repo_root/scripts/council-dev.py" launch-independent-skeptic \
+        --repo "$repo_root" --run-dir "$product_run"
+    fi
   else
     python3 "$repo_root/scripts/council-dev.py" launch-common-stock-research \
       --repo "$repo_root" --run-dir "$product_run"

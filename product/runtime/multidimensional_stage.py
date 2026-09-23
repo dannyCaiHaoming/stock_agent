@@ -13,7 +13,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from product.council import build_multidimensional_holding_research_request
+from product.council import (
+    build_independent_counter_thesis_research_request,
+    build_multidimensional_holding_research_request,
+)
 from product.council.multidimensional_research import RESEARCH_CAPABILITIES
 from product.intake.v3 import validate_handoff
 from product.mcp.provenance import parse_timestamp
@@ -21,7 +24,7 @@ from product.runtime.hashing import canonical_hash, file_hash
 
 
 STAGE_VERSION = "multidimensional-holding-research-runtime/2.0.0"
-DISPATCH_VERSION = "multidimensional-research-dispatch/2.0.0"
+DISPATCH_VERSION = "multidimensional-research-dispatch/2.1.0"
 COMPANY_AGENT_VERSION = "3.0.20"
 MARKET_AGENT_VERSION = "1.2.0"
 
@@ -99,6 +102,15 @@ def _write_object(path: Path, value: Mapping[str, Any]) -> None:
         raise MultidimensionalStageError(f"MULTIDIMENSIONAL_OUTPUT_EXISTS:{path.name}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _frozen_peer_candidates(task: Mapping[str, Any]) -> list[dict[str, Any]]:
+    return [
+        dict(item) for item in task.get("selected_peer_candidates", [])
+        if isinstance(item, Mapping)
+        and item.get("materialization_status") == "FROZEN"
+        and isinstance(item.get("materialized_security_id"), str)
+    ]
 
 
 def _skill_version(path: Path) -> str:
@@ -1252,6 +1264,7 @@ def prepare_multidimensional_stage_run(
     peer_candidate_pool_path: Path | None = None,
     company_research_run_path: Path | None = None,
     research_materials_run_path: Path | None = None,
+    stage: str = "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
 ) -> dict[str, Any]:
     repository_root = Path(repository_root).resolve()
     product_root = repository_root / "product"
@@ -1284,7 +1297,29 @@ def prepare_multidimensional_stage_run(
                 raise MultidimensionalStageError(f"MULTIDIMENSIONAL_PROVENANCE_MISSING:{key}")
         if parse_timestamp(fact["as_of"]) > cutoff_time or parse_timestamp(fact["retrieved_at"]) > cutoff_time:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_GATE_PIT_LEAKAGE")
-    request = build_multidimensional_holding_research_request(
+    if stage not in {"MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH"}:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_STAGE_INVALID")
+    if stage == "INDEPENDENT_COUNTER_THESIS_RESEARCH":
+        for role, source_path in (
+            ("COMPANY", company_research_run_path),
+            ("MATERIALS", research_materials_run_path),
+        ):
+            if source_path is None:
+                continue
+            source_run = Path(source_path).resolve()
+            source_manifest = _read_object(source_run / "run_manifest.json")
+            source_gate = _read_object(source_run / "evidence/gate.json")
+            if (source_run.parent != run_dir.parent
+                    or source_manifest.get("run_id") != run_id
+                    or source_gate.get("run_id") != run_id
+                    or source_gate.get("decision_cutoff") != cutoff):
+                raise MultidimensionalStageError(f"COUNTER_{role}_CROSS_RUN_IMPORT_FORBIDDEN")
+    request_builder = (
+        build_independent_counter_thesis_research_request
+        if stage == "INDEPENDENT_COUNTER_THESIS_RESEARCH"
+        else build_multidimensional_holding_research_request
+    )
+    request = request_builder(
         handoff, request_id=f"multidimensional:{run_id}",
         research_question=research_question, benchmark_id=benchmark_id,
     )
@@ -1532,13 +1567,23 @@ def prepare_multidimensional_stage_run(
                 "failure_codes 和 dataset_observations 处理缺口。Moomoo 补充层失败时仍可使用"
                 "已通过 Gate 的 SEC/Yahoo Evidence，不得回退到客户端 Cookie、私有 API 或登录绕过。"
             )
+            if stage == "INDEPENDENT_COUNTER_THESIS_RESEARCH":
+                instruction += (
+                    " 本阶段的 allowed_evidence_ids 是可查询目录，不是已经读过的证据。"
+                    "输出前逐项核对 claims、observation_conditions 和其他 evidence_refs："
+                    "凡要引用的 evidence_id，必须由本 Invocation 先通过非空 fixture_runtime.query 实际读取；"
+                    "未查询的 ID 不得引用，也不得从目录或 prepared_analysis 猜测其事实内容。"
+                    "若查询预算或资料限制阻止核验，删去该事实性主张并如实记录 gap。"
+                )
+            frozen_peer_candidates: list[dict[str, Any]] = []
             if capability == "INDUSTRY_COMPARISON":
+                frozen_peer_candidates = _frozen_peer_candidates(task)
                 instruction += (
                     " peer_candidate_group 只是 NASDAQ 目录形成的未核实候选池，可用于提出最多三个"
                     "有理由的候选，不是同行事实或最终选择。候选尚未由只读工具核实身份、取得资料并"
                     "重新通过 Gate 时，不得引用其目录字段形成比较主张；应保留具体资料准备缺口。"
                 )
-                if task.get("selected_peer_candidates"):
+                if frozen_peer_candidates:
                     instruction += (
                         " selected_peer_candidates 已记录 LLM 的候选选择；其中 materialization_status=FROZEN"
                         " 且 materialized_security_id 出现在本任务 Evidence 的项目已经完成身份、采集与 PIT 冻结，"
@@ -1606,8 +1651,15 @@ def prepare_multidimensional_stage_run(
                 instruction += (
                     " 本任务只形成宏观环境报告。allowed_evidence_ids 同时包含官方宏观事实与按证券分组的精选公司事实。"
                     "必须区分观察期、发布时间、获取时间和修订边界，不得用市场价格走势替代政策或经济活动事实。"
-                    "必须读取至少两只持仓的公司事实，再比较其利率、通胀或经济活动敏感性；"
-                    "至少形成一组有区别的公司传导机制，不能只说所有公司都受融资条件影响；"
+                )
+                instruction += (
+                    "当前有多只普通股持仓：必须读取至少两只持仓的公司事实，比较其利率、通胀或经济活动敏感性；"
+                    "至少形成一组有区别的公司传导机制，不能只说所有公司都受融资条件影响。"
+                    if len(security_ids) >= 2 else
+                    "当前只有一只普通股持仓：必须解释该公司的利率、通胀或经济活动敏感性、传导假设与反向情景；"
+                    "不得因缺少第二只持仓而判定资料不足，也不得自动补入另一家公司。"
+                )
+                instruction += (
                     "不得仅凭 ticker、行业常识或相同宏观套话推断。Evidence 不足时明确列出具体公司缺口。"
                 )
             if capability == "MARKET_STATE":
@@ -1615,8 +1667,14 @@ def prepare_multidimensional_stage_run(
                     " 本任务只形成共享市场状态报告。prepared_analysis.calculation 是广泛市场基准的确定性"
                     "市场状态产物；有完整窗口时必须使用其收益、波动和回撤，并通过 calculation.artifact_ref"
                     "引用。跨资产、板块、波动或信用指标必须保留原指标或代理身份，不得把股票波动称为信用。"
-                    "必须读取持仓相关的公司暴露事实并解释差异化传导；不得用主观风险标签替代计算和冻结 Evidence。"
                 )
+                instruction += (
+                    "当前有多只普通股持仓：必须读取持仓相关公司暴露事实并解释差异化传导；"
+                    if len(security_ids) >= 2 else
+                    "当前只有一只普通股持仓：必须解释该公司对当前市场状态的暴露、传导假设与反向情景；"
+                    "不得因缺少第二只持仓而判定资料不足，也不得自动补入另一家公司。"
+                )
+                instruction += "不得用主观风险标签替代计算和冻结 Evidence。"
             if task.get("material_preparation", {}).get("status") == "FAILED":
                 instruction += (
                     " material_preparation 已记录上游资料准备的确定性失败；本维度必须输出"
@@ -1636,7 +1694,7 @@ def prepare_multidimensional_stage_run(
                 allowed_documents=task["allowed_documents"],
                 claims_forbidden=(
                     capability == "INDUSTRY_COMPARISON"
-                    and not task.get("selected_peer_candidates")
+                    and not frozen_peer_candidates
                 ),
             )
             output_contract = topology_lock["output_contracts"].get(
@@ -1702,6 +1760,15 @@ def prepare_multidimensional_stage_run(
                     {key: fact.get(key) for key in ("evidence_id", "security_id", "semantic_field", "source_id", "as_of", "published_at", "retrieved_at", "unit", "usage")}
                     for fact in facts
                 ],
+                "citation_contract": {
+                    "version": "exact-evidence-citation/1.0.0",
+                    "required_form": "FULL_EVIDENCE_ID_FROM_TOOL_RESULT",
+                    "instruction": (
+                        "evidence_refs 必须逐字复制本 Invocation 工具结果返回的完整 evidence_id；"
+                        "不得缩短、改写、手工补全或用相似字符串替换。无法取得完整原值时保留 gap。"
+                    ),
+                    "aliases": {},
+                },
                 "tool_context": {
                     "source_mode": "frozen-gate", "mcp_server": "fixture_runtime",
                     "query_tool": "fixture_runtime.query", "logical_permissions": invocation["tool_permissions"],
@@ -1737,7 +1804,7 @@ def prepare_multidimensional_stage_run(
     _write_object(run_dir / "research/dispatch-index.json", index)
     manifest = {
         "schema_version": STAGE_VERSION, "run_id": run_id,
-        "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "source_mode": "frozen-gate",
+        "stage": stage, "source_mode": "frozen-gate",
         "model": selected_model, "parent_model": selected_model, "output_dir": str(run_dir),
         "discovery": {"product_root": str(product_root)},
         "research_input_topology": topology_lock,
@@ -1878,7 +1945,8 @@ def build_multidimensional_task_prompt(
 
 
 def finalize_multidimensional_task_evidence(
-    repository_root: Path, run_dir: Path, task_name: str,
+    repository_root: Path, run_dir: Path, task_name: str, *,
+    invocation_dir: Path | None = None,
 ) -> dict[str, Any]:
     """验证目标任务及其依赖闭包的真实派发、合法报告与 Evidence Closure。"""
 
@@ -1886,13 +1954,18 @@ def finalize_multidimensional_task_evidence(
 
     del repository_root
     run_dir = Path(run_dir).resolve()
+    invocation_dir = (
+        run_dir / "invocation" if invocation_dir is None else Path(invocation_dir).resolve()
+    )
+    if not invocation_dir.is_relative_to(run_dir / "invocation"):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_INVOCATION_PATH_INVALID")
     index = _read_object(run_dir / "research/dispatch-index.json")
     closure = _target_task_closure(index, task_name)
     expected_names = [item["task_name"] for item in closure]
     expected_ids = {item["task_id"] for item in closure}
     dispatches = [
         json.loads(line)
-        for line in (run_dir / "invocation/subagent-dispatches.jsonl").read_text(
+        for line in (invocation_dir / "subagent-dispatches.jsonl").read_text(
             encoding="utf-8"
         ).splitlines()
         if line.strip()
@@ -1904,7 +1977,7 @@ def finalize_multidimensional_task_evidence(
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_DISPATCH_INVALID")
     events = [
         json.loads(line)
-        for line in (run_dir / "invocation/subagent-events.jsonl").read_text(
+        for line in (invocation_dir / "subagent-events.jsonl").read_text(
             encoding="utf-8"
         ).splitlines()
         if line.strip()
@@ -1994,21 +2067,29 @@ def finalize_multidimensional_task_evidence(
         "report_inventory": report_inventory,
         "dependency_chain_complete": True,
         "dispatch_events_hash": file_hash(
-            run_dir / "invocation/subagent-dispatches.jsonl"
+            invocation_dir / "subagent-dispatches.jsonl"
         ),
         "subagent_events_hash": file_hash(
-            run_dir / "invocation/subagent-events.jsonl"
+            invocation_dir / "subagent-events.jsonl"
         ),
         "gate_hash": gate["bundle_hash"],
         "complete_holding_research_bundle": False,
         "downstream_models_started": [],
     }
     proof["proof_hash"] = canonical_hash(proof)
-    _write_object(run_dir / "research/task-execution-proof.json", proof)
+    proof_path = (
+        run_dir / "research/task-execution-proof.json"
+        if invocation_dir == run_dir / "invocation"
+        else invocation_dir / "task-execution-proof.json"
+    )
+    _write_object(proof_path, proof)
     return proof
 
 
-def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) -> dict[str, Any]:
+def finalize_multidimensional_stage_run(
+    repository_root: Path, run_dir: Path, *,
+    adopted_invocation_dirs: Sequence[Path] = (),
+) -> dict[str, Any]:
     """重验每个维度报告并组装不含投资动作的 HoldingResearchBundle。"""
 
     from product.council.multidimensional_output import render_holding_research_bundle_markdown
@@ -2032,8 +2113,25 @@ def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) ->
     dispatch_path = run_dir / "invocation/subagent-dispatches.jsonl"
     if not event_path.is_file() or not dispatch_path.is_file():
         raise MultidimensionalStageError("MULTIDIMENSIONAL_EXECUTION_EVENTS_MISSING")
-    events = [json.loads(line) for line in event_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    dispatches = [json.loads(line) for line in dispatch_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    invocation_dirs = [run_dir / "invocation"]
+    for directory in adopted_invocation_dirs:
+        resolved = Path(directory).resolve()
+        if (not resolved.is_relative_to(run_dir / "invocation/retries")
+                or not (resolved / "task-execution-proof.json").is_file()):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_ADOPTION_INVALID")
+        invocation_dirs.append(resolved)
+    events = [
+        json.loads(line)
+        for directory in invocation_dirs
+        for line in (directory / "subagent-events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    dispatches = [
+        json.loads(line)
+        for directory in invocation_dirs
+        for line in (directory / "subagent-dispatches.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     expected_names = {item["task_name"] for item in index["tasks"]}
     allowed_names = {
         item.get("task_name") for item in dispatches
@@ -2081,6 +2179,11 @@ def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) ->
                 "repair_state": capture.get("repair_state"),
                 "raw_path": capture.get("raw_path"),
             }
+    # A separately recorded, explicitly adopted retry may supersede a failed
+    # validation result, while the original failure remains in the archived
+    # bundle/proof and retry-adoption log.
+    for task_id in completed_events:
+        failed_events.pop(task_id, None)
     started_invocations = {
         item.get("context_binding", {}).get("invocation_id")
         for item in events
@@ -2440,6 +2543,10 @@ def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) ->
         "gate_hash": gate["bundle_hash"], "bundle_hash": bundle["bundle_hash"],
         "company_research_import_hash": manifest.get("company_research_import_hash"),
         "research_materials_import_hash": manifest.get("research_materials_import_hash"),
+        "adopted_retry_invocations": [
+            str(Path(item).resolve().relative_to(run_dir))
+            for item in adopted_invocation_dirs
+        ],
         "consumability": bundle["consumability"],
         "complete_portfolio_decision": False,
     }
@@ -2451,6 +2558,73 @@ def finalize_multidimensional_stage_run(repository_root: Path, run_dir: Path) ->
         "bundle": str(run_dir / "research/holding-research-bundle.json"),
         "report": str(markdown_path),
     }
+
+
+def _adopt_multidimensional_retry(
+    repository_root: Path, run_dir: Path, *, invocation_dir: Path,
+) -> dict[str, Any]:
+    """归档旧聚合包，并只把显式成功的单任务 attempt 纳入新聚合包。"""
+
+    run_dir = Path(run_dir).resolve()
+    invocation_dir = Path(invocation_dir).resolve()
+    adoption_log = run_dir / "research/retry-adoptions.jsonl"
+    prior = []
+    if adoption_log.is_file():
+        prior = [
+            json.loads(line) for line in adoption_log.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+    adopted_dirs = [run_dir / item["invocation_ref"] for item in prior]
+    adopted_dirs.append(invocation_dir)
+    revision = len(prior) + 1
+    revision_dir = run_dir / f"research/revisions/{revision}"
+    if revision_dir.exists():
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_REVISION_EXISTS")
+    revision_dir.mkdir(parents=True)
+    canonical = (
+        "holding-research-bundle.json",
+        "holding-research-bundle.md",
+        "execution-proof.json",
+    )
+    archived = {}
+    for name in canonical:
+        source = run_dir / "research" / name
+        if not source.is_file():
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_BASE_ARTIFACT_MISSING")
+        archived[name] = file_hash(source)
+        shutil.copy2(source, revision_dir / name)
+    if (run_dir / "research/consumption-proof.json").exists():
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_ALREADY_CONSUMED")
+    for name in canonical:
+        (run_dir / "research" / name).unlink()
+    try:
+        result = finalize_multidimensional_stage_run(
+            repository_root, run_dir, adopted_invocation_dirs=adopted_dirs,
+        )
+    except Exception:
+        for name in canonical:
+            source = revision_dir / name
+            destination = run_dir / "research" / name
+            if source.is_file() and not destination.exists():
+                shutil.copy2(source, destination)
+        raise
+    proof = _read_object(invocation_dir / "task-execution-proof.json")
+    record = {
+        "schema_version": "multidimensional-retry-adoption/1.0.0",
+        "run_id": result["run_id"], "revision": revision,
+        "invocation_ref": str(invocation_dir.relative_to(run_dir)),
+        "task_name": proof["task_name"], "task_id": proof["task_id"],
+        "retry_proof_hash": proof["proof_hash"],
+        "archived_artifact_hashes": archived,
+        "adopted_bundle_file_hash": file_hash(
+            run_dir / "research/holding-research-bundle.json"
+        ),
+    }
+    record["adoption_hash"] = canonical_hash(record)
+    adoption_log.parent.mkdir(parents=True, exist_ok=True)
+    with adoption_log.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+    return result
 
 
 def _copy_run_artifact(source_run: Path, target_run: Path, relative: str) -> str:
@@ -2903,7 +3077,7 @@ def assemble_canonical_holding_research_package(
 
 
 def check_multidimensional_bundle_consumable(
-    repository_root: Path, run_dir: Path,
+    repository_root: Path, run_dir: Path, *, persist: bool = True,
 ) -> dict[str, Any]:
     """只读解析完整研究包，证明下游无需人工改写即可取得结构化研究输入。"""
 
@@ -2916,7 +3090,9 @@ def check_multidimensional_bundle_consumable(
     del repository_root
     run_dir = Path(run_dir).resolve()
     manifest = _read_object(run_dir / "run_manifest.json")
-    if manifest.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+    if manifest.get("stage") not in {
+        "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH",
+    }:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_STAGE_INVALID")
     bundle_path = run_dir / "research/holding-research-bundle.json"
     gate_path = run_dir / "evidence/gate.json"
@@ -3018,10 +3194,11 @@ def check_multidimensional_bundle_consumable(
         "downstream_models_started": [], "complete_portfolio_decision": False,
     }
     proof["proof_hash"] = canonical_hash(proof)
-    destination = run_dir / "research/consumption-proof.json"
-    if destination.exists():
-        raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_PROOF_EXISTS")
-    _write_object(destination, proof)
+    if persist:
+        destination = run_dir / "research/consumption-proof.json"
+        if destination.exists():
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_PROOF_EXISTS")
+        _write_object(destination, proof)
     return proof
 
 
@@ -3043,15 +3220,40 @@ def launch_multidimensional_stage(
     manifest = _read_object(run_dir / "run_manifest.json")
     if (
         manifest.get("schema_version") != STAGE_VERSION
-        or manifest.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+        or manifest.get("stage") not in {
+            "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH",
+        }
         or Path(manifest.get("output_dir", "")).resolve() != run_dir
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_MANIFEST_INVALID")
-    invocation_dir = run_dir / "invocation"
-    if invocation_dir.exists():
-        raise MultidimensionalStageError("MULTIDIMENSIONAL_ALREADY_LAUNCHED")
-    invocation_dir.mkdir()
-    runtime_root = run_dir / ".codex-runtime"
+    index = _read_object(run_dir / "research/dispatch-index.json")
+    target_tasks = (
+        _target_task_closure(index, task_name) if task_name is not None else []
+    )
+    if task_name is None:
+        invocation_dir = run_dir / "invocation"
+        if invocation_dir.exists():
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_ALREADY_LAUNCHED")
+        invocation_dir.mkdir()
+        runtime_root = run_dir / ".codex-runtime"
+    else:
+        if not (run_dir / "invocation/process-result.json").is_file():
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_BASE_NOT_TERMINAL")
+        target = target_tasks[-1]
+        expected_report_id = f"dimension-report:{target['task_id']}"
+        if any(
+            _read_object(candidate).get("report_id") == expected_report_id
+            for candidate in (run_dir / "research/reports").glob("*/dimension-report.json")
+        ):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_REPORT_ALREADY_VALID")
+        retry_slug = canonical_hash({"task_name": task_name})[:16]
+        retry_root = run_dir / f"invocation/retries/{retry_slug}"
+        attempt = 1
+        while (retry_root / f"attempt-{attempt}").exists():
+            attempt += 1
+        invocation_dir = retry_root / f"attempt-{attempt}"
+        invocation_dir.mkdir(parents=True)
+        runtime_root = run_dir / f".codex-runtime-retries/{retry_slug}/attempt-{attempt}"
     sqlite_home, log_dir, tmp_dir = runtime_root / "sqlite", runtime_root / "logs", runtime_root / "tmp"
     for path in (sqlite_home, log_dir, tmp_dir):
         path.mkdir(parents=True, exist_ok=False)
@@ -3062,10 +3264,6 @@ def launch_multidimensional_stage(
     )
     prompt_path = invocation_dir / "prompt.txt"
     prompt_path.write_text(prompt, encoding="utf-8")
-    index = _read_object(run_dir / "research/dispatch-index.json")
-    target_tasks = (
-        _target_task_closure(index, task_name) if task_name is not None else []
-    )
     task_count = len(target_tasks) if task_name is not None else len(index["tasks"])
     parent_schema = _parent_output_schema(manifest["run_id"], task_count)
     schema_path = invocation_dir / "parent-output.schema.json"
@@ -3149,21 +3347,93 @@ def launch_multidimensional_stage(
             "completed": task_count,
         }:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_FINAL_MESSAGE_INVALID")
-        result = (
+        if task_name is not None:
             finalize_multidimensional_task_evidence(
-                repository_root, run_dir, task_name
+                repository_root, run_dir, task_name, invocation_dir=invocation_dir,
             )
-            if task_name is not None
-            else finalize_multidimensional_stage_run(repository_root, run_dir)
-        )
+            result = _adopt_multidimensional_retry(
+                repository_root, run_dir, invocation_dir=invocation_dir,
+            )
+        else:
+            result = finalize_multidimensional_stage_run(repository_root, run_dir)
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         failure_code = str(exc).split(":", 1)[0]
         result = {"status": "FAILED", "run_id": manifest["run_id"], "failure_code": failure_code}
+    outcome_tasks = target_tasks if target_tasks else index["tasks"]
+    task_by_invocation = {item["invocation_id"]: item for item in outcome_tasks}
+    outcome_by_task: dict[str, dict[str, Any]] = {
+        item["task_id"]: {
+            "task_id": item["task_id"], "task_name": item["task_name"],
+            "status": "NOT_DISPATCHED", "failure_code": None,
+        }
+        for item in outcome_tasks
+    }
+    dispatch_records = (
+        [json.loads(line) for line in dispatch_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if dispatch_events_path.is_file() else []
+    )
+    hook_records = (
+        [json.loads(line) for line in hook_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if hook_events_path.is_file() else []
+    )
+    for item in dispatch_records:
+        task = next(
+            (candidate for candidate in outcome_tasks if candidate["task_name"] == item.get("task_name")),
+            None,
+        )
+        if task is None:
+            continue
+        if item.get("decision") == "ALLOW":
+            outcome_by_task[task["task_id"]]["status"] = "DISPATCHED_NOT_STARTED"
+        elif item.get("dispatch_binding", {}).get("failure_code") == "RESEARCH_DEPENDENCY_NOT_READY":
+            outcome_by_task[task["task_id"]].update(
+                status="DEPENDENCY_BLOCKED", failure_code="RESEARCH_DEPENDENCY_NOT_READY"
+            )
+    for item in hook_records:
+        context = item.get("context_binding")
+        if (
+            item.get("hook_event_name") == "SubagentStart"
+            and isinstance(context, Mapping)
+            and context.get("invocation_id") in task_by_invocation
+        ):
+            task = task_by_invocation[context["invocation_id"]]
+            outcome_by_task[task["task_id"]].update(
+                status="STARTED_NO_TERMINAL", failure_code="TERMINAL_EVENT_MISSING"
+            )
+        trusted = item.get("trusted_task_binding")
+        binding = item.get("output_binding")
+        invocation_id = (
+            trusted.get("invocation_id") if isinstance(trusted, Mapping) else None
+        ) or (binding.get("invocation_id") if isinstance(binding, Mapping) else None)
+        if item.get("hook_event_name") != "SubagentStop" or invocation_id not in task_by_invocation:
+            continue
+        task = task_by_invocation[invocation_id]
+        capture = item.get("output_capture")
+        if isinstance(capture, Mapping) and capture.get("status") == "SAVED":
+            outcome_by_task[task["task_id"]].update(status="SAVED", failure_code=None)
+        else:
+            outcome_by_task[task["task_id"]].update(
+                status="FAILED",
+                failure_code=(
+                    capture.get("failure_code")
+                    if isinstance(capture, Mapping) else "MULTIDIMENSIONAL_OUTPUT_INVALID"
+                ),
+            )
+    task_outcomes = [outcome_by_task[item["task_id"]] for item in outcome_tasks]
     after = integrity_snapshot(repository_root)
     _write_object(invocation_dir / "process-result.json", {
         "schema_version": "multidimensional-stage-process/1.0.0",
         "run_id": manifest["run_id"], "process_exit_code": process_code,
         "timed_out": timed_out, "stage_status": result["status"], "failure_code": failure_code,
         "source_integrity_unchanged": before == after,
+        "task_outcomes": task_outcomes,
+        "saved_task_count": sum(item["status"] == "SAVED" for item in task_outcomes),
+        "failed_task_count": sum(
+            item["status"] in {"FAILED", "DEPENDENCY_BLOCKED"} for item in task_outcomes
+        ),
+        "incomplete_task_count": sum(
+            item["status"] in {"NOT_DISPATCHED", "DISPATCHED_NOT_STARTED", "STARTED_NO_TERMINAL"}
+            for item in task_outcomes
+        ),
     })
     return result, 0 if result["status"] == "PASSED" and before == after else 7

@@ -553,7 +553,9 @@ def prepare_common_stock_research_stage(
                 row.get("evidence_ids", []), f"data_preparation.items.{security_id}.evidence_ids"
             )
             expected_ids = _scoped_evidence_ids(gate, security_id)
-            if evidence_ids != expected_ids:
+            # preparation 记录公司采集的基础集合；同一冻结 Gate 还可包含
+            # 后续准入的官方 Macro / Options 等补充事实。基础集合不得越过 Gate。
+            if not set(evidence_ids) <= set(expected_ids):
                 raise CommonStockResearchError("RESEARCH_DATA_PREPARATION_EVIDENCE_MISMATCH")
             if row.get("status") == "READY" and not evidence_ids:
                 raise CommonStockResearchError("RESEARCH_DATA_PREPARATION_STATUS_INVALID")

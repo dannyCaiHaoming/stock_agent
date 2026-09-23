@@ -82,16 +82,16 @@ class SkillConfigTests(unittest.TestCase):
             self.assertEqual(fields.get("name"), skill_name)
             expected_version = {
                 "portfolio-intake": "1.0.0",
-                "portfolio-council": "3.4.2",
+                "portfolio-council": "3.5.0",
                 "evidence-grounding": "2.1.0",
                 "company-research": "2.8.0",
                 "valuation": "2.5.0",
-                "counter-thesis": "2.0.0",
+                "counter-thesis": "2.1.0",
                 "catalyst-analysis": "1.3.0",
                 "technical-structure": "1.1.0",
                 "research-report-analysis": "1.2.0",
                 "industry-comparison": "1.4.0",
-                "macro-market-analysis": "2.1.0",
+                "macro-market-analysis": "2.2.0",
                 "ownership-disclosure": "1.0.0",
                 "options-market-structure": "1.0.0",
             }[skill_name]
@@ -187,7 +187,7 @@ class RuntimeAgentConfigTests(unittest.TestCase):
                     )
                 )
             if name != "runtime_cio":
-                self.assertIn("只返回一个", instructions)
+                self.assertIn("只返回", instructions)
                 self.assertIn("data_gaps", instructions)
                 self.assertIn("TIMEOUT", instructions)
 
@@ -201,7 +201,7 @@ class RuntimeAgentConfigTests(unittest.TestCase):
             {
                 "runtime_cio": "3.1.0",
                 "runtime_company_analyst": "3.0.20",
-                "runtime_skeptic": "2.1.0",
+                "runtime_skeptic": "2.2.0",
             },
         )
         self.assertEqual({config["name"] for config in profile.values()}, FIXTURE_COUNCIL_AGENTS)

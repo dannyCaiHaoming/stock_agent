@@ -17,11 +17,12 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-RECORDER_VERSION = "codex-subagent-hook-recorder/1.16.0"
+RECORDER_VERSION = "codex-subagent-hook-recorder/1.17.0"
 SUPPORTED_EVENTS = {"SubagentStart", "SubagentStop"}
 COMMON_STOCK_STAGE_VERSION = "common-stock-research-runtime/1.0.0"
 MULTIDIMENSIONAL_STAGE_VERSION = "multidimensional-holding-research-runtime/2.0.0"
 RESEARCH_MATERIALS_STAGE_VERSION = "multidimensional-material-preparation-runtime/1.1.0"
+INDEPENDENT_SKEPTIC_STAGE_VERSION = "independent-skeptic-runtime/1.0.0"
 COMMON_STOCK_EVAL_VERSION = "common-stock-research-eval-runtime/1.0.0"
 
 
@@ -139,11 +140,16 @@ def _research_materials_stage(environment: Mapping[str, str]) -> bool:
     return environment.get("STOCK_AGENT_RESEARCH_MATERIALS_STAGE") == RESEARCH_MATERIALS_STAGE_VERSION
 
 
+def _independent_skeptic_stage(environment: Mapping[str, str]) -> bool:
+    return environment.get("STOCK_AGENT_INDEPENDENT_SKEPTIC_STAGE") == INDEPENDENT_SKEPTIC_STAGE_VERSION
+
+
 def _research_stage(environment: Mapping[str, str]) -> bool:
     return (
         _common_stock_stage(environment)
         or _multidimensional_stage(environment)
         or _research_materials_stage(environment)
+        or _independent_skeptic_stage(environment)
     )
 
 
@@ -174,7 +180,18 @@ def _research_materials_module():
     return research_materials_stage
 
 
+def _independent_skeptic_module():
+    if __package__:
+        from . import independent_skeptic_stage
+    else:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from product.runtime import independent_skeptic_stage
+    return independent_skeptic_stage
+
+
 def _research_module(environment: Mapping[str, str]):
+    if _independent_skeptic_stage(environment):
+        return _independent_skeptic_module()
     if _research_materials_stage(environment):
         return _research_materials_module()
     return _multidimensional_module() if _multidimensional_stage(environment) else _common_stock_module()
@@ -195,7 +212,16 @@ def _common_stock_eval_module():
 
 def _research_index(environment: Mapping[str, str]) -> dict[str, Any]:
     run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
-    value = json.loads((run_dir / "research/dispatch-index.json").read_text(encoding="utf-8"))
+    if _independent_skeptic_stage(environment):
+        return _independent_skeptic_module().read_dispatch_index(
+            run_dir, environment.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX")
+        )
+    relative = (
+        "research/skeptic/dispatch-index.json"
+        if _independent_skeptic_stage(environment)
+        else "research/dispatch-index.json"
+    )
+    value = json.loads((run_dir / relative).read_text(encoding="utf-8"))
     body = {key: item for key, item in value.items() if key != "index_hash"}
     expected_version = _research_module(environment).DISPATCH_VERSION
     if (
@@ -273,13 +299,21 @@ def _verify_dispatch_input(tool_input: Mapping[str, Any], environment: Mapping[s
         if selected_tasks is not None and task_name not in selected_tasks:
             raise ValueError("RESEARCH_TARGET_TASK_MISMATCH")
         build_packet = (
-            stage.build_research_materials_dispatch_packet
+            stage.build_skeptic_dispatch_packet
+            if _independent_skeptic_stage(environment)
+            else stage.build_research_materials_dispatch_packet
             if _research_materials_stage(environment)
             else stage.build_multidimensional_dispatch_packet
             if _multidimensional_stage(environment)
             else stage.build_common_stock_dispatch_packet
         )
-        if _multidimensional_stage(environment) or _research_materials_stage(environment):
+        if _independent_skeptic_stage(environment):
+            packet = build_packet(
+                Path(__file__).resolve().parents[2],
+                Path(environment["STOCK_AGENT_RUN_DIR"]), str(task_name),
+                index_ref=environment.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
+            )
+        elif _multidimensional_stage(environment) or _research_materials_stage(environment):
             packet = build_packet(
                 Path(__file__).resolve().parents[2],
                 Path(environment["STOCK_AGENT_RUN_DIR"]),
@@ -585,6 +619,120 @@ def minimize_hook_event(
     return record
 
 
+def _bind_research_stop_identity(
+    payload: Mapping[str, Any], record: dict[str, Any], *,
+    log_path: Path, environment: Mapping[str, str],
+) -> None:
+    """Bind a final research Stop to its trusted Start without changing prose."""
+
+    if payload.get("hook_event_name") != "SubagentStop" or not _research_stage(environment):
+        return
+    parent_session_id = str(payload.get("session_id", ""))
+    child_session_id = str(payload.get("agent_id", ""))
+    starts = []
+    for item in _read_jsonl_records_unlocked(log_path):
+        context = item.get("context_binding")
+        if (
+            item.get("hook_event_name") == "SubagentStart"
+            and item.get("parent_session_id") == parent_session_id
+            and item.get("child_session_id") == child_session_id
+            and item.get("agent_type") == payload.get("agent_type")
+            and item.get("model") == payload.get("model")
+            and isinstance(context, Mapping)
+            and context.get("status") == "DELIVERED"
+        ):
+            starts.append(context)
+    if len(starts) != 1:
+        record["identity_binding"] = {
+            "status": "FAILED", "failure_code": "RESEARCH_STOP_START_BINDING_AMBIGUOUS",
+        }
+        return
+    context = starts[0]
+    index = _research_index(environment)
+    matches = [
+        item for item in index["tasks"]
+        if item.get("task_name") == context.get("task_name")
+        and item.get("invocation_id") == context.get("invocation_id")
+        and (
+            item.get("agent")
+            or ("runtime_company_analyst" if _common_stock_stage(environment) else None)
+        ) == payload.get("agent_type")
+    ]
+    dispatch_log = _resolve_scoped_log(
+        environment, environment_key="STOCK_AGENT_SUBAGENT_DISPATCH_LOG"
+    )
+    allowed = [
+        item for item in _read_jsonl_records_unlocked(dispatch_log)
+        if item.get("decision") == "ALLOW"
+        and item.get("parent_session_id") == parent_session_id
+        and item.get("task_name") == context.get("task_name")
+        and item.get("agent_type") == payload.get("agent_type")
+    ]
+    if len(matches) != 1 or len(allowed) != 1 or context.get("run_id") != index.get("run_id"):
+        record["identity_binding"] = {
+            "status": "FAILED", "failure_code": "RESEARCH_STOP_TRUSTED_BINDING_INVALID",
+        }
+        return
+    task = matches[0]
+    task_agent = task.get("agent") or "runtime_company_analyst"
+    trusted = {
+        "run_id": index["run_id"], "invocation_id": task["invocation_id"],
+        "agent": task_agent, "task_name": task["task_name"],
+        "task_id": task.get("task_id", task["task_name"]),
+    }
+    record["trusted_task_binding"] = trusted
+    authored = record.get("output_binding")
+    conflicts = []
+    if isinstance(authored, Mapping):
+        for key in ("run_id", "invocation_id", "agent"):
+            if authored.get(key) is not None and authored.get(key) != trusted[key]:
+                conflicts.append(key)
+    if conflicts:
+        record["identity_binding"] = {
+            "status": "CONFLICT", "failure_code": "RESEARCH_OUTPUT_IDENTITY_CONFLICT",
+            "conflicting_fields": sorted(conflicts), "source": "TRUSTED_DISPATCH_AND_START",
+        }
+        return
+    missing = [
+        key for key in ("run_id", "invocation_id", "agent")
+        if not isinstance(authored, Mapping) or authored.get(key) is None
+    ]
+    record["output_binding"] = {
+        key: trusted[key] for key in ("run_id", "invocation_id", "agent")
+    }
+    record["identity_binding"] = {
+        "status": "BOUND", "source": "TRUSTED_DISPATCH_AND_START",
+        "filled_fields": missing,
+    }
+
+
+def _trusted_bound_output(
+    payload: Mapping[str, Any], record: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Return the raw object with only trusted technical identity enveloped."""
+
+    identity = record.get("identity_binding")
+    if not isinstance(identity, Mapping) or identity.get("status") != "BOUND":
+        code = (
+            identity.get("failure_code")
+            if isinstance(identity, Mapping) else "RESEARCH_OUTPUT_TRUSTED_BINDING_MISSING"
+        )
+        raise ValueError(str(code))
+    try:
+        value = json.loads(payload["last_assistant_message"])
+    except json.JSONDecodeError as exc:
+        raise ValueError("RESEARCH_OUTPUT_JSON_INVALID") from exc
+    if not isinstance(value, dict):
+        raise ValueError("RESEARCH_OUTPUT_NOT_OBJECT")
+    binding = record.get("output_binding")
+    if not isinstance(binding, Mapping):
+        raise ValueError("RESEARCH_OUTPUT_TRUSTED_BINDING_MISSING")
+    result = dict(value)
+    for key in ("run_id", "invocation_id", "agent"):
+        result[key] = binding[key]
+    return result
+
+
 def _expected_parallel_agents(environment: Mapping[str, str]) -> set[str]:
     return {
         item.strip()
@@ -622,14 +770,10 @@ def _allowed_dispatch_tasks(log_path: Path, *, parent_session_id: str) -> set[st
     return result
 
 
-def _read_jsonl_records(log_path: Path) -> list[dict[str, Any]]:
-    """Read one append-only Hook log while excluding a concurrent writer."""
+def _read_jsonl_records_unlocked(log_path: Path) -> list[dict[str, Any]]:
+    """Read records when the caller already holds the append lock."""
 
-    lock_path = log_path.with_suffix(log_path.suffix + ".lock")
-    with lock_path.open("a", encoding="utf-8") as lock_handle:
-        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
-        lines = log_path.read_text(encoding="utf-8").splitlines() if log_path.is_file() else []
-        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+    lines = log_path.read_text(encoding="utf-8").splitlines() if log_path.is_file() else []
     records: list[dict[str, Any]] = []
     for line in lines:
         if not line.strip():
@@ -640,6 +784,17 @@ def _read_jsonl_records(log_path: Path) -> list[dict[str, Any]]:
             continue
         if isinstance(value, dict):
             records.append(value)
+    return records
+
+
+def _read_jsonl_records(log_path: Path) -> list[dict[str, Any]]:
+    """Read one append-only Hook log while excluding a concurrent writer."""
+
+    lock_path = log_path.with_suffix(log_path.suffix + ".lock")
+    with lock_path.open("a", encoding="utf-8") as lock_handle:
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
+        records = _read_jsonl_records_unlocked(log_path)
+        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
     return records
 
 
@@ -681,40 +836,9 @@ def _handle_parent_stop(
         and item.get("parent_session_id") == parent_session_id
         and item.get("task_name") in tasks
     }
-    events = _read_jsonl_records(event_log)
-    starts: dict[str, tuple[str, str]] = {}
-    for item in events:
-        binding = item.get("context_binding")
-        task_name = binding.get("task_name") if isinstance(binding, Mapping) else None
-        invocation_id = binding.get("invocation_id") if isinstance(binding, Mapping) else None
-        child_id = item.get("child_session_id")
-        if (
-            item.get("hook_event_name") == "SubagentStart"
-            and item.get("parent_session_id") == parent_session_id
-            and item.get("agent_type") == "runtime_company_analyst"
-            and isinstance(child_id, str)
-            and task_name in tasks
-            and binding.get("status") == "DELIVERED"
-            and invocation_id == tasks[task_name]["invocation_id"]
-        ):
-            starts[child_id] = (task_name, invocation_id)
-
-    completed: set[str] = set()
-    for item in events:
-        child_id = item.get("child_session_id")
-        start = starts.get(child_id) if isinstance(child_id, str) else None
-        binding = item.get("output_binding")
-        if (
-            item.get("hook_event_name") == "SubagentStop"
-            and item.get("parent_session_id") == parent_session_id
-            and item.get("agent_type") == "runtime_company_analyst"
-            and start is not None
-            and isinstance(binding, Mapping)
-            and binding.get("agent") == "runtime_company_analyst"
-            and binding.get("invocation_id") == start[1]
-            and start[0] in allowed
-        ):
-            completed.add(start[0])
+    completed = allowed & _terminal_research_tasks(
+        event_log, parent_session_id=parent_session_id, environment=environment,
+    )
 
     expected = set(tasks)
     missing = expected - completed
@@ -758,30 +882,47 @@ def _handle_parent_stop(
 def _terminal_research_tasks(
     log_path: Path, *, parent_session_id: str, environment: Mapping[str, str]
 ) -> set[str]:
-    """将已结束子会话按其结构化 Invocation 绑定回任务。"""
+    """将最终 Stop 按可信 Start/派发身份绑定回已结束任务。"""
 
     if not log_path.is_file():
         return set()
-    by_invocation = {
-        item["invocation_id"]: item["task_name"]
-        for item in _research_index(environment)["tasks"]
-    }
+    tasks = {item["task_name"]: item for item in _research_index(environment)["tasks"]}
+    by_invocation = {item["invocation_id"]: item["task_name"] for item in tasks.values()}
+    records = _read_jsonl_records(log_path)
+    starts: dict[str, str] = {}
+    for item in records:
+        context = item.get("context_binding")
+        if (
+            item.get("hook_event_name") == "SubagentStart"
+            and item.get("parent_session_id") == parent_session_id
+            and isinstance(item.get("child_session_id"), str)
+            and isinstance(context, Mapping)
+            and context.get("status") == "DELIVERED"
+            and context.get("task_name") in tasks
+            and context.get("invocation_id") == tasks[context["task_name"]]["invocation_id"]
+            and item.get("agent_type") == (
+                tasks[context["task_name"]].get("agent")
+                or ("runtime_company_analyst" if _common_stock_stage(environment) else None)
+            )
+        ):
+            starts[item["child_session_id"]] = context["task_name"]
     result: set[str] = set()
-    for line in log_path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        try:
-            item = json.loads(line)
-        except json.JSONDecodeError:
-            continue
+    for item in records:
         binding = item.get("output_binding") or {}
+        trusted = item.get("trusted_task_binding") or {}
         invocation_id = binding.get("invocation_id") if isinstance(binding, Mapping) else None
         if (
             item.get("hook_event_name") == "SubagentStop"
             and item.get("parent_session_id") == parent_session_id
-            and invocation_id in by_invocation
         ):
-            result.add(by_invocation[invocation_id])
+            task_name = (
+                trusted.get("task_name") if isinstance(trusted, Mapping) else None
+            ) or starts.get(item.get("child_session_id"))
+            if task_name in tasks:
+                result.add(task_name)
+            elif invocation_id in by_invocation:
+                # Backward-compatible read path for historical/synthetic logs.
+                result.add(by_invocation[invocation_id])
     return result
 
 
@@ -950,13 +1091,8 @@ def _capture_common_stock_report(payload, record, environment):
     """按 invocation 绑定保存普通股研究草案；非法引用不做静默修复。"""
     stage = _common_stock_module()
     run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
-    value = json.loads(payload["last_assistant_message"])
-    if (
-        not isinstance(value, dict)
-        or value.get("agent") != "runtime_company_analyst"
-        or value.get("run_id") is None
-        or value.get("invocation_id") is None
-    ):
+    value = _trusted_bound_output(payload, record)
+    if value.get("agent") != "runtime_company_analyst":
         raise ValueError("COMMON_STOCK_OUTPUT_BINDING_INVALID")
     index = _research_index(environment)
     matches = [item for item in index["tasks"] if item["invocation_id"] == value["invocation_id"]]
@@ -1005,13 +1141,8 @@ def _capture_multidimensional_report(payload, record, environment):
 
     stage = _multidimensional_module()
     run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
-    value = json.loads(payload["last_assistant_message"])
-    if (
-        not isinstance(value, dict)
-        or value.get("run_id") is None
-        or value.get("invocation_id") is None
-        or value.get("agent") != payload.get("agent_type")
-    ):
+    value = _trusted_bound_output(payload, record)
+    if value.get("agent") != payload.get("agent_type"):
         raise ValueError("MULTIDIMENSIONAL_OUTPUT_BINDING_INVALID")
     index = _research_index(environment)
     matches = [item for item in index["tasks"] if item["invocation_id"] == value["invocation_id"]]
@@ -1311,6 +1442,45 @@ def _multidimensional_repair_packet(
     }
 
 
+def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: int):
+    """只在第一次结构错误时请求同一 Agent 修正格式，不改写研究。"""
+
+    if attempt != 1 or not failure_code.startswith(("SCHEMA_", "COUNTER_OUTPUT_JSON_INVALID")):
+        return None
+    message = payload.get("last_assistant_message")
+    if not isinstance(message, str) or not message.strip():
+        return None
+    try:
+        draft = json.loads(message)
+    except json.JSONDecodeError:
+        draft = None
+    if not isinstance(draft, Mapping):
+        return None
+    matches = [
+        item for item in _research_index(environment)["tasks"]
+        if item["invocation_id"] == draft.get("invocation_id")
+    ]
+    if len(matches) != 1:
+        return None
+    task = matches[0]
+    packet = _independent_skeptic_module().build_skeptic_dispatch_packet(
+        Path(__file__).resolve().parents[2], Path(environment["STOCK_AGENT_RUN_DIR"]),
+        task["task_name"], index_ref=environment.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
+    )
+    return {
+        "repair_contract": "independent-skeptic-format-repair/1.0.0",
+        "task_id": task["task_id"], "invocation_id": task["invocation_id"],
+        "attempt": attempt, "maximum_submissions": 2,
+        "validation_error": failure_code, "original_draft": draft,
+        "output_schema": packet["output_schema"],
+        "instruction": (
+            "这是唯一一次格式修复机会。原 Agent 在当前会话返回完整 JSON；"
+            "只修正字段、类型或 Schema 结构，不新增事实、Evidence、挑战、假设，"
+            "不改变研究状态、身份或结论。若无法仅作格式修复，请保留失败。"
+        ),
+    }
+
+
 def handle_hook_event(
     payload: Mapping[str, Any], *, environ: Mapping[str, str] | None = None
 ) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -1344,6 +1514,16 @@ def handle_hook_event(
                 blocked_stop = not expected <= started and payload.get("stop_hook_active") is not True
         record = minimize_hook_event(payload, blocked_stop=blocked_stop)
         response = {}
+        if (
+            payload.get("hook_event_name") == "SubagentStop"
+            and not blocked_stop
+            and _research_stage(environment)
+        ):
+            _bind_research_stop_identity(
+                payload, record, log_path=log_path, environment=environment,
+            )
+            record.pop("event_hash")
+            record["event_hash"] = _canonical_hash(record)
         if payload.get("hook_event_name") == "SubagentStart" and _common_stock_eval(environment):
             try:
                 if payload["agent_type"] != "dev_eval":
@@ -1397,16 +1577,23 @@ def handle_hook_event(
                 )
                 stage = _research_module(environment)
                 build_packet = (
-                    stage.build_research_materials_dispatch_packet
+                    stage.build_skeptic_dispatch_packet
+                    if _independent_skeptic_stage(environment)
+                    else stage.build_research_materials_dispatch_packet
                     if _research_materials_stage(environment)
                     else stage.build_multidimensional_dispatch_packet
                     if _multidimensional_stage(environment)
                     else stage.build_common_stock_dispatch_packet
                 )
-                packet = build_packet(
-                    Path(__file__).resolve().parents[2],
-                    Path(environment["STOCK_AGENT_RUN_DIR"]),
-                    task_name,
+                packet = (
+                    build_packet(
+                        Path(__file__).resolve().parents[2],
+                        Path(environment["STOCK_AGENT_RUN_DIR"]), task_name,
+                        index_ref=environment.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
+                    ) if _independent_skeptic_stage(environment) else build_packet(
+                        Path(__file__).resolve().parents[2],
+                        Path(environment["STOCK_AGENT_RUN_DIR"]), task_name,
+                    )
                 )
                 if payload["agent_type"] != packet["identity"]["agent"]:
                     raise ValueError("RESEARCH_START_AGENT_INVALID")
@@ -1551,6 +1738,66 @@ def handle_hook_event(
                 _capture_research_material_preparation(payload, record, environment)
             except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
                 record["output_capture"] = {"status": "FAILED", "failure_code": str(exc)}
+            record.pop("event_hash")
+            record["event_hash"] = _canonical_hash(record)
+        if (
+            payload.get("hook_event_name") == "SubagentStop"
+            and not blocked_stop
+            and _independent_skeptic_stage(environment)
+        ):
+            attempt = _multidimensional_output_attempt(log_path, payload)
+            raw_capture: dict[str, Any] = {}
+            try:
+                raw_capture = _persist_multidimensional_raw_output(
+                    payload, environment, attempt=attempt,
+                )
+                index = _research_index(environment)
+                binding = record.get("output_binding") or {}
+                matches = [
+                    item for item in index["tasks"]
+                    if item["invocation_id"] == binding.get("invocation_id")
+                ]
+                if len(matches) != 1 or payload.get("agent_type") != "runtime_skeptic":
+                    raise ValueError("COUNTER_OUTPUT_INVOCATION_UNKNOWN")
+                record["output_capture"] = _independent_skeptic_module().capture_skeptic_report(
+                    Path(__file__).resolve().parents[2],
+                    Path(environment["STOCK_AGENT_RUN_DIR"]),
+                    task_name=matches[0]["task_name"],
+                    raw_message=json.dumps(
+                        _trusted_bound_output(payload, record),
+                        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+                    ),
+                    model=payload["model"],
+                    index_ref=environment.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
+                )
+                record["output_capture"].update({
+                    "attempt": attempt,
+                    "repair_state": "REPAIRED" if attempt == 2 else "NOT_REQUIRED",
+                    **raw_capture,
+                })
+            except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+                failure_code = str(exc).split(":", 1)[0]
+                repair = _skeptic_repair_packet(
+                    payload, environment, failure_code=failure_code, attempt=attempt,
+                )
+                record["output_capture"] = {
+                    "status": "FAILED", "failure_code": failure_code,
+                    "attempt": attempt,
+                    "repair_state": "REPAIR_REQUESTED" if repair else "EXHAUSTED",
+                    **raw_capture,
+                }
+                if repair is not None:
+                    record["hook_event_name"] = "SubagentStopBlocked"
+                    record["repair_request"] = {
+                        key: repair[key] for key in (
+                            "repair_contract", "task_id", "invocation_id", "attempt",
+                            "maximum_submissions", "validation_error",
+                        )
+                    }
+                    response = {
+                        "decision": "block",
+                        "reason": json.dumps(repair, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    }
             record.pop("event_hash")
             record["event_hash"] = _canonical_hash(record)
         if (
