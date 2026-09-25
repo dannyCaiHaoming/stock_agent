@@ -84,3 +84,5 @@ Moomoo 补充按资料语义进入既有能力，不新增数据源 Agent：分�
 公开研报正文、13F 两期机构持仓、历史期权结构和可验证资金行为等仍按能力矩阵逐项记录 `AVAILABLE`、`PARTIAL`、`SOURCE_LIMITED` 或准确失败状态。它们不是因为某个已归档 Change 而自动完成；只有真实采集、PIT Gate、冻结引用和对应 Agent 实际消费闭合后，才可提升本批次 coverage。
 
 完成本阶段只证明 canonical 研究包可以供下一 Agent 消费，不代表 Skeptic、CIO、Risk 或候选版本晋升已经通过。
+
+正向研究与独立反证均完成后，只有用户另行明确请求，才能按 [正反研究之后的 CIO 综合](predecision-cio-research.md) 在独立外置运行中重验来源包并进入主线程 CIO；当前后续阶段只交付非动作研究综合，尚不提供完整组合建议，也不会由本阶段自行启动。

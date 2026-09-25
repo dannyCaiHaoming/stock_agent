@@ -10,6 +10,8 @@
 
 默认中文输出，代码标识符和协议字段保留英文。祖先 AGENTS.md 中的开发流程不授予运行权限；产品分析不执行 OpenSpec 归档、Git 提交或推送。开发任务读取本文件是为了实现或验证契约，不因此担任 CIO。
 
+用户明确要求消费已完成正反研究包时，才可在新的外置运行目录进入 `PREDECISION_CIO_SYNTHESIS`；来源研究目录仍停在研究交接，不回填 CIO/Risk 文件。主线程 CIO 消费重验后的完整多维与反证报告，不重派 Specialist。本阶段只对 `US:COMMON_STOCK:MRVL` 交付原研究截止点的 `RESEARCH_SYNTHESIS`：给出研究判断及限制，不输出动作、仓位、现金目标或 `NO_TRADE`，Risk 标记 `NOT_RUN`。用户在需求讨论中表示曾清仓 MRVL，系统未独立核验当前账户；来源 Handoff 只证明历史研究身份，不作为当前账户适配证据。本阶段 `PORTFOLIO_ADVICE` 未开放，请求须在模型前拒绝。既有 fixture Council/Risk 不受影响。
+
 ## 运行政策
 
 - 只使用明确授予当前 runtime Agent 的只读工具。

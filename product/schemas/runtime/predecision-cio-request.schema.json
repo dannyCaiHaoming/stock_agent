@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "predecision-cio-request/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "stage", "run_id", "source_run_id", "source_package_ref", "source_package_hash", "source_request_id", "source_request_hash", "handoff_id", "handoff_hash", "portfolio_hash", "gate_hash", "decision_cutoff", "target_security_id", "requested_level", "actual_level", "time_mode", "model", "request_hash"],
+  "properties": {
+    "schema_version": {"const": "predecision-cio-request/1.0.0"},
+    "stage": {"const": "PREDECISION_CIO_SYNTHESIS"},
+    "run_id": {"type": "string", "minLength": 1},
+    "source_run_id": {"type": "string", "minLength": 1},
+    "source_package_ref": {"type": "string", "minLength": 1},
+    "source_package_hash": {"$ref": "#/$defs/hash"},
+    "source_request_id": {"type": "string", "minLength": 1},
+    "source_request_hash": {"$ref": "#/$defs/hash"},
+    "handoff_id": {"type": "string", "minLength": 1},
+    "handoff_hash": {"$ref": "#/$defs/hash"},
+    "portfolio_hash": {"$ref": "#/$defs/hash"},
+    "gate_hash": {"$ref": "#/$defs/hash"},
+    "decision_cutoff": {"type": "string", "minLength": 1},
+    "target_security_id": {"const": "US:COMMON_STOCK:MRVL"},
+    "requested_level": {"$ref": "#/$defs/level"},
+    "actual_level": {"$ref": "#/$defs/level"},
+    "time_mode": {"const": "SOURCE_CUTOFF"},
+    "model": {"type": "string", "minLength": 1},
+    "request_hash": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "level": {"const": "RESEARCH_SYNTHESIS"}
+  }
+}

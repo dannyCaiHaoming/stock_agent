@@ -21,6 +21,10 @@ bash <repository-root>/scripts/run-product-smoke.sh \
 
 模型来自 prepare 写入的锁定 manifest。launcher 保存固定 prompt 文件、JSONL、stderr、环境和进程结果，调用现有 Hook 与完成判定；必须核对真实 Skill、Agent、MCP、Hook 事件与终态产物，不能只看 shell exit code。禁止恢复旧 `smoke-prompt | codex exec` 管道作为验收入口。
 
+正反研究交接 CIO 使用同一宿主脚本的显式 `--stage predecision-cio-synthesis`，参数和级别边界见 [产品说明](../../docs/product/predecision-cio-research.md)。先重验来源 `PreDecisionResearchPackage` 并在新外置运行中冻结，随后由一次主线程 CIO 消费多报告，最后执行 `check-predecision-cio`。本阶段仅交付原来源 cutoff 的 `RESEARCH_SYNTHESIS`：保存 CIO/查询/同源报告/Trace，Risk 必须为 `NOT_RUN`，不得生成 `risk.json` 或 `decision.json`。用户告知 MRVL 已清仓，系统未独立核验当前账户；来源 Handoff 仅证明历史研究身份，不要求当前账户、现金、ETF/期权或 Mandate，也不推断当前账户适配。`PORTFOLIO_ADVICE` 请求须在模型前拒绝，不能静默降级。旧 advice 实验产物仅保留原文件供人工只读审计，当前 checker 不重新认证旧 advice，原有 fixture Council/Risk 不受影响。Luna 若被当前 CLI 账号拒绝，应保留失败证据；对本冻结 MRVL 包可按已有用户批准显式选 `gpt-5.6-terra`，不得静默回退。此专项不启动 Runtime Eval、Execution Replay 或回测。
+
+该阶段成功检查须同时读取宿主 `invocation/process-result.json`，核对同一 run_id、零退出码、非超时、无失败原因、成功终态和受保护产品文件前后完整性一致。实际命令应显示原生沙箱、仓库外工作区且源码目录未列为可写根；上述证据不宣称全进程 OS 强制只读，后者仍为 `UNVERIFIED`。进程证明不能代替模型事件、版本锁、Evidence 查询和报告内容复核。
+
 ### 1.1 普通股专项运行前门槛
 
 `COMMON_STOCK_RESEARCH` 的新估值附件版本在宿主启动前必须同时满足：实际 Hook `additionalContext` 紧凑 UTF-8 JSON 不超过 256 KiB；附件目录明确列出 `valuation_snapshot`、`valuation_history`、`fundamental_supplement`、`peer_comparison` 的实际可用状态；fixture MCP 的 `tools/list` 与 `tools/call` 能在 run/invocation/security/cutoff/Gate 绑定下读取附件。图表不进入模型工具。

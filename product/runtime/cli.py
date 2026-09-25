@@ -68,6 +68,11 @@ from .independent_skeptic_stage import (
     prepare_skeptic_resume,
     validate_forward_gate,
 )
+from .predecision_cio_stage import (
+    check_predecision_cio_trace, finalize_predecision_cio_advice,
+    finalize_predecision_cio_research, launch_predecision_cio_run,
+    prepare_predecision_cio_run,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -275,6 +280,46 @@ def build_parser() -> argparse.ArgumentParser:
     )
     counter_finalize.add_argument("--repo", type=Path, required=True)
     counter_finalize.add_argument("--run-dir", type=Path, required=True)
+
+    cio_prepare = subparsers.add_parser(
+        "prepare-predecision-cio", help="重验正反研究包并在独立目录冻结 CIO 输入；不启动模型",
+    )
+    cio_prepare.add_argument("--repo", type=Path, required=True)
+    cio_prepare.add_argument("--source-run", type=Path, required=True)
+    cio_prepare.add_argument("--run-dir", type=Path, required=True)
+    cio_prepare.add_argument("--run-id", required=True)
+    cio_prepare.add_argument("--target-security-id", required=True)
+    cio_prepare.add_argument("--requested-level", choices=("RESEARCH_SYNTHESIS", "PORTFOLIO_ADVICE"), default="RESEARCH_SYNTHESIS")
+    cio_prepare.add_argument("--time-mode", choices=("SOURCE_CUTOFF", "CURRENT"), default="SOURCE_CUTOFF")
+    cio_prepare.add_argument("--max-research-age-days", type=int)
+    cio_prepare.add_argument("--mandate", type=Path)
+    cio_prepare.add_argument("--model")
+
+    cio_launch = subparsers.add_parser(
+        "launch-predecision-cio", help="仅宿主入口：运行一次已准备的正反研究 CIO 综合",
+    )
+    cio_launch.add_argument("--repo", type=Path, required=True)
+    cio_launch.add_argument("--run-dir", type=Path, required=True)
+    cio_launch.add_argument("--codex-binary", default="codex")
+    cio_launch.add_argument("--timeout-seconds", type=int, default=2400)
+
+    cio_finalize = subparsers.add_parser(
+        "finalize-predecision-cio-research", help="验证并渲染已完成的非动作 CIO 研究综合",
+    )
+    cio_finalize.add_argument("--repo", type=Path, required=True)
+    cio_finalize.add_argument("--run-dir", type=Path, required=True)
+
+    cio_advice_finalize = subparsers.add_parser(
+        "finalize-predecision-cio-advice", help="已退役：明确拒绝本阶段尚未验收的持仓建议",
+    )
+    cio_advice_finalize.add_argument("--repo", type=Path, required=True)
+    cio_advice_finalize.add_argument("--run-dir", type=Path, required=True)
+
+    cio_trace = subparsers.add_parser(
+        "check-predecision-cio", help="只读核验研究级 CIO 阶段的来源、模型、Evidence 与终态血缘",
+    )
+    cio_trace.add_argument("--repo", type=Path, required=True)
+    cio_trace.add_argument("--run-dir", type=Path, required=True)
 
     multi_assemble = subparsers.add_parser(
         "assemble-canonical-holding-research",
@@ -647,6 +692,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = validate_forward_gate(args.repo, args.run_dir)
     elif args.command == "finalize-independent-skeptic":
         result = finalize_skeptic_phase(args.repo, args.run_dir)
+    elif args.command == "prepare-predecision-cio":
+        result = prepare_predecision_cio_run(
+            args.repo, source_run_dir=args.source_run, run_dir=args.run_dir,
+            run_id=args.run_id, target_security_id=args.target_security_id,
+            requested_level=args.requested_level, time_mode=args.time_mode,
+            max_research_age_days=args.max_research_age_days,
+            mandate_path=args.mandate, model=args.model,
+        )
+    elif args.command == "launch-predecision-cio":
+        result, exit_code = launch_predecision_cio_run(
+            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
+            timeout_seconds=args.timeout_seconds,
+        )
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        return exit_code
+    elif args.command == "finalize-predecision-cio-research":
+        result = finalize_predecision_cio_research(args.repo, args.run_dir)
+    elif args.command == "finalize-predecision-cio-advice":
+        result = finalize_predecision_cio_advice(args.repo, args.run_dir)
+    elif args.command == "check-predecision-cio":
+        result = check_predecision_cio_trace(args.repo, args.run_dir)
     elif args.command == "assemble-canonical-holding-research":
         result = assemble_canonical_holding_research_package(
             args.repo,

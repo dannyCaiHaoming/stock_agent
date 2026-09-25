@@ -11,6 +11,7 @@ if [ "${1:-}" = "--help" ]; then
   echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
   echo '或：bash run-product-smoke.sh --stage multidimensional-holding-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--peer-candidates <冻结候选池>] [--model <研究模型>] [--company-research-run <已完成普通股研究运行>] <新的外置产物目录>'
   echo '或：bash run-product-smoke.sh --stage independent-counter-thesis-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--model <研究模型>] <新的外置产物目录>（同次正向研究后逐股独立反证；不启动 CIO/Risk）'
+  echo '或：bash run-product-smoke.sh --stage predecision-cio-synthesis --source-run <已完成正反研究目录> --target-security-id US:COMMON_STOCK:MRVL [--requested-level RESEARCH_SYNTHESIS] [--model <CIO模型>] <新的外置产物目录>（仅原截止点非动作研究）'
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'
   echo '在 macOS Terminal 中执行；默认 normal fixture，模型读取现有路由策略。'
   echo '仅限宿主产品执行；不创建项目沙箱。--review 已停用并明确拒绝。'
@@ -37,6 +38,13 @@ stock_model=
 stock_focus_security_id=
 company_research_run=
 stock_peer_candidates=
+cio_source_run=
+cio_target_security_id=
+cio_requested_level=RESEARCH_SYNTHESIS
+cio_time_mode=SOURCE_CUTOFF
+cio_max_research_age_days=
+cio_mandate=
+predecision_cio_stage=0
 prepare_only=0
 multidimensional_stage=0
 if [ "${1:-}" = "--resume-multidimensional-run" ]; then
@@ -61,10 +69,11 @@ if [ "${1:-}" = "--launch-independent-skeptic-run" ]; then
   shift 2
 fi
 if [ "${1:-}" = "--stage" ]; then
-  if [ "$#" -lt 5 ] || { [ "$2" != "common-stock-research" ] && [ "$2" != "multidimensional-holding-research" ] && [ "$2" != "independent-counter-thesis-research" ]; }; then
+  if [ "$#" -lt 5 ] || { [ "$2" != "common-stock-research" ] && [ "$2" != "multidimensional-holding-research" ] && [ "$2" != "independent-counter-thesis-research" ] && [ "$2" != "predecision-cio-synthesis" ]; }; then
     echo 'RESEARCH_STAGE_ARGUMENTS_INVALID：使用 --help 查看研究阶段参数。' >&2; exit 2
   fi
   stage=$2
+  if [ "$stage" = "predecision-cio-synthesis" ]; then predecision_cio_stage=1; fi
   shift 2
   while [ "$#" -gt 1 ]; do
     case "$1" in
@@ -76,11 +85,32 @@ if [ "${1:-}" = "--stage" ]; then
       --focus-security-id) stock_focus_security_id=${2:-}; shift 2 ;;
       --company-research-run) company_research_run=${2:-}; shift 2 ;;
       --peer-candidates) stock_peer_candidates=${2:-}; shift 2 ;;
+      --source-run) cio_source_run=${2:-}; shift 2 ;;
+      --target-security-id) cio_target_security_id=${2:-}; shift 2 ;;
+      --requested-level) cio_requested_level=${2:-}; shift 2 ;;
+      --time-mode) cio_time_mode=${2:-}; shift 2 ;;
+      --max-research-age-days) cio_max_research_age_days=${2:-}; shift 2 ;;
+      --mandate) cio_mandate=${2:-}; shift 2 ;;
       --prepare-only) prepare_only=1; shift ;;
       *) echo 'RESEARCH_STAGE_ARGUMENTS_INVALID：使用 --help 查看研究阶段参数。' >&2; exit 2 ;;
     esac
   done
-  if [ -z "$stock_handoff" ]; then
+  if [ "$predecision_cio_stage" = "1" ] && { [ -z "$cio_source_run" ] || [ -z "$cio_target_security_id" ]; }; then
+    echo 'CIO_SOURCE_AND_TARGET_REQUIRED：必须指定已完成正反研究目录与已有普通股 ID。' >&2; exit 2
+  fi
+  if [ "$predecision_cio_stage" = "1" ] && [ "$cio_target_security_id" != "US:COMMON_STOCK:MRVL" ]; then
+    echo 'CIO_RESEARCH_TARGET_NOT_IN_SCOPE：本需求只综合 MRVL 冻结研究。' >&2; exit 2
+  fi
+  if [ "$predecision_cio_stage" = "1" ] && [ "$cio_requested_level" != "RESEARCH_SYNTHESIS" ]; then
+    echo 'CIO_PORTFOLIO_ADVICE_NOT_AVAILABLE：本阶段仅交付非动作研究综合。' >&2; exit 2
+  fi
+  if [ "$predecision_cio_stage" = "1" ] && [ -n "$cio_mandate" ]; then
+    echo 'CIO_MANDATE_NOT_APPLICABLE_TO_RESEARCH：本阶段不读取当前账户约束。' >&2; exit 2
+  fi
+  if [ "$predecision_cio_stage" = "1" ] && { [ "$cio_time_mode" != "SOURCE_CUTOFF" ] || [ -n "$cio_max_research_age_days" ]; }; then
+    echo 'CIO_CURRENT_RESEARCH_REQUIRES_NEW_SOURCE：当前研究需重新准备上游包。' >&2; exit 2
+  fi
+  if [ "$predecision_cio_stage" = "0" ] && [ -z "$stock_handoff" ]; then
     echo 'COMMON_STOCK_HANDOFF_REQUIRED：缺少已确认 Handoff。' >&2; exit 2
   fi
   if [ "$stage" = "common-stock-research" ] && [ -n "$stock_gate" ] && { [ -z "$stock_data_preparation" ] || [ -z "$stock_source_bundle" ]; }; then
@@ -166,6 +196,21 @@ if [ -n "$launch_independent_skeptic_run" ]; then
     --repo "$repo_root" --run-dir "$launch_independent_skeptic_run"
   python3 "$repo_root/scripts/council-dev.py" launch-independent-skeptic \
     --repo "$repo_root" --run-dir "$launch_independent_skeptic_run"
+  exit $?
+fi
+if [ "$predecision_cio_stage" = "1" ]; then
+  case "$cio_source_run/" in "$repo_root/"*) echo '来源研究目录必须位于源码之外。' >&2; exit 2;; esac
+  export STOCK_AGENT_PRODUCT_HOST_LAUNCH=1
+  cio_run_id="predecision-cio-$(uuidgen | tr '[:upper:]' '[:lower:]')"
+  set -- --repo "$repo_root" --source-run "$cio_source_run" --run-dir "$bundle/run" \
+    --run-id "$cio_run_id" --target-security-id "$cio_target_security_id" \
+    --requested-level "$cio_requested_level" --time-mode "$cio_time_mode"
+  if [ -n "$cio_max_research_age_days" ]; then set -- "$@" --max-research-age-days "$cio_max_research_age_days"; fi
+  if [ -n "$cio_mandate" ]; then set -- "$@" --mandate "$cio_mandate"; fi
+  if [ -n "$stock_model" ]; then set -- "$@" --model "$stock_model"; fi
+  python3 "$repo_root/scripts/council-dev.py" prepare-predecision-cio "$@"
+  python3 "$repo_root/scripts/council-dev.py" launch-predecision-cio --repo "$repo_root" --run-dir "$bundle/run"
+  python3 "$repo_root/scripts/council-dev.py" check-predecision-cio --repo "$repo_root" --run-dir "$bundle/run"
   exit $?
 fi
 if [ -z "$prepared_run" ]; then

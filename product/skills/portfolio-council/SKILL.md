@@ -2,7 +2,7 @@
 name: portfolio-council
 description: 用户提供已确认 PortfolioHandoff 并调用投资委员会时，主持普通股持仓研究或多维研究阶段；fixture 兼容链路可完成专业研究、CIO 综合和确定性风险校验；不用于开发任务。
 metadata:
-  version: "3.5.0"
+  version: "3.7.0"
 ---
 
 # Portfolio Council
@@ -39,12 +39,18 @@ Company Analyst 必须实际使用 `evidence-grounding`、`company-research`、`
 
 本阶段只输出正向包、逐股 Counter Thesis、`PreDecisionResearchPackage` 和同源中文摘要；不启动 CIO、Risk，不生成 `decision.json`、动作、Outcome 或回测。ETF、期权及账户项的未覆盖状态继续展示。
 
+## 正反研究之后的显式 CIO 阶段
+
+仅当用户另外明确要求从已完成正反研究形成综合时，使用 `stage=PREDECISION_CIO_SYNTHESIS` 和新的外置运行目录。先重新验证 `PreDecisionResearchPackage`、来源正向/反向报告、执行证明、来源 Handoff、Gate 与 cutoff，再冻结原报告及允许的 Evidence。来源 Handoff 仅证明研究血缘，不能冒充当前持仓。来源目录继续保持研究停止点，不能回填 CIO/Risk 文件。主线程 CIO 一次消费全部真实报告，不派发新的 Company Analyst、Market Catalyst 或 Skeptic，不读取原始 Provider/券商缓存。
+
+本阶段只允许 `US:COMMON_STOCK:MRVL` 并交付 `RESEARCH_SYNTHESIS`：提供有明确研究期限的综合判断、证据推理、重要 challenge 取舍、Macro/Market 到目标公司的传导、改变判断的条件、观察与重评事件；分别说明业务前景、原时点价格吸引力和未评估的当前账户适配。缺少估值资料时明确未知，分析期限不能冒充用户持有期限。用户在需求讨论中表示曾清仓 MRVL，但系统未独立核验当前账户；报告须展示来源 cutoff 与实际生成时间，不声称当前行情、持仓适配或组合建议。不得输出 HOLD/TRIM/EXIT/NO_TRADE、BUY/ADD、目标仓位、现金目标、金额、数量或变相买回指令；Risk 为 `NOT_RUN`。`PORTFOLIO_ADVICE` 在本阶段未开放，直接请求须在模型前拒绝，不得降级成研究综合后声称建议完成。既有 fixture Council/Risk 不受影响。
+
 ## 必要输入
 
 - 持仓研究：已确认的 `PortfolioHandoff v3`；系统从中派生内部普通股采集请求，冻结 snapshot、Gate 和 data-preparation manifest。
 - fixture 完整 Council：仓库内版本化 `portfolio_fixture`。旧 live profile 及三股 batch 入口不再是产品入口。
 - `decision_cutoff`、显式 `model`、全新的 `output_dir` 和用户研究目标。
-- 可选的 Mandate 只能收紧建议边界，不得授权真实交易。
+- 本阶段研究综合不要求当前 Mandate、现金或完整组合 Risk；fixture 完整 Council 仍按其原有输入契约执行。
 
 先执行仓库产品包 discovery preflight，锁定 Plugin、此 Skill、`runtime_cio`、`runtime_company_analyst`、`runtime_skeptic`、canonical decision contract、Schema、fixture adapter、Risk policy 和数据快照的规范化路径、版本及 hash。任何资源缺失、解析到仓库外同名资源、版本或 hash 不一致，均在 LLM 调用前进入 `FAILED_VALIDATION`。
 

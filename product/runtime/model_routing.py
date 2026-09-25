@@ -9,6 +9,13 @@ from typing import Any, Mapping
 
 POLICY_VERSION = "model-routing-policy/1.0.0"
 ROUTES = {"development_default", "runtime_repeated", "architecture_dispute"}
+AGENT_DEVELOPMENT_TEST_MODEL = "gpt-6-luna"
+
+
+def agent_development_test_model() -> str:
+    """Repository-pinned model for real product-Agent development tests."""
+
+    return AGENT_DEVELOPMENT_TEST_MODEL
 
 
 def load_model_routing(product_root: Path) -> dict[str, Any]:
@@ -53,6 +60,7 @@ def select_product_runtime_model(
     if requested_model is None:
         return select_model(product_root, route=default_route)
     supported = {str(policy[route]) for route in ROUTES}
+    supported.add(AGENT_DEVELOPMENT_TEST_MODEL)
     if requested_model not in supported:
         raise ValueError(f"PRODUCT_RUNTIME_MODEL_UNSUPPORTED:{requested_model}")
     return requested_model

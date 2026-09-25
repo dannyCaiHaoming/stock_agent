@@ -122,6 +122,38 @@ if [ "$2" = check-run ] && [ "$TEST_REVIEW_STATUS" = 7 ]; then exit 7; fi
 
 
 class EntrySeparationTests(unittest.TestCase):
+    def test_predecision_advice_rejected_before_proxy_or_run_creation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'new-run'
+            result = subprocess.run(
+                ['/bin/bash', str(ROOT / 'scripts/run-product-smoke.sh'),
+                 '--stage', 'predecision-cio-synthesis', '--source-run', '/missing/source',
+                 '--target-security-id', 'US:COMMON_STOCK:MRVL', '--requested-level', 'PORTFOLIO_ADVICE',
+                 str(target)],
+                env={**os.environ, 'PATH': '/nonexistent'}, text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('CIO_PORTFOLIO_ADVICE_NOT_AVAILABLE', result.stderr)
+            self.assertFalse(target.exists())
+
+    def test_predecision_current_and_other_security_rejected_before_run_creation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'new-run'
+            common = ['/bin/bash', str(ROOT / 'scripts/run-product-smoke.sh'),
+                      '--stage', 'predecision-cio-synthesis', '--source-run', '/missing/source']
+            for security_id, extra, expected in (
+                ('US:COMMON_STOCK:ALB', [], 'CIO_RESEARCH_TARGET_NOT_IN_SCOPE'),
+                ('US:COMMON_STOCK:MRVL', ['--time-mode', 'CURRENT'],
+                 'CIO_CURRENT_RESEARCH_REQUIRES_NEW_SOURCE'),
+            ):
+                result = subprocess.run(
+                    [*common, '--target-security-id', security_id, *extra, str(target)],
+                    env={**os.environ, 'PATH': '/nonexistent'}, text=True, capture_output=True,
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertIn(expected, result.stderr)
+                self.assertFalse(target.exists())
+
     def test_review_rejected_before_any_external_call(self):
         with tempfile.TemporaryDirectory() as directory:
             for args in (['--review'], ['--review=true'], [directory, '--review']):

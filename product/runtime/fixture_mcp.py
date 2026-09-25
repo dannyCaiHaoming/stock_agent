@@ -562,6 +562,11 @@ class StatelessFixtureTools:
             or invocation_agent != agent
         ):
             raise ToolAccessError("INVOCATION_IDENTITY_MISMATCH")
+        if run_manifest.get("stage") == "PREDECISION_CIO_SYNTHESIS":
+            if agent != "runtime_cio":
+                raise ToolAccessError("CIO_STAGE_AGENT_FORBIDDEN")
+            from product.runtime.predecision_cio_stage import validate_predecision_cio_run
+            validate_predecision_cio_run(Path(__file__).resolve().parents[2], root)
         self._last_root = root
         self._last_invocation = invocation
         product_root = Path(
@@ -574,6 +579,7 @@ class StatelessFixtureTools:
             "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
             "INDEPENDENT_COUNTER_THESIS_RESEARCH",
             "MULTIDIMENSIONAL_MATERIAL_PREPARATION",
+            "PREDECISION_CIO_SYNTHESIS",
         }:
             if (
                 run_manifest.get("source_mode") != "frozen-gate"
