@@ -28,7 +28,7 @@
     "options-market-structure": "1.0.0",
     "ownership-disclosure": "1.0.0",
     "research-report-analysis": "1.2.0",
-    "technical-structure": "1.1.0"
+    "technical-structure": "1.1.1"
   },
   "agents": {
     "runtime-cio": "3.1.2",

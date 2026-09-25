@@ -220,6 +220,19 @@ class ResearchDimensionContractTests(unittest.TestCase):
                 allowed_evidence_ids=["ev-price-1"],
             )
 
+    def test_ungrounded_technical_claim_still_fails_closed(self) -> None:
+        report = _report()
+        report["claims"][0]["evidence_refs"] = []
+        report["claims"][0]["calculation_refs"] = []
+        report = finalize_research_dimension_report(report)
+        with self.assertRaisesRegex(MultiDimensionalResearchError, "DIMENSION_REPORT_CLAIM_UNGROUNDED"):
+            validate_research_dimension_report(
+                report,
+                expected_bindings=BINDINGS,
+                allowed_security_ids=SECURITIES,
+                allowed_evidence_ids=["ev-price-1"],
+            )
+
     def test_wrong_holding_binding_fails(self) -> None:
         report = _report(security_ids=["US:NVDA"])
         with self.assertRaisesRegex(MultiDimensionalResearchError, "SECURITY_BINDING_INVALID"):

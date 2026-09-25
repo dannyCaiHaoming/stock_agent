@@ -468,10 +468,20 @@ def _prepare_technical_artifacts(
             security_label=security_id,
             benchmark_label=benchmark_id,
         )
-    except (ValueError, TypeError) as exc:
+    except ValueError as exc:
+        reason_code = str(exc).split(":", 1)[0]
+        if reason_code not in {
+            "TECHNICAL_CHART_HISTORY_INSUFFICIENT",
+            "TECHNICAL_CHART_VALUE_INVALID",
+        }:
+            raise
         result["gaps"].append({
-            "reason_code": str(exc).split(":", 1)[0],
-            "description": "冻结序列不足以生成相对表现图。",
+            "reason_code": reason_code,
+            "description": (
+                "证券与基准可对齐的交易日不足，无法生成相对表现图。"
+                if reason_code == "TECHNICAL_CHART_HISTORY_INSUFFICIENT"
+                else "冻结序列的价格或成交量包含图表不可用数值，无法生成相对表现图。"
+            ),
             "impact": "计算结果仍可使用，但本批次不提供图形。",
         })
     else:
@@ -540,6 +550,7 @@ def _dynamic_draft_schema(
     allowed_evidence_ids: Sequence[str], allowed_artifact_refs: Sequence[str],
     allowed_documents: Sequence[Mapping[str, Any]] = (),
     claims_forbidden: bool = False,
+    technical_calculation_missing: bool = False,
 ) -> dict[str, Any]:
     schema = _read_object(
         repository_root / "product/schemas/runtime/research-dimension-report-v2.schema.json"
@@ -569,8 +580,16 @@ def _dynamic_draft_schema(
             "type": "object", "enum": [copy.deepcopy(dict(item)) for item in allowed_documents]
         }
     }
-    if claims_forbidden:
+    if claims_forbidden or technical_calculation_missing:
         schema["properties"]["claims"]["maxItems"] = 0
+    if technical_calculation_missing:
+        schema["properties"]["status"] = {
+            "type": "string", "const": "INSUFFICIENT_EVIDENCE",
+        }
+        schema["properties"]["sufficiency"] = {
+            "type": "string", "const": "INSUFFICIENT",
+        }
+        schema["properties"]["data_gaps"]["minItems"] = 1
     return schema
 
 
@@ -1737,12 +1756,30 @@ def prepare_multidimensional_stage_run(
                         "候选目录或模型记忆形成任何行业比较主张。"
                     )
             if capability == "TECHNICAL_STRUCTURE":
+                if prepared_analysis["calculation"] is None:
+                    missing = []
+                    if not prepared_analysis["security_row_count"]:
+                        missing.append(f"证券 {security_id}")
+                    if not prepared_analysis["benchmark_row_count"]:
+                        missing.append(f"基准 {benchmark_id}")
+                    instruction += (
+                        f" 本任务缺少冻结的{'、'.join(missing)}日线序列，prepared_analysis.calculation=null，"
+                        "没有可引用的确定性计算或图表。必须输出 status=INSUFFICIENT_EVIDENCE、"
+                        "sufficiency=INSUFFICIENT、claims=[]、calculations=[]、artifact_refs=[]；"
+                        "在 data_gaps 中准确指出缺失序列及其对趋势、相对表现、波动、回撤和量价研究的影响。"
+                        "不要把‘无法判断’写成无引用 Claim，也不得跨 run 补数据或伪造引用。"
+                    )
+                else:
+                    instruction += (
+                        " 本任务的 prepared_analysis.calculation 是确定性计算产物，完整原始 Evidence lineage"
+                        "保存在 calculation_ref 指向的文件并以 evidence_fact_count/evidence_fact_ids_hash 锁定。"
+                        "直接使用其中 windows、口径、artifact_id 与 artifact_ref 形成计算引用；"
+                        "仅在 prepared_analysis.chart 存在时引用同源图表；若 chart=null，只记录具体图表 gap，"
+                        "保留有效 calculation 与有计算引用的 Claims，不把缺图写成缺少计算资料。"
+                    )
                 instruction += (
-                    " 本任务的 prepared_analysis.calculation 与 chart 是确定性计算产物，完整原始 Evidence lineage"
-                    "保存在 calculation_ref 指向的文件并以 evidence_fact_count/evidence_fact_ids_hash 锁定。"
-                    "直接使用其中 windows、口径、artifact_id 与 artifact_ref 形成计算引用；本任务不提供原始"
-                    "allowed_evidence_ids，因此不得调用空 evidence_ids 的 query，也不得把没有原始查询误报为"
-                    "工具不可用。"
+                    " 本任务不提供原始 allowed_evidence_ids，因此不得调用空 evidence_ids 的 query，"
+                    "也不得把没有原始查询误报为工具不可用。"
                 )
             if capability == "RESEARCH_REPORT":
                 company_facts = [
@@ -1833,6 +1870,10 @@ def prepare_multidimensional_stage_run(
                 claims_forbidden=(
                     capability == "INDUSTRY_COMPARISON"
                     and not frozen_peer_candidates
+                ),
+                technical_calculation_missing=(
+                    capability == "TECHNICAL_STRUCTURE"
+                    and prepared_analysis["calculation"] is None
                 ),
             )
             output_contract = topology_lock["output_contracts"].get(

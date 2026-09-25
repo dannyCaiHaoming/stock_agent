@@ -6,12 +6,14 @@ import subprocess
 import shutil
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from product.runtime.codex_hook_recorder import handle_hook_event, _terminal_research_tasks
 from product.runtime.fixture_mcp import StatelessFixtureTools
 from product.council.multidimensional_research import envelope_research_dimension_draft
+from product.council.multidimensional_research import MultiDimensionalResearchError
 from product.runtime.multidimensional_stage import (
     DISPATCH_VERSION,
     STAGE_VERSION,
@@ -38,16 +40,89 @@ from product.runtime.common_stock_stage import prepare_common_stock_stage_run
 from product.council.research_output import persist_equity_research_report
 from product.council.multidimensional_output import persist_dimension_report
 from product.runtime.hashing import canonical_hash, file_hash
+from product.deterministic.market_analysis import verify_technical_calculation
 from product.runtime.validation import ArtifactValidationError, validate_evidence_closure
 from product.mcp.live.peer_candidates import build_peer_candidate_pool
 from product.mcp.provenance import content_hash
 from tests.test_common_stock_research_contracts import gate_for, stock_handoff, valid_report
+from product.intake import build_handoff, build_manual_draft
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class MultidimensionalStageTests(unittest.TestCase):
+    @staticmethod
+    def mrvl_daily_inputs(*, include_spy: bool) -> tuple[dict, dict]:
+        fixture = ROOT / "evals/fixtures/portfolio-intake/synthetic-manual-ten-positions.json"
+        payload = json.loads(fixture.read_text(encoding="utf-8"))
+        payload["draft_id"] = "draft-technical-mrvl"
+        payload["positions"] = [{"ticker": "MRVL", "quantity": 1, "cost_basis": 100}]
+        handoff = build_handoff(
+            build_manual_draft(payload), confirmed=True,
+            confirmed_at="2026-09-11T20:05:00+08:00",
+        )
+        gate = gate_for(handoff)
+        days = []
+        for index in range(32):
+            day = date(2026, 8, 10) + timedelta(days=index)
+            if day.weekday() < 5:
+                days.append(day.isoformat())
+        series = [("US:COMMON_STOCK:MRVL", 2)]
+        if include_spy:
+            series.append(("US:SPY", 1))
+        for security_id, scale in series:
+            for day_index, day in enumerate(days):
+                for field, value, unit in (
+                    ("historical_close_price", 100 + day_index * scale, "USD"),
+                    ("adjusted_close_price", 100 + day_index * scale, "USD"),
+                    ("share_volume", 1000 + day_index * 10, "shares"),
+                ):
+                    gate["allowed_evidence"].append({
+                        "evidence_id": f"ev-{security_id.split(':')[-1].lower()}-{day}-{field}",
+                        "security_id": security_id, "semantic_field": field,
+                        "value": str(value), "unit": unit,
+                        "source_id": "synthetic-yahoo-daily", "source_type": "yahoo",
+                        "as_of": day + "T20:00:00Z",
+                        "published_at": day + "T20:00:00Z",
+                        "retrieved_at": "2026-09-11T11:00:00Z",
+                        "metadata": {"trading_date": day},
+                    })
+        gate["allowed_evidence_ids"] = sorted(
+            item["evidence_id"] for item in gate["allowed_evidence"]
+        )
+        gate["input_evidence_ids"] = list(gate["allowed_evidence_ids"])
+        gate["bundle_hash"] = canonical_hash({
+            key: value for key, value in gate.items() if key != "bundle_hash"
+        })
+        return handoff, gate
+
+    @classmethod
+    def prepare_mrvl_daily_run(cls, root: Path, *, include_spy: bool) -> Path:
+        handoff, gate = cls.mrvl_daily_inputs(include_spy=include_spy)
+        handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+        handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+        gate_path.write_text(json.dumps(gate), encoding="utf-8")
+        run = root / "run"
+        prepare_multidimensional_stage_run(
+            ROOT, handoff_path=handoff_path, gate_path=gate_path,
+            run_dir=run, run_id="technical-mrvl-test", model="gpt-5.6-terra",
+        )
+        return run
+
+    @staticmethod
+    def research_bindings(run: Path) -> dict:
+        handoff = json.loads((run / "audit/portfolio-handoff.json").read_text())
+        request = json.loads((run / "council-request.json").read_text())
+        gate = json.loads((run / "evidence/gate.json").read_text())
+        return {
+            "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
+            "portfolio_hash": handoff["portfolio_hash"],
+            "council_request_id": request["request_id"],
+            "council_request_hash": request["request_hash"],
+            "decision_cutoff": gate["decision_cutoff"],
+        }
+
     def test_forward_host_command_ignores_desktop_config_and_keeps_strict_product_config(self):
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare(Path(temp), count=1)
@@ -1770,6 +1845,214 @@ class MultidimensionalStageTests(unittest.TestCase):
                 packet["output_schema"]["properties"]["artifact_refs"]["items"]["enum"],
                 prepared["allowed_artifact_refs"],
             )
+
+    def test_mrvl_daily_without_spy_saves_insufficient_technical_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            run = self.prepare_mrvl_daily_run(root, include_spy=False)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            prepared = packet["prepared_analysis"]
+            self.assertGreater(prepared["security_row_count"], 20)
+            self.assertEqual(prepared["benchmark_row_count"], 0)
+            self.assertIsNone(prepared["calculation"])
+            self.assertIsNone(prepared["chart"])
+            self.assertEqual(packet["output_schema"]["properties"]["claims"]["maxItems"], 0)
+            self.assertEqual(packet["output_schema"]["properties"]["status"]["const"], "INSUFFICIENT_EVIDENCE")
+            self.assertEqual(packet["output_schema"]["properties"]["sufficiency"]["const"], "INSUFFICIENT")
+            self.assertEqual(packet["output_schema"]["properties"]["data_gaps"]["minItems"], 1)
+            self.assertIn("基准 US:SPY", packet["instruction"])
+            self.assertNotIn("证券 US:COMMON_STOCK:MRVL日线序列", packet["instruction"])
+
+            draft = self.dimension_draft(task)
+            draft["data_gaps"][0].update(
+                description="MRVL 有冻结日线，但 US:SPY 基准日线缺失。",
+                impact="不能计算相对收益、波动、回撤及同源量价图。",
+            )
+            invalid = {**draft, "status": "COMPLETE", "sufficiency": "SUFFICIENT"}
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+            with self.assertRaisesRegex(MultiDimensionalResearchError, "TECHNICAL_NO_CALCULATION_STATE_INVALID"):
+                envelope_research_dimension_draft(
+                    invalid, task=task, invocation=invocation,
+                    expected_bindings={}, allowed_security_ids=task["security_ids"],
+                    allowed_evidence_ids=[],
+                )
+            invalid_claim = copy.deepcopy(draft)
+            invalid_claim["claims"] = [{
+                "claim_id": "claim-unavailable", "question": packet["minimum_questions"][0],
+                "statement": "无法判断技术结构。", "kind": "INTERPRETATION",
+                "evidence_refs": [], "research_claim_refs": [], "document_refs": [],
+                "assumption_ids": [], "calculation_refs": [],
+            }]
+            with self.assertRaisesRegex(MultiDimensionalResearchError, "TECHNICAL_NO_CALCULATION_CONTENT_INVALID"):
+                envelope_research_dimension_draft(
+                    invalid_claim, task=task, invocation=invocation,
+                    expected_bindings={}, allowed_security_ids=task["security_ids"],
+                    allowed_evidence_ids=[],
+                )
+
+            environment = self.targeted_environment(run, task)
+            parent, child = "parent-technical-missing", "child-technical-missing"
+            allowed, _ = handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            self.assertEqual(allowed["decision"], "ALLOW")
+            handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            stopped, _ = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child),
+                environ=environment,
+            )
+            self.assertEqual(stopped["output_capture"]["status"], "SAVED")
+            report = json.loads((run / stopped["output_capture"]["path"]).read_text())
+            self.assertEqual(report["status"], "INSUFFICIENT_EVIDENCE")
+            self.assertEqual(report["sufficiency"], "INSUFFICIENT")
+            self.assertEqual(report["claims"], [])
+            self.assertIn("US:SPY", report["data_gaps"][0]["description"])
+
+            bundle_run_root = root / "bundle-case"
+            bundle_run_root.mkdir()
+            bundle_run = self.prepare_mrvl_daily_run(bundle_run_root, include_spy=False)
+            self.complete_with_explicit_gaps(bundle_run)
+            bundle = json.loads((bundle_run / "research/holding-research-bundle.json").read_text())
+            technical_coverage = next(
+                item for item in bundle["coverage"]
+                if item["capability"] == "TECHNICAL_STRUCTURE"
+            )
+            self.assertEqual(technical_coverage["status"], "INSUFFICIENT_EVIDENCE")
+            self.assertNotEqual(technical_coverage["status"], "COMPLETE")
+
+    def test_mrvl_with_spy_keeps_grounded_calculation_and_chart_refs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run = self.prepare_mrvl_daily_run(Path(temp), include_spy=True)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            prepared = packet["prepared_analysis"]
+            self.assertGreater(prepared["security_row_count"], 20)
+            self.assertEqual(prepared["security_row_count"], prepared["benchmark_row_count"])
+            self.assertIsNotNone(prepared["calculation"])
+            self.assertIsNotNone(prepared["chart"])
+            refs = prepared["allowed_artifact_refs"]
+            self.assertEqual(refs, [prepared["calculation_ref"], prepared["chart"]["artifact_ref"]])
+            self.assertTrue(all((run / ref).is_file() for ref in refs))
+            self.assertNotIn("maxItems", packet["output_schema"]["properties"]["claims"])
+            metric = prepared["calculation"]["windows"][0]["metrics"]["security_total_return"]
+            draft = self.dimension_draft(task)
+            draft.update(
+                status="LOW_CONFIDENCE", sufficiency="PARTIAL",
+                summary="20 日窗口已有冻结计算和同源图表，较长窗口仍缺历史。",
+                calculations=[{
+                    "calculation_id": "calc-technical-return", "method": "security_total_return",
+                    "value": metric, "unit": "ratio", "input_evidence_refs": [],
+                    "artifact_ref": refs[0],
+                }],
+                claims=[{
+                    "claim_id": "claim-technical-return",
+                    "question": packet["minimum_questions"][0],
+                    "statement": "20 日窗口收益由同源冻结计算给出。",
+                    "kind": "INTERPRETATION", "evidence_refs": [],
+                    "research_claim_refs": [], "document_refs": [],
+                    "assumption_ids": [], "calculation_refs": ["calc-technical-return"],
+                }],
+                artifact_refs=refs,
+            )
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+            report = envelope_research_dimension_draft(
+                draft, task=task, invocation=invocation,
+                expected_bindings=self.research_bindings(run),
+                allowed_security_ids=task["security_ids"],
+                allowed_evidence_ids=[], allowed_documents=[],
+            )
+            output = persist_dimension_report(
+                run / "research/reports" / task["task_id"], report=report, evidence=[],
+            )
+            saved = json.loads(Path(output["json"]).read_text())
+            self.assertEqual(saved["claims"][0]["calculation_refs"], ["calc-technical-return"])
+            self.assertEqual(saved["artifact_refs"], refs)
+            self.assertEqual(saved["calculations"][0]["artifact_ref"], refs[0])
+
+    def test_chart_failure_keeps_calculation_and_grounded_claims(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with patch(
+                "product.council.technical_chart.render_relative_performance_svg",
+                side_effect=ValueError("TECHNICAL_CHART_VALUE_INVALID"),
+            ):
+                run = self.prepare_mrvl_daily_run(root, include_spy=True)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            prepared = packet["prepared_analysis"]
+            calculation_ref = prepared["calculation_ref"]
+            self.assertIsNotNone(prepared["calculation"])
+            self.assertIsNone(prepared["chart"])
+            self.assertEqual(prepared["allowed_artifact_refs"], [calculation_ref])
+            self.assertEqual([gap["reason_code"] for gap in prepared["gaps"]], ["TECHNICAL_CHART_VALUE_INVALID"])
+            self.assertIn("图表不可用数值", prepared["gaps"][0]["description"])
+            self.assertNotIn("交易日不足", prepared["gaps"][0]["description"])
+            calculation_artifact = json.loads((run / calculation_ref).read_text())
+            verify_technical_calculation(calculation_artifact)
+            self.assertEqual(calculation_artifact["artifact_hash"], prepared["calculation"]["artifact_hash"])
+            self.assertNotIn("maxItems", packet["output_schema"]["properties"]["claims"])
+            self.assertIn("若 chart=null", packet["instruction"])
+            metric = prepared["calculation"]["windows"][0]["metrics"]["security_total_return"]
+            draft = self.dimension_draft(task)
+            draft.update(
+                status="LOW_CONFIDENCE", sufficiency="PARTIAL",
+                summary="已有同源计算，图表生成失败不影响计算主张。",
+                calculations=[{
+                    "calculation_id": "calc-technical-return", "method": "security_total_return",
+                    "value": metric, "unit": "ratio", "input_evidence_refs": [],
+                    "artifact_ref": calculation_ref,
+                }],
+                claims=[{
+                    "claim_id": "claim-technical-return",
+                    "question": packet["minimum_questions"][0],
+                    "statement": "20 日窗口的证券收益已由冻结计算给出。",
+                    "kind": "INTERPRETATION", "evidence_refs": [],
+                    "research_claim_refs": [], "document_refs": [],
+                    "assumption_ids": [], "calculation_refs": ["calc-technical-return"],
+                }],
+                artifact_refs=[calculation_ref],
+                data_gaps=[{
+                    "gap_id": "gap-chart-render", "reason_code": "UNKNOWN",
+                    "description": "相对表现图渲染失败。",
+                    "impact": "缺少图形展示，但冻结计算及其主张仍可阅读。",
+                }],
+            )
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+            report = envelope_research_dimension_draft(
+                draft, task=task, invocation=invocation,
+                expected_bindings=self.research_bindings(run), allowed_security_ids=task["security_ids"],
+                allowed_evidence_ids=[], allowed_documents=[],
+            )
+            self.assertEqual(report["claims"][0]["calculation_refs"], ["calc-technical-return"])
+            self.assertEqual(report["sufficiency"], "PARTIAL")
+            self.assertEqual(report["status"], "LOW_CONFIDENCE")
+            self.assertEqual(report["artifact_refs"], [calculation_ref])
+
+    def test_unknown_chart_error_is_not_reclassified_as_data_gap(self) -> None:
+        for error in (ValueError("UNEXPECTED_RENDER_ERROR"), PermissionError("CHART_OUTPUT_DENIED")):
+            with self.subTest(error=type(error).__name__), tempfile.TemporaryDirectory() as temp:
+                with patch(
+                    "product.council.technical_chart.render_relative_performance_svg",
+                    side_effect=error,
+                ), self.assertRaisesRegex(type(error), str(error)):
+                    self.prepare_mrvl_daily_run(Path(temp), include_spy=True)
+
+    def test_chart_history_gap_names_alignment_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            with patch(
+                "product.council.technical_chart.render_relative_performance_svg",
+                side_effect=ValueError("TECHNICAL_CHART_HISTORY_INSUFFICIENT"),
+            ):
+                run = self.prepare_mrvl_daily_run(Path(temp), include_spy=True)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
+            prepared = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])["prepared_analysis"]
+            self.assertIsNotNone(prepared["calculation"])
+            self.assertIsNone(prepared["chart"])
+            self.assertEqual(prepared["gaps"][0]["reason_code"], "TECHNICAL_CHART_HISTORY_INSUFFICIENT")
+            self.assertIn("可对齐的交易日不足", prepared["gaps"][0]["description"])
 
     def test_bounded_latest_facts_keeps_recent_values_per_reporting_series(self) -> None:
         facts = []

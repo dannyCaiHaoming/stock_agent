@@ -605,6 +605,16 @@ def envelope_research_dimension_draft(
         and (draft.get("status") != "FAILED" or draft.get("evaluation_status") != "FAIL")
     ):
         raise MultiDimensionalResearchError("DIMENSION_DRAFT_CONFIGURATION_BLOCK_STATE_INVALID")
+    if task.get("capability") == "TECHNICAL_STRUCTURE" and not task.get("allowed_artifact_refs"):
+        if (
+            draft.get("status") != "INSUFFICIENT_EVIDENCE"
+            or draft.get("sufficiency") != "INSUFFICIENT"
+        ):
+            raise MultiDimensionalResearchError("DIMENSION_DRAFT_TECHNICAL_NO_CALCULATION_STATE_INVALID")
+        if draft.get("claims") != [] or draft.get("calculations") != [] or draft.get("artifact_refs") != []:
+            raise MultiDimensionalResearchError("DIMENSION_DRAFT_TECHNICAL_NO_CALCULATION_CONTENT_INVALID")
+        if not isinstance(draft.get("data_gaps"), list) or not draft["data_gaps"]:
+            raise MultiDimensionalResearchError("DIMENSION_DRAFT_TECHNICAL_NO_CALCULATION_GAP_MISSING")
     raw_hash = canonical_hash(draft)
     report = {
         "schema_version": DIMENSION_REPORT_VERSION,
