@@ -27,6 +27,13 @@ STAGE_VERSION = "multidimensional-holding-research-runtime/2.0.0"
 DISPATCH_VERSION = "multidimensional-research-dispatch/2.1.0"
 COMPANY_AGENT_VERSION = "3.0.20"
 MARKET_AGENT_VERSION = "1.2.0"
+SCOPED_PROVIDER_VIEW_INSTRUCTION = (
+    " 本任务 provider_coverage 是从完整审计派生的任务视图：global_coverage"
+    " 的状态、计数和失败码属于 provider 全局，不能当作本任务数据集已交付或已引用。"
+    "请按 dataset_observations 与 capability_routing 判断局部交付；"
+    "NO_DATASET_DETAIL 表示原件无数据集明细，NO_RELEVANT_OBSERVATIONS 表示本任务未选中明细，"
+    "两者均不能单独推断无 Evidence 或获取失败。coverage_hash 指向完整审计原件。"
+)
 
 
 def _parent_output_schema(run_id: str, task_count: int) -> dict[str, Any]:
@@ -1147,6 +1154,25 @@ def build_multidimensional_dispatch_packet(
     packet = _read_object(run_dir / task["packet_path"])
     if canonical_hash(packet) != task["packet_hash"]:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_PACKET_HASH_MISMATCH")
+    view = packet.get("provider_coverage")
+    expected_view_kind = task.get("provider_coverage_view_kind")
+    if expected_view_kind is not None and (
+        expected_view_kind != "TASK_SCOPED_PROVIDER_COVERAGE"
+        or not isinstance(view, Mapping) or view.get("view_kind") != expected_view_kind
+    ):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_VIEW_BINDING_MISMATCH")
+    if expected_view_kind == "TASK_SCOPED_PROVIDER_COVERAGE" or (
+        isinstance(view, Mapping) and view.get("view_kind") == "TASK_SCOPED_PROVIDER_COVERAGE"
+    ):
+        manifest = _read_object(run_dir / "run_manifest.json")
+        audit = _read_object(run_dir / task["provider_coverage_ref"])
+        gate = _read_object(run_dir / "evidence/gate.json")
+        expected_view = _task_provider_coverage_view(
+            audit, task=task, evidence=gate["allowed_evidence"],
+            stage=manifest["stage"],
+        )
+        if view != expected_view:
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_VIEW_BINDING_MISMATCH")
     dependency_reports = []
     for dependency_id in task.get("depends_on", []) if include_dependency_reports else []:
         matches = []
@@ -1255,6 +1281,102 @@ def _provider_scope(capability: str) -> set[str]:
     if capability in {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "INDUSTRY_COMPARISON", "OWNERSHIP_DISCLOSURE", "OPTIONS_FLOW"}:
         return {"sec", "yahoo", "moomoo_sg", "openalex", "nasdaq"}
     return {"yahoo", "nasdaq", "eastmoney"}
+
+
+def _task_provider_coverage_view(
+    coverage: Mapping[str, Any], *, task: Mapping[str, Any],
+    evidence: Sequence[Mapping[str, Any]], stage: str,
+) -> dict[str, Any]:
+    """Project the frozen audit into the two forward shared-research inputs."""
+
+    capability = task["capability"]
+    if stage != "MULTI_DIMENSIONAL_HOLDING_RESEARCH" or capability not in {
+        "MACRO_CONTEXT", "MARKET_STATE",
+    }:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_VIEW_SCOPE_INVALID")
+    expected_hash = canonical_hash({key: value for key, value in coverage.items() if key != "coverage_hash"})
+    if coverage.get("coverage_hash") != expected_hash:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_AUDIT_HASH_MISMATCH")
+    cutoff = task["time_context"]["window_end"]
+    if coverage.get("decision_cutoff") != cutoff:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_AUDIT_CUTOFF_MISMATCH")
+    cutoff_time = parse_timestamp(cutoff)
+
+    routed_datasets = set(DATASET_CAPABILITY_ROUTES[capability])
+    allowed_ids = set(task["allowed_evidence_ids"])
+    relevant_datasets = routed_datasets | {
+        fact["dataset"] for fact in evidence
+        if fact.get("evidence_id") in allowed_ids
+        and isinstance(fact.get("dataset"), str) and fact["dataset"]
+    }
+    known_datasets = set().union(*DATASET_CAPABILITY_ROUTES.values())
+    provider_fields = ("plane", "provider", "region", "access", "declared_status", "limitations")
+    global_fields = (
+        "observed_status", "delivery_status", "evidence_count",
+        "capture_evidence_count", "gate_delivered_evidence_count", "failure_codes",
+        "actual_research_use_status",
+    )
+    observation_fields = (
+        "security_id", "dataset", "status", "failure_code", "checked_at", "as_of", "limitations",
+    )
+    providers = []
+    for item in coverage["providers"]:
+        if item["provider"] not in task["provider_scope"]:
+            continue
+        original = item["dataset_observations"]
+        selected = [
+            observation for observation in original
+            if observation["dataset"] in relevant_datasets
+            or observation["dataset"] not in known_datasets
+        ]
+        for observation in selected:
+            try:
+                checked_at = parse_timestamp(observation["checked_at"])
+                as_of = parse_timestamp(observation["as_of"]) if observation["as_of"] is not None else None
+            except (KeyError, TypeError, ValueError) as exc:
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_VIEW_TIME_INVALID") from exc
+            if checked_at > cutoff_time or (as_of is not None and as_of > cutoff_time):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_VIEW_AFTER_CUTOFF")
+            if not observation.get("security_id") or not observation.get("dataset"):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_VIEW_IDENTITY_INVALID")
+        providers.append({
+            **{key: copy.deepcopy(item[key]) for key in provider_fields},
+            "global_coverage": {key: copy.deepcopy(item[key]) for key in global_fields},
+            "dataset_observation_scope": (
+                "RELEVANT_OBSERVATIONS" if selected else
+                "NO_RELEVANT_OBSERVATIONS" if original else "NO_DATASET_DETAIL"
+            ),
+            "dataset_observations": [
+                {key: copy.deepcopy(observation[key]) for key in observation_fields}
+                for observation in selected
+            ],
+        })
+
+    routing = []
+    for item in coverage["capability_routing"]["dataset_observations"]:
+        if item["target_capability"] != capability:
+            continue
+        reasons: dict[str, int] = {}
+        for exclusion in item["exclusions"]:
+            reason = exclusion["reason"]
+            reasons[reason] = reasons.get(reason, 0) + 1
+        routing.append({
+            key: copy.deepcopy(item[key]) for key in (
+                "dataset", "target_capability", "capture_evidence_count",
+                "gate_eligible_evidence_count", "delivered_evidence_count",
+                "delivery_status", "actual_research_use_status",
+            )
+        } | {"exclusion_reason_counts": dict(sorted(reasons.items()))})
+    return {
+        "view_kind": "TASK_SCOPED_PROVIDER_COVERAGE",
+        "stage": stage, "capability": capability,
+        "source_schema_version": coverage["schema_version"],
+        "coverage_hash": coverage["coverage_hash"],
+        "decision_cutoff": coverage["decision_cutoff"],
+        "fallback_policy": copy.deepcopy(coverage["fallback_policy"]),
+        "capability_routing": {"dataset_observations": routing},
+        "providers": providers,
+    }
 
 
 def prepare_multidimensional_stage_run(
@@ -1472,6 +1594,10 @@ def prepare_multidimensional_stage_run(
                 "provider_coverage_ref": "audit/provider-coverage.json",
                 "provider_scope": sorted(_provider_scope(capability)),
             }
+            if stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH" and capability in {
+                "MACRO_CONTEXT", "MARKET_STATE",
+            }:
+                task["provider_coverage_view_kind"] = "TASK_SCOPED_PROVIDER_COVERAGE"
             if research_materials_import is not None and capability == "RESEARCH_REPORT" and security_id:
                 task["allowed_documents"] = [
                     item["report_document"]
@@ -1567,6 +1693,18 @@ def prepare_multidimensional_stage_run(
                 "failure_codes 和 dataset_observations 处理缺口。Moomoo 补充层失败时仍可使用"
                 "已通过 Gate 的 SEC/Yahoo Evidence，不得回退到客户端 Cookie、私有 API 或登录绕过。"
             )
+            scoped_provider_view = (
+                stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+                and capability in {"MACRO_CONTEXT", "MARKET_STATE"}
+            )
+            if scoped_provider_view:
+                instruction += SCOPED_PROVIDER_VIEW_INSTRUCTION
+                if capability == "MACRO_CONTEXT":
+                    instruction += (
+                        " 描述当前宏观状态前，须在允许的冻结 Evidence 中按指标核对截止点内"
+                        "最新可用观察及其观察期；引用较早观察时说明用途和更新观察对解释的影响。"
+                        "actual、previous、consensus 分开读取；供应商当前快照不能冒充历史发布时点的原始版本。"
+                    )
             if stage == "INDEPENDENT_COUNTER_THESIS_RESEARCH":
                 instruction += (
                     " 本阶段的 allowed_evidence_ids 是可查询目录，不是已经读过的证据。"
@@ -1775,7 +1913,9 @@ def prepare_multidimensional_stage_run(
                     "required_identity_arguments": {"run_id": run_id, "agent": agent, "invocation_id": invocation_id},
                 },
                 "research_input_topology": copy.deepcopy(invocation["research_input_topology"]),
-                "provider_coverage": {
+                "provider_coverage": _task_provider_coverage_view(
+                    provider_coverage, task=task, evidence=evidence, stage=stage,
+                ) if scoped_provider_view else {
                     "schema_version": provider_coverage["schema_version"],
                     "coverage_hash": provider_coverage["coverage_hash"],
                     "fallback_policy": copy.deepcopy(provider_coverage["fallback_policy"]),
@@ -3277,6 +3417,27 @@ def launch_multidimensional_stage(
         output_schema_path=schema_path, fixture_mcp_run_dir=run_dir,
         hook_agent_matcher="^(runtime_company_analyst|runtime_market_catalyst)$",
     )
+    if manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+        # Desktop-only user MCP fields are rejected by the host CLI's strict
+        # parser. The CLI also skips project agent registration in this mode,
+        # so register only the specialists required by this frozen dispatch.
+        command.insert(command.index("exec") + 1, "--ignore-user-config")
+        product_agents = tomllib.loads(
+            (product_root / ".codex/config.toml").read_text(encoding="utf-8")
+        )["agents"]
+        for agent_name in sorted({item["agent"] for item in index["tasks"]}):
+            agent_config = product_agents.get(agent_name)
+            if not isinstance(agent_config, Mapping):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_AGENT_CONFIG_MISSING")
+            agent_path = (product_root / ".codex" / agent_config["config_file"]).resolve()
+            if not agent_path.is_relative_to(product_root / ".codex") or not agent_path.is_file():
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_AGENT_CONFIG_INVALID")
+            command.extend((
+                "-c", f"agents.{agent_name}={{"
+                f"description={json.dumps(agent_config['description'], ensure_ascii=False)},"
+                f"config_file={json.dumps(str(agent_path))}}}",
+            ))
+        command.extend(("-c", f"agents.max_threads={product_agents['max_threads']}"))
     events_path = invocation_dir / "codex-events.jsonl"
     hook_events_path = invocation_dir / "subagent-events.jsonl"
     dispatch_events_path = invocation_dir / "subagent-dispatches.jsonl"

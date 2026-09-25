@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import copy
+import subprocess
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from product.runtime.codex_hook_recorder import handle_hook_event, _terminal_research_tasks
 from product.runtime.fixture_mcp import StatelessFixtureTools
@@ -15,6 +18,7 @@ from product.runtime.multidimensional_stage import (
     _bounded_latest_facts,
     _facts_for_capability,
     _capability_routing_coverage,
+    _task_provider_coverage_view,
     _dynamic_draft_schema,
     _adopt_multidimensional_retry,
     _parent_output_schema,
@@ -25,7 +29,9 @@ from product.runtime.multidimensional_stage import (
     check_multidimensional_bundle_consumable,
     finalize_multidimensional_task_evidence,
     finalize_multidimensional_stage_run,
+    launch_multidimensional_stage,
     prepare_multidimensional_stage_run,
+    MultidimensionalStageError,
 )
 from product.runtime.multidimensional_stage import _frozen_peer_candidates
 from product.runtime.common_stock_stage import prepare_common_stock_stage_run
@@ -42,6 +48,132 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MultidimensionalStageTests(unittest.TestCase):
+    def test_forward_host_command_ignores_desktop_config_and_keeps_strict_product_config(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            with patch(
+                "product.runtime.multidimensional_stage.subprocess.run",
+                return_value=subprocess.CompletedProcess([], 1, "", "test stop"),
+            ) as launched:
+                result, code = launch_multidimensional_stage(ROOT, run_dir=run)
+            command = launched.call_args.args[0]
+            self.assertEqual(command[command.index("exec") + 1], "--ignore-user-config")
+            self.assertIn("--strict-config", command)
+            self.assertEqual(command[command.index("-C") + 1], str(ROOT / "product"))
+            self.assertTrue(any("mcp_servers.fixture_runtime=" in value for value in command))
+            for agent_name in ("runtime_company_analyst", "runtime_market_catalyst"):
+                self.assertTrue(any(
+                    value.startswith(f"agents.{agent_name}=")
+                    and str(ROOT / "product/.codex/agents" / f"{agent_name}.toml") in value
+                    for value in command
+                ))
+            self.assertIn("agents.max_threads=3", command)
+            self.assertEqual(
+                command,
+                json.loads((run / "invocation/environment-manifest.json").read_text())["command"],
+            )
+            self.assertEqual(result["failure_code"], "MULTIDIMENSIONAL_CODEX_PROCESS_FAILED")
+            self.assertEqual(code, 7)
+
+    def test_forward_macro_market_view_is_bound_and_other_packets_keep_legacy_shape(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp))
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            for capability in ("MACRO_CONTEXT", "MARKET_STATE"):
+                task = next(item for item in index["tasks"] if item["capability"] == capability)
+                packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+                view = packet["provider_coverage"]
+                self.assertEqual("TASK_SCOPED_PROVIDER_COVERAGE", view["view_kind"])
+                self.assertEqual(capability, view["capability"])
+                self.assertIn("global_coverage", view["providers"][0])
+                self.assertNotIn("evidence_ids", str(view["providers"]))
+                self.assertIn("global_coverage", packet["instruction"])
+                if capability == "MACRO_CONTEXT":
+                    self.assertIn("最新可用观察", packet["instruction"])
+                else:
+                    self.assertNotIn("最新可用观察", packet["instruction"])
+            other = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            other_packet = build_multidimensional_dispatch_packet(ROOT, run, other["task_name"])
+            self.assertNotIn("view_kind", other_packet["provider_coverage"])
+            self.assertNotIn("global_coverage", other_packet["instruction"])
+
+            audit_path = run / "audit/provider-coverage.json"
+            audit = json.loads(audit_path.read_text())
+            audit["providers"][0]["limitations"].append("tampered")
+            audit_path.write_text(json.dumps(audit), encoding="utf-8")
+            macro = next(item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT")
+            with self.assertRaisesRegex(MultidimensionalStageError, "COVERAGE_AUDIT_HASH_MISMATCH"):
+                build_multidimensional_dispatch_packet(ROOT, run, macro["task_name"])
+            audit["coverage_hash"] = canonical_hash({
+                key: value for key, value in audit.items() if key != "coverage_hash"
+            })
+            audit_path.write_text(json.dumps(audit), encoding="utf-8")
+            with self.assertRaisesRegex(MultidimensionalStageError, "COVERAGE_VIEW_BINDING_MISMATCH"):
+                build_multidimensional_dispatch_packet(ROOT, run, macro["task_name"])
+            self.assertEqual(
+                other_packet, build_multidimensional_dispatch_packet(ROOT, run, other["task_name"])
+            )
+
+    def test_provider_view_preserves_empty_official_and_failed_multisecurity_observations(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp))
+            coverage = json.loads((run / "audit/provider-coverage.json").read_text())
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            market = next(item for item in index["tasks"] if item["capability"] == "MARKET_STATE")
+            macro = next(item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT")
+            for provider in coverage["providers"]:
+                if provider["provider"] == "bls":
+                    provider["observed_status"] = "AVAILABLE"
+                    provider["evidence_count"] = 2
+                if provider["provider"] == "moomoo_sg":
+                    def observation(security_id, dataset, status, failure_code):
+                        return {
+                            "security_id": security_id, "dataset": dataset,
+                            "status": status, "failure_code": failure_code,
+                            "checked_at": coverage["decision_cutoff"],
+                            "as_of": None, "evidence_ids": [],
+                            "limitations": ["limited"] if failure_code else [],
+                        }
+                    provider["dataset_observations"] = [
+                        observation("US:COMMON_STOCK:AAPL", "market_breadth", "SOURCE_LIMITED", "QUOTE_FAILED"),
+                        observation("US:COMMON_STOCK:MSFT", "market_breadth", "SOURCE_LIMITED", "QUOTE_FAILED"),
+                        observation("US:COMMON_STOCK:AAPL", "analyst_expectations", "AVAILABLE", None),
+                        observation("US:COMMON_STOCK:AAPL", "future_unknown_dataset", "PARTIAL", None),
+                    ]
+            coverage["coverage_hash"] = canonical_hash({
+                key: value for key, value in coverage.items() if key != "coverage_hash"
+            })
+            market_view = _task_provider_coverage_view(
+                coverage, task=market, evidence=[], stage="MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+            )
+            moomoo = next(item for item in market_view["providers"] if item["provider"] == "moomoo_sg")
+            self.assertEqual(3, len(moomoo["dataset_observations"]))
+            self.assertEqual(
+                {"US:COMMON_STOCK:AAPL", "US:COMMON_STOCK:MSFT"},
+                {item["security_id"] for item in moomoo["dataset_observations"]},
+            )
+            self.assertEqual("SOURCE_LIMITED", moomoo["dataset_observations"][0]["status"])
+            yahoo = [item for item in market_view["providers"] if item["provider"] == "yahoo"]
+            self.assertEqual(2, len(yahoo))
+            self.assertEqual(2, len({item["plane"] for item in yahoo}))
+            macro_view = _task_provider_coverage_view(
+                coverage, task=macro, evidence=[], stage="MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+            )
+            bls = next(item for item in macro_view["providers"] if item["provider"] == "bls")
+            self.assertEqual("NO_DATASET_DETAIL", bls["dataset_observation_scope"])
+            self.assertEqual(2, bls["global_coverage"]["evidence_count"])
+            self.assertEqual("AVAILABLE", bls["global_coverage"]["observed_status"])
+
+            invalid = copy.deepcopy(coverage)
+            next(item for item in invalid["providers"] if item["provider"] == "moomoo_sg")["dataset_observations"][0]["checked_at"] = "2030-01-01T00:00:00Z"
+            invalid["coverage_hash"] = canonical_hash({
+                key: value for key, value in invalid.items() if key != "coverage_hash"
+            })
+            with self.assertRaisesRegex(MultidimensionalStageError, "COVERAGE_VIEW_AFTER_CUTOFF"):
+                _task_provider_coverage_view(
+                    invalid, task=market, evidence=[], stage="MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+                )
+
     def test_selected_but_unmaterialized_peers_still_forbid_comparison_claims(self) -> None:
         task = {
             "selected_peer_candidates": [{
@@ -99,6 +231,9 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertNotIn("runtime_skeptic", {task["agent"] for task in index["tasks"]})
             macro = next(task for task in index["tasks"] if task["capability"] == "MACRO_CONTEXT")
             packet = json.loads((run / macro["packet_path"]).read_text())
+            self.assertNotIn("view_kind", packet["provider_coverage"])
+            self.assertNotIn("global_coverage", packet["instruction"])
+            self.assertNotIn("最新可用观察", packet["instruction"])
             self.assertIn("先通过非空 fixture_runtime.query 实际读取", packet["instruction"])
             self.assertIn("当前只有一只普通股持仓", packet["instruction"])
             self.assertIn("不得因缺少第二只持仓", packet["instruction"])
@@ -305,7 +440,14 @@ class MultidimensionalStageTests(unittest.TestCase):
             "decision_cutoff": gate["decision_cutoff"],
         }
         events = []
+        stage = json.loads((run / "run_manifest.json").read_text())["stage"]
         for task in index["tasks"]:
+            if task["capability"] in {"MACRO_CONTEXT", "MARKET_STATE"}:
+                packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+                if stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+                    self.assertEqual("TASK_SCOPED_PROVIDER_COVERAGE", packet["provider_coverage"]["view_kind"])
+                else:
+                    self.assertNotIn("view_kind", packet["provider_coverage"])
             invocation = json.loads((run / task["invocation_path"]).read_text())
             report = envelope_research_dimension_draft(
                 {
