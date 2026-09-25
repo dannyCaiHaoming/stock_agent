@@ -11,13 +11,13 @@
     "runtime_config": "3f1b605f88b903ccb6e4b1084b592bef3282d4cd717b397d8a2cf3dd35700a94",
     "runtime_profile": "e984ae9ea48aa5993c5dedbc39f545a1fe4bbc8a554838b8135bc2af452dae3a",
     "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
-    "council_skill": "8e54a40214ce9507c63795517385712929a56543d3048eae92218b8361fdddf8",
-    "cio_agent": "beb698ae7ffbb0f8b118c4cf25d1f78b658994e5b13fc223422c730890232655",
+    "council_skill": "0e99463e6a0d602cdd54f58a72b9c2424e1c77798953b70941482a95b9bbfae1",
+    "cio_agent": "ef5f5f6ebb7292c5a05409988d73293be47edf2ecdf33e82b187a67fb79dd32f",
     "company_agent": "b03e6b5c3b98b11b94d319379e6fb98abaf872628716c0fe06597ccdb49b44f5",
     "skeptic_agent": "0e977c45aaba3f8ca03ef083ccc48afe393a0cf68aa0adb2de04ebe93144986f"
   },
   "skills": {
-    "portfolio-council": "3.7.0",
+    "portfolio-council": "3.7.1",
     "evidence-grounding": "2.1.0",
     "company-research": "2.8.0",
     "valuation": "2.5.0",
@@ -31,7 +31,7 @@
     "technical-structure": "1.1.0"
   },
   "agents": {
-    "runtime-cio": "3.1.1",
+    "runtime-cio": "3.1.2",
     "runtime-company-analyst": "3.0.20",
     "runtime-market-catalyst": "1.2.0",
     "runtime-skeptic": "2.2.0"

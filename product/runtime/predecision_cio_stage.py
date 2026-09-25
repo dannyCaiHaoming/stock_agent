@@ -208,15 +208,48 @@ def _report_identity(catalog_item: Mapping[str, Any]) -> dict[str, Any]:
     )}
 
 
+_STAGE_SECTION_START = "<!-- PREDECISION_CIO_INSTRUCTIONS_START -->"
+_STAGE_SECTION_END = "<!-- PREDECISION_CIO_INSTRUCTIONS_END -->"
+
+
+def _stage_instruction_section(text: str, source: str) -> str:
+    """Extract one explicitly bounded section; never fall back to a full file."""
+
+    if text.count(_STAGE_SECTION_START) != 1 or text.count(_STAGE_SECTION_END) != 1:
+        raise PredecisionCioStageError(f"CIO_INSTRUCTION_SECTION_INVALID:{source}:MARKERS")
+    start = text.index(_STAGE_SECTION_START) + len(_STAGE_SECTION_START)
+    end = text.index(_STAGE_SECTION_END)
+    if start >= end or not text[start:end].strip():
+        raise PredecisionCioStageError(f"CIO_INSTRUCTION_SECTION_INVALID:{source}:CONTENT")
+    return text[start:end].strip()
+
+
+def _stage_instruction_bundle(product_root: Path) -> str:
+    sections = (
+        ("AGENTS.md", "locked_product_instructions"),
+        ("skills/portfolio-council/SKILL.md", "locked_portfolio_council_skill"),
+        (".codex/agents/runtime_cio.toml", "locked_runtime_cio_protocol"),
+    )
+    parts: list[str] = []
+    for relative, label in sections:
+        try:
+            source_text = (product_root / relative).read_text(encoding="utf-8")
+        except OSError as exc:
+            raise PredecisionCioStageError(
+                f"CIO_INSTRUCTION_SECTION_INVALID:{relative}:READ"
+            ) from exc
+        section = _stage_instruction_section(source_text, relative)
+        parts.append(f"<{label}>\n{section}\n</{label}>")
+    return "\n".join(parts)
+
+
 def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
     """Give the main-thread CIO complete verified reports, without re-dispatching analysts."""
 
     _, request = validate_predecision_cio_run(repository_root, run_dir)
     root = Path(run_dir).resolve()
     product_root = Path(repository_root).resolve() / "product"
-    product_instructions = (product_root / "AGENTS.md").read_text(encoding="utf-8")
-    skill_text = (product_root / "skills/portfolio-council/SKILL.md").read_text(encoding="utf-8")
-    agent_text = (product_root / ".codex/agents/runtime_cio.toml").read_text(encoding="utf-8")
+    stage_instructions = _stage_instruction_bundle(product_root)
     catalog = _read(root / "report-catalog.json")["reports"]
     reports = [{"identity": _report_identity(item), "report": _read(
         root / "source-inputs" / item["artifact_ref"]
@@ -228,19 +261,11 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
         "reports": reports,
         "expected_consumed_reports": [_report_identity(item) for item in catalog],
     }
-    delivery_instruction = (
-        "本次仅交付原研究截止点的 RESEARCH_SYNTHESIS：用户在需求讨论中表示曾清仓 MRVL，"
-        "系统未独立核验当前账户。"
-        "绝不输出 action、目标权重、金额、交易数量、NO_TRADE 或变相买卖指令。"
-        "即使研究观点偏积极，也不能暗示买回或加仓；当前账户适配未评估。"
-        "风险状态固定 NOT_RUN，不运行完整组合 Risk。"
-    )
     return (
         "你是本次 PREDECISION_CIO_SYNTHESIS 的 Codex 主线程 CIO；用户已明确要求本阶段综合。"
         "前序正向研究和独立反证均已由来源运行完成、验证和冻结。只进行一次 CIO 综合，"
         "不得再次派发 Company Analyst、Market Catalyst、Skeptic 或其他 Agent，"
         "不得联网、读取原始缓存、券商资料、其他运行或修改产品文件。\n"
-        + delivery_instruction + "\n"
         "以下 JSON 内的 report 是通过来源哈希和执行证明重验的完整原始报告，"
         "identity 是唯一报告身份。必须实际综合而不是投票或机械复述，"
         "consumed_reports 原样复制 expected_consumed_reports。"
@@ -264,14 +289,8 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
         f"agent=runtime_cio、invocation_id=cio:{request['run_id']}，evidence_ids 必须取自原报告引用，"
         "且被冻结 Gate 允许。引用未查询的 ID 会使整个结果失败；不得查询 Gate 外事实。"
         "输出仅为符合给定 JSON Schema 的 JSON 对象，不写 Markdown 或解释。\n"
-        "以下是本次锁定并显式交付的产品 Skill 与 CIO 协议全文；"
-        "只执行其中 PREDECISION_CIO_SYNTHESIS 分支，其他兼容阶段不适用。\n"
-        "<locked_product_instructions>\n" + product_instructions
-        + "\n</locked_product_instructions>\n"
-        "<locked_portfolio_council_skill>\n" + skill_text
-        + "\n</locked_portfolio_council_skill>\n"
-        "<locked_runtime_cio_protocol>\n" + agent_text
-        + "\n</locked_runtime_cio_protocol>\n"
+        "以下为本次锁定并交付的阶段适用产品指令、Skill 与 CIO 协议。\n"
+        + stage_instructions + "\n"
         "<validated_research_context>\n"
         + json.dumps(context, ensure_ascii=False, sort_keys=True)
         + "\n</validated_research_context>"
@@ -396,6 +415,9 @@ def _model_execution_proof(repository_root: Path, root: Path,
             Path(repository_root) / "product/skills/portfolio-council/SKILL.md")
             or environment.get("agent_file_hash") != file_hash(
                 Path(repository_root) / "product/.codex/agents/runtime_cio.toml")
+            or environment.get("stage_instructions_hash") != hashlib.sha256(
+                _stage_instruction_bundle(Path(repository_root) / "product").encode("utf-8")
+            ).hexdigest()
             or (invocation / "prompt.txt").read_text(encoding="utf-8")
             != build_predecision_cio_prompt(repository_root, root)):
         raise PredecisionCioStageError("CIO_LOCKED_INSTRUCTION_DELIVERY_INVALID")
@@ -422,6 +444,7 @@ def _model_execution_proof(repository_root: Path, root: Path,
         "product_instructions_file_hash": environment["product_instructions_file_hash"],
         "skill_file_hash": environment["skill_file_hash"],
         "agent_file_hash": environment["agent_file_hash"],
+        "stage_instructions_hash": environment["stage_instructions_hash"],
         "parent_turn_completed": True,
     }
 
@@ -734,6 +757,9 @@ def launch_predecision_cio_run(
         "product_instructions_file_hash": file_hash(repository_root / "product/AGENTS.md"),
         "skill_file_hash": file_hash(repository_root / "product/skills/portfolio-council/SKILL.md"),
         "agent_file_hash": file_hash(repository_root / "product/.codex/agents/runtime_cio.toml"),
+        "stage_instructions_hash": hashlib.sha256(
+            _stage_instruction_bundle(repository_root / "product").encode("utf-8")
+        ).hexdigest(),
         "source_integrity_before": before,
         "started_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
@@ -854,6 +880,7 @@ def prepare_predecision_cio_run(
     )
     from product.runtime.discovery import discover_product_resources
     discovery = discover_product_resources(repository_root)
+    _stage_instruction_bundle(repository_root / "product")
     catalog = _report_catalog(source_run_dir, bundle, source_package)
     report_refs = [ref["artifact_ref"] for ref in bundle["report_refs"]]
     report_refs.extend(
