@@ -1083,6 +1083,19 @@ class HoldingResearchContractTests(unittest.TestCase):
         report = valid_report(request, request["allowed_evidence_ids"])
         validate_equity_research_report(report, request=request)
 
+    def test_ungrounded_claim_feedback_identifies_claim(self):
+        _, _, request = research_request()
+        report = valid_report(request)
+        claim_id = report["claims"][0]["claim_id"]
+        report["claims"][0]["evidence_refs"] = []
+        report["claims"][0]["assumption_ids"] = []
+        report["claims"][0]["calculation_refs"] = []
+        with self.assertRaisesRegex(
+            CommonStockResearchError,
+            rf"EQUITY_RESEARCH_SCHEMA_INVALID:.*\$\.claims\[0\].*:claim_id={claim_id}",
+        ):
+            validate_equity_research_report(report, request=request)
+
     def test_calculation_claim_requires_exact_top_level_artifact_ref(self):
         _, _, request = research_request()
         report = valid_report(request)

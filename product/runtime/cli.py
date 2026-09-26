@@ -73,6 +73,7 @@ from .predecision_cio_stage import (
     finalize_predecision_cio_research, launch_predecision_cio_run,
     prepare_predecision_cio_run,
 )
+from .research_consumption_audit import build_research_consumption_audit, render_audit_summary
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -524,6 +525,12 @@ def build_parser() -> argparse.ArgumentParser:
     trace_check.add_argument("--run-dir", type=Path, required=True)
     trace_check.add_argument("--output", type=Path, required=True)
 
+    research_audit = subparsers.add_parser("audit-research-consumption", help="只读核对冻结资料交付与报告引用")
+    research_audit.add_argument("--run-dir", type=Path, required=True)
+    research_audit.add_argument("--company-run", type=Path)
+    research_audit.add_argument("--cio-run", type=Path)
+    research_audit.add_argument("--output-dir", type=Path, required=True)
+
     nested = subparsers.add_parser("nested-codex-smoke")
     nested.add_argument("--repo", type=Path, required=True)
     nested.add_argument("--run-dir", type=Path, required=True)
@@ -891,6 +898,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.command == "eval":
         result = evaluate_run(args.repo, run_dir=args.run_dir)
         persist_eval_result(result, run_dir=args.run_dir)
+    elif args.command == "audit-research-consumption":
+        try:
+            from product.mcp.live.contracts import external_path
+            destination = external_path(args.output_dir)
+            if destination.exists():
+                raise ValueError("RESEARCH_AUDIT_OUTPUT_EXISTS")
+            audit = build_research_consumption_audit(
+                args.run_dir, company_run=args.company_run, cio_run=args.cio_run,
+            )
+            destination.mkdir(parents=True, mode=0o700)
+            (destination / "consumption.json").write_text(
+                json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            (destination / "consumption.md").write_text(
+                render_audit_summary(audit), encoding="utf-8",
+            )
+            result = {
+                "status": "SAVED", "run_id": audit["run_id"],
+                "json": str(destination / "consumption.json"),
+                "report": str(destination / "consumption.md"), "llm_calls": 0,
+            }
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"status": "FAILED", "failure_code": str(exc).split(":", 1)[0], "llm_calls": 0}, ensure_ascii=False))
+            return 2
     elif args.command == "check-run":
         result, exit_code = check_run(args.repo, run_dir=args.run_dir)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))

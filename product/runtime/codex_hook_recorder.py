@@ -1393,10 +1393,13 @@ def _multidimensional_repair_packet(
 ) -> dict[str, Any] | None:
     """Build one model-visible repair request for structural draft errors only."""
 
-    if attempt != 1 or not failure_code.startswith((
-        "DIMENSION_DRAFT_KEYS_INVALID",
-        "DIMENSION_REPORT_SCHEMA_INVALID",
-    )):
+    condition_reference_error = failure_code == "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING"
+    if attempt != 1 or not (
+        condition_reference_error or failure_code.startswith((
+            "DIMENSION_DRAFT_KEYS_INVALID",
+            "DIMENSION_REPORT_SCHEMA_INVALID",
+        ))
+    ):
         return None
     message = payload.get("last_assistant_message")
     if not isinstance(message, str):
@@ -1415,6 +1418,31 @@ def _multidimensional_repair_packet(
     if len(matches) != 1:
         return None
     task = matches[0]
+    reference_details = None
+    if condition_reference_error:
+        if task.get("capability") != "RESEARCH_REPORT":
+            return None
+        claims = draft.get("claims")
+        conditions = draft.get("observation_conditions")
+        if not isinstance(claims, list) or not isinstance(conditions, list):
+            return None
+        valid_claim_ids = sorted({
+            item["claim_id"] for item in claims
+            if isinstance(item, Mapping) and isinstance(item.get("claim_id"), str)
+        })
+        dangling = [
+            {"path": f"observation_conditions[{index}].claim_refs[{offset}]", "claim_id": ref}
+            for index, condition in enumerate(conditions)
+            if isinstance(condition, Mapping) and isinstance(condition.get("claim_refs"), list)
+            for offset, ref in enumerate(condition["claim_refs"])
+            if ref not in valid_claim_ids
+        ]
+        if not dangling:
+            return None
+        reference_details = {
+            "dangling_references": dangling,
+            "valid_claim_ids": valid_claim_ids,
+        }
     run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
     packet = json.loads((run_dir / task["packet_path"]).read_text(encoding="utf-8"))
     output_schema = packet.get("output_schema")
@@ -1423,7 +1451,7 @@ def _multidimensional_repair_packet(
         or packet.get("output_schema_hash") != _canonical_hash(output_schema)
     ):
         return None
-    return {
+    result = {
         "repair_contract": "multidimensional-draft-repair/1.0.0",
         "task_id": task["task_id"],
         "invocation_id": invocation_id,
@@ -1440,6 +1468,9 @@ def _multidimensional_repair_packet(
             "不得增加未获准 Evidence、改写身份或删除主张来规避校验。"
         ),
     }
+    if reference_details is not None:
+        result["validation_details"] = reference_details
+    return result
 
 
 def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: int):

@@ -806,6 +806,60 @@ class ResearchSupplementCollectionTests(unittest.TestCase):
         self.assertNotIn("option-chain-static-v1", calls)
         self.assertNotIn("market-snapshot-v1", calls)
 
+    def test_unreachable_moomoo_does_not_register_unneeded_yahoo_fallback(self):
+        short_fact = build_supplement_fact(
+            security_id=SECURITY, dataset="share_short_context",
+            semantic_field="short_percent", value="1.0",
+            source_id="yahoo:AAPL", source_family="yahoo",
+            source_locator="https://query2.finance.yahoo.com/AAPL",
+            source_version="yahoo-research/1.0.0", as_of=NOW,
+            published_at=NOW, retrieved_at=NOW, raw_content_hash="a" * 64,
+        )
+        option_fact = build_supplement_fact(
+            security_id=SECURITY, dataset="options_snapshot",
+            semantic_field="option_contract:AAPL", value={"last": "1.0"},
+            source_id="yahoo-options:AAPL", source_family="yahoo",
+            source_locator="https://query2.finance.yahoo.com/options/AAPL",
+            source_version="yahoo-options/1.0.0", as_of=NOW,
+            published_at=NOW, retrieved_at=NOW, raw_content_hash="b" * 64,
+        )
+
+        class UnreachableClient:
+            def __init__(self, **kwargs):
+                pass
+
+            def readiness(self):
+                raise ValueError("MOOMOO_OPEND_UNREACHABLE")
+
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.yahoo_transport.create_yahoo_session", return_value=object(),
+        ), patch(
+            "product.mcp.live.yahoo_transport.acquire_anonymous_crumb", return_value="crumb",
+        ), patch(
+            "product.mcp.live.yahoo_research.collect_quote_summary",
+            return_value={"evidence": [short_fact], "gaps": []},
+        ), patch(
+            "product.mcp.live.options.collect_option_snapshot",
+            return_value={"evidence": [option_fact], "gaps": []},
+        ), patch(
+            "product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", UnreachableClient,
+        ), patch(
+            "product.mcp.live.moomoo_opend.load_quote_manifest", return_value={},
+        ):
+            result = capture_external_research_results(
+                [{"security_id": SECURITY, "ticker": "AAPL"}],
+                access=[{"provider": "yahoo"}], cache_root=Path(temp) / "cache",
+                state_root=Path(temp) / "state", now=lambda: NOW,
+            )[SECURITY]
+        for dataset in ("share_short_context", "options_snapshot"):
+            self.assertTrue(any(item["source"] == "yahoo" and item["dataset"] == dataset
+                                and item["status"] == "AVAILABLE" for item in result))
+            self.assertFalse(any(item["source"] == "moomoo_sg" and item["dataset"] == dataset
+                                 for item in result))
+        self.assertTrue(any(item["source"] == "moomoo_sg"
+                            and item["dataset"] == "identity_profile"
+                            and item["status"] == "SOURCE_LIMITED" for item in result))
+
     def test_yahoo_option_conversion_keeps_contract_identity_in_evidence_key(self):
         base = {
             "security_id": SECURITY, "semantic_field": "option_chain_contract",

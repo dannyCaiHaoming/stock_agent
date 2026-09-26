@@ -10,7 +10,9 @@ from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from product.runtime.codex_hook_recorder import handle_hook_event, _terminal_research_tasks
+from product.runtime.codex_hook_recorder import (
+    handle_hook_event, _multidimensional_repair_packet, _terminal_research_tasks,
+)
 from product.runtime.fixture_mcp import StatelessFixtureTools
 from product.council.multidimensional_research import envelope_research_dimension_draft
 from product.council.multidimensional_research import MultiDimensionalResearchError
@@ -989,6 +991,54 @@ class MultidimensionalStageTests(unittest.TestCase):
                 first["output_capture"]["raw_path"],
                 second["output_capture"]["raw_path"],
             )
+
+    def test_research_report_condition_repair_is_narrow_and_locatable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+            environment = self.targeted_environment(run, task)
+            draft = self.dimension_draft(task)
+            draft["claims"] = [{"claim_id": "claim-valid"}]
+            draft["observation_conditions"] = [{
+                "condition_id": "condition-1", "claim_refs": ["claim-missing"],
+            }]
+            payload = self.stop_payload(task, draft, parent="parent-condition", child="child-condition")
+            repair = _multidimensional_repair_packet(
+                payload, environment,
+                failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=1,
+            )
+            self.assertEqual(
+                repair["validation_details"],
+                {"dangling_references": [{
+                    "path": "observation_conditions[0].claim_refs[0]",
+                    "claim_id": "claim-missing",
+                }], "valid_claim_ids": ["claim-valid"]},
+            )
+            self.assertEqual(repair["maximum_submissions"], 2)
+            self.assertIsNone(_multidimensional_repair_packet(
+                payload, environment,
+                failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=2,
+            ))
+            for code in ("EVIDENCE_REFERENCE_INVALID", "PIT_SOURCE_FUTURE", "PERMISSION_DENIED"):
+                self.assertIsNone(_multidimensional_repair_packet(
+                    payload, environment, failure_code=code, attempt=1,
+                ))
+            other = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            other_payload = self.stop_payload(
+                other, {**draft, "invocation_id": other["invocation_id"]},
+                parent="parent-other", child="child-other",
+            )
+            self.assertIsNone(_multidimensional_repair_packet(
+                other_payload, environment,
+                failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=1,
+            ))
+            draft["observation_conditions"][0]["claim_refs"] = ["claim-valid"]
+            self.assertIsNone(_multidimensional_repair_packet(
+                self.stop_payload(task, draft, parent="parent-condition", child="child-condition"),
+                environment,
+                failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=1,
+            ))
 
     def test_trusted_start_envelopes_missing_identity_without_changing_raw_draft(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

@@ -318,7 +318,15 @@ def validate_equity_research_report(
     try:
         validate_schema_instance(value, _schema("equity-research-report.schema.json"))
     except SchemaValidationError as exc:
-        raise CommonStockResearchError(f"EQUITY_RESEARCH_SCHEMA_INVALID:{exc}") from exc
+        detail = str(exc)
+        claim_match = re.search(r"\$\.claims\[(\d+)\]", detail)
+        if claim_match and isinstance(value.get("claims"), list):
+            claim_index = int(claim_match.group(1))
+            if claim_index < len(value["claims"]):
+                claim = value["claims"][claim_index]
+                if isinstance(claim, Mapping) and isinstance(claim.get("claim_id"), str):
+                    detail += f":claim_id={claim['claim_id']}"
+        raise CommonStockResearchError(f"EQUITY_RESEARCH_SCHEMA_INVALID:{detail}") from exc
     forbidden = _find_forbidden_keys(value)
     if forbidden:
         raise CommonStockResearchError(f"EQUITY_RESEARCH_ACTION_FIELD_FORBIDDEN:{','.join(sorted(forbidden))}")
@@ -380,7 +388,7 @@ def validate_equity_research_report(
     gap_ids = indexes["data_gaps"]
     known_calculations = set(calculation_artifact_ids)
     report_artifacts = set(value.get("artifact_refs", []))
-    for claim in claims:
+    for claim_index, claim in enumerate(claims):
         evidence_refs = _canonical_ids(claim.get("evidence_refs"), "claim.evidence_refs")
         claim_assumptions = set(_canonical_ids(claim.get("assumption_ids"), "claim.assumption_ids"))
         calculations = set(_canonical_ids(claim.get("calculation_refs"), "claim.calculation_refs"))
@@ -389,9 +397,13 @@ def validate_equity_research_report(
         if claim_assumptions - assumption_ids or counter_claims - claim_ids or invalidations - condition_ids:
             raise CommonStockResearchError("EQUITY_RESEARCH_INTERNAL_REFERENCE_DANGLING")
         if calculations - known_calculations or calculations - report_artifacts:
-            raise CommonStockResearchError("EQUITY_RESEARCH_CALCULATION_REFERENCE_DANGLING")
+            raise CommonStockResearchError(
+                f"EQUITY_RESEARCH_CALCULATION_REFERENCE_DANGLING:claims[{claim_index}].calculation_refs:{claim['claim_id']}"
+            )
         if not evidence_refs and not claim_assumptions and not calculations:
-            raise CommonStockResearchError("EQUITY_RESEARCH_CLAIM_UNGROUNDED")
+            raise CommonStockResearchError(
+                f"EQUITY_RESEARCH_CLAIM_UNGROUNDED:claims[{claim_index}]:{claim['claim_id']}"
+            )
     summary = value.get("research_summary")
     sections = value.get("sections")
     if not isinstance(summary, Mapping) or not isinstance(sections, Mapping) or set(sections) != set(SECTION_NAMES):

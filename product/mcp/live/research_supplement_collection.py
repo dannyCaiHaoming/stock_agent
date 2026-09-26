@@ -223,6 +223,13 @@ def capture_external_research_results(
             for dataset in sorted({item[0] for item in calls} | {
                 "options_snapshot", "options_underlying_context", "share_short_context",
             }):
+                if dataset in {"options_snapshot", "share_short_context"} and any(
+                    item["source"] == "yahoo" and item["dataset"] == dataset
+                    and item["status"] in {"AVAILABLE", "PARTIAL"}
+                    for item in result[security_id]
+                ):
+                    # Readiness failed before this fallback was needed or attempted.
+                    continue
                 _append_result(result[security_id], _failure("moomoo_sg", dataset, code))
             continue
         for dataset, capability, extra_params, normalizer in core_calls:
