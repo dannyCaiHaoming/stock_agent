@@ -128,6 +128,86 @@ class GateScopedFixtureToolTests(unittest.TestCase):
         self.assertEqual(self.tools.events[-1]["agent"], "runtime_company_analyst")
         self.assertEqual(self.tools.events[-1]["invocation_id"], "inv-tools")
 
+    def test_field_query_returns_every_authorized_period_and_revision_without_truncation(self):
+        facts = [
+            {
+                "evidence_id": f"ev-{index}", "security_id": "US:COMMON_STOCK:TEST",
+                "semantic_field": "revenue", "value": str(index),
+                "source_id": f"sec-{index}", "as_of": f"202{index}-12-31T00:00:00Z",
+                "retrieved_at": "2026-01-01T00:00:00Z",
+                "metadata": {"period_start": f"202{index}-01-01", "period_end": f"202{index}-12-31"},
+            }
+            for index in (3, 4, 5)
+        ]
+        facts.append(dict(facts[1], evidence_id="ev-4-amended", value="44"))
+        facts.append(dict(facts[0], evidence_id="ev-other", security_id="US:COMMON_STOCK:OTHER"))
+        gate = {
+            "run_id": "field-run", "allowed_evidence": facts,
+            "allowed_evidence_ids": [item["evidence_id"] for item in facts],
+            "excluded_evidence_ids": [],
+        }
+        tools = GateScopedFixtureTools(
+            gate, run_id="field-run", agent="runtime_company_analyst",
+            invocation_id="field-inv", field_evidence_ids=[item["evidence_id"] for item in facts],
+            field_security_id="US:COMMON_STOCK:TEST",
+        )
+        result = tools.query(
+            run_id="field-run", agent="runtime_company_analyst",
+            invocation_id="field-inv", semantic_field="revenue",
+        )
+        self.assertEqual(
+            ["ev-3", "ev-4", "ev-4-amended", "ev-5"],
+            [item["evidence_id"] for item in result["evidence"]],
+        )
+        self.assertEqual(
+            [item["evidence_id"] for item in result["evidence"]],
+            tools.events[-1]["evidence_ids"],
+        )
+        self.assertEqual("sec-4", result["evidence"][1]["source_id"])
+        scoped = GateScopedFixtureTools(
+            gate, run_id="field-run", agent="runtime_company_analyst",
+            invocation_id="field-inv", field_evidence_ids=["ev-3", "ev-5"],
+            field_security_id="US:COMMON_STOCK:TEST",
+        )
+        self.assertEqual(
+            ["ev-3", "ev-5"],
+            [item["evidence_id"] for item in scoped.query(
+                run_id="field-run", agent="runtime_company_analyst",
+                invocation_id="field-inv", semantic_field="revenue",
+            )["evidence"]],
+        )
+        with self.assertRaisesRegex(ToolAccessError, "CROSS_RUN_QUERY"):
+            tools.query(
+                run_id="wrong", agent="runtime_company_analyst",
+                invocation_id="field-inv", semantic_field="unknown",
+            )
+
+        oversized = dict(facts[0], evidence_id="ev-huge", value="x" * 70000)
+        big_gate = {
+            "run_id": "field-run", "allowed_evidence": [oversized],
+            "allowed_evidence_ids": ["ev-huge"], "excluded_evidence_ids": [],
+        }
+        big_tools = GateScopedFixtureTools(
+            big_gate, run_id="field-run", agent="runtime_company_analyst",
+            invocation_id="field-inv", field_evidence_ids=["ev-huge"],
+            field_security_id="US:COMMON_STOCK:TEST",
+        )
+        with self.assertRaisesRegex(ToolAccessError, "FIELD_QUERY_RESPONSE_TOO_LARGE"):
+            big_tools.query(
+                run_id="field-run", agent="runtime_company_analyst",
+                invocation_id="field-inv", semantic_field="revenue",
+            )
+        self.assertEqual([], big_tools.events)
+        self.assertEqual("ev-huge", big_tools.query(
+            run_id="field-run", agent="runtime_company_analyst",
+            invocation_id="field-inv", evidence_ids=["ev-huge"],
+        )["evidence"][0]["evidence_id"])
+        with self.assertRaisesRegex(ToolAccessError, "COMMON_STOCK_FIELD_QUERY_FORBIDDEN"):
+            self.tools.query(
+                run_id="run-tools", agent="runtime_company_analyst",
+                invocation_id="inv-tools", semantic_field="revenue",
+            )
+
     def test_unknown_excluded_and_cross_run_queries_fail_closed(self):
         with self.assertRaisesRegex(ToolAccessError, "UNKNOWN_EVIDENCE"):
             self.tools.query(

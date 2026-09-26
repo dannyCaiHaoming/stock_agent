@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import io
 import json
 import os
@@ -64,6 +65,7 @@ from product.runtime.common_stock_stage import (
     _build_common_stock_dispatch_packet,
     build_common_stock_dispatch_message,
     build_common_stock_dispatch_packet,
+    current_research_bindings,
     finalize_common_stock_stage_run,
     _validate_common_stock_stage_run_package,
     launch_common_stock_stage,
@@ -1081,6 +1083,23 @@ class HoldingResearchContractTests(unittest.TestCase):
         report = valid_report(request, request["allowed_evidence_ids"])
         validate_equity_research_report(report, request=request)
 
+    def test_calculation_claim_requires_exact_top_level_artifact_ref(self):
+        _, _, request = research_request()
+        report = valid_report(request)
+        calculation_id = "capex_to_ocf_fy27_h1"
+        report["claims"][0]["calculation_refs"] = [calculation_id]
+        report["artifact_refs"] = ["capex_to_ocf_fy27"]
+        with self.assertRaisesRegex(
+            CommonStockResearchError, "EQUITY_RESEARCH_CALCULATION_REFERENCE_DANGLING",
+        ):
+            validate_equity_research_report(
+                report, request=request, calculation_artifact_ids=[calculation_id],
+            )
+        report["artifact_refs"] = [calculation_id]
+        validate_equity_research_report(
+            report, request=request, calculation_artifact_ids=[calculation_id],
+        )
+
     def test_wrong_binding_action_field_and_dangling_internal_ref_fail(self):
         _, _, request = research_request()
         report = valid_report(request)
@@ -2035,6 +2054,55 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
 
 
 class CommonStockNativeStageTests(unittest.TestCase):
+    def test_company_stage_restores_full_profile_and_fails_closed(self):
+        stage_agent, stage_skills = current_research_bindings(ROOT)
+        self.assertEqual("runtime_company_analyst", stage_agent["name"])
+        self.assertEqual(
+            ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"],
+            [item["name"] for item in stage_skills],
+        )
+        from product.runtime.multidimensional_stage import _agent_binding
+        other_mode = _agent_binding(ROOT / "product", "runtime_company_analyst")
+        self.assertEqual("runtime_company_analyst", other_mode["name"])
+        self.assertEqual(stage_agent, other_mode)
+        self.assertEqual("3.0.20", other_mode["version"])
+        with tempfile.TemporaryDirectory() as temp:
+            product = Path(temp) / "product"
+            profile = product / ".codex/agents/runtime_company_analyst.toml"
+            profile.parent.mkdir(parents=True)
+            shutil.copy2(ROOT / "product/.codex/agents/runtime_company_analyst.toml", profile)
+            # 未验收的实验文件即使存在也不能成为默认或失败后的回退配置。
+            experimental = profile.with_name("runtime_company_analyst_common_stock.toml")
+            experimental.write_text("invalid experimental config", encoding="utf-8")
+            for item in stage_skills:
+                skill = product / "skills" / item["name"] / "SKILL.md"
+                skill.parent.mkdir(parents=True)
+                shutil.copy2(ROOT / "product/skills" / item["name"] / "SKILL.md", skill)
+            self.assertEqual(stage_agent, current_research_bindings(Path(temp))[0])
+            original = profile.read_text(encoding="utf-8")
+            for altered in (original.replace('name = "runtime_company_analyst"', 'name = "wrong"', 1),
+                            original.replace('sandbox_mode = "read-only"', 'sandbox_mode = "workspace-write"', 1),
+                            original.replace('path = "skills/company-research"', 'path = "skills/research-report-analysis"', 1)):
+                profile.write_text(altered, encoding="utf-8")
+                with self.assertRaises(CommonStockStageError):
+                    current_research_bindings(Path(temp))
+            profile.unlink()
+            with self.assertRaisesRegex(CommonStockStageError, "COMMON_STOCK_AGENT_PROFILE_INVALID"):
+                current_research_bindings(Path(temp))
+
+    def test_dispatch_without_attachment_does_not_advertise_attachment_query(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp, count=1)
+            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+            packet = build_common_stock_dispatch_packet(ROOT, run, task["task_name"])
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+        self.assertIsNone(packet["equity_research_attachments"])
+        self.assertNotIn("attachment_query_tool", packet["tool_context"])
+        self.assertNotIn("equity_research_attachments.query", packet["instruction"])
+        self.assertNotIn("equity_research_attachments.query", invocation["tool_permissions"])
+        self.assertEqual(invocation["tool_permissions"], packet["tool_context"]["logical_permissions"])
+        self.assertIn("fixture_runtime.query", packet["tool_context"]["query_tool"])
+
     def test_stage_reconstructs_dispatch_with_equity_attachment_binding(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -2112,8 +2180,12 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 ROOT, root / "run", task["task_name"]
             )
             self.assertIn(
-                "equity_research_attachments.query 成功返回附件正文中的 calculation_ref",
+                "tool_context.attachment_query_tool 读取正文",
                 packet["instruction"],
+            )
+            self.assertEqual(
+                "fixture_runtime.equity_research_attachments.query",
+                packet["tool_context"]["attachment_query_tool"],
             )
             self.assertIn(
                 "calculation_ref 与全部 input evidence_refs",
@@ -2125,6 +2197,9 @@ class CommonStockNativeStageTests(unittest.TestCase):
             )
             invocation = json.loads(
                 (root / "run" / task["invocation_path"]).read_text(encoding="utf-8")
+            )
+            self.assertIn(
+                "equity_research_attachments.query", invocation["tool_permissions"],
             )
             requests = [
                 {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
@@ -2750,13 +2825,31 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertEqual(7, code)
             command = process.call_args.args[0]
             environment = process.call_args.kwargs["environment"]
+            self.assertEqual(1, command.count("--ignore-user-config"))
             self.assertTrue(any(item.startswith("hooks.Stop=") for item in command))
+            profile_overrides = [
+                item for item in command
+                if item.startswith("agents.runtime_company_analyst={")
+            ]
+            self.assertEqual(1, len(profile_overrides))
+            self.assertNotIn("runtime_common_stock_analyst", " ".join(command))
             self.assertEqual(
                 str((run / "invocation/parent-stop-events.jsonl").resolve()),
                 environment["STOCK_AGENT_PARENT_STOP_LOG"],
             )
             manifest = json.loads(
                 (run / "invocation/environment-manifest.json").read_text(encoding="utf-8")
+            )
+            selected_profile = Path(manifest["selected_company_agent_profile"])
+            self.assertFalse(selected_profile.exists())  # 隔离源码在调用结束后按原契约销毁。
+            self.assertIn(str(selected_profile), profile_overrides[0])
+            self.assertEqual(
+                hashlib.sha256((ROOT / "product/.codex/agents/runtime_company_analyst.toml").read_bytes()).hexdigest(),
+                manifest["selected_company_agent_profile_hash"],
+            )
+            self.assertEqual(
+                json.loads((run / "run_manifest.json").read_text(encoding="utf-8"))["agent_binding"]["content_hash"],
+                manifest["selected_company_agent_profile_hash"],
             )
             self.assertEqual(
                 str((run / "invocation/parent-stop-events.jsonl").resolve()),
@@ -2767,6 +2860,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertIn("空 `receiver_thread_ids`", prompt)
             packet = build_common_stock_dispatch_packet(ROOT, run, "company_research_1")
             self.assertIn("`YYYY-MM-DD` ASCII", packet["instruction"])
+            self.assertIn("不得以“上述两期/两个季度”代替期间", packet["instruction"])
             self.assertIn("不得以固定 wait 次数", prompt)
             self.assertIn("不得发送 follow-up 或反复 list", prompt)
 
@@ -3094,6 +3188,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 item for item in bound_tools.available_tools() if item["name"] == "query"
             )["inputSchema"]
             self.assertNotIn("run_dir", query_schema["properties"])
+            self.assertIn("semantic_field", query_schema["properties"])
             bound = bound_tools.query(
                 run_id=identity["run_id"], agent=identity["agent"],
                 invocation_id=identity["invocation_id"],
@@ -3105,6 +3200,79 @@ class CommonStockNativeStageTests(unittest.TestCase):
                     run_dir=str(Path(temp) / "other"), run_id=identity["run_id"],
                     agent=identity["agent"], invocation_id=identity["invocation_id"],
                     evidence_ids=[catalog_evidence_id],
+                )
+
+    def test_common_stock_field_query_uses_only_current_security_and_delivered_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare_stage(temp)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            first = index["tasks"][0]
+            packet = build_common_stock_dispatch_packet(ROOT, run, first["task_name"])
+            identity = packet["identity"]
+            tools = StatelessFixtureTools(default_run_dir=run)
+            result = tools.query(
+                run_id=identity["run_id"], agent=identity["agent"],
+                invocation_id=identity["invocation_id"], semantic_field="revenue",
+            )
+            expected = [
+                item["evidence_id"] for item in json.loads((run / "evidence/gate.json").read_text())["allowed_evidence"]
+                if item["security_id"] == identity["security_id"]
+                and item["semantic_field"] == "revenue"
+            ]
+            self.assertEqual(expected, [item["evidence_id"] for item in result["evidence"]])
+            self.assertEqual(expected, tools.events[-1]["evidence_ids"])
+            self.assertEqual("fixture-gate-scoped/2.4.0", result["adapter_version"])
+            self.assertEqual(result["result_hash"], canonical_hash(result["evidence"]))
+            event_path = run / "events/mcp/events.jsonl"
+            event_path.parent.mkdir(parents=True, exist_ok=True)
+            event_path.write_text(json.dumps(tools.events[-1]) + "\n", encoding="utf-8")
+            validate_delivered_research_references(
+                {"claims": [{"evidence_refs": expected}]},
+                run_dir=run, invocation_id=identity["invocation_id"],
+            )
+            with self.assertRaisesRegex(CommonStockStageError, "COMMON_STOCK_EVIDENCE_NOT_DELIVERED"):
+                validate_delivered_research_references(
+                    {"claims": [{"evidence_refs": ["ev-not-delivered"]}]},
+                    run_dir=run, invocation_id=identity["invocation_id"],
+                )
+            requests = [
+                {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+                {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {
+                    "name": "query", "arguments": {
+                        "run_id": identity["run_id"], "agent": identity["agent"],
+                        "invocation_id": identity["invocation_id"],
+                        "semantic_field": "revenue",
+                    },
+                }},
+            ]
+            stdin = io.StringIO("\n".join(json.dumps(item) for item in requests) + "\n")
+            stdout = io.StringIO()
+            with patch("sys.stdin", stdin), patch("sys.stdout", stdout):
+                serve_stdio(stateless=True, default_run_dir=run)
+            responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
+            tool_schema = next(
+                item for item in responses[0]["result"]["tools"]
+                if item["name"] == "query"
+            )["inputSchema"]
+            self.assertIn("semantic_field", tool_schema["properties"])
+            self.assertEqual(
+                expected,
+                [item["evidence_id"] for item in responses[1]["result"]["structuredContent"]["evidence"]],
+            )
+            self.assertEqual([], tools.query(
+                run_id=identity["run_id"], agent=identity["agent"],
+                invocation_id=identity["invocation_id"], semantic_field="absent-field",
+            )["evidence"])
+            with self.assertRaisesRegex(ToolAccessError, "EVIDENCE_QUERY_SELECTOR_INVALID"):
+                tools.query(
+                    run_id=identity["run_id"], agent=identity["agent"],
+                    invocation_id=identity["invocation_id"],
+                    semantic_field="revenue", evidence_ids=expected,
+                )
+            with self.assertRaisesRegex(ToolAccessError, "RUN_PACKAGE_BINDING_MISSING"):
+                tools.query(
+                    run_id=identity["run_id"], agent=identity["agent"],
+                    invocation_id="unknown-invocation", semantic_field="revenue",
                 )
 
     def test_dispatch_passes_relevant_gate_conflicts_without_selecting_winner(self):

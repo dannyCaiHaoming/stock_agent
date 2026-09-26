@@ -26,6 +26,8 @@ except ModuleNotFoundError as exc:
 
 
 MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.3.0"
+COMMON_STOCK_FIELD_QUERY_ADAPTER_VERSION = "fixture-gate-scoped/2.4.0"
+COMMON_STOCK_FIELD_QUERY_MAX_BYTES = 65536
 SUPPORTED_TOOLS = {
     "fixture_evidence.query", "fixture_math.calculate",
     "public_research.search", "public_research.fetch",
@@ -53,6 +55,7 @@ def _load_object(path: Path) -> dict[str, Any]:
 def _tool_manifest(
     *, stateless: bool = False, include_research_tools: bool = False,
     include_attachment_tool: bool = False,
+    common_stock_field_query: bool = False,
 ) -> tuple[dict[str, Any], ...]:
     common_properties: dict[str, Any] = {
         "run_id": {"type": "string"},
@@ -145,6 +148,26 @@ def _tool_manifest(
             },
         },
     ]
+    if common_stock_field_query:
+        query = tools[0]
+        query["description"] = (
+            "Read one verified common-stock invocation by either evidence_ids or one "
+            "exact semantic_field. Field mode returns every authorized period or fails "
+            "without partial results. " + run_binding + "."
+        )
+        query["inputSchema"] = {
+            "type": "object",
+            "required": common_required[:-1],
+            "properties": {
+                **common_properties,
+                "semantic_field": {"type": "string", "minLength": 1},
+            },
+            "oneOf": [
+                {"required": ["evidence_ids"], "not": {"required": ["semantic_field"]}},
+                {"required": ["semantic_field"], "not": {"required": ["evidence_ids"]}},
+            ],
+            "additionalProperties": False,
+        }
     if stateless or include_research_tools or include_attachment_tool:
         identity = {
             "run_id": {"type": "string"},
@@ -239,6 +262,9 @@ class GateScopedFixtureTools:
             "fixture_math.calculate",
         ),
         allowed_evidence_ids: Sequence[str] | None = None,
+        field_evidence_ids: Sequence[str] | None = None,
+        field_security_id: str | None = None,
+        adapter_version: str = MCP_ADAPTER_VERSION,
     ) -> None:
         if gate_artifact.get("run_id") != run_id:
             raise ToolAccessError("CROSS_RUN_GATE")
@@ -250,6 +276,7 @@ class GateScopedFixtureTools:
         self.agent = agent
         self.invocation_id = invocation_id
         self.allowed_tools = frozenset(allowed_tools)
+        self.adapter_version = adapter_version
         self._facts = {
             str(item["evidence_id"]): dict(item)
             for item in gate_artifact.get("allowed_evidence", [])
@@ -262,6 +289,14 @@ class GateScopedFixtureTools:
         self._invocation_evidence_ids = (
             frozenset(allowed_evidence_ids) if allowed_evidence_ids is not None else None
         )
+        if field_evidence_ids is not None and (
+            field_security_id is None or not set(field_evidence_ids) <= set(self._facts)
+        ):
+            raise ToolAccessError("FIELD_QUERY_SCOPE_INVALID")
+        self._field_evidence_ids = (
+            frozenset(field_evidence_ids) if field_evidence_ids is not None else None
+        )
+        self._field_security_id = field_security_id
         self.events: list[dict[str, Any]] = []
         self.dynamic_event_log: Path | None = None
 
@@ -334,24 +369,46 @@ class GateScopedFixtureTools:
         run_id: str,
         agent: str,
         invocation_id: str,
-        evidence_ids: Sequence[str],
+        evidence_ids: Sequence[str] | None = None,
+        semantic_field: str | None = None,
     ) -> dict[str, Any]:
         self._authorize_identity(agent=agent, invocation_id=invocation_id)
         if "fixture_evidence.query" not in self.allowed_tools:
             raise ToolAccessError("TOOL_NOT_AUTHORIZED:fixture_evidence.query")
+        if (evidence_ids is None) == (semantic_field is None):
+            raise ToolAccessError("EVIDENCE_QUERY_SELECTOR_INVALID")
+        if semantic_field is not None:
+            if run_id != self.run_id:
+                raise ToolAccessError("CROSS_RUN_QUERY")
+            if not isinstance(semantic_field, str) or not semantic_field.strip():
+                raise ToolAccessError("EVIDENCE_QUERY_FIELD_EMPTY")
+            if self._field_evidence_ids is None or self._field_security_id is None:
+                raise ToolAccessError("COMMON_STOCK_FIELD_QUERY_FORBIDDEN")
+            selected_ids = sorted(
+                evidence_id for evidence_id in self._field_evidence_ids
+                if self._facts[evidence_id].get("security_id") == self._field_security_id
+                and self._facts[evidence_id].get("semantic_field") == semantic_field
+            )
+            facts = self._authorize_evidence(run_id, selected_ids) if selected_ids else []
+        else:
+            selected_ids = list(evidence_ids or [])
+            facts = self._authorize_evidence(run_id, selected_ids)
         inputs = {
             "run_id": run_id,
             "agent": agent,
             "invocation_id": invocation_id,
-            "evidence_ids": list(evidence_ids),
+            "evidence_ids": selected_ids,
         }
-        facts = self._authorize_evidence(run_id, evidence_ids)
+        if semantic_field is not None:
+            inputs["semantic_field"] = semantic_field
         output = {
             "adapter_version": self.adapter_version,
             "run_id": self.run_id,
             "evidence": facts,
             "result_hash": content_hash(facts),
         }
+        if semantic_field is not None and len(canonical_json(output).encode("utf-8")) > COMMON_STOCK_FIELD_QUERY_MAX_BYTES:
+            raise ToolAccessError("FIELD_QUERY_RESPONSE_TOO_LARGE:use evidence_ids batches")
         self._record("fixture_evidence.query", inputs, output)
         return output
 
@@ -492,6 +549,11 @@ class StatelessFixtureTools:
             stateless=self.default_run_dir is None,
             include_research_tools=True,
             include_attachment_tool=self.default_run_dir is not None,
+            common_stock_field_query=(
+                self.default_run_dir is not None
+                and _load_object(self.default_run_dir / "run_manifest.json").get("stage")
+                == "COMMON_STOCK_RESEARCH"
+            ),
         )
 
     def _bound_tools(
@@ -596,6 +658,45 @@ class StatelessFixtureTools:
             if not fixture_path.is_relative_to(fixture_root):
                 raise ToolAccessError("NON_FIXTURE_DATA_SOURCE")
         self.dynamic_event_log = root / "events" / "mcp" / "events.jsonl"
+        field_ids: list[str] | None = None
+        field_security_id: str | None = None
+        if run_manifest.get("stage") == "COMMON_STOCK_RESEARCH":
+            if agent != "runtime_company_analyst":
+                raise ToolAccessError("COMMON_STOCK_AGENT_INVALID")
+            index = _load_object(root / "research/dispatch-index.json")
+            tasks = [
+                item for item in index.get("tasks", [])
+                if item.get("invocation_id") == invocation_id
+            ]
+            if len(tasks) != 1:
+                raise ToolAccessError("COMMON_STOCK_TASK_BINDING_INVALID")
+            task = tasks[0]
+            request_path = (root / str(task.get("request_path", ""))).resolve()
+            if not request_path.is_relative_to(root) or not request_path.is_file():
+                raise ToolAccessError("COMMON_STOCK_REQUEST_PATH_INVALID")
+            request = _load_object(request_path)
+            field_security_id = task.get("security_id")
+            if (
+                request.get("run_id") != run_id
+                or request.get("invocation_id") != invocation_id
+                or request.get("security", {}).get("security_id") != field_security_id
+                or not isinstance(field_security_id, str)
+                or task.get("request_path") != invocation.get("request_path")
+            ):
+                raise ToolAccessError("COMMON_STOCK_REQUEST_BINDING_INVALID")
+            try:
+                from product.runtime.common_stock_stage import _is_company_research_evidence
+            except ModuleNotFoundError as exc:
+                if exc.name != "product":
+                    raise
+                from runtime.common_stock_stage import _is_company_research_evidence
+            requested = set(request["allowed_evidence_ids"])
+            field_ids = [
+                item["evidence_id"] for item in gate["allowed_evidence"]
+                if item["evidence_id"] in requested
+                and item.get("security_id") == field_security_id
+                and _is_company_research_evidence(item)
+            ]
         return GateScopedFixtureTools(
             gate,
             run_id=run_id,
@@ -603,6 +704,12 @@ class StatelessFixtureTools:
             invocation_id=invocation_id,
             allowed_tools=invocation.get("tool_permissions", []),
             allowed_evidence_ids=skeptic_scope[1] if skeptic_scope is not None else None,
+            field_evidence_ids=field_ids,
+            field_security_id=field_security_id,
+            adapter_version=(
+                COMMON_STOCK_FIELD_QUERY_ADAPTER_VERSION
+                if field_ids is not None else MCP_ADAPTER_VERSION
+            ),
         )
 
     def _research_context(self, arguments: dict[str, Any], permission: str) -> tuple[Path, dict[str, Any]]:

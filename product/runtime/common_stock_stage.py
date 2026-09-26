@@ -38,6 +38,8 @@ from product.council.research_output import validate_persisted_equity_research_p
 STAGE_VERSION = "common-stock-research-runtime/1.0.0"
 DISPATCH_VERSION = "common-stock-research-dispatch/1.2.0"
 COMPANY_AGENT_VERSION = "3.0.20"
+# 阶段精简实验未通过内容验收；默认恢复原完整 Company 配置。
+COMPANY_AGENT_PROFILE = "agents/runtime_company_analyst.toml"
 COMMON_STOCK_START_CONTEXT_MAX_BYTES = 256 * 1024
 REQUIRED_SKILLS = (
     "evidence-grounding", "company-research", "valuation", "catalyst-analysis"
@@ -488,13 +490,45 @@ def _skill_version(path: Path) -> str:
 
 def current_research_bindings(repository_root: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     product_root = Path(repository_root).resolve() / "product"
-    agent_path = product_root / ".codex/agents/runtime_company_analyst.toml"
-    with agent_path.open("rb") as stream:
-        agent_config = tomllib.load(stream)
-    configured = tuple(Path(item["path"]).name for item in agent_config["skills"]["config"] if item.get("enabled"))
-    # Agent 可为显式新模式加载额外 Skill；旧 COMMON_STOCK_RESEARCH 仅锁定
-    # 并记录自己的四项必需 Skill，不能因正交能力增加而失效。
-    if not set(REQUIRED_SKILLS) <= set(configured) or len(configured) != len(set(configured)):
+    agent_path = product_root / ".codex" / COMPANY_AGENT_PROFILE
+    try:
+        with agent_path.open("rb") as stream:
+            agent_config = tomllib.load(stream)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise CommonStockStageError("COMMON_STOCK_AGENT_PROFILE_INVALID") from exc
+    tools_config = agent_config.get("tools")
+    apps_config = agent_config.get("apps")
+    default_app = apps_config.get("_default") if isinstance(apps_config, dict) else None
+    if (
+        agent_config.get("name") != "runtime_company_analyst"
+        or agent_config.get("sandbox_mode") != "read-only"
+        or agent_config.get("approval_policy") != "never"
+        or agent_config.get("model_reasoning_effort") != "high"
+        or not isinstance(agent_config.get("developer_instructions"), str)
+        or not agent_config["developer_instructions"].strip()
+        or not isinstance(tools_config, dict)
+        or tools_config.get("web_search") is not False
+        or tools_config.get("view_image") is not False
+        or not isinstance(default_app, dict)
+        or default_app.get("enabled") is not False
+        or default_app.get("destructive_enabled") is not False
+        or default_app.get("open_world_enabled") is not False
+    ):
+        raise CommonStockStageError("COMMON_STOCK_AGENT_PROFILE_INVALID")
+    skill_block = agent_config.get("skills")
+    skill_items = skill_block.get("config") if isinstance(skill_block, dict) else None
+    if not isinstance(skill_items, list) or any(
+        not isinstance(item, dict) or not isinstance(item.get("path"), str)
+        or not isinstance(item.get("enabled"), bool)
+        for item in skill_items
+    ):
+        raise CommonStockStageError("COMMON_STOCK_AGENT_PROFILE_INVALID")
+    configured = tuple(item["path"] for item in skill_items if item["enabled"])
+    # 完整配置可为其他 Company 模式启用额外 Skill；普通股只锁定原四项必需能力。
+    if (
+        not {f"skills/{name}" for name in REQUIRED_SKILLS} <= set(configured)
+        or len(configured) != len(set(configured))
+    ):
         raise CommonStockStageError("COMMON_STOCK_AGENT_SKILL_SET_INVALID")
     agent = {
         "name": "runtime_company_analyst",
@@ -877,6 +911,27 @@ def _build_common_stock_dispatch_packet(
         repository_root, run_id=request["run_id"], invocation_id=request["invocation_id"],
         allowed_evidence_ids=request["allowed_evidence_ids"],
     )
+    attachment_instruction = (
+        "本次若使用冻结附件，须先通过 tool_context.attachment_query_tool 读取正文，"
+        "只引用成功返回的 calculation_ref，并核对证券、cutoff、价格基础、公式、输入引用及 provider/derived 限制。"
+        "使用附件 DERIVED 数值的 Claim 同时引用 calculation_ref 与全部 input evidence_refs。"
+        if attachment_context is not None else ""
+    )
+    tool_context = {
+        "source_mode": "frozen-gate",
+        "mcp_server": "fixture_runtime",
+        "query_tool": "fixture_runtime.query",
+        "calculation_tool": "fixture_runtime.calculate",
+        "logical_permissions": invocation["tool_permissions"],
+        "required_identity_arguments": {
+            "run_id": request["run_id"],
+            "agent": "runtime_company_analyst",
+            "invocation_id": request["invocation_id"],
+        },
+        "run_directory_binding": "LAUNCHER_ENVIRONMENT",
+    }
+    if attachment_context is not None:
+        tool_context["attachment_query_tool"] = "fixture_runtime.equity_research_attachments.query"
     packet = {
         "dispatch_contract": DISPATCH_VERSION,
         "identity": {
@@ -889,6 +944,9 @@ def _build_common_stock_dispatch_packet(
             "valuation、catalyst-analysis；本包即使包含 Yahoo/SEC 事实也已冻结为 run-scoped Gate，"
             "必须使用 fixture_runtime.query 查询 Evidence，需要比较两个数值时使用 "
             "fixture_runtime.calculate。"
+            "调用时逐字复制 tool_context.required_identity_arguments；run_dir 已由 launcher 绑定。"
+            "query 可用单一精确 semantic_field 读取当前授权范围内全部期间，或用 evidence_ids 精确查询；"
+            "两种选择互斥，字段响应超限时按目录 ID 分批查询。"
             "evidence_catalog 按 semantic_field 分组；其 items 若含 dataset/source_family，表示已通过同一 Gate 准入的三源"
             "补充事实，不是另一个未冻结数据源。目录只用于定位，完整 kind、source_type、batch_id 和比较限制必须通过"
             "fixture_runtime.query 读取，不得由目录缺字段推断。至少查询并核对 identity_profile 或 business_segments、"
@@ -901,7 +959,7 @@ def _build_common_stock_dispatch_packet(
             "替换或手工重写都属于非法引用，必须改为直接复制允许列表中的原值。"
             "每条 Claim 至少有一个 evidence_ref、assumption_id 或 calculation_ref；"
             "calculation_ref 只可来自两类已经实际交付的结果：本次 calculate 成功返回的 calculation_id，"
-            "或本次 equity_research_attachments.query 成功返回附件正文中的 calculation_ref。"
+            "或本次获准且成功读取的冻结附件正文中的 calculation_ref。"
             "同一个 ID 必须同时列入顶层 artifact_refs；未成功调用、只出现在启动索引、或未随附件正文"
             "实际返回的计算不得引用。引用附件中的 DERIVED 数值时，对应 Claim 必须同时引用该数值的 "
             "calculation_ref 与全部 input evidence_refs，不得只引用原始输入后自行复算。"
@@ -915,6 +973,7 @@ def _build_common_stock_dispatch_packet(
             "这也适用于由 FY + current YTD - prior YTD 等多个流量期间构造的冻结 DERIVED/TTM 指标，"
             "不能只写派生结果的 TTM 截止日；"
             "每个 period_start 和 period_end 都必须在 statement 中原样保留 `YYYY-MM-DD` ASCII 字符串，"
+            "同比计算 Claim 也不得以“上述两期/两个季度”代替期间。"
             "不得只改写为中文日期。即使只差一天也不得归并为一个统一期间。10-K/FY 标签不能证明完整财年；不足一年或"
             "重组后部分期间的 EPS 只能按真实起止日描述为非年化实际期间分母，不得称为年度、"
             "财年、全年或 TTM P/E，分母为负时说明 P/E 不适用，不强行计算。"
@@ -950,28 +1009,9 @@ def _build_common_stock_dispatch_packet(
             "data_gaps.reason_code 只可为 NOT_FETCHED、NOT_YET_DISCLOSED、SOURCE_UNSUPPORTED、UNKNOWN，"
             "无法证明原因时使用 UNKNOWN。区分公司研究资料缺口与本阶段未研究的技术图形、市场/宏观、"
             "板块、期权、资金结构、新闻情绪和 ETF 方向；不得把未研究解释为无风险。"
-            "若 equity_research_attachments 非空，它是已与本 run、证券、cutoff 和 Gate hash 绑定的"
-            "只读冻结附件目录；附件正文不在启动上下文中，必须按 available_kinds 调用 "
-            "fixture_runtime.equity_research_attachments.query 后才可消费其中 valuation_snapshot、"
-            "valuation_history、fundamental_supplement"
-            "和 peer_comparison，但仍须保留 provider/derived、PIT、公式、可比性和缺口限制。附件不"
-            "扩大 allowed_evidence_ids、不得被当作交易建议或自动评分，引用仍只能使用附件内已闭合的"
-            "evidence_refs/calculation_refs。"
+            f"{attachment_instruction}"
         ),
-        "tool_context": {
-            "source_mode": "frozen-gate",
-            "mcp_server": "fixture_runtime",
-            "query_tool": "fixture_runtime.query",
-            "calculation_tool": "fixture_runtime.calculate",
-            "attachment_query_tool": "fixture_runtime.equity_research_attachments.query",
-            "logical_permissions": invocation["tool_permissions"],
-            "required_identity_arguments": {
-                "run_id": request["run_id"],
-                "agent": "runtime_company_analyst",
-                "invocation_id": request["invocation_id"],
-            },
-            "run_directory_binding": "LAUNCHER_ENVIRONMENT",
-        },
+        "tool_context": tool_context,
         "holding_research_request": {
             key: copy.deepcopy(value)
             for key, value in request.items()
@@ -2353,6 +2393,21 @@ def launch_common_stock_stage(
         product_root, isolated_product_root,
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"),
     )
+    isolated_agent, isolated_skills = current_research_bindings(isolated_source_root)
+    if (
+        isolated_agent != manifest["agent_binding"]
+        or isolated_skills != manifest["skill_bindings"]
+    ):
+        raise CommonStockStageError("COMMON_STOCK_ISOLATED_AGENT_BINDING_DRIFT")
+    product_agents = tomllib.loads(
+        (isolated_product_root / ".codex/config.toml").read_text(encoding="utf-8")
+    )["agents"]
+    registration = product_agents["runtime_company_analyst"]
+    if registration["config_file"] != "agents/runtime_company_analyst.toml":
+        raise CommonStockStageError("COMMON_STOCK_AGENT_REGISTRATION_DRIFT")
+    isolated_agent_path = (isolated_product_root / ".codex" / COMPANY_AGENT_PROFILE).resolve()
+    if not isolated_agent_path.is_relative_to(isolated_product_root / ".codex"):
+        raise CommonStockStageError("COMMON_STOCK_AGENT_PROFILE_INVALID")
     prompt = build_common_stock_stage_prompt(repository_root, run_dir)
     prompt_path = invocation_dir / "prompt.txt"
     prompt_path.write_text(prompt, encoding="utf-8")
@@ -2387,6 +2442,12 @@ def launch_common_stock_stage(
         enable_parent_stop_barrier=True,
         skip_git_repo_check=True,
     )
+    command.insert(command.index("exec") + 1, "--ignore-user-config")
+    command[command.index("--model"):command.index("--model")] = [
+        "-c", "agents.runtime_company_analyst={"
+        f"description={json.dumps(registration['description'], ensure_ascii=False)},"
+        f"config_file={json.dumps(str(isolated_agent_path))}" "}",
+    ]
     environment = dict(os.environ)
     environment.update({
         "TMPDIR": str(tmp_dir), "PYTHONDONTWRITEBYTECODE": "1",
@@ -2413,6 +2474,8 @@ def launch_common_stock_stage(
         "model": manifest["parent_model"],
         "parent_model": manifest["parent_model"],
         "analyst_model": manifest["analyst_model"],
+        "selected_company_agent_profile": str(isolated_agent_path),
+        "selected_company_agent_profile_hash": isolated_agent["content_hash"],
         "sandbox": "workspace-write", "approval_policy": "never", "ephemeral": True,
         "sqlite_home": str(sqlite_home), "log_dir": str(log_dir), "tmpdir": str(tmp_dir),
         "parent_stop_log": str(parent_stop_events_path),
