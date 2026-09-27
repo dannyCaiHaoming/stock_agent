@@ -23,7 +23,8 @@ BATCH_VERSION = "research-capture-batch/1.1.0"
 FACT_VERSION = "research-supplement-fact/1.1.0"
 BACKGROUND_VERSION = "company-background-snapshot/1.0.0"
 
-SOURCES = ("sec", "yahoo", "moomoo_sg")
+SOURCES = ("sec", "yahoo", "moomoo_sg", "moomoo_public_news")
+BACKGROUND_DEFAULT_SOURCES = ("sec", "yahoo", "moomoo_sg")
 CAPABILITY_STATUSES = {
     "NOT_ATTEMPTED", "AVAILABLE", "PARTIAL", "SOURCE_LIMITED",
     "BLOCKED_CONFIGURATION", "FAILED", "UNSUPPORTED",
@@ -686,7 +687,7 @@ def build_company_background_snapshot(
                 if groups[name].get("evidence_ids") else
                 [
                     {"source": source, "status": "NOT_ATTEMPTED", "failure_code": None}
-                    for source in SOURCES
+                    for source in BACKGROUND_DEFAULT_SOURCES
                 ]
             )))),
         }
@@ -827,7 +828,7 @@ def assemble_company_background(
         if not group["source_attempts"]:
             group["source_attempts"] = [
                 {"source": source, "status": "NOT_ATTEMPTED", "failure_code": None}
-                for source in SOURCES
+                for source in BACKGROUND_DEFAULT_SOURCES
             ]
         if group["evidence_ids"]:
             group["status"] = "COVERED" if not group["gaps"] and not group["limitations"] else "PARTIAL"

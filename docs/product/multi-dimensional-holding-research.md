@@ -75,6 +75,8 @@ PortfolioHandoff v3
 
 Moomoo 补充按资料语义进入既有能力，不新增数据源 Agent：分章节 Morningstar、评级与目标价进入 Company 的 `RESEARCH_REPORT`；营收分部与管理层进入 Company 的既有事实输入；供应商宏观历史、Calendar 与 Dot Plot 进入 `MACRO_CONTEXT`；涨跌分布、全市场期权统计和 FedWatch 进入 `MARKET_STATE`；逐股动态期权及供应商资金流进入 Market Catalyst 的 `OPTIONS_FLOW`；机构、内部人与空头补充进入 `OWNERSHIP_DISCLOSURE`。官方宏观、SEC 和 Yahoo 的主源职责不被覆盖。
 
+公开 `moomoo-news-search` 与 OpenD 是两条独立来源：前者无账户认证、只返回新闻/公告/Research 的标题、类别、时间和链接。身份与时点合格的逐股结果进入 Company `research_discovery`，始终为 `LEAD_ONLY`，不是已读研报或发行人原文；仅当 Yahoo 24 小时市场新闻无合格项时，相关公开标题才作为 Market `TITLE_ONLY` 后备。Macro 仍以 BLS、Treasury、Federal Reserve 等官方数值与正文为主，新闻标题不能补成宏观观察值。每批的采集、Gate 准入与 Agent 有效引用是三个独立状态，不能互相代替。
+
 同一冻结 Gate 可供各专项复用，但 Company Analyst 的旧通用启动目录不再重复展开上述已有专门消费者的数据集；该边界用于避免上下文膨胀和跨能力误用，Evidence 仍保留在 Gate，并由对应专项的 `allowed_evidence_ids` 交付。
 
 动态期权先复用 Yahoo 正式 Collector；只有其数据集失败时才用 Moomoo 的到期日、静态链、确定性近价选约和批量动态快照回退。最多选择三个代表到期日和 48 个合约。只有静态合约目录时必须标为受限，不能用全市场 Put/Call、资金流或 Short Interest 替代合约级 bid/ask、volume、OI 和 IV。

@@ -1387,6 +1387,82 @@ def _persist_multidimensional_raw_output(
     }
 
 
+def _multidimensional_draft_diagnostics(
+    payload: Mapping[str, Any], environment: Mapping[str, str], *, failure_code: str,
+) -> dict[str, Any]:
+    """Locate known structural defects without changing a draft or its validation result."""
+
+    result: dict[str, Any] = {
+        "stage": "REPORT_VALIDATION",
+        "first_failure_code": failure_code.split(":", 1)[0],
+        "status": "UNAVAILABLE", "findings": [],
+    }
+    try:
+        message = payload.get("last_assistant_message")
+        draft = json.loads(message) if isinstance(message, str) else None
+        if not isinstance(draft, Mapping):
+            result["reason"] = "DRAFT_NOT_OBJECT"
+            return result
+        matches = [task for task in _research_index(environment)["tasks"]
+                   if task.get("invocation_id") == draft.get("invocation_id")]
+        if len(matches) != 1:
+            result["reason"] = "TASK_BINDING_UNAVAILABLE"
+            return result
+        task = matches[0]
+        allowed = set(task["allowed_evidence_ids"])
+        claims = draft.get("claims")
+        claims = claims if isinstance(claims, list) else []
+        claim_ids = {claim["claim_id"] for claim in claims
+                     if isinstance(claim, Mapping) and isinstance(claim.get("claim_id"), str)}
+        count = 0
+
+        def add(code: str, path: str, identifier: Any) -> None:
+            nonlocal count
+            count += 1
+            if len(result["findings"]) >= 32:
+                return
+            finding = {"code": code, "path": path}
+            # Only compact technical identifiers are retained; never free-form text.
+            if (isinstance(identifier, str) and 0 < len(identifier) <= 128
+                    and identifier.isascii()
+                    and all(char.isalnum() or char in "_:.-" for char in identifier)):
+                finding["identifier"] = identifier
+            else:
+                finding["identifier_hash"] = _canonical_hash(identifier)
+            result["findings"].append(finding)
+
+        for collection in ("claims", "assumptions", "calculations", "documents",
+                           "research_relationships", "observation_conditions"):
+            items = draft.get(collection)
+            if not isinstance(items, list):
+                continue
+            for index, item in enumerate(items):
+                if not isinstance(item, Mapping):
+                    continue
+                for field in ("evidence_refs", "counter_evidence_refs", "input_evidence_refs"):
+                    refs = item.get(field)
+                    if not isinstance(refs, list):
+                        continue
+                    for offset, ref in enumerate(refs):
+                        if isinstance(ref, str) and ref not in allowed:
+                            add("EVIDENCE_CLOSURE_FAILED", f"{collection}[{index}].{field}[{offset}]", ref)
+                if collection == "claims" and not any(item.get(field) for field in (
+                    "evidence_refs", "research_claim_refs", "document_refs",
+                    "assumption_ids", "calculation_refs",
+                )):
+                    add("DIMENSION_REPORT_CLAIM_UNGROUNDED", f"claims[{index}]", item.get("claim_id"))
+                if collection == "observation_conditions" and isinstance(item.get("claim_refs"), list):
+                    for offset, ref in enumerate(item["claim_refs"]):
+                        if isinstance(ref, str) and ref not in claim_ids:
+                            add("DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING",
+                                f"observation_conditions[{index}].claim_refs[{offset}]", ref)
+        result.update(status="LOCATED" if count else "NO_KNOWN_ISSUES",
+                      task_id=task["task_id"], finding_count=count, truncated=count > 32)
+    except (OSError, ValueError, KeyError, TypeError, ImportError):
+        result.update(status="UNAVAILABLE", reason="DIAGNOSTIC_INPUT_INVALID", findings=[])
+    return result
+
+
 def _multidimensional_repair_packet(
     payload: Mapping[str, Any], environment: Mapping[str, str], *,
     failure_code: str, attempt: int,
@@ -1394,8 +1470,10 @@ def _multidimensional_repair_packet(
     """Build one model-visible repair request for structural draft errors only."""
 
     condition_reference_error = failure_code == "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING"
+    ungrounded_claim_error = failure_code == "DIMENSION_REPORT_CLAIM_UNGROUNDED"
+    evidence_closure_error = failure_code.startswith("EVIDENCE_CLOSURE_FAILED:")
     if attempt != 1 or not (
-        condition_reference_error or failure_code.startswith((
+        condition_reference_error or ungrounded_claim_error or evidence_closure_error or failure_code.startswith((
             "DIMENSION_DRAFT_KEYS_INVALID",
             "DIMENSION_REPORT_SCHEMA_INVALID",
         ))
@@ -1418,9 +1496,16 @@ def _multidimensional_repair_packet(
     if len(matches) != 1:
         return None
     task = matches[0]
+    initial_fundamental = (
+        task.get("capability") == "FUNDAMENTAL_EVENT"
+        and environment.get("STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT") == "1"
+    )
     reference_details = None
     if condition_reference_error:
-        if task.get("capability") != "RESEARCH_REPORT":
+        if not (
+            task.get("capability") == "RESEARCH_REPORT"
+            or initial_fundamental
+        ):
             return None
         claims = draft.get("claims")
         conditions = draft.get("observation_conditions")
@@ -1443,6 +1528,45 @@ def _multidimensional_repair_packet(
             "dangling_references": dangling,
             "valid_claim_ids": valid_claim_ids,
         }
+    if ungrounded_claim_error:
+        if not initial_fundamental:
+            return None
+        claims = draft.get("claims")
+        if not isinstance(claims, list):
+            return None
+        ungrounded = [
+            {"path": f"claims[{index}]", "claim_id": claim["claim_id"]}
+            for index, claim in enumerate(claims)
+            if isinstance(claim, Mapping)
+            and isinstance(claim.get("claim_id"), str)
+            and not any(claim.get(field) for field in (
+                "evidence_refs", "research_claim_refs", "document_refs",
+                "assumption_ids", "calculation_refs",
+            ))
+        ]
+        if not ungrounded:
+            return None
+        reference_details = {"ungrounded_claims": ungrounded}
+    if evidence_closure_error and not initial_fundamental:
+        return None
+    if initial_fundamental and (
+        condition_reference_error or ungrounded_claim_error or evidence_closure_error
+    ):
+        diagnostics = _multidimensional_draft_diagnostics(
+            payload, environment, failure_code=failure_code,
+        )
+        if diagnostics.get("status") != "LOCATED" or diagnostics.get("truncated"):
+            return None
+        findings = diagnostics["findings"]
+        if evidence_closure_error:
+            reported = set(failure_code.partition(":")[2].split(","))
+            located = {
+                item.get("identifier") for item in findings
+                if item["code"] == "EVIDENCE_CLOSURE_FAILED"
+            }
+            if not reported or reported != located:
+                return None
+        reference_details = {**(reference_details or {}), "findings": findings}
     run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
     packet = json.loads((run_dir / task["packet_path"]).read_text(encoding="utf-8"))
     output_schema = packet.get("output_schema")
@@ -1463,6 +1587,20 @@ def _multidimensional_repair_packet(
         "output_schema_hash": packet["output_schema_hash"],
         "instruction": (
             "这是唯一一次纠正机会。由原 Agent 在当前会话内返回完整 JSON 草稿；"
+            "逐项核对 validation_details.findings 的所有位置。非法 Evidence ID 必须用已授权只读工具"
+            "重新查询并复制确实支持主张的完整原样 ID；不得按前缀猜测、模糊匹配或虚构 ID。"
+            "悬空 claim 引用须指向草稿中实际存在的 claim；无依据 claim 只能依据真实允许的引用支撑，"
+            "若仅陈述资料不足则保留在 data_gaps/limitations。保留有依据的实质主张和冻结身份；"
+            "Python 不代写草稿，第二次提交仍经过完整校验。"
+            if initial_fundamental and (
+                condition_reference_error or ungrounded_claim_error or evidence_closure_error
+            ) else
+            "这是唯一一次纠正机会。由原 Agent 在当前会话内返回完整 JSON 草稿；"
+            "按 validation_details 定位无依据 claim：只有经工具查询并确实支持主张的允许引用才能补入；"
+            "若它仅陈述资料不足，应将该限制保留在 data_gaps/limitations，移去无依据 claim。"
+            "不得虚构 Evidence、删除有依据的实质性主张或改变冻结身份；Python 不代写草稿。"
+            if ungrounded_claim_error else
+            "这是唯一一次纠正机会。由原 Agent 在当前会话内返回完整 JSON 草稿；"
             "只修正 validation_error 指出的结构问题，保留冻结身份、证据引用和其他研究内容。"
             "缺少 impact 等实质字段时，必须依据本次冻结资料自行填写，Python 或父线程不会代写。"
             "不得增加未获准 Evidence、改写身份或删除主张来规避校验。"
@@ -1470,6 +1608,10 @@ def _multidimensional_repair_packet(
     }
     if reference_details is not None:
         result["validation_details"] = reference_details
+    if initial_fundamental and len(json.dumps(
+        result, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")) > 256 * 1024:
+        return None
     return result
 
 
@@ -1643,6 +1785,9 @@ def handle_hook_event(
                         "additionalContext": (
                             stage.serialize_common_stock_dispatch_context(packet)
                             if _common_stock_stage(environment)
+                            else stage.serialize_multidimensional_initial_context(packet)
+                            if (_multidimensional_stage(environment)
+                                and environment.get("STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT") == "1")
                             else json.dumps(
                                 packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
                             )
@@ -1744,6 +1889,10 @@ def handle_hook_event(
                     ),
                     **raw_capture,
                 }
+                if environment.get("STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT") == "1":
+                    record["output_capture"]["diagnostics"] = _multidimensional_draft_diagnostics(
+                        payload, environment, failure_code=failure_code,
+                    )
                 if repair is not None:
                     record["hook_event_name"] = "SubagentStopBlocked"
                     record["repair_request"] = {

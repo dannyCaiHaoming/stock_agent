@@ -6,7 +6,7 @@
 
 - “正常请求”包括必要的身份查询、单次列表/分页、明细和正文获取，不计作失败重试。
 - 每个请求至多进行一次有原因的暂时故障重试；权限拒绝、登录/付费限制不重试。
-- 每项能力默认最多两个供应方，禁止无界轮换来源。
+- 主源/回退选择默认最多两个供应方；明确标为 `supplemental` 的线索可独立有界采集，但不能成为第三个隐式回退或填平正文缺口。
 - 缓存命中保留原始 `retrieved_at`，不得伪装为新采集。
 - 研报每证券至多 3 次查询、检查 10 个候选、尝试 5 份正文；取得足够材料后提前停止。
 
@@ -24,8 +24,9 @@
 | 发行人公告/IR 正文 | SEC 8-K 业绩附件与 management discussion | 无默认网页爬取备源 | 免费；SEC 需合规 User-Agent | accepted/published/as_of/retrieved 分开 | 冻结原始响应与正文解析 hash | 复用现有每证券披露预算 | `IMPLEMENTED`：Gate 中已核验正文自动投影为 `ISSUER_MATERIAL/BODY_VERIFIED`；发行人指引、第三方预期与独立观点分类不互换 |
 | 行业同行资料 | NASDAQ 完整股票池选择 + SEC/行情有限采集 | 公开行业材料 | 免费公开资料 | 各公司期间、币种、会计口径分别保留 | 候选池、选择、采集快照和 Gate 分层冻结 | 每公司最多 3 个候选；只采集实际选择的去重同行 | `IMPLEMENTED_PENDING_LIVE_VALIDATION`：LLM 选择未核实候选，现有只读采集器核实身份并重新 Gate 后才可比较；不会自动排名，真实同行比较待 P3 验收 |
 | 官方宏观：利率、通胀、经济活动与政策 | BLS Public Data API v1 + U.S. Treasury Daily Rates + Federal Reserve RSS/正文 + BLS iCalendar | BEA/FRED 仅作后续增强 | 免费、无项目凭据 | 观察期、官方 pubDate、决策 cutoff 与获取时间分开 | 无 historical vintage 时不还原历史认知；修订以 raw hash 分版 | BLS 序列 1、Treasury 1、BLS 日历 1、Fed RSS+正文 2 | `IMPLEMENTED_CURRENTLY_VERIFIED`：本 Change 六个字段全部真实 HTTP 200 并冻结；非农就业作当前活动指标，GDP/PCE 未承诺 |
-| 市场上下文与 24h 新闻 | Yahoo 公开 chart/search | 无默认第二来源 | 免费、无项目凭据；非正式 SLA | 日线观察/获取与新闻 published/retrieved 分开 | 全量冻结，Agent 每序列有界消费最新观测 | 18 序列 + 1 新闻请求 | `IMPLEMENTED_CURRENTLY_VERIFIED`：SPY、11 板块、4 跨资产、HYG 信用代理和 VIX 实测成功；24h 窗口实测为 0 条并保留 gap |
-| Moomoo OpenD 行情补充 | 本机 `127.0.0.1` Moomoo OpenD | SEC/Yahoo 继续承担各自基础资料，不作为 OpenD 的伪替代 | 只读 quote capability；需用户本机完成 OpenD 协议和相应行情权限 | 只保留响应市场时点、获取时间、区域和权限状态 | 冻结 supplement；不得从当前值回填历史 | 每证券/数据集按 supplement plan 有界查询；失败不循环登录 | `PARTIAL`：仅允许 Singapore 区域 loopback OpenD quote-only；不可达、权限不足或字段缺失只降低该数据集，不得回退客户端 Cookie、私有接口或绕过登录 |
+| 市场上下文与 24h 新闻 | Yahoo 公开 chart/search | Moomoo 公开 `news_search` 仅在 Yahoo 无合格新闻时补标题 | 免费、无账户凭据；非正式 SLA | 日线观察/获取与新闻 published/retrieved 分开；公开搜索亦须过 24h/PIT/相关性检查 | 全量冻结，Agent 每序列有界消费最新观测 | 18 序列 + Yahoo 新闻 1 次；必要时公开搜索 1 次 | `SOURCE_AND_GATE_VERIFIED`：2026-09-26 MRVL 同截止点批次中 Yahoo 新闻为 0，公开搜索 10 个候选中 1 个标题通过过滤并进入 Gate；不代表 Market Agent 已引用，更不证明正文已读 |
+| Moomoo OpenD 行情补充 | 本机 `127.0.0.1:11111` Moomoo OpenD | SEC/Yahoo 继续承担各自基础资料，不作为 OpenD 的伪替代 | Singapore 区域 loopback OpenD quote-only；需用户本机完成协议和相应行情权限 | 只保留响应市场时点、获取时间、区域和权限状态 | 冻结 supplement；不得从当前值回填历史 | 每证券/数据集按 supplement plan 有界查询；失败不循环登录 | `PARTIAL_SOURCE_AND_GATE_VERIFIED`：2026-09-26 本机 Quote readiness 成功；MRVL 批次的宏观历史 192、经济日历 100、FedWatch 3、Dot Plot 12、全市场期权统计 41 条进入 Gate，涨跌分布接口仍失败。SDK 缺失或权限失败必须单列，不能沿用上次缓存失败判断本批可用性；不得回退客户端 Cookie、私有接口或登录绕过；不宣称当前 Agent 已引用全部数据 |
+| Moomoo 公开标题线索 | 无认证 `news_search` | 无正文后备 | 公开 HTTPS；不使用 OpenD、Cookie 或账户 | 标题、类别、发布时间、获取时间和原始链接分开保存 | 原始响应 hash 与最小元数据冻结；不获取文章正文 | 每证券 ticker/发行人名各至多 1 次、每次 10 项；Market 后备至多 1 次 | `COMPANY_LEAD_CLAIM_VERIFIED`：2026-09-27 MRVL 同截止点批次有 11 条 Company 线索准入并被研报任务查询，1 条在有效 `SOURCE_LIMITED` claim 中原样引用；全部仍为 `LEAD_ONLY`，独立研报正文为 0。Market 标题 2 条进入允许目录但本轮 Agent 未运行、未验证引用 |
 | 机构持仓/内部人披露 | SEC Forms 3/4/5；未来 SEC 13F | 无默认商业源 | 免费；SEC 需合规 User-Agent | 交易日、accepted 公开时点与获取时间分别保留，天然滞后 | 最新一份内部人原始 XML；保留 submissions 展示 URL 与原始文档 URL；不作拆股回溯调整 | 每发行人最新 1 份 Form 3/4/5；无暂时故障循环 | `IMPLEMENTED_PARTIAL`：已修复 SEC `xsl.../` 展示路径、原始 XML 解析及 Gate 来源/时效映射；ALB、MRVL、WOLF 最新 Form 4 已真实完成 3/3 获取、解析和 Gate 准入。ALB 已完成一次 GPT-5.6 Terra `SOURCE_LIMITED` 研究样本，正确保留交易类型、滞后和不可推断边界。13F 申报主体发现、两期机构比较及完整历史序列仍未实现，不能声称机构资金流或完整 `RESEARCH_VALIDATED` |
 | 期权链快照/资金代理 | Yahoo Finance 期权链（yfinance） | 无默认第二来源 | 免费、无项目凭证；非正式 SLA | 每份事实记录获取时点、到期日与 last trade；非交易所快照时间 | 不承诺历史持仓量、IV 历史或成交方向 | 每证券最近 1 个到期日；独立会话、单股失败隔离 | `IMPLEMENTED`：bid/ask、volume、open interest、IV 快照及过期/缺字段测试；明确禁止从单快照推断方向，真实来源可用性与 LLM 解释待 P6 批次 |
 

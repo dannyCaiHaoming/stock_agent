@@ -239,6 +239,18 @@ def _raw_closure_repair_plan(
     return repaired
 
 
+def _source_environment_recheck_needed(results: list[Mapping[str, Any]]) -> bool:
+    """A cached SDK/loopback failure is not evidence of current source unavailability."""
+    transient = {
+        "MOOMOO_SDK_UNAVAILABLE", "MOOMOO_SDK_LOG_PERMISSION_DENIED",
+        "MOOMOO_OPEND_CONNECT_PERMISSION_DENIED", "MOOMOO_OPEND_UNREACHABLE",
+    }
+    return any(
+        item.get("source") == "moomoo_sg" and item.get("failure_code") in transient
+        for item in results
+    )
+
+
 def _preflight_repaired_raw_closure(
     *, memory: Any, security_id: str, snapshot: Mapping[str, Any],
     prior_bundle: Mapping[str, Any] | None, cache_root: Path,
@@ -1139,6 +1151,7 @@ def collect_common_stock_data_from_handoff(
                         security_id, "public", "company_profile",
                     )
                     if profile_plan["mode"] == "SKIP_FRESH" and profile_checkpoint:
+                        environment_recheck = False
                         try:
                             state = profile_checkpoint.get("state", {})
                             raw = memory.read_object(
@@ -1160,13 +1173,22 @@ def collect_common_stock_data_from_handoff(
                                         for item in persisted["results"]
                                     ):
                                 raise ValueError("RESEARCH_SUPPLEMENT_MEMORY_BINDING_INVALID")
-                            external_research_results[security_id] = [
+                            persisted_results = [
                                 dict(item) for item in persisted["results"]
                             ]
+                            environment_recheck = _source_environment_recheck_needed(persisted_results)
+                            if environment_recheck:
+                                raise ValueError("RESEARCH_SUPPLEMENT_ENVIRONMENT_RECHECK")
+                            external_research_results[security_id] = persisted_results
                         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
                             profile_plan = _raw_closure_repair_plan(
                                 profile_plan, planning_as_of=planning_as_of,
                             )
+                            if environment_recheck:
+                                profile_plan["reason"] = "SOURCE_ENVIRONMENT_RECHECK"
+                                profile_plan["plan_hash"] = canonical_hash({
+                                    key: value for key, value in profile_plan.items() if key != "plan_hash"
+                                })
                             plans["company_profile"] = profile_plan
                     if profile_plan["mode"] != "SKIP_FRESH" \
                             or security_id not in external_research_results:
@@ -1225,6 +1247,36 @@ def collect_common_stock_data_from_handoff(
                         }
                     company_profile_plans[security_id] = profile_plan
                     company_profile_outcomes[security_id] = profile_outcome
+                    from product.mcp.live.research_supplement_collection import (
+                        capture_public_company_news_result,
+                    )
+
+                    issuer_name = next(
+                        (
+                            item.get("display_name")
+                            for item in handoff["portfolio"]["positions"]
+                            if item.get("security_id") == security_id
+                        ),
+                        None,
+                    )
+                    for source_result in external_research_results.get(security_id, []):
+                        if source_result.get("source") != "yahoo" \
+                                or source_result.get("dataset") != "identity_profile":
+                            continue
+                        for identity_fact in source_result.get("evidence", []):
+                            if identity_fact.get("security_id") != security_id \
+                                    or identity_fact.get("semantic_field") != "yahoo_company_profile":
+                                continue
+                            profile = identity_fact.get("value")
+                            name = profile.get("longName") if isinstance(profile, Mapping) else None
+                            if isinstance(name, str) and re.search(r"[A-Za-z]", name):
+                                issuer_name = name
+                    external_research_results.setdefault(security_id, []).append(
+                        capture_public_company_news_result(
+                            security_id=security_id, ticker=str(position["ticker"]),
+                            issuer_name=issuer_name, cache_root=cache_root, now=clock,
+                        )
+                    )
                 snapshot_plan = plans["live_snapshot"]
                 snapshot_checkpoint = memory.checkpoint(
                     security_id, "live", "live_snapshot",

@@ -99,8 +99,10 @@ class UnavailableOpenAlexClient(FakeOpenAlexClient):
 
 class ResearchMaterialsStageTests(unittest.TestCase):
     def test_launcher_bound_fixture_mcp_exposes_research_tools_without_run_dir(self):
-        tools = StatelessFixtureTools(default_run_dir=Path("/tmp/bound-research-run"))
-        manifest = {item["name"]: item for item in tools.available_tools()}
+        with tempfile.TemporaryDirectory() as temp:
+            run = self.prepare(Path(temp), count=1)
+            tools = StatelessFixtureTools(default_run_dir=run)
+            manifest = {item["name"]: item for item in tools.available_tools()}
 
         self.assertEqual(
             set(manifest),

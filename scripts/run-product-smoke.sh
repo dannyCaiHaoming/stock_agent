@@ -6,6 +6,7 @@ if [ "${1:-}" = "--help" ]; then
   echo '或：bash run-product-smoke.sh --prepared-run <已准备的运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-multidimensional-run <已准备的多维运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-multidimensional-task <已准备的多维运行目录> <task_name> <新的外置调用产物目录>（自动包含最小依赖闭包）'
+  echo '或：bash run-product-smoke.sh --start-multidimensional-task <全新准备的多维运行目录> <task_name> <新的外置调用产物目录>（首次定点执行）'
   echo '或：bash run-product-smoke.sh --launch-independent-skeptic-run <已完成正向多维运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-independent-skeptic-run <已运行的独立反证目录> <新的外置调用产物目录>（只重试未完成股票）'
   echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
@@ -27,6 +28,7 @@ fi
 prepared_run=
 resume_multidimensional_run=
 resume_multidimensional_task=
+initial_multidimensional_task=0
 launch_independent_skeptic_run=
 resume_independent_skeptic_run=
 stage=full-council
@@ -56,6 +58,13 @@ if [ "${1:-}" = "--resume-multidimensional-task" ]; then
   if [ "$#" -ne 4 ]; then echo '--resume-multidimensional-task 需要已准备运行目录、task_name 及新的调用产物目录。' >&2; exit 2; fi
   resume_multidimensional_run=$(cd "$2" && pwd -P)
   resume_multidimensional_task=$3
+  shift 3
+fi
+if [ "${1:-}" = "--start-multidimensional-task" ]; then
+  if [ "$#" -ne 4 ]; then echo '--start-multidimensional-task 需要全新准备运行目录、task_name 及新的调用产物目录。' >&2; exit 2; fi
+  resume_multidimensional_run=$(cd "$2" && pwd -P)
+  resume_multidimensional_task=$3
+  initial_multidimensional_task=1
   shift 3
 fi
 if [ "${1:-}" = "--resume-independent-skeptic-run" ]; then
@@ -173,9 +182,15 @@ if [ -n "$resume_multidimensional_run" ]; then
   case "$resume_multidimensional_run/" in "$repo_root/"*) echo '已准备的产品运行目录必须位于源码之外。' >&2; exit 2;; esac
   echo "恢复宿主多维研究阶段；进度：$resume_multidimensional_run/invocation/codex-events.jsonl" >&2
   if [ -n "$resume_multidimensional_task" ]; then
-    python3 "$repo_root/scripts/council-dev.py" launch-multidimensional-research \
-      --repo "$repo_root" --run-dir "$resume_multidimensional_run" \
-      --task-name "$resume_multidimensional_task"
+    if [ "$initial_multidimensional_task" = "1" ]; then
+      python3 "$repo_root/scripts/council-dev.py" launch-multidimensional-research \
+        --repo "$repo_root" --run-dir "$resume_multidimensional_run" \
+        --task-name "$resume_multidimensional_task" --initial-task
+    else
+      python3 "$repo_root/scripts/council-dev.py" launch-multidimensional-research \
+        --repo "$repo_root" --run-dir "$resume_multidimensional_run" \
+        --task-name "$resume_multidimensional_task"
+    fi
   else
     python3 "$repo_root/scripts/council-dev.py" launch-multidimensional-research \
       --repo "$repo_root" --run-dir "$resume_multidimensional_run"

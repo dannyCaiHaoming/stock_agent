@@ -11,6 +11,7 @@ from product.mcp.live.market_context import (
 )
 from product.mcp.live.sec_client import Response
 from product.runtime.common_stock_data import merge_market_context_evidence
+from product.runtime.multidimensional_stage import _facts_for_capability
 from product.runtime.hashing import canonical_hash
 
 
@@ -82,11 +83,86 @@ class MarketContextTests(unittest.TestCase):
                 output_path=Path(temp) / "market.json", cache_root=Path(temp) / "cache",
                 decision_cutoff="2026-09-19T14:00:00Z", now=lambda: cutoff,
                 transport=lambda _request: next(iterator),
+                public_news_transport=lambda _request: Response(200, b'{"code":0,"data":[]}'),
             )
         self.assertEqual(snapshot["status"], "FROZEN")
         self.assertTrue(snapshot["evidence"])
         self.assertIn({"dataset": "series:XLC", "reason": "MARKET_CONTEXT_CHART_HTTP_503"}, snapshot["gaps"])
-        self.assertIn({"reason": "MARKET_NEWS_WINDOW_EMPTY", "window_hours": 24}, snapshot["gaps"])
+        self.assertIn({"dataset": "market_news_24h", "reason": "MARKET_NEWS_WINDOW_EMPTY", "window_hours": 24}, snapshot["gaps"])
+
+    def test_public_fallback_only_when_yahoo_news_empty_and_relevant(self) -> None:
+        cutoff = datetime(2026, 9, 19, 14, 0, tzinfo=timezone.utc)
+        timestamp = int(datetime(2026, 9, 18, 20, 0, tzinfo=timezone.utc).timestamp())
+        calls = []
+
+        def public_transport(_request):
+            calls.append("public")
+            return Response(200, json.dumps({"code": 0, "data": [
+                {"news_id": "1", "news_type": 1,
+                 "title": "US stock market rises on Wall Street",
+                 "publish_time": str(timestamp), "url": "https://www.moomoo.com/news/post/1"},
+                {"news_id": "2", "news_type": 1,
+                 "title": "New gaming phone released",
+                 "publish_time": str(timestamp), "url": "https://www.moomoo.com/news/post/2"},
+                {"news_id": "3", "news_type": 1,
+                 "title": "Nasdaq old story", "publish_time": str(timestamp - 86400),
+                 "url": "https://www.moomoo.com/news/post/3"},
+            ]}).encode())
+
+        def run(yahoo_news):
+            responses = [Response(200, chart_payload(timestamp, 100.0)) for _ in SERIES]
+            responses.append(Response(200, json.dumps({"news": yahoo_news}).encode()))
+            iterator = iter(responses)
+            with tempfile.TemporaryDirectory() as temp:
+                return collect_market_context_snapshot(
+                    policy_path=ROOT / "product/mcp/live/research-source-policy.json",
+                    output_path=Path(temp) / "market.json", cache_root=Path(temp) / "cache",
+                    decision_cutoff="2026-09-19T14:00:00Z", now=lambda: cutoff,
+                    transport=lambda _request: next(iterator),
+                    public_news_transport=public_transport,
+                )
+
+        fallback = run([])
+        market_news = [item for item in fallback["evidence"] if item["semantic_field"] == "market_news_item"]
+        self.assertEqual(len(market_news), 1)
+        self.assertEqual(market_news[0]["source_type"], "public_research")
+        self.assertEqual(json.loads(market_news[0]["value"])["content_tier"], "TITLE_ONLY")
+        self.assertEqual(
+            [item["evidence_id"] for item in _facts_for_capability(
+                market_news, capability="MARKET_STATE", security_ids=["US:COMMON_STOCK:MRVL"], benchmark_id=None,
+            )],
+            [market_news[0]["evidence_id"]],
+        )
+        self.assertEqual(
+            _facts_for_capability(market_news, capability="MACRO_CONTEXT", security_ids=["US:COMMON_STOCK:MRVL"], benchmark_id=None),
+            [],
+        )
+        self.assertEqual(calls, ["public"])
+        calls.clear()
+        yahoo = run([{"title": "Wall Street moves", "link": "https://example.com/yahoo",
+                      "providerPublishTime": timestamp}])
+        self.assertEqual(calls, [])
+        self.assertEqual(len([item for item in yahoo["evidence"] if item["semantic_field"] == "market_news_item"]), 1)
+        self.assertEqual([item["source_type"] for item in yahoo["evidence"] if item["semantic_field"] == "market_news_item"], ["yahoo"])
+
+    def test_public_fallback_failure_keeps_market_news_gap(self) -> None:
+        cutoff = datetime(2026, 9, 19, 14, 0, tzinfo=timezone.utc)
+        timestamp = int(datetime(2026, 9, 18, 20, 0, tzinfo=timezone.utc).timestamp())
+        responses = [Response(200, chart_payload(timestamp, 100.0)) for _ in SERIES]
+        responses.append(Response(200, b'{"news":[]}'))
+        iterator = iter(responses)
+        with tempfile.TemporaryDirectory() as temp:
+            snapshot = collect_market_context_snapshot(
+                policy_path=ROOT / "product/mcp/live/research-source-policy.json",
+                output_path=Path(temp) / "market.json", cache_root=Path(temp) / "cache",
+                decision_cutoff="2026-09-19T14:00:00Z", now=lambda: cutoff,
+                transport=lambda _request: next(iterator),
+                public_news_transport=lambda _request: Response(503, b""),
+            )
+        self.assertFalse(any(item["semantic_field"] == "market_news_item" for item in snapshot["evidence"]))
+        reasons = {item["reason"] for item in snapshot["gaps"]}
+        self.assertIn("MOOMOO_PUBLIC_NEWS_HTTP_503", reasons)
+        self.assertIn("MARKET_NEWS_WINDOW_EMPTY", reasons)
 
     def test_market_context_merges_into_formal_gate_with_snapshot_lineage(self) -> None:
         fact = normalize_chart(
@@ -134,6 +210,7 @@ class MarketContextTests(unittest.TestCase):
                 policy_path=ROOT / "product/mcp/live/research-source-policy.json",
                 output_path=Path(temp) / "market.json", cache_root=Path(temp) / "cache",
                 now=now, transport=lambda _request: next(iterator),
+                public_news_transport=lambda _request: Response(200, b'{"code":0,"data":[]}'),
             )
         self.assertGreaterEqual(
             datetime.fromisoformat(snapshot["decision_cutoff"].replace("Z", "+00:00")),
@@ -176,6 +253,7 @@ class MarketContextTests(unittest.TestCase):
                 output_path=Path(temp) / "market.json", cache_root=Path(temp) / "cache",
                 decision_cutoff="2026-09-19T14:00:00Z", now=lambda: cutoff,
                 transport=transport,
+                public_news_transport=lambda _request: Response(200, b'{"code":0,"data":[]}'),
             )
         reasons = {item["reason"] for item in snapshot["gaps"]}
         self.assertEqual(snapshot["status"], "FROZEN")

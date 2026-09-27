@@ -199,7 +199,11 @@ def _facts_for_capability(
         elif capability == "MARKET_STATE":
             matches = (security_id in {"MARKET", "US:MARKET"} and dataset in DATASET_CAPABILITY_ROUTES[capability]) or source in {
                 "yahoo", "market", "fred", "treasury", "eia"
-            }
+            } or (
+                security_id == "US:MARKET" and field == "market_news_item"
+                and source == "public_research"
+                and str(fact.get("source_id", "")).startswith("moomoo-public-news:")
+            )
         elif capability == "OWNERSHIP_DISCLOSURE":
             matches = security_id in scoped_ids and (
                 dataset in DATASET_CAPABILITY_ROUTES[capability]
@@ -1226,6 +1230,57 @@ def build_multidimensional_dispatch_packet(
     return packet
 
 
+def serialize_multidimensional_initial_context(packet: Mapping[str, Any]) -> str:
+    """首次定点 Company 研究只交付有界索引；完整事实由 Gate 工具返回。"""
+
+    if packet.get("task", {}).get("capability") not in {
+        "FUNDAMENTAL_EVENT", "RESEARCH_REPORT",
+    }:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_CONTEXT_SCOPE_INVALID")
+    retained = (
+        "dispatch_contract", "identity", "instruction", "minimum_questions",
+        "tool_context", "citation_contract", "output_schema", "output_schema_hash",
+        "company_material_coverage", "verified_documents", "material_preparation",
+        "research_input_topology", "dependency_reports", "allowed_research_claim_ids",
+    )
+    context = {key: packet[key] for key in retained if key in packet}
+    context["packet_hash"] = canonical_hash(packet)
+    context["task"] = {
+        key: packet["task"][key]
+        for key in ("task_id", "task_name", "capability", "security_ids", "depends_on")
+        if key in packet["task"]
+    }
+    by_field: dict[str, list[dict[str, Any]]] = {}
+    for item in packet["evidence_catalog"]:
+        field = str(item.get("semantic_field") or "UNKNOWN")
+        by_field.setdefault(field, []).append({
+            key: item[key] for key in ("evidence_id", "as_of", "unit")
+            if item.get(key) is not None
+        })
+    context["evidence_catalog"] = [
+        {"semantic_field": field, "items": by_field[field]}
+        for field in sorted(by_field)
+    ]
+    context["provider_coverage"] = {
+        "coverage_hash": packet["provider_coverage"].get("coverage_hash"),
+        "provider_names": sorted({
+            str(item["provider"])
+            for item in packet["provider_coverage"].get("providers", [])
+            if isinstance(item, Mapping) and item.get("provider")
+        }),
+    }
+    context["catalog_rule"] = (
+        "evidence_catalog 按 semantic_field 分组，包含完整允许 ID；引用前必须用 fixture_runtime.query "
+        "读取完整事实及期间、来源和限制，逐字复制工具返回的 evidence_id。"
+    )
+    serialized = json.dumps(
+        context, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    )
+    if len(serialized.encode("utf-8")) > 256 * 1024:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_CONTEXT_TOO_LARGE")
+    return serialized
+
+
 def build_multidimensional_dispatch_message(
     repository_root: Path, run_dir: Path, task_name: str,
 ) -> str:
@@ -1243,10 +1298,28 @@ def _load_research_capture_batches(
 
     preparation_path = gate_path.parent / "data-preparation.json"
     if not preparation_path.is_file():
+        if gate.get("source_mode") == "live-read-only":
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_DATA_PREPARATION_MISSING")
         return []
     preparation = _read_object(preparation_path)
     if preparation.get("common_cutoff") != gate.get("decision_cutoff"):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_PREPARATION_CUTOFF_MISMATCH")
+    if gate.get("source_mode") == "live-read-only":
+        if preparation.get("preparation_hash") != canonical_hash({
+            key: value for key, value in preparation.items()
+            if key != "preparation_hash"
+        }):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_DATA_PREPARATION_HASH_MISMATCH")
+        items = preparation.get("items")
+        expected_ids = set(security_ids)
+        if (
+            not isinstance(items, list)
+            or {item.get("security_id") for item in items if isinstance(item, Mapping)}
+            != expected_ids
+            or len(items) != len(expected_ids)
+            or any(not isinstance(item, Mapping) or item.get("status") != "READY" for item in items)
+        ):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_DATA_PREPARATION_NOT_READY")
     records = preparation.get("research_supplements", [])
     if not records and isinstance(preparation.get("research_supplement"), Mapping):
         record = dict(preparation["research_supplement"])
@@ -1791,6 +1864,13 @@ def prepare_multidimensional_stage_run(
                         len(research_materials_import["documents_by_security"].get(security_id, []))
                         if research_materials_import is not None else 0
                     ),
+                    "public_lead_evidence_ids": sorted(
+                        fact["evidence_id"] for fact in company_facts
+                        if fact.get("dataset") == "research_discovery"
+                        and fact.get("source_family") == "moomoo_public_news"
+                        and isinstance(fact.get("value"), dict)
+                        and fact["value"].get("content_tier") == "LEAD_ONLY"
+                    ),
                     "guidance_evidence_ids": sorted(
                         fact["evidence_id"] for fact in company_facts
                         if fact.get("semantic_field") == "sec_issuer_guidance_candidate_text"
@@ -1815,6 +1895,21 @@ def prepare_multidimensional_stage_run(
                     " 为 BLOCKED_CONFIGURATION，正式报告必须输出 FAILED / evaluation_status=FAIL，并逐项"
                     "保留配置缺口，不能改写成 SOURCE_LIMITED。"
                 )
+                if (task["company_material_coverage"]["public_lead_evidence_ids"]
+                        and (task.get("material_preparation") or {}).get("status")
+                        not in {"BLOCKED_CONFIGURATION", "FAILED"}):
+                    instruction += (
+                        " company_material_coverage.public_lead_evidence_ids 是本任务已准入的公开标题/链接线索，"
+                        "与 OpenD 评级快照和已核验正文不同。至少用本任务只读 query 查询其中一条；"
+                        "在本任务关于作者依据与假设等问题下判断相关性。采用时，以 claims[].evidence_refs"
+                        " 中的原样 ID 说明具体核验用途、标题/链接层级及不能支持的结论，"
+                        "不能只写‘存在标题’。不相关、重复或无新增价值时，在现有 data_gaps/limitations"
+                        " 中说明排除原因，不为引用数量拼凑主张。线索自身保持 LEAD_ONLY；"
+                        "整体报告状态依据已核验正文对研究问题的实际覆盖判断，不因存在标题自动降级，"
+                        "也不因存在正文自动判定充分；正文不足时仍保留真实缺口。"
+                        "不得据标题推断评级依据、估值、经营事实或研报分歧；查询失败时如实记录 gap，"
+                        "不得假称已使用该线索。"
+                    )
             if capability in {"MACRO_CONTEXT", "MARKET_STATE"}:
                 instruction += (
                     " verified_documents 仅包含已通过正文核验且与当前能力匹配的"
@@ -3386,6 +3481,7 @@ def check_multidimensional_bundle_consumable(
 def launch_multidimensional_stage(
     repository_root: Path, *, run_dir: Path, codex_binary: str = "codex",
     timeout_seconds: int = 2400, task_name: str | None = None,
+    initial_task: bool = False,
 ) -> tuple[dict[str, Any], int]:
     """从宿主入口启动一次多维 Codex 研究批次。"""
 
@@ -3408,10 +3504,60 @@ def launch_multidimensional_stage(
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_MANIFEST_INVALID")
     index = _read_object(run_dir / "research/dispatch-index.json")
+    if initial_task:
+        if task_name is None or manifest["stage"] != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_TASK_INVALID")
+        gate = _read_object(run_dir / "evidence/gate.json")
+        from product.runtime.research_input_topology import research_input_topology_lock
+        if (
+            manifest.get("manifest_hash") != canonical_hash({
+                key: value for key, value in manifest.items() if key != "manifest_hash"
+            })
+            or index.get("index_hash") != canonical_hash({
+                key: value for key, value in index.items() if key != "index_hash"
+            })
+            or manifest.get("dispatch_index_hash") != index.get("index_hash")
+            or manifest.get("gate_hash") != gate.get("bundle_hash")
+            or gate.get("bundle_hash") != canonical_hash({
+                key: value for key, value in gate.items() if key != "bundle_hash"
+            })
+            or not gate.get("allowed_evidence_ids")
+            or _read_object(run_dir / "council-request.json").get("request_hash")
+            != manifest.get("council_request_hash")
+            or manifest.get("research_input_topology")
+            != research_input_topology_lock(repository_root)
+        ):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_INPUT_NOT_READY")
     target_tasks = (
         _target_task_closure(index, task_name) if task_name is not None else []
     )
-    if task_name is None:
+    if initial_task:
+        if (
+            len(target_tasks) != 2
+            or [item["capability"] for item in target_tasks]
+            != ["FUNDAMENTAL_EVENT", "RESEARCH_REPORT"]
+            or (run_dir / "invocation").exists()
+            or (run_dir / "research/task-execution-proof.json").exists()
+            or any((run_dir / "research/reports").glob("*/dimension-report.json"))
+        ):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_TASK_SCOPE_OR_STATE_INVALID")
+        for task in target_tasks:
+            if (
+                manifest.get("agent_bindings", {}).get(task["agent"])
+                != _agent_binding(product_root, task["agent"])
+                or manifest.get("skill_bindings", {}).get(task["skill_name"])
+                != _skill_binding(product_root, task["skill_name"])
+            ):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_VERSION_MISMATCH")
+            packet = build_multidimensional_dispatch_packet(
+                repository_root, run_dir, task["task_name"],
+                include_dependency_reports=False,
+            )
+            serialize_multidimensional_initial_context(packet)
+        invocation_dir = run_dir / "invocation"
+        invocation_dir.mkdir()
+        runtime_root = run_dir / ".codex-runtime"
+    elif task_name is None:
         invocation_dir = run_dir / "invocation"
         if invocation_dir.exists():
             raise MultidimensionalStageError("MULTIDIMENSIONAL_ALREADY_LAUNCHED")
@@ -3500,6 +3646,8 @@ def launch_multidimensional_stage(
     if task_name is not None:
         selected_names = [item["task_name"] for item in target_tasks]
         environment["STOCK_AGENT_RESEARCH_TASK_NAMES"] = json.dumps(selected_names)
+        if initial_task:
+            environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
         if len(selected_names) == 1:
             environment["STOCK_AGENT_RESEARCH_TASK_NAME"] = task_name
         else:
@@ -3550,11 +3698,22 @@ def launch_multidimensional_stage(
         }:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_FINAL_MESSAGE_INVALID")
         if task_name is not None:
-            finalize_multidimensional_task_evidence(
+            task_proof = finalize_multidimensional_task_evidence(
                 repository_root, run_dir, task_name, invocation_dir=invocation_dir,
             )
-            result = _adopt_multidimensional_retry(
-                repository_root, run_dir, invocation_dir=invocation_dir,
+            result = (
+                {"status": "PASSED", "run_id": manifest["run_id"],
+                 "completed": len(target_tasks), "expected": len(index["tasks"]),
+                 "scope": task_proof["scope"],
+                 "complete_holding_research_bundle": False,
+                 "not_run_task_names": [
+                     item["task_name"] for item in index["tasks"]
+                     if item["task_id"] not in {task["task_id"] for task in target_tasks}
+                 ],
+                 "task_proof": str(run_dir / "research/task-execution-proof.json")}
+                if initial_task else _adopt_multidimensional_retry(
+                    repository_root, run_dir, invocation_dir=invocation_dir,
+                )
             )
         else:
             result = finalize_multidimensional_stage_run(repository_root, run_dir)
@@ -3621,6 +3780,8 @@ def launch_multidimensional_stage(
                     if isinstance(capture, Mapping) else "MULTIDIMENSIONAL_OUTPUT_INVALID"
                 ),
             )
+            if isinstance(capture, Mapping) and isinstance(capture.get("diagnostics"), Mapping):
+                outcome_by_task[task["task_id"]]["diagnostics"] = capture["diagnostics"]
     task_outcomes = [outcome_by_task[item["task_id"]] for item in outcome_tasks]
     after = integrity_snapshot(repository_root)
     _write_object(invocation_dir / "process-result.json", {
@@ -3636,6 +3797,11 @@ def launch_multidimensional_stage(
         "incomplete_task_count": sum(
             item["status"] in {"NOT_DISPATCHED", "DISPATCHED_NOT_STARTED", "STARTED_NO_TERMINAL"}
             for item in task_outcomes
+        ),
+        "not_run_task_names": (
+            [item["task_name"] for item in index["tasks"]
+             if item["task_id"] not in {task["task_id"] for task in target_tasks}]
+            if initial_task else []
         ),
     })
     return result, 0 if result["status"] == "PASSED" and before == after else 7

@@ -248,12 +248,14 @@ def _fact_provider(fact: Mapping[str, Any]) -> str | None:
         "bea": "bea",
         "fred": "fred",
         "moomoo_sg": "moomoo_sg",
+        "moomoo_public_news": "moomoo_public_news",
         "openalex": "openalex",
     }
     if source_type in aliases:
         return aliases[source_type]
     for needle, provider in (
         ("openalex", "openalex"),
+        ("moomoo-public-news", "moomoo_public_news"),
         ("moomoo", "moomoo_sg"),
         ("treasury", "treasury"),
         ("federal-reserve", "federal_reserve"),
@@ -329,7 +331,7 @@ def build_research_provider_coverage(
             raise ResearchInputTopologyError("RESEARCH_PROVIDER_COVERAGE_CUTOFF_MISMATCH")
         for capability in batch["capabilities"]:
             source = capability["source"]
-            if source not in {"sec", "yahoo", "moomoo_sg"}:
+            if source not in {"sec", "yahoo", "moomoo_sg", "moomoo_public_news"}:
                 raise ResearchInputTopologyError("RESEARCH_PROVIDER_COVERAGE_SOURCE_FORBIDDEN")
             observations.setdefault(source, []).append({
                 "security_id": capability["security_id"],

@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from product.runtime.codex_hook_recorder import (
     handle_hook_event, _multidimensional_repair_packet, _terminal_research_tasks,
+    _multidimensional_draft_diagnostics,
 )
 from product.runtime.fixture_mcp import StatelessFixtureTools
 from product.council.multidimensional_research import envelope_research_dimension_draft
@@ -33,6 +34,7 @@ from product.runtime.multidimensional_stage import (
     check_multidimensional_bundle_consumable,
     finalize_multidimensional_task_evidence,
     finalize_multidimensional_stage_run,
+    serialize_multidimensional_initial_context,
     launch_multidimensional_stage,
     prepare_multidimensional_stage_run,
     MultidimensionalStageError,
@@ -721,6 +723,8 @@ class MultidimensionalStageTests(unittest.TestCase):
                 ROOT, run, task["task_name"], include_dependency_reports=False
             )
             self.assertEqual(packet["company_material_coverage"]["issuer_body_count"], 1)
+            self.assertEqual(packet["company_material_coverage"]["public_lead_evidence_ids"], [])
+            self.assertNotIn("至少用本任务只读 query 查询其中一条", packet["instruction"])
             self.assertEqual(packet["company_material_coverage"]["guidance_evidence_ids"], ["ev-guidance"])
             self.assertEqual(packet["company_material_coverage"]["expectation_evidence_ids"], ["ev-expectation"])
             self.assertEqual(packet["task"]["allowed_documents"][0]["material_type"], "ISSUER_MATERIAL")
@@ -1033,11 +1037,306 @@ class MultidimensionalStageTests(unittest.TestCase):
                 other_payload, environment,
                 failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=1,
             ))
+            initial_environment = dict(environment)
+            initial_environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
+            initial_repair = _multidimensional_repair_packet(
+                other_payload, initial_environment,
+                failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=1,
+            )
+            self.assertEqual(
+                initial_repair["validation_details"]["dangling_references"],
+                [{"path": "observation_conditions[0].claim_refs[0]", "claim_id": "claim-missing"}],
+            )
+            self.assertIsNone(_multidimensional_repair_packet(
+                other_payload, initial_environment,
+                failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=2,
+            ))
             draft["observation_conditions"][0]["claim_refs"] = ["claim-valid"]
             self.assertIsNone(_multidimensional_repair_packet(
                 self.stop_payload(task, draft, parent="parent-condition", child="child-condition"),
                 environment,
                 failure_code="DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING", attempt=1,
+            ))
+
+    def test_draft_diagnostics_locate_coexisting_errors_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            environment = self.targeted_environment(run, task)
+            draft = self.dimension_draft(task)
+            draft["claims"] = [{"claim_id": "valuation-gap", "statement": "private report text"}]
+            draft["claims"].append({
+                "claim_id": "valid-assumption-claim", "evidence_refs": [],
+                "assumption_ids": ["assumption-valid"],
+            })
+            draft["assumptions"] = [{"assumption_id": "assumption-valid"}]
+            draft["observation_conditions"] = [{
+                "claim_refs": ["missing-claim"], "evidence_refs": ["ev-truncated"],
+            }]
+            payload = self.stop_payload(task, draft, parent="p", child="c")
+            original = copy.deepcopy(payload)
+            diagnostic = _multidimensional_draft_diagnostics(
+                payload, environment, failure_code="EVIDENCE_CLOSURE_FAILED:ev-truncated",
+            )
+            self.assertEqual(payload, original)
+            self.assertEqual(diagnostic["finding_count"], 3)
+            self.assertEqual(diagnostic["first_failure_code"], "EVIDENCE_CLOSURE_FAILED")
+            self.assertEqual({item["path"] for item in diagnostic["findings"]}, {
+                "claims[0]", "observation_conditions[0].claim_refs[0]",
+                "observation_conditions[0].evidence_refs[0]",
+            })
+            self.assertNotIn("private report text", json.dumps(diagnostic))
+            self.assertEqual(diagnostic["task_id"], task["task_id"])
+            self.assertFalse(diagnostic["truncated"])
+            valid = self.dimension_draft(task)
+            valid["claims"] = [draft["claims"][1]]
+            valid["assumptions"] = draft["assumptions"]
+            no_findings = _multidimensional_draft_diagnostics(
+                self.stop_payload(task, valid, parent="p", child="c"), environment,
+                failure_code="OTHER_VALIDATION_FAILURE",
+            )
+            self.assertEqual(no_findings["status"], "NO_KNOWN_ISSUES")
+            self.assertEqual(no_findings["finding_count"], 0)
+
+    def test_draft_diagnostics_are_bounded_and_preserve_original_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            environment = self.targeted_environment(run, task)
+            draft = self.dimension_draft(task)
+            draft["observation_conditions"] = [{"evidence_refs": ["private text " * 50] * 40}]
+            payload = self.stop_payload(task, draft, parent="p", child="c")
+            diagnostic = _multidimensional_draft_diagnostics(payload, environment, failure_code="ORIGINAL_FAILURE")
+            self.assertEqual(diagnostic["finding_count"], 40)
+            self.assertEqual(len(diagnostic["findings"]), 32)
+            self.assertTrue(diagnostic["truncated"])
+            self.assertNotIn("private text", json.dumps(diagnostic))
+            for message in ("not JSON", "[]"):
+                unavailable = _multidimensional_draft_diagnostics(
+                    {"last_assistant_message": message}, environment, failure_code="ORIGINAL_FAILURE",
+                )
+                self.assertEqual(unavailable["status"], "UNAVAILABLE")
+                self.assertEqual(unavailable["first_failure_code"], "ORIGINAL_FAILURE")
+            with patch("product.runtime.codex_hook_recorder._research_index", side_effect=OSError("private path")):
+                unavailable = _multidimensional_draft_diagnostics(payload, environment, failure_code="ORIGINAL_FAILURE")
+            self.assertEqual(unavailable["status"], "UNAVAILABLE")
+            self.assertNotIn("private path", json.dumps(unavailable))
+
+    def test_initial_fundamental_condition_repair_stays_in_same_child(self) -> None:
+        for repair_succeeds in (True, False):
+            with self.subTest(repair_succeeds=repair_succeeds):
+                with tempfile.TemporaryDirectory() as temp:
+                    run, _ = self.prepare(Path(temp), count=1)
+                    index = json.loads((run / "research/dispatch-index.json").read_text())
+                    task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+                    environment = self.targeted_environment(run, task)
+                    environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
+                    parent, child = "parent-condition-repair", "child-condition-repair"
+                    allowed, _ = handle_hook_event(
+                        self.dispatch_payload(task, parent=parent), environ=environment,
+                    )
+                    self.assertEqual(allowed["decision"], "ALLOW")
+                    handle_hook_event(
+                        self.start_payload(task, parent=parent, child=child),
+                        environ=environment,
+                    )
+                    draft = self.dimension_draft(task)
+                    draft["observation_conditions"] = [{
+                        "condition_id": "condition-dangling",
+                        "description": "后续披露再核查。",
+                        "claim_refs": ["claim-not-present"],
+                        "evidence_refs": [],
+                    }]
+                    first, response = handle_hook_event(
+                        self.stop_payload(task, draft, parent=parent, child=child),
+                        environ=environment,
+                    )
+                    self.assertEqual(first["hook_event_name"], "SubagentStopBlocked")
+                    self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED")
+                    self.assertEqual(response["decision"], "block")
+                    repair = json.loads(response["reason"])
+                    self.assertEqual(repair["maximum_submissions"], 2)
+                    self.assertEqual(repair["validation_details"]["dangling_references"], [{
+                        "path": "observation_conditions[0].claim_refs[0]",
+                        "claim_id": "claim-not-present",
+                    }])
+                    self.assertLess(len(response["reason"].encode("utf-8")), 256 * 1024)
+                    corrected = copy.deepcopy(draft)
+                    if repair_succeeds:
+                        corrected["observation_conditions"] = []
+                    second, second_response = handle_hook_event(
+                        self.stop_payload(task, corrected, parent=parent, child=child),
+                        environ=environment,
+                    )
+                    self.assertEqual(second["output_capture"]["attempt"], 2)
+                    self.assertEqual(second_response, {})
+                    self.assertEqual(
+                        second["output_capture"]["status"],
+                        "SAVED" if repair_succeeds else "FAILED",
+                    )
+                    if not repair_succeeds:
+                        self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
+
+    def test_initial_fundamental_ungrounded_claim_repair_is_narrow(self) -> None:
+        for repair_succeeds in (True, False):
+            with self.subTest(repair_succeeds=repair_succeeds):
+                with tempfile.TemporaryDirectory() as temp:
+                    run, _ = self.prepare(Path(temp), count=1)
+                    index = json.loads((run / "research/dispatch-index.json").read_text())
+                    task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+                    environment = self.targeted_environment(run, task)
+                    environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
+                    parent, child = "parent-ungrounded", "child-ungrounded"
+                    draft = self.dimension_draft(task)
+                    draft["claims"] = [{
+                        "claim_id": "claim-unsupported-valuation",
+                        "question": "估值是否可判断？",
+                        "statement": "缺少可靠价格与计算条件，当前不能形成估值结论。",
+                        "kind": "INTERPRETATION",
+                        "evidence_refs": [], "research_claim_refs": [],
+                        "document_refs": [], "assumption_ids": [],
+                        "calculation_refs": [],
+                    }]
+                    payload = self.stop_payload(task, draft, parent=parent, child=child)
+                    old_environment = dict(environment)
+                    old_environment.pop("STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT")
+                    self.assertIsNone(_multidimensional_repair_packet(
+                        payload, old_environment,
+                        failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED", attempt=1,
+                    ))
+                    other = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+                    other_payload = self.stop_payload(
+                        other, {**draft, "invocation_id": other["invocation_id"]},
+                        parent=parent, child=child,
+                    )
+                    self.assertIsNone(_multidimensional_repair_packet(
+                        other_payload, environment,
+                        failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED", attempt=1,
+                    ))
+                    self.assertIsNone(_multidimensional_repair_packet(
+                        payload, environment,
+                        failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED", attempt=2,
+                    ))
+                    allowed, _ = handle_hook_event(
+                        self.dispatch_payload(task, parent=parent), environ=environment,
+                    )
+                    self.assertEqual(allowed["decision"], "ALLOW")
+                    handle_hook_event(
+                        self.start_payload(task, parent=parent, child=child),
+                        environ=environment,
+                    )
+                    first, response = handle_hook_event(payload, environ=environment)
+                    self.assertEqual(first["hook_event_name"], "SubagentStopBlocked")
+                    self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED")
+                    self.assertEqual(response["decision"], "block")
+                    repair = json.loads(response["reason"])
+                    self.assertEqual(repair["validation_details"]["ungrounded_claims"], [
+                        {"path": "claims[0]", "claim_id": "claim-unsupported-valuation"},
+                    ])
+                    self.assertEqual(repair["validation_details"]["findings"], [{
+                        "code": "DIMENSION_REPORT_CLAIM_UNGROUNDED",
+                        "path": "claims[0]", "identifier": "claim-unsupported-valuation",
+                    }])
+                    self.assertIn("data_gaps/limitations", repair["instruction"])
+                    self.assertLess(len(response["reason"].encode("utf-8")), 256 * 1024)
+                    corrected = copy.deepcopy(draft)
+                    if repair_succeeds:
+                        corrected["claims"] = []
+                    second, second_response = handle_hook_event(
+                        self.stop_payload(task, corrected, parent=parent, child=child),
+                        environ=environment,
+                    )
+                    self.assertEqual(second["output_capture"]["attempt"], 2)
+                    self.assertEqual(second_response, {})
+                    self.assertEqual(
+                        second["output_capture"]["status"],
+                        "SAVED" if repair_succeeds else "FAILED",
+                    )
+                    if not repair_succeeds:
+                        self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
+
+    def test_initial_fundamental_repairs_all_located_reference_issues_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            environment = self.targeted_environment(run, task)
+            environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
+            valid_id = task["allowed_evidence_ids"][0]
+            draft = self.dimension_draft(task)
+            draft["claims"] = [
+                {"claim_id": "claim-supported", "question": "已知事实是什么？",
+                 "statement": "存在已准入事实。", "kind": "FACT", "evidence_refs": [valid_id],
+                 "research_claim_refs": [], "document_refs": [], "assumption_ids": [],
+                 "calculation_refs": []},
+                {"claim_id": "claim-unsupported", "question": "估值情况？",
+                 "statement": "估值资料不足。", "kind": "INTERPRETATION", "evidence_refs": [],
+                 "research_claim_refs": [], "document_refs": [], "assumption_ids": [],
+                 "calculation_refs": []},
+            ]
+            draft["observation_conditions"] = [{
+                "condition_id": "condition-1", "description": "后续再核查。",
+                "claim_refs": ["claim-supported", "claim-missing"],
+                "evidence_refs": ["ev-short"],
+            }]
+            parent, child = "parent-combined", "child-combined"
+            allowed, _ = handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            self.assertEqual(allowed["decision"], "ALLOW")
+            handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            first, response = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(first["hook_event_name"], "SubagentStopBlocked")
+            self.assertEqual(response["decision"], "block")
+            repair = json.loads(response["reason"])
+            self.assertEqual({item["path"] for item in repair["validation_details"]["findings"]}, {
+                "claims[1]", "observation_conditions[0].evidence_refs[0]",
+                "observation_conditions[0].claim_refs[1]",
+            })
+            self.assertIn("不得按前缀猜测", repair["instruction"])
+            corrected = copy.deepcopy(draft)
+            corrected["claims"] = corrected["claims"][:1]
+            corrected["observation_conditions"][0]["claim_refs"] = ["claim-supported"]
+            corrected["observation_conditions"][0]["evidence_refs"] = [valid_id]
+            second, response = handle_hook_event(
+                self.stop_payload(task, corrected, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(response, {})
+            self.assertEqual(second["output_capture"]["status"], "SAVED")
+            self.assertEqual(second["output_capture"]["attempt"], 2)
+
+    def test_initial_evidence_repair_requires_complete_bounded_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            environment = self.targeted_environment(run, task)
+            environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
+            draft = self.dimension_draft(task)
+            draft["observation_conditions"] = [{"evidence_refs": ["ev-short"]}]
+            payload = self.stop_payload(task, draft, parent="p", child="c")
+            repair = _multidimensional_repair_packet(
+                payload, environment, failure_code="EVIDENCE_CLOSURE_FAILED:ev-short", attempt=1,
+            )
+            self.assertEqual(repair["validation_details"]["findings"][0]["path"],
+                             "observation_conditions[0].evidence_refs[0]")
+            self.assertIsNone(_multidimensional_repair_packet(
+                payload, environment, failure_code="EVIDENCE_CLOSURE_FAILED:ev-other", attempt=1,
+            ))
+            self.assertIsNone(_multidimensional_repair_packet(
+                payload, environment, failure_code="EVIDENCE_CLOSURE_FAILED:ev-short", attempt=2,
+            ))
+            old_environment = dict(environment)
+            old_environment.pop("STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT")
+            self.assertIsNone(_multidimensional_repair_packet(
+                payload, old_environment, failure_code="EVIDENCE_CLOSURE_FAILED:ev-short", attempt=1,
+            ))
+            draft["observation_conditions"][0]["evidence_refs"] = ["ev-short"] * 33
+            self.assertIsNone(_multidimensional_repair_packet(
+                self.stop_payload(task, draft, parent="p", child="c"), environment,
+                failure_code="EVIDENCE_CLOSURE_FAILED:ev-short", attempt=1,
             ))
 
     def test_trusted_start_envelopes_missing_identity_without_changing_raw_draft(self) -> None:
@@ -1172,6 +1471,344 @@ class MultidimensionalStageTests(unittest.TestCase):
             )
             self.assertEqual(len(proof["report_inventory"]), 2)
             self.assertTrue(proof["dependency_chain_complete"])
+
+    def test_initial_targeted_host_execution_finishes_without_retry_base(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            target = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+            dependency = next(item for item in index["tasks"] if item["task_id"] == target["depends_on"][0])
+            launched = []
+
+            def simulated_codex(command, *, input, cwd, env, **kwargs):
+                del command, input, cwd, kwargs
+                parent = "parent-initial-chain"
+                for number, task in enumerate((dependency, target), start=1):
+                    dispatched, _ = handle_hook_event(
+                        self.dispatch_payload(task, parent=parent), environ=env,
+                    )
+                    self.assertEqual(dispatched["decision"], "ALLOW")
+                    launched.append(task["task_name"])
+                    started, start_response = handle_hook_event(
+                        self.start_payload(task, parent=parent, child=f"child-{number}"),
+                        environ=env,
+                    )
+                    self.assertEqual(started["context_binding"]["status"], "DELIVERED")
+                    delivered = start_response["hookSpecificOutput"]["additionalContext"]
+                    self.assertLessEqual(len(delivered.encode("utf-8")), 256 * 1024)
+                    self.assertEqual(
+                        json.loads(delivered)["identity"]["task_name"], task["task_name"],
+                    )
+                    stopped, _ = handle_hook_event(
+                        self.stop_payload(
+                            task, self.dimension_draft(task), parent=parent,
+                            child=f"child-{number}",
+                        ), environ=env,
+                    )
+                    self.assertEqual(stopped["output_capture"]["status"], "SAVED")
+                (Path(env["TMPDIR"]) / "final-message.json").write_text(json.dumps({
+                    "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+                    "run_id": index["run_id"], "dispatched": 2, "completed": 2,
+                }), encoding="utf-8")
+                return subprocess.CompletedProcess([], 0, "", "")
+
+            with patch("product.runtime.multidimensional_stage.subprocess.run", side_effect=simulated_codex):
+                result, code = launch_multidimensional_stage(
+                    ROOT, run_dir=run, task_name=target["task_name"], initial_task=True,
+                )
+            self.assertEqual(code, 0)
+            self.assertEqual(result["status"], "PASSED")
+            self.assertEqual(launched, [dependency["task_name"], target["task_name"]])
+            self.assertFalse(result["complete_holding_research_bundle"])
+            proof = json.loads((run / "research/task-execution-proof.json").read_text())
+            self.assertEqual(proof["scope"], "DEPENDENCY_CHAIN_EVIDENCE")
+            self.assertEqual(len(proof["report_inventory"]), 2)
+            self.assertFalse((run / "research/holding-research-bundle.json").exists())
+            self.assertFalse((run / "research/retry-adoptions.jsonl").exists())
+            self.assertEqual(json.loads((run / "invocation/process-result.json").read_text())["stage_status"], "PASSED")
+            with self.assertRaisesRegex(MultidimensionalStageError, "INITIAL_TASK_SCOPE_OR_STATE_INVALID"):
+                launch_multidimensional_stage(
+                    ROOT, run_dir=run, task_name=target["task_name"], initial_task=True,
+                )
+
+    def test_initial_targeted_host_rejects_tampering_and_unapproved_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            wrong = next(item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT")
+            with self.assertRaisesRegex(MultidimensionalStageError, "INITIAL_TASK_SCOPE_OR_STATE_INVALID"):
+                launch_multidimensional_stage(
+                    ROOT, run_dir=run, task_name=wrong["task_name"], initial_task=True,
+                )
+            self.assertFalse((run / "invocation").exists())
+
+            gate_path = run / "evidence/gate.json"
+            gate = json.loads(gate_path.read_text())
+            gate["decision_cutoff"] = "2025-01-01T00:00:00Z"
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            target = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+            with self.assertRaisesRegex(MultidimensionalStageError, "INITIAL_INPUT_NOT_READY"):
+                launch_multidimensional_stage(
+                    ROOT, run_dir=run, task_name=target["task_name"], initial_task=True,
+                )
+            self.assertFalse((run / "invocation").exists())
+
+    def test_initial_targeted_host_blocks_downstream_after_invalid_upstream(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            target = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+            dependency = next(item for item in index["tasks"] if item["task_id"] == target["depends_on"][0])
+
+            def simulated_codex(command, *, input, cwd, env, **kwargs):
+                del command, input, cwd, kwargs
+                parent = "parent-invalid-upstream"
+                allowed, _ = handle_hook_event(
+                    self.dispatch_payload(dependency, parent=parent), environ=env,
+                )
+                self.assertEqual(allowed["decision"], "ALLOW")
+                handle_hook_event(
+                    self.start_payload(dependency, parent=parent, child="child-invalid"),
+                    environ=env,
+                )
+                invalid_draft = self.dimension_draft(dependency)
+                invalid_draft["run_id"] = "wrong-run"
+                stopped, _ = handle_hook_event(
+                    self.stop_payload(
+                        dependency, invalid_draft,
+                        parent=parent, child="child-invalid",
+                    ), environ=env,
+                )
+                self.assertNotEqual(stopped["output_capture"]["status"], "SAVED")
+                blocked, _ = handle_hook_event(
+                    self.dispatch_payload(target, parent=parent), environ=env,
+                )
+                self.assertEqual(
+                    blocked.get("dispatch_binding", {}).get("failure_code"),
+                    "RESEARCH_DEPENDENCY_NOT_READY", blocked,
+                )
+                (Path(env["TMPDIR"]) / "final-message.json").write_text(json.dumps({
+                    "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+                    "run_id": index["run_id"], "dispatched": 2, "completed": 2,
+                }), encoding="utf-8")
+                return subprocess.CompletedProcess([], 0, "", "")
+
+            with patch("product.runtime.multidimensional_stage.subprocess.run", side_effect=simulated_codex):
+                result, code = launch_multidimensional_stage(
+                    ROOT, run_dir=run, task_name=target["task_name"], initial_task=True,
+                )
+            self.assertEqual(code, 7)
+            self.assertEqual(result["status"], "FAILED")
+            process = json.loads((run / "invocation/process-result.json").read_text())
+            self.assertEqual(process["stage_status"], "FAILED")
+            self.assertEqual(process["task_outcomes"][1]["status"], "DEPENDENCY_BLOCKED")
+            failed = process["task_outcomes"][0]
+            self.assertEqual(failed["diagnostics"]["stage"], "REPORT_VALIDATION")
+            self.assertEqual(failed["diagnostics"]["first_failure_code"], failed["failure_code"].split(":", 1)[0])
+            self.assertFalse((run / "research/task-execution-proof.json").exists())
+            self.assertFalse((run / "research/holding-research-bundle.json").exists())
+
+    def test_live_preparation_failed_item_never_creates_research_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff = stock_handoff(1)
+            gate = gate_for(handoff)
+            gate["source_mode"] = "live-read-only"
+            gate["bundle_hash"] = canonical_hash({
+                key: value for key, value in gate.items() if key != "bundle_hash"
+            })
+            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            preparation = {
+                "common_cutoff": gate["decision_cutoff"],
+                "items": [{
+                    "security_id": handoff["portfolio"]["positions"][0]["security_id"],
+                    "status": "FAILED",
+                    "failure_code": "RESEARCH_MEMORY_RAW_CLOSURE_REPAIR_INCOMPLETE",
+                }],
+            }
+            preparation["preparation_hash"] = canonical_hash(preparation)
+            (root / "data-preparation.json").write_text(
+                json.dumps(preparation), encoding="utf-8",
+            )
+            with self.assertRaisesRegex(MultidimensionalStageError, "DATA_PREPARATION_NOT_READY"):
+                prepare_multidimensional_stage_run(
+                    ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                    run_dir=root / "run", run_id="failed-preparation",
+                    model="gpt-5.6-terra",
+                )
+            self.assertFalse((root / "run").exists())
+
+    def test_public_research_lead_is_queryable_and_citable_as_source_limited(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff = stock_handoff(1)
+            gate = gate_for(handoff)
+            lead_id = "ev-moomoo-public-rating-lead"
+            gate["allowed_evidence"].append({
+                "evidence_id": lead_id,
+                "security_id": "US:COMMON_STOCK:AAPL",
+                "dataset": "research_discovery",
+                "semantic_field": "moomoo_public_lead:3:post:123",
+                "value": {"title": "公开评级新闻标题", "content_tier": "LEAD_ONLY", "body_verified": False},
+                "source_id": "moomoo-public-news:post:123",
+                "source_family": "moomoo_public_news",
+                "source_type": "SECONDARY_VENDOR",
+                "as_of": "2026-07-01T00:00:00Z",
+                "retrieved_at": "2026-07-02T00:00:00Z",
+                "usage": "LEAD_ONLY",
+            })
+            gate["allowed_evidence_ids"] = sorted(
+                item["evidence_id"] for item in gate["allowed_evidence"]
+            )
+            gate["input_evidence_ids"] = list(gate["allowed_evidence_ids"])
+            gate["bundle_hash"] = canonical_hash({
+                key: value for key, value in gate.items() if key != "bundle_hash"
+            })
+            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            run = root / "run"
+            prepare_multidimensional_stage_run(
+                ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                run_dir=run, run_id="public-lead-test", model="gpt-5.6-terra",
+            )
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+            self.assertIn(lead_id, task["allowed_evidence_ids"])
+            packet = build_multidimensional_dispatch_packet(
+                ROOT, run, task["task_name"], include_dependency_reports=False,
+            )
+            self.assertIn(lead_id, packet["allowed_evidence_ids"])
+            self.assertEqual(packet["company_material_coverage"]["public_lead_evidence_ids"], [lead_id])
+            self.assertIn("至少用本任务只读 query 查询其中一条", packet["instruction"])
+            self.assertIn("不得据标题推断评级依据", packet["instruction"])
+            self.assertLessEqual(
+                len(serialize_multidimensional_initial_context(packet).encode("utf-8")),
+                256 * 1024,
+            )
+            tools = StatelessFixtureTools(default_run_dir=run)
+            result = tools.query(
+                run_id=task["run_id"], agent=task["agent"],
+                invocation_id=task["invocation_id"], evidence_ids=[lead_id],
+            )
+            self.assertEqual(result["evidence"][0]["evidence_id"], lead_id)
+            draft = self.dimension_draft(task)
+            draft.update(status="SOURCE_LIMITED", evaluation_status="SOURCE_LIMITED")
+            draft["claims"] = [{
+                "claim_id": "claim-public-lead",
+                "question": packet["minimum_questions"][0],
+                "statement": "存在公开评级新闻标题，原文论据未核验。",
+                "kind": "FACT", "evidence_refs": [lead_id],
+                "research_claim_refs": [], "assumption_ids": [],
+                "document_refs": [], "calculation_refs": [],
+            }]
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+            report = envelope_research_dimension_draft(
+                draft, task=task, invocation=invocation,
+                expected_bindings=self.research_bindings(run),
+                allowed_security_ids=task["security_ids"],
+                allowed_evidence_ids=task["allowed_evidence_ids"],
+                allowed_documents=task.get("allowed_documents", []),
+            )
+            self.assertEqual(report["status"], "SOURCE_LIMITED")
+            self.assertEqual(report["claims"][0]["evidence_refs"], [lead_id])
+            invalid = copy.deepcopy(draft)
+            invalid["claims"][0]["evidence_refs"] = ["ev-not-in-gate"]
+            with self.assertRaisesRegex(MultiDimensionalResearchError, "EVIDENCE"):
+                envelope_research_dimension_draft(
+                    invalid, task=task, invocation=invocation,
+                    expected_bindings=self.research_bindings(run),
+                    allowed_security_ids=task["security_ids"],
+                    allowed_evidence_ids=task["allowed_evidence_ids"],
+                    allowed_documents=task.get("allowed_documents", []),
+                )
+
+            # Exercise the real task builder with imported material states. The
+            # importer is stubbed; no network/model runs or frozen files change.
+            from tests.test_research_materials_stage import FakeOpenAlexClient
+            from product.runtime.multidimensional_stage import _report_document_from_verified
+            client = FakeOpenAlexClient(None, None)
+            candidate = client.search(
+                query="AAPL research", security_id="US:COMMON_STOCK:AAPL",
+                decision_cutoff=gate["decision_cutoff"],
+            )["candidates"][0]
+            body = client.fetch(candidate)
+            document = {"report_document": _report_document_from_verified(body), "content": body}
+            for preparation_status in ("SOURCE_LIMITED", "READY", "BLOCKED_CONFIGURATION", "FAILED"):
+                with self.subTest(preparation_status=preparation_status):
+                    documents = [document] if preparation_status == "READY" else []
+                    imported = {
+                        "documents_by_security": {"US:COMMON_STOCK:AAPL": documents},
+                        "documents_by_capability": {}, "peers_by_security": {},
+                        "shared_preparation_by_capability": {
+                            capability: {"status": "SOURCE_LIMITED", "gaps": [], "artifact_refs": []}
+                            for capability in ("MACRO_CONTEXT", "MARKET_STATE")
+                        },
+                        "peer_preparation_by_security": {"US:COMMON_STOCK:AAPL": {
+                            "status": "SOURCE_LIMITED", "gaps": [], "artifact_refs": [],
+                        }},
+                        "report_preparation_by_security": {"US:COMMON_STOCK:AAPL": {
+                            "status": preparation_status, "gaps": [], "artifact_refs": [],
+                        }},
+                        "import_hash": "a" * 64,
+                    }
+                    case_run = root / preparation_status
+                    with patch("product.runtime.multidimensional_stage._import_research_materials", return_value=imported):
+                        prepare_multidimensional_stage_run(
+                            ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                            run_dir=case_run, run_id="public-lead-test", model="gpt-5.6-terra",
+                            research_materials_run_path=root / "synthetic-materials",
+                        )
+                    case_index = json.loads((case_run / "research/dispatch-index.json").read_text())
+                    case_task = next(t for t in case_index["tasks"] if t["capability"] == "RESEARCH_REPORT")
+                    case_packet = build_multidimensional_dispatch_packet(
+                        ROOT, case_run, case_task["task_name"], include_dependency_reports=False,
+                    )
+                    self.assertEqual(case_packet["material_preparation"]["status"], preparation_status)
+                    self.assertEqual(case_packet["verified_documents"], documents)
+                    self.assertEqual(case_packet["company_material_coverage"]["public_lead_evidence_ids"], [lead_id])
+                    self.assertEqual(case_packet["company_material_coverage"]["independent_body_count"], len(documents))
+                    self.assertEqual(case_packet["tool_context"], packet["tool_context"])
+                    self.assertEqual(case_packet["output_schema"]["properties"]["status"], packet["output_schema"]["properties"]["status"])
+                    instruction = case_packet["instruction"]
+                    self.assertNotIn("并保留独立研报正文缺口与 SOURCE_LIMITED", instruction)
+                    if preparation_status in {"BLOCKED_CONFIGURATION", "FAILED"}:
+                        self.assertNotIn("至少用本任务只读 query 查询其中一条", instruction)
+                        self.assertIn("FAILED / evaluation_status=FAIL", instruction)
+                    else:
+                        self.assertIn("至少用本任务只读 query 查询其中一条", instruction)
+                        self.assertIn("不因存在标题自动降级", instruction)
+                        self.assertIn("不为引用数量拼凑主张", instruction)
+                        self.assertIn("说明具体核验用途", instruction)
+                    self.assertLessEqual(len(serialize_multidimensional_initial_context(case_packet).encode()), 256 * 1024)
+
+    def test_initial_hook_context_is_bounded_and_keeps_exact_query_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            packet = build_multidimensional_dispatch_packet(
+                ROOT, run, task["task_name"], include_dependency_reports=False,
+            )
+            text = serialize_multidimensional_initial_context(packet)
+            context = json.loads(text)
+            self.assertLessEqual(len(text.encode("utf-8")), 256 * 1024)
+            self.assertEqual(context["packet_hash"], canonical_hash(packet))
+            self.assertEqual(
+                {item["evidence_id"] for group in context["evidence_catalog"]
+                 for item in group["items"]},
+                set(task["allowed_evidence_ids"]),
+            )
+            self.assertEqual(context["tool_context"], packet["tool_context"])
+            self.assertEqual(context["output_schema_hash"], packet["output_schema_hash"])
+            self.assertNotIn("allowed_evidence_ids", context)
+            self.assertNotIn("capability_routing", context["provider_coverage"])
+            oversize = copy.deepcopy(packet)
+            oversize["evidence_catalog"] *= 2000
+            with self.assertRaisesRegex(MultidimensionalStageError, "INITIAL_CONTEXT_TOO_LARGE"):
+                serialize_multidimensional_initial_context(oversize)
 
     def test_repair_budget_exhausts_and_identity_failure_is_not_repairable(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

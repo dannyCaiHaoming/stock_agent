@@ -5,6 +5,7 @@ import json
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import re
 from typing import Any, Callable, Mapping, Sequence
 
 from product.mcp.provenance import iso_utc, parse_timestamp
@@ -104,6 +105,83 @@ def _yahoo_option_result(normalized: Mapping[str, Any]) -> dict[str, Any]:
         "status": "PARTIAL" if normalized.get("gaps") else "AVAILABLE",
         "failure_code": None, "evidence": evidence,
         "gaps": list(normalized.get("gaps", [])), "limitations": [],
+    }
+
+
+def capture_public_company_news_result(
+    *, security_id: str, ticker: str, issuer_name: str | None,
+    cache_root: Path, decision_cutoff: str | None = None,
+    transport: Callable[..., Any] | None = None,
+    now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+) -> dict[str, Any]:
+    """Two public metadata queries, never article-body fetches."""
+    from product.mcp.live.moomoo_public_news import fetch_news_search
+
+    source = "moomoo_public_news"
+    dataset = "research_discovery"
+    name = issuer_name.strip() if isinstance(issuer_name, str) and issuer_name.strip() else ticker
+    issuer_words = [
+        word for word in re.findall(r"[A-Za-z0-9]+", name.casefold())
+        if word not in {"inc", "corp", "corporation", "co", "ltd", "limited", "class"}
+    ]
+    issuer_key = " ".join(issuer_words[:2]) if len(issuer_words) >= 2 else None
+    title_ticker = re.compile(rf"(?<![A-Z0-9]){re.escape(ticker.upper())}(?:\.US)?(?![A-Z0-9])")
+    candidates, gaps, seen = [], [], set()
+    for keyword, news_type in ((ticker.upper(), 3), (name, 2)):
+        arguments = dict(keyword=keyword, news_type=news_type, cache_root=cache_root,
+                         decision_cutoff=decision_cutoff, now=now)
+        if transport is not None:
+            arguments["transport"] = transport
+        try:
+            result = fetch_news_search(**arguments)
+        except (OSError, ValueError) as exc:
+            code = str(exc).split(":", 1)[0]
+            gaps.append(code if code.startswith("MOOMOO_PUBLIC_NEWS_") else "MOOMOO_PUBLIC_NEWS_FAILED")
+            continue
+        for candidate in result["candidates"]:
+            title = candidate["title"]
+            lowered = title.casefold()
+            if re.search(r"\b(?:etf|etn|leveraged|inverse|fund)\b", lowered):
+                gaps.append("MOOMOO_PUBLIC_NEWS_NON_ISSUER_INSTRUMENT")
+                continue
+            if not title_ticker.search(title.upper()) and not (
+                issuer_key and issuer_key in " ".join(re.findall(r"[a-z0-9]+", lowered))
+            ):
+                gaps.append("MOOMOO_PUBLIC_NEWS_ISSUER_UNVERIFIED")
+                continue
+            dedupe_key = (candidate["canonical_url"], title.casefold())
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            candidates.append((candidate, result))
+    if not candidates:
+        return _failure(source, dataset, gaps[0] if gaps else "MOOMOO_PUBLIC_NEWS_NO_RELEVANT_LEADS")
+    gaps = list(dict.fromkeys(gaps))
+    evidence = []
+    for candidate, result in candidates:
+        news_type = candidate["news_type"]
+        evidence.append(build_supplement_fact(
+            security_id=security_id, dataset=dataset,
+            semantic_field=f"moomoo_public_lead:{news_type}:{candidate['news_id']}",
+            value={
+                "title": candidate["title"], "original_url": candidate["original_url"],
+                "canonical_url": candidate["canonical_url"], "news_type": news_type,
+                "content_tier": "LEAD_ONLY",
+                "lead_kind": "NOTICE_INDEX" if news_type == 2 else "RATING_OR_RESEARCH_NEWS",
+                "body_verified": False,
+            },
+            source_id=candidate["source_id"], source_family=source,
+            source_locator=candidate["canonical_url"],
+            source_version="moomoo-public-news-search/1.0.0",
+            as_of=candidate["published_at"], published_at=candidate["published_at"],
+            retrieved_at=result["retrieved_at"], raw_content_hash=result["raw_content_hash"],
+            limitations=["仅标题与链接线索；非独立研报或发行人原文正文"],
+        ))
+    return {
+        "source": source, "dataset": dataset,
+        "status": "PARTIAL" if gaps else "AVAILABLE", "failure_code": None,
+        "evidence": evidence, "gaps": gaps,
+        "limitations": ["仅发现线索；正文未核验，不能满足 BODY_VERIFIED"],
     }
 
 
@@ -592,6 +670,7 @@ def build_research_supplements(
             )
             if item["status"] not in {"NOT_ATTEMPTED", "AVAILABLE"} and not limitations:
                 limitations.append(item["failure_code"] or "来源覆盖不完整")
+            request_count = 2 if item["source"] == "moomoo_public_news" else 1
             capabilities.append(build_capability(
                 source=item["source"],
                 region="SG" if item["source"] == "moomoo_sg" else "US",
@@ -600,11 +679,11 @@ def build_research_supplements(
                 endpoint_version=facts[0]["source_version"] if facts else None,
                 checked_at=cutoff,
                 as_of=max((fact["as_of"] for fact in facts), default=cutoff),
-                attempt_count=1, limitations=limitations,
+                attempt_count=request_count, limitations=limitations,
                 failure_code=item["failure_code"],
                 evidence_ids=[fact["evidence_id"] for fact in facts],
                 raw_content_hashes=[fact["raw_content_hash"] for fact in facts],
-                request_budget=1, actual_requests=1,
+                request_budget=request_count, actual_requests=request_count,
             ))
         batch = build_capture_batch(
             batch_id=batch_id, security_id=security_id, decision_cutoff=cutoff,

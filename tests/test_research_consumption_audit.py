@@ -228,6 +228,22 @@ class ResearchConsumptionAuditTests(unittest.TestCase):
             self.assertEqual(audit["rows"][0]["use_status"], "NOT_VERIFIED")
             self.assertEqual(audit["event_file_presence"], {str(run.resolve()): False})
 
+    def test_public_market_news_is_classified_as_market_without_routing_observation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            write_json(run / "evidence/gate.json", {
+                "run_id": "run-market", "decision_cutoff": "2026-02-02T00:00:00Z",
+                "bundle_hash": "d" * 64,
+                "allowed_evidence": [{
+                    "evidence_id": "ev-market-title", "semantic_field": "market_news_item",
+                    "source_id": "moomoo-public-news:1", "as_of": "2026-02-01T00:00:00Z",
+                    "retrieved_at": "2026-02-01T01:00:00Z", "metadata": {},
+                }], "excluded": [],
+            })
+            audit = build_research_consumption_audit(run)
+            self.assertEqual(audit["rows"][0]["domain"], "MARKET")
+            self.assertEqual(audit["rows"][0]["use_status"], "NOT_VERIFIED")
+
 
 if __name__ == "__main__":
     unittest.main()

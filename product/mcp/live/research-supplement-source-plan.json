@@ -15,7 +15,7 @@
     {"dataset": "insider_transactions", "primary": "sec", "fallback": null, "supplemental_sources": ["moomoo_sg"], "max_fallback_attempts": 0},
     {"dataset": "options_snapshot", "primary": "yahoo", "fallback": "moomoo_sg", "supplemental_sources": [], "max_fallback_attempts": 1},
     {"dataset": "vendor_money_flow", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
-    {"dataset": "research_discovery", "primary": "moomoo_sg", "fallback": "yahoo", "supplemental_sources": [], "max_fallback_attempts": 1},
+    {"dataset": "research_discovery", "primary": "moomoo_sg", "fallback": "yahoo", "supplemental_sources": ["moomoo_public_news"], "max_fallback_attempts": 1},
     {"dataset": "options_underlying_context", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
     {"dataset": "option_market_statistics", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},
     {"dataset": "market_breadth", "primary": "moomoo_sg", "fallback": null, "supplemental_sources": [], "max_fallback_attempts": 0},

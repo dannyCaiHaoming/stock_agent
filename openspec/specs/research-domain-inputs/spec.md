@@ -74,6 +74,52 @@ Company、Macro、Market SHALL 作为面向研究输入与展示的稳定域。�
 - **WHEN** 已完成规定时间窗口和范围的真实查询但没有合格新闻
 - **THEN** 保存查询范围及零结果，不虚构新闻，也不推断市场没有事件
 
+### Requirement: Moomoo 公开搜索仅作为独立的有界线索来源
+系统 MUST 将 `moomoo-news-search` 对应的公开新闻、公告和 `Research` 搜索结果与 `moomoo_sg` loopback OpenD 分别标识。候选 MUST 保留原始链接、标题、来源类别、`source_id`、发布时间或明确缺失、`retrieved_at` 和研究截止点，并按证券身份、相关性、重复和 PIT 规则筛选。仅有搜索元数据时内容层级 MUST 为 `LEAD_ONLY` 或标题线索；`Research` 类别、评级快讯、二次转引或公告索引 MUST NOT 自动成为独立研报 `BODY_VERIFIED`、发行人原始披露或 Company Thesis 事实。
+
+#### Scenario: MRVL 搜索混入其他公司或相关 ETF
+- **WHEN** 搜索命中名称相近的非 Marvell 公司、杠杆 MRVL ETF 或无法核对发行人身份的项目
+- **THEN** 该项目不得作为 `US:COMMON_STOCK:MRVL` 的公司事实或研报正文交付，并记录排除原因
+
+#### Scenario: 评级新闻被归入 Research 类别
+- **WHEN** 返回标题、时间和 URL，但未取得可核验正文及正文出处
+- **THEN** 系统最多将其作为 Company `RESEARCH_REPORT` 发现线索，保留观点/转引身份与正文缺口，不将该维度或整个研究链标为研报正文完成
+
+### Requirement: 公开新闻线索必须按 Company、Macro、Market 语义消费
+Company 的合格线索进入现有多维 `RESEARCH_REPORT`，只提示后续核验；普通 `COMMON_STOCK_RESEARCH` 的 Company 首版上下文继续排除专门能力的 `research_discovery`，不得为验收而扩大。发行人事件以 SEC/IR 原文为事实锚点；Market 仅可在标题确属本批截止点前、设定时窗内且与市场研究问题相关时，将其作为有限新闻背景。Macro 官方观察和政策正文仍由既有官方来源承担；Moomoo OpenD 宏观实际/供应商共识是二级补充，公开新闻标题不能替代数值 Evidence。系统 MUST 在单一 MRVL 样本中分别报告来源尝试、Gate 准入、研究工具交付、有效报告引用或未引用原因；不得只凭适配器存在、Gate 准入或 JSON 保存称为 Agent 已使用。
+
+#### Scenario: 公开 Company 线索的实际消费验收
+- **WHEN** 同一截止点的 MRVL Gate 已准入公开 `research_discovery` 线索，需要证明其被研究 Agent 实际使用
+- **THEN** 验收走现有多维 `FUNDAMENTAL_EVENT → RESEARCH_REPORT` 依赖链，核对 `RESEARCH_REPORT` 的允许 ID、成功工具查询，以及通过 Schema/引用闭包的报告对至少一条新增公开线索的原样引用；报告只可把它作为线索或缺口，不得提升成正文或公司事实。若只有工具查询或有依据的未引用原因，必须如实记录但不得称新增线索已被报告消费，继续保持待研究验证
+
+#### Scenario: 公开线索在混合研究目录中可辨认
+- **WHEN** `RESEARCH_REPORT` 的允许目录同时含大量 OpenD 评级快照和已准入的公开标题线索
+- **THEN** 同一任务输入明确列出公开线索的原样 Evidence ID，并要求 Agent 至少查询一条，核实其与当前研究问题的关系；采用时在已有 claim 引用中解释用途、标题/链接层级及核验限制。不相关、重复或无新增价值的线索允许排除并记录原因，不为引用数量拼凑主张；未引用仍不得标为报告已消费。本次 MRVL 正例的真实查询及至少一条合法引用验收不变。没有公开线索时不施加此要求，其他研究维度不变
+
+#### Scenario: 标题线索与已核验正文并存
+- **WHEN** 公开线索与可用的独立研报正文同时进入 RESEARCH_REPORT
+- **THEN** 线索自身保持 LEAD_ONLY，报告整体状态依据已核验正文与研究问题的实际覆盖判断；不得因存在标题自动输出 SOURCE_LIMITED，不得仅因有一份正文就自动宣布充分。没有足够正文时仍保留真实正文缺口
+
+#### Scenario: 配置阻断优先于线索可用
+- **WHEN** material_preparation.status 为 BLOCKED_CONFIGURATION，且公开线索可用
+- **THEN** 原有 FAILED / evaluation_status=FAIL 与配置缺口要求优先；线索可用不得将配置失败改写成 SOURCE_LIMITED。既有 FAILED 准备状态也按原失败契约处理
+
+#### Scenario: Market 24 小时窗口得到相关标题
+- **WHEN** 现有新闻源在本次时窗内无合格项目，而 Moomoo 公开搜索在有界请求内取得身份、时间和相关性均合格的市场标题
+- **THEN** Market 可消费明确标为标题线索的项目，保留原链接和来源限制；不得推断正文事件、市场宽度、信用利差或确定性行情方向
+
+#### Scenario: 线索引用沿用现有报告契约
+- **WHEN** 验证 Agent 对公开标题线索的实际消费
+- **THEN** 报告通过已有 Schema，在已有 claim 引用字段保留原样 Gate ID，只陈述线索存在及核验限制，保留正文缺口；不得向 gap 添加未支持字段、将标题升级为经营事实或为验收强制投资结论，合法保存也不代表独立研报正文完整
+
+#### Scenario: 搜索结果不相关或超过截止点
+- **WHEN** 仅有无关标题、未来发布时间或无法证明 24 小时窗口的项目
+- **THEN** Market 新闻缺口保持，Macro/Company 不借用这些项目填满各自覆盖；系统记录实际尝试而不制造 `AVAILABLE`
+
+#### Scenario: 既有 OpenD 宏观数据通过 Gate 但报告未引用
+- **WHEN** Moomoo Macro History、Economic Calendar、FedWatch 或 Dot Plot 已采集并通过 Gate，但目标任务没有查询或没有形成有效引用
+- **THEN** 覆盖报告分开呈现采集成功与未消费，并保持官方/二级供应商、实际/共识/市场预期的语义边界
+
 ### Requirement: 外部金融 Skill 必须证明可移植及可取数
 `wb-finance-skill` 及公开第三方归档 `infometa/workbuddyskills` 中的 `westock-data`、`neodata-financial-search` 等候选 MUST 逐数据集核实原包/归档 commit、文件和脚本 hash、依赖精确版本与完整性、许可、网络端点、宿主工具、认证、费用及美股实际字段覆盖。归档内容 MUST 只作为候选发现与审阅材料，不能被视为官方分发、数据权威或可直接执行的生产依赖；仅当独立数据能力真实可调用并满足 Evidence 契约时才能经确定性 adapter 接入。含浮动依赖、远程脚本或通用命令执行的候选 MUST 在代码审阅、版本锁定、最小网络 allowlist 和隔离验证前保持禁用。未取得原包、依赖 WorkBuddy 专属服务或无法确认使用条件时 MUST 标记 `NOT_VERIFIED`、`SOURCE_LIMITED` 或 `REJECTED`，并继续其他公开来源路径。系统 MUST NOT 把复制 Skill 文本、安装成功或 README 声明视为获得外部数据权限或完成取数。
 

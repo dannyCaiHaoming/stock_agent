@@ -86,6 +86,42 @@ class HostProxyTests(unittest.TestCase):
         self.assertNotIn('dangerously-bypass', text)
         self.assertNotIn('network_proxy=false', text)
 
+    def test_initial_targeted_host_entry_routes_to_existing_launcher(self):
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            prepared = base / 'prepared'
+            prepared.mkdir()
+            wrapper = base / 'python3'
+            wrapper.write_text(
+                '#!/bin/bash\n'
+                'if [ "$1" = "-" ]; then exec "' + sys.executable + '" "$@"; fi\n'
+                'printf "%s\\n" "$*" >> "$TEST_COMMAND_LOG"\n'
+            )
+            wrapper.chmod(0o700)
+            scutil = base / 'scutil'
+            scutil.write_text(
+                '#!/bin/bash\n'
+                'if [ "$1" = "--proxy" ]; then '
+                'printf "HTTPEnable : 1\\nHTTPProxy : localhost\\nHTTPPort : 23456\\n"; '
+                'fi\n'
+            )
+            scutil.chmod(0o700)
+            log = base / 'commands'
+            result = subprocess.run(
+                ['bash', str(ROOT / 'scripts/run-product-smoke.sh'),
+                 '--start-multidimensional-task', str(prepared),
+                 'dimension_research_3', str(base / 'host')],
+                env={**os.environ, 'PATH': str(base) + os.pathsep + os.environ['PATH'],
+                     'TEST_COMMAND_LOG': str(log)},
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(len(log.read_text().splitlines()), 1)
+            call = log.read_text()
+            self.assertIn('launch-multidimensional-research', call)
+            self.assertIn('--task-name dimension_research_3 --initial-task', call)
+
     def test_host_routes_and_preserves_failure(self):
         for status in (0, 9, 7):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as directory:

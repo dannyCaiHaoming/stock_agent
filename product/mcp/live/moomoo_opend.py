@@ -59,6 +59,15 @@ def _version_tuple(value: str) -> tuple[int, ...]:
     return tuple(int(item) for item in parts)
 
 
+def _sdk_log_permission_denied(exc: PermissionError) -> bool:
+    """Identify the SDK's own log directory without exposing a private path."""
+    filename = getattr(exc, "filename", None)
+    if not isinstance(filename, str):
+        return False
+    path = Path(filename)
+    return path.parent.name == "Log" and path.parent.parent.name == ".com.moomoo.OpenD"
+
+
 def validate_quote_manifest(manifest: Mapping[str, Any]) -> None:
     required = {
         "schema_version", "manifest_id", "region", "status", "sdk_distribution",
@@ -582,7 +591,10 @@ class MoomooOpenDQuoteClient:
                 raise ValueError("MOOMOO_OPEND_DATE_WINDOW_EXCEEDED")
 
     def _sdk_version(self) -> str:
-        version = self.sdk_version_loader()
+        try:
+            version = self.sdk_version_loader()
+        except importlib.metadata.PackageNotFoundError as exc:
+            raise MoomooOpenDError("MOOMOO_SDK_UNAVAILABLE") from exc
         if version != self.manifest["sdk_version"]:
             raise MoomooOpenDError("MOOMOO_SDK_VERSION_UNSUPPORTED")
         return version
@@ -590,6 +602,14 @@ class MoomooOpenDQuoteClient:
     def _connect(self) -> Any:
         try:
             return self.context_factory(self.host, self.port)
+        except PermissionError as exc:
+            code = (
+                "MOOMOO_SDK_LOG_PERMISSION_DENIED" if _sdk_log_permission_denied(exc)
+                else "MOOMOO_OPEND_CONNECT_PERMISSION_DENIED"
+            )
+            raise MoomooOpenDError(code) from exc
+        except ImportError as exc:
+            raise MoomooOpenDError("MOOMOO_SDK_UNAVAILABLE") from exc
         except (OSError, TimeoutError, ConnectionError) as exc:
             raise MoomooOpenDError("MOOMOO_OPEND_UNREACHABLE") from exc
 
@@ -614,6 +634,13 @@ class MoomooOpenDQuoteClient:
         except AttributeError as exc:
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_METHOD_UNAVAILABLE") from exc
+        except PermissionError as exc:
+            self.open_circuits.add(capability_id)
+            code = (
+                "MOOMOO_SDK_LOG_PERMISSION_DENIED" if _sdk_log_permission_denied(exc)
+                else "MOOMOO_OPEND_CALL_PERMISSION_DENIED"
+            )
+            raise MoomooOpenDError(code) from exc
         except (OSError, TimeoutError, ConnectionError) as exc:
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_CALL_FAILED") from exc

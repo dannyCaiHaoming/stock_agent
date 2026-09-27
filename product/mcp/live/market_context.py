@@ -70,13 +70,14 @@ def _fact(
     *, security_id: str, semantic_field: str, value: str, unit: str,
     source_id: str, source_locator: str, as_of: str, published_at: str,
     retrieved_at: str, raw_content_hash: str, kind: str, metadata: Mapping[str, Any],
+    source_type: str = "yahoo", source_version: str = ADAPTER_VERSION,
 ) -> dict[str, Any]:
     fact = {
         "schema_version": "live-fact/1.0.0", "security_id": security_id,
         "semantic_field": semantic_field, "value": value, "unit": unit,
         "currency": None,
-        "source_id": source_id, "source_type": "yahoo",
-        "source_locator": source_locator, "source_version": ADAPTER_VERSION,
+        "source_id": source_id, "source_type": source_type,
+        "source_locator": source_locator, "source_version": source_version,
         "as_of": iso_utc(as_of), "published_at": iso_utc(published_at),
         "published_at_policy": "provider_timestamp" if kind == "news" else "retrieval_time_conservative",
         "retrieved_at": iso_utc(retrieved_at), "raw_content_hash": raw_content_hash,
@@ -185,11 +186,54 @@ def normalize_news(
     }
 
 
+def normalize_public_market_news(
+    result: Mapping[str, Any], *, decision_cutoff: str,
+) -> dict[str, Any]:
+    """Fallback headlines only; never treat the search snippet as article content."""
+    cutoff = parse_timestamp(decision_cutoff)
+    start = cutoff - timedelta(hours=24)
+    evidence, excluded = [], []
+    market_terms = (
+        "stock market", "s&p 500", "nasdaq hits", "nasdaq falls",
+        "dow jones", "treasury yield", "bond yield", "equities",
+        "us stocks", "market structure", "stock-bond allocations",
+    )
+    for candidate in result["candidates"]:
+        published = parse_timestamp(candidate["published_at"])
+        title = candidate["title"]
+        if not start <= published <= cutoff:
+            excluded.append("MARKET_NEWS_OUTSIDE_24H")
+            continue
+        if not any(term in title.casefold() for term in market_terms):
+            excluded.append("MARKET_NEWS_NOT_RELEVANT")
+            continue
+        evidence.append(_fact(
+            security_id="US:MARKET", semantic_field="market_news_item",
+            value=json.dumps({
+                "title": title, "publisher": "moomoo public search",
+                "original_url": candidate["original_url"], "content_tier": "TITLE_ONLY",
+            }, ensure_ascii=False),
+            unit="news_item", source_id=candidate["source_id"],
+            source_locator=candidate["canonical_url"],
+            as_of=candidate["published_at"], published_at=candidate["published_at"],
+            retrieved_at=result["retrieved_at"],
+            raw_content_hash=result["raw_content_hash"], kind="news",
+            metadata={
+                "window_hours": 24, "content_tier": "TITLE_ONLY",
+                "limitation": "public search headline only; not verified article body",
+            },
+            source_type="public_research",
+            source_version="moomoo-public-news-search/1.0.0",
+        ))
+    return {"evidence": evidence, "excluded": excluded}
+
+
 def collect_market_context_snapshot(
     *, policy_path: Path, output_path: Path, cache_root: Path,
     decision_cutoff: str | None = None,
     now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     transport: Callable[[Request], Response] = _http,
+    public_news_transport: Callable[[Request], Response] | None = None,
 ) -> dict[str, Any]:
     policy = json.loads(Path(policy_path).read_text(encoding="utf-8"))
     source = policy.get("sources", {}).get("yahoo_market_context", {})
@@ -236,6 +280,7 @@ def collect_market_context_snapshot(
     news_event = {"provider": "yahoo_market_context", "operation": "news", "request_number": 1,
                   "started_at": iso_utc(now())}
     events.append(news_event)
+    yahoo_news_found = False
     try:
         response = transport(Request(news_endpoint, headers={"Accept": "application/json", "User-Agent": "stock-agent-readonly/1.0"}, method="GET"))
         news_event.update(http_status=response.status, completed_at=iso_utc(now()))
@@ -246,13 +291,49 @@ def collect_market_context_snapshot(
         normalized = normalize_news(response.body, retrieved_at=record["retrieved_at"], endpoint=news_endpoint,
                                     decision_cutoff=iso_utc(cutoff))
         evidence.extend(normalized["evidence"])
-        gaps.extend(normalized["gaps"])
+        yahoo_news_found = bool(normalized["evidence"])
         records.append(record["record_hash"])
         news_event.update(status="FETCHED", record_hash=record["record_hash"])
     except (OSError, ValueError, KeyError, TypeError) as exc:
         code = str(exc).split(":", 1)[0]
         news_event.update(status="FAILED", failure_code=code, completed_at=news_event.get("completed_at", iso_utc(now())))
         gaps.append({"dataset": "market_news_24h", "reason": code})
+    if not yahoo_news_found:
+        from product.mcp.live.moomoo_public_news import fetch_news_search
+
+        public_event = {
+            "provider": "moomoo_public_news", "operation": "market_news_fallback",
+            "request_number": 1, "started_at": iso_utc(now()),
+        }
+        events.append(public_event)
+        arguments = {
+            "keyword": "US stock market", "news_type": 1,
+            "cache_root": cache_root, "decision_cutoff": iso_utc(cutoff), "now": now,
+        }
+        if public_news_transport is not None:
+            arguments["transport"] = public_news_transport
+        try:
+            public_result = fetch_news_search(**arguments)
+            normalized_public = normalize_public_market_news(
+                public_result, decision_cutoff=iso_utc(cutoff),
+            )
+            evidence.extend(normalized_public["evidence"])
+            records.append(public_result["record_hash"])
+            public_event.update(
+                status="FETCHED", completed_at=public_result["retrieved_at"],
+                record_hash=public_result["record_hash"],
+                candidate_count=len(public_result["candidates"]),
+                accepted_count=len(normalized_public["evidence"]),
+                excluded_reasons=normalized_public["excluded"],
+            )
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            code = str(exc).split(":", 1)[0]
+            if not code.startswith("MOOMOO_PUBLIC_NEWS_"):
+                code = "MOOMOO_PUBLIC_NEWS_FAILED"
+            public_event.update(status="FAILED", failure_code=code, completed_at=iso_utc(now()))
+            gaps.append({"dataset": "market_news_24h", "reason": code})
+        if not any(item.get("semantic_field") == "market_news_item" for item in evidence):
+            gaps.append({"dataset": "market_news_24h", "reason": "MARKET_NEWS_WINDOW_EMPTY", "window_hours": 24})
     snapshot_cutoff = cutoff
     if decision_cutoff is None:
         # 实时采集的查询窗口在首个请求前冻结，但 Evidence 的获取时间会自然晚于

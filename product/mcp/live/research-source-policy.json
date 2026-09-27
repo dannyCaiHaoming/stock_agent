@@ -1,5 +1,5 @@
 {
-  "schema_version": "research-source-policy/1.1.0",
+  "schema_version": "research-source-policy/1.2.0",
   "checked_at": "2026-09-19T00:00:00Z",
   "purpose": "personal-read-only-research",
   "sources": {
@@ -58,6 +58,18 @@
       "limitations": [
         "板块、债券、美元、商品和信用中的 ETF 只是明确代理，不是现货、原始指数或资金流",
         "Yahoo 新闻搜索只冻结标题、发布者和原始链接线索，不冒充已读正文"
+      ]
+    },
+    "moomoo_public_news": {
+      "adapter_version": "moomoo-public-news-search/1.0.0",
+      "authentication": "none",
+      "domains": ["ai-news-search.moomoo.com"],
+      "endpoint": "https://ai-news-search.moomoo.com/news_search",
+      "request_budget": {"per_security": 2, "market": 1, "results_per_query": 10},
+      "limitations": [
+        "仅返回标题、类别、发布时间和外部链接，不提供已验证正文",
+        "Research 搜索类别并不证明独立研报原文或投资观点已核实",
+        "公司或市场相关性和 point-in-time 必须逐条核对"
       ]
     },
     "openalex": {

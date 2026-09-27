@@ -93,15 +93,16 @@
         {"provider": "sec", "region": "US", "access": "public_read_only", "status": "AVAILABLE", "role": "公司补充披露", "limitations": []},
         {"provider": "yahoo", "region": "US", "access": "public_read_only", "status": "PARTIAL", "role": "预期、事件、期权和市场补充", "limitations": ["逐数据集状态决定实际覆盖"]},
         {"provider": "moomoo_sg", "region": "SG", "access": "loopback_opend_quote_only", "status": "PARTIAL", "role": "逐数据集只读研究补充", "limitations": ["不提供 Cookie、Trade Context、账户、持仓、资金或订单能力", "不可替代 SEC/Yahoo"]},
+        {"provider": "moomoo_public_news", "region": "GLOBAL", "access": "public_https_no_auth", "status": "PARTIAL", "role": "Company 研报发现与 Market 24 小时标题后备", "limitations": ["只有标题、类别、发布时间和链接线索", "不等于研报正文、发行人公告原文或宏观数值"]},
         {"provider": "openalex", "region": "GLOBAL", "access": "public_api", "status": "PARTIAL", "role": "公开研究发现和正文候选", "limitations": ["不等同于券商研报库", "正文接口可能需要外置 API key"]}
       ]
     }
   ],
   "source_references": [
-    {"reference_id": "research_source_policy", "path": "mcp/live/research-source-policy.json", "version": "research-source-policy/1.1.0", "sha256": "694f520b60b3f82f4af6196e885972dd9b8e778e57fbc4fd5597180e08fff1dd"},
-    {"reference_id": "research_supplement_source_plan", "path": "mcp/live/research-supplement-source-plan.json", "version": "research-supplement-source-plan/1.0.0", "sha256": "4709159d60259ab0e6d04dd4eb8d4e09a2e2fd3987164a106a578485e3758c0d"},
+    {"reference_id": "research_source_policy", "path": "mcp/live/research-source-policy.json", "version": "research-source-policy/1.2.0", "sha256": "f216829992e798119a696acb5aff0a0927497c0dcef7d7ab3206ef94db254a1f"},
+    {"reference_id": "research_supplement_source_plan", "path": "mcp/live/research-supplement-source-plan.json", "version": "research-supplement-source-plan/1.0.0", "sha256": "17f27b06518a80048cdb97a8fd6a9ee828507ef319c692cf1d235dd63e343bed"},
     {"reference_id": "moomoo_opend_quote_manifest", "path": "mcp/live/moomoo-opend-quote-manifest.json", "version": "moomoo-opend-quote-manifest/1.0.0", "sha256": "6a9acbf70b28b73e412ef4a90e07f9795b72beb029413e46cdf02d164bcbaa1b"},
-    {"reference_id": "research_source_capability_contract", "path": "schemas/runtime/research-source-capability.schema.json", "version": "research-source-capability/1.2.0", "sha256": "543c42dfe1f7a0369c850b0f97c81ba690de91b6b360dfeacd85bb4073ec1fd0"},
+    {"reference_id": "research_source_capability_contract", "path": "schemas/runtime/research-source-capability.schema.json", "version": "research-source-capability/1.2.0", "sha256": "d2cae378ec8a2fa8c8ac4f0586b61a3edc4f7c98ba52f5fca333bfc643869363"},
     {"reference_id": "retired_live_profile", "path": "profiles/live-us-equity.json", "version": "live-us-equity/4.0.0", "sha256": "af29d628337b19283f5663a3da7298da34ed221dac093a4624f1d65ad9c1edf5"}
   ],
   "compatibility_profiles": [
@@ -114,5 +115,5 @@
       "successor_profile_id": "holding-research-inputs/1.0.0"
     }
   ],
-  "topology_hash": "37f275e96498688af9df5060f358384db090fcf682668e890fc16d0e9c12c0bf"
+  "topology_hash": "bb15399a60f076db85d2f8a0553b429ca9e8bbb6e3b144be41cc5c82cab51127"
 }

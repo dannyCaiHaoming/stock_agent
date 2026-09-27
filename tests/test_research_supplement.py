@@ -135,6 +135,34 @@ class SourcePlanTests(unittest.TestCase):
         )[0]
         self.assertEqual(result["package"]["extra_evidence"][0]["security_id"], "US:MARKET")
 
+    def test_public_news_lead_is_supplemental_research_discovery_not_body(self):
+        lead = build_supplement_fact(
+            security_id=SECURITY, dataset="research_discovery",
+            semantic_field="moomoo_public_lead:3:rating",
+            value={"title": "AAPL rating news", "news_type": 3,
+                   "content_tier": "LEAD_ONLY", "body_verified": False,
+                   "original_url": "https://www.moomoo.com/news/post/rating"},
+            source_id="moomoo-public-news:rating", source_family="moomoo_public_news",
+            source_locator="https://www.moomoo.com/news/post/rating",
+            source_version="moomoo-public-news-search/1.0.0",
+            as_of="2026-09-15T10:00:00Z", published_at="2026-09-15T10:00:00Z",
+            retrieved_at="2026-09-15T11:00:00Z", raw_content_hash="c" * 64,
+        )
+        result = build_research_supplements(
+            [{"security_id": SECURITY, "ticker": "AAPL"}],
+            gate={"decision_cutoff": NOW, "allowed_evidence": []}, run_id="public-news-test",
+            external_results={SECURITY: [{
+                "source": "moomoo_public_news", "dataset": "research_discovery",
+                "status": "AVAILABLE", "failure_code": None, "evidence": [lead],
+                "gaps": [], "limitations": ["search metadata only"],
+            }]},
+        )[0]
+        self.assertEqual(len(result["package"]["extra_evidence"]), 1)
+        self.assertEqual(result["package"]["extra_evidence"][0]["value"]["content_tier"], "LEAD_ONLY")
+        selection = next(item for item in result["batch"]["source_selections"]
+                         if item["dataset"] == "research_discovery")
+        self.assertEqual(selection["supplemental_sources_used"], ["moomoo_public_news"])
+
     def test_cross_region_or_two_fallback_plan_is_rejected(self):
         plan = load_source_plan()
         broken = deepcopy(plan)

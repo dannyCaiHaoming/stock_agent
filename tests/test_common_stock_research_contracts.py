@@ -77,6 +77,7 @@ from product.runtime.common_stock_stage import (
 from product.runtime.common_stock_data import (
     CommonStockDataError,
     _collection_failure_code,
+    _source_environment_recheck_needed,
     assemble_common_stock_evidence,
     build_common_stock_collection_portfolio,
     collect_common_stock_data_from_handoff,
@@ -247,6 +248,14 @@ def gate_for(handoff, run_id=None):
 
 
 class CommonStockDataPreparationTests(unittest.TestCase):
+    def test_cached_moomoo_sdk_environment_failure_requires_recheck(self):
+        self.assertTrue(_source_environment_recheck_needed([
+            {"source": "moomoo_sg", "failure_code": "MOOMOO_SDK_UNAVAILABLE"},
+        ]))
+        self.assertFalse(_source_environment_recheck_needed([
+            {"source": "moomoo_sg", "failure_code": "MOOMOO_QUOTE_CALL_FAILED"},
+            {"source": "yahoo", "failure_code": "YAHOO_TIMEOUT"},
+        ]))
     def test_collection_failure_codes_are_canonical_and_sanitized(self):
         for code in (
             "SEC_HTTP_403", "YAHOO_TRANSPORT_FAILURE",
@@ -432,6 +441,9 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                 "product.mcp.live.research_supplement_collection.capture_shared_research_results",
                 return_value=[],
             ) as shared_capture, patch(
+                "product.mcp.live.research_supplement_collection.capture_public_company_news_result",
+                return_value={"source": "moomoo_public_news", "dataset": "research_discovery", "status": "SOURCE_LIMITED", "failure_code": "TEST_NO_NEWS", "evidence": [], "gaps": ["TEST_NO_NEWS"], "limitations": ["test"]},
+            ), patch(
                 "product.mcp.live.research_supplement_collection.build_research_supplements",
                 side_effect=fake_build_research_supplements,
             ):
@@ -576,6 +588,9 @@ class CommonStockDataPreparationTests(unittest.TestCase):
                 "product.mcp.live.research_supplement_collection.capture_shared_research_results",
                 return_value=[],
             ) as shared_capture, patch(
+                "product.mcp.live.research_supplement_collection.capture_public_company_news_result",
+                return_value={"source": "moomoo_public_news", "dataset": "research_discovery", "status": "SOURCE_LIMITED", "failure_code": "TEST_NO_NEWS", "evidence": [], "gaps": ["TEST_NO_NEWS"], "limitations": ["test"]},
+            ), patch(
                 "product.mcp.live.research_supplement_collection.build_research_supplements",
                 return_value=[],
             ) as supplement_builder:

@@ -240,6 +240,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--task-name",
         help="只执行目标任务及其最小依赖闭包并保存定点执行证明；不生成完整研究包",
     )
+    multi_launch.add_argument(
+        "--initial-task", action="store_true",
+        help="在全新准备的多维运行目录首次执行指定任务及其依赖闭包",
+    )
 
     multi_consume = subparsers.add_parser(
         "check-multidimensional-consumption",
@@ -672,6 +676,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         result, exit_code = launch_multidimensional_stage(
             args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
             timeout_seconds=args.timeout_seconds, task_name=args.task_name,
+            initial_task=args.initial_task,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return exit_code

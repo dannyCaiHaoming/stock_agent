@@ -30,6 +30,7 @@ DATASET_DOMAIN = {
     "research_discovery": "COMPANY", "macro_history": "MACRO",
     "economic_calendar": "MACRO", "dot_plot": "MACRO",
     "market_breadth": "MARKET", "fedwatch_expectations": "MARKET",
+    "market_news_item": "MARKET",
 }
 
 

@@ -25,7 +25,7 @@ from product.mcp.live.tls import verified_https_context
 from product.mcp.provenance import content_hash, iso_utc, parse_timestamp
 
 
-POLICY_VERSION = "research-source-policy/1.1.0"
+POLICY_VERSION = "research-source-policy/1.2.0"
 BLS_VERSION = "bls-public-v1/1.0.0"
 TREASURY_VERSION = "treasury-yield-csv/1.0.0"
 FED_POLICY_VERSION = "federal-reserve-monetary-rss/1.0.0"

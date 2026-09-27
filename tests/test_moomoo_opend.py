@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import importlib.metadata
 from pathlib import Path
 import tempfile
 import unittest
@@ -265,6 +266,40 @@ class MoomooOpenDTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(MoomooOpenDError, "READINESS_REQUIRED"):
             unready.read(capability_id="company-profile-v1", params={"code": "US.AAPL"})
+
+    def test_sdk_environment_failures_are_not_reported_as_opend_unreachable(self):
+        def failure_client(error):
+            def factory(host, port):
+                raise error
+            return MoomooOpenDQuoteClient(
+                manifest=self.manifest(), context_factory=factory,
+                sdk_version_loader=lambda: "10.10.7008", now=lambda: NOW,
+            )
+
+        log_error = PermissionError(
+            1, "Operation not permitted",
+            "/restricted/.com.moomoo.OpenD/Log/py_2026_09_26.log",
+        )
+        with self.assertRaises(MoomooOpenDError) as caught:
+            failure_client(log_error).readiness()
+        self.assertEqual(str(caught.exception), "MOOMOO_SDK_LOG_PERMISSION_DENIED")
+        self.assertNotIn("/restricted", str(caught.exception))
+
+        with self.assertRaisesRegex(MoomooOpenDError, "OPEND_UNREACHABLE"):
+            failure_client(ConnectionRefusedError(61, "refused")).readiness()
+        with self.assertRaisesRegex(MoomooOpenDError, "OPEND_CONNECT_PERMISSION_DENIED"):
+            failure_client(PermissionError(1, "denied", "/private/tmp/socket")).readiness()
+        with self.assertRaisesRegex(MoomooOpenDError, "SDK_UNAVAILABLE"):
+            failure_client(ModuleNotFoundError("moomoo")).readiness()
+
+        missing = MoomooOpenDQuoteClient(
+            manifest=self.manifest(), context_factory=lambda host, port: FakeContext(),
+            sdk_version_loader=lambda: (_ for _ in ()).throw(
+                importlib.metadata.PackageNotFoundError("moomoo-api")
+            ), now=lambda: NOW,
+        )
+        with self.assertRaisesRegex(MoomooOpenDError, "SDK_UNAVAILABLE"):
+            missing.readiness()
 
     def test_failed_readiness_never_authorizes_same_client(self):
         states = ({
