@@ -39,7 +39,8 @@ class GateScopedLiveTools(GateScopedFixtureTools):
         if checked != gate_artifact:
             raise ToolAccessError("LIVE_GATE_REVALIDATION_FAILED")
         super().__init__(deepcopy(checked), run_id=run_id, agent=agent, invocation_id=invocation_id,
-                         allowed_tools=[PERMISSIONS[p] for p in allowed_tools])
+                         allowed_tools=[PERMISSIONS[p] for p in allowed_tools],
+                         adapter_version=LIVE_MCP_VERSION)
 
     @staticmethod
     def tool_manifest():

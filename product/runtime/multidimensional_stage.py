@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import copy
+import fcntl
+import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import tomllib
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -20,13 +24,36 @@ from product.council import (
 from product.council.multidimensional_research import RESEARCH_CAPABILITIES
 from product.intake.v3 import validate_handoff
 from product.mcp.provenance import parse_timestamp
-from product.runtime.hashing import canonical_hash, file_hash
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
+from product.runtime.multidimensional_references import VERSION as REFERENCE_VERSION, known_claim_references
+from product.runtime.research_input_topology import (
+    DATASET_CAPABILITY_ROUTES, DATASET_DOMAIN, EIGHT_DIMENSION_INPUTS,
+    CAPABILITY_BINDINGS, capability_tools, dataset_consumers, fact_dataset,
+    select_capability_facts,
+)
+from product.runtime.schema_validation import validate_schema_definition
+from product.runtime.versioning import load_version_manifest, read_skill_version, validate_current_component_versions
 
 
 STAGE_VERSION = "multidimensional-holding-research-runtime/2.0.0"
 DISPATCH_VERSION = "multidimensional-research-dispatch/2.1.0"
-COMPANY_AGENT_VERSION = "3.0.20"
-MARKET_AGENT_VERSION = "1.2.0"
+OUTPUT_CONTRACT_RULES = {
+    "version": "multidimensional-output-guidance/1.0.0",
+    "status": (
+        "按实际覆盖选择状态，不因部分来源缺失自动判整项失败。"
+        "现有校验要求：status=SOURCE_LIMITED 时 evaluation_status 必须为 SOURCE_LIMITED；"
+        "status=FAILED/TIMEOUT 时 evaluation_status 不能为 PASS。"
+        "LOW_CONFIDENCE/PARTIAL 可表达有据但有限的研究，不代表 COMPLETE。"
+        "不要为了配对而删除有依据主张或隐去缺口。"
+    ),
+    "documents": (
+        "documents 只能选本任务 task.allowed_documents 中的文档；旧完整草稿按 document_id 原样复制元数据，"
+        "显式新版提交草稿仅选择 document_id，由程序装配原元数据；"
+        "不得重写 as_of/published_at/retrieved_at、hash、URL 或其他字段。"
+        "verified_documents 的正文内容不是可自行改写的文档元数据。"
+        "许可章节仍按 Evidence 引用，不虚构 documents。"
+    ),
+}
 SCOPED_PROVIDER_VIEW_INSTRUCTION = (
     " 本任务 provider_coverage 是从完整审计派生的任务视图：global_coverage"
     " 的状态、计数和失败码属于 provider 全局，不能当作本任务数据集已交付或已引用。"
@@ -34,6 +61,49 @@ SCOPED_PROVIDER_VIEW_INSTRUCTION = (
     "NO_DATASET_DETAIL 表示原件无数据集明细，NO_RELEVANT_OBSERVATIONS 表示本任务未选中明细，"
     "两者均不能单独推断无 Evidence 或获取失败。coverage_hash 指向完整审计原件。"
 )
+RESEARCH_ATTRIBUTION_GUIDANCE = {
+    "version": "research-report-attribution/1.3.1",
+    "source": (
+        "许可章节用 claims[].evidence_refs 引用实际读取的章节；只有本段具体解释"
+        "支持、补充或挑战某条上游主张时，才填写该条 research_claim_refs。"
+        "独立陈述供应商观点可只引许可 Evidence，不为覆盖上游而多连。"
+        "research_relationships[].document_id 只代表该文档自身内容；"
+        "不得借用 SEC/发行人 document_id 表达 Morningstar 等其他来源的观点。"
+        "没有适用文档关系时 research_relationships 可以为空；不虚构章节 documents，"
+        "不因此删除有依据的章节分析。发行人文档自身的支持或冲突仍可记录。"
+    ),
+    "upstream_scope": (
+        "先核对 dependency_reports 中目标 claim 原文和限定范围，再判断关系。"
+        "缺少可用截止点价格或估值附件不等于完全没有估值信息；"
+        "新增作者公允价值观点不自动推翻上游缺口，也不自动支持价格吸引力。"
+        "区分新增信息与实际矛盾，不为填关系强制选择 REVISE/CHALLENGE。"
+        "不能把上游的‘无法量化当前市场隐含增长’转述为‘完全没有估值观点’。"
+    ),
+    "self_check": (
+        "利用既有 claims 按独立的支持/挑战/补充关系组织内容，避免一大段挂全部上游引用；"
+        "不强制一引用一 claim 或固定主张数。逐项核对每个 claim 的 evidence_refs、document_refs、"
+        "research_claim_refs：正文须解释所引用的上游结论及关联；未讨论的上游不要引用，"
+        "不要求覆盖全部上游。research_relationships 为空也不能免除上述核对。"
+        "写作顺序是先读目标主张原句及限定范围，再在本段说明具体关联，最后填写引用。"
+        "逐个 research_claim_ref 反查本段对应的解释；只有相同公司或主题不够，"
+        "本段未解释的具体事件主张不引用。不先列全上游ID再拼接正文。"
+        "提交前逐项核对关系的来源内容、目标主张原意和 resulting_claim_refs；"
+        "对每一个 resulting_claim_ref 分别说明该文档关系如何支持这个结果主张，"
+        "不能把同报告中其他合法但无关的 claim 顺手加入；例如收购事实不支持独立研报覆盖不足。"
+        "只保留真实相关的结果引用，不为填满关系而添加引用。"
+        "无法确认的关系不作确定表述，保留具体限制。ID 合法不代表语义支持已验证。"
+    ),
+}
+
+TECHNICAL_SUMMARY_GUIDANCE = {
+    "version": "technical-summary-consistency/1.0.0",
+    "self_check": (
+        "提交前用 prepared_analysis 与正文逐项核对摘要：窗口、基准、方向、数值幅度及单位一致。"
+        "区分绝对收益与相对收益、百分比与百分点；小幅/显著等描述不能与所引计算相矛盾。"
+        "没有充分依据界定幅度时直接呈现计算值，不自行设阈值或补算。"
+        "摘要不引入正文和计算未支持的结论；计算、引用和状态仍由原门禁校验。"
+    ),
+}
 
 
 def _parent_output_schema(run_id: str, task_count: int) -> dict[str, Any]:
@@ -49,44 +119,20 @@ def _parent_output_schema(run_id: str, task_count: int) -> dict[str, Any]:
         },
     }
 
-CAPABILITY_BINDINGS = {
-    "TECHNICAL_STRUCTURE": ("runtime_market_catalyst", "technical-structure", "PER_SECURITY"),
-    "FUNDAMENTAL_EVENT": ("runtime_company_analyst", "company-research", "PER_SECURITY"),
-    "RESEARCH_REPORT": ("runtime_company_analyst", "research-report-analysis", "PER_SECURITY"),
-    "INDUSTRY_COMPARISON": ("runtime_market_catalyst", "industry-comparison", "PER_SECURITY"),
-    "MACRO_CONTEXT": ("runtime_market_catalyst", "macro-market-analysis", "SHARED_MARKET"),
-    "MARKET_STATE": ("runtime_market_catalyst", "macro-market-analysis", "SHARED_MARKET"),
-    "OWNERSHIP_DISCLOSURE": ("runtime_market_catalyst", "ownership-disclosure", "PER_SECURITY"),
-    "OPTIONS_FLOW": ("runtime_market_catalyst", "options-market-structure", "PER_SECURITY"),
-}
-
-DATASET_CAPABILITY_ROUTES = {
-    "FUNDAMENTAL_EVENT": {
-        "identity_profile", "business_segments", "management_governance",
-        "financial_history", "capital_allocation", "earnings_guidance", "event_context",
-    },
-    "RESEARCH_REPORT": {"analyst_expectations", "research_discovery"},
-    "OWNERSHIP_DISCLOSURE": {
-        "institutional_ownership", "insider_transactions", "share_short_context",
-    },
-    "MACRO_CONTEXT": {"macro_history", "economic_calendar", "dot_plot"},
-    "MARKET_STATE": {
-        "market_breadth", "option_market_statistics", "fedwatch_expectations",
-    },
-    "OPTIONS_FLOW": {
-        "options_snapshot", "options_underlying_context", "vendor_money_flow",
-    },
-}
 
 MINIMUM_QUESTIONS = {
     "TECHNICAL_STRUCTURE": ["趋势与关键价格结构是什么？", "相对广泛市场基准表现如何？", "波动、回撤和量价是否支持解释？", "什么观察信号会推翻解释？"],
-    "FUNDAMENTAL_EVENT": ["核心经营驱动是什么？", "盈利与现金流是什么关系？", "估值依赖哪些显式假设？", "关键未知和已公告事件如何影响判断？"],
+    "FUNDAMENTAL_EVENT": ["核心经营驱动是什么？若已准入最近完整财年收入分解表，原单位的总额、主要组成和原表比例如何说明业务结构，并如何与近期季度口径区分？", "盈利与现金流是什么关系？", "估值依赖哪些显式假设？", "关键未知和已公告事件如何影响判断？"],
     "RESEARCH_REPORT": ["作者使用了哪些依据与假设？", "报告之间或与公司资料有哪些真实分歧？", "报告对已有研究主张是支持、挑战、修订还是无新增信息？"],
-    "INDUSTRY_COMPARISON": ["公司相对同行处于什么位置？", "行业与公司因素如何区分？", "可比性限制和传导机制是什么？"],
+    "INDUSTRY_COMPARISON": [
+        "从已核实冻结同行中选择至少一家：选择依据是什么，双方具体产品或终端需求有何重叠与差异？",
+        "双方至少一项同口径、相近期间长度的经营或行情事实如何比较，各自期间与单位是什么？",
+        "共同产业因素如何传导、公司差异在哪里，哪些部分不能比较或推断？",
+    ],
     "MACRO_CONTEXT": ["利率、通胀、经济活动与政策事实是什么？", "观察期、发布时间与修订边界是什么？", "这些因素怎样分别传导到持仓，什么反向情景会推翻解释？"],
-    "MARKET_STATE": ["大盘、相关板块、跨资产、波动与信用状态是什么？", "哪些指标是代理且有什么边界？", "市场状态怎样分别传导到持仓，什么反向情景会推翻解释？"],
-    "OWNERSHIP_DISCLOSURE": ["实际披露发生了什么变化？", "交易类型、披露滞后和覆盖限制是什么？", "哪些内容不能从披露推断？"],
-    "OPTIONS_FLOW": ["当前快照实际支持什么结构观察？", "时效、覆盖和直接/代理指标边界是什么？", "哪些资金方向结论不能成立？"],
+    "MARKET_STATE": ["大盘、相关板块、跨资产、波动、信用与实际市场广度状态是什么？", "哪些指标是代理且有什么边界？", "市场状态怎样分别传导到持仓，什么反向情景会推翻解释？"],
+    "OWNERSHIP_DISCLOSURE": ["实际披露发生了什么变化？可比已结束机构期间的供应商汇总如何变化？", "交易类型、披露滞后和覆盖限制是什么？", "哪些内容不能从披露推断？"],
+    "OPTIONS_FLOW": ["代表合约身份、到期日、同源 bid/ask 原值和观察时间是什么？报价间距对可交易性的解释有哪些限制（派生数值仅用合法工具/附件）？", "当前 OI/IV、可得 Greeks 及标的 IV/HV 支持什么期限和风险结构观察？若已查询到某一合约的 Greeks，逐项给出该合约可得的 delta、gamma、theta、vega、rho 原值，并解释其符号和风险含义；标的波动单位未知只限制跨口径比较，不抹去合约原值。", "时效、覆盖、单位和直接/代理指标边界是什么？", "哪些资金方向结论不能成立？"],
 }
 
 
@@ -102,6 +148,24 @@ def _read_object(path: Path) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_INPUT_NOT_OBJECT")
     return dict(value)
+
+
+def _resolve_frozen_artifact(root: Path, relative: str) -> Path:
+    if (not isinstance(relative, str) or not relative or Path(relative).is_absolute()
+            or ".." in Path(relative).parts):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_ARTIFACT_PATH_INVALID")
+    candidate = root / relative
+    if any(path.is_symlink() for path in (candidate, *candidate.parents)
+           if path == root or path.is_relative_to(root)):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_ARTIFACT_PATH_INVALID")
+    path = candidate.resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise MultidimensionalStageError(f"MULTIDIMENSIONAL_ARTIFACT_MISSING:{relative}")
+    return path
+
+
+def _read_frozen_object(root: Path, relative: str) -> dict[str, Any]:
+    return _read_object(_resolve_frozen_artifact(root, relative))
 
 
 def _write_object(path: Path, value: Mapping[str, Any]) -> None:
@@ -120,12 +184,34 @@ def _frozen_peer_candidates(task: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _text_locator(fact: Mapping[str, Any]) -> dict[str, Any]:
+    """Expose extraction structure, not an investment summary or a length ranking."""
+    value = fact.get("value")
+    metadata = fact.get("metadata") or {}
+    if not isinstance(value, str) or not isinstance(metadata, Mapping):
+        return {"section_locator": None, "content_kind": None, "text_length": None}
+    section = metadata.get("section")
+    kind = "UNKNOWN"
+    if section:
+        # Entire heading/page-number text, not an arbitrary short-text threshold.
+        heading = str(section).replace("_", " ")
+        if re.fullmatch(r"\s*(?:Item\s+\d+[A-Z]?\.?\s*)?" + re.escape(heading)
+                        + r"\s*(?:\d+)?\s*", value, flags=re.I):
+            kind = "HEADING_ONLY"
+        else:
+            kind = "SECTION_EXCERPT" if metadata.get("truncated") else "SECTION_TEXT"
+    return {
+        "section_locator": section,
+        "content_kind": kind,
+        "text_length": len(value),
+    }
+
+
 def _skill_version(path: Path) -> str:
-    text = path.read_text(encoding="utf-8")
-    match = re.search(r'(?m)^  version:\s*["\']?([^"\'\n]+)', text)
-    if not match:
-        raise MultidimensionalStageError(f"MULTIDIMENSIONAL_SKILL_VERSION_MISSING:{path.parent.name}")
-    return match.group(1).strip()
+    try:
+        return read_skill_version(path)
+    except ValueError as exc:
+        raise MultidimensionalStageError(f"MULTIDIMENSIONAL_SKILL_VERSION_MISSING:{path.parent.name}") from exc
 
 
 def _agent_binding(product_root: Path, name: str) -> dict[str, Any]:
@@ -134,173 +220,120 @@ def _agent_binding(product_root: Path, name: str) -> dict[str, Any]:
         config = tomllib.load(stream)
     if config.get("name") != name:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_AGENT_BINDING_INVALID")
+    approved = load_version_manifest(product_root / "version-manifest.json")["agents"]
+    version = approved.get(name.replace("_", "-"))
+    if not isinstance(version, str):
+        raise MultidimensionalStageError(f"MULTIDIMENSIONAL_AGENT_VERSION_UNAPPROVED:{name}")
     return {
         "name": name,
-        "version": COMPANY_AGENT_VERSION if name == "runtime_company_analyst" else MARKET_AGENT_VERSION,
+        "version": version,
         "content_hash": file_hash(path),
     }
 
 
 def _skill_binding(product_root: Path, name: str) -> dict[str, Any]:
     path = product_root / "skills" / name / "SKILL.md"
-    return {"name": name, "version": _skill_version(path), "content_hash": file_hash(path)}
+    version = _skill_version(path)
+    approved = load_version_manifest(product_root / "version-manifest.json")["skills"].get(name)
+    if version != approved:
+        raise MultidimensionalStageError(f"MULTIDIMENSIONAL_SKILL_VERSION_DRIFT:{name}")
+    return {"name": name, "version": version, "content_hash": file_hash(path)}
 
 
 def _facts_for_capability(
     evidence: Sequence[Mapping[str, Any]], *, capability: str, security_ids: Sequence[str], benchmark_id: str | None,
 ) -> list[dict[str, Any]]:
-    selected: list[dict[str, Any]] = []
-    scoped_ids = set(security_ids)
-    if benchmark_id and capability == "TECHNICAL_STRUCTURE":
-        scoped_ids.add(benchmark_id)
-    for fact in evidence:
-        field = str(fact.get("semantic_field", ""))
-        dataset = str(fact.get("dataset", ""))
-        source = str(fact.get("source_type", ""))
-        source_family = str(fact.get("source_family", ""))
-        metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
-        form = str(metadata.get("form", ""))
-        security_id = fact.get("security_id")
-        matches = False
-        if capability == "TECHNICAL_STRUCTURE":
-            matches = security_id in scoped_ids and field in {
-                "open_price", "high_price", "low_price", "historical_close_price",
-                "adjusted_close_price", "share_volume", "cash_dividend", "stock_split_ratio",
-            }
-        elif capability == "FUNDAMENTAL_EVENT":
-            # `source_type` is optional on older normalized Evidence.  Preserve
-            # provider-neutral compatibility while still limiting this mode to
-            # SEC-originated facts.
-            source_id = str(fact.get("source_id", "")).lower()
-            matches = security_id in scoped_ids and (
-                source == "sec" or "sec" in source_id
-                or dataset in DATASET_CAPABILITY_ROUTES[capability]
-            )
-        elif capability == "RESEARCH_REPORT":
-            matches = security_id in scoped_ids and (
-                dataset in DATASET_CAPABILITY_ROUTES[capability]
-                or
-                source in {"public_research", "issuer_research"}
-                or source_family in {"sec", "yahoo", "moomoo_sg"}
-                and field in {
-                    "sec_issuer_guidance_candidate_text", "yahoo_earnings_trend",
-                    "yahoo_recommendation_trend", "moomoo_analyst_consensus",
-                }
-                or source == "sec" and field in {"earnings_release", "management_discussion"}
-            )
-        elif capability == "INDUSTRY_COMPARISON":
-            matches = security_id in scoped_ids and (
-                source in {"sec", "yahoo", "public_research"} or field.startswith("industry_")
-            )
-        elif capability == "MACRO_CONTEXT":
-            matches = (security_id in {"MARKET", "US:MARKET"} and dataset in DATASET_CAPABILITY_ROUTES[capability]) or source in {
-                "fred", "bls", "bea", "federal_reserve", "treasury"
-            }
-        elif capability == "MARKET_STATE":
-            matches = (security_id in {"MARKET", "US:MARKET"} and dataset in DATASET_CAPABILITY_ROUTES[capability]) or source in {
-                "yahoo", "market", "fred", "treasury", "eia"
-            } or (
-                security_id == "US:MARKET" and field == "market_news_item"
-                and source == "public_research"
-                and str(fact.get("source_id", "")).startswith("moomoo-public-news:")
-            )
-        elif capability == "OWNERSHIP_DISCLOSURE":
-            matches = security_id in scoped_ids and (
-                dataset in DATASET_CAPABILITY_ROUTES[capability]
-                or form in {"3", "4", "5", "13F-HR", "13F-HR/A"}
-                or field.startswith("ownership_")
-            )
-        elif capability == "OPTIONS_FLOW":
-            matches = security_id in scoped_ids and (
-                dataset in DATASET_CAPABILITY_ROUTES[capability]
-                or source == "options" or field.startswith(("option_", "short_", "fund_flow_", "moomoo_option_"))
-            )
-        if matches:
-            selected.append(copy.deepcopy(dict(fact)))
-    return sorted(selected, key=lambda item: str(item.get("evidence_id")))
+    return select_capability_facts(
+        evidence, capability=capability, security_ids=security_ids,
+        benchmark_id=benchmark_id,
+    )
 
 
 def _capability_routing_coverage(
     evidence: Sequence[Mapping[str, Any]], *, capture_batches: Sequence[Mapping[str, Any]],
     security_ids: Sequence[str], benchmark_id: str | None,
 ) -> dict[str, Any]:
-    """审计本次启用的数据集是否真正进入目标专业任务。"""
+    """逐 dataset/consumer 审计候选路由；准备阶段不声称实际查询或引用。"""
 
-    route_by_dataset = {
-        dataset: capability
-        for capability, datasets in DATASET_CAPABILITY_ROUTES.items()
-        for dataset in datasets
-    }
-    captured: dict[str, set[str]] = {dataset: set() for dataset in route_by_dataset}
+    captured: dict[str, set[str]] = {}
     for batch in capture_batches:
         for item in batch.get("capabilities", []):
             dataset = str(item.get("dataset", ""))
-            if dataset not in captured:
-                continue
-            captured[dataset].update(
-                str(value) for value in item.get("evidence_ids", [])
-                if isinstance(value, str)
+            captured.setdefault(dataset, set()).update(
+                value for value in item.get("evidence_ids", []) if isinstance(value, str)
             )
-
-    gate_by_dataset: dict[str, list[Mapping[str, Any]]] = {
-        dataset: [] for dataset in route_by_dataset
-    }
+    gate_by_dataset: dict[str, list[Mapping[str, Any]]] = {}
     for fact in evidence:
-        dataset = str(fact.get("dataset", ""))
-        if dataset in gate_by_dataset:
-            gate_by_dataset[dataset].append(fact)
+        gate_by_dataset.setdefault(fact_dataset(fact), []).append(fact)
 
-    delivered_by_capability: dict[str, set[str]] = {}
-    for capability in DATASET_CAPABILITY_ROUTES:
+    selected_by_capability = {}
+    delivered_by_capability = {}
+    for capability in EIGHT_DIMENSION_INPUTS:
         scoped = _facts_for_capability(
             evidence, capability=capability, security_ids=security_ids,
             benchmark_id=benchmark_id,
         )
-        if capability == "MARKET_STATE":
+        if capability in {"MACRO_CONTEXT", "MARKET_STATE"}:
+            # 与原任务装配使用同一精选公司暴露接缝，不能仅审计第一层 selector。
+            scoped = [*scoped, *_macro_company_context_facts(evidence, security_ids=security_ids)]
+        selected_by_capability[capability] = {item["evidence_id"] for item in scoped}
+        if capability in {"MARKET_STATE", "INDUSTRY_COMPARISON"}:
             scoped = _bounded_latest_facts(scoped)
-        delivered_by_capability[capability] = {
-            str(item["evidence_id"]) for item in scoped
-            if isinstance(item.get("evidence_id"), str)
-        }
+        delivered_by_capability[capability] = {item["evidence_id"] for item in scoped}
 
     observations = []
     failure_codes: list[str] = []
-    for dataset in sorted(route_by_dataset):
-        capability = route_by_dataset[dataset]
-        gate_facts = gate_by_dataset[dataset]
-        gate_ids = {
-            str(item["evidence_id"]) for item in gate_facts
-            if isinstance(item.get("evidence_id"), str)
-        }
-        delivered_ids = gate_ids & delivered_by_capability[capability]
-        exclusions = []
-        for fact in gate_facts:
-            evidence_id = str(fact.get("evidence_id", ""))
-            if evidence_id in delivered_ids:
-                continue
-            reason = "BOUNDED_LATEST" if capability == "MARKET_STATE" else None
-            if reason is None:
-                failure_codes.append(
-                    f"CAPABILITY_EVIDENCE_NOT_ROUTED:{capability}:{evidence_id}"
-                )
-                reason = "CAPABILITY_EVIDENCE_NOT_ROUTED"
-            exclusions.append({"evidence_id": evidence_id, "reason": reason})
-        observations.append({
-            "dataset": dataset, "target_capability": capability,
-            "capture_evidence_count": len(captured[dataset]),
-            "gate_eligible_evidence_count": len(gate_ids),
-            "delivered_evidence_count": len(delivered_ids),
-            "delivery_status": (
-                "DELIVERED" if delivered_ids else "NOT_DELIVERED"
-                if gate_ids else "NO_GATE_EVIDENCE"
-            ),
-            "exclusions": exclusions,
-            "actual_research_use_status": "NOT_EVALUATED_AT_PREPARATION",
-        })
+    unmapped_datasets = []
+    datasets = set(DATASET_DOMAIN) | set(captured) | set(gate_by_dataset)
+    for dataset in sorted(datasets):
+        gate_facts = gate_by_dataset.get(dataset, [])
+        gate_ids = {str(item["evidence_id"]) for item in gate_facts
+                    if isinstance(item.get("evidence_id"), str)}
+        consumers = dataset_consumers(dataset)
+        # 保留原来源型选择器的实际候选关系，不丢失多对多，也不因此新增工具权限。
+        actual_consumers = {cap for cap, ids in selected_by_capability.items() if gate_ids & ids}
+        targets = sorted(set(consumers) | actual_consumers)
+        unmapped = dataset not in DATASET_DOMAIN or not consumers
+        if unmapped and (gate_facts or dataset in captured):
+            unmapped_datasets.append(dataset)
+        for capability in targets or ["UNMAPPED"]:
+            delivered_ids = gate_ids & delivered_by_capability.get(capability, set())
+            exclusions = []
+            primary = dataset in DATASET_CAPABILITY_ROUTES.get(capability, set())
+            for fact in gate_facts:
+                evidence_id = str(fact.get("evidence_id", ""))
+                if evidence_id in delivered_ids:
+                    continue
+                if evidence_id in selected_by_capability.get(capability, set()):
+                    reason = "BOUNDED_LATEST"
+                elif capability == "UNMAPPED":
+                    reason = "UNMAPPED"
+                elif primary:
+                    reason = "CAPABILITY_EVIDENCE_NOT_ROUTED"
+                    failure_codes.append(f"{reason}:{capability}:{evidence_id}")
+                else:
+                    reason = "OUTSIDE_EXISTING_CAPABILITY_SCOPE"
+                exclusions.append({"evidence_id": evidence_id, "reason": reason})
+            observations.append({
+                "dataset": dataset, "source_domain": DATASET_DOMAIN.get(dataset, "UNMAPPED"),
+                "mapping_status": "UNMAPPED" if unmapped else "MAPPED",
+                "target_capability": capability,
+                "capture_evidence_count": len(captured.get(dataset, set())),
+                "capture_evidence_ids": sorted(captured.get(dataset, set())),
+                "gate_eligible_evidence_count": len(gate_ids),
+                "gate_eligible_evidence_ids": sorted(gate_ids),
+                "delivered_evidence_count": len(delivered_ids),
+                "delivered_evidence_ids": sorted(delivered_ids),
+                "delivery_status": ("DELIVERED" if delivered_ids else "NOT_DELIVERED"
+                                    if gate_ids else "NO_GATE_EVIDENCE"),
+                "delivery_basis": "PREPARATION_SELECTOR_NOT_QUERY",
+                "exclusions": exclusions,
+                "actual_research_use_status": "NOT_EVALUATED_AT_PREPARATION",
+            })
     return {
-        "dataset_observations": observations,
-        "failure_codes": sorted(failure_codes),
-        "status": "FAILED" if failure_codes else "CLOSED",
+        "dataset_observations": observations, "unmapped_datasets": sorted(unmapped_datasets),
+        "failure_codes": sorted(set(failure_codes)),
+        "status": "FAILED" if failure_codes else "UNMAPPED" if unmapped_datasets else "CLOSED",
     }
 
 
@@ -334,6 +367,187 @@ def _bounded_latest_facts(
         )
         selected.extend(copy.deepcopy(dict(item)) for item in ordered[:per_series])
     return sorted(selected, key=lambda item: str(item.get("evidence_id")))
+
+
+def _latest_annual_eps_focus(
+    facts: Sequence[Mapping[str, Any]], *, security_id: str,
+) -> list[dict[str, str]]:
+    """Expose the latest admitted FY EPS locators, not an estimated valuation."""
+
+    candidates: list[tuple[str, Mapping[str, Any], Mapping[str, Any]]] = []
+    for fact in facts:
+        metadata = fact.get("metadata")
+        if (
+            fact.get("security_id") != security_id
+            or fact.get("semantic_field") != "us-gaap.EarningsPerShareDiluted"
+            or not isinstance(metadata, Mapping)
+            or metadata.get("fiscal_period") != "FY"
+            or metadata.get("context_type") != "duration"
+            or not (
+                fact.get("source_type") == "sec"
+                or str(fact.get("source_id", "")).lower().startswith("sec-")
+            )
+        ):
+            continue
+        start, end = metadata.get("period_start"), metadata.get("period_end")
+        if not isinstance(start, str) or not isinstance(end, str):
+            continue
+        try:
+            if datetime.fromisoformat(start) > datetime.fromisoformat(end):
+                continue
+        except ValueError:
+            continue
+        candidates.append((end, fact, metadata))
+    if not candidates:
+        return []
+    latest_end = max(end for end, _, _ in candidates)
+    return [
+        {
+            "evidence_id": str(fact["evidence_id"]),
+            "semantic_field": "us-gaap.EarningsPerShareDiluted",
+            "period_start": str(metadata["period_start"]),
+            "period_end": str(metadata["period_end"]),
+            "unit": str(fact.get("unit", "")),
+        }
+        for end, fact, metadata in sorted(candidates, key=lambda item: str(item[1]["evidence_id"]))
+        if end == latest_end
+    ]
+
+
+def _same_period_profit_cash_focus(
+    facts: Sequence[Mapping[str, Any]], *, security_id: str,
+) -> list[dict[str, str]]:
+    """Locate recent same-period SEC profit/cash candidates without choosing an interpretation."""
+
+    fields = (
+        "us-gaap.NetIncomeLoss",
+        "us-gaap.NetCashProvidedByUsedInOperatingActivities",
+    )
+    by_period: dict[tuple[str, str], dict[str, list[Mapping[str, Any]]]] = {}
+    for fact in facts:
+        metadata = fact.get("metadata")
+        field = fact.get("semantic_field")
+        if (
+            fact.get("security_id") != security_id
+            or field not in fields
+            or not isinstance(metadata, Mapping)
+            or metadata.get("context_type") != "duration"
+            or fact.get("unit") != "USD"
+            or not (
+                fact.get("source_type") == "sec"
+                or str(fact.get("source_id", "")).lower().startswith("sec-")
+            )
+        ):
+            continue
+        start, end = metadata.get("period_start"), metadata.get("period_end")
+        if not isinstance(start, str) or not isinstance(end, str):
+            continue
+        try:
+            if datetime.fromisoformat(start) > datetime.fromisoformat(end):
+                continue
+        except ValueError:
+            continue
+        by_period.setdefault((start, end), {}).setdefault(str(field), []).append(fact)
+    matched = [period for period, items in by_period.items() if all(field in items for field in fields)]
+    if not matched:
+        return []
+    period = max(matched, key=lambda item: (item[1], item[0]))
+    focus = []
+    for field in fields:
+        # At most two locators per metric. All Evidence remains in the full allowed catalog.
+        candidates = sorted(
+            by_period[period][field],
+            key=lambda item: (
+                str(item.get("published_at", "")),
+                str(item.get("retrieved_at", "")),
+                str(item["evidence_id"]),
+            ),
+            reverse=True,
+        )[:2]
+        focus.extend({
+            "evidence_id": str(item["evidence_id"]),
+            "semantic_field": field,
+            "period_start": period[0],
+            "period_end": period[1],
+            "unit": "USD",
+        } for item in candidates)
+    return focus
+
+
+def _latest_insider_trade_focus(
+    facts: Sequence[Mapping[str, Any]], *, security_id: str, cutoff: str,
+) -> list[dict[str, str]]:
+    """Point to admitted recent insider rows without copying amounts or inferring filing lag."""
+
+    limit = parse_timestamp(cutoff)
+    candidates: list[tuple[date, date, Mapping[str, Any], Mapping[str, Any]]] = []
+    for fact in facts:
+        value = fact.get("value")
+        if (
+            fact.get("security_id") != security_id
+            or not str(fact.get("semantic_field", "")).startswith("moomoo_insider_trade:")
+            or not isinstance(value, Mapping)
+            or not isinstance(value.get("trade_date_start"), str)
+            or not isinstance(value.get("trade_date_end"), str)
+            or not isinstance(value.get("transaction_type"), str)
+            or not value["transaction_type"].strip()
+        ):
+            continue
+        try:
+            start_day = date.fromisoformat(value["trade_date_start"])
+            end_day = date.fromisoformat(value["trade_date_end"])
+            timestamps = [parse_timestamp(str(fact[key])) for key in ("as_of", "published_at", "retrieved_at")]
+        except (KeyError, TypeError, ValueError):
+            continue
+        if start_day > end_day or end_day > limit.date() or any(stamp > limit for stamp in timestamps):
+            continue
+        candidates.append((end_day, start_day, fact, value))
+    return [
+        {
+            "evidence_id": str(fact["evidence_id"]),
+            "trade_date_start": start_day.isoformat(),
+            "trade_date_end": end_day.isoformat(),
+            "transaction_type": str(value["transaction_type"]),
+            "observed_at": str(fact["published_at"]),
+        }
+        for end_day, start_day, fact, value in sorted(
+            candidates, key=lambda item: (item[0], item[1], str(item[2]["evidence_id"])), reverse=True,
+        )[:3]
+    ]
+
+
+_SEC_REVENUE_TABLE_UNIT = re.compile(
+    r"\btable\b.{0,120}\brevenue\b.{0,120}\(in (?P<unit>millions|billions), except percentages\)",
+    re.IGNORECASE,
+)
+
+
+def _sec_revenue_table_unit_focus(
+    facts: Sequence[Mapping[str, Any]], *, security_id: str,
+) -> list[dict[str, str]]:
+    """Expose a disclosed table header's unit, never derived table amounts."""
+
+    focus: list[dict[str, str]] = []
+    for fact in facts:
+        if (
+            fact.get("security_id") != security_id
+            or fact.get("semantic_field") != "business"
+            or not (
+                fact.get("source_type") == "sec"
+                or str(fact.get("source_id", "")).lower().startswith("sec-")
+            )
+            or not isinstance(fact.get("value"), str)
+        ):
+            continue
+        match = _SEC_REVENUE_TABLE_UNIT.search(fact["value"])
+        if match:
+            focus.append({
+                "evidence_id": str(fact["evidence_id"]),
+                "semantic_field": "business",
+                "table_unit": match.group("unit").lower(),
+                "table_label": "revenue_disaggregation",
+            })
+    return sorted(focus, key=lambda item: item["evidence_id"])
 
 
 def _macro_company_context_facts(
@@ -503,13 +717,25 @@ def _prepare_technical_artifacts(
     return result
 
 
+def _latest_market_breadth(evidence, as_of):
+    cutoff = parse_timestamp(as_of)
+    candidates = [f for f in evidence
+                  if f.get("semantic_field") == "moomoo_us_rise_fall_distribution"
+                  and f.get("security_id") == "US:MARKET"
+                  and parse_timestamp(f["as_of"]) <= cutoff
+                  and parse_timestamp(f["retrieved_at"]) <= cutoff]
+    return max(candidates, key=lambda f: (
+        parse_timestamp(f["as_of"]), parse_timestamp(f["retrieved_at"]), f["evidence_id"],
+    ), default=None)
+
+
 def _prepare_macro_market_artifacts(
     run_dir: Path, *, task_id: str, benchmark_id: str,
     evidence: Sequence[Mapping[str, Any]], as_of: str,
 ) -> dict[str, Any]:
     """从冻结的广泛市场日线生成共享宏观任务可消费的市场状态。"""
 
-    from product.deterministic.market_analysis import calculate_market_state_statistics
+    from product.deterministic.market_analysis import calculate_market_state_statistics, calculate_market_breadth
 
     market_rows = _technical_rows(evidence, security_id=benchmark_id)
     directory = run_dir / "research/precomputed" / canonical_hash({"task_id": task_id})[:16]
@@ -520,6 +746,33 @@ def _prepare_macro_market_artifacts(
         "gaps": [],
         "allowed_artifact_refs": [],
     }
+    fact = _latest_market_breadth(evidence, as_of)
+    result["breadth_calculation"] = None
+    if fact is not None:
+        try:
+            breadth = calculate_market_breadth(fact)
+        except ValueError as exc:
+            result["gaps"].append({
+                "reason_code": str(exc), "description": "广度分桶不能可靠汇总。",
+                "impact": "保留原分桶；不得由模型补算完整合计。",
+            })
+        else:
+            breadth_ref = str((directory / "market-breadth-calculation.json").relative_to(run_dir))
+            _write_object(run_dir / breadth_ref, breadth)
+            result["breadth_calculation"] = breadth
+            result["breadth_calculation_ref"] = breadth_ref
+            result["breadth_report_calculation"] = {
+                "calculation_id": breadth["artifact_id"], "method": "provider_breadth_partition_sum",
+                "value": json.dumps(breadth["counts"], sort_keys=True, separators=(",", ":")),
+                "unit": breadth["unit"], "input_evidence_refs": breadth["evidence_fact_ids"],
+                "artifact_ref": breadth_ref,
+            }
+            result["allowed_artifact_refs"].append(breadth_ref)
+    else:
+        result["gaps"].append({
+            "reason_code": "MARKET_BREADTH_MISSING", "description": "无截止点内可用广度快照。",
+            "impact": "不能计算广度合计，不影响已有基准统计。",
+        })
     if not market_rows:
         result["gaps"].append({
             "reason_code": "MARKET_STATE_SERIES_MISSING",
@@ -552,9 +805,12 @@ def _prepare_macro_market_artifacts(
 def _dynamic_draft_schema(
     repository_root: Path, *, run_id: str, invocation_id: str, agent: str,
     allowed_evidence_ids: Sequence[str], allowed_artifact_refs: Sequence[str],
+    allowed_calculation_evidence_ids: Sequence[str] = (),
     allowed_documents: Sequence[Mapping[str, Any]] = (),
     claims_forbidden: bool = False,
     technical_calculation_missing: bool = False,
+    source_literal_selection: bool = False,
+    macro_observation_selection: bool = False,
 ) -> dict[str, Any]:
     schema = _read_object(
         repository_root / "product/schemas/runtime/research-dimension-report-v2.schema.json"
@@ -579,11 +835,31 @@ def _dynamic_draft_schema(
     schema["$defs"]["calculation"]["properties"]["artifact_ref"] = {
         "type": "string", "enum": list(allowed_artifact_refs)
     }
+    schema["$defs"]["calculation"]["properties"]["input_evidence_refs"]["items"] = {
+        "type": "string", "enum": sorted(set(allowed_evidence_ids) | set(allowed_calculation_evidence_ids))
+    }
     schema["properties"]["documents"] = {
         "type": "array", "items": {
             "type": "object", "enum": [copy.deepcopy(dict(item)) for item in allowed_documents]
         }
     }
+    if source_literal_selection:
+        schema["properties"]["source_literal_selections"] = {
+            "type": "array", "maxItems": 16,
+            "items": {
+                "type": "object", "additionalProperties": False,
+                "required": ["claim_id", "placeholder", "evidence_ref", "field"],
+                "properties": {
+                    "claim_id": {"type": "string"},
+                    "placeholder": {"type": "string", "pattern": r"^\{\{sf\.[A-Za-z][A-Za-z0-9_]{0,23}\}\}$"},
+                    "evidence_ref": {"type": "string"},
+                    "field": {"type": "string", "enum": (
+                        ["moomoo_macro_observation"] if macro_observation_selection
+                        else ["sec_usd_value", "as_of", "retrieved_at"]
+                    )},
+                },
+            },
+        }
     if claims_forbidden or technical_calculation_missing:
         schema["properties"]["claims"]["maxItems"] = 0
     if technical_calculation_missing:
@@ -594,12 +870,58 @@ def _dynamic_draft_schema(
             "type": "string", "const": "INSUFFICIENT",
         }
         schema["properties"]["data_gaps"]["minItems"] = 1
+    validate_schema_definition(schema)
     return schema
 
 
 def _task_id(capability: str, security_id: str | None) -> str:
     suffix = security_id.replace(":", "_").lower() if security_id else "shared"
     return f"{capability.lower()}:{suffix}"
+
+
+def validate_breadth_calculation_references(run_dir: Path, report: Mapping[str, Any]) -> None:
+    """Recompute new breadth artifacts from frozen Gate, including downstream reads."""
+    from product.deterministic.market_analysis import calculate_market_breadth
+
+    calculations = [c for c in report.get("calculations", [])
+                    if str(c.get("artifact_ref", "")).endswith("/market-breadth-calculation.json")]
+    refs = {r for r in report.get("artifact_refs", [])
+            if isinstance(r, str) and r.endswith("/market-breadth-calculation.json")}
+    refs.update(c["artifact_ref"] for c in calculations)
+    if not refs:
+        return
+    root = run_dir.resolve()
+    gate = _read_object(root / "evidence/gate.json")
+    facts = {f["evidence_id"]: f for f in gate["allowed_evidence"]}
+    for ref in refs:
+        path = (root / ref).resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            raise MultidimensionalStageError("MARKET_BREADTH_ARTIFACT_INVALID")
+        artifact = _read_object(path)
+        ids = artifact.get("evidence_fact_ids", [])
+        if len(ids) != 1 or ids[0] not in facts:
+            raise MultidimensionalStageError("MARKET_BREADTH_LINEAGE_INVALID")
+        fact = facts[ids[0]]
+        cutoff = parse_timestamp(gate["decision_cutoff"])
+        if any(parse_timestamp(fact[k]) > cutoff for k in ("as_of", "retrieved_at")):
+            raise MultidimensionalStageError("MARKET_BREADTH_PIT_INVALID")
+        if artifact != calculate_market_breadth(fact):
+            raise MultidimensionalStageError("MARKET_BREADTH_ARTIFACT_MISMATCH")
+        for calculation in calculations:
+            if calculation["artifact_ref"] == ref and (
+                calculation.get("calculation_id") != artifact["artifact_id"]
+                or calculation.get("input_evidence_refs") != ids
+            ):
+                raise MultidimensionalStageError("MARKET_BREADTH_REFERENCE_INVALID")
+            if calculation["artifact_ref"] == ref:
+                try:
+                    counts = json.loads(calculation.get("value", ""))
+                except (TypeError, ValueError) as exc:
+                    raise MultidimensionalStageError("MARKET_BREADTH_VALUE_INVALID") from exc
+                if (not isinstance(counts, dict) or any(type(v) is not int for v in counts.values())
+                        or counts != artifact["counts"] or calculation.get("unit") != artifact["unit"]
+                        or calculation.get("method") != "provider_breadth_partition_sum"):
+                    raise MultidimensionalStageError("MARKET_BREADTH_VALUE_INVALID")
 
 
 def _calculation_ids_for_invocation(run_dir: Path, invocation_id: str) -> list[str]:
@@ -671,9 +993,7 @@ def _import_company_research_reports(
         source_proof.get("all_reports_valid") is not True
         or source_proof.get("run_id") != manifest.get("run_id")
         or source_proof.get("gate_hash") != source_gate.get("bundle_hash")
-        or source_proof.get("proof_hash") != canonical_hash({
-            key: value for key, value in source_proof.items() if key != "proof_hash"
-        })
+        or source_proof.get("proof_hash") != legacy_envelope_hash(source_proof, hash_field="proof_hash")
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_PROOF_INVALID")
     tasks_by_security: dict[str, dict[str, Any]] = {}
@@ -834,7 +1154,7 @@ def _import_company_research_reports(
         "reports": imported,
         "rejected_reports": rejected,
     }
-    proof["import_hash"] = canonical_hash(proof)
+    proof["import_hash"] = legacy_envelope_hash(proof, hash_field="import_hash")
     _write_object(target_run / "research/imported-company-research/import-manifest.json", proof)
     return proof
 
@@ -856,6 +1176,62 @@ def _report_document_from_verified(value: Mapping[str, Any]) -> dict[str, Any]:
         "interest_disclosure": {"status": status, "statement": None, "location": None},
         "verification_status": value["verification_status"],
     }
+
+
+def _issuer_document_title(fact: Mapping[str, Any]) -> str:
+    metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
+    form = str(metadata.get("form") or fact.get("form") or "").upper()
+    section = str(fact.get("section") or fact.get("semantic_field") or "")
+    if form in {"10-Q", "10-Q/A", "10-K", "10-K/A"} and section == "management_discussion":
+        return f"SEC Form {form} Management's Discussion and Analysis excerpt"
+    if form in {"8-K", "8-K/A"} and section == "earnings_release":
+        return f"SEC Form {form} earnings release excerpt"
+    if form in {"10-Q", "10-Q/A", "10-K", "10-K/A", "8-K", "8-K/A"}:
+        return f"SEC Form {form} {section or 'section unknown'} excerpt"
+    return f"SEC filing form unknown, {section or 'section unknown'} excerpt"
+
+
+def _dependency_calculation_records(
+    run_dir: Path, *, report: Mapping[str, Any], dependency_task: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Project only calculations cited by claims, after checking their original receipts."""
+    ledger_ref = dependency_task.get("calculation_ledger_ref")
+    if not ledger_ref:
+        return []
+    from product.runtime.codex_hook_recorder import _validate_multidimensional_tool_calculations
+
+    invocation = _read_object(run_dir / dependency_task["invocation_path"])
+    _validate_multidimensional_tool_calculations(
+        report, task=dependency_task, invocation=invocation, run_dir=run_dir,
+    )
+    ledger = run_dir / ledger_ref
+    receipts = {
+        item["calculation_id"]: item
+        for item in (json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines())
+    }
+    calculations = {
+        item["calculation_id"]: item for item in report.get("calculations", [])
+        if item.get("artifact_ref") == ledger_ref
+    }
+    result = []
+    for claim in report.get("claims", []):
+        for calculation_id in claim.get("calculation_refs", []):
+            if calculation_id not in calculations:
+                continue
+            calculation = calculations[calculation_id]
+            receipt = receipts[calculation_id]
+            result.append({
+                "claim_id": claim["claim_id"],
+                "calculation_id": calculation_id,
+                "method": calculation["method"],
+                "value": calculation["value"],
+                "unit": calculation["unit"],
+                "input_evidence_refs": calculation["input_evidence_refs"],
+                "artifact_ref": ledger_ref,
+                "receipt_hash": receipt["receipt_hash"],
+                "tool_event_hash": receipt["tool_event_hash"],
+            })
+    return result
 
 
 def _issuer_documents_from_gate(
@@ -920,11 +1296,7 @@ def _issuer_documents_from_gate(
                     "evidence_id": fact["evidence_id"], "raw_content_hash": raw_hash,
                 })[:24],
                 "source_id": str(fact["source_id"]),
-                "title": str(
-                    metadata.get("description")
-                    or metadata.get("attachment_description")
-                    or "SEC issuer earnings material"
-                ),
+                "title": _issuer_document_title(fact),
                 "authors": [], "institution": security_id,
                 "material_type": "ISSUER_MATERIAL",
                 "source_url": locator, "original_source_url": locator,
@@ -956,7 +1328,11 @@ def _issuer_documents_from_gate(
                     "body_hash": body_hash,
                     "raw_content_hash": raw_hash,
                     "body_character_count": len(body_text),
-                    "classification": "ISSUER_IR_OR_ANNOUNCEMENT_BODY",
+                    "classification": (
+                        "SEC_MANAGEMENT_DISCUSSION_EXCERPT"
+                        if fact.get("semantic_field") == "management_discussion"
+                        else "SEC_EARNINGS_RELEASE_EXCERPT"
+                    ),
                     "body_access": "query the bound Gate evidence_id",
                 },
             })
@@ -969,7 +1345,9 @@ def _import_research_materials(
 ) -> dict[str, Any]:
     """重验资料准备输出并复制其选择、正文和工具证明。"""
 
-    from product.runtime.research_materials_stage import validate_material_preparation_output
+    from product.runtime.research_materials_stage import (
+        validate_material_preparation_output, verify_material_tool_audit, SEMANTIC_OUTPUT_VERSION,
+    )
 
     source_run = Path(source_run).resolve()
     target_run = Path(target_run).resolve()
@@ -978,9 +1356,7 @@ def _import_research_materials(
     source_index = _read_object(source_run / "research/dispatch-index.json")
     if (
         source_manifest.get("stage") != "MULTIDIMENSIONAL_MATERIAL_PREPARATION"
-        or materials.get("manifest_hash") != canonical_hash({
-            key: value for key, value in materials.items() if key != "manifest_hash"
-        })
+        or materials.get("manifest_hash") != legacy_envelope_hash(materials, hash_field="manifest_hash")
         or materials.get("handoff_hash") != expected_handoff.get("handoff_hash")
         or materials.get("portfolio_hash") != expected_handoff.get("portfolio_hash")
     ):
@@ -1001,10 +1377,21 @@ def _import_research_materials(
     materialized_by_candidate: dict[tuple[str, str], dict[str, Any]] = {}
     if materialization_path.is_file():
         materialization = _read_object(materialization_path)
-        if materialization.get("materialization_hash") != canonical_hash({
-            key: value for key, value in materialization.items() if key != "materialization_hash"
-        }):
+        if materialization.get("materialization_hash") != legacy_envelope_hash(materialization, hash_field="materialization_hash"):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_PEER_MATERIALIZATION_INVALID")
+        if materialization.get("final_view_hash") is not None:
+            final_view = _read_object(
+                source_run / "research/peer-materialization/final-view.json"
+            )
+            if (
+                final_view.get("view_hash") != materialization["final_view_hash"]
+                or final_view["view_hash"] != legacy_envelope_hash(final_view, hash_field="view_hash")
+                or final_view.get("gate_hash") != target_gate.get("bundle_hash")
+                or materialization.get("merged_gate_hash") != target_gate.get("bundle_hash")
+                or final_view.get("decision_cutoff") != target_gate.get("decision_cutoff")
+                or final_view.get("allowed_evidence_ids") != target_gate.get("allowed_evidence_ids")
+            ):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_PEER_FINAL_VIEW_INVALID")
         materialized_by_candidate = {
             (item["holding_security_id"], item["candidate_id"]): item
             for item in materialization.get("selected", [])
@@ -1064,12 +1451,32 @@ def _import_research_materials(
             raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_OUTPUT_REF_INVALID")
         output = _read_object(source_run / output_ref)
         validate_material_preparation_output(output, task=task, run_dir=source_run)
+        audit_binding = {}
+        if task.get("semantic_output_version") == SEMANTIC_OUTPUT_VERSION:
+            events = [json.loads(line) for line in (source_run / "invocation/subagent-events.jsonl").read_text().splitlines() if line.strip()]
+            captures = [event["output_capture"] for event in events
+                        if event.get("hook_event_name") == "SubagentStop"
+                        and event.get("output_binding", {}).get("invocation_id") == task["invocation_id"]
+                        and event.get("output_capture", {}).get("task_id") == task_id
+                        and event["output_capture"].get("status") == "SAVED"]
+            if len(captures) != 1 or captures[0].get("path") != output_ref:
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_OUTPUT_BINDING_INVALID")
+            audit_binding = verify_material_tool_audit(source_run, task, output, captures[0])
+            if (output_entry.get("output_hash") != canonical_hash(output)
+                    or any(output_entry.get(key) != value for key, value in audit_binding.items())):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_OUTPUT_BINDING_INVALID")
         destination = destination_root / canonical_hash({"task_id": task_id})[:16]
         destination.mkdir(parents=True, exist_ok=False)
         copied_output = destination / "preparation-result.json"
         shutil.copy2(source_run / output_ref, copied_output)
         copied_refs.append(str(copied_output.relative_to(target_run)))
         copied_artifacts = []
+        if audit_binding:
+            copied_audit = destination / "tool-audit.json"
+            shutil.copy2(source_run / audit_binding["tool_audit_ref"], copied_audit)
+            copied_ref = str(copied_audit.relative_to(target_run))
+            copied_refs.append(copied_ref)
+            copied_artifacts.append({"artifact_ref": copied_ref, "file_hash": file_hash(copied_audit)})
         for artifact_ref in output.get("artifact_refs", []):
             source_artifact = source_run / artifact_ref
             if not source_artifact.is_file():
@@ -1095,7 +1502,10 @@ def _import_research_materials(
                 matches = []
                 for artifact_ref in output["artifact_refs"]:
                     candidate = _read_object(source_run / artifact_ref)
-                    if candidate.get("document_id") == selection["document_id"]:
+                    # 获取尝试也记录 document_id，但不是正文，不可按 ID 一项混为同类。
+                    if (candidate.get("schema_version") == "verified-research-document/1.0.0"
+                            and candidate.get("document_id") == selection["document_id"]
+                            and candidate.get("candidate_id") == selection["candidate_id"]):
                         matches.append(candidate)
                 if len(matches) != 1 or matches[0].get("verification_status") != "BODY_VERIFIED":
                     raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_DOCUMENT_MISSING")
@@ -1149,7 +1559,7 @@ def _import_research_materials(
             file_hash(materialization_path) if materialization_path.is_file() else None
         ),
     }
-    proof["import_hash"] = canonical_hash(proof)
+    proof["import_hash"] = legacy_envelope_hash(proof, hash_field="import_hash")
     _write_object(destination_root / "import-manifest.json", proof)
     copied_refs.append(str((destination_root / "import-manifest.json").relative_to(target_run)))
     return {
@@ -1167,16 +1577,37 @@ def _import_research_materials(
 def build_multidimensional_dispatch_packet(
     repository_root: Path, run_dir: Path, task_name: str, *,
     include_dependency_reports: bool = True,
+    for_execution: bool = True,
 ) -> dict[str, Any]:
     run_dir = Path(run_dir).resolve()
-    index = _read_object(run_dir / "research/dispatch-index.json")
+    index = (_read_object(run_dir / "research/dispatch-index.json") if for_execution else
+             _read_frozen_object(run_dir, "research/dispatch-index.json"))
+    reference_root = str(run_dir)
+    if not for_execution:
+        manifest = _read_frozen_object(run_dir, "run_manifest.json")
+        reference_root = manifest.get("output_dir")
+        if (not isinstance(reference_root, str) or not Path(reference_root).is_absolute()
+                or manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash")
+                or index.get("index_hash") != legacy_envelope_hash(index, hash_field="index_hash")
+                or manifest.get("dispatch_index_hash") != index.get("index_hash")
+                or manifest.get("run_id") != index.get("run_id")):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_ARTIFACT_BINDING_INVALID")
+        # 原目录只参与原短引用身份重建，绝不作为文件读取路径。
     matches = [item for item in index["tasks"] if item["task_name"] == task_name]
     if len(matches) != 1:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TASK_UNKNOWN")
     task = matches[0]
-    packet = _read_object(run_dir / task["packet_path"])
+    packet = (_read_object(run_dir / task["packet_path"]) if for_execution else
+              _read_frozen_object(run_dir, task["packet_path"]))
     if canonical_hash(packet) != task["packet_hash"]:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_PACKET_HASH_MISMATCH")
+    from product.runtime.research_submission import ASSEMBLY_VERSIONS
+    if task.get("submission_version") in ASSEMBLY_VERSIONS:
+        gate = _read_object(run_dir / "evidence/gate.json")
+        manifest = _read_object(run_dir / "run_manifest.json")
+        if (gate.get("bundle_hash") != legacy_envelope_hash(gate, hash_field="bundle_hash") or manifest.get("gate_hash") != gate.get("bundle_hash")
+                or gate.get("decision_cutoff") != task["time_context"]["window_end"]):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_SUBMISSION_GATE_BINDING_INVALID")
     view = packet.get("provider_coverage")
     expected_view_kind = task.get("provider_coverage_view_kind")
     if expected_view_kind is not None and (
@@ -1208,6 +1639,20 @@ def build_multidimensional_dispatch_packet(
                 f"MULTIDIMENSIONAL_DEPENDENCY_REPORT_MISSING:{dependency_id}"
             )
         path, report = matches[0]
+        if report.get("report_hash") != legacy_envelope_hash(report, hash_field="report_hash"):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_DEPENDENCY_REPORT_HASH_MISMATCH")
+        if packet.get("reference_transport_version") is not None:
+            expected = [t for t in index["tasks"] if t["task_id"] == dependency_id]
+            if (len(expected) != 1 or report.get("run_id") != task["run_id"]
+                    or report.get("invocation_id") != expected[0]["invocation_id"]
+                    or report.get("bindings", {}).get("decision_cutoff") != task["time_context"]["window_end"]):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_DEPENDENCY_REPORT_BINDING_MISMATCH")
+        calculation_records = []
+        if packet["task"].get("submission_version") in ASSEMBLY_VERSIONS:
+            dependency_task = next(t for t in index["tasks"] if t["task_id"] == dependency_id)
+            calculation_records = _dependency_calculation_records(
+                run_dir, report=report, dependency_task=dependency_task,
+            )
         dependency_reports.append({
             "report_id": report["report_id"],
             "report_hash": report["report_hash"],
@@ -1219,23 +1664,429 @@ def build_multidimensional_dispatch_packet(
             "limitations": report["limitations"],
             "data_gaps": report["data_gaps"],
             "artifact_ref": str(path.relative_to(run_dir)),
+            **({"verified_calculations": calculation_records}
+               if packet["task"].get("submission_version") in ASSEMBLY_VERSIONS else {}),
         })
     if task.get("depends_on") and include_dependency_reports:
         packet["dependency_reports"] = dependency_reports
-        packet["allowed_research_claim_ids"] = sorted({
-            claim["claim_id"]
-            for report in dependency_reports
-            for claim in report["claims"]
-        })
+        from product.runtime.multidimensional_references import VERSION, known_claim_references
+        packet["allowed_research_claim_ids"] = (
+            known_claim_references(dependency_reports, allow_legacy=False)
+            if packet.get("reference_transport_version") == VERSION else sorted({
+                claim["claim_id"] for report in dependency_reports for claim in report["claims"]
+            })
+        )
+    if packet.get("reference_transport_version") is not None:
+        from product.runtime.multidimensional_references import READ_VERSIONS, build_reference_map
+        if packet["reference_transport_version"] not in READ_VERSIONS:
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_REFERENCE_VERSION_INVALID")
+        gate = _read_object(run_dir / "evidence/gate.json")
+        packet["reference_map"] = build_reference_map(packet, canonical_hash(gate), reference_root)
     return packet
 
 
+def _compact_multidimensional_coverage(coverage: Mapping[str, Any]) -> dict[str, Any]:
+    """Keep research-relevant source limits; the complete audit stays frozen on disk."""
+
+    if coverage.get("view_kind") == "TASK_SCOPED_PROVIDER_COVERAGE":
+        return copy.deepcopy(dict(coverage))
+    providers = []
+    for provider in coverage.get("providers", []):
+        observations = provider.get("dataset_observations", [])
+        relevant = [
+            {key: item[key] for key in (
+                "security_id", "dataset", "status", "failure_code", "as_of",
+                "checked_at", "limitations",
+            ) if item.get(key) is not None}
+            for item in observations
+            if item.get("status") not in {"AVAILABLE", "READY"}
+            or item.get("failure_code") or item.get("limitations")
+        ]
+        dataset_counts: dict[str, dict[str, int]] = {}
+        for item in observations:
+            dataset = str(item.get("dataset") or "UNKNOWN")
+            status = str(item.get("status") or "UNKNOWN")
+            counts = dataset_counts.setdefault(dataset, {})
+            counts[status] = counts.get(status, 0) + 1
+        providers.append({
+            **{key: provider[key] for key in (
+                "plane", "provider", "region", "access", "declared_status",
+                "observed_status", "delivery_status", "failure_codes",
+                "limitations", "global_coverage", "dataset_observation_scope",
+            ) if key in provider},
+            "dataset_status_counts": dataset_counts,
+            "dataset_observations": relevant,
+        })
+    return {
+        "schema_version": "multidimensional-model-coverage/1.0.0",
+        "audit_ref": "audit/provider-coverage.json",
+        "audit_hash": coverage.get("coverage_hash"),
+        "decision_cutoff": coverage.get("decision_cutoff"),
+        "providers": providers,
+        "fallback_policy": coverage.get("fallback_policy"),
+        "observation_rule": (
+            "dataset_observations lists failures and limitations; AVAILABLE/READY "
+            "observations are counted in dataset_status_counts. Global provider "
+            "status does not prove task evidence was delivered."
+        ),
+    }
+
+
+def _model_output_format_guide(schema: Mapping[str, Any]) -> dict[str, Any]:
+    """Remove only repeated ID enums; the server still validates the full schema."""
+
+    guide = copy.deepcopy(dict(schema))
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            options = value.get("enum")
+            if (
+                isinstance(options, list) and options
+                and all(isinstance(item, str) and item.startswith("ev-") for item in options)
+            ):
+                value.pop("enum")
+                value["description"] = (
+                    "Use a full evidence_id returned by this invocation's query tool; "
+                    "the authoritative frozen schema enforces the allowed set."
+                )
+            else:
+                for child in value.values():
+                    visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(guide)
+    return guide
+
+
+def serialize_multidimensional_model_context(packet: Mapping[str, Any]) -> str:
+    """Provide a lossless evidence locator without duplicating the audit or ID enums."""
+
+    if packet.get("dispatch_contract") != DISPATCH_VERSION:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_MODEL_CONTEXT_VERSION_INVALID")
+    frozen_packet_hash = canonical_hash(packet)
+    canonical_packet = packet
+    reference_map = packet.get("reference_map")
+    if reference_map is not None:
+        from product.runtime.multidimensional_references import translate_references
+        packet = translate_references(dict(packet), reference_map, to_model=True)
+        packet.pop("reference_map", None)
+    catalog = packet.get("evidence_catalog")
+    if not isinstance(catalog, list):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_MODEL_CATALOG_INVALID")
+    columns = (
+        "evidence_id", "security_id", "semantic_field", "source_id",
+        "as_of", "published_at", "retrieved_at", "unit", "usage",
+        "section_locator", "content_kind", "text_length",
+    )
+    if any(not isinstance(item, Mapping) for item in catalog):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_MODEL_CATALOG_INVALID")
+    identifiers = [item.get("evidence_id") for item in catalog]
+    if (
+        any(not isinstance(item, str) for item in identifiers)
+        or len(identifiers) != len(set(identifiers))
+        or set(identifiers) != set(packet.get("allowed_evidence_ids", []))
+    ):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_MODEL_CATALOG_BINDING_INVALID")
+    task = copy.deepcopy(packet["task"])
+    task.pop("allowed_evidence_ids", None)
+    task.pop("allowed_calculation_evidence_ids", None)
+    context = {
+        **{key: copy.deepcopy(value) for key, value in packet.items()
+           if key not in {
+               "task", "allowed_evidence_ids", "evidence_catalog",
+               "provider_coverage", "output_schema", "output_schema_hash",
+               "submission_access",
+           }},
+        "model_context_version": "multidimensional-model-context/1.0.0",
+        "frozen_packet_hash": frozen_packet_hash,
+        "task": task,
+        "evidence_catalog": {
+            "columns": list(columns),
+            "rows": [[item.get(key) for key in columns] for item in catalog],
+            "row_count": len(catalog),
+            "rule": (
+                "Each row is a full authorized evidence locator. Query the exact full "
+                "evidence_id before citing; keep period, source, unit and limitations "
+                "from the tool result. Empty catalog means no direct Evidence query."
+            ),
+        },
+        "provider_coverage": _compact_multidimensional_coverage(packet["provider_coverage"]),
+        "output_format_guide": _model_output_format_guide(packet["output_schema"]),
+        "authoritative_output_schema_hash": packet["output_schema_hash"],
+        "output_contract_rules": copy.deepcopy(OUTPUT_CONTRACT_RULES),
+    }
+    if task.get("capability") == "RESEARCH_REPORT":
+        context["research_attribution_guidance"] = copy.deepcopy(RESEARCH_ATTRIBUTION_GUIDANCE)
+    context["instruction"] = (
+        context["instruction"]
+        + " output_format_guide 只指导草稿格式；服务端仍按冻结的完整 output_schema "
+        "及 authoritative_output_schema_hash 校验允许引用，不得凭格式说明猜测 ID。"
+    )
+    if reference_map is not None:
+        context["model_context_version"] = "multidimensional-model-context/2.0.0"
+        context["reference_map_hash"] = reference_map["map_hash"]
+        context["citation_contract"] = {
+            "version": reference_map["binding"]["version"],
+            "instruction": "e.* 是本任务 Evidence 引用，c.* 是限定报告版本的上游主张引用，d.* 是允许文档引用（仅提供目录中实际存在的类型）。查询、计算及草稿引用使用同一原样短引用；服务端精确还原后完整校验。不得猜测或改写引用。",
+        }
+        context["evidence_catalog"]["rule"] = context["citation_contract"]["instruction"]
+        context["instruction"] += " 本版本引用遵守 citation_contract：e.* / c.* 可直接用于工具和草稿，无需抄写完整工程 ID。"
+        for report in context.get("dependency_reports", []):
+            for claim in report["claims"]:
+                claim["research_reference"] = next(
+                    key for key, item in reference_map["claims"].items()
+                    if item["report_id"] == report["report_id"] and item["claim_id"] == claim["claim_id"]
+                )
+    _submission_context(context, canonical_packet)
+    return json.dumps(context, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _calculation_selection_context(context, packet):
+    from product.runtime.calculation_handoff import VERSION, semantic_selection_draft_schema, model_calculation_catalog
+    if packet["task"].get("calculation_selection_version") != VERSION:
+        return
+    submission = context.get("submission_contract")
+    guide = semantic_selection_draft_schema(packet)
+    if submission:
+        submission["draft_format_guide"] = guide
+    else:
+        context.pop("output_schema", None)
+        context["output_format_guide"] = guide
+    context["calculation_selection_contract"] = {
+        "version": VERSION,
+        "prepared_results": model_calculation_catalog(Path(packet["reference_map"]["binding"]["run_dir"]), packet),
+        "instruction": (
+            "通过calculation_selections选择本任务已成功计算的calculation_ref和本地claim_ids；"
+            "动态结果的短引用从calculate工具返回，冻结预计算从prepared_results选择。"
+            "在所关联claim的statement/core_statement解释用途、期间和局限；程序不补写解释。"
+            "省略calculations、artifact_refs及claim.calculation_refs；数值、方法、单位、"
+            "有序输入和产物位置由真实收据/冻结产物装配。没有使用计算时提交空选择数组。"
+            "文档也只用document_selections选择目录d.*，省略documents；原始文档身份、来源和时间由冻结目录装配。"
+            "不得抄结果来替代选择，不能选择失败/未执行/其它任务结果。"
+            "这一选择契约取代旧稿的计算字段填写要求，不改变研究内容和完整验证要求。"
+        ),
+    }
+    from product.runtime.calculation_handoff import prepared_reference_enabled, PREPARED_REFERENCE_VERSION
+    if prepared_reference_enabled(packet):
+        context["calculation_selection_contract"]["prepared_result_reference_version"] = PREPARED_REFERENCE_VERSION
+        context["calculation_selection_contract"]["instruction"] += (
+            " 本任务冻结预计算使用p.<原method>.<窗口>可读引用，例如目录中的指标/窗口键；"
+            "逐字选择prepared_results中实际存在的calculation_ref，不拼接scope或hash。"
+            "每个引用精确对应同条method/value/unit/window；成交量比率不是年化波动率。"
+            "未知或错选仍拒绝/内容不通过，程序不会按你的正文自动换选。"
+        )
+    if (packet["task"].get("tool_identity_version") == "research-tool-identity/1.0.0"
+            and packet["task"].get("capability") in {"TECHNICAL_STRUCTURE", "MARKET_STATE"}):
+        # 同一结果和ref只展示一份；原packet/产物及完整血缘不改写。
+        results = context["calculation_selection_contract"]["prepared_results"]
+        results.sort(key=lambda item: (
+            item["method"].partition(":")[0], item.get("window_sessions", 0), item["calculation_ref"],
+        ))
+        analysis = context.get("prepared_analysis", {})
+        calculation = analysis.get("calculation")
+        if isinstance(calculation, dict) and isinstance(calculation.get("windows"), list):
+            calculation["windows"] = [
+                {key: value for key, value in window.items() if key != "metrics"}
+                for window in calculation["windows"]
+            ]
+            calculation["metrics_view"] = "calculation_selection_contract.prepared_results"
+        context["calculation_selection_contract"]["instruction"] += (
+            " 窗口指标数值只在prepared_results中与其calculation_ref成对展示；"
+            "按同条method/window_sessions/value/unit选择并解释，不能用同附件另一个未选指标背书。"
+            "prepared_analysis保留窗口覆盖、图表、血缘及限制，不再重复窗口metrics。"
+        )
+        if packet["task"]["capability"] == "TECHNICAL_STRUCTURE":
+            context["calculation_selection_contract"]["instruction"] += (
+                " 交稿前按每条主张实际采用的指标/窗口列出对应选择，分别核对"
+                "security_total_return（证券自身）、benchmark_total_return（基准）和"
+                "relative_return（相对），三者是不同结果；每个所述窗口的每个所述值"
+                "都需在该claim关联相应calculation_ref。不要用相对值和基准值自行相加"
+                "代替选择已有证券自身结果，也不要用同附件的其它结果为遗漏项背书。"
+                "不要求机械引用未讨论指标；核心窗口仍按minimum_questions完成。"
+            )
+        else:
+            context["calculation_selection_contract"]["instruction"] += (
+                " 交稿前逐主张核对所有实际采用指标的method/window_sessions与选择，"
+                "收益、年化波动率和回撤的不同窗口各是独立结果；"
+                "正文采用某窗口数值必须在该claim关联该窗口该指标的calculation_ref，"
+                "不能只选20日结果为60/252日数值背书，不要求引用未讨论指标。"
+            )
+
+
+def _submission_context(context, packet):
+    from product.runtime.research_submission import READ_VERSIONS, ASSEMBLY_VERSIONS, WRITE_VERSIONS, FORMAL_VERSIONS, SHORT_RECEIPT_VERSIONS, BOUNDED_REVISION_VERSION, require_write_protocol
+    context["output_submission_guidance"] = {
+        "version": "task-output-submission/1.0.0",
+        "instruction": (
+            "工具列表可见不等于本任务获授权。只有显式 submission_contract 的任务可调用 research_report_submit；"
+            "没有该协议时按原 instruction 和输出格式返回最终完整 JSON，不调用该提交工具，也不返回数字回执。"
+            "提交工具失败属于执行诊断，不据此选择 evaluation_status、降低研究充分性或增加资料缺口；"
+            "研究状态依据实际资料和分析覆盖决定，真实取证失败及其影响仍须保留。"
+        ),
+    }
+    if packet["task"].get("capability") == "TECHNICAL_STRUCTURE":
+        context["technical_summary_guidance"] = copy.deepcopy(TECHNICAL_SUMMARY_GUIDANCE)
+    if packet["task"].get("submission_version") not in READ_VERSIONS:
+        _calculation_selection_context(context, packet)
+        _task_tool_identity_context(context, packet)
+        return
+    if packet["task"]["submission_version"] in WRITE_VERSIONS:
+        require_write_protocol(packet["task"])
+    from product.runtime.calculation_handoff import VERSION as SELECTION_VERSION, semantic_selection_draft_schema
+    selections_enabled = packet["task"].get("calculation_selection_version") == SELECTION_VERSION
+    guide = (semantic_selection_draft_schema(packet) if selections_enabled
+             else _model_output_format_guide(packet["output_schema"]))
+    for key in ("run_id", "invocation_id", "agent"):
+        guide.get("properties", {}).pop(key, None)
+    guide["required"] = [k for k in guide.get("required", []) if k not in {"run_id", "invocation_id", "agent"}]
+    guide.pop("$id", None)
+    if packet["task"]["submission_version"] in ASSEMBLY_VERSIONS and not selections_enabled:
+        guide["required"] = [key for key in guide["required"] if key != "documents"]
+        guide["properties"].pop("documents", None)
+        guide["properties"]["document_selections"] = {
+            "type": "array", "uniqueItems": True,
+            "items": {"type": "string", "enum": (
+                list(packet["reference_map"]["documents"])
+                if packet.get("reference_map", {}).get("binding", {}).get("version") == REFERENCE_VERSION else [
+                    item["document_id"] for item in packet["task"].get("allowed_documents", [])
+                ]
+            )},
+            "description": "Choose document IDs only; omit documents. Do not mix the two forms.",
+        }
+        guide["properties"]["upstream_calculation_selections"] = {
+            "type": "array", "items": {"type": "object", "additionalProperties": False,
+                "required": ["claim_id", "report_id", "source_claim_id", "calculation_id"],
+                "properties": {key: {"type": "string"} for key in (
+                    "claim_id", "report_id", "source_claim_id", "calculation_id"
+                )}},
+            "description": "Optional exact claim to verified upstream calculation choices; no local calculation is implied.",
+        }
+        if packet["task"]["submission_version"] in FORMAL_VERSIONS:
+            claim_guide = guide["$defs"]["claim"]
+            claim_guide["required"] = [
+                "core_statement" if key == "statement" else key for key in claim_guide["required"]
+            ] + ["research_relation_clauses"]
+            claim_guide["properties"].pop("statement")
+            claim_guide["properties"]["core_statement"] = {"type": "string", "minLength": 1}
+            claim_guide["properties"]["research_relation_clauses"] = {
+                "type": "array", "items": {"type": "object", "additionalProperties": False,
+                    "required": ["research_claim_ref", "relation_statement"],
+                    "properties": {
+                        "research_claim_ref": {"type": "string"},
+                        "relation_statement": {"type": "string", "minLength": 1},
+                    }},
+                "description": "Exactly one Agent-authored relationship sentence for each external research_claim_ref in this claim; empty for no external refs. Never use another claim's explanation.",
+            }
+    context.pop("output_schema", None)
+    context.pop("output_format_guide", None)
+    context["submission_contract"] = {
+        "version": packet["task"]["submission_version"], "tool": "research_report_submit",
+        "draft_format_guide": guide,
+        "maximum_submissions": 2,
+        "instruction": "本任务用工具提交draft研究对象，省略run_id/invocation_id/agent；invocation_id仅作为工具路由参数。程序负责序列化，Stop身份以真实派发/Start为准。工具返回不代表验收通过。最终原样返回工具给出的final_message完整回执，不自行拼写hash、不重复输出整份报告。纠正时重新调用工具提交完整对象，最多两份；不得删事实或猜引用。此提交协议替代旧的最终整稿JSON要求，研究字段及校验要求不变。",
+    }
+    if packet["task"]["submission_version"] in WRITE_VERSIONS:
+        token = packet.get("submission_access", {}).get("token")
+        if not isinstance(token, str) or len(token) < 32:
+            raise MultidimensionalStageError("RESEARCH_SUBMISSION_CREDENTIAL_MISSING")
+        context["submission_contract"]["submission_token"] = token
+        context["submission_contract"]["instruction"] += (
+            " 工具参数同时传本任务submission_token；凭据只供提交，不写入研究正文、报告或其他任务。"
+            "不获取其他任务凭据。"
+        )
+        if not selections_enabled:
+            context["submission_contract"]["instruction"] += (
+                "新版草稿用document_selections选择允许文档ID并省略documents；历史完整documents草稿仍可原样提交，"
+                "不得同时使用两种形式。需要复用上游计算时，用upstream_calculation_selections明确本地claim_id、"
+                "上游report_id/source_claim_id/calculation_id，四者必须属于同一已核验依赖。"
+                "无合格结果可保留来源原单位；程序展示所选计算原结果，正文不必重复抄金额。"
+            )
+        if packet["task"]["submission_version"] in FORMAL_VERSIONS:
+            context["submission_contract"]["instruction"] += (
+                " 每条claim改写core_statement与research_relation_clauses，不得同时写statement。"
+                "每个外部上游research_claim_ref须在同一claim配一条由你撰写的具体关系句；"
+                "没有实际关系就删去该上游引用，不借下一条claim解释，也不为凑覆盖虚构关系。"
+                "程序只核引用一一对应并拼装原句，不判断语义相关性；最终仍经原完整门禁。"
+            )
+        if packet["task"]["submission_version"] in SHORT_RECEIPT_VERSIONS:
+            context["submission_contract"]["instruction"] += (
+                " 当前版本的final_message是服务端签发的短提交引用；最终只原样返回该引用，"
+                "不返回JSON回执、序号或完整content_hash。Stop将凭可信Start和精确引用重验存稿。"
+            )
+        if packet["task"]["submission_version"] == BOUNDED_REVISION_VERSION:
+            from product.runtime.local_revision import REVISION_FORMAT_GUIDE
+            context["submission_contract"]["revision_format_guide"] = copy.deepcopy(REVISION_FORMAT_GUIDE)
+            context["submission_contract"]["instruction"] = (
+                "首稿提交draft研究对象，省略技术身份。程序校验及序列化；有任务凭据不等于会话身份认证，"
+                "最终仍须真实派发/Start/Stop。最多首稿加一次修订，已授权的无效研究对象也占额度。"
+                "修订必须在工具draft中提交反馈给出的base_draft_ref和changes，仅修改allowed_paths；"
+                "不能重发整稿或修改其它主张。没有修订约束时不得再次提交；最终只返回工具的final_message。"
+                "调用时传本任务invocation_id和submission_token，凭据不得写入研究。"
+                "每条claim使用core_statement及research_relation_clauses：每个实际外部上游引用配一条"
+                "你撰写的具体关系句，不借其它claim解释、不虚构关系；没有外部引用也必须填写空列表。"
+                "修订changes每项必须有op，结构见revision_format_guide。其余研究字段见draft_format_guide。"
+                "文档与计算只按选择契约选真实允许对象；第二稿仍经过完整校验，失败不增加次数。"
+            )
+    else:
+        # 展示冻结草稿结构仅用于解释历史包；不交付可执行工具或访问凭据。
+        context["submission_contract"].update({
+            "tool": None, "read_only": True, "status": "LEGACY_READ_ONLY",
+            "instruction": "此协议已退役，仅可读取及重验历史产物；不得新提交或继续启动旧任务。需真实执行时单独准备当前协议的新运行包，不改写旧包。",
+        })
+        context["submission_contract"].pop("maximum_submissions", None)
+    context["instruction"] += " 本任务提交方式与研究字段格式以 submission_contract 为准；格式说明不是新的权威Schema，身份装配后仍用原冻结Schema校验。"
+    _calculation_selection_context(context, packet)
+    _task_tool_identity_context(context, packet)
+
+
+def _task_tool_identity_context(context, packet):
+    from product.runtime.fixture_mcp import TASK_TOOL_IDENTITY_VERSION
+    if packet["task"].get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION:
+        return
+    context["tool_identity_contract"] = {
+        "version": TASK_TOOL_IDENTITY_VERSION,
+        "task_name": packet["task"]["task_name"],
+        "tools": ["query", "calculate", "research_report_submit"],
+        "instruction": (
+            "query/calculate以及获授权的research_report_submit只以本任务精确task_name路由；"
+            "不要传run_id/agent/invocation_id/run_dir。这替代旧tool_context中的身份参数要求，"
+            "不改变权限或引用选择。成功读取不因后续请求失败而失效，不把调用错误写成已读来源缺失。"
+        ),
+    }
+    if context.get("submission_contract"):
+        context["submission_contract"]["instruction"] += " 本profile工具路由只传tool_identity_contract.task_name，不传invocation_id。"
+    # Change only the model-view copies, never frozen upstream reports or output refs.
+    mapping = packet.get("reference_map", {}).get("claims", {})
+    for report in context.get("dependency_reports", []):
+        claims = []
+        for original in report["claims"]:
+            claim = copy.deepcopy(original)
+            refs = [key for key, target in mapping.items()
+                    if target["report_id"] == report["report_id"] and target["claim_id"] == claim["claim_id"]]
+            if len(refs) != 1 or not re.fullmatch(r"c\.[^.]+\.\d+", refs[0]):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_CLAIM_DISPLAY_BINDING_INVALID")
+            if claim.get("research_reference") not in {None, refs[0]}:
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_CLAIM_DISPLAY_BINDING_INVALID")
+            claim["research_reference"] = refs[0]
+            claims.append(claim)
+        report["claims"] = sorted(claims, key=lambda c: int(c["research_reference"].rsplit(".", 1)[1]))
+    if context.get("dependency_reports"):
+        context["upstream_reference_rule"] = (
+            "每条主张旁的research_reference才是该条引用身份，数组位置不是身份。"
+            "逐条阅读原claim_id/原句及限定，选择该条实际ref并解释关系，不按顺序猜ref。"
+        )
+
+
 def serialize_multidimensional_initial_context(packet: Mapping[str, Any]) -> str:
-    """首次定点 Company 研究只交付有界索引；完整事实由 Gate 工具返回。"""
+    """首次定点交付沿既有视图；Company 使用有界目录，其它维度保留完整视图。"""
 
     if packet.get("task", {}).get("capability") not in {
         "FUNDAMENTAL_EVENT", "RESEARCH_REPORT",
     }:
+        if packet.get("task", {}).get("capability") in RESEARCH_CAPABILITIES:
+            return serialize_multidimensional_model_context(packet)
         raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_CONTEXT_SCOPE_INVALID")
     retained = (
         "dispatch_contract", "identity", "instruction", "minimum_questions",
@@ -1243,13 +2094,17 @@ def serialize_multidimensional_initial_context(packet: Mapping[str, Any]) -> str
         "company_material_coverage", "verified_documents", "material_preparation",
         "research_input_topology", "dependency_reports", "allowed_research_claim_ids",
     )
-    context = {key: packet[key] for key in retained if key in packet}
+    context = {key: copy.deepcopy(packet[key]) for key in retained if key in packet}
     context["packet_hash"] = canonical_hash(packet)
     context["task"] = {
         key: packet["task"][key]
-        for key in ("task_id", "task_name", "capability", "security_ids", "depends_on")
+        for key in ("task_id", "task_name", "capability", "security_ids", "depends_on", "source_focus")
         if key in packet["task"]
     }
+    context["output_contract_rules"] = copy.deepcopy(OUTPUT_CONTRACT_RULES)
+    if packet["task"].get("capability") == "RESEARCH_REPORT":
+        context["research_attribution_guidance"] = copy.deepcopy(RESEARCH_ATTRIBUTION_GUIDANCE)
+    context["task"]["allowed_documents"] = copy.deepcopy(packet["task"].get("allowed_documents", []))
     by_field: dict[str, list[dict[str, Any]]] = {}
     for item in packet["evidence_catalog"]:
         field = str(item.get("semantic_field") or "UNKNOWN")
@@ -1273,6 +2128,17 @@ def serialize_multidimensional_initial_context(packet: Mapping[str, Any]) -> str
         "evidence_catalog 按 semantic_field 分组，包含完整允许 ID；引用前必须用 fixture_runtime.query "
         "读取完整事实及期间、来源和限制，逐字复制工具返回的 evidence_id。"
     )
+    if packet.get("reference_map") is not None:
+        from product.runtime.multidimensional_references import translate_references
+        context = translate_references(context, packet["reference_map"], to_model=True)
+        context["reference_map_hash"] = packet["reference_map"]["map_hash"]
+        context["output_format_guide"] = _model_output_format_guide(context.pop("output_schema"))
+        context["catalog_rule"] = "目录、工具及草稿使用同一任务 e.* Evidence / c.* 限定版本上游主张 / d.* 文档引用（仅使用实际目录允许类型）；精确还原后仍执行完整 Schema 校验，不能猜测。"
+        context["citation_contract"] = {"version": packet["reference_map"]["binding"]["version"], "instruction": context["catalog_rule"]}
+        context["instruction"] += " 引用及格式遵守本次 citation_contract 和 output_format_guide；无需抄写完整工程 ID，服务端仍执行冻结的完整 Schema 校验。"
+        from product.runtime.multidimensional_references import model_claim_targets
+        context["upstream_short_references"] = model_claim_targets(packet["reference_map"])
+    _submission_context(context, packet)
     serialized = json.dumps(
         context, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     )
@@ -1284,7 +2150,16 @@ def serialize_multidimensional_initial_context(packet: Mapping[str, Any]) -> str
 def build_multidimensional_dispatch_message(
     repository_root: Path, run_dir: Path, task_name: str,
 ) -> str:
-    del repository_root, run_dir
+    del repository_root
+    manifest = _read_object(Path(run_dir) / "run_manifest.json")
+    if (manifest.get("stage") == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+            and manifest.get("tool_identity_version") == "research-tool-identity/1.0.0"):
+        return (
+            f"执行多维持仓研究任务 {task_name}。读取本次 SubagentStart Hook 提供的冻结研究包，"
+            "在本次调用内完成研究并按其输出契约提交；不得以已收到或等待注入的确认句作为最终输出。"
+            "以 Hook 上下文为唯一研究输入，不在启动消息中复制资料；"
+            "若 Hook 明确交付失败，遵循失败指令，禁止猜测输入或绑定。"
+        )
     return (
         f"多维持仓研究任务 {task_name}。等待 SubagentStart Hook 注入冻结研究包；"
         "以 Hook 上下文为唯一研究输入，不在启动消息中复制资料。"
@@ -1293,22 +2168,44 @@ def build_multidimensional_dispatch_message(
 
 def _load_research_capture_batches(
     *, gate_path: Path, gate: Mapping[str, Any], security_ids: Sequence[str],
+    base_gate_path: Path | None = None,
+    allow_source_run_rebinding: bool = False,
 ) -> list[dict[str, Any]]:
-    """从 Gate 同目录的已验证 preparation 引用中读取逐股 capability batch。"""
+    """读取原采集批次，并在同行合并后重新核对最终 Gate 的 Evidence 准入。"""
 
     preparation_path = gate_path.parent / "data-preparation.json"
+    preparation_gate = gate
+    if gate.get("source_mode") == "live-read-only" and gate.get("base_gate_content_hash") is not None:
+        if base_gate_path is None:
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_BASE_GATE_REQUIRED")
+        base_gate_path = Path(base_gate_path).resolve()
+        base_gate = _read_object(base_gate_path)
+        if (
+            base_gate.get("bundle_hash") != legacy_envelope_hash(base_gate, hash_field="bundle_hash")
+            or gate["base_gate_content_hash"] != canonical_hash({
+                key: value for key, value in base_gate.items()
+                if key not in {"run_id", "bundle_hash"}
+            })
+            or (not allow_source_run_rebinding and base_gate.get("run_id") != gate.get("run_id"))
+            or base_gate.get("source_mode") != gate.get("source_mode")
+            or base_gate.get("source_bundle_hash") != gate.get("source_bundle_hash")
+            or parse_timestamp(base_gate["decision_cutoff"])
+            > parse_timestamp(gate["decision_cutoff"])
+        ):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_BASE_GATE_BINDING_INVALID")
+        preparation_gate = base_gate
+        preparation_path = base_gate_path.parent / "data-preparation.json"
+    elif base_gate_path is not None:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_BASE_GATE_UNEXPECTED")
     if not preparation_path.is_file():
         if gate.get("source_mode") == "live-read-only":
             raise MultidimensionalStageError("MULTIDIMENSIONAL_DATA_PREPARATION_MISSING")
         return []
     preparation = _read_object(preparation_path)
-    if preparation.get("common_cutoff") != gate.get("decision_cutoff"):
+    if preparation.get("common_cutoff") != preparation_gate.get("decision_cutoff"):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_PROVIDER_PREPARATION_CUTOFF_MISMATCH")
     if gate.get("source_mode") == "live-read-only":
-        if preparation.get("preparation_hash") != canonical_hash({
-            key: value for key, value in preparation.items()
-            if key != "preparation_hash"
-        }):
+        if preparation.get("preparation_hash") != legacy_envelope_hash(preparation, hash_field="preparation_hash"):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_DATA_PREPARATION_HASH_MISMATCH")
         items = preparation.get("items")
         expected_ids = set(security_ids)
@@ -1375,6 +2272,17 @@ def _provider_scope(capability: str) -> set[str]:
     return {"yahoo", "nasdaq", "eastmoney"}
 
 
+def _research_execution_fingerprint(repository_root: Path) -> dict[str, str]:
+    """当前研究共用实现的只读指纹；不是产品版本锁或晋升指针。"""
+    names = (
+        "multidimensional_stage", "codex_hook_recorder", "fixture_mcp",
+        "research_submission", "multidimensional_references", "calculation_handoff",
+        "research_input_topology", "schema_validation", "local_revision", "nested_codex",
+    )
+    return {f"product/runtime/{name}.py": file_hash(repository_root / "product/runtime" / f"{name}.py")
+            for name in names}
+
+
 def _task_provider_coverage_view(
     coverage: Mapping[str, Any], *, task: Mapping[str, Any],
     evidence: Sequence[Mapping[str, Any]], stage: str,
@@ -1386,7 +2294,7 @@ def _task_provider_coverage_view(
         "MACRO_CONTEXT", "MARKET_STATE",
     }:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_VIEW_SCOPE_INVALID")
-    expected_hash = canonical_hash({key: value for key, value in coverage.items() if key != "coverage_hash"})
+    expected_hash = legacy_envelope_hash(coverage, hash_field="coverage_hash")
     if coverage.get("coverage_hash") != expected_hash:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COVERAGE_AUDIT_HASH_MISMATCH")
     cutoff = task["time_context"]["window_end"]
@@ -1478,10 +2386,17 @@ def prepare_multidimensional_stage_run(
     peer_candidate_pool_path: Path | None = None,
     company_research_run_path: Path | None = None,
     research_materials_run_path: Path | None = None,
+    base_gate_path: Path | None = None,
     stage: str = "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+    structured_report_submission: bool = False,
+    task_bound_tools: bool = False,
+    reuse_frozen_gate: bool = False,
 ) -> dict[str, Any]:
     repository_root = Path(repository_root).resolve()
     product_root = repository_root / "product"
+    if task_bound_tools and stage != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+        raise MultidimensionalStageError("TASK_TOOL_IDENTITY_STAGE_INVALID")
+    validate_current_component_versions(product_root, load_version_manifest(product_root / "version-manifest.json"))
     run_dir = Path(run_dir).resolve()
     if run_dir.exists():
         raise MultidimensionalStageError("MULTIDIMENSIONAL_RUN_EXISTS")
@@ -1493,11 +2408,18 @@ def prepare_multidimensional_stage_run(
     handoff = _read_object(Path(handoff_path).resolve())
     validate_handoff(handoff)
     gate = _read_object(resolved_gate_path)
-    if gate.get("run_id") not in {None, run_id}:
+    source_gate = copy.deepcopy(gate)
+    gate_input_binding = None
+    if reuse_frozen_gate:
+        if stage != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_GATE_REUSE_STAGE_FORBIDDEN")
+        from product.runtime.evidence_gate import bind_frozen_gate_to_run
+        gate, gate_input_binding = bind_frozen_gate_to_run(resolved_gate_path, run_id=run_id)
+    elif gate.get("run_id") not in {None, run_id}:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_GATE_RUN_MISMATCH")
     gate["run_id"] = run_id
     gate["source_mode"] = gate.get("source_mode", "fixture")
-    gate["bundle_hash"] = canonical_hash({key: item for key, item in gate.items() if key != "bundle_hash"})
+    gate["bundle_hash"] = legacy_envelope_hash(gate, hash_field="bundle_hash")
     cutoff = gate.get("decision_cutoff")
     if not isinstance(cutoff, str):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_CUTOFF_MISSING")
@@ -1511,6 +2433,19 @@ def prepare_multidimensional_stage_run(
                 raise MultidimensionalStageError(f"MULTIDIMENSIONAL_PROVENANCE_MISSING:{key}")
         if parse_timestamp(fact["as_of"]) > cutoff_time or parse_timestamp(fact["retrieved_at"]) > cutoff_time:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_GATE_PIT_LEAKAGE")
+    # Live collection identifies SPY as an ETF, while older frozen fixtures
+    # use US:SPY. Resolve only the known benchmark alias from actual gated
+    # daily prices; do not invent a benchmark or broaden Evidence access.
+    if benchmark_id == "US:SPY" and not any(
+        item.get("security_id") == benchmark_id
+        and item.get("semantic_field") == "historical_close_price"
+        for item in evidence
+    ) and any(
+        item.get("security_id") == "US:ETF:SPY"
+        and item.get("semantic_field") == "historical_close_price"
+        for item in evidence
+    ):
+        benchmark_id = "US:ETF:SPY"
     if stage not in {"MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH"}:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_STAGE_INVALID")
     if stage == "INDEPENDENT_COUNTER_THESIS_RESEARCH":
@@ -1569,8 +2504,12 @@ def prepare_multidimensional_stage_run(
     topology = load_research_input_topology(repository_root)
     topology_lock = research_input_topology_lock(repository_root)
     from product.runtime.research_input_topology import build_research_provider_coverage
+    capture_gate_path = resolved_gate_path
+    capture_gate = source_gate if reuse_frozen_gate else gate
     capture_batches = _load_research_capture_batches(
-        gate_path=resolved_gate_path, gate=gate, security_ids=common_ids,
+        gate_path=capture_gate_path, gate=capture_gate, security_ids=common_ids,
+        base_gate_path=base_gate_path,
+        allow_source_run_rebinding=reuse_frozen_gate,
     )
     provider_coverage = build_research_provider_coverage(
         repository_root,
@@ -1582,10 +2521,7 @@ def prepare_multidimensional_stage_run(
         evidence, capture_batches=capture_batches, security_ids=common_ids,
         benchmark_id=benchmark_id,
     )
-    provider_coverage["coverage_hash"] = canonical_hash({
-        key: value for key, value in provider_coverage.items()
-        if key != "coverage_hash"
-    })
+    provider_coverage["coverage_hash"] = legacy_envelope_hash(provider_coverage, hash_field="coverage_hash")
     configured_capability_bindings = dict(CAPABILITY_BINDINGS)
     for domain in topology["domains"]:
         for capability in domain["capabilities"]:
@@ -1601,6 +2537,10 @@ def prepare_multidimensional_stage_run(
         for item in configured_capability_bindings.values()
     }
     run_dir.mkdir(parents=True)
+    if gate_input_binding is not None:
+        source_copy = run_dir / gate_input_binding["source_ref"]
+        source_copy.parent.mkdir(parents=True, exist_ok=True)
+        source_copy.write_bytes(resolved_gate_path.read_bytes())
     _write_object(run_dir / "audit/portfolio-handoff.json", handoff)
     _write_object(run_dir / "council-request.json", request)
     _write_object(run_dir / "evidence/gate.json", gate)
@@ -1620,12 +2560,15 @@ def prepare_multidimensional_stage_run(
     if research_materials_run_path is not None:
         research_materials_import = _import_research_materials(
             source_run=research_materials_run_path, target_run=run_dir,
-            expected_handoff=handoff, target_gate=gate,
+            # 同行 final-view 绑定冻结资料身份；新执行身份另由
+            # gate_input_binding 校验，不能要求历史视图重签新 run hash。
+            expected_handoff=handoff, target_gate=source_gate if reuse_frozen_gate else gate,
             expected_security_ids=common_ids,
         )
     tasks: list[dict[str, Any]] = []
     ordinal = 0
-    for capability in RESEARCH_CAPABILITIES:
+    capabilities = RESEARCH_CAPABILITIES
+    for capability in capabilities:
         agent, skill_name, scope = configured_capability_bindings[capability]
         scopes = [(None, common_ids)] if scope == "SHARED_MARKET" else [(security_id, [security_id]) for security_id in common_ids]
         for security_id, security_ids in scopes:
@@ -1668,7 +2611,66 @@ def prepare_multidimensional_stage_run(
                 if capability in {"INDUSTRY_COMPARISON", "MARKET_STATE"}
                 else analysis_facts
             )
+            breadth_focus = _latest_market_breadth(evidence, cutoff) if capability == "MARKET_STATE" else None
+            if breadth_focus is not None and breadth_focus["evidence_id"] not in {f["evidence_id"] for f in facts}:
+                facts = sorted([*facts, breadth_focus], key=lambda f: f["evidence_id"])
             allowed_ids = [item["evidence_id"] for item in facts]
+            if capability == "OWNERSHIP_DISCLOSURE":
+                completed_by_source: dict[str, list[dict[str, Any]]] = {}
+                for fact in facts:
+                    value = fact.get("value")
+                    if (
+                        str(fact.get("semantic_field", "")).startswith("moomoo_institutional_aggregate:")
+                        and isinstance(value, dict) and value.get("period_provisional") is False
+                        and isinstance(value.get("period_end"), str)
+                        and isinstance(value.get("period_label"), str)
+                    ):
+                        completed_by_source.setdefault(str(fact.get("source_id", "")), []).append(fact)
+                pairs = []
+                for items in completed_by_source.values():
+                    by_period = {
+                        item["value"]["period_end"]: item
+                        for item in sorted(items, key=lambda item: item["evidence_id"])
+                    }
+                    if len(by_period) >= 2:
+                        pairs.append([by_period[key] for key in sorted(by_period)[-2:]])
+                if pairs:
+                    selected_pair = max(pairs, key=lambda pair: pair[-1]["value"]["period_end"])
+                    task_focus = [
+                        {"evidence_id": item["evidence_id"],
+                         "period_label": item["value"]["period_label"],
+                         "period_end": item["value"]["period_end"]}
+                        for item in selected_pair
+                    ]
+                else:
+                    task_focus = []
+                if security_id:
+                    task_focus.extend(_latest_insider_trade_focus(
+                        facts, security_id=security_id, cutoff=cutoff,
+                    ))
+            elif capability == "MARKET_STATE":
+                task_focus = [
+                    {"evidence_id": item["evidence_id"], "semantic_field": item["semantic_field"]}
+                    for item in ([breadth_focus] if breadth_focus is not None else [])
+                ]
+            elif capability == "INDUSTRY_COMPARISON":
+                task_focus = [
+                    {"evidence_id": fact["evidence_id"], "security_id": fact.get("security_id"),
+                     "source_id": fact.get("source_id"), "as_of": fact.get("as_of"),
+                     "retrieved_at": fact.get("retrieved_at"),
+                     "form": fact.get("metadata", {}).get("form") if isinstance(fact.get("metadata"), dict) else None,
+                     "accession": fact.get("metadata", {}).get("accession") if isinstance(fact.get("metadata"), dict) else None,
+                     **_text_locator(fact)}
+                    for fact in facts if _text_locator(fact)["section_locator"] == "business"
+                ]
+            elif capability == "FUNDAMENTAL_EVENT" and security_id:
+                task_focus = [
+                    *_latest_annual_eps_focus(facts, security_id=security_id),
+                    *_sec_revenue_table_unit_focus(facts, security_id=security_id),
+                    *_same_period_profit_cash_focus(facts, security_id=security_id),
+                ]
+            else:
+                task_focus = []
             dependencies: list[str] = []
             if capability == "RESEARCH_REPORT" and security_id:
                 dependencies = [_task_id("FUNDAMENTAL_EVENT", security_id)]
@@ -1685,11 +2687,28 @@ def prepare_multidimensional_stage_run(
                 },
                 "provider_coverage_ref": "audit/provider-coverage.json",
                 "provider_scope": sorted(_provider_scope(capability)),
+                "source_focus": task_focus,
             }
+            if stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH" and capability == "INDUSTRY_COMPARISON":
+                task["industry_source_boundary"] = "industry-source-boundary/1.0.0"
+            if task_bound_tools:
+                from product.runtime.fixture_mcp import TASK_TOOL_IDENTITY_VERSION
+                task["tool_identity_version"] = TASK_TOOL_IDENTITY_VERSION
             if stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH" and capability in {
                 "MACRO_CONTEXT", "MARKET_STATE",
             }:
                 task["provider_coverage_view_kind"] = "TASK_SCOPED_PROVIDER_COVERAGE"
+            if stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH" and capability in {
+                "FUNDAMENTAL_EVENT", "OPTIONS_FLOW",
+            }:
+                task["source_literal_selection"] = "source-literal-selection/1.0.0"
+            if (stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+                    and capability == "MACRO_CONTEXT" and task_bound_tools):
+                task["source_literal_selection"] = "source-literal-selection/1.1.0"
+            if structured_report_submission and stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH" and capability == "RESEARCH_REPORT":
+                from product.runtime.research_submission import LATEST_VERSION
+                task["submission_version"] = LATEST_VERSION
+                task["source_evidence_review"] = "queried-source-excerpt-review/1.0.0"
             if research_materials_import is not None and capability == "RESEARCH_REPORT" and security_id:
                 task["allowed_documents"] = [
                     item["report_document"]
@@ -1764,23 +2783,92 @@ def prepare_multidimensional_stage_run(
                     evidence=evidence,
                     as_of=cutoff,
                 )
+            if capability in {"FUNDAMENTAL_EVENT", "OWNERSHIP_DISCLOSURE"}:
+                ledger_ref = (
+                    "research/calculations/"
+                    + hashlib.sha256(invocation_id.encode("utf-8")).hexdigest()[:16]
+                    + "/tool-results.jsonl"
+                )
+                ledger_path = run_dir / ledger_ref
+                ledger_path.parent.mkdir(parents=True, exist_ok=False)
+                ledger_path.touch(exist_ok=False)
+                task["calculation_ledger_ref"] = ledger_ref
+                prepared_analysis["allowed_artifact_refs"].append(ledger_ref)
             task["allowed_artifact_refs"] = prepared_analysis["allowed_artifact_refs"]
-            task["task_hash"] = canonical_hash(task)
+            if stage in {"MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH"}:
+                from product.runtime.calculation_handoff import VERSION as CALCULATION_SELECTION_VERSION
+                task["calculation_selection_version"] = CALCULATION_SELECTION_VERSION
+                if (task_bound_tools and stage == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+                        and capability in {"TECHNICAL_STRUCTURE", "MARKET_STATE"}):
+                    from product.runtime.calculation_handoff import PREPARED_REFERENCE_VERSION
+                    task["prepared_result_reference_version"] = PREPARED_REFERENCE_VERSION
+                # Only computation lineage; not new query or claim-citation permission.
+                task["allowed_calculation_evidence_ids"] = sorted({
+                    identifier
+                    for ref in prepared_analysis["allowed_artifact_refs"]
+                    if ref.endswith("-calculation.json")
+                    for identifier in _read_object(run_dir / ref)["evidence_fact_ids"]
+                })
             task_path = f"research/tasks/{canonical_hash({'task_id': task_id})}.json"
-            _write_object(run_dir / task_path, task)
             skill = skill_bindings[skill_name]
+            minimum_questions = copy.deepcopy(MINIMUM_QUESTIONS[capability])
+            if task.get("tool_identity_version") == "research-tool-identity/1.0.0":
+                if (capability == "MACRO_CONTEXT"
+                        and task.get("source_literal_selection") == "source-literal-selection/1.1.0"):
+                    minimum_questions[0] = (
+                        "利率、通胀、经济活动与政策的官方事实是什么？"
+                        "从已准入的Moomoo宏观补源自行选择至少一条与研究问题相关的代表观测，"
+                        "实际query并在同一claim引用，沿本任务原值行绑定呈现其数值角色、"
+                        "原单位及观察期；与官方资料有何关系，怎样影响本次解释？"
+                        "供应商快照及历史vintage限制另述；没有可用准入观测时保留具体gap。"
+                    )
+                elif (capability == "OPTIONS_FLOW"
+                        and task.get("source_literal_selection") == "source-literal-selection/1.0.0"):
+                    minimum_questions[1] += (
+                        " 所选代表合约的contract_multiplier/contract_size有哪些可得原值，"
+                        "对应来源单位及合约规模风险含义是什么？"
+                        "实际query并引用同身份补源；Yahoo未给出不等于OpenD已取得字段缺失，"
+                        "单位未知须说明而不能自行默认标准合约规模。"
+                    )
+                elif capability == "FUNDAMENTAL_EVENT":
+                    minimum_questions[1] = (
+                        "盈利与现金流是什么关系？分别读取并呈现已准入累计期间的净利润与经营现金流"
+                        "原值、单位及起止日，解释同期间关系；如另用业绩稿单季数字，"
+                        "与累计期间分开说明，不能相互代替。确实不可得或口径不明保留具体gap。"
+                    )
+                    minimum_questions[2] += (
+                        " 若使用年度GAAP EPS作历史价格比值，已披露的一次性处置等项目"
+                        "怎样影响这个盈利基础的可重复性？实际读取并引用依据；"
+                        "不能只说明滞后或非前瞻，不自行重建调整后EPS。"
+                    )
+                    minimum_questions[3] += (
+                        " 事件或业绩稿的报告财年/财季须按所引发行人原文核对，"
+                        "与公布日、累计/单季起止日及管理层预测年度分别说明；"
+                        "不能把公布日的日历年份当作报告财年，不自行推算财年标签。"
+                    )
+                elif capability == "RESEARCH_REPORT":
+                    minimum_questions[0] += (
+                        " 各来源的币种和金额数量级是什么？core_statement及每条"
+                        "research_relation_clauses都保留各自来源原表示；"
+                        "没有同源合法换算收据不得改写金额单位，不只核对主段落。"
+                    )
             instruction = (
-                "只分析本任务指定维度并回答 minimum_questions。只使用 Gate 允许的原始 evidence_id；"
+                "只分析本任务指定维度并回答 minimum_questions。只使用本次目录和工具允许的精确引用；"
                 "禁止拼接来源、时间或说明。没有足够资料时输出具体 gap 及影响，不能使用模型记忆补齐。"
                 " claims 中每条主张必须保留非空 question、statement 和 kind，并且 question 对应本任务"
                 "实际回答的 minimum_questions；不得省略问题字段。"
-                " 顶层只能包含 output_schema 声明的 draft 字段；不得补写 schema_version、report_id、"
+                " 顶层只能包含本次草稿契约声明的字段；不得补写 schema_version、report_id、"
                 "capability、scope、security_ids、bindings、time_context、execution 或 report_hash，"
                 "这些冻结字段由确定性封装器添加。"
                 " limitations 必须是纯字符串数组；observation_conditions 与 data_gaps 必须是"
-                " output_schema 定义的对象数组，不能把 limitation 写成对象或把 gap 写成字符串；"
+                " 草稿契约定义的对象数组，不能把 limitation 写成对象或把 gap 写成字符串；"
                 "每个 data_gaps 项都必须包含 gap_id、reason_code、description、impact。"
+                " claims 不得增加草稿契约未定义的键；每个 assumptions 项须按"
+                " 草稿契约同时填写 rationale 与 evidence_refs，不要只处理第一个校验错误。"
                 "不得生成 action、目标仓位、推荐数量、对冲或订单。"
+                " 引用财务事实前读取 metadata.period_start/period_end/context_type："
+                "fiscal_period=Q2 是申报标签，不能把年初至期末累计现金流称为当季；"
+                "单季损益、累计现金流与时点余额须分别说明期间，不混算。"
                 " provider_coverage 是本批次的来源观测而非能力宣传；必须按 observed_status、"
                 "failure_codes 和 dataset_observations 处理缺口。Moomoo 补充层失败时仍可使用"
                 "已通过 Gate 的 SEC/Yahoo Evidence，不得回退到客户端 Cookie、私有 API 或登录绕过。"
@@ -1806,6 +2894,43 @@ def prepare_multidimensional_stage_run(
                     "若查询预算或资料限制阻止核验，删去该事实性主张并如实记录 gap。"
                 )
             frozen_peer_candidates: list[dict[str, Any]] = []
+            if capability == "FUNDAMENTAL_EVENT":
+                instruction += (
+                    " 最近单季SEC收入已准入时须查询并呈现原值及真实期间，按已有source_literal_selections"
+                    "绑定sec_usd_value到该收入主张，以证明精确原值交付；不能以季度增速或同行报告代替。"
+                    "未准入或实际不可读时保留具体gap，不从其它期间或来源猜补。"
+                    " 若目录交付 historical_close_price，先实际query核对价格、币种与as_of，"
+                    "只称截止点内的历史收盘价，不称实时价；没有估值附件不等于没有价格。"
+                    " source_focus 如列出SEC年度 diluted EPS，仅是本任务已准入的候选定位及事实原期间；"
+                    "先query核对真实数值、起止日、会计口径及一次性项目，再自行决定能否与历史价格作受限比值。"
+                    "单季EPS比值工具失败不等于同Gate没有年度EPS；应检查已准入目录，"
+                    "并将参数或证据数值失败与来源缺失分开记录。"
+                    "不得仅凭价格与不匹配期间财务值拼估值倍数；保留仍缺的口径与假设。"
+                    " 本任务可用既有 calculate 的 monetary_scale、ratio、percent_change，"
+                    "仅接受实际读取的合法 Evidence；本任务输出契约指定结果提交方式，"
+                    "解释计算的用途和限制，不自行补算。"
+                    "先核对期间、单位和可比性再计算。该工具不支持通用减法/FCF 表达式；"
+                    "没有合格计算附件时，分别解释同期间盈利、经营现金流及资本支出原值，"
+                    "任何来源金额都保留原数量级；SEC原单位为USD的整数金额也不能自行缩写为million/billion，"
+                    "不得自行将million改为billion或换成亿/万，"
+                    "若source_focus列出SEC收入分解表的table_unit，应query该Evidence，"
+                    "逐行沿用表头(in millions/in billions)的原单位；表格单元格未逐项标单位，"
+                    "现有monetary_scale不能把表头继承的数字当成已成功换算。"
+                    "没有对应成功收据时，总额和各分项一律按原表头单位写，不因习惯改用更大单位；"
+                    "已查询并可读的最近完整财年收入分解表须用于回答经营驱动：说明原单位的总额、"
+                    "主要组成、原表比例与期间/分类口径；不得只引用该表却只解释较近季度增速。"
+                    "若表格实际不可读或口径不可比，说明具体缺口，不从其他来源猜补。"
+                    " source_focus若列出同期间净利润/经营现金流，只是已准入的候选定位；"
+                    "先分别query核对原值、起止日、主体及会计基础，再解释关系。"
+                    "同起止日不自动证明现金转化率或自由现金流，也不替代其他适用事实。"
+                    "准确记录派生指标限制，不把工具不支持说成原始事实不存在。"
+                    " 同一主张引用精确SEC结构化事实与业绩稿舍入值时，逐项核对原值、原单位、"
+                    "真实起止日和精度；不得把业绩稿约数写成带结构化事实期间的精确整数USD，"
+                    "也不得把两来源拼成单一精确事实。可分别保留两种来源表述并说明舍入差异。"
+                    "交稿时复核每个来源金额：包括处置收益、公司指引与业绩稿，"
+                    "正文保留来源原数量级；改用亿/万等单位时须选择对应真实monetary_scale结果，"
+                    "没有收据就沿用原billion/million/USD，不自行口算。"
+                )
             if capability == "INDUSTRY_COMPARISON":
                 frozen_peer_candidates = _frozen_peer_candidates(task)
                 instruction += (
@@ -1821,6 +2946,29 @@ def prepare_multidimensional_stage_run(
                         "只描述物化前状态，不得覆盖当前 materialization_status。目录市值、行业标签仍只用于"
                         "说明选择过程，不能替代已核实的经营或估值事实。调用 query 时只选与比较问题直接相关的"
                         "非空 evidence_ids 子集，禁止发送空数组。"
+                        " 至少核对一只同行的业务/产品或终端暴露依据及一组可比经营或行情事实，"
+                        "解释与目标公司的共同传导及差异；仅列不同财年收入不能代替业务可比性。"
+                        "按 minimum_questions 顺序完成有限比较；局部可比与不能排名或量化直接竞争可以并存。"
+                        "不要求全部候选统一量化终端占比或市场份额，其他候选缺项不抹去已有比较；"
+                        "不为填格式虚构业务关系。"
+                        " 对经营事实，先在目标与同行各自的允许 Evidence 中查找同一指标、相近期间长度的原值，"
+                        "列明各自期间和单位，再解释财年截止日、业务结构等剩余不可比性；"
+                        "不得把不同公司的收入与毛利等不同指标并列后宣称已完成可比经营事实。"
+                        "金额比较须逐项核对原值和原单位；没有真实换算收据时直接保留来源原单位，"
+                        "不自行改写为亿/万/million/billion，即使数值等价也不能称为工具结果。"
+                        "确实无可比事实时才记录具体缺口，不把未查询的已准入事实写成来源缺失。"
+                        "目录的 content_kind/section_locator/text_length 用于区分目录标题与章节内容；"
+                        "读到 HEADING_ONLY 时继续核查已交付的业务正文，不以标题代替业务依据。"
+                        "SECTION_TEXT 不保证整份申报全文，UNKNOWN 不等于无数据，短文本也可能有实质内容。"
+                        " 具体业务比较须从双方实际查询的正文核对终端应用：有证据支持共同终端时，"
+                        "写出该交集及各自产品作用差异；无可核实交集或资料不足时说明依据与具体gap，"
+                        "不得为满足格式虚构交集。仅写半导体供应商、电子系统需求等行业共性不算回答。"
+                        "引用分类变更或收购发生时点时，逐项核对所引原文的财年和季度，"
+                        "不得用当前财年标签替代历史变更的发生财年。"
+                        "每次query至多读取一只已物化同行，可同时读取目标公司及基准；比较另一同行时另查，"
+                        "先按证券核对每段原文的产品、终端和来源，再决定选哪只同行及交集。"
+                        "source_focus给出可信文件身份，但主张正文不要手抄source_id=、as_of=或retrieved_at=；"
+                        "由evidence_refs追溯技术身份，正文只解释有据的业务事实和限制。"
                     )
                 else:
                     instruction += (
@@ -1828,6 +2976,31 @@ def prepare_multidimensional_stage_run(
                         "必须用 data_gaps 明确记录缺少可比较同行 Evidence 的原因和影响。不得仅凭目标公司资料、"
                         "候选目录或模型记忆形成任何行业比较主张。"
                     )
+            if capability == "OWNERSHIP_DISCLOSURE":
+                instruction += (
+                    " source_focus 已列出本任务允许的两个最新已结束机构期间（若可得）；"
+                    "应先按原样 ID 查询并回答机构变化问题。若 Gate 中有同一供应商的两个已结束机构期间，"
+                    "按先后顺序调用 institutional_period_change 取得机构数、持股量和比例的"
+                    "确定性变化，按交付的计算输出契约关联相关主张并解释用途。"
+                    "未结束季度只作 provisional 观察。"
+                    "供应商汇总变化不等于主动净买卖，也不等于完整 SEC 13F 覆盖。"
+                    " source_focus 若列出内部人交易，还须按原样 ID 查询至少代表记录，"
+                    "核对原交易类型、交易起止日期及供应商观察时间；min/max可能是聚合区间，"
+                    "不得写成每一天都有交易。区分普通卖出与行权获得/行权卖出，"
+                    "不要把行权一概解释成主动增减仓。若原始 Form 4 申报时点未核实，"
+                    "不得据供应商观察时间推断法定披露滞后；无合格记录时写具体缺口。"
+                )
+            if capability == "MARKET_STATE":
+                instruction += (
+                    " source_focus 若列出已准入的涨跌分布，应查询该完整 Evidence ID，"
+                    "解释实际数值与快照时点；只有标题、目录或一句‘有广度资料’不构成市场广度研究。"
+                    " 对已准入的板块与波动代理，至少读取并解释各一项实际观测及其时点；"
+                    "只说明 XLK/VIX 等代理是什么、却不引用可用观测，不满足本维度最低内容。"
+                    "单日观察不等于趋势或资金流，跨时点比较须分别注明日期；"
+                    "两日收盘本身只支持原始价格观察；没有实际成功的确定性计算收据时，"
+                    "不得自行写出板块代理的两日涨跌百分比，保留原收盘和时点即可。"
+                    "未取得实际观测时明确记录具体 gap，不推断资金方向。"
+                )
             if capability == "TECHNICAL_STRUCTURE":
                 if prepared_analysis["calculation"] is None:
                     missing = []
@@ -1859,6 +3032,20 @@ def prepare_multidimensional_stage_run(
                     fact for fact in facts if fact.get("security_id") == security_id
                 ]
                 task["company_material_coverage"] = {
+                    "licensed_sections": [
+                        {"evidence_id": fact["evidence_id"],
+                         "section": fact["value"]["section"],
+                         "raw_content_hash": fact["raw_content_hash"],
+                         "content_tier": "LICENSED_API_CONTENT"}
+                        for fact in company_facts
+                        if str(fact.get("semantic_field", "")).startswith("moomoo_morningstar_section:")
+                        and isinstance(fact.get("value"), dict)
+                        and fact["value"].get("content_tier") == "LICENSED_API_CONTENT"
+                        and isinstance(fact["value"].get("content"), str)
+                        and fact["value"]["content"].strip()
+                        and fact["value"].get("section")
+                        and fact.get("raw_content_hash")
+                    ],
                     "issuer_body_count": len(issuer_documents_by_security.get(security_id, [])),
                     "independent_body_count": (
                         len(research_materials_import["documents_by_security"].get(security_id, []))
@@ -1886,15 +3073,41 @@ def prepare_multidimensional_stage_run(
                         "ISSUER_MATERIAL": "SEC Gate-verified issuer/IR body",
                         "INDEPENDENT_RESEARCH": "separately fetched BODY_VERIFIED public research",
                         "EXPECTATION": "third-party snapshot Evidence, never issuer guidance",
+                        "LICENSED_API_CONTENT": "Gate-allowed vendor sections; not independently fetched full text",
                     },
                 }
                 instruction += (
-                    " verified_documents 是资料准备阶段通过正文工具取得并冻结的唯一可用研报；"
-                    "documents 必须逐字复制其 report_document 元数据。正文不足时输出 SOURCE_LIMITED，"
-                    "不得把搜索线索、标题摘要或模型记忆冒充已读正文。若 material_preparation.status"
-                    " 为 BLOCKED_CONFIGURATION，正式报告必须输出 FAILED / evaluation_status=FAIL，并逐项"
-                    "保留配置缺口，不能改写成 SOURCE_LIMITED。"
+                    " verified_documents 是经正文工具核验的文档集合；documents 仅逐字复制其中"
+                    "report_document 元数据。许可章节在 company_material_coverage.licensed_sections，"
+                    "经 query 读取并使用 Evidence 引用，不为章节虚构 documents。"
+                    "不得把搜索线索、标题摘要或模型记忆冒充已读正文。"
+                    "material_preparation 的配置阻断及真实尝试引用必须保留为对应来源的缺口。"
+                    " 写有具体来源金额的事实主张只引用实际承载该金额的 Evidence；"
+                    "若一句话需要综合多条来源，先把各来源金额及原币种、原数量级分别写成可核对的事实主张，"
+                    "再用另一主张解释跨来源关系，不为综合判断给每个金额批量挂上无关引用。"
+                    "没有本主张有效的换算收据时保留来源原币种和单位表示，"
+                    "包括原文million/billion等原词，不将其自动汉化成万/亿等倍数单位。"
+                    "中文许可原文已有的万/亿金额按其原表示引用，与发行人原单位分别保留；"
+                    "翻译叙述不等于授权金额换算，不因拆分主张而自行换算。"
                 )
+                if task["company_material_coverage"]["licensed_sections"]:
+                    instruction += (
+                        " 已有 Gate 合格的 Morningstar 许可章节；即使独立正文来源为 BLOCKED_CONFIGURATION，"
+                        "仍须查询与研究问题相关的正反章节，说明其支持、挑战或修订上游哪个具体主张。"
+                        "区分供应商转述的管理层指引、作者自身预测、估值假设与发行人已核实事实；"
+                        "未在发行人材料交叉核验的指引只能标为未核实转述，不能改称作者预测。"
+                        "关联上游时先核对目标原句和限定：历史价格/受限P-E不是已验证公允价值模型，"
+                        "新增供应商估值观点也不自动修订该核验缺口。不要把供应商分节称为已读独立全文。"
+                        "整体按实际覆盖给出有限研究（可为 LOW_CONFIDENCE/PARTIAL），"
+                        "不因单一路径阻断强制 FAILED，也不因存在章节自动 COMPLETE；"
+                        "未知或未读取内容保留具体 gap。"
+                    )
+                else:
+                    instruction += (
+                        " 没有许可章节时，若 material_preparation.status 为 BLOCKED_CONFIGURATION"
+                        "且 verified_documents 为空，正式报告必须输出 FAILED / evaluation_status=FAIL，"
+                        "保留配置缺口，不能改写成 SOURCE_LIMITED；其他正文不足情形保留实际 SOURCE_LIMITED。"
+                    )
                 if (task["company_material_coverage"]["public_lead_evidence_ids"]
                         and (task.get("material_preparation") or {}).get("status")
                         not in {"BLOCKED_CONFIGURATION", "FAILED"}):
@@ -1917,10 +3130,63 @@ def prepare_multidimensional_stage_run(
                     " research_relationships 明确标记它是外部观点、支持或冲突，不得将"
                     "外部观点自动升级为事实。一个能力的材料不得借给另一个能力。"
                 )
+            if capability == "OPTIONS_FLOW":
+                instruction += (
+                    " 对已读取的 bid/ask、具体 Greeks 及标的 IV/HV，解释与期限和风险结构的关系，"
+                    "不能仅说提供这些字段。分别核对合约 IV 与标的 IV/HV 各自 Evidence 的单位字段；"
+                    "标的快照若只有原始数值而无单位定义，可保留数值但须写单位未核实，"
+                    "不得借合约 IV 的单位推断标的为百分点或小数，也不跨口径直接比较。"
+                    "派生计算仅引用受支持工具或附件。"
+                    "分别判断 Yahoo 原缺项、同合约 OpenD 已补字段和有效时间/vintage 不足，"
+                    "不能把时间限制写成数值字段缺失，不能合并为同步全链或推断主动资金方向。"
+                )
+            if task.get("source_literal_selection") == "source-literal-selection/1.1.0":
+                instruction += (
+                    " 供应商宏观观测事实须选同一条实际query过的记录成组呈现："
+                    "在claim.statement使用{{sf.key}}，顶层source_literal_selections逐项提交"
+                    "claim_id、placeholder、evidence_ref、field=moomoo_macro_observation；"
+                    "同一claim.evidence_refs引用所选记录，每个占位恰好一次。"
+                    "程序仅填该条原label、观察as_of、actual/previous/consensus、unit_type、"
+                    "raw_release_time及vintage边界，不换算小数百分比、不填零、不替你选最新期。"
+                    "不要在占位外再次手抄同一供应商观测的数值/期间；"
+                    "官方事实、公司暴露、传导判断及反向情景仍由你按证据研究。"
+                    "只有目录、没有成功query不能绑定；来源缺失须保留真实gap。"
+                )
+            elif task.get("source_literal_selection"):
+                instruction += (
+                    " 如需在claim.statement中逐字呈现已查询来源的SEC整数USD或期权报价时间，"
+                    "可在草稿使用{{sf.key}}占位，并在顶层source_literal_selections逐项提交"
+                    "claim_id、placeholder、evidence_ref、field；同一主张evidence_refs必须引用该来源。"
+                    "基本面只选sec_usd_value；期权报价只选as_of或retrieved_at。"
+                    "sec_usd_value占位会填入原整数和USD，正文不要在占位后重复写USD。"
+                    "时间占位会填入完整的as_of=<原时间>或retrieved_at=<原时间>，"
+                    "正文写‘Evidence的{{sf.time}}’，不要在占位外重复手写字段标签。"
+                    "每处占位只出现一次；由你选择正确来源与字段，程序仅填原值，不审定研究含义。"
+                )
+                if (capability == "OPTIONS_FLOW"
+                        and task.get("tool_identity_version") == "research-tool-identity/1.0.0"):
+                    instruction += (
+                        " 报价身份问题须呈现所用合约报价的实际观察时间as_of，"
+                        "并与retrieved_at分别标明；只说存在观察时间或只给获取日不回答该问题。"
+                        "沿上述来源时间选择呈现已查询且同claim引用的报价原时间。"
+                        "跨期限IV/Greeks比较须在同一主张分别引用实际比较的不同到期合约，"
+                        "核对各自单位及观察时间；同一合约两供应商或标的概览不构成跨期限依据。"
+                        "已查询另一合约也不能替代该主张的引用；无法可靠比较时说明具体限制。"
+                        " 由你选择代表合约后，按其标的、到期、call/put与行权价核对既有证据目录，"
+                        "查询同身份OpenD合约报价及风险补源，再判断Yahoo缺项是否已补。"
+                        "可得Greeks、IV、OI和乘数须用对应实际query及引用解释；"
+                        "风险记录的有效观察时间/vintage不明只限制时效和跨源比较，"
+                        "不等于这些原始数值字段缺失。各源报价和风险独立呈现，不合成同步快照；"
+                        "身份无法核对或补源确实不可得时才保留相应字段gap。"
+                    )
             if capability == "MACRO_CONTEXT":
                 instruction += (
                     " 本任务只形成宏观环境报告。allowed_evidence_ids 同时包含官方宏观事实与按证券分组的精选公司事实。"
-                    "必须区分观察期、发布时间、获取时间和修订边界，不得用市场价格走势替代政策或经济活动事实。"
+                    "指标所述月份以原data_time/观察期为准；raw_release_time是发布日，不是观察月份。"
+                    "逐项核对value/previous属于哪一观察期，发布时间、获取时间和修订边界另述；"
+                    "不得用市场价格走势替代政策或经济活动事实。"
+                    " 公司SEC结构化事实若仅给出整数USD，本任务没有金额换算收据时须保留原值和USD单位；"
+                    "不得自行缩写为million/billion或改写为亿美元，即使写‘约’也不能代替换算血缘。"
                 )
                 instruction += (
                     "当前有多只普通股持仓：必须读取至少两只持仓的公司事实，比较其利率、通胀或经济活动敏感性；"
@@ -1931,17 +3197,35 @@ def prepare_multidimensional_stage_run(
                 )
                 instruction += (
                     "不得仅凭 ticker、行业常识或相同宏观套话推断。Evidence 不足时明确列出具体公司缺口。"
+                    "交稿前区分融资/资本成本、项目要求回报门槛与预计净回报，逐条核对传导方向一致；"
+                    "不要将门槛与收益混为一个变量。传导仍是你的研究假设，不等于已验证价格因果。"
                 )
             if capability == "MARKET_STATE":
                 instruction += (
                     " 本任务只形成共享市场状态报告。prepared_analysis.calculation 是广泛市场基准的确定性"
-                    "市场状态产物；有完整窗口时必须使用其收益、波动和回撤，并通过 calculation.artifact_ref"
-                    "引用。跨资产、板块、波动或信用指标必须保留原指标或代理身份，不得把股票波动称为信用。"
+                    "市场状态产物；有完整窗口时必须使用其收益、波动和回撤，按计算选择契约选取对应结果。"
+                    "跨资产、板块、波动或信用指标必须保留原指标或代理身份，不得把股票波动称为信用。"
+                    " prepared_analysis.breadth_calculation 若存在，涨跌持平合计也选取对应冻结计算，"
+                    "不得重新抄写或自行拼装合计。"
+                    "交稿前检查：任何声称来自广度预计算的claim，包括仅解释rise/flat/fall分桶，"
+                    "都必须在calculation_selections选择实际广度结果，"
+                    "并将该claim_id关联到所选结果；SPY收益或波动计算不能替代广度计算。"
+                    "只解释所选结果实际返回的字段；原rise/flat/fall三项计数不代表已有grand total。"
+                    "结果未给总数时保留三个原计数，不自己相加后称为计算汇总。"
+                    "它与基准日线独立。不存在时只能解释已核实分桶并保留 gap，不自行加总。"
                 )
+                if task.get("tool_identity_version") == "research-tool-identity/1.0.0":
+                    instruction += (
+                        " 定稿summary前回读本稿claims及其所选计算收据，逐项核对同一对象、"
+                        "窗口、单位、比较方向和幅度；摘要不能反转正文的涨跌计数或收益关系，"
+                        "也不能引入无依据结论。由你纠正研究表述，程序不替你修改摘要。"
+                    )
                 instruction += (
                     "当前有多只普通股持仓：必须读取持仓相关公司暴露事实并解释差异化传导；"
                     if len(security_ids) >= 2 else
                     "当前只有一只普通股持仓：必须解释该公司对当前市场状态的暴露、传导假设与反向情景；"
+                    "先实际查询目录内该公司的业务/MD&A或其它合格暴露证据，再解释传导。"
+                    "尚未查询不等于资料未提供，不得将目录内已准入的公司证据写成来源缺失；"
                     "不得因缺少第二只持仓而判定资料不足，也不得自动补入另一家公司。"
                 )
                 instruction += "不得用主观风险标签替代计算和冻结 Evidence。"
@@ -1951,6 +3235,10 @@ def prepare_multidimensional_stage_run(
                     " FAILED / evaluation_status=FAIL，并保留 failure_code 与具体影响，不得将"
                     "实现或契约失败伪装成 SOURCE_LIMITED。"
                 )
+            # Finalize the task only after capability-specific source coverage
+            # is attached. Hook validation reads this file, not the model packet.
+            task["task_hash"] = legacy_envelope_hash(task, hash_field="task_hash")
+            _write_object(run_dir / task_path, task)
             input_refs = [
                 "audit/portfolio-handoff.json", "council-request.json",
                 "evidence/gate.json", "audit/provider-coverage.json", task_path,
@@ -1961,6 +3249,7 @@ def prepare_multidimensional_stage_run(
                 repository_root, run_id=run_id, invocation_id=invocation_id,
                 agent=agent, allowed_evidence_ids=allowed_ids,
                 allowed_artifact_refs=task["allowed_artifact_refs"],
+                allowed_calculation_evidence_ids=task.get("allowed_calculation_evidence_ids", []),
                 allowed_documents=task["allowed_documents"],
                 claims_forbidden=(
                     capability == "INDUSTRY_COMPARISON"
@@ -1969,6 +3258,10 @@ def prepare_multidimensional_stage_run(
                 technical_calculation_missing=(
                     capability == "TECHNICAL_STRUCTURE"
                     and prepared_analysis["calculation"] is None
+                ),
+                source_literal_selection=bool(task.get("source_literal_selection")),
+                macro_observation_selection=(
+                    task.get("source_literal_selection") == "source-literal-selection/1.1.0"
                 ),
             )
             output_contract = topology_lock["output_contracts"].get(
@@ -1982,9 +3275,14 @@ def prepare_multidimensional_stage_run(
                 "schema_version": "multidimensional-research-invocation/2.0.0",
                 "run_id": run_id, "invocation_id": invocation_id,
                 "task_id": task_id, "agent_binding": agent_bindings[agent], "skill": skill,
-                "model": selected_model, "prompt_hash": canonical_hash({"instruction": instruction, "questions": MINIMUM_QUESTIONS[capability]}),
+                "model": selected_model, "prompt_hash": canonical_hash({"instruction": instruction, "questions": minimum_questions}),
                 "input_refs": input_refs,
-                "tool_permissions": ["fixture_evidence.query"],
+                "tool_permissions": capability_tools(capability),
+                "calculation_ledger_ref": task.get("calculation_ledger_ref"),
+                **({"calculation_selection_version": task["calculation_selection_version"]}
+                   if task.get("calculation_selection_version") else {}),
+                **({"prepared_result_reference_version": task["prepared_result_reference_version"]}
+                   if task.get("prepared_result_reference_version") else {}),
                 "analysis_mode": "FORMAL_GATE_ONLY",
                 "research_input_topology": {
                     "profile_id": topology_lock["profile_id"],
@@ -1997,15 +3295,18 @@ def prepare_multidimensional_stage_run(
                     "draft_schema_hash": canonical_hash(output_schema),
                 },
             }
-            invocation["manifest_hash"] = canonical_hash(invocation)
+            if task.get("submission_version"):
+                invocation["tool_permissions"].append("research_report.submit")
+            invocation["manifest_hash"] = legacy_envelope_hash(invocation, hash_field="manifest_hash")
             invocation_path = f"invocations/by-id/{canonical_hash({'invocation_id': invocation_id})}.json"
             _write_object(run_dir / invocation_path, invocation)
             packet = {
                 "dispatch_contract": DISPATCH_VERSION,
+                "reference_transport_version": REFERENCE_VERSION,
                 "identity": {"run_id": run_id, "invocation_id": invocation_id, "task_id": task_id,
                              "task_name": task_name, "agent": agent, "security_ids": security_ids},
                 "instruction": instruction,
-                "minimum_questions": MINIMUM_QUESTIONS[capability],
+                "minimum_questions": minimum_questions,
                 "task": task,
                 "allowed_evidence_ids": allowed_ids,
                 "allowed_artifact_refs": task["allowed_artifact_refs"],
@@ -2031,7 +3332,7 @@ def prepare_multidimensional_stage_run(
                     else []
                 ),
                 "evidence_catalog": [
-                    {key: fact.get(key) for key in ("evidence_id", "security_id", "semantic_field", "source_id", "as_of", "published_at", "retrieved_at", "unit", "usage")}
+                    {**{key: fact.get(key) for key in ("evidence_id", "security_id", "semantic_field", "source_id", "as_of", "published_at", "retrieved_at", "unit", "usage")}, **_text_locator(fact)}
                     for fact in facts
                 ],
                 "citation_contract": {
@@ -2067,7 +3368,16 @@ def prepare_multidimensional_stage_run(
                 "output_schema_hash": canonical_hash(output_schema),
             }
             packet_path = f"research/dispatch-packets/{canonical_hash({'packet': invocation_id})}.json"
-            _write_object(run_dir / packet_path, packet)
+            if task.get("submission_version"):
+                packet["submission_access"] = {"token": secrets.token_urlsafe(32)}
+                private_path = run_dir / packet_path
+                private_path.parent.mkdir(parents=True, exist_ok=True)
+                fd = os.open(private_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                    json.dump(packet, stream, ensure_ascii=False, indent=2, sort_keys=True)
+                    stream.write("\n")
+            else:
+                _write_object(run_dir / packet_path, packet)
             tasks.append({
                 **task, "task_path": task_path, "invocation_path": invocation_path,
                 "packet_path": packet_path, "packet_hash": canonical_hash(packet),
@@ -2076,14 +3386,17 @@ def prepare_multidimensional_stage_run(
         "schema_version": DISPATCH_VERSION, "run_id": run_id,
         "target_concurrency": target_concurrency, "tasks": tasks,
     }
-    index["index_hash"] = canonical_hash(index)
+    index["index_hash"] = legacy_envelope_hash(index, hash_field="index_hash")
     _write_object(run_dir / "research/dispatch-index.json", index)
     manifest = {
         "schema_version": STAGE_VERSION, "run_id": run_id,
         "stage": stage, "source_mode": "frozen-gate",
+        **({"gate_input_binding": gate_input_binding} if gate_input_binding is not None else {}),
+        "reference_transport_version": REFERENCE_VERSION,
         "model": selected_model, "parent_model": selected_model, "output_dir": str(run_dir),
         "discovery": {"product_root": str(product_root)},
         "research_input_topology": topology_lock,
+        "research_execution_fingerprint": _research_execution_fingerprint(repository_root),
         "provider_coverage_hash": provider_coverage["coverage_hash"],
         "provider_coverage_ref": "audit/provider-coverage.json",
         "agent_bindings": agent_bindings, "skill_bindings": skill_bindings,
@@ -2102,9 +3415,219 @@ def prepare_multidimensional_stage_run(
         "prepared_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "complete_portfolio_decision": False, "downstream_stages_started": [],
     }
-    manifest["manifest_hash"] = canonical_hash(manifest)
+    if task_bound_tools:
+        manifest["tool_identity_version"] = TASK_TOOL_IDENTITY_VERSION
+    manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")
+    from product.runtime.evidence_gate import validate_frozen_gate_binding
+    validate_frozen_gate_binding(run_dir, manifest, gate)
     _write_object(run_dir / "run_manifest.json", manifest)
     return {"status": "PREPARED", "run_id": run_id, "run_dir": str(run_dir), "task_count": len(tasks)}
+
+
+def read_multidimensional_task_state(run_dir: Path) -> dict[str, Any]:
+    """只投影本批可信生命周期；不协调、不写报告、不评判研究语义。"""
+    from product.runtime.fixture_mcp import TASK_TOOL_IDENTITY_VERSION
+
+    root = Path(run_dir).resolve()
+    def reject():
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_TASK_STATE_BINDING_INVALID")
+
+    def lifecycle_snapshot():
+        paths = [root / "invocation/subagent-dispatches.jsonl", root / "invocation/subagent-events.jsonl"]
+        locks = [p.with_suffix(p.suffix + ".lock") for p in paths]
+        if any(not p.resolve().is_relative_to(root) for p in [*paths, *locks]):
+            reject()
+        # 尚无首个派发锁时观察为空；不随后读取可能刚产生的Start而混合时点。
+        if not locks[0].exists() and not paths[0].exists():
+            return [], []
+        with ExitStack() as stack:
+            # 与原PreToolUse的 dispatch -> event 顺序一致；同时持有读锁。
+            observed = []
+            for path, lock in zip(paths, locks):
+                present = lock.exists() or path.exists()
+                observed.append(present)
+                if present:
+                    handle = stack.enter_context(lock.open("r", encoding="utf-8"))
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_SH)
+            rows_by_log = [[json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                           if present and path.is_file() else [] for path, present in zip(paths, observed)]
+        for rows in rows_by_log:
+            for row in rows:
+                if not isinstance(row, dict) or row.get("event_hash") != legacy_envelope_hash(row, hash_field="event_hash"):
+                    reject()
+        return rows_by_log
+
+    try:
+        manifest = _read_object(root / "run_manifest.json")
+        index = _read_object(root / "research/dispatch-index.json")
+        if (manifest.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+                or manifest.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION
+                or manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash")
+                or index.get("index_hash") != legacy_envelope_hash(index, hash_field="index_hash")
+                or manifest.get("dispatch_index_hash") != index.get("index_hash")
+                or manifest.get("run_id") != index.get("run_id")
+                or Path(str(manifest.get("output_dir", ""))).resolve() != root):
+            reject()
+        tasks = index["tasks"]
+        if (not tasks or any(len({t[key] for t in tasks}) != len(tasks)
+                             for key in ("task_name", "task_id", "invocation_id"))):
+            reject()
+        by_name = {t["task_name"]: t for t in tasks}
+        by_id = {t["task_id"]: t for t in tasks}
+        for task in tasks:
+            path = (root / task["invocation_path"]).resolve()
+            if not path.is_relative_to(root):
+                reject()
+            invocation = _read_object(path)
+            if (invocation.get("manifest_hash") != legacy_envelope_hash(invocation, hash_field="manifest_hash")
+                    or invocation.get("run_id") != index["run_id"]
+                    or invocation.get("invocation_id") != task["invocation_id"]
+                    or task.get("run_id") != index["run_id"]
+                    or task.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION
+                    or any(dep not in by_id for dep in task.get("depends_on", []))):
+                reject()
+        dispatches, events = lifecycle_snapshot()
+        allowed = [d for d in dispatches if d.get("decision") == "ALLOW"]
+        parents = {d.get("parent_session_id") for d in allowed}
+        if (len(parents) > 1 or (parents and not next(iter(parents)))
+                or any(d.get("task_name") not in by_name for d in allowed)
+                or len({d["task_name"] for d in allowed}) != len(allowed)):
+            reject()
+        parent = next(iter(parents), None)
+        by_dispatch = {d["task_name"]: d for d in allowed}
+        snapshots = {}
+        reports = {}
+        start_by_name = {}
+        for task in tasks:
+            name = task["task_name"]
+            dispatch = by_dispatch.get(name)
+            snapshot = {"task_name": name, "execution_status": "PENDING", "outcome": None,
+                        "research_status": None, "coverage_status": None}
+            snapshots[task["task_id"]] = snapshot
+            if dispatch is None:
+                continue
+            if (dispatch.get("agent_type") != task["agent"] or dispatch.get("fork_turns") != "none"
+                    or dispatch.get("dispatch_binding", {}).get("matched") is not True):
+                reject()
+            snapshot["execution_status"] = "DISPATCHED"
+            starts = [e for e in events if e.get("hook_event_name") == "SubagentStart"
+                      and e.get("context_binding", {}).get("task_name") == name]
+            if not starts:
+                continue
+            if len(starts) != 1:
+                reject()
+            start = starts[0]
+            context = start["context_binding"]
+            if (start.get("parent_session_id") != parent or not start.get("child_session_id")
+                    or start.get("agent_type") != task["agent"] or start.get("model") != manifest["model"]
+                    or context.get("status") != "DELIVERED" or context.get("run_id") != index["run_id"]
+                    or context.get("invocation_id") != task["invocation_id"]):
+                reject()
+            # 派发包不含依赖；Start包含真实已保存依赖，两者hash不能机械判相等。
+            if task.get("depends_on"):
+                expected_start_hash = canonical_hash(build_multidimensional_dispatch_packet(Path(), root, name))
+            else:
+                expected_start_hash = dispatch.get("dispatch_binding", {}).get("packet_hash")
+            if context.get("packet_hash") != expected_start_hash:
+                reject()
+            start_by_name[name] = start
+            snapshot["execution_status"] = "RUNNING"
+            stops = [e for e in events if e.get("hook_event_name") == "SubagentStop"
+                     and e.get("trusted_task_binding", {}).get("task_name") == name]
+            if not stops:
+                continue  # StopBlocked/REPAIR_REQUESTED 仍在运行。
+            if len(stops) != 1:
+                reject()
+            stop = stops[0]
+            trusted = {key: task[key] for key in ("task_name", "task_id", "run_id", "invocation_id", "agent")}
+            capture = stop.get("output_capture", {})
+            if (stop.get("trusted_task_binding") != trusted or stop.get("parent_session_id") != parent
+                    or stop.get("child_session_id") != start["child_session_id"]
+                    or stop.get("agent_type") != task["agent"] or stop.get("model") != start["model"]
+                    or stop.get("hook_decision") == "BLOCK" or capture.get("repair_state") == "REPAIR_REQUESTED"
+                    or capture.get("status") not in {"SAVED", "FAILED"}):
+                reject()
+            snapshot.update(execution_status="TERMINAL", outcome=capture["status"])
+            if capture["status"] == "SAVED":
+                path = (root / capture["path"]).resolve()
+                if not path.is_relative_to(root / "research/reports"):
+                    reject()
+                report = _read_object(path)
+                if (stop.get("identity_binding", {}).get("status") != "BOUND"
+                        or capture.get("task_id") != task["task_id"]
+                        or capture.get("output_hash") != canonical_hash(report)
+                        or report.get("report_hash") != legacy_envelope_hash(report, hash_field="report_hash")
+                        or report.get("run_id") != index["run_id"] or report.get("invocation_id") != task["invocation_id"]
+                        or report.get("report_id") != f"dimension-report:{task['task_id']}"
+                        or report.get("capability") != task["capability"] or report.get("security_ids") != task["security_ids"]):
+                    reject()
+                reports[task["task_id"]] = report
+                snapshot.update(research_status=report["status"], coverage_status=report["sufficiency"])
+        # 复用报告消费者的结构/引用检查；不运行Finalizer或内容评级。
+        from product.council.multidimensional_research import validate_research_dimension_report
+        handoff = _read_object(root / "audit/portfolio-handoff.json")
+        request = _read_object(root / "council-request.json")
+        if (handoff.get("handoff_hash") != manifest.get("handoff_hash")
+                or request.get("request_hash") != manifest.get("council_request_hash")):
+            reject()
+        for task_id, report in reports.items():
+            task = by_id[task_id]
+            dependencies = [reports[dep] for dep in task.get("depends_on", [])]
+            validate_research_dimension_report(
+                report, expected_bindings={
+                    "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
+                    "portfolio_hash": handoff["portfolio_hash"], "council_request_id": request["request_id"],
+                    "council_request_hash": request["request_hash"], "decision_cutoff": task["time_context"]["window_end"],
+                }, allowed_security_ids=task["security_ids"], allowed_evidence_ids=task["allowed_evidence_ids"],
+                allowed_calculation_evidence_ids=task.get("allowed_calculation_evidence_ids", []),
+                known_research_claim_ids=known_claim_references(dependencies), allowed_documents=task.get("allowed_documents", []),
+            )
+            if (report.get("time_context") != task["time_context"]
+                    or report.get("execution", {}).get("agent_name") != task["agent"]
+                    or report.get("execution", {}).get("model") != manifest["model"]):
+                reject()
+        # 无可信 Start/派发的额外生命周期不能被静默忽略。
+        children = {e.get("child_session_id") for e in events if e.get("hook_event_name") == "SubagentStart"}
+        if len(children) != sum(e.get("hook_event_name") == "SubagentStart" for e in events):
+            reject()
+        for event in events:
+            if (event.get("parent_session_id") != parent or event.get("agent_type") not in {t["agent"] for t in tasks}
+                    or event.get("child_session_id") not in children
+                    or (event.get("hook_event_name") == "SubagentStart"
+                        and event.get("context_binding", {}).get("task_name") not in by_dispatch)
+                    or (event.get("hook_event_name") in {"SubagentStop", "SubagentStopBlocked"}
+                        and event.get("trusted_task_binding", {}).get("task_name") not in by_dispatch)):
+                reject()
+            if event.get("hook_event_name") in {"SubagentStop", "SubagentStopBlocked"}:
+                trusted = event.get("trusted_task_binding", {})
+                name = trusted.get("task_name")
+                task = by_name.get(name)
+                start = start_by_name.get(name)
+                if (task is None or start is None
+                        or trusted != {key: task[key] for key in ("task_name", "task_id", "run_id", "invocation_id", "agent")}
+                        or event.get("child_session_id") != start["child_session_id"]
+                        or event.get("agent_type") != start["agent_type"] or event.get("model") != start["model"]):
+                    reject()
+        # 依赖失败只有原Hook明确拒绝后才成为终态，不将暂未就绪自动算失败。
+        for task in tasks:
+            state = snapshots[task["task_id"]]
+            dependencies = [snapshots[dep] for dep in task.get("depends_on", [])]
+            failed = any(d["outcome"] in {"FAILED", "DEPENDENCY_BLOCKED"} for d in dependencies)
+            denied = any(d.get("task_name") == task["task_name"] and d.get("parent_session_id") == parent
+                         and d.get("agent_type") == task["agent"] and d.get("decision") == "DENY_DISPATCH_CONTRACT"
+                         and d.get("dispatch_binding", {}).get("failure_code") == "RESEARCH_DEPENDENCY_NOT_READY"
+                         for d in dispatches)
+            if state["execution_status"] == "PENDING" and failed and denied:
+                state.update(execution_status="TERMINAL", outcome="DEPENDENCY_BLOCKED")
+            state["dependency_ready"] = all(d["outcome"] == "SAVED" for d in dependencies)
+        states = list(snapshots.values())
+        return {"schema_version": "multidimensional-task-state/1.0.0", "run_id": index["run_id"],
+                "index_hash": index["index_hash"], "tasks": states, "expected": len(states),
+                "terminal_count": sum(s["execution_status"] == "TERMINAL" for s in states),
+                "all_tasks_terminal": all(s["execution_status"] == "TERMINAL" for s in states),
+                "content_acceptance": "NOT_EVALUATED"}
+    except (OSError, KeyError, TypeError, ValueError) as exc:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_TASK_STATE_BINDING_INVALID") from exc
 
 
 def build_multidimensional_stage_prompt(repository_root: Path, run_dir: Path) -> str:
@@ -2121,14 +3644,26 @@ def build_multidimensional_stage_prompt(repository_root: Path, run_dir: Path) ->
         }
         for item in index["tasks"]
     }
+    state_instruction = ""
+    manifest = _read_object(Path(run_dir).resolve() / "run_manifest.json")
+    if manifest.get("tool_identity_version") == "research-tool-identity/1.0.0":
+        state_instruction = (
+            "派发前、每次wait返回后、最终返回前必须调用MCP research_task_state（参数{}），"
+            "以可信task_name状态核对你自己的归集，不凭wait空返回、正文消息或文件存在推断仍有活跃任务。"
+            "DISPATCHED等待Start，RUNNING等待Stop；两者都不得重复派发。PENDING且dependency_ready才正常派发。"
+            "上游FAILED时仍按原约定尝试一次依赖派发以记录Hook拒绝。"
+            "all_tasks_terminal=true后不再wait，直接返回原父JSON；终态齐全不等于内容PASS。"
+            "查询拒绝须如实停止，不猜状态或反复wait。"
+        )
     return f"""你是多维持仓研究阶段的 Codex 主线程，只负责按依赖有界派发和归集，不担任 CIO。
 读取 product/AGENTS.md 与 portfolio-council Skill 的多维持仓研究阶段。严格使用以下任务映射：
 {json.dumps(task_map, ensure_ascii=False, sort_keys=True)}
 
 使用 Agent 工具，agent_type、task_name 和 message 必须逐项来自映射，fork_turns=none。最多同时保持 {min(index['target_concurrency'], len(task_map))} 个活跃 Subagent；只有 depends_on_task_names 全部结束且报告已保存后才能启动依赖任务。依赖任务已经结束但没有保存合法报告时，对每个直接依赖任务只尝试派发一次，让 Hook 留下 dependency-blocked 拒绝记录；不得重试该任务，也不得启动其子 Agent。具备条件的独立任务先填满槽位，任一结束后立即补位。不得复制冻结资料到启动消息，不得启动 runtime_skeptic、runtime_cio 或 Risk，不得改写 Specialist 输出。
 
-每次派发后必须通过 wait 等待终态；并发槽位不足时先等待再补位，不得把已启动计作已完成。
+先连续派发已具备条件的独立任务至并发上限或当前无可派发任务，再通过 wait 等待任一终态并补位；不得把已启动计作已完成。某个子任务先于初始并发槽填满而结束时，也按真实终态归集，不为凑满槽位阻止其退出。
 在仍有活跃 Subagent、已启动任务缺少 SubagentStop，或任一任务既没有子 Agent 终态也没有 dependency-blocked Hook 拒绝时禁止返回父结果。
+{state_instruction}
 全部任务形成合法报告、显式失败或 dependency-blocked 终态后，只返回：{{"stage":"MULTI_DIMENSIONAL_HOLDING_RESEARCH","run_id":"{index['run_id']}","dispatched":{len(task_map)},"completed":{len(task_map)}}}。这里 completed 表示调度终态齐全，不表示所有研究报告均成功；最终状态由确定性 Finalizer 复核。
 """
 
@@ -2147,6 +3682,9 @@ def _target_task_closure(index: Mapping[str, Any], task_name: str) -> list[dict[
         item.get("task_id"): item for item in tasks
         if isinstance(item, Mapping) and isinstance(item.get("task_id"), str)
     }
+    if (len(by_name) != len(tasks) or len(by_id) != len(tasks)
+            or any(not name for name in by_name) or any(not identifier for identifier in by_id)):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_DISPATCH_INDEX_AMBIGUOUS")
     target = by_name.get(task_name)
     if target is None:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_TASK_UNKNOWN")
@@ -2162,7 +3700,8 @@ def _target_task_closure(index: Mapping[str, Any], task_name: str) -> list[dict[
             raise MultidimensionalStageError("MULTIDIMENSIONAL_DEPENDENCY_CYCLE")
         visiting.add(task_id)
         dependencies = task.get("depends_on", [])
-        if not isinstance(dependencies, list):
+        if (not isinstance(dependencies, list) or any(not isinstance(item, str) or not item for item in dependencies)
+                or len(set(dependencies)) != len(dependencies)):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_DEPENDENCY_INVALID")
         for dependency_id in dependencies:
             dependency = by_id.get(dependency_id)
@@ -2179,14 +3718,128 @@ def _target_task_closure(index: Mapping[str, Any], task_name: str) -> list[dict[
     return ordered
 
 
+def _verified_retry_dependencies(run_dir: Path, task_name: str) -> list[dict[str, Any]]:
+    """Narrow read-only reuse: one saved fundamental dependency of a report retry."""
+    from product.council.multidimensional_research import validate_research_dimension_report
+
+    index = _read_object(run_dir / "research/dispatch-index.json")
+    closure = _target_task_closure(index, task_name)
+    if [t["capability"] for t in closure] != ["FUNDAMENTAL_EVENT", "RESEARCH_REPORT"]:
+        return []
+    dependency = closure[0]
+    candidates = [p for p in (run_dir / "research/reports").glob("*/dimension-report.json")
+                  if _read_object(p).get("report_id") == f"dimension-report:{dependency['task_id']}"]
+    if not candidates:
+        return []
+    if len(candidates) != 1:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_REPORT_AMBIGUOUS")
+    path = candidates[0]
+    report = _read_object(path)
+    process = _read_object(run_dir / "invocation/process-result.json")
+    if (process.get("source_integrity_unchanged") is not True
+            or process.get("timed_out") is not False or process.get("process_exit_code") != 0):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_PROCESS_INVALID")
+    manifest = _read_object(run_dir / "run_manifest.json")
+    if manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash"):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_BINDING_INVALID:manifest_hash")
+    repository_root = Path(manifest["discovery"]["product_root"]).parent.resolve()
+    from product.runtime.research_input_topology import research_input_topology_lock
+    from product.runtime.evidence_gate import validate_frozen_gate_binding
+    gate = _read_object(run_dir / "evidence/gate.json")
+    validate_frozen_gate_binding(run_dir, manifest, gate)
+    if (manifest.get("research_execution_fingerprint") != _research_execution_fingerprint(repository_root)
+            or manifest.get("research_input_topology") != research_input_topology_lock(repository_root)):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_VERSION_INCOMPATIBLE")
+    for task in closure:
+        invocation = _read_object(run_dir / task["invocation_path"])
+        packet = build_multidimensional_dispatch_packet(repository_root, run_dir, task["task_name"],
+                                                      include_dependency_reports=False)
+        if (manifest.get("agent_bindings", {}).get(task["agent"])
+                != _agent_binding(repository_root / "product", task["agent"])
+                or manifest.get("skill_bindings", {}).get(task["skill_name"])
+                != _skill_binding(repository_root / "product", task["skill_name"])
+                or invocation.get("model") != manifest.get("model")
+                or invocation.get("manifest_hash") != legacy_envelope_hash(invocation, hash_field="manifest_hash")
+                or packet.get("task") != _read_object(run_dir / task["task_path"])
+                or packet.get("allowed_evidence_ids") != task["allowed_evidence_ids"]
+                or packet.get("task", {}).get("time_context") != task["time_context"]):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_VERSION_INCOMPATIBLE")
+    handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
+    request = _read_object(run_dir / "council-request.json")
+    for value, field in ((manifest, "manifest_hash"), (index, "index_hash"), (gate, "bundle_hash")):
+        try:
+            verify_legacy_envelope_hash(value, hash_field=field, location=f"multidimensional-reuse:{field}")
+        except HashContractError as exc:
+            raise MultidimensionalStageError(f"MULTIDIMENSIONAL_REUSE_BINDING_INVALID:{exc}") from exc
+    if (manifest.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+            or manifest["dispatch_index_hash"] != index["index_hash"]
+            or manifest["gate_hash"] != gate["bundle_hash"]
+            or manifest["council_request_hash"] != request["request_hash"]
+            or report["run_id"] != index["run_id"]
+            or report["invocation_id"] != dependency["invocation_id"]
+            or report["capability"] != dependency["capability"]
+            or report["security_ids"] != dependency["security_ids"]
+            or report["status"] in {"FAILED", "TIMEOUT"}):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_BINDING_INVALID")
+    validate_research_dimension_report(
+        report, expected_bindings={
+            "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
+            "portfolio_hash": handoff["portfolio_hash"], "council_request_id": request["request_id"],
+            "council_request_hash": request["request_hash"], "decision_cutoff": gate["decision_cutoff"],
+        }, allowed_security_ids=dependency["security_ids"],
+        allowed_evidence_ids=dependency["allowed_evidence_ids"],
+        allowed_documents=dependency.get("allowed_documents", []),
+    )
+    # The binding builder also checks the dependency's canonical report hash.
+    build_multidimensional_dispatch_packet(Path(), run_dir, task_name)
+    log = run_dir / "invocation/subagent-events.jsonl"
+    events = [json.loads(line) for line in log.read_text().splitlines() if line.strip()]
+    matching = [e for e in events if e.get("hook_event_name") == "SubagentStop"
+                and e.get("output_capture", {}).get("status") == "SAVED"
+                and e["output_capture"].get("task_id") == dependency["task_id"]
+                and e["output_capture"].get("path") == str(path.relative_to(run_dir))
+                and e["output_capture"].get("output_hash") == canonical_hash(report)]
+    if len(matching) != 1:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_EVENT_INVALID")
+    stop = matching[0]
+    starts = [e for e in events if e.get("hook_event_name") == "SubagentStart"
+              and e.get("child_session_id") == stop.get("child_session_id")
+              and e.get("parent_session_id") == stop.get("parent_session_id")]
+    if len(starts) != 1 or any(
+        e.get("event_hash") != legacy_envelope_hash(e, hash_field="event_hash")
+        for e in [starts[0], stop]
+    ):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_EVENT_INVALID")
+    return [{"task_id": dependency["task_id"], "task_name": dependency["task_name"],
+             "target_task_name": task_name, "run_id": index["run_id"],
+             "gate_hash": gate["bundle_hash"], "index_hash": index["index_hash"],
+             "report_ref": str(path.relative_to(run_dir)), "report_file_hash": file_hash(path),
+             "report_hash": report["report_hash"], "source_event_log_hash": file_hash(log),
+             "source_event": matching[0]}]
+
+
+def read_retry_dependencies(run_dir: Path, invocation_dir: Path, task_name: str) -> list[dict[str, Any]]:
+    if not invocation_dir.resolve().is_relative_to((run_dir / "invocation/retries").resolve()):
+        return []
+    path = invocation_dir / "reused-dependencies.json"
+    if not path.exists():
+        return []
+    value = _read_object(path)
+    if value.get("target_task_name") != task_name or value.get("dependencies") != _verified_retry_dependencies(run_dir, task_name):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_CHANGED")
+    return value["dependencies"]
+
+
 def build_multidimensional_task_prompt(
-    repository_root: Path, run_dir: Path, task_name: str,
+    repository_root: Path, run_dir: Path, task_name: str, *, reused_dependencies: Sequence[Mapping[str, Any]] = (),
 ) -> str:
     """构造目标维度及其依赖闭包的定点补证 Prompt。"""
 
     del repository_root
     index = _read_object(Path(run_dir).resolve() / "research/dispatch-index.json")
     closure = _target_task_closure(index, task_name)
+    reused_ids = {d["task_id"] for d in reused_dependencies}
+    closure = [t for t in closure if t["task_id"] not in reused_ids]
     if len(closure) == 1:
         task = closure[0]
         message = build_multidimensional_dispatch_message(Path(), Path(run_dir), task_name)
@@ -2194,6 +3847,7 @@ def build_multidimensional_task_prompt(
 读取 product/AGENTS.md 与 portfolio-council Skill 的多维持仓研究阶段。
 使用 Agent 工具且只派发一次：agent_type={task['agent']}，task_name={task_name}，fork_turns=none，message={json.dumps(message, ensure_ascii=False)}。
 等待该 Subagent 形成终态；不得启动映射外任务、runtime_skeptic、runtime_cio 或 Risk，不得改写 Specialist 输出。
+已验证的既有依赖只读复用，不重新派发或改写；Hook 会交付实际依赖报告。
 完成后只返回：{{"stage":"MULTI_DIMENSIONAL_HOLDING_RESEARCH","run_id":"{index['run_id']}","dispatched":1,"completed":1}}。
 """
     closure_ids = {item["task_id"] for item in closure}
@@ -2237,8 +3891,11 @@ def finalize_multidimensional_task_evidence(
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_INVOCATION_PATH_INVALID")
     index = _read_object(run_dir / "research/dispatch-index.json")
     closure = _target_task_closure(index, task_name)
-    expected_names = [item["task_name"] for item in closure]
-    expected_ids = {item["task_id"] for item in closure}
+    reused = read_retry_dependencies(run_dir, invocation_dir, task_name)
+    reused_ids = {d["task_id"] for d in reused}
+    executed = [t for t in closure if t["task_id"] not in reused_ids]
+    expected_names = [item["task_name"] for item in executed]
+    expected_ids = {item["task_id"] for item in executed}
     dispatches = [
         json.loads(line)
         for line in (invocation_dir / "subagent-dispatches.jsonl").read_text(
@@ -2267,8 +3924,9 @@ def finalize_multidimensional_task_evidence(
         item.get("output_capture", {}).get("task_id"): item for item in saved
         if item.get("output_capture", {}).get("task_id") in expected_ids
     }
-    if len(saved) != len(closure) or set(saved_by_task) != expected_ids:
+    if len(saved) != len(executed) or set(saved_by_task) != expected_ids:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_OUTPUT_INVALID")
+    saved_by_task.update({d["task_id"]: d["source_event"] for d in reused})
     handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
     request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
@@ -2290,16 +3948,15 @@ def finalize_multidimensional_task_evidence(
         event = saved_by_task[task["task_id"]]
         report_path = run_dir / event["output_capture"]["path"]
         report = _read_object(report_path)
-        dependency_claim_ids = [
-            claim["claim_id"]
-            for dependency_id in task.get("depends_on", [])
-            for claim in validated_reports[dependency_id].get("claims", [])
-        ]
+        dependency_claim_ids = known_claim_references([
+            validated_reports[dependency_id] for dependency_id in task.get("depends_on", [])
+        ])
         validate_research_dimension_report(
             report,
             expected_bindings=bindings,
             allowed_security_ids=security_ids,
             allowed_evidence_ids=task["allowed_evidence_ids"],
+            allowed_calculation_evidence_ids=task.get("allowed_calculation_evidence_ids", []),
             known_research_claim_ids=dependency_claim_ids,
             allowed_documents=task.get("allowed_documents", []),
         )
@@ -2342,6 +3999,7 @@ def finalize_multidimensional_task_evidence(
         "task_names": expected_names,
         "report_inventory": report_inventory,
         "dependency_chain_complete": True,
+        "reused_dependencies": reused,
         "dispatch_events_hash": file_hash(
             invocation_dir / "subagent-dispatches.jsonl"
         ),
@@ -2352,7 +4010,7 @@ def finalize_multidimensional_task_evidence(
         "complete_holding_research_bundle": False,
         "downstream_models_started": [],
     }
-    proof["proof_hash"] = canonical_hash(proof)
+    proof["proof_hash"] = legacy_envelope_hash(proof, hash_field="proof_hash")
     proof_path = (
         run_dir / "research/task-execution-proof.json"
         if invocation_dir == run_dir / "invocation"
@@ -2365,10 +4023,11 @@ def finalize_multidimensional_task_evidence(
 def finalize_multidimensional_stage_run(
     repository_root: Path, run_dir: Path, *,
     adopted_invocation_dirs: Sequence[Path] = (),
+    user_interrupted: bool = False,
 ) -> dict[str, Any]:
     """重验每个维度报告并组装不含投资动作的 HoldingResearchBundle。"""
 
-    from product.council.multidimensional_output import render_holding_research_bundle_markdown
+    from product.council.multidimensional_output import render_holding_research_bundle_markdown, project_research_status
     from product.council.multidimensional_research import (
         BUNDLE_CAPABILITIES,
         HOLDING_RESEARCH_BUNDLE_VERSION,
@@ -2472,6 +4131,7 @@ def finalize_multidimensional_stage_run(
             task["task_id"] not in completed_events
             and task["task_id"] not in failed_events
             and task["invocation_id"] in started_invocations
+            and not user_interrupted
         ):
             # The parent Codex process has exited, so an invocation that has a
             # delivered start event but no stop event is no longer active.  It
@@ -2506,7 +4166,7 @@ def finalize_multidimensional_stage_run(
         task["task_name"] for task in index["tasks"]
         if task["task_id"] in failed_events
     }
-    if allowed_names | terminal_names != expected_names:
+    if not user_interrupted and allowed_names | terminal_names != expected_names:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_DISPATCH_PROOF_INCOMPLETE")
     common_ids = [
         item["security_id"] for item in handoff["portfolio"]["positions"]
@@ -2519,30 +4179,44 @@ def finalize_multidimensional_stage_run(
     }
     reports: list[dict[str, Any]] = []
     report_paths: dict[str, str] = {}
+    report_submission_refs: list[str] = []
     reports_by_task_id: dict[str, dict[str, Any]] = {}
     for task in index["tasks"]:
         event = completed_events.get(task["task_id"])
         if event is None:
-            if task["task_id"] not in failed_events:
+            if task["task_id"] not in failed_events and not user_interrupted:
                 raise MultidimensionalStageError(
                     f"MULTIDIMENSIONAL_REPORT_MISSING:{task['task_id']}"
                 )
             continue
         path = run_dir / event["output_capture"]["path"]
         report = _read_object(path)
-        dependency_claim_ids = [
-            claim["claim_id"]
-            for dependency_id in task.get("depends_on", [])
-            for claim in reports_by_task_id.get(dependency_id, {}).get("claims", [])
-        ]
+        validate_breadth_calculation_references(run_dir, report)
+        from product.runtime.research_submission import ASSEMBLY_VERSIONS, selected_calculations_for_report
+        if task.get("submission_version") in ASSEMBLY_VERSIONS:
+            selected_calculations_for_report(run_dir, report)
+            accepted = event["output_capture"].get("submission_selection_record")
+            binding = event.get("submission_binding")
+            if (not isinstance(accepted, Mapping) or not isinstance(binding, Mapping)
+                    or not isinstance(accepted.get("path"), str)
+                    or not isinstance(binding.get("path"), str)):
+                raise MultidimensionalStageError("MULTIDIMENSIONAL_SUBMISSION_SELECTION_RECORD_MISSING")
+            report_submission_refs.extend([accepted["path"], binding["path"]])
+            if ((run_dir / "events/mcp/events.jsonl").is_file()
+                    and "events/mcp/events.jsonl" not in report_submission_refs):
+                report_submission_refs.append("events/mcp/events.jsonl")
         if any(
             dependency_id not in reports_by_task_id
             for dependency_id in task.get("depends_on", [])
         ):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_DEPENDENCY_ORDER_INVALID")
+        dependency_claim_ids = known_claim_references([
+            reports_by_task_id[dependency_id] for dependency_id in task.get("depends_on", [])
+        ])
         validate_research_dimension_report(
             report, expected_bindings=bindings, allowed_security_ids=common_ids,
             allowed_evidence_ids=task["allowed_evidence_ids"],
+            allowed_calculation_evidence_ids=task.get("allowed_calculation_evidence_ids", []),
             known_research_claim_ids=dependency_claim_ids,
             allowed_documents=task.get("allowed_documents", []),
         )
@@ -2575,9 +4249,7 @@ def finalize_multidimensional_stage_run(
         from product.runtime.validation import collect_evidence_refs
 
         import_manifest = _read_object(import_manifest_path)
-        if import_manifest.get("import_hash") != canonical_hash({
-            key: value for key, value in import_manifest.items() if key != "import_hash"
-        }):
+        if import_manifest.get("import_hash") != legacy_envelope_hash(import_manifest, hash_field="import_hash"):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_IMPORT_PROOF_INVALID")
         if (
             import_manifest.get("handoff_hash") != handoff["handoff_hash"]
@@ -2710,7 +4382,7 @@ def finalize_multidimensional_stage_run(
         dimension_reports=reports,
         equity_reports=imported_equity_reports,
     )
-    company_ready = set(imported_by_security) == set(common_ids)
+    declared_content_failure = any(report.get("evaluation_status") == "FAIL" for report in reports)
     bundle = finalize_holding_research_bundle({
         "schema_version": HOLDING_RESEARCH_BUNDLE_VERSION,
         "bundle_id": f"holding-research-bundle:{manifest['run_id']}",
@@ -2720,9 +4392,7 @@ def finalize_multidimensional_stage_run(
         "common_stock_security_ids": common_ids,
         "report_refs": report_refs,
         "coverage": coverage,
-        "consumability": (
-            "DOWNSTREAM_READY" if company_ready else "STRUCTURALLY_CONSUMABLE"
-        ),
+        "consumability": "STRUCTURALLY_CONSUMABLE",
         "package_provenance": {
             "base_run_id": manifest["run_id"],
             "base_bundle_hash": None,
@@ -2747,7 +4417,9 @@ def finalize_multidimensional_stage_run(
         ),
         "summary": "本包归集当前批次各维度报告和明确缺口；维度间分歧尚未由后续反证或 CIO 处理。",
         "artifact_refs": sorted([
-            *report_paths.values(), *imported_artifact_refs, *materials_artifact_refs,
+            *report_paths.values(), *report_submission_refs,
+            *imported_artifact_refs, *materials_artifact_refs,
+            *(ref for report in reports for ref in report.get("artifact_refs", [])),
         ]),
     })
     validate_holding_research_bundle(
@@ -2826,10 +4498,21 @@ def finalize_multidimensional_stage_run(
         "consumability": bundle["consumability"],
         "complete_portfolio_decision": False,
     }
-    proof["proof_hash"] = canonical_hash(proof)
+    proof["proof_hash"] = legacy_envelope_hash(proof, hash_field="proof_hash")
     _write_object(run_dir / "research/execution-proof.json", proof)
+    contract_status = (
+        "FAILED" if failed_events else "PASSED" if proof["all_reports_valid"] else "INCOMPLETE"
+    )
     return {
-        "status": "PASSED", "run_id": manifest["run_id"],
+        "status": contract_status, "run_id": manifest["run_id"],
+        "contract_status": contract_status,
+        "failure_code": "MULTIDIMENSIONAL_TASK_VALIDATION_FAILED" if failed_events else None,
+        "research_review_status": "NOT_REVIEWED",
+        "agent_declared_content_failure": declared_content_failure,
+        "promotion_status": "NOT_EVALUATED",
+        "status_projection": project_research_status(
+            [*reports, *imported_equity_reports], coverage=coverage,
+        ),
         "completed": len(reports), "expected": len(index["tasks"]),
         "bundle": str(run_dir / "research/holding-research-bundle.json"),
         "report": str(markdown_path),
@@ -2896,7 +4579,7 @@ def _adopt_multidimensional_retry(
             run_dir / "research/holding-research-bundle.json"
         ),
     }
-    record["adoption_hash"] = canonical_hash(record)
+    record["adoption_hash"] = legacy_envelope_hash(record, hash_field="adoption_hash")
     adoption_log.parent.mkdir(parents=True, exist_ok=True)
     with adoption_log.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
@@ -2951,7 +4634,7 @@ def assemble_canonical_holding_research_package(
 ) -> dict[str, Any]:
     """只读重验既有研究产物并形成单一交接包；不调用模型或改写历史运行。"""
 
-    from product.council.multidimensional_output import render_holding_research_bundle_markdown
+    from product.council.multidimensional_output import render_holding_research_bundle_markdown, project_research_status
     from product.council.multidimensional_research import (
         BUNDLE_CAPABILITIES,
         HOLDING_RESEARCH_BUNDLE_VERSION,
@@ -3052,7 +4735,7 @@ def assemble_canonical_holding_research_package(
         "allowed_evidence_ids": sorted(canonical_evidence),
         "allowed_evidence": [canonical_evidence[key] for key in sorted(canonical_evidence)],
     }
-    canonical_gate["bundle_hash"] = canonical_hash(canonical_gate)
+    canonical_gate["bundle_hash"] = legacy_envelope_hash(canonical_gate, hash_field="bundle_hash")
     _write_object(target / "evidence/gate.json", canonical_gate)
 
     copied_artifacts = {
@@ -3063,6 +4746,9 @@ def assemble_canonical_holding_research_package(
         copied_artifacts.add(
             _copy_run_artifact(base_run, target, str(reference["artifact_ref"]))
         )
+    from product.runtime.research_submission import selected_calculations_for_report
+    for report in base_dimension_reports:
+        selected_calculations_for_report(target, report)
     company_import = _import_company_research_reports(
         source_run=company_run,
         target_run=target,
@@ -3239,7 +4925,7 @@ def assemble_canonical_holding_research_package(
         "common_stock_security_ids": common_ids,
         "report_refs": report_refs,
         "coverage": coverage,
-        "consumability": "DOWNSTREAM_READY",
+        "consumability": "STRUCTURALLY_CONSUMABLE",
         "package_provenance": package_provenance,
         "unresolved_cross_dimension_questions": unresolved,
         "no_unresolved_reason": (
@@ -3278,7 +4964,7 @@ def assemble_canonical_holding_research_package(
         "bundle_hash": bundle["bundle_hash"],
         "gate_hash": canonical_gate["bundle_hash"],
     }
-    run_manifest["manifest_hash"] = canonical_hash(run_manifest)
+    run_manifest["manifest_hash"] = legacy_envelope_hash(run_manifest, hash_field="manifest_hash")
     _write_object(target / "run_manifest.json", run_manifest)
     package_manifest = {
         "schema_version": "canonical-holding-research-package-proof/1.0.0",
@@ -3340,12 +5026,15 @@ def assemble_canonical_holding_research_package(
         "downstream_models_started": [],
         "complete_portfolio_decision": False,
     }
-    package_manifest["proof_hash"] = canonical_hash(package_manifest)
+    package_manifest["proof_hash"] = legacy_envelope_hash(package_manifest, hash_field="proof_hash")
     _write_object(target / "research/canonical-package-proof.json", package_manifest)
     return {
         "status": "PASSED",
         "run_id": bundle["run_id"],
         "consumability": bundle["consumability"],
+        "status_projection": project_research_status(
+            [*dimension_reports, *imported_equity_reports], coverage=coverage,
+        ),
         "bundle": str(target / "research/holding-research-bundle.json"),
         "report": str(target / "research/holding-research-bundle.md"),
         "proof": str(target / "research/canonical-package-proof.json"),
@@ -3362,41 +5051,46 @@ def check_multidimensional_bundle_consumable(
         validate_research_dimension_report,
     )
     from product.runtime.validation import collect_evidence_refs
+    from product.council.multidimensional_output import project_research_status
 
     del repository_root
     run_dir = Path(run_dir).resolve()
-    manifest = _read_object(run_dir / "run_manifest.json")
+    manifest = _read_frozen_object(run_dir, "run_manifest.json")
     if manifest.get("stage") not in {
         "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH",
     }:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_STAGE_INVALID")
     bundle_path = run_dir / "research/holding-research-bundle.json"
     gate_path = run_dir / "evidence/gate.json"
-    bundle, gate = _read_object(bundle_path), _read_object(gate_path)
+    bundle = _read_frozen_object(run_dir, "research/holding-research-bundle.json")
+    gate = _read_frozen_object(run_dir, "evidence/gate.json")
+    if (gate.get("bundle_hash") != legacy_envelope_hash(gate, hash_field="bundle_hash") or gate.get("decision_cutoff") != bundle.get("decision_cutoff")
+            or gate.get("run_id") != bundle.get("run_id")
+            or manifest.get("gate_hash") != gate.get("bundle_hash")):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_GATE_INVALID")
     allowed_evidence_ids = set(gate.get("allowed_evidence_ids", []))
     common_ids = bundle.get("common_stock_security_ids", [])
     dimension_reports: list[dict[str, Any]] = []
     equity_reports: list[dict[str, Any]] = []
     inventory = []
-    all_claim_ids: set[str] = set()
     loaded: list[tuple[Mapping[str, Any], dict[str, Any], Path]] = []
     for reference in bundle.get("report_refs", []):
         relative = reference.get("artifact_ref")
         if not isinstance(relative, str) or not relative:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_REPORT_PATH_INVALID")
-        path = (run_dir / relative).resolve()
-        if not path.is_relative_to(run_dir) or not path.is_file():
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_REPORT_MISSING")
+        path = _resolve_frozen_artifact(run_dir, relative)
         report = _read_object(path)
         loaded.append((reference, report, path))
-        all_claim_ids.update(
-            str(item["claim_id"])
-            for item in report.get("claims", [])
-            if isinstance(item, Mapping) and isinstance(item.get("claim_id"), str)
-        )
+    all_claim_ids = known_claim_references([
+        {**report, "report_hash": report.get("report_hash", canonical_hash(report))}
+        for _, report, _ in loaded
+    ])
     for reference, report, path in loaded:
         report_type = reference.get("report_type")
         if report_type == "RESEARCH_DIMENSION_REPORT":
+            validate_breadth_calculation_references(run_dir, report)
+            from product.runtime.research_submission import selected_calculations_for_report
+            selected_calculations_for_report(run_dir, report, for_execution=False)
             validate_research_dimension_report(
                 report,
                 expected_bindings={**bundle["bindings"], "decision_cutoff": bundle["decision_cutoff"]},
@@ -3444,14 +5138,22 @@ def check_multidimensional_bundle_consumable(
         dimension_reports=dimension_reports, equity_reports=equity_reports,
     )
     for relative in bundle.get("artifact_refs", []):
-        artifact_path = (run_dir / relative).resolve()
-        if not artifact_path.is_relative_to(run_dir) or not artifact_path.is_file():
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_ARTIFACT_MISSING")
+        _resolve_frozen_artifact(run_dir, relative)
+    process_path = run_dir / "invocation/process-result.json"
+    process = _read_frozen_object(run_dir, "invocation/process-result.json") if process_path.exists() else None
+    if process is not None and process.get("run_id") != bundle["run_id"]:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_CONSUMER_PROCESS_BINDING_INVALID")
+    status = project_research_status(
+        [*dimension_reports, *equity_reports], coverage=bundle["coverage"], process=process,
+    )
     proof = {
         "schema_version": "holding-research-consumption-proof/1.0.0",
         "status": "PASSED", "run_id": bundle["run_id"],
         "structural_status": "STRUCTURALLY_CONSUMABLE",
-        "downstream_status": bundle.get("consumability", "STRUCTURALLY_CONSUMABLE"),
+        "downstream_status": status["downstream_status"],
+        "declared_downstream_status": bundle.get("consumability", "STRUCTURALLY_CONSUMABLE"),
+        "status_projection": status,
+        "process_file_hash": file_hash(process_path) if process is not None else None,
         "bundle_ref": str(bundle_path.relative_to(run_dir)),
         "bundle_file_hash": file_hash(bundle_path), "bundle_hash": bundle["bundle_hash"],
         "gate_ref": str(gate_path.relative_to(run_dir)), "gate_hash": gate["bundle_hash"],
@@ -3469,7 +5171,7 @@ def check_multidimensional_bundle_consumable(
         ],
         "downstream_models_started": [], "complete_portfolio_decision": False,
     }
-    proof["proof_hash"] = canonical_hash(proof)
+    proof["proof_hash"] = legacy_envelope_hash(proof, hash_field="proof_hash")
     if persist:
         destination = run_dir / "research/consumption-proof.json"
         if destination.exists():
@@ -3504,38 +5206,71 @@ def launch_multidimensional_stage(
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_MANIFEST_INVALID")
     index = _read_object(run_dir / "research/dispatch-index.json")
+    from product.runtime.evidence_gate import validate_frozen_gate_binding
+    validate_frozen_gate_binding(run_dir, manifest, _read_object(run_dir / "evidence/gate.json"))
     if initial_task:
         if task_name is None or manifest["stage"] != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
             raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_TASK_INVALID")
         gate = _read_object(run_dir / "evidence/gate.json")
         from product.runtime.research_input_topology import research_input_topology_lock
         if (
-            manifest.get("manifest_hash") != canonical_hash({
-                key: value for key, value in manifest.items() if key != "manifest_hash"
-            })
-            or index.get("index_hash") != canonical_hash({
-                key: value for key, value in index.items() if key != "index_hash"
-            })
+            manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash")
+            or index.get("index_hash") != legacy_envelope_hash(index, hash_field="index_hash")
             or manifest.get("dispatch_index_hash") != index.get("index_hash")
+            or not isinstance(manifest.get("run_id"), str) or not manifest["run_id"]
+            or any(value.get("run_id") != manifest["run_id"] for value in (index, gate))
+            or any(task.get("run_id") != manifest["run_id"] for task in index.get("tasks", []))
             or manifest.get("gate_hash") != gate.get("bundle_hash")
-            or gate.get("bundle_hash") != canonical_hash({
-                key: value for key, value in gate.items() if key != "bundle_hash"
-            })
+            or gate.get("bundle_hash") != legacy_envelope_hash(gate, hash_field="bundle_hash")
             or not gate.get("allowed_evidence_ids")
             or _read_object(run_dir / "council-request.json").get("request_hash")
             != manifest.get("council_request_hash")
             or manifest.get("research_input_topology")
             != research_input_topology_lock(repository_root)
+            or manifest.get("research_execution_fingerprint")
+            != _research_execution_fingerprint(repository_root)
         ):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_INPUT_NOT_READY")
     target_tasks = (
         _target_task_closure(index, task_name) if task_name is not None else []
     )
+    from product.runtime.research_submission import require_write_protocol
+    for task in (target_tasks if task_name is not None else index.get("tasks", [])):
+        if task.get("submission_version") is not None:
+            try:
+                require_write_protocol(task)
+            except ValueError as exc:
+                raise MultidimensionalStageError(str(exc)) from exc
+        from product.runtime.calculation_handoff import require_current_selection_transport
+        packet = build_multidimensional_dispatch_packet(
+            repository_root, run_dir, task["task_name"], include_dependency_reports=False,
+        )
+        try:
+            require_current_selection_transport(
+                packet, _read_object(run_dir / task["invocation_path"]), indexed_task=task,
+            )
+        except ValueError as exc:
+            raise MultidimensionalStageError(str(exc)) from exc
+    reused_dependencies = (
+        _verified_retry_dependencies(run_dir, task_name)
+        if task_name is not None and not initial_task else []
+    )
+    if reused_dependencies:
+        target_tasks = [t for t in target_tasks if t["task_id"] not in {d["task_id"] for d in reused_dependencies}]
+    if task_name is None and manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+        # Verify the same projection used by SubagentStart before creating a
+        # model process. The dependent task is measured again with its report
+        # when the Hook actually delivers it.
+        for task in index["tasks"]:
+            packet = build_multidimensional_dispatch_packet(
+                repository_root, run_dir, task["task_name"],
+                include_dependency_reports=False,
+            )
+            serialize_multidimensional_model_context(packet)
     if initial_task:
         if (
-            len(target_tasks) != 2
-            or [item["capability"] for item in target_tasks]
-            != ["FUNDAMENTAL_EVENT", "RESEARCH_REPORT"]
+            not target_tasks
+            or any(item.get("capability") not in RESEARCH_CAPABILITIES for item in target_tasks)
             or (run_dir / "invocation").exists()
             or (run_dir / "research/task-execution-proof.json").exists()
             or any((run_dir / "research/reports").glob("*/dimension-report.json"))
@@ -3581,11 +5316,15 @@ def launch_multidimensional_stage(
         invocation_dir = retry_root / f"attempt-{attempt}"
         invocation_dir.mkdir(parents=True)
         runtime_root = run_dir / f".codex-runtime-retries/{retry_slug}/attempt-{attempt}"
+        if reused_dependencies:
+            _write_object(invocation_dir / "reused-dependencies.json", {
+                "target_task_name": task_name, "dependencies": reused_dependencies,
+            })
     sqlite_home, log_dir, tmp_dir = runtime_root / "sqlite", runtime_root / "logs", runtime_root / "tmp"
     for path in (sqlite_home, log_dir, tmp_dir):
         path.mkdir(parents=True, exist_ok=False)
     prompt = (
-        build_multidimensional_task_prompt(repository_root, run_dir, task_name)
+        build_multidimensional_task_prompt(repository_root, run_dir, task_name, reused_dependencies=reused_dependencies)
         if task_name is not None
         else build_multidimensional_stage_prompt(repository_root, run_dir)
     )
@@ -3602,6 +5341,11 @@ def launch_multidimensional_stage(
         final_message_path=raw_final_path,
         hook_recorder_path=product_root / "runtime/codex_hook_recorder.py",
         output_schema_path=schema_path, fixture_mcp_run_dir=run_dir,
+        research_submission_enabled=any(t.get("submission_version") for t in index["tasks"]),
+        research_task_state_enabled=(
+            manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+            and manifest.get("tool_identity_version") == "research-tool-identity/1.0.0"
+        ),
         hook_agent_matcher="^(runtime_company_analyst|runtime_market_catalyst)$",
     )
     if manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
@@ -3669,6 +5413,7 @@ def launch_multidimensional_stage(
         "selected_task_names": [item["task_name"] for item in target_tasks],
         "source_integrity_before": before,
     })
+    interrupted = False
     try:
         process = subprocess.run(
             command, input=prompt, text=True, cwd=product_root, env=environment,
@@ -3679,10 +5424,17 @@ def launch_multidimensional_stage(
         stdout = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
         stderr = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
         process_code, timed_out = 124, True
+    except KeyboardInterrupt:
+        # subprocess.run 已结束子进程；Hook 落盘的报告与事件仍保持原样。
+        # 中止时未取得的管道输出不伪装成完整事件流。
+        stdout, stderr, process_code, timed_out = "", "", None, False
+        interrupted = True
     events_path.write_text(stdout, encoding="utf-8")
     stderr_path.write_text(stderr, encoding="utf-8")
     failure_code = None
     try:
+        if interrupted:
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_USER_INTERRUPTED")
         if timed_out:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_TIMEOUT")
         if process_code != 0:
@@ -3717,9 +5469,20 @@ def launch_multidimensional_stage(
             )
         else:
             result = finalize_multidimensional_stage_run(repository_root, run_dir)
+        if result.get("status") == "FAILED":
+            failure_code = result.get("failure_code") or "MULTIDIMENSIONAL_TASK_VALIDATION_FAILED"
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         failure_code = str(exc).split(":", 1)[0]
         result = {"status": "FAILED", "run_id": manifest["run_id"], "failure_code": failure_code}
+    if interrupted:
+        # 只在本次已存在的真实 Hook 证明足以收尾时归集；不猜造未执行任务。
+        if task_name is None and not (run_dir / "research/holding-research-bundle.json").exists():
+            try:
+                partial = finalize_multidimensional_stage_run(repository_root, run_dir, user_interrupted=True)
+                result.update(partial)
+            except (OSError, ValueError, KeyError):
+                pass
+        result.update(status="USER_INTERRUPTED", failure_code=failure_code)
     outcome_tasks = target_tasks if target_tasks else index["tasks"]
     task_by_invocation = {item["invocation_id"]: item for item in outcome_tasks}
     outcome_by_task: dict[str, dict[str, Any]] = {
@@ -3784,10 +5547,12 @@ def launch_multidimensional_stage(
                 outcome_by_task[task["task_id"]]["diagnostics"] = capture["diagnostics"]
     task_outcomes = [outcome_by_task[item["task_id"]] for item in outcome_tasks]
     after = integrity_snapshot(repository_root)
-    _write_object(invocation_dir / "process-result.json", {
+    process_result = {
         "schema_version": "multidimensional-stage-process/1.0.0",
         "run_id": manifest["run_id"], "process_exit_code": process_code,
-        "timed_out": timed_out, "stage_status": result["status"], "failure_code": failure_code,
+        "timed_out": timed_out, "interrupted": interrupted,
+        "captured_process_output_complete": not interrupted,
+        "stage_status": result["status"], "failure_code": failure_code,
         "source_integrity_unchanged": before == after,
         "task_outcomes": task_outcomes,
         "saved_task_count": sum(item["status"] == "SAVED" for item in task_outcomes),
@@ -3803,5 +5568,41 @@ def launch_multidimensional_stage(
              if item["task_id"] not in {task["task_id"] for task in target_tasks}]
             if initial_task else []
         ),
-    })
-    return result, 0 if result["status"] == "PASSED" and before == after else 7
+    }
+    from product.council.multidimensional_output import project_research_status
+    bundle_path = run_dir / "research/holding-research-bundle.json"
+    reports = (
+        [_read_frozen_object(run_dir, item["artifact_ref"])
+         for item in _read_object(bundle_path)["report_refs"]]
+        if bundle_path.is_file() else [
+            _read_object(path) for path in (run_dir / "research/reports").glob("*/dimension-report.json")
+        ]
+    )
+    coverage = (
+        _read_object(bundle_path).get("coverage", []) if bundle_path.is_file() else [
+            {"report_id": item["task_id"] if item["status"] == "SAVED" else None,
+             "status": "FAILED" if item["status"] == "FAILED" else "NOT_RESEARCHED"}
+            for item in task_outcomes
+        ]
+    )
+    result["status_projection"] = project_research_status(
+        reports, coverage=coverage, process=process_result,
+    )
+    process_result["status_projection"] = result["status_projection"]
+    _write_object(invocation_dir / "process-result.json", process_result)
+    if bundle_path.is_file() and task_name is None:
+        from product.council.multidimensional_output import render_holding_research_bundle_markdown
+        bundle = _read_object(bundle_path)
+        # 重新渲染的只是当前运行展示；冻结报告 JSON、hash 和历史包均不变。
+        checked = check_multidimensional_bundle_consumable(repository_root, run_dir, persist=False)
+        result["status_projection"] = checked["status_projection"]
+        loaded = [(item, _read_frozen_object(run_dir, item["artifact_ref"]))
+                  for item in bundle["report_refs"]]
+        markdown = render_holding_research_bundle_markdown(
+            bundle,
+            dimension_reports=[report for ref, report in loaded if ref["report_type"] == "RESEARCH_DIMENSION_REPORT"],
+            equity_reports=[report for ref, report in loaded if ref["report_type"] == "EQUITY_RESEARCH_REPORT"],
+            process=process_result,
+        )
+        (run_dir / "research/holding-research-bundle.md").write_text(markdown, encoding="utf-8")
+    return result, 130 if interrupted else 0 if result["status"] == "PASSED" and before == after else 7

@@ -244,8 +244,13 @@ def validate_capture_batch(value: Mapping[str, Any]) -> None:
         }
         primary = attempts_by_source.get(route["primary"])
         fallback = attempts_by_source.get(route["fallback"]) if route["fallback"] else None
+        option_field_supplement = (
+            selection["dataset"] == "options_snapshot" and primary is not None
+            and primary["status"] in {"AVAILABLE", "PARTIAL"}
+        )
         if fallback is not None and (
-            primary is None or primary["status"] in {"AVAILABLE", "PARTIAL"}
+            primary is None or (primary["status"] in {"AVAILABLE", "PARTIAL"}
+                                and not option_field_supplement)
         ):
             raise ValueError("RESEARCH_BATCH_SELECTION_FALLBACK_FORBIDDEN")
         expected_selected = None
@@ -260,6 +265,9 @@ def validate_capture_batch(value: Mapping[str, Any]) -> None:
             if source in attempts_by_source
             and attempts_by_source[source]["status"] in {"AVAILABLE", "PARTIAL"}
         )
+        if option_field_supplement and fallback is not None \
+                and fallback["status"] in {"AVAILABLE", "PARTIAL"}:
+            expected_supplements = sorted([*expected_supplements, route["fallback"]])
         if selection["selected_source"] != expected_selected \
                 or selection["fallback_reason"] != expected_reason \
                 or selection["supplemental_sources_used"] != expected_supplements:
@@ -734,7 +742,12 @@ def _resolve_source_selections(
         fallback = by_source.get(route["fallback"]) if route["fallback"] else None
         if fallback is not None and primary is None:
             raise ValueError("COMPANY_BACKGROUND_FALLBACK_WITHOUT_PRIMARY")
-        if fallback is not None and primary["status"] in {"AVAILABLE", "PARTIAL"}:
+        option_field_supplement = (
+            dataset == "options_snapshot" and primary is not None
+            and primary["status"] in {"AVAILABLE", "PARTIAL"}
+        )
+        if fallback is not None and primary["status"] in {"AVAILABLE", "PARTIAL"} \
+                and not option_field_supplement:
             raise ValueError("COMPANY_BACKGROUND_FALLBACK_AFTER_SUCCESS")
         selected_source = None
         fallback_reason = None
@@ -747,6 +760,9 @@ def _resolve_source_selections(
             source for source in route["supplemental_sources"]
             if source in by_source and by_source[source]["status"] in {"AVAILABLE", "PARTIAL"}
         )
+        if option_field_supplement and fallback is not None \
+                and fallback["status"] in {"AVAILABLE", "PARTIAL"}:
+            supplements = sorted([*supplements, route["fallback"]])
         admitted = set(supplements)
         if selected_source is not None:
             admitted.add(selected_source)

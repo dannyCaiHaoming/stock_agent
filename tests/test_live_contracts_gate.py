@@ -11,6 +11,7 @@ from product.mcp.live.contracts import validate_contract, SCHEMAS, normalize_sec
 from product.mcp.live.identity import parse_sec_ticker_map, bind_portfolio_identity, freeze_identity, verify_frozen_identity
 from product.mcp.provenance import content_hash
 from product.runtime.evidence_gate import run_live_evidence_gate
+from product.runtime.hashing import legacy_envelope_hash
 from product.runtime.live_input import freeze_snapshot, load_live_portfolio, value_portfolio, build_live_specialist_inputs
 from product.runtime.invocation import build_specialist_inputs
 from product.runtime.risk_runtime import check_live_cio_draft
@@ -121,6 +122,18 @@ class LiveContractGateTests(unittest.TestCase):
         result = value_portfolio(self.portfolio, snapshot, gate, calendar=Calendar())
         self.assertEqual(result["total_value"], "300")
         self.assertEqual(result["positions"][0]["price"], "20")
+
+    def test_live_gate_hash_preserves_legacy_content_digest(self):
+        gate = run_live_evidence_gate(
+            self.snapshot(), run_id="live-hash", calendar=Calendar()
+        ).artifact
+        self.assertEqual(
+            gate["bundle_hash"], legacy_envelope_hash(gate, hash_field="bundle_hash")
+        )
+        self.assertEqual(
+            gate["bundle_hash"],
+            content_hash({key: value for key, value in gate.items() if key != "bundle_hash"}),
+        )
 
     def test_future_information_excluded(self):
         for field, reason in (("as_of", "FUTURE_AS_OF"), ("published_at", "FUTURE_PUBLICATION"), ("retrieved_at", "FUTURE_RETRIEVAL")):

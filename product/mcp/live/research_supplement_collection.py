@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import re
 from typing import Any, Callable, Mapping, Sequence
@@ -18,6 +19,9 @@ from product.mcp.live.research_supplement import (
     normalize_sec_financial_history,
     normalize_sec_guidance_candidate,
 )
+
+
+SUPPLEMENT_COLLECTION_VERSION = "research-supplement-collection/1.1.0"
 
 
 def _now() -> str:
@@ -45,12 +49,12 @@ def _normalized_result(
     ]
     if not evidence:
         code = f"{source.upper()}_{dataset.upper()}_EMPTY"
-        return _failure(source, dataset, code)
+        return {**_failure(source, dataset, code), "actual_requests": 1}
     return {
         "source": source, "dataset": dataset,
         "status": "PARTIAL" if gaps else "AVAILABLE",
         "failure_code": None, "evidence": evidence, "gaps": gaps,
-        "limitations": [],
+        "limitations": [], "actual_requests": 1,
     }
 
 
@@ -61,9 +65,22 @@ def _append_result(target: list[dict[str, Any]], item: Mapping[str, Any]) -> Non
     if existing is None:
         target.append(dict(item))
         return
-    existing["evidence"].extend(dict(value) for value in item["evidence"])
+    def fact_key(fact: Mapping[str, Any]) -> tuple[str, str, str]:
+        return (
+            str(fact.get("source_id")), str(fact.get("semantic_field")),
+            json.dumps(fact.get("value"), sort_keys=True, ensure_ascii=False, default=str),
+        )
+    seen = {fact_key(value) for value in existing["evidence"]}
+    for value in item["evidence"]:
+        key = fact_key(value)
+        if key not in seen:
+            existing["evidence"].append(dict(value))
+            seen.add(key)
     existing["gaps"].extend(item["gaps"])
     existing["limitations"].extend(str(value) for value in item["limitations"])
+    existing["actual_requests"] = (
+        int(existing.get("actual_requests", 0)) + int(item.get("actual_requests", 0))
+    )
     statuses = {existing["status"], item["status"]}
     if statuses <= {"AVAILABLE"}:
         existing["status"] = "AVAILABLE"
@@ -106,6 +123,281 @@ def _yahoo_option_result(normalized: Mapping[str, Any]) -> dict[str, Any]:
         "failure_code": None, "evidence": evidence,
         "gaps": list(normalized.get("gaps", [])), "limitations": [],
     }
+
+
+def _yahoo_option_codes_needing_supplement(item: Mapping[str, Any] | None) -> list[str]:
+    """Reuse Yahoo's already selected contracts; never run a second selection policy."""
+    if item is None or item.get("status") not in {"AVAILABLE", "PARTIAL"}:
+        return []
+    from product.mcp.live.options import _canonical_option_symbol
+
+    codes: set[str] = set()
+    for fact in item.get("evidence", []):
+        value = fact.get("value")
+        if not isinstance(value, Mapping):
+            continue
+        symbol = value.get("contract_symbol")
+        if not isinstance(symbol, str):
+            continue
+        greeks = value.get("greeks")
+        missing_greeks = not isinstance(greeks, Mapping) or any(
+            greeks.get(name) is None for name in ("delta", "gamma", "vega", "theta", "rho")
+        )
+        if not (missing_greeks or value.get("contract_multiplier") is None
+                or value.get("implied_volatility") is None):
+            continue
+        canonical = _canonical_option_symbol(symbol)
+        if not canonical.startswith(str(fact.get("security_id", "")).rsplit(":", 1)[-1]):
+            continue
+        codes.add("US." + canonical)
+    return sorted(codes)[:48]
+
+
+def _option_source_conflicts(
+    yahoo: Mapping[str, Any], moomoo: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    def differs(left: Any, right: Any) -> bool:
+        try:
+            return Decimal(str(left)) != Decimal(str(right))
+        except (InvalidOperation, ValueError):
+            return str(left) != str(right)
+
+    def identity(value: Mapping[str, Any]) -> tuple[str, str, str] | None:
+        try:
+            return (str(value["expiration"]), format(Decimal(str(value["strike"])).normalize(), "f"),
+                    str(value["option_type"]).upper())
+        except (KeyError, InvalidOperation, TypeError, ValueError):
+            return None
+
+    known = {
+        identity(fact["value"]): fact["value"]
+        for fact in yahoo.get("evidence", [])
+        if isinstance(fact.get("value"), Mapping) and identity(fact["value"]) is not None
+    }
+    conflicts = []
+    for fact in moomoo.get("evidence", []):
+        value = fact.get("value")
+        if not isinstance(value, Mapping):
+            continue
+        original = known.get(identity(value))
+        if original is None:
+            continue
+        fields = []
+        for name in ("bid", "ask", "open_interest", "implied_volatility", "contract_multiplier"):
+            if original.get(name) is not None and value.get(name) is not None \
+                    and differs(original[name], value[name]):
+                fields.append(name)
+        original_greeks = original.get("greeks")
+        moomoo_greeks = value.get("greeks")
+        if isinstance(original_greeks, Mapping) and isinstance(moomoo_greeks, Mapping):
+            for name in ("delta", "gamma", "vega", "theta", "rho"):
+                if original_greeks.get(name) is not None and moomoo_greeks.get(name) is not None \
+                        and differs(original_greeks[name], moomoo_greeks[name]):
+                    fields.append(f"greeks.{name}")
+        if fields:
+            conflicts.append({"reason": "OPTION_CROSS_SOURCE_FIELD_CONFLICT",
+                              "contract_symbol": value.get("contract_symbol"),
+                              "fields": sorted(fields)})
+    return conflicts
+
+
+def _map_selected_yahoo_options_to_opend(
+    client: Any, *, ticker: str, yahoo: Mapping[str, Any],
+    selected_codes: Sequence[str],
+) -> tuple[list[str], list[dict[str, Any]], int]:
+    """Resolve only existing Yahoo selections via static identity, never reselect."""
+    from product.mcp.live.options import _canonical_option_symbol
+
+    selected = {_canonical_option_symbol(code) for code in selected_codes}
+    targets = {}
+    gaps = []
+    for fact in yahoo.get("evidence", []):
+        value = fact.get("value")
+        if not isinstance(value, Mapping) or _canonical_option_symbol(
+            value.get("contract_symbol")
+        ) not in selected:
+            continue
+        label = str(value.get("contract_size_label") or "").upper()
+        if label not in {"REGULAR", "STANDARD"}:
+            gaps.append({"reason": "OPTION_CONTRACT_ADJUSTMENT_UNVERIFIED",
+                         "contract_symbol": value.get("contract_symbol")})
+            continue
+        try:
+            key = (str(value["expiration"]), format(Decimal(str(value["strike"])).normalize(), "f"),
+                   str(value["option_type"]).upper())
+        except (KeyError, InvalidOperation, TypeError, ValueError):
+            gaps.append({"reason": "OPTION_CONTRACT_IDENTITY_INCOMPLETE",
+                         "contract_symbol": value.get("contract_symbol")})
+            continue
+        targets[key] = value["contract_symbol"]
+    mapped = []
+    expirations = sorted({key[0] for key in targets})[:3]
+    for expiration in expirations:
+        capture = client.read(
+            capability_id="option-chain-static-v1",
+            params={"code": f"US.{ticker}", "start": expiration, "end": expiration},
+        )
+        by_identity: dict[tuple[str, str, str], list[str]] = {}
+        for row in capture["payload"]["rows"]:
+            if row.get("stock_owner") != f"US.{ticker}" \
+                    or row.get("option_standard_type") != "STANDARD":
+                continue
+            try:
+                key = (str(row["strike_time"]),
+                       format(Decimal(str(row["strike_price"])).normalize(), "f"),
+                       str(row["option_type"]).upper())
+            except (KeyError, InvalidOperation, TypeError, ValueError):
+                continue
+            by_identity.setdefault(key, []).append(str(row["code"]))
+        for key, yahoo_symbol in targets.items():
+            if key[0] != expiration:
+                continue
+            matches = sorted(set(by_identity.get(key, [])))
+            if len(matches) == 1:
+                mapped.append(matches[0])
+            else:
+                gaps.append({"reason": "OPTION_CONTRACT_MAPPING_NOT_UNIQUE",
+                             "contract_symbol": yahoo_symbol,
+                             "match_count": len(matches)})
+    return sorted(set(mapped))[:48], gaps, len(expirations)
+
+
+_PAGINATED_QUOTE_CAPABILITIES = frozenset({
+    "institutional-aggregate-v1", "insider-holder-list-v1", "insider-trade-list-v1",
+    "option-underlying-history-v1", "option-underlying-volatility-v1",
+    "economic-calendar-v1",
+})
+
+
+def _read_quote_pages(
+    client: Any, *, capability_id: str, params: Mapping[str, Any],
+    max_pages: int = 3,
+    stop_when: Callable[[Sequence[Mapping[str, Any]]], bool] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Only approved Quote capabilities; opaque cursors never enter research facts."""
+    if capability_id not in _PAGINATED_QUOTE_CAPABILITIES or not 1 <= max_pages <= 3:
+        raise ValueError("MOOMOO_QUOTE_PAGINATION_POLICY_INVALID")
+    request = dict(params)
+    seen: set[str] = set()
+    captures, gaps = [], []
+    for page in range(max_pages):
+        try:
+            capture = client.read(capability_id=capability_id, params=request)
+        except Exception as exc:
+            if not captures:
+                raise
+            gaps.append({"reason": "MOOMOO_QUOTE_PAGE_FAILED",
+                         "capability_id": capability_id, "pages_read": page,
+                         "failure_code": str(exc).split(":", 1)[0]})
+            break
+        captures.append(capture)
+        if stop_when is not None and stop_when(captures):
+            break
+        payload = capture.get("payload", {})
+        rows = payload.get("rows", [])
+        attrs = payload.get("attrs", {})
+        key_name = "next_page" if capability_id == "economic-calendar-v1" else "next_key"
+        cursor = attrs.get(key_name)
+        if cursor is None and rows and isinstance(rows[0], Mapping):
+            cursor = rows[0].get("next_key")
+        if capability_id == "economic-calendar-v1" and not attrs.get("has_more"):
+            break
+        if cursor in (None, "", "-1"):
+            if capability_id == "economic-calendar-v1" and attrs.get("has_more"):
+                gaps.append({"reason": "MOOMOO_QUOTE_PAGE_CURSOR_MISSING",
+                             "capability_id": capability_id, "pages_read": page + 1})
+            break
+        if not isinstance(cursor, str) or cursor in seen:
+            gaps.append({"reason": "MOOMOO_QUOTE_PAGE_CURSOR_REPEATED",
+                         "capability_id": capability_id, "pages_read": page + 1})
+            break
+        if page + 1 == max_pages:
+            gaps.append({"reason": "MOOMOO_QUOTE_PAGE_BUDGET_REACHED",
+                         "capability_id": capability_id, "pages_read": max_pages})
+            break
+        seen.add(cursor)
+        request["next_key"] = cursor
+    return captures, gaps
+
+
+def _institutional_history_covered(
+    captures: Sequence[Mapping[str, Any]], *, cutoff: datetime,
+) -> bool:
+    periods = set()
+    for capture in captures:
+        for row in capture.get("payload", {}).get("rows", []):
+            match = re.fullmatch(r"(\d{4})/Q([1-4])", str(row.get("period_text", "")))
+            if match:
+                year, quarter = int(match.group(1)), int(match.group(2))
+                month = quarter * 3
+                end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=timezone.utc) \
+                    - timedelta(days=1)
+                if end.date() < cutoff.date():
+                    periods.add((year, quarter))
+    return len(periods) >= 2
+
+
+def _verify_institution_capture_clock(
+    capture: Mapping[str, Any], *,
+    clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict[str, Any]:
+    """Observe a rounded provider timestamp again; never backdate a future fact."""
+    from product.mcp.live.moomoo_normalize import _unix_time
+
+    original = parse_timestamp(capture["retrieved_at"])
+    future = []
+    for row in capture.get("payload", {}).get("rows", []):
+        if not isinstance(row, Mapping) or not row.get("update_time"):
+            continue
+        try:
+            updated = parse_timestamp(_unix_time(row["update_time"]))
+        except (ValueError, OverflowError, TypeError):
+            continue
+        if updated > original:
+            future.append(updated)
+    if not future or max(future) - original > timedelta(seconds=2):
+        return dict(capture)
+    target = max(future)
+    for _ in range(5):
+        observed = clock()
+        if observed >= target:
+            return {**capture, "verified_at": iso_utc(observed)}
+        sleep(min(0.5, max((target - observed).total_seconds(), 0)))
+    return dict(capture)
+
+
+def _finish_page_coverage(
+    results: list[dict[str, Any]], *, dataset: str,
+    page_gaps: Sequence[Mapping[str, Any]],
+) -> None:
+    item = next((entry for entry in results if entry["source"] == "moomoo_sg"
+                 and entry["dataset"] == dataset), None)
+    if item is None:
+        return
+    item["actual_requests"] = int(item.get("actual_requests", 0)) + sum(
+        gap.get("reason") == "MOOMOO_QUOTE_PAGE_FAILED"
+        for gap in page_gaps
+    )
+    if not page_gaps:
+        item["gaps"] = [gap for gap in item["gaps"] if not (
+            isinstance(gap, Mapping) and gap.get("reason") in {
+                "MOOMOO_SHARED_DATA_MORE_PAGES", "MOOMOO_INSIDER_TRADES_MORE_PAGES",
+            }
+        )]
+    if dataset == "institutional_ownership" and sum(
+        fact.get("value", {}).get("period_provisional") is False
+        for fact in item["evidence"]
+    ) >= 2:
+        item["gaps"] = [gap for gap in item["gaps"] if not (
+            isinstance(gap, Mapping) and gap.get("reason") ==
+            "MOOMOO_INSTITUTION_TWO_COMPLETED_PERIODS_MISSING"
+        )]
+    item["gaps"].extend(page_gaps)
+    item["status"] = (
+        "PARTIAL" if item["gaps"] and item["evidence"] else
+        "AVAILABLE" if item["evidence"] else "SOURCE_LIMITED"
+    )
 
 
 def capture_public_company_news_result(
@@ -189,6 +481,7 @@ def capture_external_research_results(
     positions: Sequence[Mapping[str, Any]], *, access: Sequence[Mapping[str, Any]],
     cache_root: Path, state_root: Path,
     held_option_contracts: Mapping[str, Sequence[str]] | None = None,
+    peer_scope: bool = False,
     now: Callable[[], str] = _now,
 ) -> dict[str, list[dict[str, Any]]]:
     """先于共同 cutoff 采集 Yahoo/OpenD；任一来源失败只降级对应数据集。"""
@@ -200,8 +493,10 @@ def capture_external_research_results(
     policies = {str(item["provider"]): item for item in access}
     tickers = [str(item["ticker"]) for item in positions]
     yahoo_datasets = (
-        "identity_profile", "event_context", "analyst_expectations",
-        "share_short_context", "capital_allocation",
+        ("identity_profile", "analyst_expectations") if peer_scope else (
+            "identity_profile", "event_context", "analyst_expectations",
+            "share_short_context", "capital_allocation",
+        )
     )
     try:
         from product.mcp.live.yahoo_research import collect_quote_summary
@@ -224,6 +519,8 @@ def capture_external_research_results(
                     _normalized_result("yahoo", dataset, normalized)
                     for dataset in yahoo_datasets
                 )
+                if peer_scope:
+                    continue
                 try:
                     from product.mcp.live.options import collect_option_snapshot
                     option_result = collect_option_snapshot(
@@ -241,16 +538,18 @@ def capture_external_research_results(
                 result[security_id].extend(
                     _failure("yahoo", dataset, code) for dataset in yahoo_datasets
                 )
-                result[security_id].append(_failure("yahoo", "options_snapshot", code))
+                if not peer_scope:
+                    result[security_id].append(_failure("yahoo", "options_snapshot", code))
     except Exception as exc:
         code = str(exc).split(":", 1)[0] or "YAHOO_RESEARCH_CONFIGURATION_FAILED"
         for position in positions:
             result[str(position["security_id"])].extend(
                 _failure("yahoo", dataset, code) for dataset in yahoo_datasets
             )
-            result[str(position["security_id"])].append(
-                _failure("yahoo", "options_snapshot", code)
-            )
+            if not peer_scope:
+                result[str(position["security_id"])].append(
+                    _failure("yahoo", "options_snapshot", code)
+                )
 
     from product.mcp.live.moomoo_normalize import (
         normalize_opend_analyst_consensus,
@@ -288,6 +587,10 @@ def capture_external_research_results(
         ("research_discovery", "institution-rating-summary-v1", {"rating_dimension_type": 1, "num": 20}, normalize_opend_rating_summary),
         ("research_discovery", "analyst-rating-summary-v1", {"rating_dimension_type": 2, "num": 20}, normalize_opend_rating_summary),
     )
+    if peer_scope:
+        allowed = {"identity_profile", "analyst_expectations", "business_segments", "research_discovery"}
+        core_calls = tuple(item for item in core_calls if item[0] in allowed)
+        enhancement_calls = tuple(item for item in enhancement_calls if item[0] in allowed)
     calls = (*core_calls, *enhancement_calls)
     deadline = time.monotonic() + 120 * max(1, len(positions))
     manifest = load_quote_manifest()
@@ -298,9 +601,10 @@ def capture_external_research_results(
             client.readiness()
         except Exception as exc:
             code = str(exc).split(":", 1)[0] or "MOOMOO_OPEND_UNREACHABLE"
-            for dataset in sorted({item[0] for item in calls} | {
+            fallback_datasets = set() if peer_scope else {
                 "options_snapshot", "options_underlying_context", "share_short_context",
-            }):
+            }
+            for dataset in sorted({item[0] for item in calls} | fallback_datasets):
                 if dataset in {"options_snapshot", "share_short_context"} and any(
                     item["source"] == "yahoo" and item["dataset"] == dataset
                     and item["status"] in {"AVAILABLE", "PARTIAL"}
@@ -312,25 +616,93 @@ def capture_external_research_results(
             continue
         for dataset, capability, extra_params, normalizer in core_calls:
             try:
-                capture = client.read(
-                    capability_id=capability,
-                    params={"code": f"US.{ticker}", **extra_params},
-                )
-                normalized = normalizer(capture, security_id=security_id, ticker=ticker)
-                _append_result(
-                    result[security_id], _normalized_result("moomoo_sg", dataset, normalized),
-                )
+                params = {"code": f"US.{ticker}", **extra_params}
+                if capability == "institutional-aggregate-v1":
+                    captures, page_gaps = _read_quote_pages(
+                        client, capability_id=capability, params=params,
+                        stop_when=lambda pages: _institutional_history_covered(
+                            pages, cutoff=parse_timestamp(now()),
+                        ),
+                    )
+                else:
+                    captures = [client.read(capability_id=capability, params=params)]
+                    page_gaps = []
+                for capture in captures:
+                    if capability == "institutional-aggregate-v1":
+                        capture = _verify_institution_capture_clock(capture)
+                    normalized = normalizer(capture, security_id=security_id, ticker=ticker)
+                    _append_result(
+                        result[security_id], _normalized_result("moomoo_sg", dataset, normalized),
+                    )
+                if capability == "institutional-aggregate-v1":
+                    _finish_page_coverage(result[security_id], dataset=dataset, page_gaps=page_gaps)
             except Exception as exc:
                 code = str(exc).split(":", 1)[0] or "MOOMOO_RESEARCH_FAILED"
                 _append_result(result[security_id], _failure("moomoo_sg", dataset, code))
+        if peer_scope:
+            for dataset, capability, extra_params, normalizer in enhancement_calls:
+                if time.monotonic() > deadline:
+                    _append_result(result[security_id], _failure(
+                        "moomoo_sg", dataset, "MOOMOO_BATCH_TIME_BUDGET_EXHAUSTED",
+                    ))
+                    continue
+                try:
+                    capture = client.read(capability_id=capability,
+                                          params={"code": f"US.{ticker}", **extra_params})
+                    normalized = normalizer(capture, security_id=security_id, ticker=ticker)
+                    _append_result(result[security_id], _normalized_result(
+                        "moomoo_sg", dataset, normalized,
+                    ))
+                except Exception as exc:
+                    _append_result(result[security_id], _failure(
+                        "moomoo_sg", dataset,
+                        str(exc).split(":", 1)[0] or "MOOMOO_RESEARCH_FAILED",
+                    ))
+            continue
         yahoo_options = next(
             (item for item in result[security_id]
              if item["source"] == "yahoo" and item["dataset"] == "options_snapshot"), None,
         )
+        supplement_codes = _yahoo_option_codes_needing_supplement(yahoo_options)
         needs_moomoo_options = (
             yahoo_options is None
             or yahoo_options["status"] not in {"AVAILABLE", "PARTIAL"}
         )
+        if supplement_codes and time.monotonic() <= deadline:
+            try:
+                mapped_codes, mapping_gaps, chain_requests = _map_selected_yahoo_options_to_opend(
+                    client, ticker=ticker, yahoo=yahoo_options,
+                    selected_codes=supplement_codes,
+                )
+                if not mapped_codes:
+                    raise ValueError("MOOMOO_OPTION_CONTRACT_MAPPING_EMPTY")
+                capture = client.read(
+                    capability_id="market-snapshot-v1",
+                    params={"code_list": mapped_codes},
+                )
+                normalized = normalize_opend_market_snapshot(
+                    capture, security_id=security_id, ticker=ticker,
+                )
+                normalized["gaps"].extend(_option_source_conflicts(yahoo_options, normalized))
+                normalized["gaps"].extend(mapping_gaps)
+                normalized["gaps"].append({
+                    "reason": "OPTION_CROSS_SOURCE_SNAPSHOT_NOT_MERGED",
+                    "contract_count": len(mapped_codes),
+                })
+                option_result = _normalized_result(
+                    "moomoo_sg", "options_snapshot", normalized,
+                )
+                option_result["actual_requests"] = chain_requests + 1
+                _append_result(result[security_id], option_result)
+            except Exception as exc:
+                _append_result(result[security_id], _failure(
+                    "moomoo_sg", "options_snapshot",
+                    str(exc).split(":", 1)[0] or "MOOMOO_OPTIONS_SUPPLEMENT_FAILED",
+                ))
+        elif supplement_codes:
+            _append_result(result[security_id], _failure(
+                "moomoo_sg", "options_snapshot", "MOOMOO_BATCH_TIME_BUDGET_EXHAUSTED",
+            ))
         if needs_moomoo_options and time.monotonic() > deadline:
             _append_result(result[security_id], _failure(
                 "moomoo_sg", "options_snapshot", "MOOMOO_BATCH_TIME_BUDGET_EXHAUSTED",
@@ -396,14 +768,21 @@ def capture_external_research_results(
                 ))
                 continue
             try:
-                capture = client.read(
-                    capability_id=capability,
-                    params={"code": f"US.{ticker}", **extra_params},
-                )
-                normalized = normalizer(capture, security_id=security_id, ticker=ticker)
-                _append_result(result[security_id], _normalized_result(
-                    "moomoo_sg", dataset, normalized,
-                ))
+                params = {"code": f"US.{ticker}", **extra_params}
+                if capability in {"insider-holder-list-v1", "insider-trade-list-v1"}:
+                    captures, page_gaps = _read_quote_pages(
+                        client, capability_id=capability, params=params,
+                    )
+                else:
+                    captures = [client.read(capability_id=capability, params=params)]
+                    page_gaps = []
+                for capture in captures:
+                    normalized = normalizer(capture, security_id=security_id, ticker=ticker)
+                    _append_result(result[security_id], _normalized_result(
+                        "moomoo_sg", dataset, normalized,
+                    ))
+                if capability in {"insider-holder-list-v1", "insider-trade-list-v1"}:
+                    _finish_page_coverage(result[security_id], dataset=dataset, page_gaps=page_gaps)
             except Exception as exc:
                 code = str(exc).split(":", 1)[0] or "MOOMOO_RESEARCH_FAILED"
                 _append_result(result[security_id], _failure("moomoo_sg", dataset, code))
@@ -423,13 +802,23 @@ def capture_external_research_results(
                 ))
                 break
             try:
-                normalized = normalize_opend_option_underlying(
-                    client.read(capability_id=capability, params=params),
-                    security_id=security_id, ticker=ticker,
-                )
-                _append_result(result[security_id], _normalized_result(
-                    "moomoo_sg", "options_underlying_context", normalized,
-                ))
+                if capability in {"option-underlying-history-v1", "option-underlying-volatility-v1"}:
+                    captures, page_gaps = _read_quote_pages(
+                        client, capability_id=capability, params=params,
+                    )
+                else:
+                    captures = [client.read(capability_id=capability, params=params)]
+                    page_gaps = []
+                for capture in captures:
+                    normalized = normalize_opend_option_underlying(
+                        capture, security_id=security_id, ticker=ticker,
+                    )
+                    _append_result(result[security_id], _normalized_result(
+                        "moomoo_sg", "options_underlying_context", normalized,
+                    ))
+                if capability in {"option-underlying-history-v1", "option-underlying-volatility-v1"}:
+                    _finish_page_coverage(result[security_id], dataset="options_underlying_context",
+                                          page_gaps=page_gaps)
             except Exception as exc:
                 code = str(exc).split(":", 1)[0] or "MOOMOO_OPTION_CONTEXT_FAILED"
                 _append_result(result[security_id], _failure(
@@ -536,12 +925,34 @@ def capture_shared_research_results(
                 capture, dataset="dot_plot", semantic_prefix="moomoo_dot_plot",
                 method="get_fed_watch_dot_plot", limit=20,
             ))
-    collect("economic_calendar", "economic-calendar-v1", {
-        "start": (anchor - timedelta(days=7)).isoformat(), "end": calendar_end, "count": 100,
-    }, lambda capture: normalize_opend_shared_frame(
-        capture, dataset="economic_calendar", semantic_prefix="moomoo_economic_calendar",
-        method="get_economic_calendar", limit=100,
-    ))
+    if time.monotonic() > deadline:
+        _append_result(outputs, _failure(
+            "moomoo_sg", "economic_calendar", "MOOMOO_SHARED_TIME_BUDGET_EXHAUSTED",
+        ))
+    else:
+        try:
+            page_gaps = []
+            for window_start, window_end, page_limit in (
+                ((anchor - timedelta(days=30)).isoformat(), anchor.isoformat(), 2),
+                ((anchor + timedelta(days=1)).isoformat(), calendar_end, 1),
+            ):
+                captures, window_gaps = _read_quote_pages(
+                    client, capability_id="economic-calendar-v1",
+                    params={"start": window_start, "end": window_end, "count": 100},
+                    max_pages=page_limit,
+                )
+                page_gaps.extend(window_gaps)
+                for capture in captures:
+                    _append_result(outputs, _normalized_result("moomoo_sg", "economic_calendar",
+                        normalize_opend_shared_frame(
+                            capture, dataset="economic_calendar",
+                            semantic_prefix="moomoo_economic_calendar",
+                            method="get_economic_calendar", limit=100,
+                        )))
+            _finish_page_coverage(outputs, dataset="economic_calendar", page_gaps=page_gaps)
+        except Exception as exc:
+            _append_result(outputs, _failure("moomoo_sg", "economic_calendar",
+                                             str(exc).split(":", 1)[0]))
     return outputs
 
 
@@ -653,7 +1064,12 @@ def build_research_supplements(
         assembled = assemble_company_background(
             snapshot_id=f"company-background:{run_id}:{ticker}", batch_id=batch_id,
             security_id=security_id, ticker=ticker, decision_cutoff=cutoff,
-            created_at=cutoff, dataset_results=dataset_results,
+            created_at=cutoff, dataset_results=[
+                {key: item[key] for key in (
+                    "source", "dataset", "status", "failure_code", "evidence", "gaps", "limitations"
+                )}
+                for item in dataset_results
+            ],
         )
         all_facts = assembled["background"]["evidence"] + assembled["extra_evidence"]
         capabilities = []
@@ -670,7 +1086,11 @@ def build_research_supplements(
             )
             if item["status"] not in {"NOT_ATTEMPTED", "AVAILABLE"} and not limitations:
                 limitations.append(item["failure_code"] or "来源覆盖不完整")
-            request_count = 2 if item["source"] == "moomoo_public_news" else 1
+            request_count = int(item.get("actual_requests", 0))
+            if item["source"] == "moomoo_public_news":
+                request_count = 2
+            elif item["source"] == "sec":
+                request_count = 0  # SEC facts were acquired in the base snapshot.
             capabilities.append(build_capability(
                 source=item["source"],
                 region="SG" if item["source"] == "moomoo_sg" else "US",
@@ -679,11 +1099,11 @@ def build_research_supplements(
                 endpoint_version=facts[0]["source_version"] if facts else None,
                 checked_at=cutoff,
                 as_of=max((fact["as_of"] for fact in facts), default=cutoff),
-                attempt_count=request_count, limitations=limitations,
+                attempt_count=max(1, request_count), limitations=limitations,
                 failure_code=item["failure_code"],
                 evidence_ids=[fact["evidence_id"] for fact in facts],
                 raw_content_hashes=[fact["raw_content_hash"] for fact in facts],
-                request_budget=request_count, actual_requests=request_count,
+                request_budget=max(1, request_count), actual_requests=request_count,
             ))
         batch = build_capture_batch(
             batch_id=batch_id, security_id=security_id, decision_cutoff=cutoff,

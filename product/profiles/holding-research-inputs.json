@@ -101,19 +101,19 @@
   "source_references": [
     {"reference_id": "research_source_policy", "path": "mcp/live/research-source-policy.json", "version": "research-source-policy/1.2.0", "sha256": "f216829992e798119a696acb5aff0a0927497c0dcef7d7ab3206ef94db254a1f"},
     {"reference_id": "research_supplement_source_plan", "path": "mcp/live/research-supplement-source-plan.json", "version": "research-supplement-source-plan/1.0.0", "sha256": "17f27b06518a80048cdb97a8fd6a9ee828507ef319c692cf1d235dd63e343bed"},
-    {"reference_id": "moomoo_opend_quote_manifest", "path": "mcp/live/moomoo-opend-quote-manifest.json", "version": "moomoo-opend-quote-manifest/1.0.0", "sha256": "6a9acbf70b28b73e412ef4a90e07f9795b72beb029413e46cdf02d164bcbaa1b"},
+    {"reference_id": "moomoo_opend_quote_manifest", "path": "mcp/live/moomoo-opend-quote-manifest.json", "version": "moomoo-opend-quote-manifest/1.0.0", "sha256": "971dd6af99452a1f5f5a498999c33b718eb36895052c5f983c15e32b6699b8c5"},
     {"reference_id": "research_source_capability_contract", "path": "schemas/runtime/research-source-capability.schema.json", "version": "research-source-capability/1.2.0", "sha256": "d2cae378ec8a2fa8c8ac4f0586b61a3edc4f7c98ba52f5fca333bfc643869363"},
-    {"reference_id": "retired_live_profile", "path": "profiles/live-us-equity.json", "version": "live-us-equity/4.0.0", "sha256": "af29d628337b19283f5663a3da7298da34ed221dac093a4624f1d65ad9c1edf5"}
+    {"reference_id": "retired_live_profile", "path": "profiles/live-us-equity.json", "version": "live-us-equity/4.0.0", "sha256": "d38d6124d4e2b14d2889e36af7ca700f9ac62ed96b21c5472adb5ac2bbd496bb"}
   ],
   "compatibility_profiles": [
     {
       "profile_id": "live-us-equity/4.0.0",
       "path": "profiles/live-us-equity.json",
-      "sha256": "af29d628337b19283f5663a3da7298da34ed221dac093a4624f1d65ad9c1edf5",
+      "sha256": "d38d6124d4e2b14d2889e36af7ca700f9ac62ed96b21c5472adb5ac2bbd496bb",
       "lifecycle_status": "RETIRED",
       "compatibility_mode": "COMPATIBILITY_ONLY",
       "successor_profile_id": "holding-research-inputs/1.0.0"
     }
   ],
-  "topology_hash": "bb15399a60f076db85d2f8a0553b429ca9e8bbb6e3b144be41cc5c82cab51127"
+  "topology_hash": "2680397075d645840bc2b404ab4649dd5185c7d5b1243ca472bbd821bd93b68c"
 }

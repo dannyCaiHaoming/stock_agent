@@ -158,7 +158,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
         self.assertIn(
             'STOCK_AGENT_FIXTURE_MCP_PYTHONPATH="', override
         )
-        self.assertIn('/stock_agent:/private/tmp/runtime-venv/lib/python', override)
+        self.assertIn(str(ROOT) + ':/private/tmp/runtime-venv/lib/python', override)
         self.assertIn('/site-packages"}', override)
         self.assertIn(
             'mcp_servers.live_runtime={command="/usr/bin/false",enabled=false}',

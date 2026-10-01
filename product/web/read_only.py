@@ -14,11 +14,17 @@ from urllib.parse import quote
 
 from product.council.common_stock_research import validate_equity_research_report
 from product.council.multidimensional_research import validate_research_dimension_report
+from product.council.multidimensional_output import project_research_status
 from product.council.research_visuals import validate_visual_bundle
 from product.runtime.equity_research_package import validate_equity_research_package
-from product.runtime.hashing import canonical_hash
-from product.runtime.research_memory import MEMORY_SCHEMA_VERSION, fact_content_hash, report_reuse_key
+from product.runtime.hashing import canonical_hash, verify_legacy_envelope_hash, HashContractError
+from product.runtime.multidimensional_references import known_claim_references
+from product.runtime.research_memory import (
+    MEMORY_SCHEMA_VERSION, fact_content_hash, fact_projection_column,
+    logical_fact_key, persisted_fact_algorithm, report_reuse_key,
+)
 from product.runtime.schema_validation import validate_schema_instance
+from product.runtime.research_input_topology import CAPABILITY_BINDINGS
 
 
 class BrowserDataError(ValueError):
@@ -72,11 +78,7 @@ DOMAIN_COVERAGE_CAPABILITIES = {
     "MARKET": ("MARKET_STATE", "OPTIONS_FLOW"),
     "COMPANY": COMPANY_RESEARCH_CAPABILITIES,
 }
-KNOWN_COVERAGE_CAPABILITIES = frozenset(
-    capability
-    for capabilities in DOMAIN_COVERAGE_CAPABILITIES.values()
-    for capability in capabilities
-)
+KNOWN_COVERAGE_CAPABILITIES = frozenset(CAPABILITY_BINDINGS)
 SHARED_ENVIRONMENT_DATASETS = frozenset({
     "dot_plot", "economic_calendar", "macro_history",
     "fedwatch_expectations", "market_breadth", "option_market_statistics",
@@ -365,6 +367,8 @@ def _validated_report(
     }
     if report_hash != expected_report_hash or any(manifest.get(key) != value for key, value in expected_hashes.items()):
         raise BrowserDataError("BROWSER_REPORT_HASH_MISMATCH")
+    if report.get("schema_version") != "equity-research-report/1.0.0":
+        raise BrowserDataError("BROWSER_REPORT_READER_UNSUPPORTED_VERSION")
     if report.get("schema_version") == "equity-research-report/1.0.0":
         request = package.get("request")
         if not isinstance(request, Mapping):
@@ -486,7 +490,7 @@ class ReadOnlyResearchMemory:
     def _check_schema(self) -> None:
         with self.connect() as connection:
             version = int(connection.execute("PRAGMA user_version").fetchone()[0])
-            if version != SUPPORTED_MEMORY_VERSION:
+            if version not in (2, SUPPORTED_MEMORY_VERSION):
                 raise BrowserDataError("BROWSER_MEMORY_SCHEMA_UNSUPPORTED")
             required = {"fact_versions", "dataset_state", "attempts", "research_views", "reports", "reuse_events"}
             tables = {str(row[0]) for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
@@ -623,9 +627,13 @@ class ReadOnlyResearchMemory:
         self, connection: sqlite3.Connection, view: Mapping[str, Any] | None, security_id: str,
     ) -> tuple[list[dict[str, Any]], list[dict[str, str]], dict[str, Any]]:
         requested: list[str] = []
+        projection = (
+            "projection_version" if fact_projection_column(connection)
+            else "NULL AS projection_version"
+        )
         if view is None:
             rows = connection.execute(
-                "SELECT payload_json,logical_key,version_hash FROM fact_versions WHERE security_id=? "
+                f"SELECT payload_json,logical_key,version_hash,{projection} FROM fact_versions WHERE security_id=? "
                 "ORDER BY published_at DESC,version_hash DESC",
                 (security_id,),
             ).fetchall()
@@ -644,7 +652,7 @@ class ReadOnlyResearchMemory:
                 batch = requested[start:start + 500]
                 placeholders = ",".join("?" for _ in batch)
                 rows.extend(connection.execute(
-                    f"SELECT payload_json,logical_key,version_hash FROM fact_versions WHERE security_id=? AND version_hash IN ({placeholders})",
+                    f"SELECT payload_json,logical_key,version_hash,{projection} FROM fact_versions WHERE security_id=? AND version_hash IN ({placeholders})",
                     [security_id, *batch],
                 ).fetchall())
         values, issues = [], []
@@ -654,8 +662,14 @@ class ReadOnlyResearchMemory:
         for row in rows:
             try:
                 fact = _json_object(row["payload_json"], "BROWSER_FACT_INVALID")
-                if fact_content_hash(fact) != row["version_hash"]:
+                if fact_content_hash(
+                    fact, algorithm=persisted_fact_algorithm(row),
+                ) != row["version_hash"]:
                     raise BrowserDataError("BROWSER_FACT_HASH_MISMATCH")
+                if logical_fact_key(
+                    fact, algorithm=persisted_fact_algorithm(row),
+                ) != row["logical_key"]:
+                    raise BrowserDataError("BROWSER_FACT_LOGICAL_KEY_MISMATCH")
             except (BrowserDataError, ValueError, KeyError, TypeError) as exc:
                 issues.append({"code": str(exc).split(":", 1)[0], "version_hash": str(row["version_hash"])})
                 continue
@@ -1314,7 +1328,7 @@ class ArtifactCatalog:
         return supported.get(schema, "unsupported"), schema in supported
 
     @staticmethod
-    def _validate(value: Mapping[str, Any], kind: str) -> None:
+    def _validate(value: Mapping[str, Any], kind: str, *, known_research_claim_ids: Sequence[str] = ()) -> None:
         if kind == "dimension_report":
             validate_research_dimension_report(
                 value,
@@ -1323,7 +1337,7 @@ class ArtifactCatalog:
                 allowed_evidence_ids=sorted(
                     _string_refs(value, "evidence_refs") | _string_refs(value, "input_evidence_refs")
                 ),
-                known_research_claim_ids=(),
+                known_research_claim_ids=known_research_claim_ids,
                 allowed_documents=value.get("documents", []),
             )
         elif kind == "equity_attachment":
@@ -1342,10 +1356,10 @@ class ArtifactCatalog:
             if value.get("snapshot_hash") != canonical_hash({key: item for key, item in value.items() if key != "snapshot_hash"}):
                 raise ValueError("BENCHMARK_SNAPSHOT_HASH_MISMATCH")
         elif kind == "provider_coverage":
-            if value.get("coverage_hash") != canonical_hash({
-                key: item for key, item in value.items() if key != "coverage_hash"
-            }):
-                raise ValueError("PROVIDER_COVERAGE_HASH_MISMATCH")
+            try:
+                verify_legacy_envelope_hash(value, hash_field="coverage_hash", location="audit/provider-coverage.json")
+            except HashContractError as exc:
+                raise ValueError(f"PROVIDER_COVERAGE_HASH_MISMATCH:{exc}") from exc
             if not isinstance(value.get("decision_cutoff"), str) or not value["decision_cutoff"]:
                 raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
             if not isinstance(value.get("providers"), list):
@@ -1359,7 +1373,10 @@ class ArtifactCatalog:
                     raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
                 if not isinstance(observation.get("dataset"), str) or not observation["dataset"]:
                     raise ValueError("PROVIDER_COVERAGE_STRUCTURE_INVALID")
-                if observation.get("target_capability") not in KNOWN_COVERAGE_CAPABILITIES:
+                if observation.get("target_capability") == "UNMAPPED":
+                    if observation.get("mapping_status") != "UNMAPPED" or observation.get("delivered_evidence_count") != 0:
+                        raise ValueError("PROVIDER_COVERAGE_UNMAPPED_INVALID")
+                elif observation.get("target_capability") not in KNOWN_COVERAGE_CAPABILITIES:
                     raise ValueError("PROVIDER_COVERAGE_CAPABILITY_INVALID")
                 for key in (
                     "capture_evidence_count", "gate_eligible_evidence_count",
@@ -1423,6 +1440,63 @@ class ArtifactCatalog:
             ):
                 raise ValueError("EVIDENCE_GATE_ALLOWLIST_MISMATCH")
 
+    @staticmethod
+    def _loaded_claims(item: Mapping[str, Any], reports: Sequence[Mapping[str, Any]]) -> list[str]:
+        """只使用同一来源/运行/完整组合绑定的已验证上游报告；不猜裸 ID。"""
+        value = item["value"]
+        own = (value.get("report_id"), value.get("report_hash"))
+        sources = set(item.get("source_ids", []))
+        unique = {}
+        for candidate in reports:
+            report = candidate["value"]
+            identity = (report.get("report_id"), report.get("report_hash"))
+            if (identity != own and sources.intersection(candidate.get("source_ids", []))
+                    and report.get("run_id") == value.get("run_id")
+                    and report.get("bindings") == value.get("bindings")):
+                unique[identity] = report
+        return known_claim_references(list(unique.values()))
+
+    def _validated_dimension_items(self, pending: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """有界、只读地核验加载依赖；悬空/循环/非法来源都不进入展示目录。"""
+        accepted: list[dict[str, Any]] = []
+        while pending:
+            remaining = []
+            for item in pending:
+                try:
+                    self._validate(item["value"], "dimension_report",
+                                   known_research_claim_ids=self._loaded_claims(item, accepted))
+                except (ValueError, TypeError, KeyError) as exc:
+                    if str(exc).split(":", 1)[0] == "DIMENSION_REPORT_RESEARCH_CLAIM_DANGLING":
+                        remaining.append(item)
+                    else:
+                        self.issues.append({"code": str(exc).split(":", 1)[0], "label": "dimension-report.json"})
+                else:
+                    accepted.append(item)
+            if len(remaining) == len(pending):
+                for _ in remaining:
+                    self.issues.append({"code": "DIMENSION_REPORT_RESEARCH_CLAIM_DANGLING",
+                                        "label": "dimension-report.json"})
+                break
+            pending = remaining
+        # 后加载的同名主张可能使旧裸引用歧义；不能以扫描顺序选中第一份。
+        # 拒绝其报告后，所有依赖它的报告也必须重新闭合。
+        while accepted:
+            verified = []
+            for item in accepted:
+                try:
+                    self._validate(item["value"], "dimension_report",
+                                   known_research_claim_ids=self._loaded_claims(item, accepted))
+                except (ValueError, TypeError, KeyError) as exc:
+                    self.issues.append({"code": str(exc).split(":", 1)[0], "label": "dimension-report.json"})
+                else:
+                    verified.append(item)
+            if len(verified) == len(accepted):
+                break
+            accepted = verified
+        for item in accepted:
+            item["status_projection"] = project_research_status([item["value"]])
+        return accepted
+
     def rescan(self) -> dict[str, int]:
         self.artifacts = []
         self.issues = []
@@ -1433,6 +1507,7 @@ class ArtifactCatalog:
             context["source_label"] = root.name
             source_id = str(context["source_id"])
             self._source_contexts[source_id] = context
+            pending_dimensions = []
             for path in self._candidates(root):
                 try:
                     raw = path.read_bytes()
@@ -1441,7 +1516,7 @@ class ArtifactCatalog:
                         raise ValueError("NOT_OBJECT")
                     digest = hashlib.sha256(raw).hexdigest()
                     kind, supported = self._kind(value)
-                    if supported:
+                    if supported and kind != "dimension_report":
                         self._validate(value, kind)
                     identity = self._identity(value, digest)
                     item = {
@@ -1467,9 +1542,33 @@ class ArtifactCatalog:
                             "code": "ARTIFACT_SCHEMA_UNSUPPORTED",
                             "label": f"{item['schema_version']}:{digest[:16]}",
                         })
-                    grouped.setdefault(identity, []).append(item)
+                    if kind == "dimension_report":
+                        pending_dimensions.append(item)
+                    else:
+                        grouped.setdefault(identity, []).append(item)
                 except (OSError, json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
                     self.issues.append({"code": str(exc).split(":", 1)[0], "label": path.name})
+            for item in self._validated_dimension_items(pending_dimensions):
+                process_path = root / "invocation/process-result.json"
+                if _safe_regular_file(root, process_path):
+                    try:
+                        process_raw = process_path.read_bytes()
+                        process = json.loads(process_raw)
+                        if (not isinstance(process, Mapping)
+                                or process.get("schema_version") != "multidimensional-stage-process/1.0.0"
+                                or process.get("run_id") != item["value"].get("run_id")
+                                or process.get("run_id") != context.get("manifest_run_id")):
+                            raise ValueError("RESEARCH_PROCESS_BINDING_MISMATCH")
+                        item["process_observation"] = {
+                            key: process.get(key) for key in ("process_exit_code", "interrupted", "timed_out")
+                        }
+                        item["process_file_hash"] = hashlib.sha256(process_raw).hexdigest()
+                        item["status_projection"] = project_research_status(
+                            [item["value"]], process=item["process_observation"],
+                        )
+                    except (OSError, ValueError, TypeError):
+                        self.issues.append({"code": "RESEARCH_PROCESS_BINDING_MISMATCH", "label": "process-result.json"})
+                grouped.setdefault(self._identity(item["value"], item["content_hash"]), []).append(item)
         for identity, items in sorted(grouped.items()):
             unique: dict[str, dict[str, Any]] = {}
             for item in items:
@@ -1937,14 +2036,13 @@ class ArtifactCatalog:
     ) -> list[dict[str, Any]]:
         reports = []
         coverage_value = coverage.get("value") if isinstance(coverage.get("value"), Mapping) else {}
-        routes = {
-            str(item.get("dataset")): str(item.get("target_capability"))
-            for item in self._coverage_dataset_routes(coverage_value)
-        }
+        option_datasets = {str(item.get("dataset"))
+                           for item in self._coverage_dataset_routes(coverage_value)
+                           if item.get("target_capability") == "OPTIONS_FLOW"}
         provider_observations = self._coverage_provider_observations(coverage_value)
         option_evidence_by_security: dict[str, set[str]] = {}
         for observation in provider_observations:
-            if routes.get(observation["dataset"]) != "OPTIONS_FLOW" or not observation["security_id"]:
+            if observation["dataset"] not in option_datasets or not observation["security_id"]:
                 continue
             option_evidence_by_security.setdefault(observation["security_id"], set()).update(
                 observation["evidence_ids"]
@@ -1989,13 +2087,10 @@ class ArtifactCatalog:
         ]
         provider_observations = self._coverage_provider_observations(value)
         if security_id:
-            route_by_dataset = {
-                str(item.get("dataset")): str(item.get("target_capability"))
-                for item in routes
-            }
+            routed_datasets = {str(item.get("dataset")) for item in routes}
             scoped_security_ids = {
                 item["security_id"] for item in provider_observations
-                if route_by_dataset.get(item["dataset"]) in capabilities and item["security_id"]
+                if item["dataset"] in routed_datasets and item["security_id"]
             }
             if not scoped_security_ids:
                 return {
@@ -2053,6 +2148,8 @@ class ArtifactCatalog:
             items.append({
                 "dataset": dataset,
                 "target_capability": capability,
+                "source_domain": route.get("source_domain", "NOT_RECORDED"),
+                "mapping_status": route.get("mapping_status", "NOT_RECORDED"),
                 "capture_evidence_count": route.get("capture_evidence_count"),
                 "gate_eligible_evidence_count": route.get("gate_eligible_evidence_count"),
                 "delivered_evidence_count": route.get("delivered_evidence_count"),
@@ -2086,6 +2183,7 @@ class ArtifactCatalog:
             "run_id": self._coverage_run_id(coverage),
             "source_label": coverage.get("source_label"),
             "routing_status": (value.get("capability_routing") or {}).get("status"),
+            "unmapped_datasets": list((value.get("capability_routing") or {}).get("unmapped_datasets", [])),
             "routing_failure_codes": list((value.get("capability_routing") or {}).get("failure_codes", [])),
             "coverage_hash": value.get("coverage_hash"),
         }
@@ -2207,7 +2305,7 @@ class ArtifactCatalog:
                         expected_bindings=bindings,
                         allowed_security_ids=[security_id],
                         allowed_evidence_ids=sorted(set(allowed_evidence_ids)),
-                        known_research_claim_ids=(),
+                        known_research_claim_ids=self._loaded_claims(item, reports),
                         allowed_documents=value.get("documents", []),
                     )
                 except (KeyError, TypeError, ValueError):

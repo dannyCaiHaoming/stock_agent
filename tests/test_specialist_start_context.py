@@ -120,14 +120,14 @@ class SpecialistStartContextTests(unittest.TestCase):
         proof = verify_specialist_start_binding(ROOT, self.run, ANALYST, report={"artifact_refs": []})
         self.assertEqual(proof["binding"]["contract_version"], CURRENT_START_CONTEXT_VERSION)
 
-    def test_current_live_cio_accepts_reports_without_proof_hash(self):
+    def test_receipt_free_context_does_not_restore_retired_live_council_write_entry(self):
         run = self.synthetic_authenticated_context()
         self.use_current_contract()
         for agent in SPECIALIST_TASK_NAMES:
             self.start(agent)
-        result = prepare_cio(ROOT, run_dir=self.run, model=run["model"])
-        self.assertNotEqual(result.get("terminal_state"), "FAILED_VALIDATION", result)
-        self.assertTrue((self.run / "invocations/runtime_cio.json").exists())
+        with self.assertRaisesRegex(ValueError, "LIVE_COUNCIL_ENTRY_RETIRED"):
+            prepare_cio(ROOT, run_dir=self.run, model=run["model"])
+        self.assertFalse((self.run / "invocations/runtime_cio.json").exists())
 
     def test_current_live_parent_does_not_reread_specialist_packets(self):
         from product.runtime.smoke_prompt import build_smoke_prompt

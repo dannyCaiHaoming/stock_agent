@@ -205,6 +205,43 @@ class FakeContext:
             "is_median": True, "median_rate": 4.0, "current_rate": 4.25,
         }])
 
+    def get_rise_fall_distribution(self, security=None, market=None):
+        self.calls.append(("get_rise_fall_distribution", {
+            "security": security, "market": market,
+        }))
+        return self.responses.get("get_rise_fall_distribution", (0, {
+            "plate": "US", "range_list": [{"range": "0-1", "count": 1}],
+        }))
+
+    def get_option_underlying_his_statistic(
+        self, code, index_option_type="NORMAL", begin_time=None, end_time=None,
+        page_req_key=None,
+    ):
+        self.calls.append(("get_option_underlying_his_statistic", {
+            "code": code, "index_option_type": index_option_type,
+            "begin_time": begin_time, "end_time": end_time,
+            "page_req_key": page_req_key,
+        }))
+        return self.responses.get("get_option_underlying_his_statistic", (0, FakeFrame([{
+            "code": code, "time": end_time, "option_volume": 20,
+            "call_volume": 10, "put_volume": 10, "option_open_interest": 30,
+            "underlying_price": 100.0,
+        }]), None))
+
+    def get_option_underlying_his_volatility(
+        self, code, index_option_type="NORMAL", begin_time=None, end_time=None,
+        page_req_key=None,
+    ):
+        self.calls.append(("get_option_underlying_his_volatility", {
+            "code": code, "index_option_type": index_option_type,
+            "begin_time": begin_time, "end_time": end_time,
+            "page_req_key": page_req_key,
+        }))
+        return self.responses.get("get_option_underlying_his_volatility", (0, FakeFrame([{
+            "code": code, "time": end_time, "iv": 0.35,
+            "hv": 0.30, "underlying_price": 100.0,
+        }]), None))
+
 
 class MoomooOpenDTests(unittest.TestCase):
     def manifest(self):
@@ -451,6 +488,150 @@ class MoomooOpenDTests(unittest.TestCase):
             self.client([bad]).read(capability_id="option-chain-static-v1", params={
                 "code": "US.AAPL", "start": "2026-09-18", "end": "2026-09-18",
             })
+
+    def test_breadth_and_option_history_use_locked_sdk_keyword_signatures(self):
+        contexts = [FakeContext(), FakeContext(), FakeContext()]
+        client = self.client(contexts.copy())
+        breadth = client.read(
+            capability_id="rise-fall-distribution-v1", params={"region": "US"},
+        )
+        self.assertEqual(breadth["payload"]["value"]["plate"], "US")
+        self.assertEqual(contexts[0].calls[-1][1], {"security": None, "market": "US"})
+        for context, capability, method in (
+            (contexts[1], "option-underlying-history-v1", "get_option_underlying_his_statistic"),
+            (contexts[2], "option-underlying-volatility-v1", "get_option_underlying_his_volatility"),
+        ):
+            result = client.read(capability_id=capability, params={
+                "code": "US.AAPL", "start": "2026-09-01", "end": "2026-09-16",
+            })
+            self.assertEqual(result["payload"]["attrs"]["next_key"], None)
+            self.assertEqual(context.calls[-1], (method, {
+                "code": "US.AAPL", "index_option_type": "NORMAL",
+                "begin_time": "2026-09-01", "end_time": "2026-09-16",
+                "page_req_key": None,
+            }))
+
+        denied = FakeContext(responses={"get_rise_fall_distribution": (-1, "No quote right")})
+        isolated = self.client([denied, FakeContext()])
+        with self.assertRaisesRegex(MoomooOpenDError, "ENTITLEMENT_REQUIRED"):
+            isolated.read(capability_id="rise-fall-distribution-v1", params={"region": "US"})
+        self.assertEqual(isolated.read(
+            capability_id="option-underlying-history-v1",
+            params={"code": "US.AAPL", "start": "2026-09-01", "end": "2026-09-16"},
+        )["payload"]["kind"], "DATAFRAME")
+
+    def test_quote_failure_diagnostics_separate_argument_rows_and_bytes(self):
+        class WrongSignature(FakeContext):
+            def get_rise_fall_distribution(self, security=None):
+                raise AssertionError("should not call")
+
+        argument_client = self.client([WrongSignature()])
+        with self.assertRaisesRegex(MoomooOpenDError, "CALL_ARGUMENT_ERROR"):
+            argument_client.read(
+                capability_id="rise-fall-distribution-v1", params={"region": "US"},
+            )
+        self.assertEqual(argument_client.events[-1]["stage"], "CALL_ARGUMENT_ERROR")
+        self.assertEqual(argument_client.events[-1]["request_scope"], {"region": "US"})
+
+        rows_manifest = deepcopy(self.manifest())
+        for item in rows_manifest["capabilities"]:
+            if item["capability_id"] == "rise-fall-distribution-v1":
+                item["max_rows"] = 1
+        rows_manifest = build_quote_manifest(
+            manifest_id="diagnostic-rows", sdk_version="10.10.7008",
+            minimum_opend_server_version="1010", approved_at="2026-09-16T00:00:00Z",
+            capabilities=rows_manifest["capabilities"],
+        )
+        rows_client = MoomooOpenDQuoteClient(
+            manifest=rows_manifest, context_factory=lambda host, port: FakeContext(
+                responses={"get_rise_fall_distribution": (0, {
+                    "plate": "US", "range_list": [{"range": "0-1"}, {"range": "1-2"}],
+                })},
+            ),
+            sdk_version_loader=lambda: "10.10.7008", now=lambda: NOW,
+        )
+        rows_client.server_version = "1010"
+        rows_client._readiness_approved = True
+        with self.assertRaisesRegex(MoomooOpenDError, "BUDGET_EXCEEDED"):
+            rows_client.read(capability_id="rise-fall-distribution-v1", params={"region": "US"})
+        self.assertEqual(rows_client.events[-1]["stage"], "ROW_BUDGET")
+        self.assertGreater(rows_client.events[-1]["row_count"], 1)
+        self.assertEqual(len(rows_client.events[-1]["raw_content_hash"]), 64)
+
+        bytes_manifest = deepcopy(self.manifest())
+        for item in bytes_manifest["capabilities"]:
+            if item["capability_id"] == "rise-fall-distribution-v1":
+                item["max_response_bytes"] = 1
+        bytes_manifest = build_quote_manifest(
+            manifest_id="diagnostic-bytes", sdk_version="10.10.7008",
+            minimum_opend_server_version="1010", approved_at="2026-09-16T00:00:00Z",
+            capabilities=bytes_manifest["capabilities"],
+        )
+        bytes_client = MoomooOpenDQuoteClient(
+            manifest=bytes_manifest, context_factory=lambda host, port: FakeContext(),
+            sdk_version_loader=lambda: "10.10.7008", now=lambda: NOW,
+        )
+        bytes_client.server_version = "1010"
+        bytes_client._readiness_approved = True
+        with self.assertRaisesRegex(MoomooOpenDError, "BUDGET_EXCEEDED"):
+            bytes_client.read(capability_id="rise-fall-distribution-v1", params={"region": "US"})
+        self.assertEqual(bytes_client.events[-1]["stage"], "BYTE_BUDGET")
+        self.assertNotIn("No quote right", str(bytes_client.events))
+
+    def test_morningstar_nested_sections_count_as_one_report_not_many_rows(self):
+        context = FakeContext(responses={"get_research_morningstar_report": (0, {
+            "bull_say": [{"context": "First"}, {"context": "Second"}],
+            "bear_say": [{"context": "Counter"}],
+            "analyst_report_by_line": ["Analyst A", "Analyst B"],
+            "investment_thesis_content": {"context": "Thesis"},
+        })})
+        client = self.client([context])
+        result = client.read(capability_id="morningstar-report-v1", params={"code": "US.AAPL"})
+        self.assertEqual(client.events[-1]["row_count"], 1)
+        self.assertEqual(len(result["payload"]["value"]["bull_say"]), 2)
+
+        capped = deepcopy(self.manifest())
+        for item in capped["capabilities"]:
+            if item["capability_id"] == "morningstar-report-v1":
+                item["max_response_bytes"] = 1
+        capped = build_quote_manifest(
+            manifest_id="morningstar-byte-cap", sdk_version="10.10.7008",
+            minimum_opend_server_version="1010", approved_at="2026-09-16T00:00:00Z",
+            capabilities=capped["capabilities"],
+        )
+        limited = MoomooOpenDQuoteClient(
+            manifest=capped, context_factory=lambda host, port: context,
+            sdk_version_loader=lambda: "10.10.7008", now=lambda: NOW,
+        )
+        limited.server_version = "1010"
+        limited._readiness_approved = True
+        with self.assertRaisesRegex(MoomooOpenDError, "BUDGET_EXCEEDED"):
+            limited.read(capability_id="morningstar-report-v1", params={"code": "US.AAPL"})
+        self.assertEqual(limited.events[-1]["stage"], "BYTE_BUDGET")
+
+    def test_option_history_opaque_byte_cursor_roundtrips_without_text_coercion(self):
+        class PageContext(FakeContext):
+            def get_option_underlying_his_statistic(
+                self, code, index_option_type="NORMAL", begin_time=None,
+                end_time=None, page_req_key=None,
+            ):
+                self.calls.append(("option_history", page_req_key))
+                return 0, FakeFrame([{
+                    "code": code, "time": end_time, "option_volume": 20,
+                    "call_volume": 10, "put_volume": 10,
+                    "option_open_interest": 30, "underlying_price": 100.0,
+                }]), b"\x00\xffpage" if page_req_key is None else None
+
+        contexts = [PageContext(), PageContext()]
+        client = self.client(contexts.copy())
+        params = {"code": "US.AAPL", "start": "2026-09-01", "end": "2026-09-16"}
+        first = client.read(capability_id="option-underlying-history-v1", params=params)
+        cursor = first["payload"]["attrs"]["next_key"]
+        self.assertIsInstance(cursor, str)
+        second = client.read(capability_id="option-underlying-history-v1",
+                             params={**params, "next_key": cursor})
+        self.assertIsNone(second["payload"]["attrs"]["next_key"])
+        self.assertEqual(contexts[1].calls[-1], ("option_history", b"\x00\xffpage"))
 
     def test_schema_drift_and_entitlement_open_only_affected_circuit(self):
         drift = FakeContext(responses={"get_company_profile": (0, FakeFrame([{"unexpected": 1}]))})

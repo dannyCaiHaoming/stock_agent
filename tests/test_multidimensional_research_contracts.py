@@ -488,15 +488,19 @@ class ResearchDimensionContractTests(unittest.TestCase):
             (run / "research").mkdir()
             (run / "evidence").mkdir()
             (run / "reports").mkdir()
+            (run / "research/holding-research-bundle.json").write_text(json.dumps(bundle))
+            (run / "reports/macro.json").write_text(json.dumps(report))
+            gate = {
+                "run_id": "run-1",
+                "decision_cutoff": BINDINGS["decision_cutoff"],
+                "allowed_evidence_ids": ["ev-price-1"],
+            }
+            gate["bundle_hash"] = canonical_hash(gate)
+            (run / "evidence/gate.json").write_text(json.dumps(gate))
             (run / "run_manifest.json").write_text(json.dumps({
                 "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
                 "run_id": "run-1",
-            }))
-            (run / "research/holding-research-bundle.json").write_text(json.dumps(bundle))
-            (run / "reports/macro.json").write_text(json.dumps(report))
-            (run / "evidence/gate.json").write_text(json.dumps({
-                "bundle_hash": "a" * 64,
-                "allowed_evidence_ids": ["ev-price-1"],
+                "gate_hash": gate["bundle_hash"],
             }))
             proof = check_multidimensional_bundle_consumable(Path(temp), run)
             self.assertEqual(proof["status"], "PASSED")

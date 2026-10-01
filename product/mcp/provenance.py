@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping
+
+from product.runtime.hashing import (
+    legacy_provenance_json as canonical_json,
+    legacy_provenance_hash as content_hash,
+)
 
 
 def parse_timestamp(value: str | datetime | date) -> datetime:
@@ -25,28 +28,6 @@ def parse_timestamp(value: str | datetime | date) -> datetime:
 
 def iso_utc(value: str | datetime | date) -> str:
     return parse_timestamp(value).isoformat().replace("+00:00", "Z")
-
-
-def _json_default(value: object) -> str:
-    if isinstance(value, Decimal):
-        return format(value, "f")
-    if isinstance(value, (datetime, date)):
-        return iso_utc(value)
-    raise TypeError(f"unsupported canonical value: {type(value).__name__}")
-
-
-def canonical_json(value: object) -> str:
-    return json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        default=_json_default,
-    )
-
-
-def content_hash(value: object) -> str:
-    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
 
 def _normalize_value(value: Any, value_type: str | None) -> Any:

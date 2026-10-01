@@ -14,7 +14,7 @@ from typing import Any, Mapping, Sequence
 
 from product.council.intake_planning import validate_council_request
 from product.intake.v3 import validate_handoff
-from product.runtime.hashing import canonical_hash, file_hash
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash
 from product.runtime.multidimensional_stage import check_multidimensional_bundle_consumable
 from product.runtime.validation import collect_evidence_refs
 
@@ -160,7 +160,9 @@ def resolve_skeptic_tool_scope(
 
 
 def validate_core_coverage(bundle: Mapping[str, Any]) -> None:
-    if bundle.get("consumability") != "DOWNSTREAM_READY":
+    # 显式反证读取已验证结构，不要求作者先自认证“研究通过”。
+    # 具体输入资格仍由下面的核心覆盖和真实绑定检查决定。
+    if bundle.get("consumability") not in {"DOWNSTREAM_READY", "STRUCTURALLY_CONSUMABLE"}:
         raise IndependentSkepticStageError("COUNTER_FORWARD_BUNDLE_NOT_READY")
     common_ids = bundle.get("common_stock_security_ids")
     coverage = bundle.get("coverage")
@@ -193,7 +195,7 @@ def validate_forward_gate(repository_root: Path, run_dir: Path) -> dict[str, Any
     gate = _read(run_dir / "evidence/gate.json")
     bundle_path = run_dir / "research/holding-research-bundle.json"
     bundle = _read(bundle_path)
-    if (manifest.get("manifest_hash") != canonical_hash(_without_hash(manifest, "manifest_hash"))
+    if (manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash")
             or manifest.get("stage") != STAGE or request.get("stage") != STAGE
             or manifest.get("complete_portfolio_decision") is not False
             or manifest.get("downstream_stages_started") not in ([], ["FORWARD_MULTIDIMENSIONAL_RESEARCH"])):
@@ -206,7 +208,7 @@ def validate_forward_gate(repository_root: Path, run_dir: Path) -> dict[str, Any
             or manifest.get("portfolio_hash") != handoff.get("portfolio_hash")
             or manifest.get("council_request_hash") != request.get("request_hash")
             or manifest.get("gate_hash") != gate.get("bundle_hash")
-            or gate.get("bundle_hash") != canonical_hash({key: value for key, value in gate.items() if key != "bundle_hash"})
+            or gate.get("bundle_hash") != legacy_envelope_hash(gate, hash_field="bundle_hash")
             or bundle.get("decision_cutoff") != gate.get("decision_cutoff")
             or bundle.get("bindings") != {
                 "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
@@ -217,6 +219,8 @@ def validate_forward_gate(repository_root: Path, run_dir: Path) -> dict[str, Any
         raise IndependentSkepticStageError("COUNTER_FORWARD_BINDING_INVALID")
     proof = check_multidimensional_bundle_consumable(repository_root, run_dir, persist=False)
     validate_core_coverage(bundle)
+    if proof["status_projection"]["agent_declared_content_failure"]:
+        raise IndependentSkepticStageError("COUNTER_FORWARD_DECLARED_CONTENT_FAILURE")
     if any((run_dir / name).exists() for name in (
         "decision.json", "risk.json", "agents/runtime_cio.json", "outcome.json",
     )):
@@ -226,6 +230,7 @@ def validate_forward_gate(repository_root: Path, run_dir: Path) -> dict[str, Any
         "gate_hash": gate["bundle_hash"], "bundle_hash": bundle["bundle_hash"],
         "bundle_file_hash": file_hash(bundle_path), "consumption_proof_hash": proof["proof_hash"],
         "common_stock_security_ids": bundle["common_stock_security_ids"],
+        "status_projection": proof["status_projection"],
     }
 
 

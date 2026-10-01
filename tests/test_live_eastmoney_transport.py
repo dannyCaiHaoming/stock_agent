@@ -1,5 +1,5 @@
 """合成响应的零网络接缝；真实 SDK 测试也只使用内存 transport。"""
-from datetime import datetime, UTC
+from datetime import date, datetime, timedelta, UTC
 from importlib.util import find_spec
 from io import BytesIO
 import json
@@ -51,6 +51,12 @@ class EastmoneyTransportTests(unittest.TestCase):
         self.assertEqual(b.requests, 1)
         self.assertEqual(b.raw, response().body)
         self.assertEqual(len(b.events[0]["raw_content_hash"]), 64)
+
+    def test_backup_accepts_locked_550_day_window_but_not_longer(self):
+        end = date(2026, 9, 10)
+        self.boundary(start=(end - timedelta(days=550)).isoformat(), end=end.isoformat())
+        with self.assertRaisesRegex(ValueError, "EASTMONEY_DATE_RANGE_INVALID"):
+            self.boundary(start=(end - timedelta(days=551)).isoformat(), end=end.isoformat())
 
     def test_request_drift_and_private_fields_rejected_before_send(self):
         for change in ({"fqt": "1"}, {"quantity": 10}, {"secid": "105.AAPL"}):

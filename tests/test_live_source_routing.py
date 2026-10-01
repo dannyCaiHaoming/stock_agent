@@ -1,6 +1,6 @@
 """纯数据路由测试；不运行模型，也不访问行情服务。"""
 from copy import deepcopy
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,7 +9,9 @@ from unittest.mock import Mock
 from product.mcp.live.cache import SnapshotCache
 from product.mcp.live.contracts import validate_contract
 from product.mcp.live.market import normalize_daily_rows
-from product.mcp.live.source_routing import collect_selected_market, provider_versions, validate_selection
+from product.mcp.live.source_routing import (
+    LEGACY_POLICY_LOCK, collect_selected_market, provider_versions, validate_selection,
+)
 from product.mcp.provenance import content_hash
 from tests.test_live_yahoo_transport import access as yahoo_access
 
@@ -62,6 +64,23 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(r["selection"]["selected_provider"], "yahoo")
         self.backup.assert_not_called()
         validate_selection(r["selection"], r["market"]["evidence"])
+
+    def test_research_window_extends_to_550_days_without_invalidating_old_lock(self):
+        start = (NOW.date() - timedelta(days=550)).isoformat()
+        current = collect_selected_market(
+            security_id="TEST", start=start, end="2026-09-11",
+            access=self.access, fetchers={"yahoo": self.primary, "eastmoney": self.backup},
+            cache=self.cache, calendar=Calendar(), now=lambda: NOW,
+        )["selection"]
+        self.assertEqual(current["window"]["start"], start)
+        validate_selection(current)
+
+        legacy = deepcopy(self.run_route()["selection"])
+        legacy["routing_policy"] = LEGACY_POLICY_LOCK
+        legacy["selection_hash"] = content_hash({
+            key: value for key, value in legacy.items() if key != "selection_hash"
+        })
+        validate_selection(legacy)
 
     def test_transient_failures_allow_one_backup(self):
         for error in ("YAHOO_TRANSPORT_FAILURE", "YAHOO_HTTP_500", "YAHOO_HTTP_502", "YAHOO_HTTP_503", "YAHOO_HTTP_504"):

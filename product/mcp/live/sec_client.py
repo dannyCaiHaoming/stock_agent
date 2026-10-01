@@ -398,17 +398,30 @@ class SecClient:
         return {"results": results, "failures": failures, "actual_requests": self.requests}
 
     def read_earnings_attachments(
-        self, filing: dict, *, attachment_limit: int = 3, **policy,
+        self, filing: dict, *, attachment_limit: int = 3,
+        filing_document: dict | None = None, **policy,
     ) -> dict:
         # 局部导入避免模块导入时初始化采集或循环依赖。
         from product.mcp.live.attachments import earnings_attachments
+        from product.mcp.live.disclosure import _Text
 
         if filing["form"] not in ("8-K", "8-K/A"):
             raise FetchError("SEC_ATTACHMENT_FORM_UNSUPPORTED")
         prefix = filing["document_url"].rsplit("/", 1)[0]
         index = self.read_document(dict(filing, document_url=f"{prefix}/{filing['accession']}-index.html"), **policy)
+        item_202_verified = False
+        if filing_document is not None:
+            filing_raw = self.cache.read(filing_document["cache_record"])
+            filing_text = _Text(filing_raw.decode("utf-8", errors="strict"))
+            filing_text.feed(filing_raw.decode("utf-8", errors="strict"))
+            filing_text.close()
+            item_202_verified = re.search(
+                r"\bItem\s+2\.02\b.{0,150}\bResults\s+of\s+Operations\b",
+                "".join(filing_text.parts), re.I,
+            ) is not None
         selection = earnings_attachments(
             self.cache.read(index["cache_record"]), index, limit=attachment_limit,
+            earnings_context_verified=item_202_verified,
         )
         documents = []
         for item in selection["selected"]:
@@ -435,7 +448,8 @@ class SecClient:
                 entry["sections"] = extract_sections(self.cache.read(document["cache_record"]), document)
             elif filing["form"] == "8-K":
                 entry["attachments"] = self.read_earnings_attachments(
-                    filing, attachment_limit=attachment_limit, **policy,
+                    filing, attachment_limit=attachment_limit,
+                    filing_document=document, **policy,
                 )
             documents.append(entry)
         return {"selection": selection, "documents": documents}

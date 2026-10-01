@@ -21,10 +21,12 @@ import time
 from typing import Any, Iterable, Mapping, Sequence
 
 from product.mcp.provenance import iso_utc, parse_timestamp
-from product.runtime.hashing import canonical_hash
+from product.runtime.hashing import canonical_hash, legacy_envelope_hash, verify_legacy_envelope_hash, verify_legacy_object_hash, HashContractError
 
 
-MEMORY_SCHEMA_VERSION = 2
+MEMORY_SCHEMA_VERSION = 3
+LEGACY_FACT_PROJECTION = "fact-projection/1.0.0"
+FACT_PROJECTION = "fact-projection/2.0.0"
 PLAN_VERSION = "company-research-incremental-plan/1.0.0"
 VIEW_VERSION = "company-research-view/1.0.0"
 REPORT_REFERENCE_VERSION = "company-research-report-reference/1.0.0"
@@ -42,11 +44,11 @@ SUCCESSFUL_INGEST_STATUSES = frozenset({
 DATASET_POLICIES: dict[str, dict[str, Any]] = {
     "live_snapshot": {
         "freshness_seconds": 86400, "request_budget": 1,
-        "bootstrap_days": 365, "overlap_sessions": 5,
+        "bootstrap_days": 550, "overlap_sessions": 5,
     },
     "yahoo_daily": {
         "freshness_seconds": 86400, "request_budget": 1,
-        "repair_budget": 1, "bootstrap_days": 365, "overlap_sessions": 5,
+        "repair_budget": 1, "bootstrap_days": 550, "overlap_sessions": 5,
     },
     "sec_identity": {"freshness_seconds": 86400, "request_budget": 1},
     "sec_companyfacts": {
@@ -147,22 +149,74 @@ def _strip_for_content_version(value: Any) -> Any:
     return value
 
 
-def logical_fact_key(fact: Mapping[str, Any]) -> str:
+def _fact_projection(
+    fact: Mapping[str, Any], *, algorithm: str, logical: bool,
+) -> dict[str, Any]:
+    if algorithm == LEGACY_FACT_PROJECTION:
+        result = (
+            _strip_for_logical_key(dict(fact)) if logical
+            else _strip_for_content_version(dict(fact))
+        )
+    elif algorithm == FACT_PROJECTION:
+        excluded = {
+            "evidence_id", "retrieved_at", "raw_content_hash", "record_hash",
+            "snapshot_hash", "row_locator", "source_locator",
+            "publication_retrieved_at", "checked_at", "request_started_at",
+            "calendar_hash",
+        }
+        if logical:
+            excluded.update({"value", "published_at"})
+        result = {
+            str(key): deepcopy(value)
+            for key, value in fact.items() if str(key) not in excluded
+        }
+        # The market calendar snapshot can grow between retrievals without
+        # changing a previously completed session's reported price. This one
+        # known path is observation context; arbitrary nested names are not.
+        metadata = result.get("metadata")
+        if isinstance(metadata, Mapping) and "calendar_hash" in metadata:
+            result["metadata"] = {
+                str(key): deepcopy(value) for key, value in metadata.items()
+                if str(key) != "calendar_hash"
+            }
+    else:
+        raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PROJECTION_UNSUPPORTED")
+    if logical:
+        result.pop("published_at", None)
+    return result
+
+
+def logical_fact_key(
+    fact: Mapping[str, Any], *, algorithm: str = FACT_PROJECTION,
+) -> str:
     for field in ("security_id", "source_id", "as_of", "published_at", "retrieved_at"):
         if not isinstance(fact.get(field), str) or not fact[field]:
             raise ResearchMemoryError(f"RESEARCH_MEMORY_FACT_{field.upper()}_REQUIRED")
     # published_at belongs to a content version, not the logical identity.
-    value = _strip_for_logical_key(dict(fact))
-    value.pop("published_at", None)
-    return canonical_hash(value)
+    return canonical_hash(_fact_projection(fact, algorithm=algorithm, logical=True))
 
 
-def fact_content_hash(fact: Mapping[str, Any]) -> str:
-    logical_fact_key(fact)
-    return canonical_hash(_strip_for_content_version(dict(fact)))
+def fact_content_hash(
+    fact: Mapping[str, Any], *, algorithm: str = FACT_PROJECTION,
+) -> str:
+    logical_fact_key(fact, algorithm=algorithm)
+    return canonical_hash(_fact_projection(fact, algorithm=algorithm, logical=False))
 
 
-def view_compatible_fact_hash(fact: Mapping[str, Any]) -> str:
+def _verify_fact_version(fact: Mapping[str, Any], expected: str, *, algorithm: str) -> None:
+    """投影版本和序列化版本分别定位；不改旧数据库键。"""
+    logical_fact_key(fact, algorithm=algorithm)
+    try:
+        verify_legacy_object_hash(_fact_projection(fact, algorithm=algorithm, logical=False),
+                                 expected, kind="fact-content",
+                                 location=f"research-memory:fact_versions:{algorithm}:{fact.get('security_id')}")
+    except HashContractError as exc:
+        raise ResearchMemoryError(f"RESEARCH_MEMORY_FACT_HASH_MISMATCH:{exc}") from exc
+
+
+def view_compatible_fact_hash(
+    fact: Mapping[str, Any], *, algorithm: str = FACT_PROJECTION,
+) -> str:
     """Hash persisted fact semantics without Gate-only delivery annotations.
 
     ``freshness_*`` fields describe whether a persisted fact was eligible for a
@@ -177,8 +231,77 @@ def view_compatible_fact_hash(fact: Mapping[str, Any]) -> str:
         for key, child in fact.items()
         if str(key) not in VIEW_CONTEXT_FIELDS
     }
-    logical_fact_key(value)
-    return canonical_hash(_strip_for_content_version(value))
+    return fact_content_hash(value, algorithm=algorithm)
+
+
+def fact_projection_column(connection: sqlite3.Connection) -> bool:
+    """Historical version-two databases have no projection column."""
+
+    return any(
+        row[1] == "projection_version"
+        for row in connection.execute("PRAGMA table_info(fact_versions)")
+    )
+
+
+def persisted_fact_algorithm(row: Mapping[str, Any]) -> str:
+    value = row["projection_version"]
+    if value is None:
+        return LEGACY_FACT_PROJECTION
+    if value != FACT_PROJECTION:
+        raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PROJECTION_UNSUPPORTED")
+    return FACT_PROJECTION
+
+
+def _existing_candidate_version(
+    connection: sqlite3.Connection, fact: Mapping[str, Any],
+) -> str | None:
+    """Reuse a legacy version only when its complete new semantics agree."""
+
+    current_hash = fact_content_hash(fact)
+    legacy_hash = fact_content_hash(fact, algorithm=LEGACY_FACT_PROJECTION)
+    for candidate in dict.fromkeys((current_hash, legacy_hash)):
+        row = connection.execute(
+            "SELECT version_hash,projection_version,logical_key,payload_json "
+            "FROM fact_versions WHERE version_hash=?",
+            (candidate,),
+        ).fetchone()
+        if row is None:
+            continue
+        try:
+            payload = json.loads(row["payload_json"])
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID") from exc
+        if not isinstance(payload, Mapping):
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID")
+        algorithm = persisted_fact_algorithm(row)
+        _verify_fact_version(payload, candidate, algorithm=algorithm)
+        if logical_fact_key(payload, algorithm=algorithm) != row["logical_key"]:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_LOGICAL_KEY_MISMATCH")
+        if (fact_content_hash(payload) == current_hash
+                and logical_fact_key(payload) == logical_fact_key(fact)):
+            return candidate
+        if candidate == current_hash:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_HASH_COLLISION")
+    return None
+
+
+def _legacy_projection_conflict(
+    connection: sqlite3.Connection, fact: Mapping[str, Any],
+) -> str | None:
+    legacy_hash = fact_content_hash(fact, algorithm=LEGACY_FACT_PROJECTION)
+    row = connection.execute(
+        "SELECT projection_version,payload_json FROM fact_versions WHERE version_hash=?",
+        (legacy_hash,),
+    ).fetchone()
+    if row is None or row["projection_version"] is not None:
+        return None
+    try:
+        payload = json.loads(row["payload_json"])
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID") from exc
+    if not isinstance(payload, Mapping):
+        raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID")
+    return legacy_hash if fact_content_hash(payload) != fact_content_hash(fact) else None
 
 
 def resolve_view_fact_versions(
@@ -194,8 +317,13 @@ def resolve_view_fact_versions(
     fields.  Missing, corrupt or ambiguous bindings fail closed.
     """
 
+    projection = (
+        "projection_version" if fact_projection_column(connection)
+        else "NULL AS projection_version"
+    )
     rows = connection.execute(
-        "SELECT version_hash,payload_json FROM fact_versions WHERE security_id=?",
+        f"SELECT version_hash,logical_key,payload_json,{projection} "
+        "FROM fact_versions WHERE security_id=?",
         (security_id,),
     ).fetchall()
     exact: set[str] = set()
@@ -210,8 +338,10 @@ def resolve_view_fact_versions(
         version = str(row["version_hash"])
         if payload.get("security_id") != security_id:
             raise ResearchMemoryError("RESEARCH_MEMORY_FACT_SECURITY_MISMATCH")
-        if fact_content_hash(payload) != version:
-            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_HASH_MISMATCH")
+        algorithm = persisted_fact_algorithm(row)
+        _verify_fact_version(payload, version, algorithm=algorithm)
+        if logical_fact_key(payload, algorithm=algorithm) != row["logical_key"]:
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_LOGICAL_KEY_MISMATCH")
         exact.add(version)
         compatible.setdefault(view_compatible_fact_hash(payload), []).append(version)
 
@@ -301,8 +431,10 @@ def validate_incremental_plan(value: Mapping[str, Any]) -> None:
         raise ResearchMemoryError("RESEARCH_MEMORY_PLAN_SCHEMA_INVALID")
     if value.get("mode") not in {"BOOTSTRAP", "REFRESH", "DELTA", "SKIP_FRESH"}:
         raise ResearchMemoryError("RESEARCH_MEMORY_PLAN_MODE_INVALID")
-    if value.get("plan_hash") != canonical_hash({k: v for k, v in value.items() if k != "plan_hash"}):
-        raise ResearchMemoryError("RESEARCH_MEMORY_PLAN_HASH_INVALID")
+    try:
+        verify_legacy_envelope_hash(value, hash_field="plan_hash", location="product/runtime/research_memory.py:value.plan_hash")
+    except HashContractError as exc:
+        raise ResearchMemoryError(f"RESEARCH_MEMORY_PLAN_HASH_INVALID:{exc}") from exc
     parse_timestamp(str(value["planning_as_of"]))
 
 
@@ -315,8 +447,10 @@ def validate_research_view(value: Mapping[str, Any]) -> None:
     if set(value) != required or value.get("schema_version") != VIEW_VERSION:
         raise ResearchMemoryError("RESEARCH_MEMORY_VIEW_SCHEMA_INVALID")
     parse_timestamp(str(value["decision_cutoff"]))
-    if value.get("view_manifest_hash") != canonical_hash({k: v for k, v in value.items() if k != "view_manifest_hash"}):
-        raise ResearchMemoryError("RESEARCH_MEMORY_VIEW_HASH_INVALID")
+    try:
+        verify_legacy_envelope_hash(value, hash_field="view_manifest_hash", location="product/runtime/research_memory.py:value.view_manifest_hash")
+    except HashContractError as exc:
+        raise ResearchMemoryError(f"RESEARCH_MEMORY_VIEW_HASH_INVALID:{exc}") from exc
 
 
 def validate_report_reference(value: Mapping[str, Any]) -> None:
@@ -330,8 +464,10 @@ def validate_report_reference(value: Mapping[str, Any]) -> None:
         raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_REFERENCE_SCHEMA_INVALID")
     for field in ("original_report_cutoff", "checked_at"):
         parse_timestamp(str(value[field]))
-    if value.get("reference_hash") != canonical_hash({k: v for k, v in value.items() if k != "reference_hash"}):
-        raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_REFERENCE_HASH_INVALID")
+    try:
+        verify_legacy_envelope_hash(value, hash_field="reference_hash", location="product/runtime/research_memory.py:value.reference_hash")
+    except HashContractError as exc:
+        raise ResearchMemoryError(f"RESEARCH_MEMORY_REPORT_REFERENCE_HASH_INVALID:{exc}") from exc
 
 
 class ResearchMemory:
@@ -370,6 +506,7 @@ class ResearchMemory:
                     BEGIN;
                     CREATE TABLE fact_versions (
                         version_hash TEXT PRIMARY KEY,
+                        projection_version TEXT,
                         logical_key TEXT NOT NULL,
                         security_id TEXT NOT NULL,
                         provider TEXT NOT NULL,
@@ -449,7 +586,7 @@ class ResearchMemory:
                         checked_at TEXT NOT NULL,
                         payload_json TEXT NOT NULL
                     );
-                    PRAGMA user_version = 2;
+                    PRAGMA user_version = 3;
                     COMMIT;
                 """)
             elif current == 1:
@@ -506,6 +643,16 @@ class ResearchMemory:
                     COMMIT;
                     PRAGMA foreign_keys = ON;
                 """)
+            if current in (1, 2):
+                if fact_projection_column(connection):
+                    connection.execute("PRAGMA user_version = 3")
+                else:
+                    connection.executescript("""
+                        BEGIN IMMEDIATE;
+                        ALTER TABLE fact_versions ADD COLUMN projection_version TEXT;
+                        PRAGMA user_version = 3;
+                        COMMIT;
+                    """)
             self.lightweight_check(connection)
         except Exception:
             connection.rollback()
@@ -521,6 +668,9 @@ class ResearchMemory:
         existing = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if not required <= existing:
             raise ResearchMemoryError("RESEARCH_MEMORY_SCHEMA_INCOMPLETE")
+        version = int(connection.execute("PRAGMA user_version").fetchone()[0])
+        if version >= 3 and not fact_projection_column(connection):
+            raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PROJECTION_COLUMN_MISSING")
 
     def integrity_check(self) -> None:
         with self.session() as connection:
@@ -661,7 +811,7 @@ class ResearchMemory:
             "policy": dict(policy, policy_version=POLICY_VERSION),
             "reason": reason, "checkpoint_revision": revision,
         }
-        body["plan_hash"] = canonical_hash(body)
+        body["plan_hash"] = legacy_envelope_hash(body, hash_field="plan_hash")
         validate_incremental_plan(body)
         return body
 
@@ -679,6 +829,8 @@ class ResearchMemory:
         prepared: list[tuple[dict[str, Any], str, str, str]] = []
         for raw in facts:
             fact = deepcopy(dict(raw))
+            if VIEW_CONTEXT_FIELDS.intersection(fact):
+                raise ResearchMemoryError("RESEARCH_MEMORY_VIEW_METADATA_NOT_FACT")
             logical = logical_fact_key(fact)
             version = fact_content_hash(fact)
             dataset = infer_dataset(fact)
@@ -697,8 +849,8 @@ class ResearchMemory:
             "started_at": plan["planning_as_of"], "completed_at": completed,
             "details": dict(details or {}),
         }
-        attempt_id = canonical_hash(attempt_body)
         inserted = observations = 0
+        projection_conflicts: list[dict[str, str]] = []
         with self.session() as connection:
             connection.execute("BEGIN IMMEDIATE")
             current = connection.execute(
@@ -708,28 +860,37 @@ class ResearchMemory:
             revision = int(current[0]) if current else 0
             if revision != int(plan["checkpoint_revision"]):
                 raise ResearchMemoryError("RESEARCH_MEMORY_CHECKPOINT_REVISION_CONFLICT")
-            for fact, logical, version, fact_dataset in prepared:
+            for fact, logical, proposed_version, fact_dataset in prepared:
                 provider = str(fact["source_id"]).split("-", 1)[0]
-                existing = connection.execute(
-                    "SELECT payload_json FROM fact_versions WHERE version_hash=?", (version,),
-                ).fetchone()
-                if existing is None:
+                version = _existing_candidate_version(connection, fact)
+                if version is None:
+                    legacy_conflict = _legacy_projection_conflict(connection, fact)
+                    if legacy_conflict is not None:
+                        projection_conflicts.append({
+                            "legacy_version_hash": legacy_conflict,
+                            "new_version_hash": proposed_version,
+                        })
+                    version = proposed_version
                     connection.execute(
-                        "INSERT INTO fact_versions VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                        (version, logical, fact["security_id"], provider, fact_dataset,
-                         fact["source_id"], fact["evidence_id"], fact["as_of"],
-                         fact["published_at"], fact["retrieved_at"], _canonical_json(fact)),
+                        "INSERT INTO fact_versions (version_hash,projection_version,logical_key,"
+                        "security_id,provider,dataset,source_id,evidence_id,as_of,published_at,"
+                        "first_retrieved_at,payload_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (version, FACT_PROJECTION, logical, fact["security_id"], provider,
+                         fact_dataset, fact["source_id"], fact["evidence_id"],
+                         fact["as_of"], fact["published_at"], fact["retrieved_at"],
+                         _canonical_json(fact)),
                     )
                     inserted += 1
-                elif json.loads(existing[0]) != fact:
-                    # A semantically identical version retains the first canonical
-                    # payload/Evidence ID. Later retrieval details are observations.
-                    pass
+                # A semantically identical version retains the first canonical
+                # payload/Evidence ID. Later retrieval details are observations.
                 observation_body = {
                     "version_hash": version, "retrieved_at": fact["retrieved_at"],
                     "raw_content_hash": fact.get("raw_content_hash"),
                     "source_locator": fact.get("source_locator"),
                 }
+                metadata = fact.get("metadata")
+                if isinstance(metadata, Mapping) and "calendar_hash" in metadata:
+                    observation_body["calendar_hash"] = metadata["calendar_hash"]
                 observation_hash = canonical_hash(observation_body)
                 before = connection.total_changes
                 connection.execute(
@@ -739,6 +900,9 @@ class ResearchMemory:
                      _canonical_json(observation_body)),
                 )
                 observations += connection.total_changes - before
+            if projection_conflicts:
+                attempt_body["details"]["projection_conflicts"] = projection_conflicts
+            attempt_id = canonical_hash(attempt_body)
             connection.execute(
                 "INSERT OR IGNORE INTO attempts VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (attempt_id, plan["security_id"], plan["provider"], plan["dataset"],
@@ -766,6 +930,7 @@ class ResearchMemory:
         return {
             "attempt_id": attempt_id, "status": status,
             "inserted_versions": inserted, "observations": observations,
+            "projection_conflicts": projection_conflicts,
             "request_range": dict(plan["request_range"]),
             "request_count": int((details or {}).get("request_count", 0)),
             "repair_request_count": int((details or {}).get("repair_request_count", 0)),
@@ -775,52 +940,62 @@ class ResearchMemory:
         }
 
     def new_version_count(self, facts: Sequence[Mapping[str, Any]]) -> int:
-        hashes = sorted({fact_content_hash(item) for item in facts})
-        if not hashes:
-            return 0
-        placeholders = ",".join("?" for _ in hashes)
+        candidates = {fact_content_hash(item): item for item in facts}
         with self.session() as connection:
-            existing = connection.execute(
-                f"SELECT COUNT(*) FROM fact_versions WHERE version_hash IN ({placeholders})",
-                hashes,
-            ).fetchone()[0]
-        return len(hashes) - int(existing)
+            return sum(
+                _existing_candidate_version(connection, item) is None
+                for item in candidates.values()
+            )
 
     def existing_version_hashes(
         self, facts: Sequence[Mapping[str, Any]],
     ) -> set[str]:
         """Return candidate content versions already committed to Memory."""
 
-        hashes = sorted({fact_content_hash(item) for item in facts})
-        if not hashes:
-            return set()
-        placeholders = ",".join("?" for _ in hashes)
+        candidates = {fact_content_hash(item): item for item in facts}
         with self.session() as connection:
-            rows = connection.execute(
-                f"SELECT version_hash FROM fact_versions WHERE version_hash IN ({placeholders})",
-                hashes,
-            ).fetchall()
-        return {str(row[0]) for row in rows}
+            return {
+                digest for digest, item in candidates.items()
+                if _existing_candidate_version(connection, item) is not None
+            }
 
     def revision_count(self, facts: Sequence[Mapping[str, Any]]) -> int:
         """Count new candidate versions whose logical fact already exists."""
 
         candidates = {
-            (logical_fact_key(item), fact_content_hash(item)) for item in facts
+            (logical_fact_key(item), fact_content_hash(item)): item
+            for item in facts
         }
         if not candidates:
             return 0
         revisions = 0
         with self.session() as connection:
+            prior_logical: dict[str, set[str]] = {}
+            for security_id in {str(item["security_id"]) for item in candidates.values()}:
+                rows = connection.execute(
+                    "SELECT payload_json,projection_version,version_hash,logical_key "
+                    "FROM fact_versions WHERE security_id=?",
+                    (security_id,),
+                ).fetchall()
+                keys: set[str] = set()
+                for row in rows:
+                    try:
+                        payload = json.loads(row["payload_json"])
+                    except (TypeError, json.JSONDecodeError) as exc:
+                        raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID") from exc
+                    if not isinstance(payload, Mapping):
+                        raise ResearchMemoryError("RESEARCH_MEMORY_FACT_PAYLOAD_INVALID")
+                    algorithm = persisted_fact_algorithm(row)
+                    _verify_fact_version(payload, row["version_hash"], algorithm=algorithm)
+                    if logical_fact_key(payload, algorithm=algorithm) != row["logical_key"]:
+                        raise ResearchMemoryError("RESEARCH_MEMORY_FACT_LOGICAL_KEY_MISMATCH")
+                    keys.add(logical_fact_key(payload))
+                prior_logical[security_id] = keys
             for logical, version in sorted(candidates):
-                version_exists = connection.execute(
-                    "SELECT 1 FROM fact_versions WHERE version_hash=?", (version,),
-                ).fetchone()
-                prior_exists = connection.execute(
-                    "SELECT 1 FROM fact_versions WHERE logical_key=? AND version_hash<>? LIMIT 1",
-                    (logical, version),
-                ).fetchone()
-                if version_exists is None and prior_exists is not None:
+                fact = candidates[(logical, version)]
+                if _existing_candidate_version(connection, fact) is not None:
+                    continue
+                if logical in prior_logical[str(fact["security_id"])]:
                     revisions += 1
         return revisions
 
@@ -921,7 +1096,7 @@ class ResearchMemory:
                 "gaps": list(gaps), "conflicts": list(conflicts),
                 "policy_version": POLICY_VERSION,
             }
-            body["view_manifest_hash"] = canonical_hash(body)
+            body["view_manifest_hash"] = legacy_envelope_hash(body, hash_field="view_manifest_hash")
             validate_research_view(body)
             connection.execute(
                 "INSERT OR IGNORE INTO research_views VALUES(?,?,?,?,?)",
@@ -1012,8 +1187,13 @@ class ResearchMemory:
         manifest = value.get("manifest")
         if not isinstance(report, Mapping) or not isinstance(manifest, Mapping):
             raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_INVALID")
-        if manifest.get("report_hash") != canonical_hash(report):
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_HASH_MISMATCH")
+        if report.get("schema_version") != "equity-research-report/1.0.0":
+            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_READER_UNSUPPORTED_VERSION")
+        try:
+            verify_legacy_object_hash(report, manifest.get("report_hash"), kind="canonical-object",
+                                      location="company-research-report-package:report")
+        except HashContractError as exc:
+            raise ResearchMemoryError(f"RESEARCH_MEMORY_REPORT_PACKAGE_HASH_MISMATCH:{exc}") from exc
         expected_hashes = {
             "request_hash": canonical_hash(value["request"]),
             "evidence_hash": canonical_hash(value["evidence"]),
@@ -1044,7 +1224,7 @@ class ResearchMemory:
             "research_status": stored["research_status"],
             "package_ref": stored["package_ref"],
         }
-        body["reference_hash"] = canonical_hash(body)
+        body["reference_hash"] = legacy_envelope_hash(body, hash_field="reference_hash")
         validate_report_reference(body)
         return body
 

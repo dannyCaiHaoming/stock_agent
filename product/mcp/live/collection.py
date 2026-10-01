@@ -343,7 +343,8 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
                           sec_user_agent: str, now=lambda: datetime.now(UTC), sec_factory=SecClient,
                           session_factory=None, market_collector=collect_daily, calendar_factory=ExchangeCalendar,
                           universe_factory=None, backup_factory=None,
-                          market_start: str | None = None, market_end: str | None = None):
+                          market_start: str | None = None, market_end: str | None = None,
+                          peer_scope: bool = False):
     """依赖注入仅用于零网络测试；产品入口不提供 fake/test 开关。"""
     portfolio = load_live_portfolio(portfolio_path)
     started = now()
@@ -404,11 +405,11 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
                 position, exchange=matches[0]["exchange"],
                 cik=matches[0]["cik"], currency="USD",
             ))
-        requested_start = market_start or (started.date() - timedelta(days=365)).isoformat()
+        requested_start = market_start or (started.date() - timedelta(days=550)).isoformat()
         requested_end = market_end or (started.date() + timedelta(days=1)).isoformat()
         # The locked calendar continues to cover the complete persisted research
         # window even when the provider request is only an incremental tail.
-        calendar = calendar_factory(start=(started.date() - timedelta(days=370)).isoformat(), end=(started.date() + timedelta(days=2)).isoformat())
+        calendar = calendar_factory(start=(started.date() - timedelta(days=555)).isoformat(), end=(started.date() + timedelta(days=2)).isoformat())
         stage = "YAHOO_COLLECTION"
         if session_factory is None:
             from product.mcp.live.yahoo_transport import create_yahoo_session
@@ -508,7 +509,7 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
                 events.append({"producer": "sec-financial-parser", "completed_at": selection_time, "excluded": company["excluded"]})
             disclosures = sec.read_selected_disclosures(
                 company["filings"], selection_as_of=selection_time,
-                event_limit=1, attachment_limit=1, max_age_seconds=86400,
+                event_limit=2, attachment_limit=1, max_age_seconds=86400,
             )
             events.append({"producer": "sec-disclosure-selection", "completed_at": iso_utc(now()),
                 "selection": disclosures["selection"], "history_omitted_pages": company["history"]["omitted_pages"]})
@@ -546,8 +547,8 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
                 ),
                 key=lambda filing: (parse_timestamp(filing["published_at"]), filing["accession"]),
                 reverse=True,
-            )[:1]
-            if not ownership_candidates:
+            )[:1] if not peer_scope else []
+            if not ownership_candidates and not peer_scope:
                 gaps.append({"security_id": security["security_id"], "reason": "SEC_OWNERSHIP_FILING_NOT_FOUND"})
             for filing in ownership_candidates:
                 try:

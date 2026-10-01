@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import io
 import hashlib
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,21 +12,29 @@ from unittest.mock import patch
 
 from product.mcp.live.peer_candidates import build_peer_candidate_pool
 from product.mcp.provenance import content_hash
-from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError
+from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError, serve_stdio
 from product.runtime.research_materials_stage import (
     DISCOVERY_KINDS,
+    ResearchMaterialsStageError,
     STAGE_VERSION,
     _output_schema,
     _parent_output_schema,
+    _verify_merged_peer_gate_time,
     build_research_materials_dispatch_packet,
     build_research_materials_dispatch_message,
+    build_research_materials_stage_prompt,
     finalize_research_materials_stage,
+    launch_research_materials_stage,
     materialize_selected_peers,
     prepare_research_materials_stage,
+    require_complete_research_materials_stage,
+    serialize_research_materials_dispatch_context,
     validate_material_preparation_output,
 )
 from product.runtime.codex_hook_recorder import handle_hook_event
+from product.runtime.hashing import canonical_hash
 from product.runtime.multidimensional_stage import (
+    MultidimensionalStageError,
     build_multidimensional_dispatch_packet,
     prepare_multidimensional_stage_run,
 )
@@ -98,6 +108,248 @@ class UnavailableOpenAlexClient(FakeOpenAlexClient):
 
 
 class ResearchMaterialsStageTests(unittest.TestCase):
+    @staticmethod
+    def mark_material_process_success(run: Path) -> None:
+        manifest = json.loads((run / "run_manifest.json").read_text())
+        (run / "invocation/process-result.json").write_text(json.dumps({
+            "run_id": manifest["run_id"], "process_exit_code": 0,
+            "timed_out": False, "stage_status": "PASSED",
+            "source_integrity_unchanged": True,
+        }))
+
+    def test_required_materials_accepts_complete_source_limited_results(self):
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
+        ):
+            run = self.prepare(Path(temp), count=1)
+            self.execute_with_hooks(run)
+            self.mark_material_process_success(run)
+            require_complete_research_materials_stage(run)
+            manifest_path = run / "research/material-preparation-manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["outputs"].pop()
+            manifest["manifest_hash"] = canonical_hash({
+                key: value for key, value in manifest.items() if key != "manifest_hash"
+            })
+            manifest_path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ResearchMaterialsStageError, "TASKS_INCOMPLETE"):
+                require_complete_research_materials_stage(run)
+
+    def test_required_materials_rejects_failed_result_despite_stage_pass(self):
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
+        ):
+            run = self.prepare(Path(temp), count=1)
+            self.execute_with_hooks(run)
+            self.mark_material_process_success(run)
+            manifest_path = run / "research/material-preparation-manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["outputs"][0]["status"] = "FAILED"
+            manifest["manifest_hash"] = canonical_hash({
+                key: value for key, value in manifest.items() if key != "manifest_hash"
+            })
+            manifest_path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ResearchMaterialsStageError, "TASK_FAILED"):
+                require_complete_research_materials_stage(run)
+
+    def test_market_discovery_bounds_daily_catalog_without_truncating_gate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.prepare(root, count=1)
+            gate_path = root / "gate.json"
+            gate = json.loads(gate_path.read_text())
+            daily = [{
+                "evidence_id": f"market-daily-{i:05d}", "security_id": "US:MARKET:SPY",
+                "semantic_field": "market_context_close", "source_type": "yahoo",
+                "source_id": "yahoo-spy", "as_of": "2026-09-10T20:00:00Z",
+                "retrieved_at": "2026-09-11T10:00:00Z", "value": "100", "unit": "USD",
+            } for i in range(6000)]
+            gate["allowed_evidence"].extend(daily)
+            gate_path.write_text(json.dumps(gate))
+            run = root / "bounded-run"
+            prepare_research_materials_stage(
+                ROOT, handoff_path=root / "handoff.json", gate_path=gate_path,
+                peer_candidate_pool_path=root / "pool.json", run_dir=run,
+                run_id="materials-run", model="gpt-5.6-terra", target_concurrency=2,
+            )
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(t for t in index["tasks"] if t["preparation_kind"] == "MARKET_RESEARCH_DISCOVERY")
+            packet = build_research_materials_dispatch_packet(ROOT, run, task["task_name"])
+            selected = [x for x in packet["evidence_catalog"] if x["source_id"] == "yahoo-spy"]
+            self.assertEqual(len(selected), 2)
+            self.assertLess(len(serialize_research_materials_dispatch_context(packet).encode()), 256 * 1024)
+            frozen = json.loads((run / "evidence/gate.json").read_text())
+            self.assertEqual(frozen["allowed_evidence"], gate["allowed_evidence"])
+
+    def test_material_context_utf8_limit_rejects_before_model_start(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = self.prepare(Path(temp), count=1)
+            original = build_research_materials_dispatch_packet
+
+            def oversized(*args, **kwargs):
+                return {**original(*args, **kwargs), "instruction": "研" * 100000}
+
+            with patch("product.runtime.research_materials_stage.build_research_materials_dispatch_packet",
+                       side_effect=oversized), patch(
+                           "product.runtime.research_materials_stage.subprocess.run") as process:
+                with self.assertRaisesRegex(ResearchMaterialsStageError, "START_CONTEXT_TOO_LARGE"):
+                    launch_research_materials_stage(ROOT, run_dir=run)
+                process.assert_not_called()
+                self.assertFalse((run / "invocation").exists())
+
+    def test_company_material_catalog_bounds_history_without_changing_gate(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.prepare(root, count=1)
+            gate_path = root / "gate.json"
+            gate = json.loads(gate_path.read_text())
+            security_id = json.loads((root / "pool.json").read_text())["groups"][0]["security_id"]
+            history = [{
+                "evidence_id": f"financial-history-{i:05d}", "security_id": security_id,
+                "semantic_field": "us-gaap.Revenues", "source_id": "sec-test",
+                "as_of": "2026-09-10T20:00:00Z", "retrieved_at": "2026-09-11T10:00:00Z",
+                "kind": "financial", "unit": "USD", "value": "100",
+                "metadata": {"form": "10-Q", "period_start": "2026-01-01"},
+            } for i in range(6000)]
+            gate["allowed_evidence"].extend(history)
+            gate_path.write_text(json.dumps(gate))
+            run = root / "bounded-company-run"
+            prepare_research_materials_stage(
+                ROOT, handoff_path=root / "handoff.json", gate_path=gate_path,
+                peer_candidate_pool_path=root / "pool.json", run_dir=run,
+                run_id="materials-run", model="gpt-5.6-terra", target_concurrency=2,
+            )
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            for task in index["tasks"]:
+                packet = build_research_materials_dispatch_packet(ROOT, run, task["task_name"])
+                self.assertLess(len(serialize_research_materials_dispatch_context(packet).encode()), 256 * 1024)
+                if task["preparation_kind"] in {"RESEARCH_REPORT_DISCOVERY", "PEER_SELECTION"}:
+                    self.assertEqual(sum(f["source_id"] == "sec-test" for f in packet["evidence_catalog"]), 2)
+            frozen = json.loads((run / "evidence/gate.json").read_text())
+            self.assertEqual(frozen["allowed_evidence"], gate["allowed_evidence"])
+
+    def test_material_prompt_uses_bare_task_names_and_long_wait(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = self.prepare(Path(temp), count=1, target_concurrency=2)
+            prompt = build_research_materials_stage_prompt(ROOT, run)
+            self.assertIn("task_name 是映射中的裸名", prompt)
+            self.assertIn("wait_agent(timeout_ms=600000)", prompt)
+            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+            invocation = run / "invocation"
+            invocation.mkdir()
+            environment = {
+                "STOCK_AGENT_RUN_DIR": str(run),
+                "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
+                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
+                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
+                "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": STAGE_VERSION,
+            }
+            denied, _ = handle_hook_event({
+                "hook_event_name": "PreToolUse", "session_id": "materials-parent",
+                "turn_id": "turn-1", "tool_name": "spawn_agent",
+                "tool_use_id": "tool-1", "cwd": str(ROOT / "product"),
+                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                "tool_input": {
+                    "agent_type": task["agent"],
+                    "task_name": f"/root/{task['task_name']}",
+                    "fork_turns": "none",
+                    "message": build_research_materials_dispatch_message(
+                        ROOT, run, task["task_name"]
+                    ),
+                },
+            }, environ=environment)
+            self.assertEqual(denied["decision"], "DENY_DISPATCH_CONTRACT")
+            self.assertEqual(denied["dispatch_binding"]["failure_code"], "DISPATCH_SOURCE_INVALID")
+
+    def test_host_command_loads_frozen_material_specialists_without_desktop_config(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = self.prepare(Path(temp), count=1)
+            with patch(
+                "product.runtime.research_materials_stage.subprocess.run",
+                return_value=subprocess.CompletedProcess([], 1, "", "test stop"),
+            ) as launched:
+                result, code = launch_research_materials_stage(ROOT, run_dir=run)
+            command = launched.call_args.args[0]
+            self.assertEqual(command[command.index("exec") + 1], "--ignore-user-config")
+            self.assertIn("--strict-config", command)
+            for agent_name in ("runtime_company_analyst", "runtime_market_catalyst"):
+                self.assertTrue(any(
+                    value.startswith(f"agents.{agent_name}=")
+                    and str(ROOT / "product/.codex/agents" / f"{agent_name}.toml") in value
+                    for value in command
+                ))
+            self.assertIn("agents.max_threads=3", command)
+            self.assertEqual(result["failure_code"], "RESEARCH_MATERIALS_CODEX_FAILED")
+            self.assertEqual(code, 7)
+
+    def test_two_material_dispatches_can_finish_before_later_tasks_start(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = self.prepare(Path(temp), count=1, target_concurrency=2)
+            invocation = run / "invocation"
+            invocation.mkdir()
+            environment = {
+                "STOCK_AGENT_RUN_DIR": str(run),
+                "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
+                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
+                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
+                "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": STAGE_VERSION,
+            }
+            tasks = json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+            for ordinal, task in enumerate(tasks[:2], 1):
+                parent = "materials-parent"
+                turn = f"turn-{ordinal}"
+                dispatch, _ = handle_hook_event({
+                    "hook_event_name": "PreToolUse", "session_id": parent,
+                    "turn_id": turn, "tool_name": "spawn_agent",
+                    "tool_use_id": f"tool-{ordinal}", "cwd": str(ROOT / "product"),
+                    "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                    "tool_input": {
+                        "agent_type": task["agent"], "task_name": task["task_name"],
+                        "fork_turns": "none",
+                        "message": build_research_materials_dispatch_message(
+                            ROOT, run, task["task_name"]
+                        ),
+                    },
+                }, environ=environment)
+                self.assertEqual(dispatch["decision"], "ALLOW")
+                start = {
+                    "hook_event_name": "SubagentStart", "session_id": parent,
+                    "turn_id": turn, "agent_id": f"child-{ordinal}",
+                    "agent_type": task["agent"], "model": "gpt-5.6-terra",
+                    "cwd": str(ROOT / "product"), "permission_mode": "read-only",
+                }
+                handle_hook_event(start, environ=environment)
+            first = tasks[0]
+            stop_payload = {
+                "hook_event_name": "SubagentStop", "session_id": "materials-parent",
+                "turn_id": "turn-1", "agent_id": "child-1",
+                "agent_type": first["agent"], "model": "gpt-5.6-terra",
+                "cwd": str(ROOT / "product"), "permission_mode": "read-only",
+                "last_assistant_message": "{}", "stop_hook_active": False,
+            }
+            repairing, _ = handle_hook_event(stop_payload, environ=environment)
+            self.assertEqual(repairing["hook_event_name"], "SubagentStopBlocked")
+            self.assertEqual(repairing["output_capture"]["repair_state"], "REPAIR_REQUESTED")
+            stopped, _ = handle_hook_event(stop_payload, environ=environment)
+            self.assertEqual(stopped["hook_event_name"], "SubagentStop")
+            self.assertNotEqual(stopped.get("hook_decision"), "BLOCK")
+            self.assertEqual(stopped["output_capture"]["repair_state"], "EXHAUSTED")
+            third = tasks[2]
+            resumed, _ = handle_hook_event({
+                "hook_event_name": "PreToolUse", "session_id": "materials-parent",
+                "turn_id": "turn-3", "tool_name": "spawn_agent",
+                "tool_use_id": "tool-3", "cwd": str(ROOT / "product"),
+                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                "tool_input": {
+                    "agent_type": third["agent"], "task_name": third["task_name"],
+                    "fork_turns": "none",
+                    "message": build_research_materials_dispatch_message(
+                        ROOT, run, third["task_name"]
+                    ),
+                },
+            }, environ=environment)
+            self.assertEqual(resumed["decision"], "ALLOW")
+
     def test_launcher_bound_fixture_mcp_exposes_research_tools_without_run_dir(self):
         with tempfile.TemporaryDirectory() as temp:
             run = self.prepare(Path(temp), count=1)
@@ -131,7 +383,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             kind="RESEARCH_REPORT_DISCOVERY",
         ))
 
-    def prepare(self, root: Path, count: int = 2):
+    def prepare(self, root: Path, count: int = 2, target_concurrency: int = 8):
         handoff = stock_handoff(count)
         gate = gate_for(handoff)
         holdings = [
@@ -169,11 +421,12 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         prepare_research_materials_stage(
             ROOT, handoff_path=handoff_path, gate_path=gate_path,
             peer_candidate_pool_path=pool_path, run_dir=run,
-            run_id="materials-run", model="gpt-5.6-terra", target_concurrency=8,
+            run_id="materials-run", model="gpt-5.6-terra",
+            target_concurrency=target_concurrency,
         )
         return run
 
-    def execute_with_hooks(self, run: Path) -> dict:
+    def execute_with_hooks(self, run: Path, *, transform=None) -> dict:
         invocation = run / "invocation"
         invocation.mkdir(exist_ok=True)
         environment = {
@@ -185,6 +438,14 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         }
         index = json.loads((run / "research/dispatch-index.json").read_text())
         tools = StatelessFixtureTools(default_run_dir=run)
+        def call(name, arguments):
+            request = {"id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+            stdout = io.StringIO()
+            with patch("sys.stdin", io.StringIO(json.dumps(request) + "\n")), patch("sys.stdout", stdout):
+                serve_stdio(tools_override=tools)
+            response = json.loads(stdout.getvalue())
+            self.assertNotIn("error", response)
+            return response["result"]["structuredContent"]
         started = []
         for ordinal, task in enumerate(index["tasks"], 1):
             parent, child, turn = "materials-parent", f"child-{ordinal}", f"turn-{ordinal}"
@@ -218,32 +479,45 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             if task["preparation_kind"] in DISCOVERY_KINDS:
                 subject = task["security"]["display_symbol"] or task["security"]["display_name"]
                 query = f"{subject} public research"
-                search = tools.research_search(
-                    **identity, decision_cutoff=task["decision_cutoff"], query=query
-                )
-                fetched = tools.research_fetch(**identity, candidate_id="research-lead-1")
+                search = call("research_search", {**identity, "decision_cutoff": task["decision_cutoff"], "query": query})
+                fetched = call("research_fetch", {**identity, "candidate_id": "research-lead-1"})
                 output = {
-                    **identity, "preparation_kind": task["preparation_kind"], "status": "READY",
+                    "status": "READY",
                     "summary": "已取得一份正文。",
-                    "queries": [{"query": query, "purpose": "核对公司问题"}],
+                    "query_intents": [{"query": query, "purpose": "核对公司问题"}],
                     "selections": [{"candidate_id": "research-lead-1", "document_id": "research-document-1", "rationale": "正文相关。"}],
-                    "gaps": [], "artifact_refs": [search["artifact_ref"], fetched["artifact_ref"]],
+                    "gaps": [],
                 }
             else:
                 candidate = packet["peer_candidate_group"]["candidates"][0]
                 output = {
-                    **identity, "preparation_kind": task["preparation_kind"], "status": "READY",
-                    "summary": "选择一个待核实同行。", "queries": [],
+                    "status": "READY",
+                    "summary": "选择一个待核实同行。", "query_intents": [],
                     "selections": [{"candidate_id": candidate["candidate_id"], "document_id": None, "rationale": "行业分类与规模接近。"}],
-                    "gaps": [], "artifact_refs": [],
+                    "gaps": [],
                 }
+            if transform is not None:
+                output = transform(task, output)
             stop = {
                 **start, "hook_event_name": "SubagentStop",
                 "last_assistant_message": json.dumps(output, ensure_ascii=False),
                 "stop_hook_active": False,
             }
-            stop_record, _ = handle_hook_event(stop, environ=environment)
-            self.assertEqual(stop_record["output_capture"]["status"], "SAVED")
+            stop_record, stop_response = handle_hook_event(stop, environ=environment)
+            if stop_record["hook_event_name"] == "SubagentStopBlocked":
+                # 负例仍由同一合成作者提交一次非法局部修订，额度耗尽后才收尾。
+                repair = json.loads(stop_response["reason"])
+                self.assertEqual(repair["allowed_paths"], ["/selections/0"])
+                stop_record, _ = handle_hook_event({
+                    **stop,
+                    "last_assistant_message": json.dumps({
+                        "base_draft_ref": repair["base_draft_ref"],
+                        "changes": [{"op": "replace", "path": "/selections/0", "value": output["selections"][0]}],
+                    }),
+                }, environ=environment)
+                self.assertEqual(stop_record["output_capture"]["repair_state"], "EXHAUSTED")
+            if transform is None:
+                self.assertEqual(stop_record["output_capture"]["status"], "SAVED", stop_record)
         return finalize_research_materials_stage(ROOT, run)
 
     def test_preparation_permissions_are_separate_by_task_kind(self):
@@ -306,6 +580,27 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 "gaps": [], "artifact_refs": [search["artifact_ref"], fetched["artifact_ref"]],
             }
             validate_material_preparation_output(output, task=task, run_dir=run)
+            event_log = run / "events/mcp/events.jsonl"
+            event_log.parent.mkdir(parents=True, exist_ok=True)
+            event_log.write_text("\n".join(json.dumps(event) for event in tools.events) + "\n")
+            validate_material_preparation_output(output, task=task, run_dir=run)
+            for bad_ref in (
+                "research/materials/another-invocation/search-1.json",
+                "../outside/search-1.json", "/private/tmp/search-1.json",
+            ):
+                with self.subTest(bad_ref=bad_ref), self.assertRaisesRegex(
+                    ResearchMaterialsStageError, "RESEARCH_MATERIALS_ARTIFACT_REF_INVALID",
+                ):
+                    validate_material_preparation_output(
+                        {**output, "artifact_refs": [*output["artifact_refs"], bad_ref]},
+                        task=task, run_dir=run,
+                    )
+            search_path = run / search["artifact_ref"]
+            search_path.write_text(search_path.read_text() + "\n")
+            with self.assertRaisesRegex(
+                ResearchMaterialsStageError, "RESEARCH_MATERIALS_ARTIFACT_HASH_MISMATCH",
+            ):
+                validate_material_preparation_output(output, task=task, run_dir=run)
             peer = next(item for item in index["tasks"] if item["preparation_kind"] == "PEER_SELECTION")
             with self.assertRaisesRegex(ToolAccessError, "TOOL_NOT_AUTHORIZED"):
                 tools.research_search(
@@ -433,121 +728,26 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             )
 
     def test_finalizer_preserves_one_failed_preparation_as_explicit_gap(self):
-        with tempfile.TemporaryDirectory() as temp:
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
+        ):
             run = self.prepare(Path(temp), count=1)
-            invocation = run / "invocation"
-            invocation.mkdir()
-            index = json.loads((run / "research/dispatch-index.json").read_text())
-            dispatches = [
-                {"task_name": task["task_name"], "decision": "ALLOW"}
-                for task in index["tasks"]
-            ]
-            (invocation / "subagent-dispatches.jsonl").write_text(
-                "\n".join(json.dumps(item) for item in dispatches) + "\n",
-                encoding="utf-8",
-            )
-            events = []
-            for task in index["tasks"]:
+            def reject_one(task, draft):
                 if task["preparation_kind"] == "RESEARCH_REPORT_DISCOVERY":
-                    events.append({
-                        "hook_event_name": "SubagentStop",
-                        "output_binding": {"invocation_id": task["invocation_id"]},
-                        "output_capture": {
-                            "status": "FAILED",
-                            "failure_code": "RESEARCH_MATERIALS_SEARCH_PROOF_MISSING",
-                        },
-                    })
-                    continue
-                if task["preparation_kind"] in {
-                    "MACRO_RESEARCH_DISCOVERY", "MARKET_RESEARCH_DISCOVERY",
-                }:
-                    query = f"{task['security']['display_name']} public research"
-                    material_dir = run / "research/materials" / hashlib.sha256(
-                        task["invocation_id"].encode("utf-8")
-                    ).hexdigest()[:16]
-                    material_dir.mkdir(parents=True)
-                    search_path = material_dir / "search-1.json"
-                    search_path.write_text(json.dumps({
-                        "query": query, "candidates": [], "excluded": [],
-                        "raw_content_hash": None, "attempt_status": "SOURCE_LIMITED",
-                        "failure_code": "PUBLIC_RESEARCH_SEARCH_HTTP_503",
-                        "provider_events": [],
-                    }), encoding="utf-8")
-                    output = {
-                        "run_id": task["run_id"], "invocation_id": task["invocation_id"],
-                        "agent": task["agent"], "preparation_kind": task["preparation_kind"],
-                        "security_id": task["security_id"], "status": "SOURCE_LIMITED",
-                        "summary": "当前正文来源受限。",
-                        "queries": [{"query": query, "purpose": "核对共享研究材料"}],
-                        "selections": [],
-                        "gaps": [{
-                            "reason_code": "PUBLIC_RESEARCH_SEARCH_HTTP_503",
-                            "description": "本次查询未返回候选。",
-                            "impact": "该维度无可冻结外部正文。",
-                        }],
-                        "artifact_refs": [str(search_path.relative_to(run))],
-                    }
-                    result_dir = run / "research/material-results" / task["task_name"]
-                    result_dir.mkdir(parents=True)
-                    result_path = result_dir / "preparation-result.json"
-                    result_path.write_text(json.dumps(output), encoding="utf-8")
-                    events.append({
-                        "hook_event_name": "SubagentStop",
-                        "output_capture": {
-                            "status": "SAVED", "task_id": task["task_id"],
-                            "path": str(result_path.relative_to(run)),
-                        },
-                    })
-                    continue
-                packet = build_research_materials_dispatch_packet(
-                    ROOT, run, task["task_name"]
-                )
-                candidate = packet["peer_candidate_group"]["candidates"][0]
-                output = {
-                    "run_id": task["run_id"],
-                    "invocation_id": task["invocation_id"],
-                    "agent": task["agent"],
-                    "preparation_kind": task["preparation_kind"],
-                    "security_id": task["security_id"],
-                    "status": "READY",
-                    "summary": "选择一个待核实同行。",
-                    "queries": [],
-                    "selections": [{
-                        "candidate_id": candidate["candidate_id"],
-                        "document_id": None,
-                        "rationale": "行业分类与规模接近。",
-                    }],
-                    "gaps": [],
-                    "artifact_refs": [],
-                }
-                result_dir = run / "research/material-results/saved-peer"
-                result_dir.mkdir(parents=True)
-                result_path = result_dir / "preparation-result.json"
-                result_path.write_text(json.dumps(output), encoding="utf-8")
-                events.append({
-                    "hook_event_name": "SubagentStop",
-                    "output_capture": {
-                        "status": "SAVED", "task_id": task["task_id"],
-                        "path": str(result_path.relative_to(run)),
-                    },
-                })
-            (invocation / "subagent-events.jsonl").write_text(
-                "\n".join(json.dumps(item) for item in events) + "\n",
-                encoding="utf-8",
-            )
-            result = finalize_research_materials_stage(ROOT, run)
+                    draft["selections"][0]["document_id"] = "unknown-document"
+                return draft
+            result = self.execute_with_hooks(run, transform=reject_one)
             self.assertEqual(result["status"], "PASSED")
             self.assertTrue(result["coverage_complete"])
             self.assertEqual(len(result["failed"]), 1)
-            manifest = json.loads(
-                (run / "research/material-preparation-manifest.json").read_text()
-            )
+            manifest = json.loads((run / "research/material-preparation-manifest.json").read_text())
             failed = next(item for item in manifest["outputs"] if item["status"] == "FAILED")
             self.assertIsNone(failed["output_ref"])
             self.assertEqual(failed["selections"], [])
-            self.assertEqual(
-                failed["failure_code"], "RESEARCH_MATERIALS_SEARCH_PROOF_MISSING"
-            )
+            self.assertEqual(failed["failure_code"], "RESEARCH_MATERIALS_DOCUMENT_SELECTION_INVALID:selections[0]")
+            self.mark_material_process_success(run)
+            with self.assertRaisesRegex(ResearchMaterialsStageError, "TASK_FAILED"):
+                require_complete_research_materials_stage(run)
 
     def test_selected_peer_is_materialized_and_merged_only_after_collection_gate(self):
         with tempfile.TemporaryDirectory() as temp, patch(
@@ -616,6 +816,180 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             )
             self.assertIn("peer-price", packet["allowed_evidence_ids"])
             self.assertEqual(packet["selected_peer_candidates"][0]["materialization_status"], "FROZEN")
+            self.assertIn("同一指标、相近期间长度", packet["instruction"])
+            self.assertIn("不同公司的收入与毛利", packet["instruction"])
+            self.assertIn("仅写半导体供应商、电子系统需求等行业共性不算回答", packet["instruction"])
+            self.assertIn("无可核实交集或资料不足时说明依据与具体gap", packet["instruction"])
+            self.assertIn("不得为满足格式虚构交集", packet["instruction"])
+            self.assertIn("不得用当前财年标签替代历史变更的发生财年", packet["instruction"])
+            view_path = run / "research/peer-materialization/final-view.json"
+            final_view = json.loads(view_path.read_text())
+            self.assertEqual(final_view["gate_hash"], merged["bundle_hash"])
+            # 冻结资料用新执行身份复用时，真正的材料/同行导入不打桩。
+            source_paths = [
+                run / "research/peer-materialization/gate.json", view_path,
+                run / "research/peer-materialization/peer-materialization-manifest.json",
+            ]
+            original_bytes = {path: path.read_bytes() for path in source_paths}
+            rebound_run = root / "formal-new-identity"
+            prepare_multidimensional_stage_run(
+                ROOT, handoff_path=run / "audit/portfolio-handoff.json",
+                gate_path=source_paths[0], run_dir=rebound_run,
+                run_id="new-frozen-input-consumer", model="gpt-5.6-terra",
+                research_materials_run_path=run, reuse_frozen_gate=True,
+            )
+            rebound_gate = json.loads((rebound_run / "evidence/gate.json").read_text())
+            rebound_manifest = json.loads((rebound_run / "run_manifest.json").read_text())
+            self.assertEqual(rebound_gate["run_id"], "new-frozen-input-consumer")
+            self.assertNotEqual(rebound_gate["bundle_hash"], merged["bundle_hash"])
+            self.assertEqual(rebound_gate["allowed_evidence"], merged["allowed_evidence"])
+            self.assertEqual(rebound_gate["decision_cutoff"], merged["decision_cutoff"])
+            self.assertEqual(rebound_manifest["gate_input_binding"]["source_gate_hash"], merged["bundle_hash"])
+            from product.runtime.evidence_gate import validate_frozen_gate_binding, FixtureValidationError
+            validate_frozen_gate_binding(rebound_run, rebound_manifest, rebound_gate)
+            rebound_gate["decision_cutoff"] = "2026-09-12T00:00:00Z"
+            from product.runtime.hashing import legacy_envelope_hash
+            rebound_gate["bundle_hash"] = legacy_envelope_hash(rebound_gate, hash_field="bundle_hash")
+            with self.assertRaisesRegex(FixtureValidationError, "FROZEN_GATE_BINDING_INVALID"):
+                validate_frozen_gate_binding(rebound_run, rebound_manifest, rebound_gate)
+            self.assertEqual({path: path.read_bytes() for path in source_paths}, original_bytes)
+            with self.assertRaisesRegex(MultidimensionalStageError, "GATE_RUN_MISMATCH"):
+                prepare_multidimensional_stage_run(
+                    ROOT, handoff_path=run / "audit/portfolio-handoff.json",
+                    gate_path=source_paths[0], run_dir=root / "implicit-rebind",
+                    run_id="unapproved-new-identity", model="gpt-5.6-terra",
+                    research_materials_run_path=run,
+                )
+            for field in ("gate_hash", "allowed_evidence_ids"):
+                with self.subTest(rebound_source_tamper=field):
+                    tampered_view = {**final_view, field: "wrong-gate" if field == "gate_hash" else []}
+                    tampered_view["view_hash"] = legacy_envelope_hash(tampered_view, hash_field="view_hash")
+                    materialization = json.loads(original_bytes[source_paths[2]])
+                    materialization["final_view_hash"] = tampered_view["view_hash"]
+                    materialization["materialization_hash"] = legacy_envelope_hash(materialization, hash_field="materialization_hash")
+                    view_path.write_text(json.dumps(tampered_view))
+                    source_paths[2].write_text(json.dumps(materialization))
+                    with self.assertRaisesRegex(MultidimensionalStageError, "PEER_FINAL_VIEW_INVALID"):
+                        prepare_multidimensional_stage_run(
+                            ROOT, handoff_path=run / "audit/portfolio-handoff.json",
+                            gate_path=source_paths[0], run_dir=root / ("tampered-new-" + field),
+                            run_id="tampered-new-identity", model="gpt-5.6-terra",
+                            research_materials_run_path=run, reuse_frozen_gate=True,
+                        )
+                    for path in source_paths:
+                        path.write_bytes(original_bytes[path])
+            final_view["decision_cutoff"] = "2026-09-12T00:00:00Z"
+            view_path.write_text(json.dumps(final_view), encoding="utf-8")
+            with self.assertRaisesRegex(MultidimensionalStageError,
+                                        "MULTIDIMENSIONAL_PEER_FINAL_VIEW_INVALID"):
+                prepare_multidimensional_stage_run(
+                    ROOT, handoff_path=run / "audit/portfolio-handoff.json",
+                    gate_path=run / "research/peer-materialization/gate.json",
+                    run_dir=root / "formal-tampered", run_id="materials-run",
+                    model="gpt-5.6-terra", research_materials_run_path=run,
+                )
+
+    def test_final_peer_gate_rejects_future_fact_even_if_both_source_gates_claim_allowed(self):
+        base = {"decision_cutoff": "2026-09-11T11:00:00Z"}
+        peer = {"decision_cutoff": "2026-09-11T11:01:00Z"}
+        fact = {
+            "evidence_id": "future", "source_id": "peer", "as_of": "2026-09-11T11:02:00Z",
+            "published_at": "2026-09-11T11:02:00Z", "retrieved_at": "2026-09-11T11:02:00Z",
+        }
+        with self.assertRaisesRegex(ResearchMaterialsStageError,
+                                    "PEER_MATERIALIZATION_FINAL_PIT_LEAKAGE"):
+            _verify_merged_peer_gate_time(
+                base, peer, [fact], [], observed_at="2026-09-11T11:03:00Z",
+            )
+        stale = {**fact, "evidence_id": "stale", "as_of": "2026-01-01T00:00:00Z",
+                 "published_at": "2026-01-01T00:00:00Z",
+                 "retrieved_at": "2026-01-01T01:00:00Z", "freshness_status": "FRESH",
+                 "source_type": "sec", "kind": "filing", "usage": "current",
+                 "metadata": {"form": "10-Q"}}
+        with self.assertRaisesRegex(ResearchMaterialsStageError,
+                                    "PEER_MATERIALIZATION_FINAL_FACT_STALE"):
+            _verify_merged_peer_gate_time(
+                base, peer, [stale], [], observed_at="2026-09-11T11:03:00Z",
+            )
+
+    def test_peer_supplement_enters_industry_gate_without_becoming_holding(self):
+        from product.mcp.live.research_supplement import build_supplement_fact
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
+        ):
+            root = Path(temp)
+            run = self.prepare(root, count=1)
+            self.execute_with_hooks(run)
+            access_path = root / "access.json"
+            access_path.write_text(json.dumps([{
+                "operator_approval": {"record": {"scope": {"max_positions": 1}}}
+            }]), encoding="utf-8")
+
+            def fake_collector(portfolio_path, *, access_path, output_dir, cache_root, sec_user_agent):
+                del access_path, cache_root, sec_user_agent
+                output_dir.mkdir(parents=True)
+                portfolio = json.loads(Path(portfolio_path).read_text())
+                (output_dir / "snapshot.json").write_text(json.dumps({
+                    "snapshot_hash": "s" * 64, "gaps": [], "portfolio": portfolio,
+                    "decision_cutoff": "2026-09-11T11:00:00Z",
+                }))
+                (output_dir / "calendar.json").write_text("{}")
+                return {"snapshot_path": str(output_dir / "snapshot.json"),
+                        "calendar_lock": str(output_dir / "calendar.json")}
+
+            peer_gate = {
+                "bundle_hash": "p" * 64, "decision_cutoff": "2026-09-11T11:00:00Z",
+                "input_evidence_ids": [], "allowed_evidence": [],
+                "allowed_evidence_ids": [], "excluded": [], "excluded_evidence_ids": [],
+            }
+            fact = build_supplement_fact(
+                security_id="US:COMMON_STOCK:PEER1", dataset="business_segments",
+                semantic_field="moomoo_segment_revenue", value={"segment": "Data Center", "revenue": "42"},
+                source_id="moomoo_sg-test", source_family="moomoo_sg",
+                source_locator="test:peer1:segment", source_version="test/1.0.0",
+                as_of="2026-09-11T10:00:00Z", published_at="2026-09-11T10:00:00Z",
+                retrieved_at="2026-09-11T10:30:00Z", raw_content_hash="a" * 64,
+            )
+            def fake_supplements(positions, **kwargs):
+                self.assertTrue(kwargs["peer_scope"])
+                self.assertEqual([item["security_id"] for item in positions],
+                                 ["US:COMMON_STOCK:PEER1"])
+                return {"US:COMMON_STOCK:PEER1": [{
+                    "source": "moomoo_sg", "dataset": "business_segments",
+                    "status": "AVAILABLE", "failure_code": None, "evidence": [fact],
+                    "gaps": [], "limitations": [],
+                }]}
+
+            with patch(
+                "product.mcp.live.collection.validate_live_collection_configuration",
+                return_value=[{"provider": "yahoo"}],
+            ), patch(
+                "product.mcp.live.research_supplement_collection.capture_public_company_news_result",
+                return_value={"source": "moomoo_public_news", "dataset": "research_discovery",
+                              "status": "SOURCE_LIMITED", "failure_code": "NO_LEADS",
+                              "evidence": [], "gaps": ["NO_LEADS"], "limitations": ["none"]},
+            ), patch(
+                "product.runtime.evidence_gate.run_live_evidence_gate",
+                return_value=SimpleNamespace(artifact=peer_gate),
+            ), patch("product.mcp.live.market.load_locked_calendar", return_value=object()):
+                materialize_selected_peers(
+                    run, source_access_path=access_path, cache_root=root / "cache",
+                    sec_user_agent="test", output_dir=run / "research/peer-materialization",
+                    collector=fake_collector, peer_supplement_collector=fake_supplements,
+                    memory_root=root / "memory",
+                )
+            merged = json.loads((run / "research/peer-materialization/gate.json").read_text())
+            self.assertTrue(any(
+                item["security_id"] == "US:COMMON_STOCK:PEER1"
+                and item["semantic_field"] == "moomoo_segment_revenue"
+                for item in merged["allowed_evidence"]
+            ))
+            self.assertTrue((run / "research/peer-materialization/peer-views/PEER1.json").is_file())
+            self.assertNotIn("US:COMMON_STOCK:PEER1", {
+                position["security_id"] for position in json.loads(
+                    (run / "audit/portfolio-handoff.json").read_text()
+                )["portfolio"]["positions"]
+            })
 
     def test_already_frozen_selected_peer_is_reused_without_duplicate_collection(self):
         with tempfile.TemporaryDirectory() as temp, patch(

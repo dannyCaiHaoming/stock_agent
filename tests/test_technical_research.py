@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date, timedelta
 from decimal import Decimal
 import hashlib
 import json
@@ -195,6 +196,38 @@ def _rows(count: int, *, scale: int = 1, split_at: int | None = None, missing_ad
 
 
 class TechnicalCalculationTests(unittest.TestCase):
+    def test_252_day_relative_window_needs_253_aligned_observations(self) -> None:
+        dates = []
+        cursor = date(2025, 1, 1)
+        while len(dates) < 253:
+            if cursor.weekday() < 5:
+                dates.append(cursor.isoformat())
+            cursor += timedelta(days=1)
+        def rows(scale):
+            return [{
+                "date": day, "close": 100 + index * scale,
+                "adjusted_close": 100 + index * scale, "volume": 1000 + index,
+                "stock_split": 0, "evidence_ids": [f"ev-{scale}-{index}"],
+            } for index, day in enumerate(dates)]
+        security, benchmark = rows(2), rows(1)
+        as_of = dates[-1] + "T20:00:00Z"
+        short = calculate_technical_statistics(
+            security[:250], benchmark[:250], security_id="US:TEST",
+            benchmark_id="US:SPY", as_of=as_of, windows=(20, 60, 252),
+        )
+        self.assertEqual([item["status"] for item in short["windows"]],
+                         ["COMPLETE", "COMPLETE", "INSUFFICIENT_HISTORY"])
+        full = calculate_technical_statistics(
+            security, benchmark, security_id="US:TEST", benchmark_id="US:SPY",
+            as_of=as_of, windows=(20, 60, 252),
+        )
+        self.assertEqual(full["windows"][-1]["status"], "COMPLETE")
+        missing_benchmark = calculate_technical_statistics(
+            security, benchmark[:250], security_id="US:TEST", benchmark_id="US:SPY",
+            as_of=as_of, windows=(20, 60, 252),
+        )
+        self.assertEqual(missing_benchmark["windows"][-1]["status"], "INSUFFICIENT_HISTORY")
+
     def test_market_state_statistics_are_deterministic_and_keep_lineage(self) -> None:
         artifact = calculate_market_state_statistics(
             _rows(6), market_id="US:SPY",

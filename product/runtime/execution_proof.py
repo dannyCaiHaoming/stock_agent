@@ -221,7 +221,7 @@ def _expected_runtime(runtime: str) -> str:
 
 def _rollout_telemetry(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     totals: Mapping[str, Any] | None = None
-    calls = 0
+    token_count_events = 0
     timestamps: list[datetime] = []
     for record in records:
         timestamp = record.get("timestamp")
@@ -236,25 +236,55 @@ def _rollout_telemetry(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             total = info.get("total_token_usage", {}) if isinstance(info, Mapping) else {}
             if isinstance(total, Mapping):
                 totals = total
-                calls += 1
-    if totals is None:
-        return {
-            "status": "MISSING_TELEMETRY",
-            "input_tokens": None,
-            "output_tokens": None,
-            "cached_tokens": None,
-            "latency_ms": None,
-            "llm_calls": None,
-        }
+                token_count_events += 1
     latency = int((max(timestamps) - min(timestamps)).total_seconds() * 1000) if len(timestamps) >= 2 else None
+    # total_token_usage is cumulative for this session, not a delta or a
+    # model-call receipt. Missing, boolean and negative counters are unknown.
+    observed = {}
+    for output_field, source_field in (
+        ("input_tokens", "input_tokens"), ("output_tokens", "output_tokens"),
+        ("cached_tokens", "cached_input_tokens"),
+    ):
+        value = totals.get(source_field) if totals is not None else None
+        observed[output_field] = value if type(value) is int and value >= 0 else None
+    if (observed["cached_tokens"] is not None and observed["input_tokens"] is not None
+            and observed["cached_tokens"] > observed["input_tokens"]):
+        observed["cached_tokens"] = None
+    missing = [field for field, value in observed.items() if value is None]
     return {
-        "status": "AVAILABLE" if latency is not None else "MISSING_TELEMETRY",
-        "input_tokens": int(totals.get("input_tokens", 0)),
-        "output_tokens": int(totals.get("output_tokens", 0)),
-        "cached_tokens": int(totals.get("cached_input_tokens", 0)),
+        "status": "AVAILABLE" if not missing and latency is not None else "MISSING_TELEMETRY",
+        **observed,
         "latency_ms": latency,
-        "llm_calls": calls,
+        "llm_calls": None,
+        "llm_calls_status": "NOT_OBSERVED",
+        "token_count_events": token_count_events,
+        "missing_fields": missing,
+        "scope": "SESSION_CUMULATIVE",
+        "cache_accounting": "SUBSET_OF_INPUT_TOKENS",
     }
+
+
+def _session_telemetry_summary(
+    parent_records: Sequence[Mapping[str, Any]],
+    children: Mapping[str, Sequence[Mapping[str, Any]]],
+) -> dict[str, Any]:
+    """Keep parent/child counters separate; never claim a full-chain cost."""
+    sessions = {"parent": _rollout_telemetry(parent_records), **{
+        name: _rollout_telemetry(records) for name, records in children.items()
+    }}
+    available = all(value["status"] == "AVAILABLE" for value in sessions.values())
+    result = {
+        "status": "AVAILABLE" if available else "MISSING_TELEMETRY",
+        "scope": "OBSERVED_SESSION_SUM_NOT_FULL_CHAIN",
+        "by_session": sessions,
+        "latency_ms": sessions["parent"]["latency_ms"],
+        "llm_calls": None, "llm_calls_status": "NOT_OBSERVED",
+        "cache_accounting": "SUBSET_OF_INPUT_TOKENS",
+    }
+    for field in ("input_tokens", "output_tokens", "cached_tokens"):
+        values = [item[field] for item in sessions.values()]
+        result[field] = sum(values) if all(value is not None for value in values) else None
+    return result
 
 
 def _logical_tool_name(call: Mapping[str, Any], allowed_tools: set[str]) -> str | None:
@@ -539,10 +569,6 @@ def build_specialist_execution_proof(
             raise ExecutionProofError(f"CHILD_SESSION_MISMATCH:{agent_name}")
         children[agent_name] = child
 
-    telemetry_parts = [_rollout_telemetry(parent_records)] + [
-        _rollout_telemetry(child_record_sets[name]) for name in specialists
-    ]
-    telemetry_available = all(item["status"] == "AVAILABLE" for item in telemetry_parts)
     proof: dict[str, Any] = {
         "schema_version": PROOF_SCHEMA_VERSION,
         "parent": {
@@ -561,14 +587,7 @@ def build_specialist_execution_proof(
         ),
         "children": children,
         "raw_prompt_or_reasoning_retained": False,
-        "telemetry": {
-            "status": "AVAILABLE" if telemetry_available else "MISSING_TELEMETRY",
-            "input_tokens": sum(item["input_tokens"] for item in telemetry_parts) if telemetry_available else None,
-            "output_tokens": sum(item["output_tokens"] for item in telemetry_parts) if telemetry_available else None,
-            "cached_tokens": sum(item["cached_tokens"] for item in telemetry_parts) if telemetry_available else None,
-            "latency_ms": telemetry_parts[0]["latency_ms"] if telemetry_available else None,
-            "llm_calls": sum(item["llm_calls"] for item in telemetry_parts) if telemetry_available else None,
-        },
+        "telemetry": _session_telemetry_summary(parent_records, child_record_sets),
     }
     proof["proof_hash"] = canonical_hash(proof)
     return proof
@@ -654,8 +673,9 @@ def _public_codex_telemetry(
     fields = ("input_tokens", "output_tokens", "cached_input_tokens")
     if any(
         not isinstance(usage.get(field), int) or isinstance(usage.get(field), bool)
+        or usage[field] < 0
         for field in fields
-    ):
+    ) or usage["cached_input_tokens"] > usage["input_tokens"]:
         raise ExecutionProofError("CODEX_USAGE_INVALID")
     return {
         "status": "AVAILABLE",

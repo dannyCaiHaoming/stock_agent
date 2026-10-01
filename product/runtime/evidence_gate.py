@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import copy
+import re
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from product.mcp.provenance import canonical_json, content_hash, parse_timestamp
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash
 
 
 GATE_SCHEMA_VERSION = "evidence-gate/2.0.0"
@@ -29,6 +32,46 @@ REQUIRED_FACT_FIELDS = (
 
 class FixtureValidationError(ValueError):
     """The fixture cannot safely enter the product runtime."""
+
+
+def bind_frozen_gate_to_run(gate_path: Path, *, run_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """显式复用冻结资料；只创建执行视图，不改原文件或来源事实。"""
+    if not isinstance(run_id, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}", run_id) is None:
+        raise FixtureValidationError("FROZEN_GATE_RUN_ID_INVALID")
+    source = json.loads(Path(gate_path).read_text(encoding="utf-8"))
+    if (not isinstance(source, dict)
+            or source.get("bundle_hash") != legacy_envelope_hash(source, hash_field="bundle_hash")):
+        raise FixtureValidationError("FROZEN_GATE_SOURCE_HASH_INVALID")
+    view = copy.deepcopy(source)
+    view["run_id"] = run_id
+    view.setdefault("source_mode", "fixture")
+    view["bundle_hash"] = legacy_envelope_hash(view, hash_field="bundle_hash")
+    binding = {
+        "source_ref": "audit/frozen-gate-source.json",
+        "source_file_hash": file_hash(Path(gate_path)),
+        "source_run_id": source.get("run_id"),
+        "source_gate_hash": source["bundle_hash"],
+        "source_content_hash": canonical_hash({k: v for k, v in source.items() if k not in {"run_id", "bundle_hash"}}),
+        "execution_run_id": run_id,
+        "execution_gate_hash": view["bundle_hash"],
+    }
+    return view, binding
+
+
+def validate_frozen_gate_binding(run_dir: Path, manifest: Mapping[str, Any], gate: Mapping[str, Any]) -> None:
+    """重新读取冻结来源核对身份分离；旧未重绑包不需要新增历史证据。"""
+    binding = manifest.get("gate_input_binding")
+    if binding is None:
+        return
+    if not isinstance(binding, dict) or binding.get("source_ref") != "audit/frozen-gate-source.json":
+        raise FixtureValidationError("FROZEN_GATE_BINDING_INVALID")
+    source_path = Path(run_dir) / binding["source_ref"]
+    if (not source_path.is_file() or source_path.is_symlink()
+            or not source_path.resolve().is_relative_to(Path(run_dir).resolve())):
+        raise FixtureValidationError("FROZEN_GATE_SOURCE_MISSING")
+    expected_gate, expected_binding = bind_frozen_gate_to_run(source_path, run_id=manifest["run_id"])
+    if binding != expected_binding or gate != expected_gate:
+        raise FixtureValidationError("FROZEN_GATE_BINDING_INVALID")
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,7 +271,7 @@ def run_evidence_gate(fixture: Mapping[str, Any], *, run_id: str) -> GateResult:
         "allowed_evidence": allowed,
         "input_hash": content_hash(fixture),
     }
-    body["bundle_hash"] = content_hash(body)
+    body["bundle_hash"] = legacy_envelope_hash(body, hash_field="bundle_hash")
     return GateResult(body)
 
 
@@ -340,5 +383,5 @@ def run_live_evidence_gate(snapshot: Mapping[str, Any], *, run_id: str, calendar
             "allowed_evidence": [allowed[k] for k in sorted(allowed)],
             "excluded": [rejected[k] for k in sorted(rejected)], "conflicts": conflicts,
             "calendar_lock": {"version": calendar.version, "hash": calendar.content_hash} if calendar else None}
-    body["bundle_hash"] = content_hash(body)
+    body["bundle_hash"] = legacy_envelope_hash(body, hash_field="bundle_hash")
     return GateResult(body)

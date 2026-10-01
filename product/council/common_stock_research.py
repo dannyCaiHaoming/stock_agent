@@ -15,7 +15,7 @@ from typing import Any, Mapping, Sequence
 
 from product.intake.v3 import validate_handoff
 from product.mcp.provenance import parse_timestamp
-from product.runtime.hashing import canonical_hash
+from product.runtime.hashing import canonical_hash, legacy_envelope_hash
 from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
 from product.runtime.validation import ArtifactValidationError, validate_evidence_closure
 
@@ -69,12 +69,6 @@ def _schema(name: str) -> dict[str, Any]:
     return json.loads((SCHEMA_ROOT / name).read_text(encoding="utf-8"))
 
 
-def _without_hash(value: Mapping[str, Any], key: str) -> dict[str, Any]:
-    result = copy.deepcopy(dict(value))
-    result.pop(key, None)
-    return result
-
-
 def _exact_keys(value: Mapping[str, Any], expected: set[str], code: str) -> None:
     missing = sorted(expected - value.keys())
     extra = sorted(value.keys() - expected)
@@ -124,7 +118,7 @@ def _scoped_evidence_ids(gate: Mapping[str, Any], security_id: str) -> list[str]
     if not isinstance(facts, list):
         raise CommonStockResearchError("RESEARCH_GATE_FACTS_INVALID")
     allowed_set = set(allowed)
-    if gate.get("bundle_hash") != canonical_hash(_without_hash(gate, "bundle_hash")):
+    if gate.get("bundle_hash") != legacy_envelope_hash(gate, hash_field="bundle_hash"):
         raise CommonStockResearchError("RESEARCH_GATE_HASH_MISMATCH")
     fact_ids = [fact.get("evidence_id") for fact in facts if isinstance(fact, Mapping)]
     if len(fact_ids) != len(facts) or set(fact_ids) != allowed_set or len(fact_ids) != len(set(fact_ids)):
@@ -235,7 +229,7 @@ def build_holding_research_requests(
         }
         if not value["allowed_evidence_ids"]:
             value["data_gaps"].append("当前冻结资料没有该证券可用 Evidence。")
-        value["request_hash"] = canonical_hash(_without_hash(value, "request_hash"))
+        value["request_hash"] = legacy_envelope_hash(value, hash_field="request_hash")
         validate_holding_research_request(
             value, handoff=handoff, council_request=council_request, gate=gate
         )
@@ -277,7 +271,7 @@ def validate_holding_research_request(
     if value["allowed_evidence_ids"] != scoped:
         raise CommonStockResearchError("HOLDING_RESEARCH_EVIDENCE_SCOPE_INVALID")
     _skill_names(value["skill_bindings"], key="name")
-    if value.get("request_hash") != canonical_hash(_without_hash(value, "request_hash")):
+    if value.get("request_hash") != legacy_envelope_hash(value, hash_field="request_hash"):
         raise CommonStockResearchError("HOLDING_RESEARCH_REQUEST_HASH_MISMATCH")
 
 
@@ -507,7 +501,7 @@ def build_initial_research_coverage(
         "cancelled_at": None,
         "items": items,
     }
-    value["coverage_hash"] = canonical_hash(_without_hash(value, "coverage_hash"))
+    value["coverage_hash"] = legacy_envelope_hash(value, hash_field="coverage_hash")
     validate_research_coverage(value, handoff=handoff, council_request=council_request)
     return value
 
@@ -519,6 +513,7 @@ def prepare_common_stock_research_stage(
     effective_concurrency: int = 3, execution_mode_reason: str | None = None,
     per_item_timeout_seconds: int = 900, batch_budget_seconds: int = 1800,
     data_preparation: Mapping[str, Any] | None = None,
+    data_source_run_id: str | None = None,
 ) -> dict[str, Any]:
     """Prepare the explicit research-only stage after full-portfolio planning.
 
@@ -536,8 +531,8 @@ def prepare_common_stock_research_stage(
     )
     preparation_by_security: dict[str, Mapping[str, Any]] = {}
     if data_preparation is not None:
-        if data_preparation.get("preparation_hash") != canonical_hash(
-            _without_hash(data_preparation, "preparation_hash")
+        if data_preparation.get("preparation_hash") != legacy_envelope_hash(
+            data_preparation, hash_field="preparation_hash"
         ):
             raise CommonStockResearchError("RESEARCH_DATA_PREPARATION_HASH_MISMATCH")
         expected_common_ids = {
@@ -545,7 +540,7 @@ def prepare_common_stock_research_stage(
             if item["asset_type"] == "COMMON_STOCK"
         }
         if (
-            data_preparation.get("run_id") != run_id
+            data_preparation.get("run_id") != (data_source_run_id or run_id)
             or data_preparation.get("handoff_id") != handoff["handoff_id"]
             or data_preparation.get("handoff_hash") != handoff["handoff_hash"]
             or data_preparation.get("portfolio_hash") != handoff["portfolio_hash"]
@@ -633,7 +628,7 @@ def prepare_common_stock_research_stage(
                 ]
             ),
         })
-    coverage["coverage_hash"] = canonical_hash(_without_hash(coverage, "coverage_hash"))
+    coverage["coverage_hash"] = legacy_envelope_hash(coverage, hash_field="coverage_hash")
     validate_research_coverage(coverage, handoff=handoff, council_request=council_request)
     stage = {
         "schema_version": "common-stock-research-stage/1.0.0",
@@ -694,7 +689,7 @@ def validate_research_coverage(
             for field in ("eval_ref", "eval_result_hash", "evaluated_report_hash")
         ):
             raise CommonStockResearchError("RESEARCH_COVERAGE_EVAL_BINDING_MISSING")
-    if value.get("coverage_hash") != canonical_hash(_without_hash(value, "coverage_hash")):
+    if value.get("coverage_hash") != legacy_envelope_hash(value, hash_field="coverage_hash"):
         raise CommonStockResearchError("RESEARCH_COVERAGE_HASH_MISMATCH")
     if value["execution_mode"] == "SERIAL" and not value.get("execution_mode_reason"):
         raise CommonStockResearchError("RESEARCH_SERIAL_REASON_REQUIRED")
@@ -786,7 +781,7 @@ def build_retry_request(request: Mapping[str, Any], *, retry_sequence: int) -> d
     value = copy.deepcopy(dict(request))
     value["request_id"] = f"{request['request_id']}:retry-{retry_sequence}"
     value["invocation_id"] = f"{request['invocation_id']}:retry-{retry_sequence}"
-    value["request_hash"] = canonical_hash(_without_hash(value, "request_hash"))
+    value["request_hash"] = legacy_envelope_hash(value, hash_field="request_hash")
     return value
 
 
@@ -971,9 +966,7 @@ class BoundedResearchDispatch:
         return copy.deepcopy(self.coverage)
 
     def _rehash(self) -> None:
-        self.coverage["coverage_hash"] = canonical_hash(
-            _without_hash(self.coverage, "coverage_hash")
-        )
+        self.coverage["coverage_hash"] = legacy_envelope_hash(self.coverage, hash_field="coverage_hash")
 
 
 def parallel_intervals_overlap(events: Sequence[Mapping[str, Any]]) -> bool:

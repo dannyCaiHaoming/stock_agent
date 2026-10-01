@@ -1,5 +1,5 @@
 """真实解析/冻结路径＋内存 HTTP 响应；禁止以本测试宣称真实取数。"""
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 import json
 import importlib.util
 from pathlib import Path
@@ -63,6 +63,9 @@ class LiveCollectionTests(unittest.TestCase):
     def test_collection_resolves_sec_xsl_ownership_document_to_raw_xml(self):
         self.collect_case(routed=True, ownership=True)
 
+    def test_peer_scope_omits_unneeded_ownership_fetch(self):
+        self.collect_case(routed=True, ownership=True, peer_scope=True)
+
     def test_directory_unavailable_does_not_block_verified_holding(self):
         for failure in ("http403", "transport"):
             with self.subTest(failure=failure):
@@ -81,7 +84,8 @@ class LiveCollectionTests(unittest.TestCase):
         self.collect_case(routed=True, fail_primary=True)
 
     def collect_case(self, *, routed=False, fail_primary=False, directory_failure=None, wrong_exchange=False,
-                     missing_history=False, collection_only=False, ownership=False):
+                     missing_history=False, collection_only=False, ownership=False,
+                     peer_scope=False):
         with tempfile.TemporaryDirectory() as temp:
             directory = Path(temp).resolve()
             portfolio = directory / "portfolio.json"
@@ -180,6 +184,7 @@ class LiveCollectionTests(unittest.TestCase):
                 if fail_primary:
                     raise ValueError("YAHOO_HTTP_503")
                 self.assertEqual(set(securities[0]), {"security_id", "ticker", "currency"})
+                self.assertEqual(kwargs["start"], (NOW.date() - timedelta(days=550)).isoformat())
                 raw = json.dumps({"chart": {"error": None, "result": [{"meta": {"symbol": "TEST", "instrumentType": "EQUITY",
                     "currency": "USD", "exchangeName": "NYQ" if wrong_exchange else "NMS", "exchangeTimezoneName": "America/New_York"}}]}}).encode()
                 session.live_boundary.request(Mock(return_value=SimpleNamespace(status_code=200, content=raw, headers={})),
@@ -193,7 +198,8 @@ class LiveCollectionTests(unittest.TestCase):
                 calendar_factory = ExchangeCalendar if importlib.util.find_spec("exchange_calendars") else FrozenCalendar
                 result = collect_live_snapshot(portfolio, access_path=source, output_dir=directory / "out", cache_root=directory / "cache",
                     sec_user_agent="synthetic contact@example.invalid", now=lambda: NOW, sec_factory=sec_factory,
-                    session_factory=session_factory, market_collector=market, calendar_factory=calendar_factory, **factories)
+                    session_factory=session_factory, market_collector=market, calendar_factory=calendar_factory,
+                    peer_scope=peer_scope, **factories)
             except ValueError:
                 if not routed or directory_failure == "corrupt" or wrong_exchange:
                     raise
@@ -206,7 +212,7 @@ class LiveCollectionTests(unittest.TestCase):
                 self.assertEqual(chosen["selected_provider"], "eastmoney" if fail_primary else "yahoo")
                 self.assertEqual(len(chosen["attempts"]), 2 if fail_primary else 1)
             self.assertEqual(snapshot["decision_cutoff"], "2026-09-10T10:00:00Z")
-            self.assertEqual(len(calls), 5 if missing_history or ownership else 4)
+            self.assertEqual(len(calls), 5 if missing_history or (ownership and not peer_scope) else 4)
             if missing_history:
                 event = next(e for e in snapshot["collection_events"] if e.get("producer") == "sec-history-parser")
                 self.assertEqual(event["coverage"], "PARTIAL_LISTED_HISTORY")
@@ -215,7 +221,7 @@ class LiveCollectionTests(unittest.TestCase):
                 self.assertFalse(any(f.get("accession") == "0000000001-00-000001" for f in snapshot["facts"]))
             self.assertTrue(any(f["kind"] == "derived" for f in snapshot["facts"]))
             self.assertTrue(any(f["kind"] == "disclosure" for f in snapshot["facts"]))
-            if ownership:
+            if ownership and not peer_scope:
                 ownership_fact = next(
                     fact for fact in snapshot["facts"]
                     if fact.get("semantic_field") == "ownership_insider_transaction"
@@ -232,6 +238,9 @@ class LiveCollectionTests(unittest.TestCase):
                 )
                 self.assertEqual(ownership_event["coverage"], "FORMS_3_4_5_TRANSACTION_TABLES_ONLY")
                 self.assertNotIn("/xslF345X06/", ownership_event["raw_document_url"])
+            if peer_scope:
+                self.assertFalse(any(event.get("producer") == "sec-ownership-parser"
+                                     for event in snapshot["collection_events"]))
             self.assertEqual(snapshot["identity"]["security_metadata"][0]["security_type"], "COMMON_STOCK")
             if collection_only:
                 binding = snapshot["identity"]["binding"]["bindings"][0]

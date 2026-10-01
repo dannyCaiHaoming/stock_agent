@@ -17,6 +17,7 @@ from .hashing import canonical_hash
 
 
 RISK_RESULT_VERSION = "native-risk-result/2.0.0"
+REFERENCE_RISK_POLICY_VERSION = "risk/reference/1.0.0"
 
 
 def _primitive(value: Any) -> Any:
@@ -85,7 +86,7 @@ def build_risk_snapshot(fixture: Mapping[str, Any], *, run_id: str) -> Portfolio
 def build_risk_policy(fixture: Mapping[str, Any]) -> RiskPolicy:
     mandate = fixture["portfolio"]["mandate"]
     return RiskPolicy(
-        version="risk/reference/1.0.0",
+        version=REFERENCE_RISK_POLICY_VERSION,
         mandate_version="mandate/fixture/2.0.0",
         max_position_weight=Decimal(str(mandate["max_position_weight"])),
         max_sector_weight=Decimal(str(mandate["max_position_weight"])),

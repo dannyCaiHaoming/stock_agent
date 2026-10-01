@@ -7,41 +7,22 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Mapping
 
-from .hashing import canonical_hash, file_hash
+from .hashing import canonical_hash, file_hash, verify_legacy_envelope_hash, HashContractError
 
 
-CAPABILITY_DOMAIN = {
-    "COMPANY_RESEARCH": "COMPANY", "FUNDAMENTAL_EVENT": "COMPANY",
-    "RESEARCH_REPORT": "COMPANY", "MACRO_CONTEXT": "MACRO",
-    "MARKET_STATE": "MARKET",
-    "INDUSTRY_COMPARISON": "MARKET", "TECHNICAL_STRUCTURE": "MARKET",
-    "OPTIONS_FLOW": "MARKET", "OWNERSHIP_DISCLOSURE": "COMPANY",
-}
+from .research_input_topology import (
+    CAPABILITY_DOMAIN, DATASET_DOMAIN, EIGHT_DIMENSION_INPUTS,
+    dataset_consumers, dataset_domain, fact_dataset,
+)
 CORE_ITEMS = {
     "COMPANY": ("financial_history", "identity_profile", "business_segments"),
     "MACRO": ("us_treasury_10y_yield", "us_cpi_all_items", "us_unemployment_rate"),
     "MARKET": ("close_price", "historical_close_price", "market_context_close"),
 }
-DATASET_DOMAIN = {
-    "financial_history": "COMPANY", "identity_profile": "COMPANY",
-    "business_segments": "COMPANY", "management_governance": "COMPANY",
-    "capital_allocation": "COMPANY", "earnings_guidance": "COMPANY",
-    "analyst_expectations": "COMPANY", "event_context": "COMPANY",
-    "research_discovery": "COMPANY", "macro_history": "MACRO",
-    "economic_calendar": "MACRO", "dot_plot": "MACRO",
-    "market_breadth": "MARKET", "fedwatch_expectations": "MARKET",
-    "market_news_item": "MARKET",
-}
 
 
 def _domain(dataset: str, source: str) -> str:
-    if dataset in DATASET_DOMAIN:
-        return DATASET_DOMAIN[dataset]
-    if source.startswith(("bls-", "us-treasury-", "federal-reserve-", "bea-", "fred-", "official-macro")):
-        return "MACRO"
-    if source.startswith(("yahoo-market-context", "yahoo-daily", "yahoo-options", "market-context")):
-        return "MARKET"
-    return "COMPANY"
+    return dataset_domain(dataset)
 
 
 def _read(path: Path) -> dict[str, Any] | None:
@@ -65,10 +46,12 @@ def _refs(value: Any, field: str) -> set[str]:
     return found
 
 
-def _events(run_dir: Path) -> tuple[bool, dict[str, dict[str, Any]]]:
+def _events(run_dir: Path) -> tuple[bool, dict[str, dict[str, Any]], str]:
     path = run_dir / "events/mcp/events.jsonl"
     if not path.is_file():
-        return False, {}
+        return False, {}, "NOT_OBSERVED"
+    gate = _read(run_dir / "evidence/gate.json") or {}
+    unsigned = False
     result: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"evidence": set(), "calculations": {}}
     )
@@ -76,6 +59,33 @@ def _events(run_dir: Path) -> tuple[bool, dict[str, dict[str, Any]]]:
         if not line.strip():
             continue
         event = json.loads(line)
+        if not isinstance(event, Mapping):
+            raise ValueError("RESEARCH_AUDIT_EVENT_INVALID")
+        if "event_hash" not in event:
+            unsigned = True
+            continue
+        try:
+            verify_legacy_envelope_hash(event, hash_field="event_hash", location=str(path))
+        except HashContractError as exc:
+            raise ValueError(f"RESEARCH_AUDIT_EVENT_HASH_MISMATCH:{exc}") from exc
+        event_run_id = event.get("run_id")
+        if event.get("tool") == "research_report.submit":
+            from .research_submission import submission_event_identity
+            try:
+                identity = submission_event_identity(
+                    run_dir, event.get("invocation_id"), event.get("submission"), event.get("output_hash"),
+                )
+            except (ValueError, KeyError, TypeError, OSError, StopIteration) as exc:
+                raise ValueError("RESEARCH_AUDIT_SUBMISSION_BINDING_INVALID") from exc
+            legacy = "run_id" not in event and "event_type" not in event
+            if (any(event[field] != value for field, value in identity.items() if field in event)
+                    or not legacy and (event.get("event_type") != "research_submission" or any(
+                        event.get(field) != value for field, value in identity.items()
+                    ))):
+                raise ValueError("RESEARCH_AUDIT_SUBMISSION_BINDING_INVALID")
+            event_run_id = identity["run_id"]
+        if event_run_id != gate.get("run_id"):
+            raise ValueError("RESEARCH_AUDIT_EVENT_RUN_MISMATCH")
         if event.get("event_type") != "mcp_tool_result":
             continue
         invocation = event.get("invocation_id")
@@ -92,7 +102,192 @@ def _events(run_dir: Path) -> tuple[bool, dict[str, dict[str, Any]]]:
             for item in event.get("calculation_ids", []):
                 if isinstance(item, str):
                     result[invocation]["calculations"][item] = evidence
-    return True, result
+    return True, result, "UNVERIFIED_LEGACY_EVENTS" if unsigned else "HASH_VERIFIED"
+
+
+def _query_diagnostics(run_dir: Path) -> dict[str, Any]:
+    """Count observed Gate reads without copying tool payloads into the audit."""
+
+    path = run_dir / "events/mcp/events.jsonl"
+    if not path.is_file():
+        return {"status": "NOT_OBSERVED", "by_invocation": [], "by_tool": []}
+    by_invocation: dict[str, dict[str, Any]] = {}
+    by_tool: dict[tuple[str, str], dict[str, Any]] = {}
+    tool_names = {
+        "query": "query", "fixture_evidence.query": "query", "live_evidence.query": "query",
+        "calculate": "calculate", "fixture_math.calculate": "calculate", "live_math.calculate": "calculate",
+    }
+    for position, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        raw_tool = event.get("tool")
+        tool = tool_names.get(raw_tool, raw_tool)
+        invocation_id = event.get("invocation_id")
+        if (not isinstance(tool, str) or not tool or not isinstance(invocation_id, str)
+                or not invocation_id or event.get("event_type") not in {
+                    "mcp_tool_result", "mcp_tool_error", "mcp_reference_transport"}):
+            continue
+        if event.get("event_type") == "mcp_reference_transport":
+            tool_row = by_tool.setdefault((invocation_id, tool), {
+                "invocation_id": invocation_id, "tool": tool,
+                "success_count": 0, "errors": [], "calculation_results": [],
+                "result_bytes_observed": 0, "result_bytes_missing_count": 0,
+            })
+            size = event.get("output_bytes")
+            tool_row["model_transport_count"] = tool_row.get("model_transport_count", 0) + 1
+            if type(size) is int and size >= 0:
+                tool_row["model_transport_bytes_observed"] = tool_row.get("model_transport_bytes_observed", 0) + size
+            else:
+                tool_row["model_transport_bytes_missing_count"] = tool_row.get("model_transport_bytes_missing_count", 0) + 1
+            row = by_invocation.setdefault(invocation_id, {
+                "invocation_id": invocation_id, "query_count": 0,
+                "result_bytes_observed": 0, "result_bytes_missing_count": 0,
+                "repeated_evidence_ids": [], "first_error_code": None,
+            })
+            if tool == "query":
+                size = event.get("output_bytes")
+                if type(size) is int and size >= 0:
+                    row["model_transport_bytes_observed"] = row.get("model_transport_bytes_observed", 0) + size
+                else:
+                    row["model_transport_bytes_missing_count"] = row.get("model_transport_bytes_missing_count", 0) + 1
+                row["model_transport_count"] = row.get("model_transport_count", 0) + 1
+            continue
+        tool_row = by_tool.setdefault((invocation_id, tool), {
+            "invocation_id": invocation_id, "tool": tool,
+            "success_count": 0, "errors": [], "calculation_results": [],
+            "result_bytes_observed": 0, "result_bytes_missing_count": 0,
+        })
+        if event.get("event_type") == "mcp_tool_error":
+            tool_row["errors"].append({
+                "event_position": position,
+                "error_code": str(event.get("error", "UNKNOWN")).split(":", 1)[0],
+                "operation": event.get("operation") or "NOT_OBSERVED",
+            })
+        elif event.get("event_type") == "mcp_tool_result":
+            tool_row["success_count"] += 1
+            size = event.get("output_bytes")
+            if type(size) is int and size >= 0:
+                tool_row["result_bytes_observed"] += size
+            else:
+                tool_row["result_bytes_missing_count"] += 1
+            if tool == "calculate":
+                tool_row["calculation_results"].append({
+                    "event_position": position,
+                    "operation": event.get("operation") or "NOT_OBSERVED",
+                    "calculation_id": event.get("calculation_id") or "NOT_OBSERVED",
+                })
+        if tool != "query":
+            continue
+        row = by_invocation.setdefault(invocation_id, {
+            "invocation_id": invocation_id, "query_count": 0,
+            "result_bytes_observed": 0, "result_bytes_missing_count": 0,
+            "repeated_evidence_ids": [], "first_error_code": None,
+        })
+        if event.get("event_type") == "mcp_tool_error":
+            if row["first_error_code"] is None:
+                row["first_error_code"] = str(event.get("error", "UNKNOWN")).split(":", 1)[0]
+            continue
+        if event.get("event_type") != "mcp_tool_result":
+            continue
+        row["query_count"] += 1
+        response_bytes = event.get("output_bytes")
+        if type(response_bytes) is int and response_bytes >= 0:
+            row["result_bytes_observed"] += response_bytes
+        else:
+            row["result_bytes_missing_count"] += 1
+        seen = row.setdefault("_seen", set())
+        for evidence_id in event.get("evidence_ids", []):
+            if not isinstance(evidence_id, str):
+                continue
+            if evidence_id in seen and evidence_id not in row["repeated_evidence_ids"]:
+                row["repeated_evidence_ids"].append(evidence_id)
+            seen.add(evidence_id)
+    for row in by_invocation.values():
+        row.pop("_seen", None)
+        row["repeated_evidence_ids"].sort()
+    return {"status": "OBSERVED", "by_invocation": [
+        by_invocation[key] for key in sorted(by_invocation)
+    ], "by_tool": [by_tool[key] for key in sorted(by_tool)]}
+
+
+def _cost_diagnostics(run_dir: Path, queries: Mapping[str, Any]) -> dict[str, Any]:
+    """Read existing delivery events; bytes never substitute for token usage."""
+    deliveries = []
+    for relative in ("invocation/subagent-events.jsonl", "invocation/skeptic/subagent-events.jsonl",
+                     "invocation/cio-stop-events.jsonl"):
+        hook_path = run_dir / relative
+        if not hook_path.is_file():
+            continue
+        for position, line in enumerate(hook_path.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            try:
+                verify_legacy_envelope_hash(event, hash_field="event_hash", location=str(hook_path))
+            except HashContractError as exc:
+                raise ValueError(f"RESEARCH_AUDIT_DELIVERY_HASH_MISMATCH:{exc}") from exc
+            main_start = event.get("hook_event_name") == "SessionStart" and event.get("execution_context") == "MAIN_THREAD"
+            if event.get("hook_event_name") != "SubagentStart" and not main_start:
+                continue
+            binding = event.get("context_binding", {})
+            diagnostics = event.get("delivery_diagnostics", binding.get("delivery_diagnostics"))
+            if not main_start and binding.get("status") not in {"DELIVERED", "EMITTED"}:
+                continue
+            deliveries.append({
+                "event_path": relative, "execution_context": "MAIN_THREAD" if main_start else "SUBAGENT",
+                "event_position": position, "event_hash": event["event_hash"],
+                "agent": "runtime_cio" if main_start else event.get("agent_type"),
+                "child_session_id": event.get("child_session_id"),
+                "invocation_id": binding.get("invocation_id"),
+                "diagnostics": diagnostics,
+                "measurement_status": "OBSERVED" if isinstance(diagnostics, Mapping) else "NOT_OBSERVED",
+            })
+    parent = _observed_parent_usage(run_dir)
+    # Canonical responses and reference-transport replacements describe two
+    # representations of ONE response. Keep both columns, never add them.
+    return {
+        "scope": "OBSERVED_DELIVERY_AND_QUERY_REPRESENTATIONS_NOT_FULL_CHAIN_COST",
+        "initial_contexts": deliveries,
+        "query_representations": queries["by_invocation"],
+        "tool_return_representations": queries["by_tool"],
+        "byte_accounting": "CANONICAL_AND_MODEL_TRANSPORT_ARE_NOT_ADDITIVE",
+        "token_usage": None, "token_usage_status": "NOT_OBSERVED",
+        "parent_usage": parent, "parent_usage_status": parent["status"] if parent else "NOT_OBSERVED",
+        "child_usage": None, "child_usage_status": "NOT_OBSERVED",
+        "total_cost": None, "total_cost_status": "NOT_OBSERVED",
+        "baseline_scope": "SAME_FROZEN_REPRESENTATION_WHEN_MEASURED_NOT_MODEL_BENCHMARK",
+    }
+
+
+def _observed_parent_usage(run_dir: Path) -> dict[str, Any] | None:
+    """读取父 CLI 实际可见的每 turn 使用量；不将其当子会话或全链费用。"""
+    path = run_dir / "invocation/codex-events.jsonl"
+    if not path.is_file():
+        return None
+    from .execution_proof import ExecutionProofError, _public_codex_telemetry
+    turns = []
+    for position, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        if event.get("type") != "turn.completed":
+            continue
+        try:
+            measured = _public_codex_telemetry([event], latency_ms=None, llm_calls=None)
+        except ExecutionProofError as exc:
+            measured = {"status": "NOT_OBSERVED", "reason_code": str(exc).split(":", 1)[0],
+                        "input_tokens": None, "output_tokens": None, "cached_tokens": None}
+        turns.append({"event_position": position, "event_hash": canonical_hash(event), **measured})
+    if not turns:
+        return None
+    return {"scope": "PARENT_CLI_REPORTED_PER_TURN_NOT_CHILD_OR_FULL_CHAIN",
+            "source_path": "invocation/codex-events.jsonl", "source_hash": file_hash(path),
+            "cache_accounting": "SUBSET_OF_INPUT_TOKENS", "by_turn": turns,
+            "status": "AVAILABLE" if all(row["status"] == "AVAILABLE" for row in turns) else "MISSING_TELEMETRY",
+            **{key: sum(row[key] for row in turns) if all(row[key] is not None for row in turns) else None
+               for key in ("input_tokens", "output_tokens", "cached_tokens")},
+            "llm_calls": None, "total_cost": None}
 
 
 def _reports(run_dir: Path) -> list[dict[str, Any]]:
@@ -106,6 +301,35 @@ def _reports(run_dir: Path) -> list[dict[str, Any]]:
         {"path": str(path.relative_to(run_dir)), "file_hash": file_hash(path), "value": _read(path)}
         for path in sorted(set(paths))
     ]
+
+
+def _allowed_catalogs(run_dir: Path, gate: Mapping[str, Any]) -> tuple[dict[str, dict[str, Any]], str]:
+    """读实际绑定的任务允许目录；允许访问不冒称 Agent 已读取。"""
+    index = _read(run_dir / "research/dispatch-index.json")
+    manifest = _read(run_dir / "run_manifest.json")
+    if not index or not manifest or "index_hash" not in index:
+        return {}, "NOT_VERIFIED"
+    if index.get("schema_version") not in {
+        "multidimensional-research-dispatch/2.0.0", "multidimensional-research-dispatch/2.1.0",
+    }:
+        # 此投影只读取已有八维任务允许目录，不伪造其它阶段的加载或访问证明。
+        return {}, "NOT_PROJECTED_FOR_THIS_DISPATCH_VERSION"
+    if (index["index_hash"] != canonical_hash({k: v for k, v in index.items() if k != "index_hash"})
+            or index.get("run_id") != gate.get("run_id")
+            or manifest.get("dispatch_index_hash") != index["index_hash"]
+            or manifest.get("gate_hash") != gate.get("bundle_hash")):
+        raise ValueError("RESEARCH_AUDIT_CATALOG_BINDING_INVALID")
+    allowed = {fact["evidence_id"] for fact in gate.get("allowed_evidence", [])}
+    catalogs = {}
+    for task in index.get("tasks", []):
+        invocation = task.get("invocation_id")
+        ids = task.get("allowed_evidence_ids")
+        if (not isinstance(invocation, str) or invocation in catalogs
+                or not isinstance(ids, list) or any(not isinstance(item, str) for item in ids)
+                or not set(ids) <= allowed):
+            raise ValueError("RESEARCH_AUDIT_CATALOG_SCOPE_INVALID")
+        catalogs[invocation] = {"capability": task.get("capability"), "evidence": set(ids)}
+    return catalogs, "HASH_VERIFIED_ALLOWED_CATALOG"
 
 
 def _verify_company_binding(run_dir: Path, company_dir: Path, gate: Mapping[str, Any]) -> None:
@@ -202,9 +426,13 @@ def build_research_consumption_audit(
     event_sources = [run_dir] + ([company_dir] if company_dir is not None else [])
     events: dict[str, dict[str, Any]] = {}
     event_file_presence: dict[str, bool] = {}
+    event_integrity: dict[str, str] = {}
     for source in event_sources:
-        present, entries = _events(source)
+        present, entries, integrity = _events(source)
         event_file_presence[str(source)] = present
+        event_integrity[str(source)] = integrity
+        if set(events) & set(entries):
+            raise ValueError("RESEARCH_AUDIT_INVOCATION_COLLISION")
         events.update(entries)
     report_sources = [run_dir] + ([company_dir] if company_dir is not None else [])
     reports = [{**item, "source_dir": source}
@@ -232,6 +460,7 @@ def build_research_consumption_audit(
                 artifact = _read(attachment)
                 if artifact and artifact.get("schema_version") in {
                     "technical-calculation/1.0.0", "market-state-calculation/1.0.0",
+                    "market-breadth-calculation/1.0.0",
                 }:
                     references[invocation]["attachment_parents"].update(
                         evidence_id for evidence_id in artifact.get("evidence_fact_ids", [])
@@ -240,7 +469,9 @@ def build_research_consumption_audit(
         report_list.append({
             "report_id": value.get("report_id"), "invocation_id": invocation,
             "capability": value.get("capability", "COMPANY_RESEARCH" if "equity-research" in item["path"] else None),
-            "status": value.get("status"), "report_hash": value.get("report_hash"),
+            "status": value.get("status"), "sufficiency": value.get("sufficiency"),
+            "evaluation_status": value.get("evaluation_status"),
+            "report_hash": value.get("report_hash"),
             "file_hash": item["file_hash"], "artifact_ref": item["path"],
         })
     by_id = {
@@ -275,11 +506,8 @@ def build_research_consumption_audit(
         attachment_by_invocation[invocation] = refs["attachment_parents"] - direct - indirect
     coverage = _read(run_dir / "audit/provider-coverage.json") or {}
     source_plan = _read(Path(__file__).resolve().parents[1] / "mcp/live/research-supplement-source-plan.json") or {}
-    routed_domains = {
-        item["dataset"]: CAPABILITY_DOMAIN.get(item.get("target_capability"), "COMPANY")
-        for item in coverage.get("capability_routing", {}).get("dataset_observations", [])
-        if isinstance(item, Mapping) and isinstance(item.get("dataset"), str)
-    }
+    routing = coverage.get("capability_routing", {}).get("dataset_observations", [])
+    catalogs, catalog_status = _allowed_catalogs(run_dir, gate)
     observed: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     observed_dataset_by_id: dict[str, str] = {}
     for provider in coverage.get("providers", []):
@@ -289,17 +517,17 @@ def build_research_consumption_audit(
                 observed[(provider.get("provider", ""), dataset)].append(observation)
                 for evidence_id in observation.get("evidence_ids", []):
                     if isinstance(evidence_id, str):
-                        observed_dataset_by_id.setdefault(evidence_id, dataset)
+                        previous = observed_dataset_by_id.setdefault(evidence_id, dataset)
+                        if previous != dataset:
+                            raise ValueError("RESEARCH_AUDIT_DATASET_BINDING_AMBIGUOUS")
     datasets: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for fact in [*by_id.values(), *excluded.values()]:
-        metadata = fact.get("metadata") or {}
         field = fact.get("semantic_field") or "unknown"
-        dataset = (
-            observed_dataset_by_id.get(fact["evidence_id"])
-            or metadata.get("dataset")
-            or ("financial_history" if str(field).startswith(("us-gaap.", "dei.")) else None)
-            or field
-        )
+        observed_dataset = observed_dataset_by_id.get(fact["evidence_id"])
+        declared_dataset = fact.get("dataset") or (fact.get("metadata") or {}).get("dataset")
+        if observed_dataset and declared_dataset and observed_dataset != declared_dataset:
+            raise ValueError("RESEARCH_AUDIT_DATASET_BINDING_MISMATCH")
+        dataset = observed_dataset or fact_dataset(fact)
         source = fact.get("source_id") or "unknown"
         datasets[(str(dataset), str(source), str(field))].append(fact)
     rows = []
@@ -307,6 +535,8 @@ def build_research_consumption_audit(
         ids = {item["evidence_id"] for item in facts}
         allowed = ids & by_id.keys()
         delivered = {inv: sorted(ids & record["evidence"]) for inv, record in events.items() if ids & record["evidence"]}
+        catalog_allowed = {inv: sorted(ids & record["evidence"]) for inv, record in catalogs.items()
+                           if ids & record["evidence"]}
         direct = {inv: sorted(ids & refs) for inv, refs in direct_by_invocation.items() if ids & refs}
         indirect = {inv: sorted(ids & refs) for inv, refs in indirect_by_invocation.items() if ids & refs}
         attachment = {inv: sorted(ids & refs) for inv, refs in attachment_by_invocation.items() if ids & refs}
@@ -316,7 +546,7 @@ def build_research_consumption_audit(
             use_status = "ATTACHMENT_PARENT_LINKED"
         elif delivered:
             use_status = "DELIVERED_UNREFERENCED"
-        elif not all(event_file_presence.values()):
+        elif not all(state == "HASH_VERIFIED" for state in event_integrity.values()):
             use_status = "NOT_VERIFIED"
         elif allowed:
             use_status = "AVAILABLE_NOT_QUERIED"
@@ -327,7 +557,9 @@ def build_research_consumption_audit(
         unqueried = [item for item in facts if item["evidence_id"] in allowed - delivered_ids]
         unqueried_limit = 24 if "EarningsPerShareDiluted" in field else 3
         rows.append({
-            "domain": routed_domains.get(dataset, _domain(dataset, source)),
+            "domain": dataset_domain(dataset),
+            "mapping_status": "MAPPED" if dataset_domain(dataset) != "UNMAPPED" else "UNMAPPED",
+            "allowed_consumers": list(dataset_consumers(dataset)),
             "dataset": dataset, "source_id": source, "semantic_field": field,
             "as_of": sample.get("as_of"), "retrieved_at": sample.get("retrieved_at"),
             "sample_evidence_id": sample["evidence_id"], "sample_raw_content_hash": sample.get("raw_content_hash"),
@@ -344,6 +576,9 @@ def build_research_consumption_audit(
                 for item in sorted(unqueried, key=lambda item: item["evidence_id"])[:unqueried_limit]
             ],
             "delivered_by_invocation": delivered, "direct_refs_by_invocation": direct,
+            "queried_by_invocation": delivered,
+            "catalog_allowed_by_invocation": catalog_allowed,
+            "routing_observations": [dict(item) for item in routing if item.get("dataset") == dataset],
             "indirect_refs_by_invocation": indirect,
             "attachment_parent_refs_by_invocation": attachment,
             "use_status": use_status,
@@ -380,7 +615,7 @@ def build_research_consumption_audit(
     }
     expected.update(
         (
-            routed_domains.get(item["dataset"], DATASET_DOMAIN.get(item["dataset"], "COMPANY")),
+            dataset_domain(item["dataset"]),
             item["dataset"],
         )
         for item in source_plan.get("datasets", [])
@@ -415,6 +650,74 @@ def build_research_consumption_audit(
             "source_status": source_status,
             "use_statuses": sorted({row["use_status"] for row in matching}) or ["NO_FROZEN_FACT"],
         })
+    handoff = _read(run_dir / "audit/portfolio-handoff.json") or {}
+    holding_ids = {
+        item.get("security_id") for item in handoff.get("portfolio", {}).get("positions", [])
+        if isinstance(item, Mapping)
+    }
+    dimension_rows = []
+    execution_proof = _read(run_dir / "research/execution-proof.json") or {}
+    dispatch = _read(run_dir / "research/dispatch-index.json") or {}
+    invocations_by_capability: dict[str, set[str]] = defaultdict(set)
+    for item in [*dispatch.get("tasks", []), *report_list]:
+        if isinstance(item.get("invocation_id"), str) and isinstance(item.get("capability"), str):
+            invocations_by_capability[item["capability"]].add(item["invocation_id"])
+    failed_capabilities = set()
+    if execution_proof:
+        if (execution_proof.get("proof_hash") != canonical_hash({
+                k: v for k, v in execution_proof.items() if k != "proof_hash"})
+                or execution_proof.get("run_id") != gate.get("run_id")
+                or execution_proof.get("gate_hash") != gate.get("bundle_hash")):
+            raise ValueError("RESEARCH_AUDIT_EXECUTION_PROOF_BINDING_INVALID")
+        failed_ids = {
+            item["task_id"] for item in execution_proof.get("failed_tasks", [])
+            if item.get("failure_source") == "SUBAGENT_STOP_OUTPUT_VALIDATION"
+        }
+        failed_capabilities = {t["capability"] for t in dispatch.get("tasks", [])
+                               if t.get("task_id") in failed_ids}
+    for capability, input_datasets in EIGHT_DIMENSION_INPUTS.items():
+        invocations = invocations_by_capability[capability]
+        matching = [row for row in rows if capability in row["allowed_consumers"]
+                    or any(inv in invocations for key in (
+                        "catalog_allowed_by_invocation", "queried_by_invocation",
+                        "direct_refs_by_invocation", "indirect_refs_by_invocation",
+                    ) for inv in row[key])]
+        matching_reports = [item for item in report_list if item["capability"] == capability]
+        statuses = sorted({item["status"] for item in matching_reports if item["status"]})
+        sufficiencies = sorted({item["sufficiency"] for item in matching_reports
+                                if item["sufficiency"]})
+        if not matching_reports:
+            research_coverage = ("FAILED_NO_VALID_REPORT" if capability in failed_capabilities else "NOT_RUN")
+        elif "INSUFFICIENT_EVIDENCE" in statuses or "INSUFFICIENT" in sufficiencies:
+            research_coverage = "INSUFFICIENT_EVIDENCE"
+        elif any(status in {"PARTIAL", "LOW_CONFIDENCE", "SOURCE_LIMITED",
+                            "FAILED", "TIMEOUT"} for status in statuses) \
+                or "PARTIAL" in sufficiencies:
+            research_coverage = "PARTIAL_OR_FAILED"
+        else:
+            research_coverage = "CONTENT_REVIEW_REQUIRED"
+        selected_peer_ids = {item["evidence_id"] for item in by_id.values()
+                             if holding_ids and item.get("security_id") not in holding_ids | {"US:MARKET"}
+                             and observed_dataset_by_id.get(item["evidence_id"]) in input_datasets}
+        dimension_rows.append({
+            "capability": capability,
+            "expected_datasets": list(input_datasets),
+            "gate_allowed_count": sum(item["gate_allowed_count"] for item in matching),
+            "catalog_allowed_count": (len(set().union(*(set(ids) for item in matching
+                for inv, ids in item["catalog_allowed_by_invocation"].items() if inv in invocations)))
+                if catalog_status == "HASH_VERIFIED_ALLOWED_CATALOG" else None),
+            "queried_count": len(set().union(*(set(ids) for item in matching
+                for inv, ids in item["queried_by_invocation"].items() if inv in invocations))),
+            "direct_or_indirect_reference_count": len(set().union(*(
+                set(ids) for item in matching for field in (
+                    "direct_refs_by_invocation", "indirect_refs_by_invocation"
+                ) for inv, ids in item[field].items() if inv in invocations))),
+            "peer_gate_allowed_count": len(selected_peer_ids),
+            "report_statuses": statuses,
+            "report_sufficiencies": sufficiencies,
+            "research_coverage": research_coverage,
+        })
+    queries = _query_diagnostics(run_dir)
     return {
         "schema_version": "research-consumption-audit/1.0.0",
         "run_id": gate.get("run_id"), "decision_cutoff": gate.get("decision_cutoff"),
@@ -423,12 +726,18 @@ def build_research_consumption_audit(
             "company": "VERIFIED" if company_dir is not None else "NOT_REQUESTED",
             "cio": "VERIFIED" if cio_dir is not None else "NOT_REQUESTED",
         },
-        "event_file_presence": event_file_presence, "expected_core_items": CORE_ITEMS,
+        "event_file_presence": event_file_presence, "event_integrity": event_integrity,
+        "catalog_status": catalog_status,
+        "unmapped_datasets": sorted({row["dataset"] for row in rows if row["mapping_status"] == "UNMAPPED"}),
+        "expected_core_items": CORE_ITEMS,
+        "query_diagnostics": queries,
+        "cost_diagnostics": _cost_diagnostics(run_dir, queries),
         "provider_observations": [
             {"provider": provider, "dataset": dataset, "observations": items}
             for (provider, dataset), items in sorted(observed.items())
         ],
-        "coverage_items": coverage_items, "rows": rows, "reports": report_list,
+        "coverage_items": coverage_items, "dimension_rows": dimension_rows,
+        "rows": rows, "reports": report_list,
         "cio": {
             "run_id": cio.get("run_id") if cio else None,
             "status": cio.get("status") if cio else "NOT_VERIFIED",
@@ -458,6 +767,14 @@ def render_audit_summary(audit: Mapping[str, Any]) -> str:
             state = ", ".join(matching["use_statuses"]) if matching else "NOT_VERIFIED"
             lines.append(f"- 核心资料项 {dataset}：{state}")
         lines.append("")
+    lines.extend(["## 八维研究", ""])
+    for item in audit["dimension_rows"]:
+        lines.append(
+            f"- {item['capability']}：Gate {item['gate_allowed_count']} 项，"
+            f"查询 {item['queried_count']} 项，直接/间接引用 {item['direct_or_indirect_reference_count']} 项，"
+            f"报告覆盖 {item['research_coverage']}。"
+        )
+    lines.append("")
     failed_reports = sum(
         item["status"] == "FAILED" for item in audit["cio"]["consumed_report_statuses"]
     )
@@ -467,4 +784,7 @@ def render_audit_summary(audit: Mapping[str, Any]) -> str:
     )
     lines.append("事件文件存在不证明 invocation 完整执行；工具成功事件仅证明交付，正式报告引用证明已表达依据；未验证项保持未验证。")
     lines.append("计算附件父资料仅证明整体输入关联，不能精确归因至单个指标或模型注意。")
+    if audit.get("unmapped_datasets"):
+        lines.append("未登记数据集（UNMAPPED）：" + ", ".join(audit["unmapped_datasets"])
+                     + "；保留原件并明确未映射，不据此声称路由闭合。")
     return "\n".join(lines) + "\n"

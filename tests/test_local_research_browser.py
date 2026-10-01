@@ -775,6 +775,26 @@ class LocalResearchBrowserTests(unittest.TestCase):
             self.assertIn(text, page)
         self.assertNotIn("private question must not render", page)
 
+    def test_unknown_report_reader_is_rejected_even_with_consistent_hashes(self):
+        self.store_report(entry_id="unsupported-reader", package_mutator=lambda package:
+                          package["report"].__setitem__("schema_version", "equity-research-report/99.0.0"))
+        # 真实对象与索引 hash 已由 store_report 重算；不是仅改摘要模拟失败。
+        before = {str(path.relative_to(self.root)): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in self.root.rglob("*") if path.is_file()
+                  and not path.name.endswith(("-wal", "-shm"))}
+        with self.assertRaisesRegex(BrowserDataError, "BROWSER_REPORT_READER_UNSUPPORTED_VERSION"):
+            self.reader().report("US:MRVL", "unsupported-reader")
+        stored = self.writer.reusable_report("US:MRVL", report_reuse_key("US:MRVL", "fingerprint:unsupported-reader"))
+        self.assertIsNotNone(stored)
+        with self.assertRaisesRegex(ResearchMemoryError, "RESEARCH_MEMORY_REPORT_READER_UNSUPPORTED_VERSION"):
+            self.writer.load_report_package(stored["package_ref"], stored["package_hash"])
+        after = {str(path.relative_to(self.root)): hashlib.sha256(path.read_bytes()).hexdigest()
+                 for path in self.root.rglob("*") if path.is_file()
+                 and not path.name.endswith(("-wal", "-shm"))}
+        # SQLite 的只读连接可创建锁协调 sidecar；本断言证明主库及历史对象
+        # 未改写，不冒称全进程文件系统无写入。
+        self.assertEqual(after, before)
+
     def test_report_package_rejects_request_evidence_attachment_and_manifest_drift(self):
         prices = [
             {

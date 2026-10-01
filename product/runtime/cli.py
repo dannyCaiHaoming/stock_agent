@@ -204,6 +204,10 @@ def build_parser() -> argparse.ArgumentParser:
     multi_prepare.add_argument("--repo", type=Path, required=True)
     multi_prepare.add_argument("--handoff", type=Path, required=True)
     multi_prepare.add_argument("--gate", type=Path, required=True)
+    multi_prepare.add_argument(
+        "--base-gate", type=Path,
+        help="同行合并 Gate 的原始来源 Gate；保留原始采集截止点与批次引用",
+    )
     multi_prepare.add_argument("--run-dir", type=Path, required=True)
     multi_prepare.add_argument("--run-id", required=True)
     multi_prepare.add_argument("--model", required=True)
@@ -223,6 +227,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="可选：已完成且将被重新验证、冻结复制的资料准备运行目录",
     )
     multi_prepare.add_argument("--max-concurrency", type=int, default=3)
+    multi_prepare.add_argument("--structured-report-submission", action="store_true")
+    multi_prepare.add_argument("--task-bound-tools", action="store_true",
+                               help="仅新八维：工具用精确task_name，程序从冻结Invocation装配身份")
+    multi_prepare.add_argument("--reuse-frozen-gate", action="store_true",
+                               help="以新执行身份复用冻结 Gate，保留原文件及来源绑定")
 
     multi_prompt = subparsers.add_parser("multidimensional-research-prompt")
     multi_prompt.add_argument("--repo", type=Path, required=True)
@@ -348,6 +357,7 @@ def build_parser() -> argparse.ArgumentParser:
     materials_prepare.add_argument("--run-id", required=True)
     materials_prepare.add_argument("--model", required=True)
     materials_prepare.add_argument("--max-concurrency", type=int, default=3)
+    materials_prepare.add_argument("--reuse-frozen-gate", action="store_true")
 
     materials_prompt = subparsers.add_parser("research-materials-prompt")
     materials_prompt.add_argument("--repo", type=Path, required=True)
@@ -369,6 +379,7 @@ def build_parser() -> argparse.ArgumentParser:
     peer_materialize.add_argument("--materials-run", type=Path, required=True)
     peer_materialize.add_argument("--source-access", type=Path, required=True)
     peer_materialize.add_argument("--cache-root", type=Path, required=True)
+    peer_materialize.add_argument("--memory-root", type=Path)
     peer_materialize.add_argument("--output-dir", type=Path, required=True)
 
     stock_eval_prepare = subparsers.add_parser("common-stock-eval-prepare")
@@ -667,7 +678,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             peer_candidate_pool_path=args.peer_candidates,
             company_research_run_path=args.company_research_run,
             research_materials_run_path=args.research_materials_run,
+            base_gate_path=args.base_gate,
             stage=args.stage,
+            structured_report_submission=args.structured_report_submission,
+            task_bound_tools=args.task_bound_tools,
+            reuse_frozen_gate=args.reuse_frozen_gate,
         )
     elif args.command == "multidimensional-research-prompt":
         print(build_multidimensional_stage_prompt(args.repo, args.run_dir))
@@ -739,6 +754,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             peer_candidate_pool_path=args.peer_candidates, run_dir=args.run_dir,
             run_id=args.run_id, model=args.model,
             target_concurrency=args.max_concurrency,
+            reuse_frozen_gate=args.reuse_frozen_gate,
         )
     elif args.command == "research-materials-prompt":
         print(build_research_materials_stage_prompt(args.repo, args.run_dir))
@@ -755,7 +771,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = materialize_selected_peers(
             args.materials_run, source_access_path=args.source_access,
             cache_root=args.cache_root, sec_user_agent=os.environ.get("SEC_USER_AGENT", ""),
-            output_dir=args.output_dir,
+            output_dir=args.output_dir, memory_root=args.memory_root,
         )
     elif args.command == "common-stock-eval-prepare":
         result = prepare_common_stock_eval_job(

@@ -12,7 +12,8 @@ from typing import Any, Mapping, Sequence
 
 from .decision_contract import contract_record
 from .discovery import discover_product_resources
-from .hashing import canonical_hash, file_hash
+from .hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
+from .versioning import read_skill_version, derive_profile_agent_versions
 
 
 INVOCATION_SCHEMA_VERSION = "invocation-manifest/2.1.0"
@@ -40,6 +41,40 @@ LEGACY_START_CONTEXT_VERSION = "subagent-start-context/1.0.0"
 START_CONTEXT_VERSION = "subagent-start-context/2.0.0"
 MAX_START_CONTEXT_BYTES = 128 * 1024
 SPECIALIST_DRAFT_DELIVERY = "native-research-draft/1.0.0"
+SPECIALIST_SEMANTIC_DRAFT = "specialist-semantic-draft/1.0.0"
+SPECIALIST_TECHNICAL_FIELDS = frozenset({
+    "schema_version", "run_id", "invocation_id", "agent", "skill_execution", "artifact_refs",
+})
+
+
+def invocation_identifier(run_id: str, agent_name: str, input_hash: str) -> str:
+    """沿用原 Invocation 身份算法，Schema 准备和正式装配共用。"""
+    return f"inv_{canonical_hash({'run_id': run_id, 'agent': agent_name, 'input_hash': input_hash})[:24]}"
+
+
+def specialist_semantic_schema(formal_schema: Mapping[str, Any]) -> dict[str, Any]:
+    """从本角色正式 Schema 派生语义结构，不手工再维护一份研究规则。"""
+    from .schema_validation import validate_schema_definition
+    schema = copy.deepcopy(dict(formal_schema))
+    schema["$id"] = SPECIALIST_SEMANTIC_DRAFT
+    schema["required"] = [key for key in schema["required"] if key not in SPECIALIST_TECHNICAL_FIELDS]
+    for key in SPECIALIST_TECHNICAL_FIELDS:
+        schema["properties"].pop(key, None)
+    validate_schema_definition(schema)
+    return schema
+
+
+def envelope_specialist_semantic_draft(draft, invocation, *, model, formal_schema):
+    """语义草稿只填原研究字段；身份与 Skill 仍由原可信 envelope 生成。"""
+    from .schema_validation import validate_schema_instance
+    validate_schema_instance(draft, specialist_semantic_schema(formal_schema))
+    schema_version = formal_schema["properties"]["schema_version"].get("const")
+    if not isinstance(schema_version, str) or not schema_version:
+        raise ValueError("SPECIALIST_SEMANTIC_SCHEMA_VERSION_INVALID")
+    bound = {**copy.deepcopy(draft), "schema_version": schema_version,
+             "run_id": invocation["run_id"], "invocation_id": invocation["invocation_id"],
+             "agent": invocation["agent"]["name"], "artifact_refs": []}
+    return envelope_specialist_draft(bound, invocation, model=model)
 
 
 def envelope_specialist_draft(draft, invocation, *, model):
@@ -178,9 +213,11 @@ def verify_specialist_start_binding(repository_root: Path, run_dir: Path, agent_
     if len(selected) != 1:
         raise ValueError("START_CONTEXT_EVENT_COUNT_INVALID")
     event = selected[0]
-    body = {key: value for key, value in event.items() if key != "event_hash"}
-    if (event.get("event_hash") != canonical_hash(body)
-            or event.get("parent_session_id") != parent_session_id
+    try:
+        verify_legacy_envelope_hash(event, hash_field="event_hash", location="invocation/subagent-events.jsonl:SubagentStart")
+    except HashContractError as exc:
+        raise ValueError(f"START_CONTEXT_BINDING_MISMATCH:{exc}") from exc
+    if (event.get("parent_session_id") != parent_session_id
             or event.get("model") != expected["model"]
             or event.get("context_binding") != expected):
         raise ValueError("START_CONTEXT_BINDING_MISMATCH")
@@ -361,6 +398,10 @@ def build_live_cio_output_schema(repository_root: Path) -> dict[str, Any]:
     return schema
 
 
+
+
+
+
 def build_live_cio_decoding_schema(
     repository_root: Path, *, run_id: str, allowed_evidence_ids: Sequence[str]
 ) -> dict[str, Any]:
@@ -532,24 +573,7 @@ def _load_agent(path: Path) -> dict[str, Any]:
 
 
 def _skill_version(path: Path) -> str:
-    text = path.read_text(encoding="utf-8")
-    if not text.startswith("---\n"):
-        raise ValueError(f"skill has no frontmatter: {path}")
-    frontmatter = text[4:].split("\n---\n", 1)[0]
-    metadata = False
-    version: str | None = None
-    for line in frontmatter.splitlines():
-        if line == "metadata:":
-            metadata = True
-            continue
-        if line and not line[0].isspace():
-            metadata = False
-        if metadata and line.startswith("  version:"):
-            version = line.split(":", 1)[1].strip().strip("\"'")
-            break
-    if not version:
-        raise ValueError(f"skill has no metadata.version: {path}")
-    return version
+    return read_skill_version(path)
 
 
 def create_invocation_manifest(
@@ -563,12 +587,17 @@ def create_invocation_manifest(
     evidence_ids: Sequence[str],
     output_schema_path: Path | None = None,
     expected_report_agents: Sequence[str] | None = None,
+    compatibility_fixture: bool = False,
 ) -> dict[str, Any]:
     if agent_name not in AGENT_FILES:
         raise ValueError(f"unknown runtime agent: {agent_name}")
     source_mode = agent_input.get("source_mode", "fixture")
     if source_mode not in ("fixture", "live", "frozen-gate"):
         raise ValueError("UNKNOWN_SOURCE_MODE")
+    if source_mode == "live" and not compatibility_fixture:
+        raise ValueError("LIVE_COUNCIL_ENTRY_RETIRED")
+    if compatibility_fixture and source_mode != "live":
+        raise ValueError("COMPATIBILITY_FIXTURE_SOURCE_INVALID")
     if source_mode == "frozen-gate":
         if agent_name != "runtime_skeptic":
             raise ValueError("FROZEN_GATE_AGENT_INVALID")
@@ -578,7 +607,11 @@ def create_invocation_manifest(
     discovery = discover_product_resources(repository_root, source_profile=source_profile)
     product_root = Path(discovery.product_root)
     version_manifest = discovery.version_manifest
-    if model != version_manifest["model"]:
+    if source_mode == "frozen-gate":
+        # 显式反证研究沿上游本次选择模型；fixture 候选锁仍严格不变。
+        from .model_routing import select_product_runtime_model
+        select_product_runtime_model(product_root, requested_model=model)
+    elif model != version_manifest["model"]:
         raise ValueError("model differs from candidate manifest")
 
     agent_path = (product_root / AGENT_FILES[agent_name]).resolve()
@@ -588,6 +621,11 @@ def create_invocation_manifest(
         raise ValueError("agent identity/version differs from candidate manifest")
 
     runtime_profile = json.loads(Path(discovery.runtime_profile.resolved_path).read_text(encoding="utf-8"))
+    if compatibility_fixture:
+        # Explicit deterministic legacy-reader tests only. Preserve the frozen
+        # profile bytes, derive today's synthetic identities from approval, and
+        # prohibit this fixture from reaching any real launcher.
+        runtime_profile = derive_profile_agent_versions(version_manifest, runtime_profile)
     profile_agent = runtime_profile["agents"].get(agent_name)
     if not isinstance(profile_agent, Mapping):
         raise ValueError("agent is not in the locked runtime profile")
@@ -657,6 +695,8 @@ def create_invocation_manifest(
             output_schema_path = (product_root / OUTPUT_SCHEMAS[agent_name]).resolve()
     if not output_schema_path.is_file():
         raise FileNotFoundError(f"missing output schema: {output_schema_path}")
+    from .schema_validation import validate_schema_definition
+    validate_schema_definition(json.loads(output_schema_path.read_text(encoding="utf-8")))
     input_hash = canonical_hash(agent_input)
     prompt_hash = canonical_hash({"task_prompt": task_prompt})
     instruction_hash = canonical_hash(
@@ -667,7 +707,7 @@ def create_invocation_manifest(
             "task_prompt_hash": prompt_hash,
         }
     )
-    invocation_id = f"inv_{canonical_hash({'run_id': run_id, 'agent': agent_name, 'input_hash': input_hash})[:24]}"
+    invocation_id = invocation_identifier(run_id, agent_name, input_hash)
     skill_execution = [
         {
             "skill_name": item["name"],
@@ -715,7 +755,9 @@ def create_invocation_manifest(
             raise ValueError("LIVE_INVOCATION_SOURCE_BINDING_MISSING")
         body["source_context"] = {"source_mode": "live", "profile_id": runtime_profile["profile_id"],
                                   "profile_hash": discovery.runtime_profile.sha256, **bindings}
-    body["manifest_hash"] = canonical_hash(body)
+    if compatibility_fixture:
+        body["compatibility_fixture"] = True
+    body["manifest_hash"] = legacy_envelope_hash(body, hash_field="manifest_hash")
     return body
 
 
@@ -725,10 +767,10 @@ def verify_invocation_manifest(
     *,
     agent_input: Mapping[str, Any],
 ) -> None:
-    body = dict(manifest)
-    claimed_hash = body.pop("manifest_hash", None)
-    if claimed_hash != canonical_hash(body):
-        raise ValueError("invocation manifest hash mismatch")
+    try:
+        verify_legacy_envelope_hash(manifest, hash_field="manifest_hash", location="invocations/" + str(manifest.get("invocation_id")))
+    except HashContractError as exc:
+        raise ValueError(f"invocation manifest hash mismatch:{exc}") from exc
     if manifest.get("input_hash") != canonical_hash(agent_input):
         raise ValueError("invocation input hash mismatch")
     source_mode = agent_input.get("source_mode", "fixture")
@@ -741,6 +783,10 @@ def verify_invocation_manifest(
         validate_first_pass_input(agent_input, allowed_ids=manifest.get("evidence_ids", []))
         if manifest.get("tool_permissions") != ["fixture_evidence.query", "fixture_math.calculate"]:
             raise ValueError("FROZEN_GATE_TOOL_PERMISSIONS_INVALID")
+        from .model_routing import select_product_runtime_model
+        select_product_runtime_model(Path(repository_root).resolve() / "product", requested_model=manifest.get("model"))
+        if not isinstance(manifest.get("model"), str) or not manifest["model"]:
+            raise ValueError("FROZEN_GATE_MODEL_MISSING")
     if source_mode == "live":
         from .runtime_profiles import load_source_profile
         discovery = discover_product_resources(repository_root, source_profile="live-us-equity")

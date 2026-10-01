@@ -312,7 +312,7 @@ def download_daily(*, tickers: list[str], start: str, end: str, source_access: d
         raise ValueError("YAHOO_SOURCE_NOT_AUTHORIZED")
     if source_access["client_version"] != f"yfinance/{YFINANCE_VERSION}" or source_access["adapter_version"] != MARKET_VERSION:
         raise ValueError("YAHOO_ACCESS_VERSION_MISMATCH")
-    if not 0 < (date.fromisoformat(end) - date.fromisoformat(start)).days <= 366:
+    if not 0 < (date.fromisoformat(end) - date.fromisoformat(start)).days <= 551:
         raise ValueError("YAHOO_DATE_RANGE_INVALID")
     if not tickers or any(not isinstance(t, str) or not re.fullmatch(r"[A-Z][A-Z0-9.-]{0,14}", t) for t in tickers):
         raise ValueError("YAHOO_SYMBOL_INVALID")

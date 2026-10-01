@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 
 from product.mcp.live.sec_client import validate_sec_url
 
-ATTACHMENT_VERSION = "sec-exhibit-index/1.0.0"
+ATTACHMENT_VERSION = "sec-exhibit-index/1.1.0"
 
 
 class _Rows(HTMLParser):
@@ -37,7 +37,10 @@ class _Rows(HTMLParser):
             self.cells, self.cell = None, None
 
 
-def earnings_attachments(raw: bytes, index_document: dict, *, limit: int = 3) -> dict:
+def earnings_attachments(
+    raw: bytes, index_document: dict, *, limit: int = 3,
+    earnings_context_verified: bool = False,
+) -> dict:
     if type(limit) is not int or limit < 0 or limit > 3:
         raise ValueError("SEC_ATTACHMENT_BUDGET_INVALID")
     if hashlib.sha256(raw).hexdigest() != index_document["raw_content_hash"]:
@@ -51,7 +54,14 @@ def earnings_attachments(raw: bytes, index_document: dict, *, limit: int = 3) ->
     for row_index, (cells, links) in enumerate(parser.rows):
         if len(cells) != 5 or not re.fullmatch(r"EX-99(?:\.\d+)?", cells[3], re.I):
             continue
-        if not re.search(r"earnings|financial\s+results|results\s+of\s+operations", cells[1], re.I):
+        description_match = re.search(
+            r"earnings|financial\s+results|results\s+of\s+operations", cells[1], re.I,
+        )
+        item_202_exhibit = (
+            earnings_context_verified and cells[3].upper() == "EX-99.1"
+            and re.fullmatch(r"EXHIBIT\s*99\.1", cells[1], re.I) is not None
+        )
+        if not description_match and not item_202_exhibit:
             rejected.append({"row_index": row_index, "reason": "EXHIBIT_PURPOSE_NOT_VERIFIED"})
             continue
         if len(links) != 1:
@@ -64,6 +74,8 @@ def earnings_attachments(raw: bytes, index_document: dict, *, limit: int = 3) ->
             continue
         seen.add(url)
         candidates.append({"document_url": url, "description": cells[1], "exhibit_type": cells[3],
+                           "purpose_basis": ("FILING_ITEM_2_02_AND_EX99_1" if item_202_exhibit
+                                             else "INDEX_DESCRIPTION"),
                            "index_row": row_index, "index_source_id": index_document["source_id"],
                            "index_url": index_url, "index_raw_hash": index_document["raw_content_hash"],
                            "index_retrieved_at": index_document["retrieved_at"],

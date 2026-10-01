@@ -68,3 +68,21 @@ class FilingSelectionTests(unittest.TestCase):
         result = self.index(description="Exhibit")
         self.assertEqual(result["selected"], [])
         self.assertEqual(result["rejected"][0]["reason"], "EXHIBIT_PURPOSE_NOT_VERIFIED")
+        self.assertEqual(self.index(description="EXHIBIT 99.1")["selected"], [])
+
+    def test_item_202_can_verify_generic_exhibit_99_1_only(self):
+        import hashlib
+        raw = ("<table><tr><td>2</td><td>EXHIBIT 99.1</td>"
+               "<td><a href=\"results.htm\">results.htm</a></td>"
+               "<td>EX-99.1</td><td>1000</td></tr></table>").encode()
+        metadata = {
+            "source_locator": "https://www.sec.gov/Archives/edgar/data/1/000000000126000001/0000000001-26-000001-index.html",
+            "source_id": "synthetic", "raw_content_hash": hashlib.sha256(raw).hexdigest(),
+            "retrieved_at": "2026-09-10T00:00:00Z",
+        }
+        result = earnings_attachments(
+            raw, metadata, limit=1, earnings_context_verified=True,
+        )
+        self.assertEqual(len(result["selected"]), 1)
+        self.assertEqual(result["selected"][0]["purpose_basis"],
+                         "FILING_ITEM_2_02_AND_EX99_1")

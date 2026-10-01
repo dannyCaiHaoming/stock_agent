@@ -99,7 +99,13 @@ def source_topology_lock(snapshot: dict) -> dict:
             if (selection["security_id"] not in by_security or
                     by_security[selection["security_id"]].get("quote_identity", {}).get("source_id") != expected_source):
                 raise ValueError("LIVE_SELECTED_IDENTITY_SOURCE_MISMATCH")
-    value = {"schema_version": snapshot["schema_version"], "routing_policy": policy_lock(),
+    recorded_policies = {json.dumps(selection["routing_policy"], sort_keys=True)
+                         for selection in snapshot["source_selections"]}
+    if len(recorded_policies) > 1:
+        raise ValueError("LIVE_ROUTING_POLICY_MIXED")
+    recorded_policy = (json.loads(next(iter(recorded_policies)))
+                       if recorded_policies else policy_lock())
+    value = {"schema_version": snapshot["schema_version"], "routing_policy": recorded_policy,
              "universe_hash": snapshot["universe"]["snapshot_hash"],
              "source_access_hash": content_hash(snapshot["source_access"]),
              "selections": {s["security_id"]: {"selection_hash": s["selection_hash"],

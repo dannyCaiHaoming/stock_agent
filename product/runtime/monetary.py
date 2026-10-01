@@ -27,7 +27,9 @@ def _decimal(value: object, name: str) -> Decimal:
 
 def scale_factor(scale: str) -> Decimal:
     if scale not in MONETARY_SCALE_FACTORS:
-        raise ValueError(f"unsupported monetary scale: {scale}")
+        raise ValueError(
+            "unsupported monetary scale; allowed=" + ",".join(MONETARY_SCALE_FACTORS)
+        )
     return MONETARY_SCALE_FACTORS[scale]
 
 

@@ -14,3 +14,5 @@ metadata:
 收益、相对收益、波动、回撤、均量和成交量比等数字必须引用确定性计算。拆股、分红、重组、停牌、缺失交易日或来源口径变化必须先限定连续性。不得由均线、突破或阈值直接生成 BUY/HOLD/REDUCE。
 
 输出 `ResearchDimensionReport`，`capability=TECHNICAL_STRUCTURE`，逐条保留适用的 Evidence、计算、假设、限制和 observation conditions。仅当 `prepared_analysis.chart` 存在时引用同源量价/相对表现图；若 calculation 有效但 chart 失败，保留有真实 `calculation_refs` 的 Claims，仅记录图表缺口，不把缺图当作缺少全部技术资料。由预计算产物支撑的主张通过 `calculation_refs` 连接 `artifact_id`；对应 calculation 的 `artifact_ref` 必须指向获准产物，不能杜撰原始行情或工具失败。
+
+以上描述正式产物的引用关系，不要求新协议草稿复制计算或血缘。任务启用 calculation_selection_contract 时只选择已交付的预计算短引用及关联主张，数值、原始 ID、输入血缘和路径由运行层装配；旧完整草稿仍遵循其冻结 Schema。不同模式都不自行生成计算 ID 或省略限制。

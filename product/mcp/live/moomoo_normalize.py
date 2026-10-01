@@ -11,7 +11,7 @@ from product.mcp.live.research_supplement import build_supplement_fact
 from product.mcp.provenance import content_hash, iso_utc, parse_timestamp
 
 
-ADAPTER_VERSION = "moomoo-opend-research-normalization/1.3.0"
+ADAPTER_VERSION = "moomoo-opend-research-normalization/1.6.0"
 
 
 def _semantic_key(prefix: str, *parts: Any) -> str:
@@ -557,15 +557,8 @@ def normalize_opend_morningstar_report(
     value = _capture_dict(capture, method="get_research_morningstar_report")
     if capture.get("security_code") != f"US.{ticker}":
         raise ValueError("MOOMOO_RESEARCH_SECURITY_MISMATCH")
-    required = {
-        "rating_type", "star_rating", "star_update_time", "fair_value",
-        "economic_moat_content", "uncertainty_content", "financial_health_content",
-        "capital_allocation_content", "investment_thesis_content", "bull_say", "bear_say",
-        "analyst_note_content", "analyst_report_update_time",
-    }
-    if not required <= set(value):
-        raise ValueError("MOOMOO_RESEARCH_FIELDS_INVALID")
-    default_time = value["analyst_report_update_time"] or value["star_update_time"]
+    report_time = value.get("analyst_report_update_time")
+    star_time = value.get("star_update_time")
     sections = (
         ("star_rating", value.get("star_rating"), {"rating_type": value.get("rating_type")}),
         ("fair_value", value.get("fair_value_content") or value.get("fair_value"), {
@@ -588,35 +581,64 @@ def normalize_opend_morningstar_report(
             "title": value.get("analyst_note_title"),
         }),
     )
+    byline = value.get("analyst_report_by_line")
+    authors = [str(item) for item in byline if isinstance(item, str) and item.strip()] \
+        if isinstance(byline, list) else []
     evidence, gaps = [], []
-    for section, content, extra in sections:
-        if content in (None, ""):
+    for section, raw_content, extra in sections:
+        entries = raw_content if isinstance(raw_content, list) else [raw_content]
+        if not entries or all(item in (None, "", {}) for item in entries):
             gaps.append({"reason": "MOOMOO_MORNINGSTAR_SECTION_EMPTY", "section": section})
             continue
-        raw_time = value.get(f"{section}_update_time") or (
-            value.get("star_update_time") if section == "star_rating" else default_time
-        )
-        as_of, clock_gap = _provider_as_of(raw_time, capture["retrieved_at"])
-        if clock_gap is not None:
-            gaps.append({**clock_gap, "section": section})
-        evidence.append(build_supplement_fact(
-            security_id=security_id, dataset="research_discovery",
-            semantic_field=f"moomoo_morningstar_section:{section}",
-            value={
-                "publisher": "Morningstar via Moomoo OpenAPI",
-                "content_tier": "LICENSED_API_CONTENT", "section": section,
-                "content": content, **extra,
-            },
-            source_id=f"moomoo-sg-opend-morningstar:{ticker}", source_family="moomoo_sg",
-            source_locator=f"moomoo-opend://get_research_morningstar_report/US.{ticker}#{section}",
-            source_version=_capture_source_version(capture), as_of=as_of,
-            published_at=as_of, retrieved_at=capture["retrieved_at"],
-            raw_content_hash=capture["raw_content_hash"], limitations=[
-                "Morningstar 供应商观点，不是 SEC 原始披露或本系统投资结论",
-                "仅限用户有权访问的内部研究，不声明再分发许可且不自动下载 PDF",
-                "单一 Morningstar 来源不构成多机构独立研报比较",
-            ],
-        ))
+        for index, item in enumerate(entries):
+            if isinstance(item, Mapping):
+                content = item.get("context")
+                item_time = item.get("update_time")
+            else:
+                content = item
+                item_time = None
+            if content in (None, "") or not isinstance(content, (str, int, float)):
+                gaps.append({"reason": "MOOMOO_MORNINGSTAR_SECTION_EMPTY", "section": section,
+                             "item_index": index})
+                continue
+            raw_time = item_time or (star_time if section == "star_rating" else report_time)
+            if not raw_time:
+                gaps.append({"reason": "MOOMOO_MORNINGSTAR_SECTION_TIME_MISSING",
+                             "section": section, "item_index": index})
+                continue
+            try:
+                as_of = _unix_time(raw_time)
+            except (ValueError, OverflowError):
+                gaps.append({"reason": "MOOMOO_MORNINGSTAR_SECTION_TIME_INVALID",
+                             "section": section, "item_index": index})
+                continue
+            if parse_timestamp(as_of) > parse_timestamp(capture["retrieved_at"]):
+                gaps.append({"reason": "MOOMOO_PROVIDER_CLOCK_AHEAD_OF_RETRIEVAL",
+                             "section": section, "item_index": index,
+                             "provider_time": as_of})
+                continue
+            note_title = extra.get("title")
+            if isinstance(note_title, Mapping):
+                extra = {**extra, "title": note_title.get("context")}
+            suffix = f":{index}" if isinstance(raw_content, list) else ""
+            evidence.append(build_supplement_fact(
+                security_id=security_id, dataset="research_discovery",
+                semantic_field=f"moomoo_morningstar_section:{section}{suffix}",
+                value={
+                    "publisher": "Morningstar via Moomoo OpenAPI",
+                    "content_tier": "LICENSED_API_CONTENT", "section": section,
+                    "content": content, "authors": authors, **extra,
+                },
+                source_id=f"moomoo-sg-opend-morningstar:{ticker}", source_family="moomoo_sg",
+                source_locator=f"moomoo-opend://get_research_morningstar_report/US.{ticker}#{section}{suffix}",
+                source_version=_capture_source_version(capture), as_of=as_of,
+                published_at=as_of, retrieved_at=capture["retrieved_at"],
+                raw_content_hash=capture["raw_content_hash"], limitations=[
+                    "Morningstar 供应商观点，不是 SEC 原始披露或本系统投资结论",
+                    "仅限用户有权访问的内部研究，不声明再分发许可且不自动下载 PDF",
+                    "单一 Morningstar 来源不构成多机构独立研报比较",
+                ],
+            ))
     gaps.append({"reason": "RESEARCH_COMPARISON_NOT_COMPLETE", "item_count": len(evidence)})
     return {"adapter_version": ADAPTER_VERSION, "evidence": evidence, "gaps": gaps}
 
@@ -627,63 +649,90 @@ def normalize_opend_institutional_aggregate(
     rows = _capture_rows(capture, method="get_shareholders_institutional")
     if capture.get("security_code") != f"US.{ticker}":
         raise ValueError("MOOMOO_INSTITUTION_SECURITY_MISMATCH")
-    required = {
-        "period_text", "institution_quantity", "institution_quantity_change",
-        "holder_quantity", "holder_quantity_change", "holder_pct",
-        "holder_pct_change", "next_key", "update_time", "update_time_str",
-    }
+    required = {"period_text", "institution_quantity", "holder_quantity", "holder_pct"}
     evidence, gaps, periods = [], [], set()
-    for row in rows:
-        if not required <= set(row) or not row["period_text"]:
-            raise ValueError("MOOMOO_INSTITUTION_FIELDS_MISSING")
-        provider_updated_at, clock_gap = _provider_as_of(
-            row["update_time"], capture["retrieved_at"],
-        )
-        if clock_gap is not None:
-            gaps.append(clock_gap)
+    verified_at = capture.get("verified_at", capture["retrieved_at"])
+    observed_at = parse_timestamp(verified_at)
+    if parse_timestamp(verified_at) < parse_timestamp(capture["retrieved_at"]):
+        raise ValueError("MOOMOO_INSTITUTION_VERIFICATION_TIME_INVALID")
+    if verified_at != capture["retrieved_at"]:
+        gaps.append({"reason": "MOOMOO_INSTITUTION_LATER_OBSERVATION",
+                     "initial_retrieved_at": capture["retrieved_at"],
+                     "verified_at": verified_at})
+    for index, row in enumerate(rows):
+        if not isinstance(row, Mapping) or not required <= set(row):
+            gaps.append({"reason": "MOOMOO_INSTITUTION_ROW_FIELDS_INVALID", "row_index": index})
+            continue
         period = str(row["period_text"])
-        periods.add(period)
         match = re.fullmatch(r"(\d{4})/Q([1-4])", period)
-        if match:
-            year, quarter = int(match.group(1)), int(match.group(2))
-            month = quarter * 3
-            period_end = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
-            as_of = iso_utc(datetime.combine(period_end, datetime.min.time(), tzinfo=timezone.utc))
+        if not match:
+            gaps.append({"reason": "MOOMOO_INSTITUTION_PERIOD_UNPARSEABLE", "row_index": index})
+            continue
+        year, quarter = int(match.group(1)), int(match.group(2))
+        month = quarter * 3
+        period_start = date(year, month - 2, 1)
+        period_end = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
+        provider_time = row.get("update_time")
+        if provider_time:
+            try:
+                knowledge_time = _unix_time(provider_time)
+            except (ValueError, OverflowError):
+                gaps.append({"reason": "MOOMOO_INSTITUTION_UPDATE_TIME_INVALID", "row_index": index})
+                continue
+            if parse_timestamp(knowledge_time) > observed_at:
+                gaps.append({"reason": "MOOMOO_PROVIDER_CLOCK_AHEAD_OF_RETRIEVAL",
+                             "row_index": index, "provider_time": knowledge_time})
+                continue
+            time_basis = "PROVIDER_UPDATE"
         else:
-            as_of = capture["retrieved_at"]
-            gaps.append({"reason": "MOOMOO_INSTITUTION_PERIOD_UNPARSEABLE", "period": period})
-        value = {
-            "period_label": period,
-            "institution_count": row["institution_quantity"],
-            "institution_count_change": row["institution_quantity_change"],
-            "aggregate_holder_quantity": _optional_decimal(row["holder_quantity"], "holder_quantity"),
-            "aggregate_holder_quantity_change": _optional_decimal(
-                row["holder_quantity_change"], "holder_quantity_change",
-            ),
-            "aggregate_holder_percent": _optional_decimal(row["holder_pct"], "holder_pct"),
-            "aggregate_holder_percent_change": _optional_decimal(
-                row["holder_pct_change"], "holder_pct_change",
-            ),
-            "provider_update_time": row["update_time_str"],
-            "page_next_key": row["next_key"],
-            "source_declaration": "Moomoo OpenAPI institutional aggregate",
-        }
+            knowledge_time = verified_at
+            time_basis = "RETRIEVAL_OBSERVATION"
+        try:
+            count = int(row["institution_quantity"])
+            if count < 0:
+                raise ValueError("negative institution count")
+            value = {
+                "period_label": period,
+                "period_start": period_start.isoformat(),
+                "period_end": period_end.isoformat(),
+                "period_provisional": period_end >= observed_at.date(),
+                "knowledge_time_basis": time_basis,
+                "institution_count": count,
+                "institution_count_change": row.get("institution_quantity_change"),
+                "aggregate_holder_quantity": _optional_decimal(row["holder_quantity"], "holder_quantity"),
+                "aggregate_holder_quantity_change": _optional_decimal(
+                    row.get("holder_quantity_change"), "holder_quantity_change",
+                ),
+                "aggregate_holder_percent": _optional_decimal(row["holder_pct"], "holder_pct"),
+                "aggregate_holder_percent_change": _optional_decimal(
+                    row.get("holder_pct_change"), "holder_pct_change",
+                ),
+                "provider_update_time": row.get("update_time_str"),
+                "page_next_key": row.get("next_key"),
+                "source_declaration": "Moomoo OpenAPI institutional aggregate",
+            }
+        except (TypeError, ValueError):
+            gaps.append({"reason": "MOOMOO_INSTITUTION_ROW_VALUE_INVALID", "row_index": index})
+            continue
+        periods.add(period)
         evidence.append(build_supplement_fact(
             security_id=security_id, dataset="institutional_ownership",
             semantic_field=_semantic_key("moomoo_institutional_aggregate", period),
             value=value, source_id=f"moomoo-sg-opend-institutional:{ticker}",
             source_family="moomoo_sg",
             source_locator=f"moomoo-opend://get_shareholders_institutional/US.{ticker}",
-            source_version=_capture_source_version(capture), as_of=as_of,
-            published_at=provider_updated_at, retrieved_at=capture["retrieved_at"],
+            source_version=_capture_source_version(capture), as_of=knowledge_time,
+            published_at=knowledge_time, retrieved_at=verified_at,
             raw_content_hash=capture["raw_content_hash"], limitations=[
                 "Moomoo 二级供应商的期间汇总，不是逐管理人 13F 原始申报",
-                "period_label 是供应商展示期；当前季度可能未结束，不推定为季度末已披露持仓",
+                "period_label 是展示期；provisional 期间不代表季度末已披露持仓",
                 "机构数与汇总持股变化不得冒充全市场机构覆盖或 SEC 修订关系",
             ],
         ))
-    if len(periods) < 2:
-        gaps.append({"reason": "MOOMOO_INSTITUTION_SINGLE_PERIOD_ONLY", "periods": sorted(periods)})
+    completed = [item for item in evidence if not item["value"]["period_provisional"]]
+    if len(completed) < 2:
+        gaps.append({"reason": "MOOMOO_INSTITUTION_TWO_COMPLETED_PERIODS_MISSING",
+                     "periods": sorted(periods)})
     return {
         "adapter_version": ADAPTER_VERSION,
         "coverage": "SECONDARY_VENDOR_AGGREGATE_NOT_13F",
@@ -809,6 +858,9 @@ def normalize_opend_insider_trades(
             semantic_field=_semantic_key(
                 "moomoo_insider_trade", row["holder_id"], row["min_trade_date"],
                 row["max_trade_date"], row["transaction_type"], row["security_description"],
+                row["trade_shares"], row["min_price"], row["max_price"],
+                row["security_holder_quantity"], row["is_proposed_sale_of_securities"],
+                row["source_group_name"],
             ),
             value={
                 "holder_id": str(row["holder_id"]), "public_name": row["name"],
@@ -992,6 +1044,15 @@ def normalize_opend_rating_summary(
                     "供应商分页列表不证明机构覆盖完整",
                 ],
             ))
+    if len(evidence) > 20:
+        total = len(evidence)
+        evidence = sorted(
+            evidence, key=lambda fact: (
+                fact["as_of"], fact["published_at"], fact["evidence_id"]
+            ), reverse=True,
+        )[:20]
+        gaps.append({"reason": "MOOMOO_RATING_ITEMS_BOUNDED",
+                     "returned_items": total, "retained_items": len(evidence)})
     if str(value["next_key"]) != "-1":
         gaps.append({"reason": "MOOMOO_RATING_MORE_PAGES", "next_key": value["next_key"]})
     if not evidence:
@@ -1165,12 +1226,13 @@ def normalize_opend_market_snapshot(
         code = str(row.get("code") or "")
         if not code or code not in allowed:
             raise ValueError("MOOMOO_OPTION_SECURITY_MISMATCH")
+        if row.get("option_valid") is False:
+            raise ValueError("MOOMOO_OPTION_SNAPSHOT_NOT_OPTION")
+        if row.get("stock_owner") not in (None, f"US.{ticker}"):
+            raise ValueError("MOOMOO_OPTION_UNDERLYING_MISMATCH")
         quote_time_raw = _market_time(row["update_time"])
-        quote_time = min(
-            parse_timestamp(quote_time_raw), parse_timestamp(capture["retrieved_at"]),
-        )
-        quote_time = iso_utc(quote_time)
-        if quote_time != quote_time_raw:
+        quote_time_valid = parse_timestamp(quote_time_raw) <= parse_timestamp(capture["retrieved_at"])
+        if not quote_time_valid:
             gaps.append({"reason": "MOOMOO_PROVIDER_CLOCK_AHEAD_OF_RETRIEVAL",
                          "provider_time": quote_time_raw,
                          "retrieved_at": capture["retrieved_at"], "contract_symbol": code})
@@ -1180,28 +1242,47 @@ def normalize_opend_market_snapshot(
             "strike": _optional_decimal(row.get("option_strike_price"), "option_strike_price"),
             "currency": "USD", "market": "US", "session": "REGULAR",
         }
-        evidence.append(build_supplement_fact(
+        if quote_time_valid:
+            evidence.append(build_supplement_fact(
             security_id=security_id, dataset="options_snapshot",
-            semantic_field=_semantic_key("moomoo_option_quote", code, quote_time),
+            semantic_field=_semantic_key("moomoo_option_quote", code, quote_time_raw),
             value={**common, "last": _optional_decimal(row.get("last_price"), "last_price"),
                    "bid": _optional_decimal(row.get("bid_price"), "bid_price"),
                    "ask": _optional_decimal(row.get("ask_price"), "ask_price"),
                    "bid_size": row.get("bid_vol"), "ask_size": row.get("ask_vol")},
             source_id=f"moomoo-sg-opend-option-snapshot:{ticker}", source_family="moomoo_sg",
             source_locator=f"moomoo-opend://get_market_snapshot/{code}",
-            source_version=_capture_source_version(capture), as_of=quote_time,
-            published_at=quote_time, retrieved_at=capture["retrieved_at"],
+            source_version=_capture_source_version(capture), as_of=quote_time_raw,
+            published_at=quote_time_raw, retrieved_at=capture["retrieved_at"],
             raw_content_hash=capture["raw_content_hash"], limitations=[
                 "update_time 仅作为最新价格时点；不外推到 OI、IV 或 Greeks",
             ],
-        ))
+            ))
+        iv_points = _optional_decimal(row.get("option_implied_volatility"), "option_implied_volatility")
+        iv_fraction = None if iv_points is None else format(Decimal(iv_points) / 100, "f")
+        if iv_fraction is not None and Decimal(iv_fraction) < 0:
+            raise ValueError("MOOMOO_OPTION_IV_INVALID")
+        contract_multiplier = _optional_decimal(
+            row.get("option_contract_multiplier"), "option_contract_multiplier",
+        )
+        if contract_multiplier is not None and Decimal(contract_multiplier) <= 0:
+            raise ValueError("MOOMOO_OPTION_MULTIPLIER_INVALID")
+        contract_size = _optional_decimal(row.get("option_contract_size"), "option_contract_size")
+        greeks = {
+            name: _optional_decimal(row.get(f"option_{name}"), f"option_{name}")
+            for name in ("delta", "gamma", "vega", "theta", "rho")
+        }
         evidence.append(build_supplement_fact(
             security_id=security_id, dataset="options_snapshot",
             semantic_field=_semantic_key("moomoo_option_risk_snapshot", code, capture["retrieved_at"]),
             value={**common, "volume": row.get("volume"),
                    "open_interest": row.get("option_open_interest"),
-                   "implied_volatility": row.get("option_implied_volatility"),
-                   "greeks": {name: row.get(f"option_{name}") for name in ("delta", "gamma", "vega", "theta", "rho")}},
+                   "implied_volatility": iv_fraction,
+                   "implied_volatility_provider_percent_points": iv_points,
+                   "implied_volatility_unit": "DECIMAL_FRACTION",
+                   "contract_multiplier": contract_multiplier,
+                   "contract_size": contract_size,
+                   "greeks": greeks},
             source_id=f"moomoo-sg-opend-option-snapshot:{ticker}", source_family="moomoo_sg",
             source_locator=f"moomoo-opend://get_market_snapshot/{code}",
             source_version=_capture_source_version(capture), as_of=capture["retrieved_at"],
@@ -1213,6 +1294,12 @@ def normalize_opend_market_snapshot(
         ))
         gaps.append({"reason": "PROVIDER_EFFECTIVE_TIME_UNAVAILABLE", "contract_symbol": code,
                      "fields": ["volume", "open_interest", "implied_volatility", "greeks"]})
+        if contract_multiplier is None:
+            gaps.append({"reason": "MOOMOO_OPTION_MULTIPLIER_MISSING", "contract_symbol": code})
+        missing_greeks = [name for name, number in greeks.items() if number is None]
+        if missing_greeks:
+            gaps.append({"reason": "MOOMOO_OPTION_GREEKS_MISSING",
+                         "contract_symbol": code, "fields": missing_greeks})
     return {"adapter_version": ADAPTER_VERSION, "evidence": evidence, "gaps": gaps}
 
 

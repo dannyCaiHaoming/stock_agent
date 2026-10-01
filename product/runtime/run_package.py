@@ -618,7 +618,7 @@ def prepare_run(
 def _prepare_specialist_invocations(root: Path, *, run_dir: Path, run_id: str,
                                     model: str, gate: Mapping[str, Any],
                                     inputs: Mapping[str, Any], trace: dict[str, Any],
-                                    topology: Sequence[str]) -> dict[str, Any]:
+                                    topology: Sequence[str], compatibility_fixture: bool = False) -> dict[str, Any]:
     """共用确定性准备步骤；实际 Agent 委派仍由 Codex Skill 执行。"""
     specialists = tuple(agent for agent in topology if agent != "runtime_cio")
     if "runtime_skeptic" in specialists:
@@ -656,6 +656,7 @@ def _prepare_specialist_invocations(root: Path, *, run_dir: Path, run_id: str,
             model=model,
             evidence_ids=gate["allowed_evidence_ids"],
             output_schema_path=specialist_schema_paths[agent_name],
+            compatibility_fixture=compatibility_fixture,
         )
         _write_json(run_dir / "invocations" / f"{agent_name}.json", manifest)
         trace["agents"].append(
@@ -683,6 +684,8 @@ def prepare_live_run(repository_root: Path, *, portfolio_path: Path, snapshot_pa
                      cache_root: Path, calendar, run_dir: Path, run_id: str, model: str,
                      focus_security_id: str | None = None, authenticity_required: bool = True) -> dict[str, Any]:
     """仅供历史包兼容测试构造；当前 CLI/产品入口不得调用。"""
+    if authenticity_required is not False:
+        raise RunPackageError("LIVE_COUNCIL_ENTRY_RETIRED")
     from product.mcp.live.contracts import external_path, validate_contract
     from product.mcp.live.market import load_locked_calendar
     from product.runtime.live_context import validate_raw_records, live_artifact_hashes, live_resource_hashes, source_topology_lock
@@ -747,6 +750,7 @@ def prepare_live_run(repository_root: Path, *, portfolio_path: Path, snapshot_pa
             "runtime_profile": discovery.version_manifest["runtime_profile"],
             "decision_cutoff": snapshot["decision_cutoff"], "research_question": portfolio["research_question"],
             "focus_security_id": focus, "output_dir": str(run_dir), "authenticity_required": authenticity_required,
+            "compatibility_fixture": True,
             "run_mode": "PRODUCT_COUNCIL", "ablation_profile": None, "trigger_reason": "live_advisory",
             "discovery": discovery.to_dict(), "integrity_before": integrity_snapshot(root),
             "source_context": {"snapshot_hash": snapshot["snapshot_hash"], "artifact_hashes": live_artifact_hashes(run_dir),
@@ -781,7 +785,7 @@ def prepare_live_run(repository_root: Path, *, portfolio_path: Path, snapshot_pa
     # 共用 fixture 已验证的 Schema、Prompt、Invocation 准备步骤。
     try:
         return _prepare_specialist_invocations(root, run_dir=run_dir, run_id=run_id, model=model,
-            gate=gate, inputs=inputs, trace=trace, topology=validate_runtime_mode(run_mode="PRODUCT_COUNCIL", ablation_profile=None))
+            gate=gate, inputs=inputs, trace=trace, compatibility_fixture=True, topology=validate_runtime_mode(run_mode="PRODUCT_COUNCIL", ablation_profile=None))
     except (OSError, ValueError) as exc:
         return fail_run(run_dir, run_id=run_id, code="LIVE_INVOCATION_PREPARE_FAILED", message=str(exc),
                         failed_stage=FailureStage.PREFLIGHT, trace=trace)
@@ -1009,6 +1013,8 @@ def prepare_cio(
         evidence_ids=sorted(refs),
         output_schema_path=cio_schema_path,
         expected_report_agents=expected_report_agents,
+        compatibility_fixture=(live and run_manifest.get("compatibility_fixture") is True
+                               and run_manifest.get("authenticity_required") is False),
     )
     _write_json(run_dir / "invocations" / "runtime_cio.json", manifest)
     trace["agents"].append(

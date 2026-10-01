@@ -8,10 +8,59 @@ from typing import Any, Mapping, Sequence
 
 from product.runtime.hashing import canonical_hash
 from product.runtime.validation import collect_evidence_refs
+from product.runtime.multidimensional_references import CLAIM_REFERENCE_PREFIX, parse_scoped_claim_reference
+
+
+def project_research_status(
+    reports: Sequence[Mapping[str, Any]], *,
+    coverage: Sequence[Mapping[str, Any]] = (),
+    process: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """投影已校验产物的状态；不评分观点，不把作者自评当独立复核。"""
+
+    missing = [item for item in coverage if not item.get("report_id")]
+    failed = [item for item in missing if item.get("status") in {"FAILED", "TIMEOUT"}]
+    process = process or {}
+    process_status = (
+        "USER_INTERRUPTED" if process.get("interrupted") is True else
+        "TIMED_OUT" if process.get("timed_out") is True else
+        "EXITED" if isinstance(process.get("process_exit_code"), int) else "NOT_RECORDED"
+    )
+    return {
+        "process_status": process_status,
+        "process_exit_code": process.get("process_exit_code"),
+        "contract_status": (
+            "FAILED" if failed else "INCOMPLETE" if missing else
+            "PASSED" if reports else "NOT_RUN"
+        ),
+        "source_status": (
+            "SOURCE_LIMITED" if any(
+                report.get("status") in {"SOURCE_LIMITED", "INSUFFICIENT_EVIDENCE"}
+                or report.get("evaluation_status") == "SOURCE_LIMITED"
+                for report in reports
+            ) else "NOT_RECORDED"
+        ),
+        "agent_declared_content_failure": any(
+            report.get("evaluation_status") == "FAIL" for report in reports
+        ),
+        "research_review_status": "NOT_REVIEWED",
+        # 本函数只有报告/进程契约，没有独立内容批准或晋升证据。
+        "downstream_status": "STRUCTURALLY_CONSUMABLE" if reports else "NOT_READY",
+        "promotion_status": "NOT_EVALUATED",
+    }
+
+
+def _research_ref_label(reference: str) -> str:
+    if not reference.startswith(CLAIM_REFERENCE_PREFIX):
+        return f"`{reference}`"
+    binding = parse_scoped_claim_reference(reference)
+    return (f"报告 `{binding['report_id']}` / 主张 `{binding['claim_id']}` "
+            f"（报告版本 `{binding['report_hash']}`）")
 
 
 def render_dimension_report_markdown(
-    report: Mapping[str, Any], *, evidence: Sequence[Mapping[str, Any]]
+    report: Mapping[str, Any], *, evidence: Sequence[Mapping[str, Any]],
+    selected_upstream_calculations: Sequence[Mapping[str, Any]] = (),
 ) -> str:
     by_id = {str(item["evidence_id"]): item for item in evidence}
     refs = collect_evidence_refs(report)
@@ -22,7 +71,8 @@ def render_dimension_report_markdown(
         "",
         f"- 报告：`{report['report_id']}`",
         f"- 证券：{', '.join(report['security_ids']) or '共享市场'}",
-        f"- 状态：`{report['status']}` / 充分程度：`{report['sufficiency']}` / 评价：`{report['evaluation_status']}`",
+        f"- 状态：`{report['status']}` / 充分程度：`{report['sufficiency']}` / 作者自评：`{report['evaluation_status']}`",
+        "- 独立内容复核：`NOT_REVIEWED`；作者自评不是独立验收。",
         f"- 截止时间：{report['bindings']['decision_cutoff']}",
         f"- Agent / Skill / Model：`{report['execution']['agent_name']}` / `{report['execution']['skill_name']}` / `{report['execution']['model']}`",
         "",
@@ -43,7 +93,7 @@ def render_dimension_report_markdown(
             "",
             f"- 类型：`{claim['kind']}`",
             f"- Evidence：{', '.join(f'`{item}`' for item in claim['evidence_refs']) or '无'}",
-            f"- 派生主张：{', '.join(f'`{item}`' for item in claim['research_claim_refs']) or '无'}",
+            f"- 派生主张：{'; '.join(_research_ref_label(item) for item in claim['research_claim_refs']) or '无'}",
             f"- 文档：{', '.join(f'`{item}`' for item in claim['document_refs']) or '无'}",
             f"- 假设：{', '.join(f'`{item}`' for item in claim['assumption_ids']) or '无'}",
             f"- 计算：{', '.join(f'`{item}`' for item in claim['calculation_refs']) or '无'}",
@@ -60,6 +110,15 @@ def render_dimension_report_markdown(
     )
     if not report["assumptions"] and not report["calculations"]:
         lines.append("- 未记录额外假设或计算。")
+    if selected_upstream_calculations:
+        lines.extend(["", "## 复用的上游计算", ""])
+        for item in selected_upstream_calculations:
+            lines.extend([
+                f"- 本地主张 `{item['claim_id']}` 引用上游 `{item['report_id']}` / "
+                f"`{item['source_claim_id']}` / `{item['calculation_id']}`",
+                f"  - 上游报告 hash：`{item['report_hash']}`；计算收据：`{item['calculation']['receipt_hash']}`",
+                "  - 原工具结果：`" + json.dumps(item["verified_output"], ensure_ascii=False, sort_keys=True) + "`",
+            ])
     lines.extend(["", "## 研报文档与观点关系", ""])
     for item in report["documents"]:
         lines.extend([
@@ -75,7 +134,7 @@ def render_dimension_report_markdown(
     for item in report["research_relationships"]:
         lines.append(
             f"- `{item['relationship_id']}` `{item['effect']}`：{item['rationale']}"
-            f"（文档：`{item['document_id']}`；目标：{', '.join(item['target_claim_refs'])}；结果：{', '.join(item['resulting_claim_refs']) or '无'}）"
+            f"（文档：`{item['document_id']}`；目标：{'; '.join(_research_ref_label(ref) for ref in item['target_claim_refs'])}；结果：{', '.join(item['resulting_claim_refs']) or '无'}）"
         )
     if not report["documents"] and not report["research_relationships"]:
         lines.append("- 本维度没有研报文档或观点关系。")
@@ -119,11 +178,15 @@ def render_holding_research_bundle_markdown(
     bundle: Mapping[str, Any], *,
     dimension_reports: Sequence[Mapping[str, Any]] = (),
     equity_reports: Sequence[Mapping[str, Any]] = (),
+    process: Mapping[str, Any] | None = None,
 ) -> str:
     reports_by_id = {
         str(report["report_id"]): report
         for report in (*dimension_reports, *equity_reports)
     }
+    status = project_research_status(
+        list(reports_by_id.values()), coverage=bundle.get("coverage", []), process=process,
+    )
     lines = [
         "# 多维持仓研究包",
         "",
@@ -133,7 +196,14 @@ def render_holding_research_bundle_markdown(
         f"- decision_cutoff：{bundle['decision_cutoff']}",
         f"- 普通股：{', '.join(bundle['common_stock_security_ids'])}",
         f"- 结构状态：`STRUCTURALLY_CONSUMABLE`",
-        f"- 下游状态：`{bundle.get('consumability', 'STRUCTURALLY_CONSUMABLE')}`",
+        f"- 进程状态：`{status['process_status']}`；退出码：`{status['process_exit_code']}`",
+        f"- 契约状态：`{status['contract_status']}`",
+        f"- 来源限制：`{status['source_status']}`",
+        f"- 作者声明内容失败：`{status['agent_declared_content_failure']}`",
+        f"- 独立内容复核：`{status['research_review_status']}`",
+        f"- 下游状态：`{status['downstream_status']}`",
+        f"- 晋升状态：`{status['promotion_status']}`",
+        "- 结构可读取不等于研究内容通过，也不会自动启动下游。",
         "",
         "## 覆盖矩阵",
         "",
@@ -230,7 +300,8 @@ def render_holding_research_bundle_markdown(
 
 
 def persist_dimension_report(
-    output_dir: Path, *, report: Mapping[str, Any], evidence: Sequence[Mapping[str, Any]]
+    output_dir: Path, *, report: Mapping[str, Any], evidence: Sequence[Mapping[str, Any]],
+    selected_upstream_calculations: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -239,7 +310,10 @@ def persist_dimension_report(
     if json_path.exists() or markdown_path.exists():
         raise FileExistsError("DIMENSION_REPORT_OUTPUT_EXISTS")
     json_text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    markdown = render_dimension_report_markdown(report, evidence=evidence)
+    markdown = render_dimension_report_markdown(
+        report, evidence=evidence,
+        selected_upstream_calculations=selected_upstream_calculations,
+    )
     json_path.write_text(json_text, encoding="utf-8")
     markdown_path.write_text(markdown, encoding="utf-8")
     return {

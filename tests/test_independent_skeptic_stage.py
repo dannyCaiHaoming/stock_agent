@@ -37,6 +37,58 @@ from product.runtime.hashing import canonical_hash, file_hash
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def prepare_complete_forward(root, *, count=1):
+    run_id = "counter-real-forward-run"
+    handoff = stock_handoff(count)
+    gate = gate_for(handoff, run_id)
+    handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+    handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+    gate_path.write_text(json.dumps(gate), encoding="utf-8")
+
+    company = root / "company"
+    prepare_common_stock_stage_run(
+        ROOT, handoff_path=handoff_path, gate_path=gate_path,
+        run_dir=company, run_id=run_id, model="gpt-5.6-terra",
+    )
+    company_gate = json.loads((company / "evidence/gate.json").read_text())
+    company_index = json.loads((company / "research/dispatch-index.json").read_text())
+    for task in company_index["tasks"]:
+        request = json.loads((company / task["request_path"]).read_text())
+        report = valid_report(request)
+        report["report_id"] = f"equity:{task['security_id']}"
+        evidence = {
+            item["evidence_id"]: item for item in company_gate["allowed_evidence"]
+        }
+        persist_equity_research_report(
+            company / "research/reports", report=report, request=request,
+            evidence=[evidence[item] for item in request["allowed_evidence_ids"]],
+        )
+    company_proof = {
+        "schema_version": "common-stock-research-execution-proof/1.0.0",
+        "run_id": run_id,
+        "expected_tasks": sorted(item["task_name"] for item in company_index["tasks"]),
+        "completed_security_ids": sorted(item["security_id"] for item in company_index["tasks"]),
+        "intervals": [], "parallel_overlap": False, "all_reports_valid": True,
+        "agent": {}, "skills": [], "gate_hash": company_gate["bundle_hash"],
+        "complete_portfolio_decision": False,
+    }
+    company_proof["proof_hash"] = canonical_hash(company_proof)
+    (company / "research/execution-proof.json").write_text(
+        json.dumps(company_proof), encoding="utf-8"
+    )
+
+    base = root / "base"
+    prepare_multidimensional_stage_run(
+        ROOT, handoff_path=handoff_path, gate_path=gate_path,
+        run_dir=base, run_id=run_id, model="gpt-5.6-terra",
+        stage="INDEPENDENT_COUNTER_THESIS_RESEARCH",
+        company_research_run_path=company,
+    )
+    MultidimensionalStageTests().complete_with_explicit_gaps(base)
+    run = base
+    return run
+
+
 class IndependentSkepticContractTests(unittest.TestCase):
     def test_report_requires_actual_same_invocation_query_and_attempt_10_is_valid(self):
         with self.assertRaisesRegex(
@@ -70,58 +122,9 @@ class IndependentSkepticContractTests(unittest.TestCase):
 
     def test_real_forward_gate_prepares_skeptic_without_mocking_validation(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
-            run_id = "counter-real-forward-run"
-            handoff = stock_handoff(1)
-            gate = gate_for(handoff, run_id)
-            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
-            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
-            gate_path.write_text(json.dumps(gate), encoding="utf-8")
-
-            company = root / "company"
-            prepare_common_stock_stage_run(
-                ROOT, handoff_path=handoff_path, gate_path=gate_path,
-                run_dir=company, run_id=run_id, model="gpt-5.6-terra",
-            )
-            company_gate = json.loads((company / "evidence/gate.json").read_text())
-            company_index = json.loads((company / "research/dispatch-index.json").read_text())
-            for task in company_index["tasks"]:
-                request = json.loads((company / task["request_path"]).read_text())
-                report = valid_report(request)
-                report["report_id"] = f"equity:{task['security_id']}"
-                evidence = {
-                    item["evidence_id"]: item for item in company_gate["allowed_evidence"]
-                }
-                persist_equity_research_report(
-                    company / "research/reports", report=report, request=request,
-                    evidence=[evidence[item] for item in request["allowed_evidence_ids"]],
-                )
-            company_proof = {
-                "schema_version": "common-stock-research-execution-proof/1.0.0",
-                "run_id": run_id,
-                "expected_tasks": sorted(item["task_name"] for item in company_index["tasks"]),
-                "completed_security_ids": sorted(item["security_id"] for item in company_index["tasks"]),
-                "intervals": [], "parallel_overlap": False, "all_reports_valid": True,
-                "agent": {}, "skills": [], "gate_hash": company_gate["bundle_hash"],
-                "complete_portfolio_decision": False,
-            }
-            company_proof["proof_hash"] = canonical_hash(company_proof)
-            (company / "research/execution-proof.json").write_text(
-                json.dumps(company_proof), encoding="utf-8"
-            )
-
-            base = root / "base"
-            prepare_multidimensional_stage_run(
-                ROOT, handoff_path=handoff_path, gate_path=gate_path,
-                run_dir=base, run_id=run_id, model="gpt-5.6-terra",
-                stage="INDEPENDENT_COUNTER_THESIS_RESEARCH",
-                company_research_run_path=company,
-            )
-            MultidimensionalStageTests().complete_with_explicit_gaps(base)
-            run = base
-
+            run = prepare_complete_forward(Path(temp))
             forward = validate_forward_gate(ROOT, run)
-            self.assertEqual(run_id, forward["run_id"])
+            self.assertEqual("counter-real-forward-run", forward["run_id"])
             prepared = prepare_skeptic_phase(ROOT, run)
             self.assertEqual("PREPARED", prepared["status"])
             self.assertEqual(1, prepared["task_count"])

@@ -76,6 +76,7 @@ class SecurityMetadataTests(unittest.TestCase):
         for quote in (self.quote(), self.eastmoney_quote()):
             self.assertEqual(bind_disclosure_security(*self.cover(exchange="The Nasdaq Stock Market LLC"), quote)["exchange"], "XNAS")
             self.assertEqual(bind_disclosure_security(*self.cover(exchange="The Nasdaq Global Select Market"), quote)["exchange"], "XNAS")
+            self.assertEqual(bind_disclosure_security(*self.cover(exchange="Nasdaq Global Select Market"), quote)["exchange"], "XNAS")
             for exchange in ("The Nasdaq Stock Market LLC Other", "The Nasdaq Global Select Market Other", "NASDAQ UNKNOWN", "NYSE"):
                 with self.subTest(exchange=exchange), self.assertRaisesRegex(ValueError, "EXCHANGE_CONFLICT"):
                     bind_disclosure_security(*self.cover(exchange=exchange), quote)

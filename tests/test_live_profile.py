@@ -92,8 +92,13 @@ class LiveProfileTests(unittest.TestCase):
             self.assertIn("mcp__live_runtime__query", prompt)
             self.assertNotIn("fixture", prompt)
             model = discover_product_resources(ROOT).version_manifest["model"]
+            with self.assertRaisesRegex(ValueError, "LIVE_COUNCIL_ENTRY_RETIRED"):
+                create_invocation_manifest(ROOT, run_id="synthetic", agent_name=agent, agent_input=agent_input,
+                    task_prompt=prompt, model=model, evidence_ids=["ev-test"], output_schema_path=schema_path)
             manifest = create_invocation_manifest(ROOT, run_id="synthetic", agent_name=agent, agent_input=agent_input,
-                task_prompt=prompt, model=model, evidence_ids=["ev-test"], output_schema_path=schema_path)
+                task_prompt=prompt, model=model, evidence_ids=["ev-test"], output_schema_path=schema_path,
+                compatibility_fixture=True)
+            self.assertTrue(manifest["compatibility_fixture"])
             verify_invocation_manifest(ROOT, manifest, agent_input=agent_input)
             self.assertEqual(manifest["tool_permissions"], ["live_evidence.query"])
             self.assertEqual(manifest["source_context"]["snapshot_hash"], "a" * 64)

@@ -10,11 +10,12 @@ if [ "${1:-}" = "--help" ]; then
   echo '或：bash run-product-smoke.sh --launch-independent-skeptic-run <已完成正向多维运行目录> <新的外置调用产物目录>'
   echo '或：bash run-product-smoke.sh --resume-independent-skeptic-run <已运行的独立反证目录> <新的外置调用产物目录>（只重试未完成股票）'
   echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
-  echo '或：bash run-product-smoke.sh --stage multidimensional-holding-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--peer-candidates <冻结候选池>] [--model <研究模型>] [--company-research-run <已完成普通股研究运行>] <新的外置产物目录>'
+  echo '或：bash run-product-smoke.sh --stage multidimensional-holding-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--peer-candidates <冻结候选池>] [--require-materials] [--model <研究模型>] [--company-research-run <已完成普通股研究运行>] <新的外置产物目录>'
   echo '或：bash run-product-smoke.sh --stage independent-counter-thesis-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--model <研究模型>] <新的外置产物目录>（同次正向研究后逐股独立反证；不启动 CIO/Risk）'
   echo '或：bash run-product-smoke.sh --stage predecision-cio-synthesis --source-run <已完成正反研究目录> --target-security-id US:COMMON_STOCK:MRVL [--requested-level RESEARCH_SYNTHESIS] [--model <CIO模型>] <新的外置产物目录>（仅原截止点非动作研究）'
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'
-  echo '在 macOS Terminal 中执行；默认 normal fixture，模型读取现有路由策略。'
+  echo '多维新包可显式加 --structured-report-submission，仅启用研报结构化提交试验，默认关闭。'
+  echo '在 macOS Terminal 中执行；默认 normal fixture 读取原候选路由；普通股/多维/反证/CIO 开发测试默认 gpt-6-luna。'
   echo '仅限宿主产品执行；不创建项目沙箱。--review 已停用并明确拒绝。'
   exit 0
 fi
@@ -34,12 +35,15 @@ resume_independent_skeptic_run=
 stage=full-council
 stock_handoff=
 stock_gate=
+base_stock_gate=
 stock_data_preparation=
 stock_source_bundle=
 stock_model=
 stock_focus_security_id=
 company_research_run=
 stock_peer_candidates=
+require_materials=0
+structured_report_submission=0
 cio_source_run=
 cio_target_security_id=
 cio_requested_level=RESEARCH_SYNTHESIS
@@ -94,6 +98,8 @@ if [ "${1:-}" = "--stage" ]; then
       --focus-security-id) stock_focus_security_id=${2:-}; shift 2 ;;
       --company-research-run) company_research_run=${2:-}; shift 2 ;;
       --peer-candidates) stock_peer_candidates=${2:-}; shift 2 ;;
+      --require-materials) require_materials=1; shift ;;
+      --structured-report-submission) structured_report_submission=1; shift ;;
       --source-run) cio_source_run=${2:-}; shift 2 ;;
       --target-security-id) cio_target_security_id=${2:-}; shift 2 ;;
       --requested-level) cio_requested_level=${2:-}; shift 2 ;;
@@ -106,6 +112,9 @@ if [ "${1:-}" = "--stage" ]; then
   done
   if [ "$predecision_cio_stage" = "1" ] && { [ -z "$cio_source_run" ] || [ -z "$cio_target_security_id" ]; }; then
     echo 'CIO_SOURCE_AND_TARGET_REQUIRED：必须指定已完成正反研究目录与已有普通股 ID。' >&2; exit 2
+  fi
+  if [ "$structured_report_submission" = "1" ] && [ "$stage" != "multidimensional-holding-research" ]; then
+    echo 'STRUCTURED_REPORT_STAGE_UNSUPPORTED：结构化研报提交仅用于显式多维研究新包。' >&2; exit 2
   fi
   if [ "$predecision_cio_stage" = "1" ] && [ "$cio_target_security_id" != "US:COMMON_STOCK:MRVL" ]; then
     echo 'CIO_RESEARCH_TARGET_NOT_IN_SCOPE：本需求只综合 MRVL 冻结研究。' >&2; exit 2
@@ -237,6 +246,15 @@ print(select_model(pathlib.Path(sys.argv[1]) / 'product', route='runtime_repeate
 PY
 )
 if [ "$stage" = "common-stock-research" ] || [ "$multidimensional_stage" = "1" ]; then
+  if [ -z "$stock_model" ]; then
+    model=$(python3 - "$repo_root" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from product.runtime.model_routing import agent_development_test_model
+print(agent_development_test_model())
+PY
+)
+  fi
   if [ -n "$stock_model" ]; then
     model=$(python3 - "$repo_root" "$stock_model" <<'PY'
 import pathlib, sys
@@ -246,7 +264,10 @@ print(select_product_runtime_model(pathlib.Path(sys.argv[1]) / 'product', reques
 PY
 )
   fi
-  if [ -n "$stock_gate" ]; then
+  if [ "$stage" = "multidimensional-holding-research" ]; then
+    # 冻结资料的来源 run_id 不等于新的研究执行身份；每次新准备均生成 UUID。
+    run_id="host-multidimensional-$(uuidgen | tr '[:upper:]' '[:lower:]')"
+  elif [ -n "$stock_gate" ]; then
     run_id=$(python3 - "$stock_gate" <<'PY'
 import json, re, sys
 from pathlib import Path
@@ -301,33 +322,68 @@ PY
     if [ -n "$stock_peer_candidates" ]; then
       python3 "$repo_root/scripts/council-dev.py" prepare-research-materials --repo "$repo_root" \
         --handoff "$stock_handoff" --gate "$stock_gate" --peer-candidates "$stock_peer_candidates" \
-        --run-dir "$bundle/materials-run" --run-id "$run_id" --model "$model"
+        --run-dir "$bundle/materials-run" --run-id "$run_id" --model "$model" \
+        --max-concurrency 2 --reuse-frozen-gate
       if python3 "$repo_root/scripts/council-dev.py" launch-research-materials \
         --repo "$repo_root" --run-dir "$bundle/materials-run"; then
         research_materials_run="$bundle/materials-run"
+        if [ "$require_materials" = "1" ]; then
+          python3 - "$repo_root" "$research_materials_run" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from product.runtime.research_materials_stage import require_complete_research_materials_stage
+require_complete_research_materials_stage(Path(sys.argv[2]))
+PY
+        fi
         if [ -n "${LIVE_SOURCE_ACCESS_FILE:-}" ] && [ -n "${SEC_USER_AGENT:-}" ]; then
+          peer_cache_root="${LIVE_CACHE_ROOT:-${RESEARCH_MEMORY_ROOT:-$bundle}/raw-cache}"
+          peer_memory_arg=()
+          if [ -n "${RESEARCH_MEMORY_ROOT:-}" ]; then
+            peer_memory_arg=(--memory-root "$RESEARCH_MEMORY_ROOT")
+          fi
           if python3 "$repo_root/scripts/council-dev.py" materialize-selected-peers \
             --materials-run "$research_materials_run" --source-access "$LIVE_SOURCE_ACCESS_FILE" \
-            --cache-root "${LIVE_CACHE_ROOT:-$bundle/cache}" \
+            --cache-root "$peer_cache_root" \
+            "${peer_memory_arg[@]}" \
             --output-dir "$research_materials_run/research/peer-materialization"; then
             if [ -f "$research_materials_run/research/peer-materialization/gate.json" ]; then
+              if [ "$require_materials" = "1" ]; then
+                python3 - "$research_materials_run/research/peer-materialization/peer-materialization-manifest.json" <<'PY'
+import json, sys
+from pathlib import Path
+result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if result.get("status") != "FROZEN" or not result.get("selected") or not result.get("evidence_ids"):
+    raise SystemExit("REQUIRED_PEER_EVIDENCE_MISSING：未启动八维模型。")
+PY
+              fi
+              base_stock_gate=$stock_gate
               stock_gate="$research_materials_run/research/peer-materialization/gate.json"
+            elif [ "$require_materials" = "1" ]; then
+              echo 'REQUIRED_PEER_GATE_MISSING：未启动八维模型。' >&2; exit 7
             fi
           else
             echo 'PEER_MATERIALIZATION_FAILED：保留失败产物，其他独立维度继续。' >&2
+            if [ "$require_materials" = "1" ]; then exit 7; fi
           fi
         else
           echo 'PEER_MATERIALIZATION_SOURCE_CONFIGURATION_MISSING：同行资料未核实，其他独立维度继续。' >&2
+          if [ "$require_materials" = "1" ]; then exit 7; fi
         fi
       else
         echo 'RESEARCH_MATERIALS_STAGE_FAILED：资料准备未形成合法清单，其他独立维度继续。' >&2
+        if [ "$require_materials" = "1" ]; then exit 7; fi
       fi
     else
       echo 'PEER_CANDIDATE_POOL_MISSING：未启动资料准备批次，正式阶段保留研报/同行缺口。' >&2
+      if [ "$require_materials" = "1" ]; then exit 7; fi
     fi
     set -- python3 "$repo_root/scripts/council-dev.py" prepare-multidimensional-research --repo "$repo_root" \
       --handoff "$stock_handoff" --gate "$stock_gate" --run-dir "$bundle/run" \
       --run-id "$run_id" --model "$model" --question '补全已确认普通股持仓的免费多维研究资料。'
+    if [ "$stage" = "multidimensional-holding-research" ]; then
+      set -- "$@" --reuse-frozen-gate
+    fi
     if [ "$stage" = "independent-counter-thesis-research" ]; then
       set -- "$@" --stage INDEPENDENT_COUNTER_THESIS_RESEARCH
     fi
@@ -339,6 +395,12 @@ PY
     fi
     if [ -n "$research_materials_run" ]; then
       set -- "$@" --research-materials-run "$research_materials_run"
+    fi
+    if [ -n "$base_stock_gate" ]; then
+      set -- "$@" --base-gate "$base_stock_gate"
+    fi
+    if [ "$structured_report_submission" = "1" ]; then
+      set -- "$@" --structured-report-submission
     fi
   elif [ -n "$stock_data_preparation" ]; then
     set -- python3 "$repo_root/scripts/council-dev.py" prepare-common-stock-research --repo "$repo_root" \
@@ -401,6 +463,20 @@ python3 "$repo_root/scripts/council-dev.py" prepare --repo "$repo_root" \
 product_run="$bundle/run"
 else
   product_run=$prepared_run
+fi
+if [ -n "$prepared_run" ]; then
+  prepared_stage=$(python3 - "$prepared_run/run_manifest.json" <<'PY'
+import json, sys
+from pathlib import Path
+print(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("stage", ""))
+PY
+)
+  if [ "$prepared_stage" = "COMMON_STOCK_RESEARCH" ]; then
+    echo "进入宿主普通股研究阶段；进度：$product_run/invocation/codex-events.jsonl" >&2
+    python3 "$repo_root/scripts/council-dev.py" launch-common-stock-research \
+      --repo "$repo_root" --run-dir "$product_run"
+    exit $?
+  fi
 fi
 launch_status=0
 echo "进入宿主产品模式（全进程隔离 UNVERIFIED）；进度：$product_run/invocation/codex-events.jsonl" >&2

@@ -115,7 +115,7 @@ class RequestBoundary:
                     first, last = effective["period1"], effective["period2"]
                     if any(isinstance(v, bool) or re.fullmatch(r"[0-9]+", str(v)) is None for v in (first, last)):
                         raise ValueError
-                    if not 0 < int(last) - int(first) <= 366 * 86400 or "range" in effective:
+                    if not 0 < int(last) - int(first) <= 551 * 86400 or "range" in effective:
                         raise ValueError
                 except (KeyError, ValueError, TypeError):
                     self.fail("YAHOO_QUERY_RANGE_INVALID")

@@ -32,6 +32,7 @@ from product.council import (
 )
 from product.intake.v3 import validate_handoff
 from product.runtime.hashing import canonical_hash, file_hash
+from product.runtime.versioning import load_version_manifest, read_skill_version, validate_current_component_versions
 from product.council.research_output import validate_persisted_equity_research_pair
 
 
@@ -478,14 +479,10 @@ def validate_delivered_research_references(
 
 
 def _skill_version(path: Path) -> str:
-    text = path.read_text(encoding="utf-8")
-    if not text.startswith("---\n") or "\n---\n" not in text[4:]:
-        raise CommonStockStageError(f"COMMON_STOCK_SKILL_FRONTMATTER_INVALID:{path.parent.name}")
-    frontmatter = text[4:].split("\n---\n", 1)[0]
-    matched = re.search(r'(?m)^\s{2}version:\s*["\']?([^"\'\n]+)', frontmatter)
-    if not matched:
-        raise CommonStockStageError(f"COMMON_STOCK_SKILL_VERSION_MISSING:{path.parent.name}")
-    return matched.group(1).strip()
+    try:
+        return read_skill_version(path)
+    except ValueError as exc:
+        raise CommonStockStageError(f"COMMON_STOCK_SKILL_VERSION_MISSING:{path.parent.name}") from exc
 
 
 def current_research_bindings(repository_root: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -530,15 +527,25 @@ def current_research_bindings(repository_root: Path) -> tuple[dict[str, Any], li
         or len(configured) != len(set(configured))
     ):
         raise CommonStockStageError("COMMON_STOCK_AGENT_SKILL_SET_INVALID")
+    approved = load_version_manifest(product_root / "version-manifest.json")
+    agent_hash = file_hash(agent_path)
+    if agent_hash != approved["resource_hashes"]["company_agent"]:
+        raise CommonStockStageError("COMMON_STOCK_AGENT_RESOURCE_DRIFT")
     agent = {
         "name": "runtime_company_analyst",
-        "version": COMPANY_AGENT_VERSION,
-        "content_hash": file_hash(agent_path),
+        "version": approved["agents"]["runtime-company-analyst"],
+        "content_hash": agent_hash,
     }
     skills = []
     for name in REQUIRED_SKILLS:
         path = product_root / "skills" / name / "SKILL.md"
-        skills.append({"name": name, "version": _skill_version(path), "content_hash": file_hash(path)})
+        version = _skill_version(path)
+        if version != approved["skills"].get(name):
+            raise CommonStockStageError(f"COMMON_STOCK_SKILL_VERSION_DRIFT:{name}")
+        skills.append({"name": name, "version": version, "content_hash": file_hash(path)})
+    validate_current_component_versions(product_root, approved, skill_names=REQUIRED_SKILLS,
+                                        schema_names=(), adapter_scopes=("common-stock-field-query",),
+                                        check_risk=False)
     return agent, skills
 
 
@@ -568,6 +575,8 @@ def _dynamic_draft_schema(
     if calculation_artifact_ids:
         calculation_schema = {"type": "string", "enum": list(calculation_artifact_ids)}
     schema["$defs"]["claim"]["properties"]["calculation_refs"]["items"] = calculation_schema
+    from product.runtime.schema_validation import validate_schema_definition
+    validate_schema_definition(schema)
     return schema
 
 
@@ -686,7 +695,7 @@ def _research_input_fingerprint_for_holding(
         ),
         "prompt_policy": {
             "dispatch_contract": DISPATCH_VERSION,
-            "agent_version": COMPANY_AGENT_VERSION,
+            "agent_version": agent["version"],
             "excluded_semantic_fields": sorted(COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS),
             "excluded_datasets": sorted(COMPANY_RESEARCH_EXCLUDED_DATASETS),
         },

@@ -17,6 +17,19 @@ def write_json(path: Path, value: object) -> None:
 
 
 class ResearchConsumptionAuditTests(unittest.TestCase):
+    def test_failed_validation_is_not_reported_as_not_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            write_json(run / "evidence/gate.json", {"run_id": "r", "bundle_hash": "g", "allowed_evidence": []})
+            write_json(run / "research/dispatch-index.json", {"tasks": [{"task_id": "m", "capability": "MARKET_STATE"}]})
+            proof = {"run_id": "r", "gate_hash": "g", "failed_tasks": [{"task_id": "m", "failure_source": "SUBAGENT_STOP_OUTPUT_VALIDATION"}]}
+            proof["proof_hash"] = canonical_hash(proof)
+            write_json(run / "research/execution-proof.json", proof)
+            audit = build_research_consumption_audit(run)
+            rows = audit["dimension_rows"]
+            self.assertEqual(next(r for r in rows if r["capability"] == "MARKET_STATE")["research_coverage"], "FAILED_NO_VALID_REPORT")
+            self.assertEqual(next(r for r in rows if r["capability"] == "MACRO_CONTEXT")["research_coverage"], "NOT_RUN")
+
     def test_empty_expected_dataset_and_invocation_scoped_indirect_reference(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             run = Path(temp)
@@ -68,7 +81,15 @@ class ResearchConsumptionAuditTests(unittest.TestCase):
             })
             events = [
                 {"event_type": "mcp_tool_result", "invocation_id": "agent-one",
-                 "tool": "fixture_evidence.query", "evidence_ids": ["ev-derived"]},
+                 "tool": "fixture_evidence.query", "evidence_ids": ["ev-derived"],
+                 "output_bytes": 123},
+                {"event_type": "mcp_tool_result", "invocation_id": "agent-one",
+                 "tool": "fixture_evidence.query", "evidence_ids": ["ev-derived"],
+                 "output_bytes": 127},
+                {"event_type": "mcp_tool_error", "invocation_id": "agent-one",
+                 "tool": "query", "error": "UNKNOWN_EVIDENCE:ev-missing"},
+                {"event_type": "mcp_tool_error", "invocation_id": "agent-one",
+                 "tool": "calculate", "error": "TOOL_NOT_AUTHORIZED:fixture_math.calculate"},
                 {"event_type": "mcp_tool_result", "invocation_id": "agent-one",
                  "tool": "fixture_math.calculate", "calculation_id": "calc-1", "evidence_ids": ["ev-derived"]},
                 {"event_type": "mcp_tool_result", "invocation_id": "agent-two",
@@ -76,6 +97,9 @@ class ResearchConsumptionAuditTests(unittest.TestCase):
             ]
             path = run / "events/mcp/events.jsonl"
             path.parent.mkdir(parents=True)
+            for event in events:
+                event["run_id"] = "run-1"
+                event["event_hash"] = canonical_hash(event)
             path.write_text("\n".join(json.dumps(item) for item in events) + "\n", encoding="utf-8")
             write_json(run / "research/reports/one/dimension-report.json", {
                 "report_id": "report-one", "invocation_id": "agent-one",
@@ -135,6 +159,18 @@ class ResearchConsumptionAuditTests(unittest.TestCase):
                 "artifact_refs": ["research/precomputed/three/technical-calculation.json"],
             })
             audit = build_research_consumption_audit(run, cio_run=cio_run)
+            one_queries = next(item for item in audit["query_diagnostics"]["by_invocation"]
+                               if item["invocation_id"] == "agent-one")
+            self.assertEqual(one_queries["query_count"], 2)
+            self.assertEqual(one_queries["result_bytes_observed"], 250)
+            self.assertEqual(one_queries["repeated_evidence_ids"], ["ev-derived"])
+            self.assertEqual(one_queries["first_error_code"], "UNKNOWN_EVIDENCE")
+            calculation_tools = next(item for item in audit["query_diagnostics"]["by_tool"]
+                                     if item["invocation_id"] == "agent-one" and item["tool"] == "calculate")
+            self.assertEqual(calculation_tools["success_count"], 1)
+            self.assertEqual(calculation_tools["errors"][0]["error_code"], "TOOL_NOT_AUTHORIZED")
+            self.assertEqual(calculation_tools["errors"][0]["operation"], "NOT_OBSERVED")
+            self.assertEqual(calculation_tools["calculation_results"][0]["calculation_id"], "calc-1")
             parent = next(item for item in audit["rows"] if item["source_id"] == "sec-companyfacts")
             self.assertEqual(parent["indirect_refs_by_invocation"], {"agent-one": ["ev-parent"]})
             self.assertNotIn("agent-two", parent["delivered_by_invocation"])
@@ -159,6 +195,14 @@ class ResearchConsumptionAuditTests(unittest.TestCase):
             breadth = next(item for item in audit["coverage_items"]
                            if item["dataset"] == "market_breadth")
             self.assertEqual(breadth["source_status"], "SOURCE_LIMITED")
+            dimension = {item["capability"]: item for item in audit["dimension_rows"]}
+            self.assertEqual(len(dimension), 8)
+            self.assertEqual(dimension["FUNDAMENTAL_EVENT"]["research_coverage"],
+                             "INSUFFICIENT_EVIDENCE")
+            self.assertEqual(dimension["MARKET_STATE"]["research_coverage"], "NOT_RUN")
+            self.assertEqual(dimension["RESEARCH_REPORT"]["research_coverage"],
+                             "PARTIAL_OR_FAILED")
+            self.assertIn("## 八维研究", render_audit_summary(audit))
             missing_company_events = run / "company-without-events"
             missing_company_events.mkdir()
             with self.assertRaisesRegex(ValueError, "RESEARCH_AUDIT_COMPANY_BINDING_INVALID"):
@@ -243,6 +287,33 @@ class ResearchConsumptionAuditTests(unittest.TestCase):
             audit = build_research_consumption_audit(run)
             self.assertEqual(audit["rows"][0]["domain"], "MARKET")
             self.assertEqual(audit["rows"][0]["use_status"], "NOT_VERIFIED")
+
+    def test_eight_dimension_audit_uses_frozen_fact_dataset_without_provider_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            write_json(run / "evidence/gate.json", {
+                "run_id": "run-eight", "decision_cutoff": "2026-02-02T00:00:00Z",
+                "bundle_hash": "e" * 64, "allowed_evidence": [{
+                    "evidence_id": "option-greek", "security_id": "US:COMMON_STOCK:MRVL",
+                    "dataset": "options_snapshot", "semantic_field": "moomoo_option_risk_snapshot",
+                    "source_id": "moomoo-sg", "as_of": "2026-02-01T00:00:00Z",
+                    "retrieved_at": "2026-02-01T01:00:00Z",
+                }], "excluded": [],
+            })
+            audit = build_research_consumption_audit(run)
+            options = next(item for item in audit["dimension_rows"]
+                           if item["capability"] == "OPTIONS_FLOW")
+            self.assertEqual(options["gate_allowed_count"], 1)
+            self.assertEqual(options["research_coverage"], "NOT_RUN")
+            write_json(run / "research/reports/options/dimension-report.json", {
+                "report_id": "options-gap", "invocation_id": "options-invocation",
+                "capability": "OPTIONS_FLOW", "status": "SOURCE_LIMITED",
+                "sufficiency": "PARTIAL", "claims": [],
+            })
+            audit = build_research_consumption_audit(run)
+            options = next(item for item in audit["dimension_rows"]
+                           if item["capability"] == "OPTIONS_FLOW")
+            self.assertEqual(options["research_coverage"], "PARTIAL_OR_FAILED")
 
 
 if __name__ == "__main__":

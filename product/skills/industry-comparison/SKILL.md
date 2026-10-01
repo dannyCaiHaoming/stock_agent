@@ -11,7 +11,7 @@ metadata:
 
 必须回答：公司相对同行的位置；关键差异来自行业周期还是公司自身；哪些需求、价格或产业周期变量会传导到公司；币种、期间、会计基础、业务组合和盈利状态怎样限制比较。
 
-计算只使用可比原值和确定性工具。正式查询从 allowed_evidence_ids 原样选择与最低必答问题直接相关的非空子集，不发送空数组，也不把没有尝试调用误写为工具不可用。指标不可比时保留可用部分及具体缺口，不用行业标签、单一倍数或规则评分选择赢家。输出 `ResearchDimensionReport`，`capability=INDUSTRY_COMPARISON`，可按同行组覆盖多只持仓。
+计算只使用可比原值和确定性工具。正式查询按本次 citation_contract 选择与最低问题相关的非空子集：启用短引用时只用运行层精确映射，未启用时选 allowed_evidence_ids 原值。不发送空数组、不猜来源或改写 ID，也不把没有尝试调用误写为工具不可用。指标不可比时保留可用部分及具体缺口，不用行业标签、单一倍数或规则评分选择赢家。输出 `ResearchDimensionReport`，`capability=INDUSTRY_COMPARISON`，可按同行组覆盖多只持仓。
 
 若冻结包提供 `PeerComparison` 附件，必须逐家核对候选理由、证券身份、实际财报期、币种、
 会计基础和字段级 comparability status。默认使用已冻结的 2–3 家、最多 5 家固定候选；候选不足、

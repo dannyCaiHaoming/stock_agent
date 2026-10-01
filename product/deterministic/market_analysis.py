@@ -12,6 +12,66 @@ from product.runtime.hashing import canonical_hash
 
 TECHNICAL_CALCULATION_VERSION = "technical-calculation/1.0.0"
 MARKET_STATE_CALCULATION_VERSION = "market-state-calculation/1.0.0"
+MARKET_BREADTH_CALCULATION_VERSION = "market-breadth-calculation/1.0.0"
+
+
+def calculate_market_breadth(fact: Mapping[str, Any]) -> dict[str, Any]:
+    """Sum the documented US provider partition, not individual security returns.
+
+    Source: moomoo-api-doc/quote/get-rise-fall-distribution.html.
+    Infinity types use one border only; (0, 0) is the provider's flat bin.
+    Endpoint allocation inside each sign is retained as supplied, not inferred.
+    Only the observed complete nine-bin layout is supported, fail closed otherwise.
+    """
+    layout = {
+        ("NEGATIVE_INFINITY", 0, -7): "fall",
+        ("NORMAL_RANGE", -7, -5): "fall",
+        ("NORMAL_RANGE", -5, -3): "fall",
+        ("NORMAL_RANGE", -3, 0): "fall",
+        ("NORMAL_RANGE", 0, 0): "flat",
+        ("NORMAL_RANGE", 0, 3): "rise",
+        ("NORMAL_RANGE", 3, 5): "rise",
+        ("NORMAL_RANGE", 5, 7): "rise",
+        ("POSITIVE_INFINITY", 7, 0): "rise",
+    }
+    if (
+        fact.get("semantic_field") != "moomoo_us_rise_fall_distribution"
+        or fact.get("security_id") != "US:MARKET"
+        or any(not isinstance(fact.get(k), str) or not fact[k]
+               for k in ("evidence_id", "source_id", "as_of", "retrieved_at"))
+    ):
+        raise ValueError("MARKET_BREADTH_SOURCE_INVALID")
+    value = fact.get("value")
+    if not isinstance(value, Mapping) or value.get("plate") != "US.USAALL":
+        raise ValueError("MARKET_BREADTH_SCOPE_UNSUPPORTED")
+    ranges = value.get("ranges")
+    if not isinstance(ranges, list) or len(ranges) != len(layout):
+        raise ValueError("MARKET_BREADTH_PARTITION_INCOMPLETE")
+    totals = {"rise": 0, "fall": 0, "flat": 0}
+    seen = set()
+    for row in ranges:
+        if not isinstance(row, Mapping) or any(
+            type(row.get(k)) is not int for k in ("left_border", "right_border", "stock_count")
+        ) or row["stock_count"] < 0 or not isinstance(row.get("type"), str):
+            raise ValueError("MARKET_BREADTH_BIN_INVALID")
+        key = (row["type"], row["left_border"], row["right_border"])
+        if key not in layout or key in seen:
+            raise ValueError("MARKET_BREADTH_PARTITION_INVALID")
+        seen.add(key)
+        totals[layout[key]] += row["stock_count"]
+    artifact = {
+        "schema_version": MARKET_BREADTH_CALCULATION_VERSION,
+        "artifact_id": "market-breadth:" + fact["evidence_id"],
+        "source_id": fact["source_id"], "as_of": fact["as_of"],
+        "retrieved_at": fact["retrieved_at"], "market_id": value["plate"],
+        "evidence_fact_ids": [fact["evidence_id"]],
+        "input_fact_hash": canonical_hash(fact),
+        "ranges": sorted(copy.deepcopy(ranges), key=lambda r: (r["type"], r["left_border"], r["right_border"])),
+        "counts": totals, "unit": "provider_stock_count",
+        "limitations": ["仅汇总供应商该快照分桶，不证明交易所全覆盖、趋势或资金方向。"],
+    }
+    artifact["artifact_hash"] = canonical_hash(artifact)
+    return artifact
 
 
 def _decimal(value: Any, field: str) -> Decimal:

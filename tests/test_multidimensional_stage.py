@@ -12,15 +12,22 @@ from unittest.mock import patch
 
 from product.runtime.codex_hook_recorder import (
     handle_hook_event, _multidimensional_repair_packet, _terminal_research_tasks,
-    _multidimensional_draft_diagnostics,
+    _multidimensional_draft_diagnostics, _validate_multidimensional_tool_calculations,
+    _validate_multidimensional_calculation_structure,
+    _industry_source_identity_copy_paths, _bind_source_literal_selections,
 )
-from product.runtime.fixture_mcp import StatelessFixtureTools
+from product.runtime.fixture_mcp import StatelessFixtureTools, _write_event
 from product.council.multidimensional_research import envelope_research_dimension_draft
 from product.council.multidimensional_research import MultiDimensionalResearchError
 from product.runtime.multidimensional_stage import (
     DISPATCH_VERSION,
     STAGE_VERSION,
     _bounded_latest_facts,
+    _latest_annual_eps_focus,
+    _same_period_profit_cash_focus,
+    _latest_insider_trade_focus,
+    _sec_revenue_table_unit_focus,
+    _load_research_capture_batches,
     _facts_for_capability,
     _capability_routing_coverage,
     _task_provider_coverage_view,
@@ -35,15 +42,17 @@ from product.runtime.multidimensional_stage import (
     finalize_multidimensional_task_evidence,
     finalize_multidimensional_stage_run,
     serialize_multidimensional_initial_context,
+    serialize_multidimensional_model_context,
     launch_multidimensional_stage,
     prepare_multidimensional_stage_run,
     MultidimensionalStageError,
 )
-from product.runtime.multidimensional_stage import _frozen_peer_candidates
+from product.runtime.multidimensional_stage import _frozen_peer_candidates, _issuer_document_title
 from product.runtime.common_stock_stage import prepare_common_stock_stage_run
 from product.council.research_output import persist_equity_research_report
 from product.council.multidimensional_output import persist_dimension_report
-from product.runtime.hashing import canonical_hash, file_hash
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash
+from product.runtime.multidimensional_references import translate_references
 from product.deterministic.market_analysis import verify_technical_calculation
 from product.runtime.validation import ArtifactValidationError, validate_evidence_closure
 from product.mcp.live.peer_candidates import build_peer_candidate_pool
@@ -56,6 +65,1247 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MultidimensionalStageTests(unittest.TestCase):
+    def test_agent_and_skill_versions_use_current_approved_manifest(self) -> None:
+        from product.runtime.multidimensional_stage import _agent_binding, _skill_binding
+
+        manifest = json.loads((ROOT / "product/version-manifest.json").read_text(encoding="utf-8"))
+        product = ROOT / "product"
+        market = _agent_binding(product, "runtime_market_catalyst")
+        self.assertEqual(market["version"], manifest["agents"]["runtime-market-catalyst"])
+        skill = _skill_binding(product, "options-market-structure")
+        self.assertEqual(skill["version"], manifest["skills"]["options-market-structure"])
+
+        with tempfile.TemporaryDirectory() as temp:
+            copied = Path(temp)
+            shutil.copy2(product / "version-manifest.json", copied / "version-manifest.json")
+            target = copied / "skills/options-market-structure/SKILL.md"
+            target.parent.mkdir(parents=True)
+            source = product / "skills/options-market-structure/SKILL.md"
+            target.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    f'version: "{skill["version"]}"', 'version: "0.0.0"', 1
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(MultidimensionalStageError, "MULTIDIMENSIONAL_SKILL_VERSION_DRIFT"):
+                _skill_binding(copied, "options-market-structure")
+
+    def test_calculation_shape_precedes_receipt_lineage_without_rewriting_draft(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+            packet = json.loads((run / task["packet_path"]).read_text())
+            ids = ["ev-aapl-revenue", "ev-aapl-cash"]
+            tool = StatelessFixtureTools(default_run_dir=run)
+            tool.query(run_id=task["run_id"], agent=task["agent"],
+                       invocation_id=task["invocation_id"], evidence_ids=ids)
+            result = tool.calculate(run_id=task["run_id"], agent=task["agent"],
+                                    invocation_id=task["invocation_id"],
+                                    calculation_id="shape-before-lineage", operation="ratio",
+                                    evidence_ids=ids)
+            _write_event(run / "events/mcp/events.jsonl", tool.events[-1])
+            draft = self.dimension_draft(task)
+            draft["calculations"] = [{
+                "calculation_id": result["calculation_id"], "method": "ratio",
+                "result": result["value"], "unit": "ratio",
+                "evidence_refs": ids, "artifact_ref": result["artifact_ref"],
+            }]
+            draft["artifact_refs"] = [result["artifact_ref"]]
+            original = copy.deepcopy(draft)
+            environment = self.targeted_environment(run, task)
+            parent, child = "parent-malformed-calculation", "child-malformed-calculation"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            blocked, _ = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(blocked["hook_event_name"], "SubagentStopBlocked")
+            code = blocked["output_capture"]["failure_code"]
+            self.assertIn("SCHEMA_EXTRA_PROPERTY", code)
+            # 当前作者不能抄写完整计算。历史正式对象仍先检查结构再验血缘。
+            with self.assertRaisesRegex(ValueError, "SCHEMA_REQUIRED_MISSING.*calculations"):
+                _validate_multidimensional_calculation_structure(draft, packet=packet)
+            self.assertEqual(draft, original)
+            self.assertTrue((run / result["artifact_ref"]).is_file())
+            corrected = copy.deepcopy(draft)
+            corrected["calculations"][0]["value"] = corrected["calculations"][0].pop("result")
+            corrected["calculations"][0]["input_evidence_refs"] = corrected["calculations"][0].pop("evidence_refs")
+            _validate_multidimensional_calculation_structure(corrected, packet=packet)
+            _validate_multidimensional_tool_calculations(
+                corrected, task=task, invocation=invocation, run_dir=run,
+            )
+
+    def test_option_quote_literal_reaches_real_hook_and_final_report(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff = stock_handoff(1)
+            gate = gate_for(handoff)
+            quote = {
+                "evidence_id": "ev-aapl-option-quote", "security_id": "US:COMMON_STOCK:AAPL",
+                "semantic_field": "moomoo_option_quote:contract", "dataset": "options_snapshot",
+                "source_type": "SECONDARY_VENDOR", "source_id": "moomoo-opend",
+                "as_of": "2026-09-10T19:58:46Z", "retrieved_at": "2026-09-11T09:00:00Z",
+                "value": {"bid": "5.35", "ask": "5.55", "contract_symbol": "US.AAPL261002C270000"},
+            }
+            gate["allowed_evidence"].append(quote)
+            gate["input_evidence_ids"].append(quote["evidence_id"])
+            gate["allowed_evidence_ids"].append(quote["evidence_id"])
+            gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
+            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+            handoff_path.write_text(json.dumps(handoff))
+            gate_path.write_text(json.dumps(gate))
+            run = root / "run"
+            prepare_multidimensional_stage_run(
+                ROOT, handoff_path=handoff_path, gate_path=gate_path, run_dir=run,
+                run_id="option-literal-hook", model="gpt-5.6-terra",
+            )
+            task = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+                        if t["capability"] == "OPTIONS_FLOW")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            short = next(k for k, v in packet["reference_map"]["evidence"].items()
+                         if v == quote["evidence_id"])
+            environment = self.targeted_environment(run, task)
+            parent, child = "option-literal-parent", "option-literal-child"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            started, context = handle_hook_event(self.start_payload(task, parent=parent, child=child),
+                                                 environ=environment)
+            self.assertEqual(started["context_binding"]["status"], "DELIVERED")
+            self.assertIn("source_literal_selections", context["hookSpecificOutput"]["additionalContext"])
+            event = {"event_type": "mcp_tool_result", "tool": "fixture_evidence.query",
+                     "access_mode": "read", "run_id": task["run_id"], "invocation_id": task["invocation_id"],
+                     "agent": task["agent"], "evidence_ids": [quote["evidence_id"]]}
+            event["event_hash"] = canonical_hash(event)
+            (run / "events/mcp").mkdir(parents=True, exist_ok=True)
+            (run / "events/mcp/events.jsonl").write_text(json.dumps(event) + "\n")
+            draft = self.dimension_draft(task)
+            for key in ("run_id", "invocation_id", "agent"):
+                draft.pop(key, None)
+            draft["claims"] = [{
+                "claim_id": "quote", "question": "报价时间？", "statement": "盘口{{sf.quote_time}}。",
+                "kind": "FACT", "evidence_refs": [short], "research_claim_refs": [],
+                "document_refs": [], "assumption_ids": [],
+            }]
+            draft["source_literal_selections"] = [{
+                "claim_id": "quote", "placeholder": "{{sf.quote_time}}",
+                "evidence_ref": short, "field": "as_of",
+            }]
+            stopped, response = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(stopped["output_capture"]["status"], "SAVED")
+            self.assertEqual(response, {})
+            report = json.loads((run / stopped["output_capture"]["path"]).read_text())
+            self.assertEqual(report["claims"][0]["statement"], "盘口as_of=2026-09-10T19:58:46Z。")
+            self.assertNotIn("source_literal_selections", report)
+
+    def test_source_literal_real_hook_without_authored_identity_repairs_and_saves(self):
+        for second_still_wrong in (False, True):
+            with self.subTest(second_still_wrong=second_still_wrong), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                handoff = stock_handoff(1)
+                gate = gate_for(handoff)
+                fact = next(f for f in gate["allowed_evidence"] if f["evidence_id"] == "ev-aapl-revenue")
+                fact.update(source_type="sec", unit="USD", value="100")
+                gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
+                handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+                handoff_path.write_text(json.dumps(handoff))
+                gate_path.write_text(json.dumps(gate))
+                run = root / "run"
+                prepare_multidimensional_stage_run(
+                    ROOT, handoff_path=handoff_path, gate_path=gate_path, run_dir=run,
+                    run_id="source-literal-hook", model="gpt-5.6-terra",
+                )
+                task = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+                            if t["capability"] == "FUNDAMENTAL_EVENT")
+                packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+                short = next(k for k, v in packet["reference_map"]["evidence"].items()
+                             if v == fact["evidence_id"])
+                environment = self.targeted_environment(run, task)
+                parent, child = "literal-parent", "literal-child"
+                handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+                started, context = handle_hook_event(self.start_payload(task, parent=parent, child=child),
+                                                     environ=environment)
+                self.assertEqual(started["context_binding"]["status"], "DELIVERED")
+                self.assertIn("source_literal_selections", context["hookSpecificOutput"]["additionalContext"])
+                event = {"event_type": "mcp_tool_result", "tool": "fixture_evidence.query",
+                         "access_mode": "read", "run_id": task["run_id"],
+                         "invocation_id": task["invocation_id"], "agent": task["agent"],
+                         "evidence_ids": [fact["evidence_id"]]}
+                event["event_hash"] = canonical_hash(event)
+                (run / "events/mcp").mkdir(parents=True, exist_ok=True)
+                (run / "events/mcp/events.jsonl").write_text(json.dumps(event) + "\n")
+                draft = self.dimension_draft(task)
+                for key in ("run_id", "invocation_id", "agent"):
+                    draft.pop(key, None)
+                draft["claims"] = [{
+                    "claim_id": "revenue", "question": "收入原值？",
+                    "statement": "SEC收入{{sf.revenue}}。", "kind": "FACT",
+                    "evidence_refs": [short], "research_claim_refs": [], "document_refs": [],
+                    "assumption_ids": [],
+                }]
+                draft["source_literal_selections"] = [{
+                    "claim_id": "revenue", "placeholder": "{{sf.revenue}}",
+                    "evidence_ref": short, "field": "retrieved_at",
+                }]
+                first, response = handle_hook_event(self.stop_payload(task, draft, parent=parent, child=child),
+                                                    environ=environment)
+                self.assertEqual(first["hook_event_name"], "SubagentStopBlocked")
+                self.assertEqual(first["output_capture"]["failure_code"],
+                                 "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+                self.assertEqual(json.loads(response["reason"])["maximum_submissions"], 2)
+                if not second_still_wrong:
+                    draft["source_literal_selections"][0]["field"] = "sec_usd_value"
+                second, response = handle_hook_event(self.stop_payload(task, draft, parent=parent, child=child),
+                                                     environ=environment)
+                if second_still_wrong:
+                    self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
+                    self.assertEqual(second["output_capture"]["status"], "FAILED")
+                else:
+                    self.assertEqual(second["output_capture"]["status"], "SAVED")
+                    report = json.loads((run / second["output_capture"]["path"]).read_text())
+                    self.assertEqual(report["claims"][0]["statement"], "SEC收入100 USD。")
+                    self.assertNotIn("source_literal_selections", report)
+                    self.assertEqual(report["report_hash"], canonical_hash({
+                        k: v for k, v in report.items() if k != "report_hash"
+                    }))
+                    downstream = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+                                      if t["capability"] == "RESEARCH_REPORT")
+                    dependency_packet = build_multidimensional_dispatch_packet(ROOT, run, downstream["task_name"])
+                    self.assertEqual(dependency_packet["dependency_reports"][0]["claims"][0]["statement"],
+                                     "SEC收入100 USD。")
+                    raw = (run / second["output_capture"]["raw_path"]).read_text()
+                    self.assertIn("source_literal_selections", raw)
+                    self.assertNotIn('"invocation_id"', raw)
+                self.assertEqual(response, {})
+
+    def test_source_literal_failure_gets_only_one_bounded_repair(self):
+        packet = {"task": {"task_id": "fundamental_event:mrvl", "invocation_id": "inv",
+                           "source_literal_selection": "source-literal-selection/1.0.0"},
+                  "output_schema_hash": "schema-hash"}
+        payload = {"last_assistant_message": json.dumps({"claims": []})}
+        record = {"identity_binding": {"status": "BOUND"},
+                  "trusted_task_binding": {"invocation_id": "inv"},
+                  "output_binding": {"run_id": "run", "invocation_id": "inv",
+                                     "agent": "runtime_company_analyst"}}
+        with patch("product.runtime.multidimensional_references.load_reference_packet", return_value=packet):
+            first = _multidimensional_repair_packet(
+                payload, {"STOCK_AGENT_RUN_DIR": "/tmp/source-literal-test"},
+                failure_code="DIMENSION_SOURCE_LITERAL_SELECTION_INVALID", attempt=1,
+                trusted_record=record,
+            )
+            self.assertEqual(first["maximum_submissions"], 2)
+            self.assertNotIn("original_draft", first)
+            self.assertIsNone(_multidimensional_repair_packet(
+                payload, {"STOCK_AGENT_RUN_DIR": "/tmp/source-literal-test"},
+                failure_code="DIMENSION_SOURCE_LITERAL_SELECTION_INVALID", attempt=2,
+                trusted_record=record,
+            ))
+
+    def test_source_literal_contract_reaches_only_two_formal_packets(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            for task in index["tasks"]:
+                packet = build_multidimensional_dispatch_packet(
+                    ROOT, run, task["task_name"], include_dependency_reports=False,
+                )
+                schema_has_field = "source_literal_selections" in packet["output_schema"]["properties"]
+                wanted = task["capability"] in {"FUNDAMENTAL_EVENT", "OPTIONS_FLOW"}
+                self.assertEqual(schema_has_field, wanted, task["task_name"])
+                self.assertEqual("source_literal_selection" in packet["task"], wanted)
+                self.assertEqual("source_literal_selections" in packet["instruction"], wanted)
+                delivered = serialize_multidimensional_model_context(packet)
+                self.assertEqual("source_literal_selections" in delivered, wanted)
+
+    def test_source_literal_binding_is_task_scoped_and_exact(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            (run / "evidence").mkdir()
+            (run / "events/mcp").mkdir(parents=True)
+            sid = "US:COMMON_STOCK:MRVL"
+            sec = {"evidence_id": "ev-sec", "source_type": "sec", "security_id": sid,
+                   "semantic_field": "us-gaap.RevenueFromContractWithCustomerExcludingAssessedTax",
+                   "as_of": "2026-08-01T00:00:00Z", "retrieved_at": "2026-09-28T12:09:52Z",
+                   "unit": "USD", "value": "2739300000"}
+            quote = {"evidence_id": "ev-quote", "source_type": "SECONDARY_VENDOR", "security_id": sid,
+                     "dataset": "options_snapshot", "semantic_field": "moomoo_option_quote:one",
+                     "as_of": "2026-09-25T19:58:46Z", "retrieved_at": "2026-09-28T12:09:35.913898Z",
+                     "value": {"bid": "5.35", "ask": "5.55"}}
+            gate = {"decision_cutoff": "2026-09-28T12:35:32Z", "allowed_evidence": [sec, quote]}
+            gate["bundle_hash"] = canonical_hash(gate)
+            (run / "evidence/gate.json").write_text(json.dumps(gate))
+            def event(invocation, agent, ids):
+                row = {"event_type": "mcp_tool_result", "tool": "fixture_evidence.query",
+                       "access_mode": "read", "run_id": "run", "invocation_id": invocation,
+                       "agent": agent, "evidence_ids": ids}
+                row["event_hash"] = canonical_hash(row)
+                return row
+            events = [event("inv-f", "runtime_company_analyst", ["ev-sec"]),
+                      event("inv-o", "runtime_market_catalyst", ["ev-quote"])]
+            event_file = run / "events/mcp/events.jsonl"
+            event_file.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+            def task(capability, invocation, agent, ids):
+                return {"source_literal_selection": "source-literal-selection/1.0.0",
+                        "capability": capability, "run_id": "run", "invocation_id": invocation,
+                        "agent": agent, "security_ids": [sid], "allowed_evidence_ids": ids}
+            fundamental = task("FUNDAMENTAL_EVENT", "inv-f", "runtime_company_analyst", ["ev-sec"])
+            options = task("OPTIONS_FLOW", "inv-o", "runtime_market_catalyst", ["ev-quote"])
+            def draft(marker, ref, field, statement):
+                return {"claims": [{"claim_id": "c", "statement": statement,
+                                    "evidence_refs": [ref]}],
+                        "source_literal_selections": [{"claim_id": "c", "placeholder": marker,
+                                                       "evidence_ref": ref, "field": field}]}
+            revenue = draft("{{sf.revenue}}", "e.sec", "sec_usd_value",
+                            "收入{{sf.revenue}}；阈值2739000000 USD只是反例。")
+            mapping = {"evidence": {"e.sec": "ev-sec", "e.quote": "ev-quote"}}
+            bound = _bind_source_literal_selections(revenue, task=fundamental, run_dir=run, reference_map=mapping)
+            self.assertIn("2739300000 USD", bound["claims"][0]["statement"])
+            self.assertIn("阈值2739000000 USD只是反例", bound["claims"][0]["statement"])
+            self.assertNotIn("source_literal_selections", bound)
+            self.assertIn("{{sf.revenue}}", revenue["claims"][0]["statement"])
+            mixed_ref = copy.deepcopy(revenue)
+            mixed_ref["source_literal_selections"][0]["evidence_ref"] = "ev-sec"
+            self.assertIn("2739300000 USD", _bind_source_literal_selections(
+                mixed_ref, task=fundamental, run_dir=run, reference_map=mapping,
+            )["claims"][0]["statement"])
+            quoted = draft("{{sf.quote_time}}", "ev-quote", "as_of", "报价{{sf.quote_time}}。")
+            self.assertEqual(_bind_source_literal_selections(
+                quoted, task=options, run_dir=run, reference_map=mapping,
+            )["claims"][0]["statement"], "报价as_of=2026-09-25T19:58:46Z。")
+            fetched = copy.deepcopy(quoted)
+            fetched["source_literal_selections"][0]["field"] = "retrieved_at"
+            self.assertIn("retrieved_at=2026-09-28T12:09:35.913898Z",
+                          _bind_source_literal_selections(fetched, task=options, run_dir=run,
+                                                          reference_map=mapping)["claims"][0]["statement"])
+            variants = []
+            for key, value in (("evidence_ref", "ev-other"), ("field", "retrieved_at"),
+                               ("placeholder", "{{sf.missing}}")):
+                bad = copy.deepcopy(revenue)
+                bad["source_literal_selections"][0][key] = value
+                variants.append((bad, fundamental))
+            bad = copy.deepcopy(revenue)
+            bad["source_literal_selections"] *= 2
+            variants.append((bad, fundamental))
+            bad = copy.deepcopy(revenue)
+            bad["claims"][0]["statement"] += "{{sf.unknown}}"
+            variants.append((bad, fundamental))
+            bad = copy.deepcopy(revenue)
+            bad["claims"][0]["statement"] = "收入{{sf.revenue}} USD。"
+            variants.append((bad, fundamental))
+            bad = copy.deepcopy(quoted)
+            bad["claims"][0]["evidence_refs"] = []
+            variants.append((bad, options))
+            bad = copy.deepcopy(quoted)
+            bad["source_literal_selections"][0]["field"] = "sec_usd_value"
+            variants.append((bad, options))
+            for bad, scoped_task in variants:
+                with self.subTest(bad=bad):
+                    with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                        _bind_source_literal_selections(bad, task=scoped_task, run_dir=run,
+                                                        reference_map=mapping)
+            old = {**fundamental, "source_literal_selection": None}
+            with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                _bind_source_literal_selections(revenue, task=old, run_dir=run, reference_map=mapping)
+            self.assertEqual(_bind_source_literal_selections(
+                {"claims": [{"claim_id": "c", "statement": "收入假设阈值2739000000 USD，不是原值。",
+                             "evidence_refs": []}]}, task=old, run_dir=run, reference_map=mapping,
+            )["claims"][0]["statement"], "收入假设阈值2739000000 USD，不是原值。")
+            tampered = copy.deepcopy(events)
+            tampered[0]["evidence_ids"] = ["ev-other"]
+            event_file.write_text("\n".join(json.dumps(e) for e in tampered) + "\n")
+            with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                _bind_source_literal_selections(revenue, task=fundamental, run_dir=run,
+                                                reference_map=mapping)
+            event_file.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+            wrong_invocation = copy.deepcopy(events[0])
+            wrong_invocation["invocation_id"] = "elsewhere"
+            wrong_invocation["event_hash"] = canonical_hash({k: v for k, v in wrong_invocation.items() if k != "event_hash"})
+            event_file.write_text(json.dumps(wrong_invocation) + "\n")
+            with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                _bind_source_literal_selections(revenue, task=fundamental, run_dir=run,
+                                                reference_map=mapping)
+            event_file.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+            gate["allowed_evidence"][0]["value"] = "2739000000"
+            (run / "evidence/gate.json").write_text(json.dumps(gate))
+            with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                _bind_source_literal_selections(revenue, task=fundamental, run_dir=run,
+                                                reference_map=mapping)
+            gate["allowed_evidence"][0]["value"] = "2739.3"
+            gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
+            (run / "evidence/gate.json").write_text(json.dumps(gate))
+            with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                _bind_source_literal_selections(revenue, task=fundamental, run_dir=run,
+                                                reference_map=mapping)
+            gate["allowed_evidence"][0]["value"] = "2739300000"
+            gate["allowed_evidence"][1]["as_of"] = "bad-time"
+            gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
+            (run / "evidence/gate.json").write_text(json.dumps(gate))
+            with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                _bind_source_literal_selections(quoted, task=options, run_dir=run,
+                                                reference_map=mapping)
+
+    def test_insider_focus_is_bounded_pit_scoped_and_non_monetary(self):
+        sid = "US:COMMON_STOCK:MRVL"
+        cutoff = "2026-09-28T12:35:32Z"
+        def row(identity, day, kind, *, end=None, security=sid, published="2026-09-28T12:09:36Z"):
+            end = end or day
+            return {
+                "evidence_id": identity, "security_id": security,
+                "semantic_field": f"moomoo_insider_trade:{identity}",
+                "as_of": f"{end}T16:00:00Z", "published_at": published,
+                "retrieved_at": published,
+                "value": {"trade_date_start": day, "trade_date_end": end, "transaction_type": kind,
+                          "trade_shares": "-7500", "max_price": "298.76"},
+            }
+        rows = [
+            row("older", "2026-07-01", "卖出"),
+            row("sale", "2026-09-14", "卖出"),
+            row("exercise-sale", "2026-09-14", "行权卖出"),
+            row("exercise-grant", "2026-09-14", "行权获得"),
+            row("peer", "2026-09-14", "卖出", security="US:COMMON_STOCK:ADI"),
+            row("future-observed", "2026-09-14", "卖出", published="2026-09-29T12:00:00Z"),
+            row("future-trade", "2026-09-29", "卖出"),
+            row("missing-type", "2026-09-14", ""),
+        ]
+        before = copy.deepcopy(rows)
+        expected = ["sale", "exercise-sale", "exercise-grant"]
+        for facts in (rows, list(reversed(rows))):
+            focus = _latest_insider_trade_focus(facts, security_id=sid, cutoff=cutoff)
+            self.assertEqual([item["evidence_id"] for item in focus], expected)
+            self.assertTrue(all("trade_shares" not in item and "max_price" not in item for item in focus))
+            self.assertTrue(all("observed_at" in item for item in focus))
+        self.assertEqual(_latest_insider_trade_focus([], security_id=sid, cutoff=cutoff), [])
+        interval = row("interval", "2026-09-01", "卖出", end="2026-09-20")
+        interval_focus = _latest_insider_trade_focus([*rows, interval], security_id=sid, cutoff=cutoff)
+        self.assertEqual(interval_focus[0]["evidence_id"], "interval")
+        self.assertEqual((interval_focus[0]["trade_date_start"], interval_focus[0]["trade_date_end"]),
+                         ("2026-09-01", "2026-09-20"))
+        self.assertEqual(_latest_insider_trade_focus(
+            [row("bad-interval", "2026-09-20", "卖出", end="2026-09-01")],
+            security_id=sid, cutoff=cutoff,
+        ), [])
+        self.assertEqual(rows, before)
+
+    def test_frozen_mrvl_insider_focus_has_three_distinct_latest_types(self):
+        gate_path = Path(
+            "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/"
+            "eight-dimension-rebuild-20260928/citation-review-ready/evidence/gate.json"
+        )
+        if not gate_path.exists():
+            self.skipTest("host frozen acceptance gate unavailable")
+        gate = json.loads(gate_path.read_text(encoding="utf-8"))
+        focus = _latest_insider_trade_focus(
+            gate["allowed_evidence"], security_id="US:COMMON_STOCK:MRVL",
+            cutoff=gate["decision_cutoff"],
+        )
+        self.assertEqual(len(focus), 3)
+        self.assertEqual({item["trade_date_start"] for item in focus}, {"2026-09-14"})
+        self.assertEqual({item["transaction_type"] for item in focus}, {"卖出", "行权卖出", "行权获得"})
+
+    def test_ownership_focus_reaches_formal_hook_with_institutional_pair(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff = stock_handoff(1)
+            sid = handoff["portfolio"]["positions"][0]["security_id"]
+            gate = gate_for(handoff)
+            cutoff = gate["decision_cutoff"]
+            for label, end in (("2026/Q1", "2026-03-31"), ("2026/Q2", "2026-06-30")):
+                gate["allowed_evidence"].append({
+                    "evidence_id": f"ev-inst-{end}", "security_id": sid,
+                    "semantic_field": f"moomoo_institutional_aggregate:{end}",
+                    "dataset": "institutional_ownership", "source_id": "moomoo-test",
+                    "as_of": f"{end}T00:00:00Z", "published_at": cutoff, "retrieved_at": cutoff,
+                    "value": {"period_provisional": False, "period_end": end,
+                              "period_label": label},
+                })
+            for identity, kind in (("sale", "卖出"), ("exercise-sale", "行权卖出"),
+                                   ("exercise-grant", "行权获得")):
+                gate["allowed_evidence"].append({
+                    "evidence_id": f"ev-insider-{identity}", "security_id": sid,
+                    "semantic_field": f"moomoo_insider_trade:{identity}",
+                    "dataset": "insider_transactions", "source_id": "moomoo-test",
+                    "as_of": "2026-09-10T16:00:00Z",
+                    "published_at": cutoff, "retrieved_at": cutoff,
+                    "value": {"trade_date_start": "2026-09-10",
+                              "trade_date_end": "2026-09-10", "transaction_type": kind,
+                              "trade_shares": "-100"},
+                })
+            gate["input_evidence_ids"] = sorted(item["evidence_id"] for item in gate["allowed_evidence"])
+            gate["allowed_evidence_ids"] = list(gate["input_evidence_ids"])
+            gate["bundle_hash"] = canonical_hash({key: value for key, value in gate.items() if key != "bundle_hash"})
+            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            run = root / "run"
+            prepare_multidimensional_stage_run(
+                ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                run_dir=run, run_id="ownership-focus-test", model="gpt-5.6-terra",
+            )
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "OWNERSHIP_DISCLOSURE")
+            focus = task["source_focus"]
+            self.assertEqual(len(focus), 5)
+            self.assertEqual([item["period_label"] for item in focus[:2]], ["2026/Q1", "2026/Q2"])
+            self.assertEqual({item["transaction_type"] for item in focus[2:]}, {"卖出", "行权卖出", "行权获得"})
+            packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            context = json.loads(serialize_multidimensional_model_context(packet))
+            self.assertEqual(translate_references(context["task"]["source_focus"], packet["reference_map"]), focus)
+            self.assertTrue(all(item["evidence_id"].startswith("e.") for item in context["task"]["source_focus"]))
+            self.assertTrue(all("trade_shares" not in item for item in context["task"]["source_focus"]))
+            self.assertIn("min/max可能是聚合区间", context["instruction"])
+            environment = self.targeted_environment(run, task)
+            handle_hook_event(self.dispatch_payload(task, parent="ownership-parent"), environ=environment)
+            started, response = handle_hook_event(
+                self.start_payload(task, parent="ownership-parent", child="ownership-child"),
+                environ=environment,
+            )
+            self.assertEqual(started["context_binding"]["status"], "DELIVERED")
+            delivered = json.loads(response["hookSpecificOutput"]["additionalContext"])
+            self.assertEqual(delivered["task"]["source_focus"], context["task"]["source_focus"])
+
+    def test_issuer_title_distinguishes_sec_form_and_section(self):
+        self.assertIn("10-Q Management's Discussion", _issuer_document_title({
+            "semantic_field": "management_discussion", "metadata": {"form": "10-Q"},
+        }))
+        self.assertIn("8-K earnings release", _issuer_document_title({
+            "semantic_field": "earnings_release", "metadata": {"form": "8-K"},
+        }))
+        self.assertIn("form unknown", _issuer_document_title({
+            "semantic_field": "management_discussion", "metadata": {},
+        }))
+        self.assertIn("form unknown", _issuer_document_title({
+            "semantic_field": "earnings_release", "metadata": {"form": "UNVERIFIED"},
+        }))
+
+    def save_fundamental_dependency(self, run, index):
+        task = next(t for t in index["tasks"] if t["capability"] == "FUNDAMENTAL_EVENT")
+        environment = self.targeted_environment(run, task)
+        handle_hook_event(self.dispatch_payload(task, parent="dependency-parent"), environ=environment)
+        handle_hook_event(self.start_payload(task, parent="dependency-parent", child="dependency-child"), environ=environment)
+        draft = self.dimension_draft(task)
+        draft["claims"] = [{
+            "claim_id": "mrvl_core_drivers", "question": "经营驱动？", "statement": "冻结事实支持研究基线。",
+            "kind": "FACT", "evidence_refs": [task["allowed_evidence_ids"][0]],
+            "research_claim_refs": [], "document_refs": [], "assumption_ids": [],
+        }]
+        record, _ = handle_hook_event(self.stop_payload(task, draft, parent="dependency-parent", child="dependency-child"), environ=environment)
+        self.assertEqual(record["output_capture"]["status"], "SAVED")
+
+    def test_full_batch_early_subagent_stop_is_not_blocked_by_unfilled_slots(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            technical = next(
+                item for item in index["tasks"]
+                if item["capability"] == "TECHNICAL_STRUCTURE"
+            )
+            environment = self.targeted_environment(run, technical)
+            environment.pop("STOCK_AGENT_RESEARCH_TASK_NAME")
+            environment["STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS"] = (
+                "runtime_company_analyst,runtime_market_catalyst"
+            )
+            parent, child = "parent-early-stop", "child-early-stop"
+            dispatched, _ = handle_hook_event(
+                self.dispatch_payload(technical, parent=parent), environ=environment,
+            )
+            self.assertEqual(dispatched["decision"], "ALLOW")
+            handle_hook_event(
+                self.start_payload(technical, parent=parent, child=child),
+                environ=environment,
+            )
+            stopped, response = handle_hook_event(
+                self.stop_payload(
+                    technical, self.dimension_draft(technical),
+                    parent=parent, child=child,
+                ),
+                environ=environment,
+            )
+            self.assertEqual(stopped["hook_event_name"], "SubagentStop")
+            self.assertEqual(stopped["output_capture"]["status"], "SAVED")
+            self.assertEqual(response, {})
+            independent = [
+                item for item in index["tasks"]
+                if item["task_id"] != technical["task_id"] and not item["depends_on"]
+            ]
+            self.assertGreaterEqual(len(independent), 4)
+            for task in independent[:3]:
+                decision, _ = handle_hook_event(
+                    self.dispatch_payload(task, parent=parent), environ=environment,
+                )
+                self.assertEqual(decision["decision"], "ALLOW")
+            capped, _ = handle_hook_event(
+                self.dispatch_payload(independent[3], parent=parent),
+                environ=environment,
+            )
+            self.assertEqual(capped["decision"], "DENY_CONCURRENCY_LIMIT")
+
+    def test_full_batch_reference_repair_is_bounded_and_keeps_hard_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            technical = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
+            fundamental = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            tech_env = self.targeted_environment(run, technical)
+            parent, child = "parent-full-repair", "child-full-repair"
+            draft = self.formal_dimension_draft(technical)  # 历史完整稿只读诊断。
+            draft["claims"] = [{
+                "claim_id": "unsupported", "question": "技术结构是什么？",
+                "statement": "没有依据的观察。", "kind": "INTERPRETATION",
+                "evidence_refs": [], "research_claim_refs": [], "document_refs": [],
+                "assumption_ids": [],
+            }]
+            first = self.stop_payload(technical, draft, parent=parent, child=child)
+            repair = _multidimensional_repair_packet(
+                first, tech_env, failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED", attempt=1,
+            )
+            self.assertEqual(repair["validation_details"]["findings"][0]["path"], "claims[0]")
+            self.assertNotIn("original_draft", repair)
+            self.assertLess(len(json.dumps(repair).encode()), 16 * 1024)
+            self.assertIsNone(_multidimensional_repair_packet(
+                first, tech_env, failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED", attempt=2,
+            ))
+            fundamental_env = self.targeted_environment(run, fundamental)
+            wrong_id = self.formal_dimension_draft(fundamental)
+            wrong_id["claims"] = [{
+                "claim_id": "wrong-id", "question": "经营资料是什么？",
+                "statement": "测试数值。", "kind": "FACT",
+                "evidence_refs": ["ev-sec-text-invalid"], "research_claim_refs": [],
+                "document_refs": [], "assumption_ids": [],
+            }]
+            wrong_payload = self.stop_payload(fundamental, wrong_id, parent=parent, child=child)
+            evidence_repair = _multidimensional_repair_packet(
+                wrong_payload, fundamental_env,
+                failure_code="EVIDENCE_CLOSURE_FAILED:ev-sec-text-invalid", attempt=1,
+            )
+            self.assertEqual(evidence_repair["validation_details"]["findings"][0]["identifier"],
+                             "ev-sec-text-invalid")
+            self.assertNotIn("original_draft", evidence_repair)
+            self.assertIsNone(_multidimensional_repair_packet(
+                wrong_payload, fundamental_env,
+                failure_code="EVIDENCE_CLOSURE_FAILED:ev-other", attempt=1,
+            ))
+            wrong_artifact = self.formal_dimension_draft(fundamental)
+            wrong_artifact["artifact_refs"] = ["made-up-calculation-id"]
+            artifact_repair = _multidimensional_repair_packet(
+                self.stop_payload(fundamental, wrong_artifact, parent=parent, child=child),
+                fundamental_env, failure_code="MULTIDIMENSIONAL_OUTPUT_ARTIFACT_REF_INVALID",
+                attempt=1,
+            )
+            self.assertEqual(artifact_repair["validation_details"]["allowed_artifact_refs"],
+                             [fundamental["calculation_ledger_ref"]])
+            self.assertEqual(artifact_repair["validation_details"]["findings"][0]["path"],
+                             "artifact_refs[0]")
+            self.assertIn("不能仅因 ID 合法就保留无关引用", artifact_repair["instruction"])
+            self.assertNotIn("保持其他已合法引用不变", artifact_repair["instruction"])
+            first_fundamental = self.dimension_draft(fundamental)
+            first_fundamental["claims"] = copy.deepcopy(draft["claims"])
+            handle_hook_event(self.dispatch_payload(fundamental, parent=parent),
+                              environ=fundamental_env)
+            handle_hook_event(self.start_payload(fundamental, parent=parent, child=child),
+                              environ=fundamental_env)
+            stopped, response = handle_hook_event(
+                self.stop_payload(fundamental, first_fundamental, parent=parent, child=child),
+                environ=fundamental_env,
+            )
+            self.assertEqual(stopped["hook_event_name"], "SubagentStopBlocked")
+            self.assertEqual(response["decision"], "block")
+            corrected = self.dimension_draft(fundamental)
+            saved, _ = handle_hook_event(
+                self.stop_payload(fundamental, corrected, parent=parent, child=child),
+                environ=fundamental_env,
+            )
+            self.assertEqual(saved["output_capture"]["status"], "SAVED")
+            self.assertEqual(saved["output_capture"]["repair_state"], "REPAIRED")
+
+    def test_runtime_calculation_receipt_is_citable_and_tamper_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            invocation = json.loads((run / task["invocation_path"]).read_text())
+            ledger_ref = task["calculation_ledger_ref"]
+            self.assertEqual(invocation["calculation_ledger_ref"], ledger_ref)
+            packet = json.loads((run / task["packet_path"]).read_text())
+            self.assertEqual(packet["output_schema"]["properties"]["artifact_refs"]["items"]["enum"],
+                             [ledger_ref])
+            ids = ["ev-aapl-revenue", "ev-aapl-cash"]
+            tool = StatelessFixtureTools(default_run_dir=run)
+            tool.query(run_id=task["run_id"], agent=task["agent"],
+                       invocation_id=task["invocation_id"], evidence_ids=ids)
+            result = tool.calculate(run_id=task["run_id"], agent=task["agent"],
+                                    invocation_id=task["invocation_id"],
+                                    calculation_id="test-revenue-cash-ratio", operation="ratio",
+                                    evidence_ids=ids)
+            self.assertEqual(result["artifact_ref"], ledger_ref)
+            receipt = json.loads((run / ledger_ref).read_text(encoding="utf-8"))
+            self.assertEqual(
+                result["receipt_hash"],
+                legacy_envelope_hash(receipt, hash_field="receipt_hash"),
+            )
+            self.assertEqual(
+                result["receipt_hash"],
+                content_hash({key: value for key, value in receipt.items() if key != "receipt_hash"}),
+            )
+            self.assertEqual(
+                tool.events[-1]["event_hash"],
+                legacy_envelope_hash(tool.events[-1], hash_field="event_hash"),
+            )
+            _write_event(run / "events/mcp/events.jsonl", tool.events[-1])
+            draft = self.dimension_draft(task)
+            draft["status"] = "LOW_CONFIDENCE"
+            draft["sufficiency"] = "PARTIAL"
+            draft["claims"] = [{
+                "claim_id": "cash-to-revenue", "question": "经营资料是什么？",
+                "statement": "测试证据中的两个同期间数字可由受限工具计算比值。",
+                "kind": "FACT", "evidence_refs": ids, "research_claim_refs": [],
+                "document_refs": [], "assumption_ids": [],
+            }]
+            draft["calculation_selections"] = [{"calculation_ref": result["calculation_ref"],
+                                                 "claim_ids": ["cash-to-revenue"]}]
+            environment = self.targeted_environment(run, task)
+            parent, child = "parent-calculation-receipt", "child-calculation-receipt"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            wrong = copy.deepcopy(draft)
+            wrong["calculation_selections"][0]["calculation_ref"] = "invented-calculation-id"
+            blocked, feedback = handle_hook_event(
+                self.stop_payload(task, wrong, parent=parent, child=child),
+                environ=environment,
+            )
+            self.assertEqual(blocked["hook_event_name"], "SubagentStopBlocked")
+            self.assertIn("SCHEMA_PATTERN", blocked["output_capture"]["failure_code"])
+            located = json.loads(feedback["reason"])["validation_details"]
+            self.assertTrue(any(item["path"] == "/calculation_selections/0/calculation_ref"
+                                for item in located["findings"]))
+            saved, _ = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child),
+                environ=environment,
+            )
+            self.assertEqual(saved["output_capture"]["status"], "SAVED")
+            self.assertEqual(saved["output_capture"]["repair_state"], "REPAIRED")
+            report_path = run / saved["output_capture"]["path"]
+            self.assertTrue(report_path.is_file())
+            self.assertTrue(report_path.with_suffix(".md").is_file())
+            # 正式报告由可信收据装配，篡改负例继续走原严格血缘校验。
+            formal = json.loads(report_path.read_text())
+            bad = copy.deepcopy(formal)
+            bad["calculations"][0]["input_evidence_refs"] = list(reversed(ids))
+            with self.assertRaisesRegex(ValueError, "CALCULATION_INPUT_MISMATCH"):
+                _validate_multidimensional_tool_calculations(
+                    bad, task=task, invocation=invocation, run_dir=run,
+                )
+            unknown = copy.deepcopy(formal)
+            unknown["calculations"][0]["calculation_id"] = "unknown-calculation"
+            with self.assertRaisesRegex(ValueError, "CALCULATION_RECORD_UNKNOWN"):
+                _validate_multidimensional_tool_calculations(
+                    unknown, task=task, invocation=invocation, run_dir=run,
+                )
+            ledger = run / ledger_ref
+            original = ledger.read_text(encoding="utf-8")
+            tampered = json.loads(original)
+            tampered["output"]["value"] = "999"
+            ledger.write_text(json.dumps(tampered) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "CALCULATION_LEDGER_INVALID"):
+                _validate_multidimensional_tool_calculations(
+                    formal, task=task, invocation=invocation, run_dir=run,
+                )
+            ledger.write_text(original, encoding="utf-8")
+            event_path = run / "events/mcp/events.jsonl"
+            event_path.write_text(
+                json.dumps({**tool.events[-1], "context_note": "tampered"}) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "CALCULATION_EVENT_INVALID"):
+                _validate_multidimensional_tool_calculations(
+                    formal, task=task, invocation=invocation, run_dir=run,
+                )
+            event_path.write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "CALCULATION_EVENT_INVALID"):
+                _validate_multidimensional_tool_calculations(
+                    formal, task=task, invocation=invocation, run_dir=run,
+                )
+
+    def test_calculation_permission_is_scoped_to_fundamental_and_ownership(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            for task in index["tasks"]:
+                invocation = json.loads((run / task["invocation_path"]).read_text())
+                packet = json.loads((run / task["packet_path"]).read_text())
+                expected = ["fixture_evidence.query"]
+                if task["capability"] in {"OWNERSHIP_DISCLOSURE", "FUNDAMENTAL_EVENT"}:
+                    expected.append("fixture_math.calculate")
+                if task["capability"] == "OWNERSHIP_DISCLOSURE":
+                    self.assertIn("institutional_period_change", packet["instruction"])
+                if task["capability"] == "FUNDAMENTAL_EVENT":
+                    self.assertIn("monetary_scale", packet["instruction"])
+                    self.assertIn("历史收盘价，不称实时价", packet["instruction"])
+                self.assertEqual(invocation["tool_permissions"], expected)
+                self.assertEqual(packet["tool_context"]["logical_permissions"], expected)
+
+    def test_fundamental_routes_only_latest_target_close_without_mutation(self):
+        facts = [
+            {"evidence_id": identity, "security_id": sid,
+             "semantic_field": "historical_close_price", "source_id": "yahoo",
+             "as_of": date, "retrieved_at": "2026-09-11T10:00:00Z",
+             "value": "100", "unit": "USD"}
+            for identity, sid, date in (
+                ("older", "US:COMMON_STOCK:MRVL", "2026-09-09T20:00:00Z"),
+                ("latest", "US:COMMON_STOCK:MRVL", "2026-09-10T20:00:00Z"),
+                ("other", "US:COMMON_STOCK:ADI", "2026-09-10T20:00:00Z"),
+            )
+        ]
+        before = copy.deepcopy(facts)
+        args = {"security_ids": ["US:COMMON_STOCK:MRVL"], "benchmark_id": None}
+        for values in (facts, list(reversed(facts))):
+            selected = _facts_for_capability(values, capability="FUNDAMENTAL_EVENT", **args)
+            self.assertEqual([f["evidence_id"] for f in selected], ["latest"])
+            self.assertEqual(selected[0], facts[1])
+        self.assertEqual(_facts_for_capability([], capability="FUNDAMENTAL_EVENT", **args), [])
+        technical = _facts_for_capability(facts, capability="TECHNICAL_STRUCTURE", **args)
+        self.assertEqual({f["evidence_id"] for f in technical}, {"older", "latest"})
+        self.assertEqual(facts, before)
+
+    def test_fundamental_eps_focus_keeps_latest_allowed_period_candidates(self):
+        def eps(identity, sid, start, end, *, period="FY", source="sec"):
+            return {
+                "evidence_id": identity, "security_id": sid,
+                "semantic_field": "us-gaap.EarningsPerShareDiluted",
+                "source_type": source, "unit": "USD/shares", "value": "3.07",
+                "metadata": {"fiscal_period": period, "context_type": "duration",
+                             "period_start": start, "period_end": end},
+            }
+
+        facts = [
+            eps("older", "US:COMMON_STOCK:MRVL", "2024-02-04", "2025-02-01"),
+            eps("fy-a", "US:COMMON_STOCK:MRVL", "2025-02-02", "2026-01-31"),
+            eps("fy-b", "US:COMMON_STOCK:MRVL", "2025-02-02", "2026-01-31"),
+            eps("q2", "US:COMMON_STOCK:MRVL", "2026-05-03", "2026-08-01", period="Q2"),
+            eps("peer", "US:COMMON_STOCK:ADI", "2025-02-02", "2026-01-31"),
+            eps("other-source", "US:COMMON_STOCK:MRVL", "2025-02-02", "2026-01-31", source="yahoo"),
+            eps("bad-period", "US:COMMON_STOCK:MRVL", "2026-01-31", "2025-02-02"),
+        ]
+        legacy = eps("legacy-sec", "US:COMMON_STOCK:MRVL", "2025-02-02", "2026-01-31")
+        legacy.pop("source_type")
+        legacy["source_id"] = "sec-companyfacts-test"
+        facts.append(legacy)
+        before = copy.deepcopy(facts)
+        for values in (facts, list(reversed(facts))):
+            focus = _latest_annual_eps_focus(values, security_id="US:COMMON_STOCK:MRVL")
+            self.assertEqual([item["evidence_id"] for item in focus], ["fy-a", "fy-b", "legacy-sec"])
+            self.assertTrue(all(item["period_start"] == "2025-02-02" for item in focus))
+            self.assertTrue(all("value" not in item for item in focus))
+        self.assertEqual(_latest_annual_eps_focus([], security_id="US:COMMON_STOCK:MRVL"), [])
+        self.assertEqual(facts, before)
+
+    def test_sec_revenue_table_unit_focus_uses_header_not_derived_amounts(self):
+        def business(identity, sid, source, value):
+            return {
+                "evidence_id": identity, "security_id": sid,
+                "semantic_field": "business", "source_type": source,
+                "value": value,
+            }
+
+        table = (
+            "The following table summarizes net revenue disaggregated by end market "
+            "(in millions, except percentages): Data center $ 6,100.3 74 % "
+            "Communications and other 2,094.3 26 % Total $ 8,194.6"
+        )
+        facts = [
+            business("sec-table", "US:COMMON_STOCK:MRVL", "sec", table),
+            business("peer-table", "US:COMMON_STOCK:ADI", "sec", table),
+            business("provider-table", "US:COMMON_STOCK:MRVL", "yahoo", table),
+            business("no-table", "US:COMMON_STOCK:MRVL", "sec", "Revenue was 8,194.6 million USD."),
+        ]
+        before = copy.deepcopy(facts)
+        self.assertEqual(
+            _sec_revenue_table_unit_focus(facts, security_id="US:COMMON_STOCK:MRVL"),
+            [{"evidence_id": "sec-table", "semantic_field": "business",
+              "table_unit": "millions", "table_label": "revenue_disaggregation"}],
+        )
+        self.assertEqual(_sec_revenue_table_unit_focus([], security_id="US:COMMON_STOCK:MRVL"), [])
+        self.assertEqual(facts, before)
+
+    def test_same_period_profit_cash_focus_is_bounded_and_requires_exact_period(self):
+        sid = "US:COMMON_STOCK:MRVL"
+        def financial(identity, field, start, end, *, security=sid, source="sec", unit="USD"):
+            return {
+                "evidence_id": identity, "security_id": security,
+                "semantic_field": f"us-gaap.{field}", "source_type": source,
+                "unit": unit, "value": "123", "published_at": "2026-08-28T20:04:02Z",
+                "metadata": {"context_type": "duration", "period_start": start, "period_end": end},
+            }
+        facts = [
+            financial("old-net", "NetIncomeLoss", "2025-02-02", "2025-08-02"),
+            financial("old-cash", "NetCashProvidedByUsedInOperatingActivities", "2025-02-02", "2025-08-02"),
+            financial("h1-net", "NetIncomeLoss", "2026-02-01", "2026-08-01"),
+            financial("h1-net-duplicate", "NetIncomeLoss", "2026-02-01", "2026-08-01"),
+            financial("h1-net-third", "NetIncomeLoss", "2026-02-01", "2026-08-01"),
+            financial("h1-cash", "NetCashProvidedByUsedInOperatingActivities", "2026-02-01", "2026-08-01"),
+            financial("quarter-net", "NetIncomeLoss", "2026-05-03", "2026-08-01"),
+            financial("peer-cash", "NetCashProvidedByUsedInOperatingActivities", "2026-02-01", "2026-08-01", security="US:COMMON_STOCK:ADI"),
+            financial("provider-cash", "NetCashProvidedByUsedInOperatingActivities", "2026-02-01", "2026-08-01", source="yahoo"),
+            financial("wrong-unit", "NetIncomeLoss", "2026-02-01", "2026-08-01", unit="USD/shares"),
+        ]
+        before = copy.deepcopy(facts)
+        expected = ["h1-net-third", "h1-net-duplicate", "h1-cash"]
+        for values in (facts, list(reversed(facts))):
+            focus = _same_period_profit_cash_focus(values, security_id=sid)
+            self.assertEqual([item["evidence_id"] for item in focus], expected)
+            self.assertTrue(all(item["period_start"] == "2026-02-01" and item["period_end"] == "2026-08-01" for item in focus))
+            self.assertTrue(all("value" not in item for item in focus))
+        self.assertEqual(_same_period_profit_cash_focus([facts[2], facts[6]], security_id=sid), [])
+        self.assertEqual(_same_period_profit_cash_focus([], security_id=sid), [])
+        self.assertEqual(facts, before)
+
+    def test_fundamental_eps_focus_reaches_formal_model_context_without_value(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff = stock_handoff(1)
+            security_id = next(item["security_id"] for item in handoff["portfolio"]["positions"])
+            gate = gate_for(handoff)
+            eps = {
+                "evidence_id": "ev-frozen-fy-eps", "security_id": security_id,
+                "semantic_field": "us-gaap.EarningsPerShareDiluted",
+                "source_type": "sec", "source_id": "sec-companyfacts-test",
+                "as_of": "2026-01-31T00:00:00Z", "retrieved_at": "2026-09-11T10:00:00Z",
+                "value": "3.07", "unit": "USD/shares",
+                "metadata": {"fiscal_period": "FY", "context_type": "duration",
+                             "period_start": "2025-02-02", "period_end": "2026-01-31"},
+            }
+            gate["allowed_evidence"].append(eps)
+            gate["input_evidence_ids"].append(eps["evidence_id"])
+            gate["allowed_evidence_ids"].append(eps["evidence_id"])
+            table = {
+                "evidence_id": "ev-frozen-sec-table", "security_id": security_id,
+                "semantic_field": "business", "source_type": "sec",
+                "source_id": "sec-filing-test", "as_of": "2026-03-11T20:04:20Z",
+                "retrieved_at": "2026-09-11T10:00:00Z", "unit": "text",
+                "value": "The following table summarizes net revenue disaggregated by end market "
+                         "(in millions, except percentages): Total $ 8,194.6",
+            }
+            gate["allowed_evidence"].append(table)
+            gate["input_evidence_ids"].append(table["evidence_id"])
+            gate["allowed_evidence_ids"].append(table["evidence_id"])
+            for identity, field, amount in (
+                ("ev-frozen-h1-net", "us-gaap.NetIncomeLoss", "342500000"),
+                ("ev-frozen-h1-cash", "us-gaap.NetCashProvidedByUsedInOperatingActivities", "1244300000"),
+            ):
+                item = {
+                    "evidence_id": identity, "security_id": security_id,
+                    "semantic_field": field, "source_type": "sec", "source_id": "sec-companyfacts-test",
+                    "as_of": "2026-08-01T00:00:00Z", "retrieved_at": "2026-09-11T10:00:00Z",
+                    "value": amount, "unit": "USD",
+                    "metadata": {"context_type": "duration", "period_start": "2026-02-01", "period_end": "2026-08-01"},
+                }
+                gate["allowed_evidence"].append(item)
+                gate["input_evidence_ids"].append(identity)
+                gate["allowed_evidence_ids"].append(identity)
+            gate["input_evidence_ids"].sort()
+            gate["allowed_evidence_ids"].sort()
+            gate["bundle_hash"] = canonical_hash({key: value for key, value in gate.items() if key != "bundle_hash"})
+            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            run = root / "run"
+            prepare_multidimensional_stage_run(
+                ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                run_dir=run, run_id="eps-focus-test", model="gpt-5.6-terra",
+            )
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            self.assertEqual(
+                [item["evidence_id"] for item in task["source_focus"]],
+                [eps["evidence_id"], table["evidence_id"], "ev-frozen-h1-net", "ev-frozen-h1-cash"],
+            )
+            self.assertEqual(task["source_focus"][1]["table_unit"], "millions")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            context = json.loads(serialize_multidimensional_model_context(packet))
+            focus = translate_references(context["task"]["source_focus"], packet["reference_map"])
+            self.assertEqual(focus, task["source_focus"])
+            self.assertNotIn("value", context["task"]["source_focus"][0])
+            initial = json.loads(serialize_multidimensional_initial_context(packet))
+            self.assertEqual(initial["task"]["source_focus"], context["task"]["source_focus"])
+            self.assertIn("单季EPS比值工具失败不等于同Gate没有年度EPS", context["instruction"])
+            self.assertIn("不得自行将million改为billion", context["instruction"])
+            self.assertIn("SEC原单位为USD的整数金额也不能自行缩写为million/billion", context["instruction"])
+            self.assertIn("不得把业绩稿约数写成带结构化事实期间的精确整数USD", context["instruction"])
+            self.assertIn("表头继承的数字", context["instruction"])
+            self.assertIn("最近完整财年收入分解表", context["minimum_questions"][0])
+            self.assertIn("不得只引用该表却只解释较近季度增速", context["instruction"])
+            self.assertIn("同起止日不自动证明现金转化率", context["instruction"])
+            environment = self.targeted_environment(run, task)
+            environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
+            dispatched, _ = handle_hook_event(
+                self.dispatch_payload(task, parent="eps-focus-parent"), environ=environment,
+            )
+            self.assertEqual(dispatched["decision"], "ALLOW")
+            started, response = handle_hook_event(
+                self.start_payload(task, parent="eps-focus-parent", child="eps-focus-child"),
+                environ=environment,
+            )
+            self.assertEqual(started["context_binding"]["status"], "DELIVERED")
+            hook_context = json.loads(response["hookSpecificOutput"]["additionalContext"])
+            self.assertEqual(hook_context["task"]["source_focus"], initial["task"]["source_focus"])
+            self.assertEqual(hook_context["packet_hash"], initial["packet_hash"])
+            self.assertIsInstance(hook_context["evidence_catalog"], list)
+            self.assertTrue(hook_context["task"]["source_focus"][0]["evidence_id"].startswith("e."))
+            self.assertTrue(hook_context["task"]["source_focus"][1]["evidence_id"].startswith("e."))
+            self.assertEqual(hook_context["task"]["source_focus"][1]["table_unit"], "millions")
+            self.assertEqual(len(hook_context["task"]["source_focus"]), 4)
+            self.assertEqual(hook_context["task"]["source_focus"][2]["period_start"], "2026-02-01")
+            self.assertNotIn("value", hook_context["task"]["source_focus"][2])
+            self.assertEqual(hook_context["minimum_questions"], context["minimum_questions"])
+            self.assertIn("不得只引用该表却只解释较近季度增速", hook_context["instruction"])
+            self.assertIn("SEC原单位为USD的整数金额也不能自行缩写为million/billion", hook_context["instruction"])
+            self.assertIn("不得把业绩稿约数写成带结构化事实期间的精确整数USD", hook_context["instruction"])
+            self.assertEqual(
+                translate_references(hook_context["task"]["source_focus"], packet["reference_map"]),
+                task["source_focus"],
+            )
+            tool = StatelessFixtureTools(default_run_dir=run)
+            queried = tool.query(
+                run_id=task["run_id"], agent=task["agent"],
+                invocation_id=task["invocation_id"], evidence_ids=[eps["evidence_id"]],
+            )
+            self.assertEqual("fixture-gate-scoped/2.5.0", queried["adapter_version"])
+            self.assertEqual(queried["evidence"][0]["value"], "3.07")
+            paired = tool.query(
+                run_id=task["run_id"], agent=task["agent"],
+                invocation_id=task["invocation_id"],
+                evidence_ids=["ev-frozen-h1-net", "ev-frozen-h1-cash"],
+            )
+            self.assertEqual(
+                [item["value"] for item in paired["evidence"]],
+                ["342500000", "1244300000"],
+            )
+            report_task = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
+            self.assertEqual(report_task["source_focus"], [])
+            table_result = tool.query(
+                run_id=task["run_id"], agent=task["agent"],
+                invocation_id=task["invocation_id"], evidence_ids=[table["evidence_id"]],
+            )
+            self.assertIn("(in millions, except percentages)", table_result["evidence"][0]["value"])
+
+    def test_market_and_options_source_boundaries_reach_formal_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            tasks = json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+            expected = {
+                "MARKET_STATE": ("两日涨跌百分比", "单位未核实"),
+                "OPTIONS_FLOW": ("单位未核实", "两日涨跌百分比"),
+            }
+            for capability, (present, absent) in expected.items():
+                task = next(item for item in tasks if item["capability"] == capability)
+                packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+                context = json.loads(serialize_multidimensional_model_context(packet))
+                self.assertIn(present, context["instruction"])
+                self.assertNotIn(absent, context["instruction"])
+                if capability == "OPTIONS_FLOW":
+                    self.assertIn("逐项给出该合约可得的 delta、gamma、theta、vega、rho 原值", context["minimum_questions"][1])
+                    self.assertIn("标的波动单位未知只限制跨口径比较", context["minimum_questions"][1])
+                    environment = self.targeted_environment(run, task)
+                    dispatched, _ = handle_hook_event(
+                        self.dispatch_payload(task, parent="options-question-parent"),
+                        environ=environment,
+                    )
+                    self.assertEqual(dispatched["decision"], "ALLOW")
+                    started, response = handle_hook_event(
+                        self.start_payload(task, parent="options-question-parent", child="options-question-child"),
+                        environ=environment,
+                    )
+                    self.assertEqual(started["context_binding"]["status"], "DELIVERED", started["context_binding"])
+                    hook_context = json.loads(response["hookSpecificOutput"]["additionalContext"])
+                    self.assertEqual(hook_context["minimum_questions"], context["minimum_questions"])
+                self.assertLessEqual(len(json.dumps(context, ensure_ascii=False).encode("utf-8")), 256 * 1024)
+            legacy = next(item for item in tasks if item["capability"] == "TECHNICAL_STRUCTURE")
+            legacy_packet = build_multidimensional_dispatch_packet(ROOT, run, legacy["task_name"])
+            self.assertNotIn("两日涨跌百分比", legacy_packet["instruction"])
+            self.assertNotIn("单位未核实", legacy_packet["instruction"])
+
+    def test_formal_model_context_keeps_exact_catalog_and_source_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            packet = build_multidimensional_dispatch_packet(
+                ROOT, run, task["task_name"], include_dependency_reports=False,
+            )
+            packet["provider_coverage"]["providers"].append({
+                "plane": "RESEARCH_SUPPLEMENT", "provider": "test-provider",
+                "limitations": ["license-limited"],
+                "dataset_observations": [
+                    {"dataset": "research_discovery", "status": "AVAILABLE"},
+                    {"dataset": "research_discovery", "status": "SOURCE_LIMITED",
+                     "failure_code": "LICENSE_REQUIRED", "limitations": ["body unavailable"]},
+                ],
+            })
+            full = json.dumps(packet, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            context = json.loads(serialize_multidimensional_model_context(packet))
+            columns = context["evidence_catalog"]["columns"]
+            rebuilt = [dict(zip(columns, row)) for row in context["evidence_catalog"]["rows"]]
+            rebuilt = translate_references(rebuilt, packet["reference_map"])
+            self.assertEqual(rebuilt, packet["evidence_catalog"])
+            self.assertEqual(
+                {row["evidence_id"] for row in rebuilt}, set(packet["allowed_evidence_ids"]),
+            )
+            self.assertNotIn("allowed_evidence_ids", context)
+            self.assertNotIn("allowed_evidence_ids", context["task"])
+            self.assertIn("output_format_guide", context["instruction"])
+            removed = {"run_id", "invocation_id", "agent", "calculations", "documents", "artifact_refs"}
+            choices = {"calculation_selections", "document_selections"}
+            self.assertEqual(set(context["output_format_guide"]["required"]),
+                             (set(packet["output_schema"]["required"]) - removed) | choices)
+            self.assertEqual(set(context["output_format_guide"]["properties"]),
+                             (set(packet["output_schema"]["properties"]) - removed) | choices)
+            self.assertNotIn("enum", context["output_format_guide"]["$defs"]["evidence_id"])
+            self.assertEqual(context["authoritative_output_schema_hash"], packet["output_schema_hash"])
+            self.assertEqual(
+                packet["output_schema"]["$defs"]["evidence_id"]["enum"],
+                packet["allowed_evidence_ids"],
+            )
+            limited = next(item for item in context["provider_coverage"]["providers"]
+                           if item["provider"] == "test-provider")
+            self.assertEqual(limited["limitations"], ["license-limited"])
+            self.assertEqual(limited["dataset_status_counts"]["research_discovery"],
+                             {"AVAILABLE": 1, "SOURCE_LIMITED": 1})
+            self.assertEqual(limited["dataset_observations"][0]["failure_code"],
+                             "LICENSE_REQUIRED")
+            self.assertLess(len(serialize_multidimensional_model_context(packet).encode()),
+                            len(full.encode()))
+            broken = copy.deepcopy(packet)
+            broken["evidence_catalog"] = []
+            with self.assertRaisesRegex(MultidimensionalStageError, "CATALOG_BINDING_INVALID"):
+                serialize_multidimensional_model_context(broken)
+
+    def test_formal_hook_delivers_measured_compact_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            environment = self.targeted_environment(run, task)
+            parent, child = "parent-compact-input", "child-compact-input"
+            allowed, _ = handle_hook_event(
+                self.dispatch_payload(task, parent=parent), environ=environment,
+            )
+            self.assertEqual(allowed["decision"], "ALLOW")
+            event, response = handle_hook_event(
+                self.start_payload(task, parent=parent, child=child), environ=environment,
+            )
+            context = response["hookSpecificOutput"]["additionalContext"]
+            delivered = json.loads(context)
+            self.assertEqual(delivered["frozen_packet_hash"], canonical_hash(packet))
+            self.assertEqual(delivered["model_context_version"],
+                             "multidimensional-model-context/2.0.0")
+            diagnostics = event["context_binding"]["delivery_diagnostics"]
+            self.assertEqual(diagnostics["model_context_bytes"], len(context.encode()))
+            self.assertEqual(diagnostics["evidence_catalog_rows"],
+                             len(packet["evidence_catalog"]))
+            self.assertEqual(diagnostics["token_count_status"], "NOT_OBSERVED")
+
+
+    def test_merged_live_gate_reads_original_preparation_without_rewriting_cutoff(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "source"
+            final = root / "final"
+            source.mkdir()
+            final.mkdir()
+            handoff = stock_handoff(1)
+            security_id = handoff["portfolio"]["positions"][0]["security_id"]
+            base = gate_for(handoff, run_id="merged-live-test")
+            base["source_mode"] = "live-read-only"
+            base["source_bundle_hash"] = "b" * 64
+            base["bundle_hash"] = canonical_hash({
+                key: value for key, value in base.items() if key != "bundle_hash"
+            })
+            base_path = source / "gate.json"
+            base_path.write_text(json.dumps(base))
+            preparation = {
+                "common_cutoff": base["decision_cutoff"],
+                "items": [{"security_id": security_id, "status": "READY"}],
+                "research_supplements": [],
+            }
+            preparation["preparation_hash"] = canonical_hash(preparation)
+            (source / "data-preparation.json").write_text(json.dumps(preparation))
+            merged = dict(base)
+            merged["decision_cutoff"] = "2026-09-11T13:00:00Z"
+            merged["base_gate_content_hash"] = canonical_hash({
+                key: value for key, value in base.items()
+                if key not in {"run_id", "bundle_hash"}
+            })
+            merged["bundle_hash"] = canonical_hash({
+                key: value for key, value in merged.items() if key != "bundle_hash"
+            })
+            final_path = final / "gate.json"
+            final_path.write_text(json.dumps(merged))
+            self.assertEqual(_load_research_capture_batches(
+                gate_path=final_path, gate=merged, security_ids=[security_id],
+                base_gate_path=base_path,
+            ), [])
+            self.assertEqual(json.loads((source / "data-preparation.json").read_text()), preparation)
+            # 新执行身份只能在显式冻结资料复用模式下与原采集身份不同。
+            rebound = dict(merged, run_id="new-execution")
+            rebound["bundle_hash"] = canonical_hash({
+                key: value for key, value in rebound.items() if key != "bundle_hash"
+            })
+            with self.assertRaisesRegex(MultidimensionalStageError, "BASE_GATE_BINDING_INVALID"):
+                _load_research_capture_batches(gate_path=final_path, gate=rebound,
+                    security_ids=[security_id], base_gate_path=base_path)
+            self.assertEqual(_load_research_capture_batches(gate_path=final_path, gate=rebound,
+                security_ids=[security_id], base_gate_path=base_path,
+                allow_source_run_rebinding=True), [])
+            with self.assertRaisesRegex(MultidimensionalStageError, "BASE_GATE_REQUIRED"):
+                _load_research_capture_batches(
+                    gate_path=final_path, gate=merged, security_ids=[security_id],
+                )
+            wrong = dict(merged, base_gate_content_hash="0" * 64)
+            with self.assertRaisesRegex(MultidimensionalStageError, "BASE_GATE_BINDING_INVALID"):
+                _load_research_capture_batches(
+                    gate_path=final_path, gate=wrong, security_ids=[security_id],
+                    base_gate_path=base_path,
+                )
+
+    def test_industry_route_admits_selected_moomoo_peer_but_not_unrelated_security(self) -> None:
+        facts = [
+            {"evidence_id": f"ev-{index}", "security_id": security_id,
+             "source_family": "moomoo_sg", "source_type": "SECONDARY_VENDOR",
+             "dataset": dataset, "semantic_field": field}
+            for index, (security_id, dataset, field) in enumerate((
+                ("US:COMMON_STOCK:MRVL", "business_segments", "moomoo_revenue_breakdown"),
+                ("US:COMMON_STOCK:ALAB", "research_discovery", "moomoo_morningstar_section:bull_case"),
+                ("US:COMMON_STOCK:NVDA", "business_segments", "moomoo_revenue_breakdown"),
+                ("US:COMMON_STOCK:ALAB", "options_snapshot", "moomoo_option_quote"),
+            ))
+        ]
+        selected = _facts_for_capability(
+            facts, capability="INDUSTRY_COMPARISON",
+            security_ids=["US:COMMON_STOCK:MRVL", "US:COMMON_STOCK:ALAB"],
+            benchmark_id=None,
+        )
+        self.assertEqual([fact["evidence_id"] for fact in selected], ["ev-0", "ev-1"])
+        for family in ("sec", "yahoo"):
+            with self.subTest(family=family):
+                supplement = [
+                    {"evidence_id": f"business-{i}", "security_id": security,
+                     "source_family": family, "source_type": "REGULATORY_FILING",
+                     "dataset": dataset, "semantic_field": "sec_business_and_segment_candidate_text"}
+                    for i, (security, dataset) in enumerate((
+                        ("US:COMMON_STOCK:ALAB", "business_segments"),
+                        ("US:COMMON_STOCK:NVDA", "business_segments"),
+                        ("US:COMMON_STOCK:ALAB", "insider_transactions"),
+                    ))
+                ]
+                selected = _facts_for_capability(
+                    supplement, capability="INDUSTRY_COMPARISON",
+                    security_ids=["US:COMMON_STOCK:MRVL", "US:COMMON_STOCK:ALAB"],
+                    benchmark_id=None,
+                )
+                self.assertEqual([f["evidence_id"] for f in selected], ["business-0"])
+
     @staticmethod
     def mrvl_daily_inputs(*, include_spy: bool) -> tuple[dict, dict]:
         fixture = ROOT / "evals/fixtures/portfolio-intake/synthetic-manual-ten-positions.json"
@@ -169,8 +1419,10 @@ class MultidimensionalStageTests(unittest.TestCase):
                 self.assertIn("global_coverage", packet["instruction"])
                 if capability == "MACRO_CONTEXT":
                     self.assertIn("最新可用观察", packet["instruction"])
+                    self.assertIn("不得自行缩写为million/billion或改写为亿美元", packet["instruction"])
                 else:
                     self.assertNotIn("最新可用观察", packet["instruction"])
+                    self.assertNotIn("不得自行缩写为million/billion或改写为亿美元", packet["instruction"])
             other = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
             other_packet = build_multidimensional_dispatch_packet(ROOT, run, other["task_name"])
             self.assertNotIn("view_kind", other_packet["provider_coverage"])
@@ -413,6 +1665,16 @@ class MultidimensionalStageTests(unittest.TestCase):
 
     @staticmethod
     def dimension_draft(task: dict, *, include_impact: bool = True) -> dict:
+        """测试作者的当前语义草稿；不在 Stop 工具中改写传入原稿。"""
+        draft = MultidimensionalStageTests.formal_dimension_draft(task, include_impact=include_impact)
+        for key in ("run_id", "invocation_id", "agent", "calculations", "documents", "artifact_refs"):
+            draft.pop(key, None)
+        draft.update(calculation_selections=[], document_selections=[])
+        return draft
+
+    @staticmethod
+    def formal_dimension_draft(task: dict, *, include_impact: bool = True) -> dict:
+        """显式完整报告测试输入：仅用于旧报告/正式契约读取和负例。"""
         gap = {
             "gap_id": f"gap:{task['task_id']}",
             "reason_code": "UNKNOWN",
@@ -607,7 +1869,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             allowed_artifact_refs=["artifact.json"], allowed_documents=[],
         ))
 
-    def prepare(self, root: Path, count: int = 2):
+    def prepare(self, root: Path, count: int = 2, **options):
         handoff = stock_handoff(count)
         gate = gate_for(handoff)
         handoff_path, gate_path = root / "handoff.json", root / "gate.json"
@@ -617,6 +1879,7 @@ class MultidimensionalStageTests(unittest.TestCase):
         result = prepare_multidimensional_stage_run(
             ROOT, handoff_path=handoff_path, gate_path=gate_path, run_dir=run,
             run_id="multi-stage-run", model="gpt-5.6-terra",
+            **options,
         )
         return run, result
 
@@ -751,7 +2014,9 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertIn("不得省略问题字段", packet["instruction"])
             self.assertIn("limitations 必须是纯字符串数组", packet["instruction"])
             self.assertIn("gap_id、reason_code、description、impact", packet["instruction"])
-            self.assertEqual(packet["verified_documents"][0]["content"]["classification"], "ISSUER_IR_OR_ANNOUNCEMENT_BODY")
+            self.assertEqual(packet["verified_documents"][0]["content"]["classification"], "SEC_EARNINGS_RELEASE_EXCERPT")
+            self.assertEqual(packet["task"]["allowed_documents"][0]["title"],
+                             "SEC filing form unknown, earnings_release excerpt")
             self.assertIn("ev-guidance", packet["allowed_evidence_ids"])
             self.assertIn("ev-expectation", packet["allowed_evidence_ids"])
             macro = [item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT"]
@@ -887,17 +2152,14 @@ class MultidimensionalStageTests(unittest.TestCase):
                 "permission_mode": "read-only",
                 "stop_hook_active": False,
                 "last_assistant_message": json.dumps({
-                    "run_id": target["run_id"],
-                    "invocation_id": target["invocation_id"],
-                    "agent": target["agent"],
                     "status": "INSUFFICIENT_EVIDENCE",
                     "sufficiency": "INSUFFICIENT",
                     "evaluation_status": "NOT_EVALUATED",
                     "summary": "定点 Hook 屏障测试。",
                     "claims": [],
                     "assumptions": [],
-                    "calculations": [],
-                    "documents": [],
+                    "calculation_selections": [],
+                    "document_selections": [],
                     "research_relationships": [],
                     "limitations": ["测试资料不足。"],
                     "observation_conditions": [],
@@ -907,13 +2169,109 @@ class MultidimensionalStageTests(unittest.TestCase):
                         "description": "测试资料不足。",
                         "impact": "不形成宏观主张。",
                     }],
-                    "artifact_refs": [],
                 }),
             }
             stopped, response = handle_hook_event(stop, environ=environment)
             self.assertEqual(stopped["hook_event_name"], "SubagentStop")
             self.assertEqual(stopped["output_capture"]["status"], "SAVED")
             self.assertEqual(stopped["output_capture"]["task_id"], target["task_id"])
+            self.assertEqual(response, {})
+
+    def test_industry_source_identity_copy_gets_one_located_repair(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            task = next(item for item in index["tasks"] if item["capability"] == "INDUSTRY_COMPARISON")
+            environment = self.targeted_environment(run, task)
+            parent, child = "industry-source-parent", "industry-source-child"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            draft = self.dimension_draft(task)
+            draft["claims"] = [{
+                "claim_id": "wrong-peer-source", "question": "同行证据是什么？",
+                "statement": "错误主体。 source_id=sec-filing-wrong as_of=2026-08-19T11:04:23Z",
+                "kind": "INTERPRETATION", "evidence_refs": [],
+                "research_claim_refs": [], "document_refs": [], "assumption_ids": [],
+            }]
+            self.assertEqual(_industry_source_identity_copy_paths(task, draft), ["claims[0].statement"])
+            legacy_task = {key: value for key, value in task.items() if key != "industry_source_boundary"}
+            self.assertEqual(_industry_source_identity_copy_paths(legacy_task, draft), [])
+            self.assertEqual(_industry_source_identity_copy_paths(task, {"claims": []}), [])
+            first, response = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(first["hook_event_name"], "SubagentStopBlocked")
+            # 零同行资料的冻结 Schema 先拒绝任何行业主张，不能为诊断放宽它。
+            self.assertEqual(first["output_capture"]["failure_code"], "SCHEMA_MAX_ITEMS:$.claims")
+            repair = json.loads(response["reason"])
+            self.assertEqual(repair["maximum_submissions"], 2)
+            self.assertTrue(any(item["path"] == "/claims"
+                                for item in repair["validation_details"]["findings"]))
+            self.assertIn("evidence_refs", repair["instruction"])
+            corrected = copy.deepcopy(draft)
+            corrected["claims"] = []  # 此零同行 fixture 正确保留原资料缺口。
+            second, _ = handle_hook_event(
+                self.stop_payload(task, corrected, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(second["output_capture"]["attempt"], 2)
+            self.assertEqual(second["output_capture"]["status"], "SAVED")
+
+    def test_industry_source_identity_copy_second_draft_stays_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            task = next(item for item in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+                        if item["capability"] == "INDUSTRY_COMPARISON")
+            environment = self.targeted_environment(run, task)
+            parent, child = "industry-source-fail-parent", "industry-source-fail-child"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            draft = self.dimension_draft(task)
+            draft["claims"] = [{
+                "claim_id": "wrong-source", "question": "来源身份？",
+                "statement": "错误抄录 source_id=wrong", "kind": "INTERPRETATION",
+                "evidence_refs": [], "research_claim_refs": [], "document_refs": [],
+                "assumption_ids": [],
+            }]
+            first, _ = handle_hook_event(self.stop_payload(task, draft, parent=parent, child=child), environ=environment)
+            self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED")
+            second, response = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(second["output_capture"]["status"], "FAILED")
+            self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
+            self.assertEqual(second["output_capture"]["failure_code"], "SCHEMA_MAX_ITEMS:$.claims")
+            self.assertEqual(response, {})
+
+    def test_market_internal_calculation_reference_gets_one_located_repair(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run, _ = self.prepare(Path(temp), count=1)
+            task = next(item for item in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+                        if item["capability"] == "MARKET_STATE")
+            environment = self.targeted_environment(run, task)
+            parent, child = "market-internal-parent", "market-internal-child"
+            handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
+            handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            draft = self.dimension_draft(task)
+            draft["claims"] = [{
+                "claim_id": "market_claim", "question": "市场宽度？",
+                "statement": "此计算引用不存在。", "kind": "INTERPRETATION",
+                "evidence_refs": [], "research_claim_refs": [], "document_refs": [],
+                "assumption_ids": [], "calculation_refs": ["invented_calculation"],
+            }]
+            first, response = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(first["hook_event_name"], "SubagentStopBlocked")
+            self.assertEqual(first["output_capture"]["failure_code"],
+                             "SCHEMA_EXTRA_PROPERTY:$.claims[0]:calculation_refs")
+            repair = json.loads(response["reason"])
+            self.assertIn({"code": "SCHEMA_EXTRA_PROPERTY",
+                           "path": "/claims/0/calculation_refs"},
+                          repair["validation_details"]["findings"])
+            second, response = handle_hook_event(
+                self.stop_payload(task, draft, parent=parent, child=child), environ=environment,
+            )
+            self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
             self.assertEqual(response, {})
 
     def test_structural_failure_blocks_once_then_original_agent_repair_is_saved(self) -> None:
@@ -946,10 +2304,10 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertEqual(response["decision"], "block")
             repair = json.loads(response["reason"])
             self.assertIn("$.data_gaps[0]:impact", repair["validation_error"])
-            self.assertEqual(
-                repair["output_schema_hash"], canonical_hash(repair["output_schema"])
-            )
-            self.assertNotIn("impact", repair["original_draft"]["data_gaps"][0])
+            self.assertEqual(repair["repair_contract"], "research-local-revision/1.0.0")
+            self.assertEqual(repair["allowed_paths"], ["/data_gaps/0/impact"])
+            self.assertNotIn("output_schema_hash", repair)
+            self.assertNotIn("original_draft", repair)
             self.assertTrue((run / first["output_capture"]["raw_path"]).is_file())
             self.assertNotIn(
                 task["task_name"],
@@ -1002,7 +2360,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             index = json.loads((run / "research/dispatch-index.json").read_text())
             task = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
             environment = self.targeted_environment(run, task)
-            draft = self.dimension_draft(task)
+            draft = self.formal_dimension_draft(task)
             draft["claims"] = [{"claim_id": "claim-valid"}]
             draft["observation_conditions"] = [{
                 "condition_id": "condition-1", "claim_refs": ["claim-missing"],
@@ -1064,7 +2422,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             index = json.loads((run / "research/dispatch-index.json").read_text())
             task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
             environment = self.targeted_environment(run, task)
-            draft = self.dimension_draft(task)
+            draft = self.formal_dimension_draft(task)
             draft["claims"] = [{"claim_id": "valuation-gap", "statement": "private report text"}]
             draft["claims"].append({
                 "claim_id": "valid-assumption-claim", "evidence_refs": [],
@@ -1089,7 +2447,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertNotIn("private report text", json.dumps(diagnostic))
             self.assertEqual(diagnostic["task_id"], task["task_id"])
             self.assertFalse(diagnostic["truncated"])
-            valid = self.dimension_draft(task)
+            valid = self.formal_dimension_draft(task)
             valid["claims"] = [draft["claims"][1]]
             valid["assumptions"] = draft["assumptions"]
             no_findings = _multidimensional_draft_diagnostics(
@@ -1105,7 +2463,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             index = json.loads((run / "research/dispatch-index.json").read_text())
             task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
             environment = self.targeted_environment(run, task)
-            draft = self.dimension_draft(task)
+            draft = self.formal_dimension_draft(task)
             draft["observation_conditions"] = [{"evidence_refs": ["private text " * 50] * 40}]
             payload = self.stop_payload(task, draft, parent="p", child="c")
             diagnostic = _multidimensional_draft_diagnostics(payload, environment, failure_code="ORIGINAL_FAILURE")
@@ -1197,21 +2555,25 @@ class MultidimensionalStageTests(unittest.TestCase):
                         "kind": "INTERPRETATION",
                         "evidence_refs": [], "research_claim_refs": [],
                         "document_refs": [], "assumption_ids": [],
-                        "calculation_refs": [],
                     }]
                     payload = self.stop_payload(task, draft, parent=parent, child=child)
                     old_environment = dict(environment)
                     old_environment.pop("STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT")
-                    self.assertIsNone(_multidimensional_repair_packet(
+                    ordinary_repair = _multidimensional_repair_packet(
                         payload, old_environment,
                         failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED", attempt=1,
-                    ))
+                        trusted_record={"identity_binding": {"status": "BOUND"},
+                                        "trusted_task_binding": {"invocation_id": task["invocation_id"]}},
+                    )
+                    self.assertEqual(ordinary_repair["maximum_submissions"], 2)
+                    self.assertNotIn("original_draft", ordinary_repair)
+                    self.assertNotIn("output_schema", ordinary_repair)
                     other = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
                     other_payload = self.stop_payload(
                         other, {**draft, "invocation_id": other["invocation_id"]},
                         parent=parent, child=child,
                     )
-                    self.assertIsNone(_multidimensional_repair_packet(
+                    self.assertIsNotNone(_multidimensional_repair_packet(
                         other_payload, environment,
                         failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED", attempt=1,
                     ))
@@ -1239,7 +2601,7 @@ class MultidimensionalStageTests(unittest.TestCase):
                         "code": "DIMENSION_REPORT_CLAIM_UNGROUNDED",
                         "path": "claims[0]", "identifier": "claim-unsupported-valuation",
                     }])
-                    self.assertIn("data_gaps/limitations", repair["instruction"])
+                    self.assertEqual(repair["allowed_paths"], ["/claims/0"])
                     self.assertLess(len(response["reason"].encode("utf-8")), 256 * 1024)
                     corrected = copy.deepcopy(draft)
                     if repair_succeeds:
@@ -1270,11 +2632,11 @@ class MultidimensionalStageTests(unittest.TestCase):
                 {"claim_id": "claim-supported", "question": "已知事实是什么？",
                  "statement": "存在已准入事实。", "kind": "FACT", "evidence_refs": [valid_id],
                  "research_claim_refs": [], "document_refs": [], "assumption_ids": [],
-                 "calculation_refs": []},
+                 },
                 {"claim_id": "claim-unsupported", "question": "估值情况？",
                  "statement": "估值资料不足。", "kind": "INTERPRETATION", "evidence_refs": [],
                  "research_claim_refs": [], "document_refs": [], "assumption_ids": [],
-                 "calculation_refs": []},
+                 },
             ]
             draft["observation_conditions"] = [{
                 "condition_id": "condition-1", "description": "后续再核查。",
@@ -1295,7 +2657,7 @@ class MultidimensionalStageTests(unittest.TestCase):
                 "claims[1]", "observation_conditions[0].evidence_refs[0]",
                 "observation_conditions[0].claim_refs[1]",
             })
-            self.assertIn("不得按前缀猜测", repair["instruction"])
+            self.assertEqual(repair["allowed_paths"], ["/claims/1", "/observation_conditions/0"])
             corrected = copy.deepcopy(draft)
             corrected["claims"] = corrected["claims"][:1]
             corrected["observation_conditions"][0]["claim_refs"] = ["claim-supported"]
@@ -1314,7 +2676,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             task = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
             environment = self.targeted_environment(run, task)
             environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
-            draft = self.dimension_draft(task)
+            draft = self.formal_dimension_draft(task)
             draft["observation_conditions"] = [{"evidence_refs": ["ev-short"]}]
             payload = self.stop_payload(task, draft, parent="p", child="c")
             repair = _multidimensional_repair_packet(
@@ -1330,9 +2692,11 @@ class MultidimensionalStageTests(unittest.TestCase):
             ))
             old_environment = dict(environment)
             old_environment.pop("STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT")
-            self.assertIsNone(_multidimensional_repair_packet(
+            compact = _multidimensional_repair_packet(
                 payload, old_environment, failure_code="EVIDENCE_CLOSURE_FAILED:ev-short", attempt=1,
-            ))
+            )
+            self.assertEqual(compact["validation_details"]["findings"][0]["identifier"], "ev-short")
+            self.assertNotIn("original_draft", compact)
             draft["observation_conditions"][0]["evidence_refs"] = ["ev-short"] * 33
             self.assertIsNone(_multidimensional_repair_packet(
                 self.stop_payload(task, draft, parent="p", child="c"), environment,
@@ -1356,7 +2720,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             )
             raw = self.dimension_draft(task)
             for key in ("run_id", "invocation_id", "agent"):
-                raw.pop(key)
+                raw.pop(key, None)
             stopped, response = handle_hook_event(
                 self.stop_payload(task, raw, parent=parent, child=child),
                 environ=environment,
@@ -1531,14 +2895,13 @@ class MultidimensionalStageTests(unittest.TestCase):
                     ROOT, run_dir=run, task_name=target["task_name"], initial_task=True,
                 )
 
-    def test_initial_targeted_host_rejects_tampering_and_unapproved_scope(self) -> None:
+    def test_initial_targeted_host_rejects_tampering_and_unknown_task(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare(Path(temp), count=1)
             index = json.loads((run / "research/dispatch-index.json").read_text())
-            wrong = next(item for item in index["tasks"] if item["capability"] == "MACRO_CONTEXT")
-            with self.assertRaisesRegex(MultidimensionalStageError, "INITIAL_TASK_SCOPE_OR_STATE_INVALID"):
+            with self.assertRaisesRegex(MultidimensionalStageError, "TARGET_TASK_UNKNOWN"):
                 launch_multidimensional_stage(
-                    ROOT, run_dir=run, task_name=wrong["task_name"], initial_task=True,
+                    ROOT, run_dir=run, task_name="not-a-declared-task", initial_task=True,
                 )
             self.assertFalse((run / "invocation").exists())
 
@@ -1684,17 +3047,28 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertEqual(packet["company_material_coverage"]["public_lead_evidence_ids"], [lead_id])
             self.assertIn("至少用本任务只读 query 查询其中一条", packet["instruction"])
             self.assertIn("不得据标题推断评级依据", packet["instruction"])
+            self.assertIn("事实主张只引用实际承载该金额的 Evidence", packet["instruction"])
+            self.assertIn("没有本主张有效的换算收据时保留来源原币种和单位表示", packet["instruction"])
+            initial = json.loads(serialize_multidimensional_initial_context(packet))
+            self.assertIn("事实主张只引用实际承载该金额的 Evidence", initial["instruction"])
+            fundamental = next(item for item in index["tasks"] if item["capability"] == "FUNDAMENTAL_EVENT")
+            fundamental_packet = build_multidimensional_dispatch_packet(
+                ROOT, run, fundamental["task_name"], include_dependency_reports=False,
+            )
+            self.assertNotIn("事实主张只引用实际承载该金额的 Evidence", fundamental_packet["instruction"])
             self.assertLessEqual(
                 len(serialize_multidimensional_initial_context(packet).encode("utf-8")),
                 256 * 1024,
             )
             tools = StatelessFixtureTools(default_run_dir=run)
+            self.save_fundamental_dependency(run, index)
             result = tools.query(
                 run_id=task["run_id"], agent=task["agent"],
                 invocation_id=task["invocation_id"], evidence_ids=[lead_id],
             )
-            self.assertEqual(result["evidence"][0]["evidence_id"], lead_id)
-            draft = self.dimension_draft(task)
+            actual_packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
+            self.assertEqual(translate_references(result, actual_packet["reference_map"])["evidence"][0]["evidence_id"], lead_id)
+            draft = self.formal_dimension_draft(task)
             draft.update(status="SOURCE_LIMITED", evaluation_status="SOURCE_LIMITED")
             draft["claims"] = [{
                 "claim_id": "claim-public-lead",
@@ -1777,12 +3151,109 @@ class MultidimensionalStageTests(unittest.TestCase):
                     if preparation_status in {"BLOCKED_CONFIGURATION", "FAILED"}:
                         self.assertNotIn("至少用本任务只读 query 查询其中一条", instruction)
                         self.assertIn("FAILED / evaluation_status=FAIL", instruction)
+                        if preparation_status == "BLOCKED_CONFIGURATION":
+                            incomplete = self.formal_dimension_draft(case_task)
+                            incomplete.update(status="LOW_CONFIDENCE", sufficiency="PARTIAL")
+                            case_invocation = json.loads((case_run / case_task["invocation_path"]).read_text())
+                            with self.assertRaisesRegex(
+                                MultiDimensionalResearchError,
+                                "DIMENSION_DRAFT_CONFIGURATION_BLOCK_STATE_INVALID",
+                            ):
+                                envelope_research_dimension_draft(
+                                    incomplete, task=case_task, invocation=case_invocation,
+                                    expected_bindings=self.research_bindings(case_run),
+                                    allowed_security_ids=case_task["security_ids"],
+                                    allowed_evidence_ids=case_task["allowed_evidence_ids"],
+                                    allowed_documents=case_task.get("allowed_documents", []),
+                                )
                     else:
                         self.assertIn("至少用本任务只读 query 查询其中一条", instruction)
                         self.assertIn("不因存在标题自动降级", instruction)
                         self.assertIn("不为引用数量拼凑主张", instruction)
                         self.assertIn("说明具体核验用途", instruction)
                     self.assertLessEqual(len(serialize_multidimensional_initial_context(case_packet).encode()), 256 * 1024)
+
+            section = {
+                "evidence_id": "ev-licensed-bear", "security_id": "US:COMMON_STOCK:AAPL",
+                "dataset": "research_discovery", "semantic_field": "moomoo_morningstar_section:bear_case:0",
+                "value": {"content_tier": "LICENSED_API_CONTENT", "section": "bear_case",
+                          "content": "供应商观点：增长假设可能无法实现。"},
+                "source_id": "moomoo-sg-opend-morningstar:AAPL", "source_type": "SECONDARY_VENDOR",
+                "raw_content_hash": "b" * 64, "as_of": "2026-07-01T00:00:00Z",
+                "retrieved_at": "2026-07-02T00:00:00Z", "usage": "RESEARCH_ONLY",
+            }
+            gate["allowed_evidence"].append(section)
+            gate["allowed_evidence_ids"].append(section["evidence_id"])
+            gate["input_evidence_ids"].append(section["evidence_id"])
+            gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            for state in ("BLOCKED_CONFIGURATION", "READY"):
+                imported["report_preparation_by_security"]["US:COMMON_STOCK:AAPL"]["status"] = state
+                imported["documents_by_security"]["US:COMMON_STOCK:AAPL"] = [document] if state == "READY" else []
+                case_run = root / f"licensed-{state}"
+                with patch("product.runtime.multidimensional_stage._import_research_materials", return_value=imported):
+                    prepare_multidimensional_stage_run(
+                        ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                        run_dir=case_run, run_id="licensed-test", model="gpt-5.6-terra",
+                        research_materials_run_path=root / "synthetic-materials",
+                    )
+                case_index = json.loads((case_run / "research/dispatch-index.json").read_text())
+                task = next(t for t in case_index["tasks"] if t["capability"] == "RESEARCH_REPORT")
+                packet = build_multidimensional_dispatch_packet(
+                    ROOT, case_run, task["task_name"], include_dependency_reports=False,
+                )
+                frozen_task = json.loads((
+                    case_run / "research/tasks" / f"{canonical_hash({'task_id': task['task_id']})}.json"
+                ).read_text())
+                self.assertEqual(
+                    frozen_task["company_material_coverage"],
+                    packet["company_material_coverage"],
+                )
+                self.assertEqual(packet["material_preparation"]["status"], state)
+                self.assertEqual(packet["company_material_coverage"]["licensed_sections"], [{
+                    "evidence_id": section["evidence_id"], "section": "bear_case",
+                    "raw_content_hash": "b" * 64, "content_tier": "LICENSED_API_CONTENT",
+                }])
+                self.assertNotIn("正式报告必须输出 FAILED", packet["instruction"])
+                self.assertIn("仍须查询与研究问题相关的正反章节", packet["instruction"])
+                self.assertIn("不能改称作者预测", packet["instruction"])
+                self.assertIn("新增供应商估值观点也不自动修订该核验缺口", packet["instruction"])
+                first_context = json.loads(serialize_multidimensional_initial_context(packet))
+                self.assertIn("不能改称作者预测", first_context["instruction"])
+                self.assertIn("新增供应商估值观点也不自动修订该核验缺口",
+                              first_context["instruction"])
+                self.assertEqual(len(packet["verified_documents"]), 1 if state == "READY" else 0)
+                self.save_fundamental_dependency(case_run, json.loads((case_run / "research/dispatch-index.json").read_text()))
+                full_packet = build_multidimensional_dispatch_packet(ROOT, case_run, task["task_name"])
+                full_context = json.loads(serialize_multidimensional_model_context(full_packet))
+                self.assertIn("不能改称作者预测", full_context["instruction"])
+                self.assertIn("新增供应商估值观点也不自动修订该核验缺口",
+                              full_context["instruction"])
+                result = StatelessFixtureTools(default_run_dir=case_run).query(
+                    run_id=task["run_id"], agent=task["agent"], invocation_id=task["invocation_id"],
+                    evidence_ids=[section["evidence_id"]],
+                )
+                self.assertEqual(result["evidence"][0]["value"], section["value"])
+                if state == "BLOCKED_CONFIGURATION":
+                    draft = self.formal_dimension_draft(task)
+                    draft.update(status="LOW_CONFIDENCE", sufficiency="PARTIAL")
+                    draft["claims"] = [{
+                        "claim_id": "licensed-bear-case", "question": packet["minimum_questions"][0],
+                        "statement": "许可章节指出增长假设可能无法实现；独立正文仍缺失。",
+                        "kind": "INTERPRETATION", "evidence_refs": [section["evidence_id"]],
+                        "research_claim_refs": [], "assumption_ids": [],
+                        "document_refs": [], "calculation_refs": [],
+                    }]
+                    invocation = json.loads((case_run / task["invocation_path"]).read_text())
+                    report = envelope_research_dimension_draft(
+                        draft, task=frozen_task, invocation=invocation,
+                        expected_bindings=self.research_bindings(case_run),
+                        allowed_security_ids=task["security_ids"],
+                        allowed_evidence_ids=task["allowed_evidence_ids"],
+                        allowed_documents=task.get("allowed_documents", []),
+                    )
+                    self.assertEqual(report["status"], "LOW_CONFIDENCE")
+                    self.assertEqual(report["claims"][0]["evidence_refs"], [section["evidence_id"]])
 
     def test_initial_hook_context_is_bounded_and_keeps_exact_query_ids(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -1794,6 +3265,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             )
             text = serialize_multidimensional_initial_context(packet)
             context = json.loads(text)
+            context = translate_references(context, packet["reference_map"])
             self.assertLessEqual(len(text.encode("utf-8")), 256 * 1024)
             self.assertEqual(context["packet_hash"], canonical_hash(packet))
             self.assertEqual(
@@ -1954,7 +3426,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             request = json.loads((run / "council-request.json").read_text())
             gate = json.loads((run / "evidence/gate.json").read_text())
             report = envelope_research_dimension_draft(
-                self.dimension_draft(task), task=task, invocation=invocation,
+                self.formal_dimension_draft(task), task=task, invocation=invocation,
                 expected_bindings={
                     "handoff_id": handoff["handoff_id"],
                     "handoff_hash": handoff["handoff_hash"],
@@ -2102,6 +3574,8 @@ class MultidimensionalStageTests(unittest.TestCase):
             )
             self.assertIn("共享市场状态报告", packet["instruction"])
             self.assertIn("不得把股票波动称为信用", packet["instruction"])
+            self.assertIn("至少读取并解释各一项实际观测", packet["instruction"])
+            self.assertIn("单日观察不等于趋势或资金流", packet["instruction"])
 
     def test_peer_candidate_pool_is_bound_but_not_promoted_to_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -2294,7 +3768,7 @@ class MultidimensionalStageTests(unittest.TestCase):
                 output_dir=target,
                 supplement_run_dirs=[supplement],
             )
-            self.assertEqual(result["consumability"], "DOWNSTREAM_READY")
+            self.assertEqual(result["consumability"], "STRUCTURALLY_CONSUMABLE")
             bundle = json.loads((target / "research/holding-research-bundle.json").read_text())
             self.assertTrue(all(
                 item["report_id"]
@@ -2322,8 +3796,21 @@ class MultidimensionalStageTests(unittest.TestCase):
                 },
             )
             proof = check_multidimensional_bundle_consumable(ROOT, target)
-            self.assertEqual(proof["downstream_status"], "DOWNSTREAM_READY")
+            self.assertEqual(proof["downstream_status"], "STRUCTURALLY_CONSUMABLE")
+            self.assertEqual(proof["status_projection"]["research_review_status"], "NOT_REVIEWED")
             self.assertEqual(proof["downstream_models_started"], [])
+            gate_path = target / "evidence/gate.json"
+            original_gate = json.loads(gate_path.read_text())
+            drifted_gate = {**original_gate, "decision_cutoff": "2026-09-12T12:00:00Z"}
+            gate_path.write_text(json.dumps(drifted_gate))
+            with self.assertRaisesRegex(MultidimensionalStageError, "MULTIDIMENSIONAL_CONSUMER_GATE_INVALID"):
+                check_multidimensional_bundle_consumable(ROOT, target, persist=False)
+            drifted_gate["bundle_hash"] = canonical_hash({
+                key: value for key, value in drifted_gate.items() if key != "bundle_hash"
+            })
+            gate_path.write_text(json.dumps(drifted_gate))
+            with self.assertRaisesRegex(MultidimensionalStageError, "MULTIDIMENSIONAL_CONSUMER_GATE_INVALID"):
+                check_multidimensional_bundle_consumable(ROOT, target, persist=False)
 
     def test_multidimensional_invocation_can_query_its_frozen_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -2336,7 +3823,8 @@ class MultidimensionalStageTests(unittest.TestCase):
                 invocation_id=task["invocation_id"],
                 evidence_ids=[task["allowed_evidence_ids"][0]],
             )
-            self.assertEqual(result["evidence"][0]["evidence_id"], task["allowed_evidence_ids"][0])
+            mapping = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])["reference_map"]
+            self.assertEqual(translate_references(result, mapping)["evidence"][0]["evidence_id"], task["allowed_evidence_ids"][0])
             self.assertEqual(tools.events[-1]["invocation_id"], task["invocation_id"])
 
     def test_hook_loads_correct_agent_packet_and_rejects_unready_dependency(self) -> None:
@@ -2373,7 +3861,9 @@ class MultidimensionalStageTests(unittest.TestCase):
             start_record, start_response = handle_hook_event(start, environ=environment)
             context = json.loads(start_response["hookSpecificOutput"]["additionalContext"])
             self.assertEqual(context["identity"]["task_id"], first["task_id"])
-            self.assertEqual(start_record["context_binding"]["packet_hash"], first["packet_hash"])
+            self.assertEqual(start_record["context_binding"]["packet_hash"], canonical_hash(
+                build_multidimensional_dispatch_packet(ROOT, run, first["task_name"])
+            ))
 
             dependent = next(item for item in index["tasks"] if item["capability"] == "RESEARCH_REPORT")
             denied = dict(pre, tool_use_id="tool-2", tool_input={
@@ -2533,6 +4023,31 @@ class MultidimensionalStageTests(unittest.TestCase):
                 prepared["allowed_artifact_refs"],
             )
 
+    def test_live_spy_etf_daily_prices_resolve_default_benchmark(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            handoff, gate = self.mrvl_daily_inputs(include_spy=True)
+            for fact in gate["allowed_evidence"]:
+                if fact.get("security_id") == "US:SPY":
+                    fact["security_id"] = "US:ETF:SPY"
+            gate["bundle_hash"] = canonical_hash({
+                key: value for key, value in gate.items() if key != "bundle_hash"
+            })
+            handoff_path, gate_path = root / "handoff.json", root / "gate.json"
+            handoff_path.write_text(json.dumps(handoff), encoding="utf-8")
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            run = root / "run"
+            prepare_multidimensional_stage_run(
+                ROOT, handoff_path=handoff_path, gate_path=gate_path,
+                run_dir=run, run_id="technical-spy-etf-test", model="gpt-5.6-terra",
+            )
+            index = json.loads((run / "research/dispatch-index.json").read_text())
+            technical = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
+            packet = build_multidimensional_dispatch_packet(ROOT, run, technical["task_name"])
+            self.assertGreater(packet["prepared_analysis"]["benchmark_row_count"], 20)
+            self.assertIsNotNone(packet["prepared_analysis"]["calculation"])
+            self.assertEqual(technical["time_context"]["benchmark_id"], "US:ETF:SPY")
+
     def test_mrvl_daily_without_spy_saves_insufficient_technical_report(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -2552,7 +4067,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertIn("基准 US:SPY", packet["instruction"])
             self.assertNotIn("证券 US:COMMON_STOCK:MRVL日线序列", packet["instruction"])
 
-            draft = self.dimension_draft(task)
+            draft = self.formal_dimension_draft(task)
             draft["data_gaps"][0].update(
                 description="MRVL 有冻结日线，但 US:SPY 基准日线缺失。",
                 impact="不能计算相对收益、波动、回撤及同源量价图。",
@@ -2584,8 +4099,10 @@ class MultidimensionalStageTests(unittest.TestCase):
             allowed, _ = handle_hook_event(self.dispatch_payload(task, parent=parent), environ=environment)
             self.assertEqual(allowed["decision"], "ALLOW")
             handle_hook_event(self.start_payload(task, parent=parent, child=child), environ=environment)
+            native = self.dimension_draft(task)
+            native["data_gaps"] = copy.deepcopy(draft["data_gaps"])
             stopped, _ = handle_hook_event(
-                self.stop_payload(task, draft, parent=parent, child=child),
+                self.stop_payload(task, native, parent=parent, child=child),
                 environ=environment,
             )
             self.assertEqual(stopped["output_capture"]["status"], "SAVED")
@@ -2623,7 +4140,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertTrue(all((run / ref).is_file() for ref in refs))
             self.assertNotIn("maxItems", packet["output_schema"]["properties"]["claims"])
             metric = prepared["calculation"]["windows"][0]["metrics"]["security_total_return"]
-            draft = self.dimension_draft(task)
+            draft = self.formal_dimension_draft(task)
             draft.update(
                 status="LOW_CONFIDENCE", sufficiency="PARTIAL",
                 summary="20 日窗口已有冻结计算和同源图表，较长窗口仍缺历史。",
@@ -2682,7 +4199,7 @@ class MultidimensionalStageTests(unittest.TestCase):
             self.assertNotIn("maxItems", packet["output_schema"]["properties"]["claims"])
             self.assertIn("若 chart=null", packet["instruction"])
             metric = prepared["calculation"]["windows"][0]["metrics"]["security_total_return"]
-            draft = self.dimension_draft(task)
+            draft = self.formal_dimension_draft(task)
             draft.update(
                 status="LOW_CONFIDENCE", sufficiency="PARTIAL",
                 summary="已有同源计算，图表生成失败不影响计算主张。",
@@ -2826,9 +4343,9 @@ class MultidimensionalStageTests(unittest.TestCase):
             packet = build_multidimensional_dispatch_packet(
                 ROOT, run, dependent["task_name"]
             )
-            self.assertEqual(
-                packet["allowed_research_claim_ids"], ["fundamental-claim-1"]
-            )
+            from product.runtime.multidimensional_references import scoped_claim_reference
+            self.assertEqual(packet["allowed_research_claim_ids"],
+                             [scoped_claim_reference(report, "fundamental-claim-1")])
             self.assertEqual(
                 packet["dependency_reports"][0]["report_hash"], report["report_hash"]
             )
@@ -2936,7 +4453,12 @@ class MultidimensionalStageTests(unittest.TestCase):
                 encoding="utf-8",
             )
             result = finalize_multidimensional_stage_run(ROOT, run)
-            self.assertEqual(result["status"], "PASSED")
+            self.assertEqual(result["status"], "FAILED")
+            self.assertEqual(result["contract_status"], "FAILED")
+            self.assertEqual(result["completed"], 6)
+            self.assertEqual(result["expected"], 8)
+            self.assertEqual(result["research_review_status"], "NOT_REVIEWED")
+            self.assertEqual(result["promotion_status"], "NOT_EVALUATED")
             bundle = json.loads(
                 (run / "research/holding-research-bundle.json").read_text()
             )
@@ -3071,7 +4593,8 @@ class MultidimensionalStageTests(unittest.TestCase):
                 encoding="utf-8",
             )
             result = finalize_multidimensional_stage_run(ROOT, run)
-            self.assertEqual(result["status"], "PASSED")
+            self.assertEqual(result["status"], "FAILED")
+            self.assertEqual(result["contract_status"], "FAILED")
             bundle = json.loads(
                 (run / "research/holding-research-bundle.json").read_text()
             )

@@ -7,9 +7,11 @@ import json
 import re
 import tomllib
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
-from product.runtime.hashing import canonical_hash, file_hash
+from product.mcp.provenance import parse_timestamp
+
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash
 from product.runtime.schema_validation import validate_schema_instance
 
 
@@ -23,15 +25,237 @@ EXPECTED_DOMAIN_CAPABILITIES = {
     "MACRO": {"MACRO_CONTEXT"},
     "MARKET": {"MARKET_STATE"},
 }
-EXPECTED_CAPABILITY_BINDINGS = {
+CAPABILITY_BINDINGS = {
+    "TECHNICAL_STRUCTURE": ("runtime_market_catalyst", "technical-structure", "PER_SECURITY"),
     "FUNDAMENTAL_EVENT": ("runtime_company_analyst", "company-research", "PER_SECURITY"),
     "RESEARCH_REPORT": ("runtime_company_analyst", "research-report-analysis", "PER_SECURITY"),
+    "INDUSTRY_COMPARISON": ("runtime_market_catalyst", "industry-comparison", "PER_SECURITY"),
     "MACRO_CONTEXT": ("runtime_market_catalyst", "macro-market-analysis", "SHARED_MARKET"),
     "MARKET_STATE": ("runtime_market_catalyst", "macro-market-analysis", "SHARED_MARKET"),
+    "OWNERSHIP_DISCLOSURE": ("runtime_market_catalyst", "ownership-disclosure", "PER_SECURITY"),
+    "OPTIONS_FLOW": ("runtime_market_catalyst", "options-market-structure", "PER_SECURITY"),
 }
+EXPECTED_CAPABILITY_BINDINGS = {
+    capability: CAPABILITY_BINDINGS[capability]
+    for capabilities in EXPECTED_DOMAIN_CAPABILITIES.values()
+    for capability in capabilities
+}
+
+
+def capability_tools(capability: str) -> list[str]:
+    if capability not in CAPABILITY_BINDINGS:
+        raise ValueError(f"RESEARCH_CAPABILITY_UNMAPPED:{capability}")
+    return (["fixture_evidence.query", "fixture_math.calculate"]
+            if capability in {"OWNERSHIP_DISCLOSURE", "FUNDAMENTAL_EVENT"}
+            else ["fixture_evidence.query"])
+
+
 EXPECTED_PROVIDER_PLANES = {"BASE_DISCLOSURE", "OFFICIAL_MACRO", "RESEARCH_SUPPLEMENT"}
 PROVIDER_COVERAGE_VERSION = "research-provider-coverage/1.0.0"
 CAPABILITY_SUCCESS_STATUSES = {"AVAILABLE", "PARTIAL"}
+
+DATASET_CAPABILITY_ROUTES = {
+    "FUNDAMENTAL_EVENT": {
+        "identity_profile", "business_segments", "management_governance",
+        "financial_history", "capital_allocation", "earnings_guidance", "event_context",
+    },
+    "RESEARCH_REPORT": {"analyst_expectations", "research_discovery"},
+    "OWNERSHIP_DISCLOSURE": {
+        "institutional_ownership", "insider_transactions", "share_short_context",
+    },
+    "MACRO_CONTEXT": {"macro_history", "economic_calendar", "dot_plot"},
+    "MARKET_STATE": {
+        "market_breadth", "option_market_statistics", "fedwatch_expectations",
+    },
+    "OPTIONS_FLOW": {
+        "options_snapshot", "options_underlying_context", "vendor_money_flow",
+    },
+}
+
+# 当前研究准备/消费审计共用的数据语义；不授予工具或跨 Agent 信息权限。
+CAPABILITY_DOMAIN = {
+    "COMPANY_RESEARCH": "COMPANY", "FUNDAMENTAL_EVENT": "COMPANY",
+    "RESEARCH_REPORT": "COMPANY", "MACRO_CONTEXT": "MACRO",
+    "MARKET_STATE": "MARKET",
+    "INDUSTRY_COMPARISON": "MARKET", "TECHNICAL_STRUCTURE": "MARKET",
+    "OPTIONS_FLOW": "MARKET", "OWNERSHIP_DISCLOSURE": "COMPANY",
+}
+DATASET_DOMAIN = {
+    "financial_history": "COMPANY", "identity_profile": "COMPANY",
+    "business_segments": "COMPANY", "management_governance": "COMPANY",
+    "capital_allocation": "COMPANY", "earnings_guidance": "COMPANY",
+    "analyst_expectations": "COMPANY", "event_context": "COMPANY",
+    "research_discovery": "COMPANY", "macro_history": "MACRO",
+    "economic_calendar": "MACRO", "dot_plot": "MACRO",
+    "market_breadth": "MARKET", "fedwatch_expectations": "MARKET",
+    "market_news_item": "MARKET",
+    "institutional_ownership": "COMPANY", "insider_transactions": "COMPANY",
+    "options_snapshot": "MARKET", "options_underlying_context": "MARKET",
+    "option_market_statistics": "MARKET",
+    "relationships": "COMPANY", "share_short_context": "COMPANY",
+    "vendor_money_flow": "MARKET", "macro_indicator_catalog": "MACRO",
+    "peer_comparison": "MARKET",
+    "historical_close_price": "MARKET", "market_context_close": "MARKET",
+    "close_price": "MARKET", "open_price": "MARKET", "high_price": "MARKET",
+    "low_price": "MARKET", "adjusted_close_price": "MARKET",
+    "share_volume": "MARKET", "cash_dividend": "MARKET", "stock_split_ratio": "MARKET",
+    "us_treasury_10y_yield": "MACRO", "us_cpi_all_items": "MACRO",
+    "us_unemployment_rate": "MACRO",
+    "us_total_nonfarm_payrolls": "MACRO", "us_treasury_2y_yield": "MACRO",
+    "us_treasury_10y_2y_spread": "MACRO",
+    "federal_reserve_monetary_policy_text": "MACRO",
+    "bls_announced_release_calendar": "MACRO",
+    "us_treasury_30y_yield": "MACRO",
+    "business": "COMPANY", "management_discussion": "COMPANY",
+    "risk_factors": "COMPANY", "earnings_release": "COMPANY",
+    "ownership_insider_transaction": "COMPANY",
+}
+
+EIGHT_DIMENSION_INPUTS = {
+    "TECHNICAL_STRUCTURE": ("historical_close_price", "market_context_close"),
+    "FUNDAMENTAL_EVENT": ("financial_history", "business_segments", "earnings_guidance", "event_context"),
+    "RESEARCH_REPORT": ("research_discovery", "analyst_expectations"),
+    "INDUSTRY_COMPARISON": ("business_segments", "financial_history", "historical_close_price"),
+    "MACRO_CONTEXT": ("us_treasury_10y_yield", "us_cpi_all_items", "us_unemployment_rate", "economic_calendar"),
+    "MARKET_STATE": ("market_breadth", "market_context_close", "market_news_item"),
+    "OWNERSHIP_DISCLOSURE": ("institutional_ownership", "insider_transactions"),
+    "OPTIONS_FLOW": ("options_snapshot", "options_underlying_context", "option_market_statistics"),
+}
+
+
+def dataset_domain(dataset: str) -> str:
+    """来源域不是消费者域；未声明数据不得默认归公司或按供应商猜测。"""
+    return DATASET_DOMAIN.get(dataset, "UNMAPPED")
+
+
+def fact_dataset(fact: Mapping[str, Any]) -> str:
+    metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
+    declared = fact.get("dataset") or metadata.get("dataset")
+    if declared:
+        return str(declared)
+    field = str(fact.get("semantic_field") or "unknown")
+    return "financial_history" if field.startswith(("us-gaap.", "dei.")) else field
+
+
+def dataset_consumers(dataset: str) -> tuple[str, ...]:
+    """候选消费者目录，不代替证券、来源、PIT及实际工具授权检查。"""
+    consumers = {capability for capability, datasets in DATASET_CAPABILITY_ROUTES.items()
+                 if dataset in datasets}
+    consumers.update(capability for capability, datasets in EIGHT_DIMENSION_INPUTS.items()
+                     if dataset in datasets)
+    # 原同行选择器已接入的补充资料；这里只登记，不向其它来源自动授予权限。
+    if dataset in {"identity_profile", "business_segments", "analyst_expectations", "research_discovery"}:
+        consumers.add("INDUSTRY_COMPARISON")
+    if dataset == "relationships":
+        consumers.update({"FUNDAMENTAL_EVENT", "INDUSTRY_COMPARISON"})
+    if dataset in {"business", "management_discussion", "risk_factors", "earnings_release"}:
+        consumers.update({"FUNDAMENTAL_EVENT", "INDUSTRY_COMPARISON"})
+    if dataset in {"management_discussion", "earnings_release"}:
+        consumers.add("RESEARCH_REPORT")
+    if dataset in {"financial_history", "business", "management_discussion"}:
+        # 原共享任务的精选公司暴露资料。候选关系不意味着允许全部公司事实。
+        consumers.update({"MACRO_CONTEXT", "MARKET_STATE"})
+    if dataset == "ownership_insider_transaction":
+        consumers.add("OWNERSHIP_DISCLOSURE")
+    if dataset in {"peer_comparison", "close_price"}:
+        consumers.add("INDUSTRY_COMPARISON" if dataset == "peer_comparison" else "MARKET_STATE")
+    if DATASET_DOMAIN.get(dataset) == "MACRO" and dataset != "macro_indicator_catalog":
+        consumers.add("MACRO_CONTEXT")
+    if dataset in {"open_price", "high_price", "low_price", "adjusted_close_price",
+                   "share_volume", "cash_dividend", "stock_split_ratio"}:
+        consumers.add("TECHNICAL_STRUCTURE")
+    return tuple(sorted(consumers))
+
+
+def select_capability_facts(
+    evidence: Sequence[Mapping[str, Any]], *, capability: str, security_ids: Sequence[str], benchmark_id: str | None,
+) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    scoped_ids = set(security_ids)
+    latest_closes: dict[str, Mapping[str, Any]] = {}
+    if capability == "FUNDAMENTAL_EVENT":
+        # 输入来自已过 PIT 的 Gate；只补最近历史收盘，不授予全行情/估值权限。
+        for fact in evidence:
+            sid = fact.get("security_id")
+            if sid not in scoped_ids or fact.get("semantic_field") != "historical_close_price":
+                continue
+            key = lambda item: (parse_timestamp(item["as_of"]),
+                                parse_timestamp(item["retrieved_at"]), item["evidence_id"])
+            if sid not in latest_closes or key(fact) > key(latest_closes[sid]):
+                latest_closes[sid] = fact
+    close_ids = {fact["evidence_id"] for fact in latest_closes.values()}
+    if benchmark_id and capability == "TECHNICAL_STRUCTURE":
+        scoped_ids.add(benchmark_id)
+    for fact in evidence:
+        field = str(fact.get("semantic_field", ""))
+        dataset = str(fact.get("dataset", ""))
+        source = str(fact.get("source_type", ""))
+        source_family = str(fact.get("source_family", ""))
+        metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
+        form = str(metadata.get("form", ""))
+        security_id = fact.get("security_id")
+        matches = False
+        if capability == "TECHNICAL_STRUCTURE":
+            matches = security_id in scoped_ids and field in {
+                "open_price", "high_price", "low_price", "historical_close_price",
+                "adjusted_close_price", "share_volume", "cash_dividend", "stock_split_ratio",
+            }
+        elif capability == "FUNDAMENTAL_EVENT":
+            # `source_type` is optional on older normalized Evidence.  Preserve
+            # Preserve SEC/provider dataset routing; add only the target's
+            # latest Gate-admitted historical close, not its full price series.
+            source_id = str(fact.get("source_id", "")).lower()
+            matches = security_id in scoped_ids and (
+                source == "sec" or "sec" in source_id
+                or dataset in DATASET_CAPABILITY_ROUTES[capability]
+                or fact.get("evidence_id") in close_ids
+            )
+        elif capability == "RESEARCH_REPORT":
+            matches = security_id in scoped_ids and (
+                dataset in DATASET_CAPABILITY_ROUTES[capability]
+                or
+                source in {"public_research", "issuer_research"}
+                or source_family in {"sec", "yahoo", "moomoo_sg"}
+                and field in {
+                    "sec_issuer_guidance_candidate_text", "yahoo_earnings_trend",
+                    "yahoo_recommendation_trend", "moomoo_analyst_consensus",
+                }
+                or source == "sec" and field in {"earnings_release", "management_discussion"}
+            )
+        elif capability == "INDUSTRY_COMPARISON":
+            matches = security_id in scoped_ids and (
+                source in {"sec", "yahoo", "public_research"} or field.startswith("industry_")
+                or source_family in {"sec", "yahoo", "moomoo_sg"} and dataset in {
+                    "identity_profile", "business_segments", "analyst_expectations",
+                    "research_discovery",
+                }
+            )
+        elif capability == "MACRO_CONTEXT":
+            matches = (security_id in {"MARKET", "US:MARKET"} and dataset in DATASET_CAPABILITY_ROUTES[capability]) or source in {
+                "fred", "bls", "bea", "federal_reserve", "treasury"
+            }
+        elif capability == "MARKET_STATE":
+            matches = (security_id in {"MARKET", "US:MARKET"} and dataset in DATASET_CAPABILITY_ROUTES[capability]) or source in {
+                "yahoo", "market", "fred", "treasury", "eia"
+            } or (
+                security_id == "US:MARKET" and field == "market_news_item"
+                and source == "public_research"
+                and str(fact.get("source_id", "")).startswith("moomoo-public-news:")
+            )
+        elif capability == "OWNERSHIP_DISCLOSURE":
+            matches = security_id in scoped_ids and (
+                dataset in DATASET_CAPABILITY_ROUTES[capability]
+                or form in {"3", "4", "5", "13F-HR", "13F-HR/A"}
+                or field.startswith("ownership_")
+            )
+        elif capability == "OPTIONS_FLOW":
+            matches = security_id in scoped_ids and (
+                dataset in DATASET_CAPABILITY_ROUTES[capability]
+                or source == "options" or field.startswith(("option_", "short_", "fund_flow_", "moomoo_option_"))
+            )
+        if matches:
+            selected.append(copy.deepcopy(dict(fact)))
+    return sorted(selected, key=lambda item: str(item.get("evidence_id")))
 
 
 class ResearchInputTopologyError(ValueError):
@@ -393,7 +617,7 @@ def build_research_provider_coverage(
             "forbidden_fallbacks": ["CLIENT_COOKIE", "PRIVATE_API", "LOGIN_BYPASS"],
         },
     }
-    coverage["coverage_hash"] = canonical_hash(coverage)
+    coverage["coverage_hash"] = legacy_envelope_hash(coverage, hash_field="coverage_hash")
     return coverage
 
 

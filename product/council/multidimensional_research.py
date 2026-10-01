@@ -11,7 +11,9 @@ import re
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from product.runtime.hashing import canonical_hash
+from product.runtime.hashing import (
+    canonical_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError,
+)
 from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
 from product.runtime.validation import ArtifactValidationError, validate_evidence_closure
 
@@ -74,12 +76,6 @@ def _schema(name: str) -> dict[str, Any]:
     return json.loads((SCHEMA_ROOT / name).read_text(encoding="utf-8"))
 
 
-def _without_hash(value: Mapping[str, Any], key: str) -> dict[str, Any]:
-    result = copy.deepcopy(dict(value))
-    result.pop(key, None)
-    return result
-
-
 def _canonical_ids(values: Any, field: str) -> list[str]:
     if not isinstance(values, list):
         raise MultiDimensionalResearchError(f"DIMENSION_ID_ARRAY_INVALID:{field}")
@@ -109,6 +105,7 @@ def validate_research_dimension_report(
     expected_bindings: Mapping[str, Any],
     allowed_security_ids: Sequence[str],
     allowed_evidence_ids: Sequence[str],
+    allowed_calculation_evidence_ids: Sequence[str] = (),
     known_research_claim_ids: Sequence[str] = (),
     allowed_documents: Sequence[Mapping[str, Any]] | None = None,
 ) -> set[str]:
@@ -312,13 +309,18 @@ def validate_research_dimension_report(
         refs = validate_evidence_closure(value, allowed_evidence_ids=allowed_evidence_ids)
     except ArtifactValidationError as exc:
         raise MultiDimensionalResearchError(str(exc)) from exc
-    unknown_calculation_inputs = extra_evidence_refs - set(allowed_evidence_ids)
+    unknown_calculation_inputs = extra_evidence_refs - (
+        set(allowed_evidence_ids) | set(allowed_calculation_evidence_ids)
+    )
     if unknown_calculation_inputs:
         raise MultiDimensionalResearchError(
             "EVIDENCE_CLOSURE_FAILED:" + ",".join(sorted(unknown_calculation_inputs))
         )
-    if value.get("report_hash") != canonical_hash(_without_hash(value, "report_hash")):
-        raise MultiDimensionalResearchError("DIMENSION_REPORT_HASH_MISMATCH")
+    try:
+        verify_legacy_envelope_hash(value, hash_field="report_hash",
+                                   location=f"research-dimension-report:{value.get('report_id')}")
+    except HashContractError as exc:
+        raise MultiDimensionalResearchError(f"DIMENSION_REPORT_HASH_MISMATCH:{exc}") from exc
     return refs | extra_evidence_refs
 
 
@@ -417,12 +419,11 @@ def validate_holding_research_bundle(
         if report_id is None and not gap_reason:
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_GAP_REASON_REQUIRED")
 
-    known_claim_ids = {
-        claim.get("claim_id")
+    from product.runtime.multidimensional_references import known_claim_references
+    known_claim_ids = set(known_claim_references([
+        {**report, "report_hash": report.get("report_hash", canonical_hash(report))}
         for report in (*dimension_reports, *equity_reports)
-        for claim in report.get("claims", [])
-        if isinstance(claim, Mapping)
-    }
+    ]))
     known_report_ids = set(report_ids)
     for question in value.get("unresolved_cross_dimension_questions", []):
         if set(question.get("security_ids", [])) - set(common_ids):
@@ -476,8 +477,11 @@ def validate_holding_research_bundle(
             raise MultiDimensionalResearchError(
                 "HOLDING_RESEARCH_BUNDLE_COMPANY_RESEARCH_NOT_READY"
             )
-    if value.get("bundle_hash") != canonical_hash(_without_hash(value, "bundle_hash")):
-        raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_HASH_MISMATCH")
+    try:
+        verify_legacy_envelope_hash(value, hash_field="bundle_hash",
+                                   location=f"holding-research-bundle:{value.get('bundle_id')}")
+    except HashContractError as exc:
+        raise MultiDimensionalResearchError(f"HOLDING_RESEARCH_BUNDLE_HASH_MISMATCH:{exc}") from exc
 
 
 def derive_unresolved_research_questions(
@@ -486,6 +490,8 @@ def derive_unresolved_research_questions(
     equity_reports: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
     """从报告已经写明的观察/失效条件归集待反证问题，不创造新判断。"""
+
+    from product.runtime.multidimensional_references import scoped_claim_reference
 
     result: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -539,7 +545,9 @@ def derive_unresolved_research_questions(
                 "capabilities": [capability],
                 "question": description,
                 "report_refs": [report_id],
-                "claim_refs": sorted(set(claim_refs)),
+                "claim_refs": sorted({scoped_claim_reference(
+                    {**report, "report_hash": report.get("report_hash", canonical_hash(report))}, claim_id
+                ) for claim_id in claim_refs}),
             })
     return sorted(result, key=lambda item: item["question_id"])
 
@@ -548,7 +556,7 @@ def finalize_research_dimension_report(value: Mapping[str, Any]) -> dict[str, An
     """为已完成内容添加确定性 report_hash，不修复模型内容。"""
 
     report = copy.deepcopy(dict(value))
-    report["report_hash"] = canonical_hash(_without_hash(report, "report_hash"))
+    report["report_hash"] = legacy_envelope_hash(report, hash_field="report_hash")
     return report
 
 
@@ -556,7 +564,7 @@ def finalize_holding_research_bundle(value: Mapping[str, Any]) -> dict[str, Any]
     """为已组装研究包添加确定性 bundle_hash。"""
 
     bundle = copy.deepcopy(dict(value))
-    bundle["bundle_hash"] = canonical_hash(_without_hash(bundle, "bundle_hash"))
+    bundle["bundle_hash"] = legacy_envelope_hash(bundle, hash_field="bundle_hash")
     return bundle
 
 
@@ -572,6 +580,7 @@ def envelope_research_dimension_draft(
     draft: Mapping[str, Any], *, task: Mapping[str, Any], invocation: Mapping[str, Any],
     expected_bindings: Mapping[str, Any], allowed_security_ids: Sequence[str],
     allowed_evidence_ids: Sequence[str], known_research_claim_ids: Sequence[str] = (),
+    allowed_calculation_evidence_ids: Sequence[str] = (),
     allowed_documents: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """添加冻结的身份与执行元数据；不修复模型主张、状态或引用。"""
@@ -598,10 +607,17 @@ def envelope_research_dimension_draft(
     if not isinstance(skill, Mapping) or not isinstance(agent, Mapping):
         raise MultiDimensionalResearchError("DIMENSION_DRAFT_EXECUTION_BINDING_INVALID")
     preparation = task.get("material_preparation")
+    company_coverage = task.get("company_material_coverage")
+    has_licensed_sections = (
+        isinstance(company_coverage, Mapping)
+        and isinstance(company_coverage.get("licensed_sections"), list)
+        and bool(company_coverage["licensed_sections"])
+    )
     if (
         task.get("capability") == "RESEARCH_REPORT"
         and isinstance(preparation, Mapping)
         and preparation.get("status") == "BLOCKED_CONFIGURATION"
+        and not has_licensed_sections
         and (draft.get("status") != "FAILED" or draft.get("evaluation_status") != "FAIL")
     ):
         raise MultiDimensionalResearchError("DIMENSION_DRAFT_CONFIGURATION_BLOCK_STATE_INVALID")
@@ -657,6 +673,7 @@ def envelope_research_dimension_draft(
         expected_bindings=expected_bindings,
         allowed_security_ids=allowed_security_ids,
         allowed_evidence_ids=allowed_evidence_ids,
+        allowed_calculation_evidence_ids=allowed_calculation_evidence_ids,
         known_research_claim_ids=known_research_claim_ids,
         allowed_documents=allowed_documents,
     )

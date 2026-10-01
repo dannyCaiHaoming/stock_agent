@@ -23,6 +23,9 @@ from product.runtime.hashing import canonical_hash
 from product.runtime.research_memory import (
     VIEW_VERSION,
     fact_content_hash,
+    fact_projection_column,
+    logical_fact_key,
+    persisted_fact_algorithm,
     validate_research_view,
 )
 
@@ -96,20 +99,29 @@ def inspect_view_references(root: Path, *, security_id: str | None = None) -> di
             params = (security_id,)
         query += " ORDER BY decision_cutoff,view_manifest_hash"
         view_rows = connection.execute(query, params).fetchall()
+        projection = (
+            "projection_version" if fact_projection_column(connection)
+            else "NULL AS projection_version"
+        )
         fact_rows = connection.execute(
-            "SELECT version_hash,security_id,payload_json FROM fact_versions"
+            f"SELECT version_hash,logical_key,security_id,payload_json,{projection} FROM fact_versions"
             + (" WHERE security_id=?" if security_id else ""), params,
         ).fetchall()
     persisted: dict[str, dict[str, Any]] = {}
+    algorithms: dict[str, str] = {}
     for row in fact_rows:
         try:
             payload = json.loads(row["payload_json"])
         except (TypeError, json.JSONDecodeError) as exc:
             raise ResearchMemoryRepairError("RESEARCH_MEMORY_REPAIR_FACT_INVALID") from exc
         version = str(row["version_hash"])
-        if not isinstance(payload, Mapping) or fact_content_hash(payload) != version:
+        algorithm = persisted_fact_algorithm(row)
+        if not isinstance(payload, Mapping) or fact_content_hash(payload, algorithm=algorithm) != version:
             raise ResearchMemoryRepairError("RESEARCH_MEMORY_REPAIR_FACT_HASH_MISMATCH")
+        if logical_fact_key(payload, algorithm=algorithm) != row["logical_key"]:
+            raise ResearchMemoryRepairError("RESEARCH_MEMORY_REPAIR_FACT_LOGICAL_KEY_MISMATCH")
         persisted[version] = dict(payload)
+        algorithms[version] = algorithm
 
     existing_view_hashes = {str(row["view_manifest_hash"]) for row in view_rows}
     plans = []
@@ -131,13 +143,19 @@ def inspect_view_references(root: Path, *, security_id: str | None = None) -> di
             if not isinstance(policy, str) or not policy:
                 continue
             for raw_fact in snapshot["facts"]:
-                persisted_hash = fact_content_hash(raw_fact)
-                if persisted_hash not in persisted or persisted[persisted_hash] != raw_fact:
-                    continue
-                delivered = dict(raw_fact, freshness_status="FRESH", freshness_policy_version=policy)
-                delivered_hash = fact_content_hash(delivered)
-                if delivered_hash in candidates:
-                    candidates[delivered_hash].add(persisted_hash)
+                for algorithm in set(algorithms.values()):
+                    persisted_hash = fact_content_hash(raw_fact, algorithm=algorithm)
+                    if (persisted_hash not in persisted
+                            or persisted[persisted_hash] != raw_fact
+                            or algorithms[persisted_hash] != algorithm):
+                        continue
+                    delivered = dict(
+                        raw_fact, freshness_status="FRESH",
+                        freshness_policy_version=policy,
+                    )
+                    delivered_hash = fact_content_hash(delivered, algorithm=algorithm)
+                    if delivered_hash in candidates:
+                        candidates[delivered_hash].add(persisted_hash)
         for missing_hash, values in candidates.items():
             if len(values) == 1:
                 mapping[missing_hash] = next(iter(values))

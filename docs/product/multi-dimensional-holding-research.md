@@ -31,7 +31,7 @@ PortfolioHandoff v3
 1. 资料准备 invocation 允许 Company Analyst 调用 `research_search`、`research_fetch`，允许 Market Catalyst 从冻结的 NASDAQ 候选池选择有理由的同行候选。
 2. 工具核实并冻结正文或同行资料，再执行 PIT Gate。正式研究 invocation 只读取 Gate 合格资料，不继承搜索权限。
 
-搜索标题和摘要始终是 `LEAD_ONLY`，不能写成已读研报。只有 `BODY_VERIFIED` 正文可进入研报报告。缺少正文 API key 等配置问题标记为 `BLOCKED_CONFIGURATION`；实际搜索/正文路径受限标记为 `SOURCE_LIMITED`。两者都必须引用本 invocation 的真实尝试产物，不能由模型自行宣称。
+搜索标题和摘要始终是 `LEAD_ONLY`，不能写成已读研报。独立正文以 `BODY_VERIFIED` 和真实 documents 引用进入报告；另外，已过 Gate 的 `LICENSED_API_CONTENT` 许可文本章节可按 Evidence ID、章节和原始响应 hash 读取、引用，不能冒充完整独立研报或伪造 documents。缺少正文 API key 等配置问题标记为 `BLOCKED_CONFIGURATION`；实际搜索/正文路径受限标记为 `SOURCE_LIMITED`。两者都必须引用本 invocation 的真实尝试产物，不能由模型自行宣称。独立正文路径的阻断不自动否定其他已核实的许可章节，但报告必须保留来源限制。来源分层已有零模型及真实 Agent 读取证明；最新第八批研报金额和引用相关性内容复核通过，但其它维度缺陷仍阻断整批验收，不能借研报单维PASS宣布Change完成。
 
 同行目录只用于限制候选范围与请求预算。`candidate_status=UNVERIFIED` 不是同行事实；只有 `materialization_status=FROZEN` 且对应 Evidence 已进入正式 Gate，Agent 才能进行实质比较。
 
@@ -69,6 +69,30 @@ PortfolioHandoff v3
 
 ## 当前来源与限制
 
+### 最新消费核对（2026-10-01）
+
+`complete-eight-dimension-source-consumption`已完成技术及八维内容验收并取得最终人工完成批准，四份主规格已同步，限定发布及归档收尾沿批准执行。第十三批`eight-dimension-readable-results-20261001.wN788G/run`同原资料与截止点、原shell入口实际8子/1父，八份报告保存且独立内容8/8 PASS。技术计算与有据推翻条件、基本面财季/单季累计/重组语义、同行比较、宏观原观测/传导、市场广度/波动/代理、所有权两期/内部人、期权报价/Greeks/规模/时点及许可研报正反/当批上游关系均达原最低问题；没有拼旧报告、降低门禁或增加Agent。旧计算引用方式和其他模式保持兼容。LOW_CONFIDENCE/SOURCE_LIMITED等真实限制保留，不把八份SAVED标为研究充分COMPLETE。版本/hash、实际查询/计算与成本限制见[验收记录](../../reviews/development/complete-eight-dimension-source-consumption-acceptance.md)。
+
+### 第十二批诊断（历史，已由上述最终验收承接）
+
+`complete-eight-dimension-source-consumption`尚未内容验收完成。最新已结束第十二批`eight-dimension-content-consistency-20261001.aRH63I/run`实际8次子启动、八项可信终态、7份报告保存，父正常收尾且源码未变；独立同行/宏观/所有权/期权/研报五维PASS。累计现金流、EPS一次性解释、市场摘要方向和研报金额/逐上游关系已修；仍有基本面财季标签错误、市场波动率计算错选及技术零依据主张。现沿原计算选择提供新任务可读结果引用、原一次修订并列明确零关联诊断，并由基本面核对原文财季，不改变同批8/8标准或自动改稿、不拼历史报告。版本、原hash、成本和接缝见[验收记录](../../reviews/development/complete-eight-dimension-source-consumption-acceptance.md)。
+
+当前研究仍限普通股八维输入与解释；完整独立全文、SEC 13F全覆盖、历史vintage和主动期权方向等受限边界不变。这不是CIO操作建议、历史回测或候选晋升。
+
+### 消费核对（2026-09-29，历史批次）
+
+`host-v2/run` 在同一冻结 cutoff 保存八份报告：技术、行业、宏观、市场、所有权、期权六维有可定位的实质研究；研报等内容缺口尚未清除。之后 `table-unit-ready` 与最新 `monetary-guard-ready-v2` 各只定点运行基本面→研报两项。最新轮虽通过执行与依赖证明，且保留 FY2026 年度 EPS、受限历史比值和一次性收益限制，基本面却漏掉上一轮正确呈现的 SEC 完整财年收入结构；研报在多来源主张中又将中文金额无同主张收据改写为英文 billion USD。独立只读内容复核判 FAIL。两项定点仅为 `DEPENDENCY_CHAIN_EVIDENCE`、2/8，不是新完整八维包；旧六维仅是相同冻结输入下的历史证据。当前累计 **103子/25父**，Change 最终内容验收和人工完成批准均未完成；无新 Skeptic/CIO/Eval 或交易建议。
+
+以下旧批次按各自当时状态保留，不作为上段两包的替代或合并证明：
+
+`complete-eight-dimension-source-consumption` 尚未完成整体验收，以下按原始运行包分别说明，不跨包拼装：
+
+- `eight-dimension-reference-readiness-fi29yasd/ready-final-v2` 经原失败任务补跑已有八份合法报告。技术20/60/252窗口、基本面期间与计算、MRVL/ALAB业务及季度营收比较、宏观条件传导、市场广度与板块/波动代理、机构Q1/Q2变化、期权报价/Greeks均已有真实消费证据；研报虽合法保存，仍有来源归属及上游缺口扩大问题，不能据此宣称八维内容全部通过。
+- `eight-dimension-structured-readiness.hV9ie4/run` 的基本面→研报定点验证已通过，研报实际消费Morningstar章节，并正确保留来源、预测与上游估值限制。显式开启的结构化提交由程序序列化和绑定可信身份，仍经过原Schema/引用/PIT门禁；首稿附件路径错误由原Agent在一次纠正后修复。该包只有两维，不能替代完整八维包，也不自动迁移其他七维或旧包。
+- 独立公开全文、完整 SEC 13F、历史 vintage、逐合约历史及资金方向仍受限。旧批次调用额度已用尽；没有因此自动启动新一轮研究、Skeptic/CIO 或归档。
+
+输入包装已测得参考token减少，但子Agent完整usage不可观测，严格质量A/B未测试；不宣称全流程成本降低或预测精度提高。完整证据与剩余验收项见[验收记录](../../reviews/development/complete-eight-dimension-source-consumption-acceptance.md)。下述早期批次结果保留为历史，不作为当前是否已经消费的结论。
+
 当前三域及 provider 平面的权威映射见 [`holding-research-inputs.json`](../../product/profiles/holding-research-inputs.json)，来源、预算和实测状态见 [免费公开资料能力表](../data/free-source-capability-matrix.md)。新运行会在 manifest 中锁定该拓扑、引用版本与 hash；历史 `live-us-equity/4.0.0` 仅作 `RETIRED/COMPATIBILITY_ONLY` 读取，不再代表当前创建入口。
 
 基础披露层以 SEC 与 Yahoo 为主：SEC 承担公司身份、申报、财务事实与公开事件，Yahoo 承担冻结行情、基准及可确定性派生的市场/估值输入。研究补充层可以接入本机 `127.0.0.1` Moomoo OpenD，但其当前契约只允许新加坡区域、只读 quote capability；OpenD 不可达、未授权或字段不足时，只降低对应 supplement 数据集状态，SEC/Yahoo 合格资料仍继续，不得回退到客户端 Cookie、私有接口或登录绕过。
@@ -79,9 +103,15 @@ Moomoo 补充按资料语义进入既有能力，不新增数据源 Agent：分�
 
 同一冻结 Gate 可供各专项复用，但 Company Analyst 的旧通用启动目录不再重复展开上述已有专门消费者的数据集；该边界用于避免上下文膨胀和跨能力误用，Evidence 仍保留在 Gate，并由对应专项的 `allowed_evidence_ids` 交付。
 
-动态期权先复用 Yahoo 正式 Collector；只有其数据集失败时才用 Moomoo 的到期日、静态链、确定性近价选约和批量动态快照回退。最多选择三个代表到期日和 48 个合约。只有静态合约目录时必须标为受限，不能用全市场 Put/Call、资金流或 Short Interest 替代合约级 bid/ask、volume、OI 和 IV。
+动态期权先复用 Yahoo 正式 Collector；Yahoo 失败时沿用 Moomoo 的到期日、静态链、确定性近价选约和批量动态快照回退。若 Yahoo 已选合约合格但缺 Greeks、乘数或 IV，仅按标的/到期日/行权价/类型及标准合约身份映射这些已选合约，最多三个到期日、48 个合约；两源字段并列、冲突显式保留，不启动第二套择约。只有静态合约目录时必须标为受限，不能用全市场 Put/Call、资金流或 Short Interest 替代合约级 bid/ask、volume、OI 和 IV。
 
 2026-09-21 的 MRVL 真实持仓验收已按该策略把 19 个可用到期日、388 个候选收敛为三个到期日的 48 个合约，并在 Capture、PIT Gate 和 `OPTIONS_FLOW` 交付保持同一数量；报告因缺 Greeks、multiplier、完整链与主动买卖方向而保持 `SOURCE_LIMITED/PARTIAL`，该受限状态是正确完成而非数据可用性的夸大。
+
+2026-09-27 的新 MRVL 来源批次已从 OpenD 为 Yahoo 已选的 48 个合约补得动态 Greeks/乘数，并取得市场广度、供应商两期已结束机构汇总、分节 Morningstar 和 378 点 MRVL/SPY 日线；这些首先是来源与 Gate 事实，不自动改写 2026-09-21 历史报告的状态，也不能单独证明八维 Agent 已查询或引用。
+
+同日后续的精简输入八维宿主运行已保存八份合法报告：技术为 `COMPLETE/SUFFICIENT`；基本面、行业、宏观、市场、所有权与期权均为 `LOW_CONFIDENCE/PARTIAL`；研报为 `FAILED/INSUFFICIENT`。行业实际比较 ALAB/MPWR，市场引用广度，期权引用部分 Greeks/标的波动；但研报未读取已入 Gate 的 Morningstar 分节，所有权未使用两期机构汇总。阶段 `PASSED` 只表示八份报告可保存和装配，不意味着所有维度研究充分、也不形成投资操作建议。分项查询、引用、剩余限制与版本见本 Change 验收记录；研报分层规则与机构任务实际补跑尚未完成。
+
+2026-09-28 的新一轮 MRVL 八维运行没有通过内容验收：仅市场、所有权、期权 3 份报告保存；技术、基本面、行业、宏观被引用校验拒绝，研报因基本面依赖失败未派发。市场报告仍未解释实际广度数值，所有权仍未形成 Q1/Q2 机构比较；期权报告对具体报价、Greeks 和单位限制已有实质解释。宿主进程 `PASSED` 不改变这些失败状态。后续已在本 Change 范围内用零模型验证计算收据引用、同会话一次纠错和研报许可章节与独立正文分层校验；这些修补尚无新的真实 Agent 八维报告证明，不应提升 coverage。历史运行包不改写。
 
 公开研报正文、13F 两期机构持仓、历史期权结构和可验证资金行为等仍按能力矩阵逐项记录 `AVAILABLE`、`PARTIAL`、`SOURCE_LIMITED` 或准确失败状态。它们不是因为某个已归档 Change 而自动完成；只有真实采集、PIT Gate、冻结引用和对应 Agent 实际消费闭合后，才可提升本批次 coverage。
 

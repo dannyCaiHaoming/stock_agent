@@ -5,7 +5,7 @@
   "max_threads": 3,
   "agents": {
     "runtime_company_analyst": {
-      "version": "3.0.20",
+      "version": "3.0.21",
       "config_file": ".codex/agents/runtime_company_analyst.toml",
       "skills": [
         "evidence-grounding",
@@ -33,7 +33,7 @@
       "sandbox_mode": "read-only"
     },
     "runtime_cio": {
-      "version": "3.1.0",
+      "version": "3.1.2",
       "config_file": ".codex/agents/runtime_cio.toml",
       "skills": [
         "portfolio-council"
@@ -57,7 +57,7 @@
     "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
     "company_agent": "runtime_company_analyst",
     "market_agent": "runtime_market_catalyst",
-    "market_agent_version": "1.0.1",
+    "market_agent_version": "1.2.0",
     "market_agent_config_file": ".codex/agents/runtime_market_catalyst.toml",
     "max_concurrent_research_tasks": 3,
     "stops_before": ["runtime_skeptic", "runtime_cio", "deterministic_risk_engine"]

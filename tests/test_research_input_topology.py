@@ -35,6 +35,18 @@ def _rehash(value: dict) -> dict:
 
 
 class ResearchInputTopologyTests(unittest.TestCase):
+    def test_prepare_and_consumption_use_shared_registry_without_changing_permissions(self):
+        from product.runtime import research_input_topology as canonical
+        from product.runtime import multidimensional_stage as prepare
+        from product.runtime import research_consumption_audit as consumption
+        self.assertIs(prepare.DATASET_CAPABILITY_ROUTES, canonical.DATASET_CAPABILITY_ROUTES)
+        self.assertIs(consumption.CAPABILITY_DOMAIN, canonical.CAPABILITY_DOMAIN)
+        self.assertIs(consumption.DATASET_DOMAIN, canonical.DATASET_DOMAIN)
+        self.assertIs(consumption.EIGHT_DIMENSION_INPUTS, canonical.EIGHT_DIMENSION_INPUTS)
+        self.assertEqual(set(prepare.CAPABILITY_BINDINGS), set(canonical.EIGHT_DIMENSION_INPUTS))
+        self.assertNotIn("runtime_skeptic", {binding[0] for binding in prepare.CAPABILITY_BINDINGS.values()})
+        self.assertTrue(all(isinstance(values, set) for values in canonical.DATASET_CAPABILITY_ROUTES.values()))
+
     def test_current_topology_maps_three_domains_and_provider_planes(self) -> None:
         topology = load_research_input_topology(ROOT)
         self.assertEqual(topology["lifecycle_status"], "CURRENT")

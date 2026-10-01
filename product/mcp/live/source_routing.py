@@ -7,12 +7,17 @@ from product.mcp.live.contracts import validate_contract, require_source_admissi
 from product.mcp.provenance import content_hash, parse_timestamp, iso_utc
 
 POLICY = {
-    "version": "live-market-routing/1.0.0",
+    "version": "live-market-routing/1.1.0",
     "providers": ["yahoo", "eastmoney"],
     "fallback_codes": ["YAHOO_TRANSPORT_FAILURE", "YAHOO_HTTP_500", "YAHOO_HTTP_502",
                        "YAHOO_HTTP_503", "YAHOO_HTTP_504", "MARKET_NO_COMPLETED_PRICE",
                        "MARKET_NO_FRESH_PRICE"],
     "price_basis": "provider_close", "max_provider_attempts": 1,
+    "max_window_days": 551,
+}
+LEGACY_POLICY_LOCK = {
+    "version": "live-market-routing/1.0.0",
+    "hash": "c6d1c872e2609ccf542fefba89e524425296ec71704fa1281d2cfcaa7e9ce4e9",
 }
 
 
@@ -50,10 +55,12 @@ def validate_selection(selection, facts=None):
     """即使上游重算 selection_hash，也必须满足来源顺序与回退条件。"""
     if selection["selection_hash"] != content_hash({k: v for k, v in selection.items() if k != "selection_hash"}):
         raise ValueError("LIVE_SELECTION_HASH_MISMATCH")
-    if selection["routing_policy"] != policy_lock():
+    if selection["routing_policy"] not in (policy_lock(), LEGACY_POLICY_LOCK):
         raise ValueError("LIVE_ROUTING_POLICY_DRIFT")
     window = selection["window"]
-    if not 0 < (date.fromisoformat(window["end"]) - date.fromisoformat(window["start"])).days <= 366:
+    max_days = (366 if selection["routing_policy"] == LEGACY_POLICY_LOCK
+                else POLICY["max_window_days"])
+    if not 0 < (date.fromisoformat(window["end"]) - date.fromisoformat(window["start"])).days <= max_days:
         raise ValueError("LIVE_ROUTING_WINDOW_INVALID")
     attempts = selection["attempts"]
     if not 1 <= len(attempts) <= 2 or [a["provider"] for a in attempts] != POLICY["providers"][:len(attempts)]:
@@ -98,7 +105,7 @@ def collect_selected_market(*, security_id, start, end, access, fetchers, cache,
     """
     if not isinstance(security_id, str) or not security_id.strip():
         raise ValueError("LIVE_ROUTING_SECURITY_INVALID")
-    if not 0 < (date.fromisoformat(end) - date.fromisoformat(start)).days <= 366:
+    if not 0 < (date.fromisoformat(end) - date.fromisoformat(start)).days <= POLICY["max_window_days"]:
         raise ValueError("LIVE_ROUTING_WINDOW_INVALID")
     if set(access) != set(POLICY["providers"]) or set(fetchers) != set(POLICY["providers"]):
         raise ValueError("LIVE_ROUTING_PROVIDERS_INVALID")

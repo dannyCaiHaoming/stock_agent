@@ -12,6 +12,7 @@ EASTMONEY_METADATA_VERSION = "us-equity-security-metadata/2.0.0"
 YAHOO_EXCHANGES = {"NMS": "XNAS", "NGM": "XNAS", "NCM": "XNAS", "NYQ": "XNYS", "ASE": "XASE"}
 SEC_EXCHANGES = {"NASDAQ": "XNAS", "THE NASDAQ STOCK MARKET LLC": "XNAS",
                  "THE NASDAQ GLOBAL SELECT MARKET": "XNAS",
+                 "NASDAQ GLOBAL SELECT MARKET": "XNAS",
                  "NYSE": "XNYS", "NEW YORK STOCK EXCHANGE": "XNYS",
                  "NYSEAMER": "XASE", "NYSE AMERICAN": "XASE"}
 

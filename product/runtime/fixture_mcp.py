@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 import re
+import secrets
 import sys
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from pathlib import Path
@@ -15,23 +17,31 @@ from typing import Any, Mapping, Sequence
 try:
     # Repository execution: ``python -m product.runtime.fixture_mcp``.
     from product.mcp.provenance import canonical_json, content_hash
-    from product.runtime.monetary import convert_monetary_value
+    from product.runtime.hashing import canonical_hash, legacy_envelope_hash
+    from product.runtime.monetary import convert_monetary_value, MONETARY_SCALE_FACTORS, scale_factor
+    from product.runtime.schema_validation import validate_schema_instance
 except ModuleNotFoundError as exc:
     # Installed-plugin execution: the cachebuster directory is the import root,
     # so the same module is addressed as ``runtime.fixture_mcp``.
     if exc.name != "product":
         raise
     from mcp.provenance import canonical_json, content_hash
-    from runtime.monetary import convert_monetary_value
+    from runtime.hashing import canonical_hash, legacy_envelope_hash
+    from runtime.monetary import convert_monetary_value, MONETARY_SCALE_FACTORS, scale_factor
+    from runtime.schema_validation import validate_schema_instance
 
 
-MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.3.0"
+MCP_ADAPTER_VERSION = "fixture-gate-scoped/2.5.0"
+TASK_TOOL_IDENTITY_VERSION = "research-tool-identity/1.0.0"
 COMMON_STOCK_FIELD_QUERY_ADAPTER_VERSION = "fixture-gate-scoped/2.4.0"
+SKEPTIC_ADAPTER_VERSION = "fixture-gate-scoped/2.3.0"
 COMMON_STOCK_FIELD_QUERY_MAX_BYTES = 65536
 SUPPORTED_TOOLS = {
     "fixture_evidence.query", "fixture_math.calculate",
     "public_research.search", "public_research.fetch",
     "equity_research_attachments.query",
+    "research_report.submit",
+    "research_reports.read",
 }
 MONETARY_MENTION = re.compile(
     r"(?P<currency>\$|USD\s*)(?P<value>[+-]?\d+(?:\.\d+)?)\s*"
@@ -56,6 +66,7 @@ def _tool_manifest(
     *, stateless: bool = False, include_research_tools: bool = False,
     include_attachment_tool: bool = False,
     common_stock_field_query: bool = False,
+    server_calculation_ids: bool = False,
 ) -> tuple[dict[str, Any], ...]:
     common_properties: dict[str, Any] = {
         "run_id": {"type": "string"},
@@ -98,10 +109,15 @@ def _tool_manifest(
             "description": (
                 "Calculate only from Gate-allowed Evidence. Required "
                 "identity arguments follow the query tool's run-directory binding; also pass "
-                "calculation_id, operation ('ratio', 'percent_change', or 'monetary_scale'), "
+                + ("operation (calculation_id is optional legacy compatibility), "
+                   if server_calculation_ids else "calculation_id, operation ")
+                + "('ratio', 'percent_change', "
+                "'institutional_period_change', or 'monetary_scale'), "
                 "and evidence_ids. "
                 "For ratio, evidence_ids are in numerator-then-denominator sequence; for "
-                "percent_change, earlier then later. monetary_scale accepts exactly one Evidence "
+                "percent_change and institutional_period_change, earlier then later. "
+                "institutional_period_change compares two completed periods from the same "
+                "supplier and security. monetary_scale accepts exactly one Evidence "
                 "ID plus target_scale and deterministically extracts supported disclosed monetary "
                 "mentions. Do not send operands or expression."
             ),
@@ -121,7 +137,10 @@ def _tool_manifest(
                 "properties": {
                     **common_properties,
                     "calculation_id": {"type": "string", "minLength": 1},
-                    "operation": {"enum": ["ratio", "percent_change", "monetary_scale"]},
+                    "operation": {"enum": [
+                        "ratio", "percent_change", "institutional_period_change",
+                        "monetary_scale",
+                    ]},
                     "evidence_ids": {
                         "type": "array",
                         "minItems": 1,
@@ -129,7 +148,7 @@ def _tool_manifest(
                         "items": {"type": "string"},
                     },
                     "target_scale": {
-                        "enum": ["one", "thousand", "million", "billion", "万", "亿"]
+                        "enum": list(MONETARY_SCALE_FACTORS)
                     },
                 },
                 "allOf": [
@@ -148,6 +167,15 @@ def _tool_manifest(
             },
         },
     ]
+    if server_calculation_ids:
+        calculate = next(item for item in tools if item["name"] == "calculate")
+        calculate["inputSchema"]["required"].remove("calculation_id")
+        calculate["description"] = (
+            "For reference_transport_version=multidimensional-references/2.0.0 tasks, "
+            "omit calculation_id: the server assigns a unique ID after authorization. "
+            "An explicit nonempty ID is supported only for existing call compatibility. "
+            + calculate["description"]
+        )
     if common_stock_field_query:
         query = tools[0]
         query["description"] = (
@@ -264,6 +292,7 @@ class GateScopedFixtureTools:
         allowed_evidence_ids: Sequence[str] | None = None,
         field_evidence_ids: Sequence[str] | None = None,
         field_security_id: str | None = None,
+        industry_peer_security_ids: Sequence[str] | None = None,
         adapter_version: str = MCP_ADAPTER_VERSION,
     ) -> None:
         if gate_artifact.get("run_id") != run_id:
@@ -297,6 +326,7 @@ class GateScopedFixtureTools:
             frozenset(field_evidence_ids) if field_evidence_ids is not None else None
         )
         self._field_security_id = field_security_id
+        self._industry_peer_security_ids = frozenset(industry_peer_security_ids or ())
         self.events: list[dict[str, Any]] = []
         self.dynamic_event_log: Path | None = None
 
@@ -351,6 +381,7 @@ class GateScopedFixtureTools:
                 "tool": tool,
                 "input_hash": content_hash(inputs),
                 "output_hash": content_hash(output),
+                "output_bytes": len(canonical_json(output).encode("utf-8")),
                 "evidence_ids": list(inputs.get("evidence_ids", [])),
                 "access_mode": "read",
             }
@@ -360,7 +391,7 @@ class GateScopedFixtureTools:
             event["operation"] = inputs["operation"]
         if "target_scale" in inputs:
             event["target_scale"] = inputs["target_scale"]
-        event["event_hash"] = content_hash(event)
+        event["event_hash"] = legacy_envelope_hash(event, hash_field="event_hash")
         self.events.append(event)
 
     def query(
@@ -393,6 +424,8 @@ class GateScopedFixtureTools:
         else:
             selected_ids = list(evidence_ids or [])
             facts = self._authorize_evidence(run_id, selected_ids)
+        if len({fact.get("security_id") for fact in facts} & self._industry_peer_security_ids) > 1:
+            raise ToolAccessError("INDUSTRY_PEER_QUERY_MIXED:query one frozen peer at a time")
         inputs = {
             "run_id": run_id,
             "agent": agent,
@@ -442,6 +475,7 @@ class GateScopedFixtureTools:
         if operation == "monetary_scale":
             if len(facts) != 1 or target_scale is None:
                 raise ToolAccessError("MONETARY_SCALE_REQUIRES_ONE_FACT_AND_TARGET_SCALE")
+            scale_factor(target_scale)
             fact = facts[0]
             value = fact.get("value")
             mentions = []
@@ -499,6 +533,54 @@ class GateScopedFixtureTools:
             raise ToolAccessError("CALCULATION_REQUIRES_TWO_FACTS")
         if target_scale is not None:
             raise ToolAccessError("TARGET_SCALE_ONLY_VALID_FOR_MONETARY_SCALE")
+        if operation == "institutional_period_change":
+            first, second = facts
+            if (
+                first.get("security_id") != second.get("security_id")
+                or first.get("source_id") != second.get("source_id")
+                or not all(
+                    str(fact.get("semantic_field", "")).startswith("moomoo_institutional_aggregate:")
+                    and isinstance(fact.get("value"), dict)
+                    and fact["value"].get("period_provisional") is False
+                    and isinstance(fact["value"].get("period_end"), str)
+                    and isinstance(fact["value"].get("period_label"), str)
+                    for fact in facts
+                )
+                or first["value"]["period_end"] >= second["value"]["period_end"]
+            ):
+                raise ToolAccessError("INSTITUTIONAL_PERIODS_NOT_COMPARABLE")
+            changes = {}
+            try:
+                for field in (
+                    "institution_count", "aggregate_holder_quantity",
+                    "aggregate_holder_percent",
+                ):
+                    earlier = Decimal(str(first["value"][field]))
+                    later = Decimal(str(second["value"][field]))
+                    delta = later - earlier
+                    changes[field] = {
+                        "earlier": format(earlier, "f"),
+                        "later": format(later, "f"),
+                        "absolute_change": format(delta, "f"),
+                        "relative_change": (
+                            format(delta / earlier, "f") if earlier != 0 else None
+                        ),
+                    }
+            except (InvalidOperation, KeyError, TypeError, ValueError) as exc:
+                raise ToolAccessError("INSTITUTIONAL_PERIOD_VALUE_INVALID") from exc
+            output = {
+                "adapter_version": self.adapter_version,
+                "run_id": self.run_id,
+                "calculation_id": calculation_id,
+                "operation": operation,
+                "evidence_ids": list(evidence_ids),
+                "earlier_period": first["value"]["period_label"],
+                "later_period": second["value"]["period_label"],
+                "changes": changes,
+            }
+            output["calculation_hash"] = content_hash(output)
+            self._record("fixture_math.calculate", inputs, output)
+            return output
         try:
             first, second = (Decimal(str(fact["value"])) for fact in facts)
             if operation == "ratio":
@@ -535,17 +617,24 @@ class StatelessFixtureTools:
         )
         self._last_root: Path | None = None
         self._last_invocation: dict[str, Any] | None = None
+        self._last_reference_map: dict[str, Any] | None = None
 
     @staticmethod
     def tool_manifest() -> tuple[dict[str, Any], ...]:
-        return _tool_manifest(stateless=True)
+        # 未绑定目录时尚不知道调用的协议。支持当前服务端编号参数，
+        # 每次调用仍按真实任务版本/权限检查；旧协议无 ID 必须拒绝。
+        return _tool_manifest(stateless=True, server_calculation_ids=True)
 
     def available_tools(self) -> tuple[dict[str, Any], ...]:
         # A launcher-bound run directory removes ``run_dir`` from every public
         # tool schema, but it must not hide the material-preparation tools. The
         # previous implementation coupled these two concerns and caused real
         # Codex agents to see only query/calculate during research discovery.
-        return _tool_manifest(
+        server_calculation_ids = self.default_run_dir is None
+        if self.default_run_dir is not None:
+            run = _load_object(self.default_run_dir / "run_manifest.json")
+            server_calculation_ids = run.get("reference_transport_version") == "multidimensional-references/2.0.0"
+        manifest = _tool_manifest(
             stateless=self.default_run_dir is None,
             include_research_tools=True,
             include_attachment_tool=self.default_run_dir is not None,
@@ -554,7 +643,129 @@ class StatelessFixtureTools:
                 and _load_object(self.default_run_dir / "run_manifest.json").get("stage")
                 == "COMMON_STOCK_RESEARCH"
             ),
+            server_calculation_ids=server_calculation_ids,
         )
+        if self.default_run_dir is not None:
+            # 工具目录可能在 prepare-cio 之前缓存；授权仍在每次调用时核验。
+            identity = {key: {"type": "string"} for key in ("run_id", "agent", "invocation_id")}
+            run = _load_object(self.default_run_dir / "run_manifest.json")
+            index_path = self.default_run_dir / "research/dispatch-index.json"
+            if index_path.is_file():
+                from product.runtime.research_submission import WRITE_VERSIONS, tool_manifest
+                if any(t.get("submission_version") in WRITE_VERSIONS for t in _load_object(index_path).get("tasks", [])):
+                    manifest += (tool_manifest(),)
+            if run.get("tool_identity_version") == TASK_TOOL_IDENTITY_VERSION:
+                if run.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+                    raise ToolAccessError("TASK_TOOL_IDENTITY_STAGE_INVALID")
+                # Preserve a rejected first routing attempt too, before any successful binding.
+                self.dynamic_event_log = self.default_run_dir / "events/mcp/events.jsonl"
+                manifest += ({
+                    "name": "research_task_state",
+                    "description": "Coordinator: read the bound run's verified Hook task states before dispatch, after wait and before completion. No report bodies or research decisions; TERMINAL/SAVED does not mean content PASS. No arguments, dispatch or retry side effects.",
+                    "annotations": {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
+                    "inputSchema": {"type": "object", "additionalProperties": False, "properties": {}},
+                },)
+                for item in manifest:
+                    if item["name"] not in {"query", "calculate", "research_report_submit"}:
+                        continue
+                    schema = item["inputSchema"]
+                    for key in ("run_id", "agent", "invocation_id", "run_dir"):
+                        schema["properties"].pop(key, None)
+                    schema["required"] = [key for key in schema["required"]
+                                          if key not in {"run_id", "agent", "invocation_id", "run_dir"}]
+                    schema["properties"]["task_name"] = {"type": "string", "minLength": 1}
+                    schema["required"].append("task_name")
+                    item["description"] = (
+                        "Use the exact task_name from your frozen task as the sole technical routing argument; "
+                        "do not pass run_id, agent, invocation_id or run_dir. Runtime binds the existing Invocation "
+                        "and permissions; task_name is not caller authentication. "
+                        + ("Choose operation and evidence_ids as specified by inputSchema; no operands/expression."
+                           if item["name"] == "calculate" else
+                           "Choose research fields as specified by inputSchema; all original gates remain active.")
+                    )
+        return manifest
+
+    def research_task_state(self) -> dict[str, Any]:
+        if self.default_run_dir is None:
+            raise ToolAccessError("TASK_STATE_BOUND_RUN_REQUIRED")
+        from product.runtime.multidimensional_stage import read_multidimensional_task_state
+        result = read_multidimensional_task_state(self.default_run_dir)
+        event = {"event_type": "mcp_tool_result", "tool": "research_task_state",
+                 "run_id": result["run_id"], "invocation_id": None, "input_hash": canonical_hash({}),
+                 "output_hash": canonical_hash(result), "output_bytes": len(canonical_json(result).encode("utf-8")),
+                 "task_state_snapshot": result}
+        event["event_hash"] = legacy_envelope_hash(event, hash_field="event_hash")
+        self.events.append(event)
+        self.dynamic_event_log = self.default_run_dir / "events/mcp/events.jsonl"
+        return result
+
+    def bind_task_tool_arguments(self, name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+        """Normalize a versioned task locator, not an Agent's research choices."""
+        if self.default_run_dir is None or name not in {"query", "calculate", "research_report_submit"}:
+            raise ToolAccessError("TASK_TOOL_IDENTITY_NOT_ENABLED")
+        root = self.default_run_dir
+        manifest = _load_object(root / "run_manifest.json")
+        index = _load_object(root / "research/dispatch-index.json")
+        if (manifest.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION
+                or manifest.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH"):
+            raise ToolAccessError("TASK_TOOL_IDENTITY_NOT_ENABLED")
+        if any(key in arguments for key in ("run_id", "agent", "invocation_id", "run_dir")):
+            raise ToolAccessError("TASK_TOOL_IDENTITY_MIXED_ARGUMENTS")
+        if (manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash")
+                or index.get("index_hash") != legacy_envelope_hash(index, hash_field="index_hash")
+                or manifest.get("dispatch_index_hash") != index.get("index_hash")
+                or manifest.get("run_id") != index.get("run_id")
+                or Path(str(manifest.get("output_dir", ""))).resolve() != root):
+            raise ToolAccessError("TASK_TOOL_IDENTITY_BINDING_INVALID")
+        tasks = [t for t in index.get("tasks", []) if t.get("task_name") == arguments.get("task_name")]
+        if len(tasks) != 1:
+            raise ToolAccessError("TASK_TOOL_IDENTITY_UNKNOWN_OR_AMBIGUOUS")
+        task = tasks[0]
+        if task.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION:
+            raise ToolAccessError("TASK_TOOL_IDENTITY_BINDING_INVALID")
+        identity = {key: task[key] for key in ("run_id", "agent", "invocation_id")}
+        # Existing packet, Invocation, Gate, evidence scope and permissions remain authoritative.
+        self._bound_tools(run_dir=None, **identity)
+        from product.runtime.multidimensional_references import load_reference_packet
+        packet = load_reference_packet(root, identity["invocation_id"])
+        if packet["task"].get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION:
+            raise ToolAccessError("TASK_TOOL_IDENTITY_BINDING_INVALID")
+        invocation_path = (root / task["invocation_path"]).resolve()
+        if not invocation_path.is_relative_to(root):
+            raise ToolAccessError("TASK_TOOL_IDENTITY_BINDING_INVALID")
+        invocation = _load_object(invocation_path)
+        if (invocation.get("manifest_hash") != legacy_envelope_hash(invocation, hash_field="manifest_hash")
+                or any(invocation.get(key) != identity[key] for key in ("run_id", "invocation_id"))
+                or invocation != self._last_invocation):
+            raise ToolAccessError("TASK_TOOL_IDENTITY_BINDING_INVALID")
+        normalized = {key: value for key, value in arguments.items() if key != "task_name"}
+        return {**normalized, **({"invocation_id": identity["invocation_id"]}
+                                 if name == "research_report_submit" else identity)}
+
+
+    def research_report_submit(self, *, invocation_id: str, draft: dict[str, Any], submission_token: str | None = None) -> dict[str, Any]:
+        if self.default_run_dir is None:
+            raise ToolAccessError("RESEARCH_SUBMISSION_BOUND_RUN_REQUIRED")
+        from product.runtime.research_submission import submit, submission_event_identity
+        result = submit(self.default_run_dir, invocation_id, draft, submission_token=submission_token)
+        self.dynamic_event_log = self.default_run_dir / "events/mcp/events.jsonl"
+        identity = submission_event_identity(self.default_run_dir, invocation_id,
+                                             result["submission"], result["content_hash"],
+                                             require_event=False)
+        event = {**identity, "event_type": "research_submission", "tool": "research_report.submit",
+                 "submission": result["submission"], "output_hash": result["content_hash"],
+                 "review_hash": content_hash({
+                     "citation_review": result["citation_review"],
+                     "monetary_review": result["monetary_review"],
+                     "source_evidence_review": result["source_evidence_review"],
+                 }),
+                 "citation_pair_count": result["citation_review"]["pair_count"],
+                 "monetary_finding_count": result["monetary_review"].get("finding_count", 0),
+                 "source_review_pair_count": result["source_evidence_review"]["pair_count"]}
+        if "repair_binding_hash" in result:
+            event["repair_binding_hash"] = result["repair_binding_hash"]
+        self.events.append({**event, "event_hash": content_hash(event)})
+        return result
 
     def _bound_tools(
         self, *, run_dir: str | None, run_id: str, agent: str, invocation_id: str
@@ -660,6 +871,24 @@ class StatelessFixtureTools:
         self.dynamic_event_log = root / "events" / "mcp" / "events.jsonl"
         field_ids: list[str] | None = None
         field_security_id: str | None = None
+        self._last_reference_map = None
+        multidimensional_ids = None
+        industry_peer_security_ids = None
+        if (run_manifest.get("stage") == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+                or (run_manifest.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH"
+                    and skeptic_scope is None)):
+            from product.runtime.multidimensional_references import load_reference_packet
+            packet = load_reference_packet(root, invocation_id)
+            self._last_reference_map = packet.get("reference_map")
+            if self._last_reference_map is not None:
+                multidimensional_ids = packet["allowed_evidence_ids"]
+            if packet.get("task", {}).get("industry_source_boundary") == "industry-source-boundary/1.0.0":
+                industry_peer_security_ids = [
+                    candidate["materialized_security_id"]
+                    for candidate in packet["task"].get("selected_peer_candidates", [])
+                    if candidate.get("materialization_status") == "FROZEN"
+                    and isinstance(candidate.get("materialized_security_id"), str)
+                ]
         if run_manifest.get("stage") == "COMMON_STOCK_RESEARCH":
             if agent != "runtime_company_analyst":
                 raise ToolAccessError("COMMON_STOCK_AGENT_INVALID")
@@ -697,19 +926,31 @@ class StatelessFixtureTools:
                 and item.get("security_id") == field_security_id
                 and _is_company_research_evidence(item)
             ]
+        adapter_version = MCP_ADAPTER_VERSION
+        if skeptic_scope is not None:
+            adapter_version = SKEPTIC_ADAPTER_VERSION
+        elif field_ids is not None:
+            adapter_version = COMMON_STOCK_FIELD_QUERY_ADAPTER_VERSION
+        try:
+            from .versioning import approved_component_version, load_version_manifest
+            scope = ("independent-skeptic-query" if skeptic_scope is not None else
+                     "common-stock-field-query" if field_ids is not None else "fixture-gate-scoped")
+            approved_component_version(load_version_manifest(product_root / "version-manifest.json"),
+                                       "mcp_adapters", scope,
+                                       observed=adapter_version.rsplit("/", 1)[-1])
+        except ValueError as exc:
+            raise ToolAccessError(str(exc)) from exc
         return GateScopedFixtureTools(
             gate,
             run_id=run_id,
             agent=agent,
             invocation_id=invocation_id,
             allowed_tools=invocation.get("tool_permissions", []),
-            allowed_evidence_ids=skeptic_scope[1] if skeptic_scope is not None else None,
+            allowed_evidence_ids=(skeptic_scope[1] if skeptic_scope is not None else multidimensional_ids),
             field_evidence_ids=field_ids,
             field_security_id=field_security_id,
-            adapter_version=(
-                COMMON_STOCK_FIELD_QUERY_ADAPTER_VERSION
-                if field_ids is not None else MCP_ADAPTER_VERSION
-            ),
+            industry_peer_security_ids=industry_peer_security_ids,
+            adapter_version=adapter_version,
         )
 
     def _research_context(self, arguments: dict[str, Any], permission: str) -> tuple[Path, dict[str, Any]]:
@@ -800,7 +1041,9 @@ class StatelessFixtureTools:
             "run_id": arguments["run_id"], "agent": arguments["agent"],
             "invocation_id": arguments["invocation_id"], "tool": "public_research.search",
             "input_hash": content_hash(arguments), "output_hash": content_hash(output),
-            "artifact_ref": output["artifact_ref"], "access_mode": "read",
+            "artifact_ref": output["artifact_ref"],
+            "artifact_sha256": hashlib.sha256((root / output["artifact_ref"]).read_bytes()).hexdigest(),
+            "access_mode": "read",
             "provider_events": client.events,
         }
         self.events.append(event)
@@ -846,6 +1089,19 @@ class StatelessFixtureTools:
         )
         result = tools.query(**arguments)
         self.events.append(tools.events[-1])
+        if self._last_reference_map is not None:
+            from product.runtime.multidimensional_references import translate_references
+            # 保留原审计内容，另记录交付视图；不改冻结附件及其原 hash。
+            self.events[-1]["event_hash"] = legacy_envelope_hash(self.events[-1], hash_field="event_hash")
+            result = translate_references(result, self._last_reference_map, to_model=True)
+            if self._last_invocation.get("calculation_selection_version") is not None:
+                from product.runtime.calculation_handoff import build_common_stock_calculation_catalog, common_stock_calculation_view
+                from product.runtime.multidimensional_references import load_reference_packet
+                packet = load_reference_packet(self._last_root, arguments["invocation_id"])
+                result = common_stock_calculation_view(result, build_common_stock_calculation_catalog(self._last_root, packet))
+            result["canonical_result_hash"] = result["result_hash"]
+            result["result_hash"] = content_hash(result["artifacts"])
+            result["reference_map_hash"] = self._last_reference_map["map_hash"]
         return result
 
     def research_fetch(self, **arguments: Any) -> dict[str, Any]:
@@ -883,7 +1139,9 @@ class StatelessFixtureTools:
                 "run_id": arguments["run_id"], "agent": arguments["agent"],
                 "invocation_id": arguments["invocation_id"], "tool": "public_research.fetch",
                 "input_hash": content_hash(arguments), "output_hash": content_hash(output),
-                "artifact_ref": output["artifact_ref"], "access_mode": "read", "cache_hit": True,
+                "artifact_ref": output["artifact_ref"],
+                "artifact_sha256": hashlib.sha256((root / output["artifact_ref"]).read_bytes()).hexdigest(),
+                "access_mode": "read", "cache_hit": True,
             })
             return output
         if attempt.is_file():
@@ -894,7 +1152,9 @@ class StatelessFixtureTools:
                 "run_id": arguments["run_id"], "agent": arguments["agent"],
                 "invocation_id": arguments["invocation_id"], "tool": "public_research.fetch",
                 "input_hash": content_hash(arguments), "output_hash": content_hash(output),
-                "artifact_ref": output["artifact_ref"], "access_mode": "read", "cache_hit": True,
+                "artifact_ref": output["artifact_ref"],
+                "artifact_sha256": hashlib.sha256((root / output["artifact_ref"]).read_bytes()).hexdigest(),
+                "access_mode": "read", "cache_hit": True,
             })
             return output
         policy = _load_object(
@@ -948,7 +1208,9 @@ class StatelessFixtureTools:
                 "run_id": arguments["run_id"], "agent": arguments["agent"],
                 "invocation_id": arguments["invocation_id"], "tool": "public_research.fetch",
                 "input_hash": content_hash(arguments), "output_hash": content_hash(output),
-                "artifact_ref": output["artifact_ref"], "access_mode": "read",
+                "artifact_ref": output["artifact_ref"],
+                "artifact_sha256": hashlib.sha256((root / output["artifact_ref"]).read_bytes()).hexdigest(),
+                "access_mode": "read",
                 "provider_events": client.events,
             })
             return output
@@ -974,7 +1236,11 @@ class StatelessFixtureTools:
             "run_id": arguments["run_id"], "agent": arguments["agent"],
             "invocation_id": arguments["invocation_id"], "tool": "public_research.fetch",
             "input_hash": content_hash(arguments), "output_hash": content_hash(output),
-            "artifact_ref": output["artifact_ref"], "access_mode": "read",
+            "artifact_ref": output["artifact_ref"],
+            "artifact_sha256": hashlib.sha256((root / output["artifact_ref"]).read_bytes()).hexdigest(),
+            "attempt_ref": output["attempt_ref"],
+            "attempt_sha256": hashlib.sha256((root / output["attempt_ref"]).read_bytes()).hexdigest(),
+            "access_mode": "read",
             "provider_events": client.events,
         })
         return output
@@ -991,8 +1257,17 @@ class StatelessFixtureTools:
                 for key in ("run_id", "agent", "invocation_id")
             },
         )
+        mapping = self._last_reference_map
+        if mapping is not None:
+            from product.runtime.multidimensional_references import translate_references
+            arguments = translate_references(arguments, mapping)
         result = tools.query(**arguments)
         self.events.append(tools.events[-1])
+        if mapping is not None:
+            result = translate_references(result, mapping, to_model=True)
+            result["canonical_result_hash"] = result["result_hash"]
+            result["result_hash"] = content_hash(result["evidence"])
+            result["reference_map_hash"] = mapping["map_hash"]
         return result
 
     def calculate(self, **arguments: Any) -> dict[str, Any]:
@@ -1007,8 +1282,77 @@ class StatelessFixtureTools:
                 for key in ("run_id", "agent", "invocation_id")
             },
         )
+        mapping = self._last_reference_map
+        if "calculation_id" not in arguments:
+            from product.runtime.multidimensional_references import VERSION
+            if mapping is None or mapping["binding"]["version"] != VERSION:
+                raise ToolAccessError("CALCULATION_ID_REQUIRED_FOR_LEGACY_PROTOCOL")
+            if "fixture_math.calculate" not in tools.allowed_tools:
+                raise ToolAccessError("TOOL_NOT_AUTHORIZED:fixture_math.calculate")
+            arguments["calculation_id"] = "calc-" + secrets.token_hex(16)
+        if mapping is not None:
+            from product.runtime.multidimensional_references import translate_references
+            arguments = translate_references(arguments, mapping)
         result = tools.calculate(**arguments)
+        if self._last_invocation is not None and self._last_root is not None:
+            ledger_ref = self._last_invocation.get("calculation_ledger_ref")
+            if ledger_ref is not None:
+                expected = (
+                    "research/calculations/"
+                    + hashlib.sha256(str(arguments["invocation_id"]).encode("utf-8")).hexdigest()[:16]
+                    + "/tool-results.jsonl"
+                )
+                ledger = (self._last_root / str(ledger_ref)).resolve()
+                if (
+                    ledger_ref != expected or not ledger.is_relative_to(self._last_root)
+                    or not ledger.is_file()
+                ):
+                    raise ToolAccessError("CALCULATION_LEDGER_BINDING_INVALID")
+                receipt = {
+                    "run_id": arguments["run_id"],
+                    "invocation_id": arguments["invocation_id"],
+                    "agent": arguments["agent"],
+                    "calculation_id": result["calculation_id"],
+                    "operation": result["operation"],
+                    "evidence_ids": result["evidence_ids"],
+                    "output": result,
+                    "tool_event_hash": tools.events[-1]["event_hash"],
+                }
+                receipt["receipt_hash"] = legacy_envelope_hash(
+                    receipt, hash_field="receipt_hash"
+                )
+                descriptor = os.open(ledger, os.O_RDWR | os.O_NOFOLLOW)
+                with os.fdopen(descriptor, "r+b") as stream:
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+                    existing = stream.read().decode("utf-8")
+                    duplicate = False
+                    for line in existing.splitlines():
+                        try:
+                            prior = json.loads(line)
+                        except json.JSONDecodeError as exc:
+                            raise ToolAccessError("CALCULATION_LEDGER_CORRUPT") from exc
+                        if prior.get("calculation_id") == receipt["calculation_id"]:
+                            if prior != receipt:
+                                raise ToolAccessError("CALCULATION_ID_COLLISION")
+                            duplicate = True
+                    if not duplicate:
+                        stream.seek(0, os.SEEK_END)
+                        stream.write((canonical_json(receipt) + "\n").encode("utf-8"))
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+                result = {**result, "artifact_ref": ledger_ref, "receipt_hash": receipt["receipt_hash"]}
+                if mapping is not None and self._last_invocation.get("calculation_selection_version"):
+                    from product.runtime.calculation_handoff import calculation_reference
+                    result["calculation_ref"] = calculation_reference(mapping, receipt["receipt_hash"])
+                    if self._last_root is not None and _load_object(self._last_root / "run_manifest.json").get("stage") == "COMMON_STOCK_RESEARCH":
+                        # 正式收据留在本地；模型只获得业务结果及精确选择引用。
+                        for key in ("calculation_id", "artifact_ref", "receipt_hash"):
+                            result.pop(key, None)
         self.events.append(tools.events[-1])
+        if mapping is not None:
+            result = translate_references(result, mapping, to_model=True)
+            result["reference_map_hash"] = mapping["map_hash"]
         return result
 
 
@@ -1060,6 +1404,9 @@ def serve_stdio(
             continue
         called_tool: str | None = None
         called_arguments: Mapping[str, Any] = {}
+        wire_arguments: Mapping[str, Any] = {}
+        task_transport_requested = False
+        task_transport_bound = False
         try:
             if method == "initialize":
                 result: dict[str, Any] = {
@@ -1074,20 +1421,59 @@ def serve_stdio(
                 result = {"tools": list(tools.available_tools())}
             elif method == "tools/call":
                 params = request.get("params", {})
+                if not isinstance(params, Mapping):
+                    raise ToolAccessError("TOOL_PARAMS_INVALID")
                 name = params.get("name")
                 arguments = params.get("arguments", {})
                 called_tool = str(name)
                 called_arguments = arguments if isinstance(arguments, Mapping) else {}
+                wire_arguments = called_arguments
+                declared = [
+                    item for item in tools.available_tools() if item.get("name") == name
+                ]
+                if len(declared) != 1:
+                    raise ToolAccessError(f"UNKNOWN_TOOL:{name}")
+                schema_validated = False
+                if "task_name" in declared[0]["inputSchema"].get("required", []):
+                    task_transport_requested = True
+                    validate_schema_instance(arguments, declared[0]["inputSchema"])
+                    arguments = tools.bind_task_tool_arguments(name, arguments)
+                    called_arguments = arguments
+                    task_transport_bound = True
+                    schema_validated = True
+                if (
+                    name == "calculate"
+                    and isinstance(tools, StatelessFixtureTools)
+                    and isinstance(arguments, Mapping)
+                    and all(
+                        isinstance(arguments.get(key), str)
+                        for key in ("run_id", "agent", "invocation_id")
+                    )
+                ):
+                    bound = tools._bound_tools(
+                        run_dir=arguments.get("run_dir"),
+                        run_id=arguments["run_id"],
+                        agent=arguments["agent"],
+                        invocation_id=arguments["invocation_id"],
+                    )
+                    if "fixture_math.calculate" not in bound.allowed_tools:
+                        raise ToolAccessError("TOOL_NOT_AUTHORIZED:fixture_math.calculate")
+                if not schema_validated:
+                    validate_schema_instance(arguments, declared[0]["inputSchema"])
                 if name == "query":
                     value = tools.query(**arguments)
                 elif name == "calculate":
                     value = tools.calculate(**arguments)
+                elif name == "research_task_state" and isinstance(tools, StatelessFixtureTools):
+                    value = tools.research_task_state(**arguments)
                 elif name == "research_search":
                     value = tools.research_search(**arguments)
                 elif name == "research_fetch":
                     value = tools.research_fetch(**arguments)
                 elif name == "equity_research_attachments.query":
                     value = tools.equity_research_attachments_query(**arguments)
+                elif name == "research_report_submit" and isinstance(tools, StatelessFixtureTools):
+                    value = tools.research_report_submit(**arguments)
                 else:
                     raise ToolAccessError(f"UNKNOWN_TOOL:{name}")
                 result = {
@@ -1099,6 +1485,22 @@ def serve_stdio(
                     event_log or tools.dynamic_event_log,
                     tools.events[-1],
                 )
+                if "reference_map_hash" in value:
+                    transport_event = {
+                        "event_type": "mcp_reference_transport",
+                        "run_id": value["run_id"],
+                        "invocation_id": called_arguments["invocation_id"],
+                        "tool": name, "canonical_event_hash": tools.events[-1]["event_hash"],
+                        "reference_map_hash": value["reference_map_hash"],
+                        "output_hash": content_hash(value),
+                        "output_bytes": len(canonical_json(value).encode("utf-8")),
+                    }
+                    transport_event["event_hash"] = content_hash(transport_event)
+                    if task_transport_requested:
+                        transport_event.update(task_name=wire_arguments.get("task_name"),
+                                               wire_input_hash=content_hash(wire_arguments))
+                        transport_event["event_hash"] = legacy_envelope_hash(transport_event, hash_field="event_hash")
+                    _write_event(event_log or tools.dynamic_event_log, transport_event)
             else:
                 raise ToolAccessError(f"UNKNOWN_METHOD:{method}")
             response = {"jsonrpc": "2.0", "id": request_id, "result": result}
@@ -1109,17 +1511,44 @@ def serve_stdio(
                 else str(exc)
             )
             if called_tool is not None:
-                _write_event(
-                    event_log or tools.dynamic_event_log,
-                    {
+                if (
+                    event_log is None
+                    and isinstance(tools, StatelessFixtureTools)
+                    and tools.dynamic_event_log is None
+                    and all(
+                        isinstance(called_arguments.get(key), str)
+                        for key in ("run_id", "agent", "invocation_id")
+                    )
+                ):
+                    try:
+                        tools._bound_tools(
+                            run_dir=called_arguments.get("run_dir"),
+                            run_id=called_arguments["run_id"],
+                            agent=called_arguments["agent"],
+                            invocation_id=called_arguments["invocation_id"],
+                        )
+                    except (OSError, ValueError, TypeError):
+                        pass
+                error_event = {
                         "event_type": "mcp_tool_error",
                         "adapter_version": getattr(tools, "adapter_version", MCP_ADAPTER_VERSION),
                         "tool": called_tool,
+                        "run_id": called_arguments.get("run_id"),
+                        "invocation_id": called_arguments.get("invocation_id"),
                         "input_hash": content_hash(called_arguments),
                         "error": error_message,
                         "access_mode": "read",
-                    },
-                )
+                    }
+                if task_transport_requested:
+                    # The server root is known; an unbound task is NOT attributed to an Invocation.
+                    manifest = _load_object(tools.default_run_dir / "run_manifest.json")
+                    error_event.update(run_id=manifest["run_id"],
+                        task_name=wire_arguments.get("task_name"),
+                        routing_state="BOUND" if task_transport_bound else "UNBOUND",
+                        invocation_id=called_arguments.get("invocation_id") if task_transport_bound else None,
+                        wire_input_hash=content_hash(wire_arguments))
+                    error_event["event_hash"] = legacy_envelope_hash(error_event, hash_field="event_hash")
+                _write_event(event_log or tools.dynamic_event_log, error_event)
             response = {
                 "jsonrpc": "2.0",
                 "id": request_id,

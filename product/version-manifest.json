@@ -9,11 +9,11 @@
     "plugin": "13c673d1acc350de7257b19b294ee085b622f429b9614f3a98f3db51bc09adeb",
     "plugin_mcp": "a1ce66ea0285c24a781be52983c125e9553992fe0a3eef18139df19568caea09",
     "runtime_config": "3f1b605f88b903ccb6e4b1084b592bef3282d4cd717b397d8a2cf3dd35700a94",
-    "runtime_profile": "e984ae9ea48aa5993c5dedbc39f545a1fe4bbc8a554838b8135bc2af452dae3a",
+    "runtime_profile": "2e8fa19227db5d72752c9cd9ccf328ccc3e4f96f618768a7fa622ff6e2a96a0c",
     "decision_contract": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
     "council_skill": "0e99463e6a0d602cdd54f58a72b9c2424e1c77798953b70941482a95b9bbfae1",
     "cio_agent": "ef5f5f6ebb7292c5a05409988d73293be47edf2ecdf33e82b187a67fb79dd32f",
-    "company_agent": "b03e6b5c3b98b11b94d319379e6fb98abaf872628716c0fe06597ccdb49b44f5",
+    "company_agent": "179e4e66bbcd89145b751f0fe7348b0a222aed2ff0619387ab77219dc91b070f",
     "skeptic_agent": "0e977c45aaba3f8ca03ef083ccc48afe393a0cf68aa0adb2de04ebe93144986f"
   },
   "skills": {
@@ -27,16 +27,19 @@
     "macro-market-analysis": "2.2.0",
     "options-market-structure": "1.0.0",
     "ownership-disclosure": "1.0.0",
-    "research-report-analysis": "1.2.0",
+    "research-report-analysis": "1.4.2",
     "technical-structure": "1.1.1"
   },
   "agents": {
     "runtime-cio": "3.1.2",
-    "runtime-company-analyst": "3.0.20",
+    "runtime-company-analyst": "3.0.21",
     "runtime-market-catalyst": "1.2.0",
     "runtime-skeptic": "2.2.0"
   },
   "schemas": {
+    "agent-research-report": "2.0.0",
+    "cio-decision-draft": "2.1.0",
+    "predecision-cio-synthesis": "1.0.0",
     "artifact-envelope": "1.0.0",
     "evidence": "1.0.0",
     "portfolio": "1.0.0",
@@ -73,7 +76,9 @@
   "mcp_adapters": {
     "provider-neutral-contracts": "1.0.0",
     "fixture-reference": "1.0.0",
-    "fixture-gate-scoped": "2.1.2"
+    "fixture-gate-scoped": "2.5.0",
+    "common-stock-field-query": "2.4.0",
+    "independent-skeptic-query": "2.3.0"
   },
   "risk_policy": "risk/reference/1.0.0",
   "data_snapshot": "fixture/codex-native/2.0.0",

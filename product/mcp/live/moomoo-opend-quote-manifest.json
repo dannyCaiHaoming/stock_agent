@@ -85,7 +85,7 @@
       "parameter_names": ["code"],
       "required_parameters": ["code"],
       "response_kind": "DICT",
-      "response_fields": ["rating_type", "star_rating", "star_update_time", "star_update_time_str", "fair_value", "investment_thesis_content", "economic_moat_content", "uncertainty_content", "financial_health_content", "capital_allocation_content", "bull_say", "bear_say", "analyst_note_content", "analyst_report_update_time", "analyst_report_update_time_str"],
+      "response_fields": ["bull_say", "bear_say", "analyst_report_by_line"],
       "read_only": true,
       "max_requests": 1,
       "max_rows": 1,
@@ -101,7 +101,7 @@
       "response_kind": "DATAFRAME",
       "response_fields": ["period_text", "institution_quantity", "institution_quantity_change", "holder_quantity", "holder_quantity_change", "holder_pct", "holder_pct_change", "next_key", "update_time", "update_time_str"],
       "read_only": true,
-      "max_requests": 1,
+      "max_requests": 3,
       "max_rows": 50,
       "max_response_bytes": 1000000,
       "timeout_seconds": 15
@@ -115,7 +115,7 @@
       "response_kind": "DATAFRAME",
       "response_fields": ["holder_id", "holder_quantity", "holder_pct", "name", "title", "all_count", "next_key", "insider_total_count", "insider_bought_count", "insider_sold_count"],
       "read_only": true,
-      "max_requests": 1,
+      "max_requests": 3,
       "max_rows": 50,
       "max_response_bytes": 1000000,
       "timeout_seconds": 15
@@ -129,7 +129,7 @@
       "response_kind": "DATAFRAME",
       "response_fields": ["trade_shares", "min_trade_date", "min_trade_date_str", "max_trade_date", "max_trade_date_str", "min_price", "max_price", "security_holder_quantity", "is_proposed_sale_of_securities", "holder_id", "name", "title", "security_description", "transaction_type", "source_group_name"],
       "read_only": true,
-      "max_requests": 1,
+      "max_requests": 3,
       "max_rows": 50,
       "max_response_bytes": 2000000,
       "timeout_seconds": 15
@@ -157,7 +157,7 @@
       "response_kind": "DATAFRAME",
       "response_fields": ["code", "name", "lot_size", "stock_type", "option_type", "stock_owner", "strike_time", "strike_price", "suspension", "stock_id", "index_option_type", "expiration_cycle", "option_standard_type", "option_settlement_mode"],
       "read_only": true,
-      "max_requests": 1,
+      "max_requests": 3,
       "max_rows": 5000,
       "max_response_bytes": 8000000,
       "timeout_seconds": 20
@@ -278,12 +278,12 @@
       "capability_id": "option-underlying-history-v1",
       "dataset": "options_underlying_context",
       "method": "get_option_underlying_his_statistic",
-      "parameter_names": ["code", "start", "end"],
+      "parameter_names": ["code", "start", "end", "next_key"],
       "required_parameters": ["code", "start", "end"],
       "response_kind": "DATAFRAME",
       "response_fields": ["code", "time", "option_volume", "call_volume", "put_volume", "option_open_interest", "underlying_price"],
       "read_only": true,
-      "max_requests": 1,
+      "max_requests": 3,
       "max_rows": 31,
       "max_response_bytes": 1000000,
       "timeout_seconds": 15
@@ -292,12 +292,12 @@
       "capability_id": "option-underlying-volatility-v1",
       "dataset": "options_underlying_context",
       "method": "get_option_underlying_his_volatility",
-      "parameter_names": ["code", "start", "end"],
+      "parameter_names": ["code", "start", "end", "next_key"],
       "required_parameters": ["code", "start", "end"],
       "response_kind": "DATAFRAME",
       "response_fields": ["code", "time", "iv", "hv", "underlying_price"],
       "read_only": true,
-      "max_requests": 1,
+      "max_requests": 3,
       "max_rows": 31,
       "max_response_bytes": 1000000,
       "timeout_seconds": 15
@@ -376,16 +376,16 @@
       "capability_id": "economic-calendar-v1",
       "dataset": "economic_calendar",
       "method": "get_economic_calendar",
-      "parameter_names": ["start", "end", "count"],
+      "parameter_names": ["start", "end", "count", "next_key"],
       "required_parameters": ["start", "end", "count"],
       "response_kind": "DATAFRAME",
       "response_fields": ["title", "timestamp", "country", "star", "previous", "consensus", "actual"],
       "read_only": true,
-      "max_requests": 1,
+      "max_requests": 3,
       "max_rows": 100,
       "max_response_bytes": 2000000,
       "timeout_seconds": 15
     }
   ],
-  "manifest_hash": "b94064cf8a74bc8da99535b4806362f7e689d942c2c070e2a256450059e4cfbe"
+  "manifest_hash": "e66e137f204b69f8a23a0f0695ade7c7afd7a59c46ef8ad99c01a01492d61442"
 }

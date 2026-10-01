@@ -341,7 +341,10 @@ def build_nested_codex_command(
     hook_recorder_path: Path,
     externally_sandboxed: bool = False,
     output_schema_path: Path | None = None,
+    research_submission_enabled: bool = False,
+    research_task_state_enabled: bool = False,
     fixture_mcp_run_dir: Path | None = None,
+    fixture_mcp_skeptic_dispatch_index: str | None = None,
     hook_agent_matcher: str = "^(runtime_company_analyst|runtime_skeptic)$",
     enable_parent_stop_barrier: bool = False,
     skip_git_repo_check: bool = False,
@@ -350,6 +353,16 @@ def build_nested_codex_command(
 
     if externally_sandboxed:
         raise ValueError("LEGACY_SANDBOX_MODE_RETIRED")
+    skeptic_mcp_environment = ""
+    if fixture_mcp_skeptic_dispatch_index is not None:
+        if fixture_mcp_run_dir is None:
+            raise ValueError("SKEPTIC_MCP_BOUND_RUN_REQUIRED")
+        from .independent_skeptic_stage import read_dispatch_index
+        read_dispatch_index(fixture_mcp_run_dir, fixture_mcp_skeptic_dispatch_index)
+        skeptic_mcp_environment = (
+            ",STOCK_AGENT_SKEPTIC_DISPATCH_INDEX="
+            + json.dumps(fixture_mcp_skeptic_dispatch_index)
+        )
 
     hook_command = " ".join(
         (shlex.quote(sys.executable), shlex.quote(str(hook_recorder_path)))
@@ -408,8 +421,12 @@ def build_nested_codex_command(
             "env={"
             f"STOCK_AGENT_FIXTURE_MCP_PYTHON={json.dumps(fixture_environment['STOCK_AGENT_FIXTURE_MCP_PYTHON'])},"
             f"STOCK_AGENT_FIXTURE_MCP_PYTHONPATH={json.dumps(fixture_environment['STOCK_AGENT_FIXTURE_MCP_PYTHONPATH'])}"
+            + skeptic_mcp_environment +
             "},"
-            "enabled_tools=[\"query\",\"calculate\",\"equity_research_attachments.query\",\"research_search\",\"research_fetch\"],startup_timeout_sec=10}"
+            "enabled_tools=[\"query\",\"calculate\",\"equity_research_attachments.query\",\"research_search\",\"research_fetch\""
+            + (",\"research_report_submit\"" if research_submission_enabled else "")
+            + (",\"research_task_state\"" if research_task_state_enabled else "")
+            + "],startup_timeout_sec=10}"
         )
         command.extend(("-c", mcp_override))
         # This launcher serves a frozen Gate through fixture_runtime.  Avoid
@@ -518,6 +535,8 @@ def launch_nested_codex(
     product_root = Path(paths["product_root"])
     run_dir = Path(paths["run_dir"])
     manifest = _read_object(run_dir / "run_manifest.json")
+    if manifest.get("source_mode") == "live" or manifest.get("compatibility_fixture"):
+        raise ValueError("LIVE_COUNCIL_ENTRY_RETIRED")
     if Path(str(manifest.get("output_dir", ""))).resolve() != run_dir:
         raise ValueError("RUN_DIRECTORY_IDENTITY_MISMATCH")
     invocation_dir = run_dir / "invocation"

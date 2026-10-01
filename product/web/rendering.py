@@ -1095,11 +1095,13 @@ def _dimension_reports(
     empty_title: str = "尚无相关研究报告",
     empty_detail: str = "已保存快照与计算仍可独立阅读。",
 ) -> str:
+    from product.council.multidimensional_output import project_research_status
     if not reports:
         return _empty(empty_title, empty_detail)
     rows = []
     for item in reports:
         value = item["value"]
+        status = project_research_status([value], process=item.get("process_observation"))
         summary = value.get("summary")
         if isinstance(summary, (dict, list)):
             summary = _json_text(summary)
@@ -1110,11 +1112,16 @@ def _dimension_reports(
             if coverage_label and coverage_label != capability else capability
         )
         rows.append((
-            value.get("report_id"), value.get("status"), display_capability,
+            value.get("report_id"), value.get("status"), status["process_status"], status["contract_status"],
+            status["source_status"], value.get("evaluation_status"),
+            status["research_review_status"], status["downstream_status"], display_capability,
             ", ".join(str(security) for security in value.get("security_ids", []) if isinstance(security, str)) or "共享",
             summary, item.get("identity"),
         ))
-    return f'<section><h2>{h(title)}</h2>' + _table(["报告","状态","能力","适用证券","摘要","稳定 ID"], rows, label=title) + '</section>'
+    return f'<section><h2>{h(title)}</h2>' + _table(
+        ["报告", "作者状态", "进程", "契约", "来源限制", "作者自评", "独立复核", "下游状态", "能力", "适用证券", "摘要", "稳定 ID"],
+        rows, label=title,
+    ) + '</section>'
 
 
 def _artifact_issues(issues: Sequence[Mapping[str, Any]]) -> str:

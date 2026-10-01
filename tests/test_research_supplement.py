@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import tempfile
@@ -31,6 +32,10 @@ from product.runtime.common_stock_data import attach_research_supplement, merge_
 from product.runtime.fixture_mcp import ToolAccessError
 from product.runtime.research_supplement_mcp import GateScopedResearchSupplementTools
 from product.mcp.live.research_supplement_collection import (
+    _institutional_history_covered,
+    _option_source_conflicts,
+    _read_quote_pages,
+    _yahoo_option_codes_needing_supplement,
     _yahoo_option_result,
     build_research_supplements,
     capture_external_research_results,
@@ -235,6 +240,33 @@ class SourcePlanTests(unittest.TestCase):
 
 
 class CompanyBackgroundTests(unittest.TestCase):
+    def test_yahoo_partial_options_accepts_same_contract_opend_field_supplement(self):
+        facts = [build_supplement_fact(
+            security_id=SECURITY, dataset="options_snapshot",
+            semantic_field=f"option_contract:{source}",
+            value={"contract_symbol": "AAPL261218C00100000", "source": source},
+            source_id=f"{source}-options", source_family=source,
+            source_locator=f"synthetic:{source}", source_version="synthetic/1",
+            as_of=NOW, published_at=NOW, retrieved_at=NOW,
+            raw_content_hash=("d" if source == "yahoo" else "e") * 64,
+        ) for source in ("yahoo", "moomoo_sg")]
+        assembled = assemble_company_background(
+            snapshot_id="option-field-supplement", batch_id="option-batch",
+            security_id=SECURITY, ticker="AAPL", decision_cutoff=NOW, created_at=NOW,
+            dataset_results=[
+                {"source": source, "dataset": "options_snapshot",
+                 "status": "PARTIAL" if source == "yahoo" else "AVAILABLE",
+                 "failure_code": None, "evidence": [fact], "gaps": [], "limitations": []}
+                for source, fact in zip(("yahoo", "moomoo_sg"), facts)
+            ],
+        )
+        selection = next(item for item in assembled["source_selections"]
+                         if item["dataset"] == "options_snapshot")
+        self.assertEqual(selection["selected_source"], "yahoo")
+        self.assertEqual(selection["supplemental_sources_used"], ["moomoo_sg"])
+        self.assertEqual({fact["source_family"] for fact in assembled["extra_evidence"]},
+                         {"yahoo", "moomoo_sg"})
+
     def test_provider_results_assemble_background_and_extra_research_package(self):
         identity = identity_fact("batch-assembled")
         option = build_supplement_fact(
@@ -614,6 +646,63 @@ class CompanyBackgroundTests(unittest.TestCase):
 
 
 class ResearchSupplementCollectionTests(unittest.TestCase):
+    def test_institutional_later_observation_is_bounded_and_not_backdated(self):
+        from datetime import datetime, timezone
+        from product.mcp.live.research_supplement_collection import _verify_institution_capture_clock
+        capture = {
+            "retrieved_at": "2026-09-16T13:15:01.500000Z",
+            "payload": {"rows": [{"update_time": int(datetime(
+                2026, 9, 16, 13, 15, 2, tzinfo=timezone.utc,
+            ).timestamp())}]},
+        }
+        later = _verify_institution_capture_clock(
+            capture, clock=lambda: datetime(2026, 9, 16, 13, 15, 3,
+                                            tzinfo=timezone.utc),
+            sleep=lambda _: self.fail("已晚于供应商时间不应等待"),
+        )
+        self.assertEqual(later["verified_at"], "2026-09-16T13:15:03Z")
+        capture["payload"]["rows"][0]["update_time"] += 30
+        self.assertNotIn("verified_at", _verify_institution_capture_clock(
+            capture, clock=lambda: datetime(2026, 9, 16, 13, 15, 33,
+                                            tzinfo=timezone.utc),
+            sleep=lambda _: self.fail("远未来值不得自动修复"),
+        ))
+
+    def test_peer_scope_only_reads_comparable_company_datasets(self):
+        calls = []
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+            def readiness(self):
+                pass
+            def read(self, *, capability_id, params):
+                calls.append((capability_id, params))
+                raise ValueError("SYNTHETIC_SOURCE_LIMIT")
+
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.yahoo_transport.create_yahoo_session",
+            side_effect=ValueError("YAHOO_UNAVAILABLE"),
+        ), patch(
+            "product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", FakeClient,
+        ), patch(
+            "product.mcp.live.moomoo_opend.load_quote_manifest", return_value={},
+        ):
+            result = capture_external_research_results(
+                [{"security_id": SECURITY, "ticker": "AAPL"}],
+                access=[{"provider": "yahoo"}], cache_root=Path(temp) / "cache",
+                state_root=Path(temp) / "state", peer_scope=True, now=lambda: NOW,
+            )
+        self.assertEqual({name for name, _ in calls}, {
+            "company-profile-v1", "analyst-consensus-v1", "morningstar-report-v1",
+            "revenue-breakdown-v1", "institution-rating-summary-v1",
+            "analyst-rating-summary-v1",
+        })
+        self.assertEqual({item["dataset"] for item in result[SECURITY]}, {
+            "identity_profile", "analyst_expectations", "business_segments",
+            "research_discovery",
+        })
+
     @staticmethod
     def _normalized(dataset):
         return {"evidence": [{"dataset": dataset, "evidence_id": f"ev-{dataset}"}], "gaps": []}
@@ -656,8 +745,9 @@ class ResearchSupplementCollectionTests(unittest.TestCase):
         self.assertEqual(1, sum(name == "client" for name, _ in calls))
         self.assertEqual(1, sum(name == "readiness" for name, _ in calls))
         reads = [(name, params) for name, params in calls if name not in {"client", "readiness"}]
-        self.assertEqual(14, len(reads))
+        self.assertEqual(15, len(reads))
         self.assertEqual(8, sum(name == "macro-indicator-history-v1" for name, _ in reads))
+        self.assertEqual(2, sum(name == "economic-calendar-v1" for name, _ in reads))
         self.assertEqual(
             {"market_breadth", "option_market_statistics", "macro_history",
              "fedwatch_expectations", "dot_plot", "economic_calendar"},
@@ -887,6 +977,167 @@ class ResearchSupplementCollectionTests(unittest.TestCase):
         self.assertTrue(any(item["source"] == "moomoo_sg"
                             and item["dataset"] == "identity_profile"
                             and item["status"] == "SOURCE_LIMITED" for item in result))
+
+    def test_yahoo_partial_options_supplement_same_contract_without_reselection(self):
+        symbol = "AAPL261218C00100000"
+        opend_symbol = "US.AAPL261218C100000"
+        yahoo_fact = build_supplement_fact(
+            security_id=SECURITY, dataset="options_snapshot",
+            semantic_field="option_chain_contract", value={
+                "contract_symbol": symbol, "contract_multiplier": None,
+                "expiration": "2026-12-18", "strike": "100", "option_type": "CALL",
+                "contract_size_label": "REGULAR",
+                "implied_volatility": "0.25",
+                "greeks": {"delta": None, "gamma": None, "theta": None,
+                           "vega": None, "rho": None},
+            },
+            source_id="yahoo-options:AAPL", source_family="yahoo",
+            source_locator="https://query2.finance.yahoo.com/options/AAPL",
+            source_version="yahoo-options/1.0.0", as_of=NOW,
+            published_at=NOW, retrieved_at=NOW, raw_content_hash="a" * 64,
+        )
+        moomoo_fact = build_supplement_fact(
+            security_id=SECURITY, dataset="options_snapshot",
+            semantic_field="moomoo_option_risk_snapshot", value={
+                "contract_symbol": "US." + symbol, "contract_multiplier": "100",
+                "greeks": {"delta": "0.5"},
+            },
+            source_id="moomoo-sg:AAPL", source_family="moomoo_sg",
+            source_locator="moomoo-opend://get_market_snapshot/US." + symbol,
+            source_version=("moomoo-test/1.0.0;opend/1010;sdk/10.10.7008;"
+                            "method/get_market_snapshot;manifest/abc123"), as_of=NOW,
+            published_at=NOW, retrieved_at=NOW, raw_content_hash="b" * 64,
+        )
+        calls = []
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+            def readiness(self):
+                pass
+            def read(self, *, capability_id, params):
+                calls.append((capability_id, dict(params)))
+                if capability_id == "option-chain-static-v1":
+                    return {"payload": {"rows": [{
+                        "code": opend_symbol, "stock_owner": "US.AAPL",
+                        "option_standard_type": "STANDARD", "strike_time": "2026-12-18",
+                        "strike_price": "100.0", "option_type": "CALL",
+                    }]}}
+                if capability_id == "market-snapshot-v1":
+                    return {"capability_id": capability_id}
+                raise ValueError("MOOMOO_ENTITLEMENT_REQUIRED")
+        with tempfile.TemporaryDirectory() as temp, patch(
+            "product.mcp.live.yahoo_transport.create_yahoo_session", return_value=object(),
+        ), patch(
+            "product.mcp.live.yahoo_transport.acquire_anonymous_crumb", return_value="crumb",
+        ), patch(
+            "product.mcp.live.yahoo_research.collect_quote_summary",
+            return_value={"evidence": [], "gaps": []},
+        ), patch(
+            "product.mcp.live.options.collect_option_snapshot",
+            return_value={"evidence": [yahoo_fact], "gaps": [
+                {"reason": "OPTION_GREEKS_MISSING", "contract_symbol": symbol},
+            ]},
+        ), patch(
+            "product.mcp.live.moomoo_opend.MoomooOpenDQuoteClient", FakeClient,
+        ), patch(
+            "product.mcp.live.moomoo_opend.load_quote_manifest", return_value={},
+        ), patch(
+            "product.mcp.live.moomoo_normalize.normalize_opend_market_snapshot",
+            return_value={"evidence": [moomoo_fact], "gaps": []},
+        ):
+            result = capture_external_research_results(
+                [{"security_id": SECURITY, "ticker": "AAPL"}],
+                access=[{"provider": "yahoo"}], cache_root=Path(temp) / "cache",
+                state_root=Path(temp) / "state", now=lambda: NOW,
+            )[SECURITY]
+        self.assertEqual([params["code_list"] for name, params in calls
+                          if name == "market-snapshot-v1"], [[opend_symbol]])
+        self.assertEqual([params for name, params in calls
+                          if name == "option-chain-static-v1"], [{
+                              "code": "US.AAPL", "start": "2026-12-18", "end": "2026-12-18",
+                          }])
+        self.assertNotIn("option-expirations-v1", [name for name, _ in calls])
+        self.assertEqual(next(item for item in result if item["source"] == "yahoo"
+                              and item["dataset"] == "options_snapshot")["evidence"][0]["value"]["contract_multiplier"], None)
+        self.assertEqual(next(item for item in result if item["source"] == "moomoo_sg"
+                              and item["dataset"] == "options_snapshot")["status"], "PARTIAL")
+        self.assertEqual(next(item for item in result if item["source"] == "moomoo_sg"
+                              and item["dataset"] == "options_snapshot")["actual_requests"], 2)
+
+    def test_option_supplement_is_bounded_and_conflicts_are_not_silently_merged(self):
+        symbol = "AAPL261218C00100000"
+        yahoo = {"status": "PARTIAL", "evidence": [{
+            "security_id": SECURITY,
+            "value": {"contract_symbol": symbol, "implied_volatility": "0.25",
+                      "expiration": "2026-12-18", "strike": "100", "option_type": "CALL",
+                      "contract_multiplier": None, "greeks": {"delta": None},
+                      "open_interest": "100"},
+        }]}
+        self.assertEqual(_yahoo_option_codes_needing_supplement(yahoo), ["US." + symbol])
+        moomoo = {"evidence": [{"value": {
+            "contract_symbol": "US." + symbol, "implied_volatility": "0.35",
+            "expiration": "2026-12-18", "strike": "100.0", "option_type": "CALL",
+            "contract_multiplier": "100", "greeks": {"delta": "0.5"},
+            "open_interest": "120",
+        }}]}
+        self.assertEqual(_option_source_conflicts(yahoo, moomoo), [{
+            "reason": "OPTION_CROSS_SOURCE_FIELD_CONFLICT", "contract_symbol": "US." + symbol,
+            "fields": ["implied_volatility", "open_interest"],
+        }])
+        many = {"status": "PARTIAL", "evidence": [
+            {"security_id": SECURITY, "value": {
+                "contract_symbol": f"AAPL261218C{index:08d}", "greeks": {"delta": None},
+            }} for index in range(60)
+        ]}
+        self.assertEqual(len(_yahoo_option_codes_needing_supplement(many)), 48)
+
+    def test_quote_pagination_stops_on_terminal_repeat_or_three_page_budget(self):
+        class FakeClient:
+            def __init__(self, cursors, fail_at=None):
+                self.cursors = cursors
+                self.fail_at = fail_at
+                self.calls = []
+            def read(self, *, capability_id, params):
+                self.calls.append(dict(params))
+                if self.fail_at == len(self.calls):
+                    raise ValueError("MOOMOO_ENTITLEMENT_REQUIRED")
+                cursor = self.cursors[len(self.calls) - 1]
+                return {"payload": {"kind": "DATAFRAME", "rows": [
+                    {"next_key": cursor, "period_text": f"2026/Q{len(self.calls)}"},
+                ], "attrs": {}}}
+
+        for cursors, expected_pages, expected_gap in (
+            (["page-2", "-1"], 2, None),
+            (["page-2", "page-2"], 2, "MOOMOO_QUOTE_PAGE_CURSOR_REPEATED"),
+            (["page-2", "page-3", "page-4"], 3, "MOOMOO_QUOTE_PAGE_BUDGET_REACHED"),
+        ):
+            client = FakeClient(cursors)
+            captures, gaps = _read_quote_pages(client,
+                capability_id="institutional-aggregate-v1",
+                params={"code": "US.AAPL", "num": 50})
+            self.assertEqual(len(captures), expected_pages)
+            self.assertEqual(gaps[0]["reason"] if gaps else None, expected_gap)
+            if expected_pages > 1:
+                self.assertEqual(client.calls[1]["next_key"], "page-2")
+
+        client = FakeClient(["page-2"], fail_at=2)
+        captures, gaps = _read_quote_pages(client,
+            capability_id="institutional-aggregate-v1", params={"code": "US.AAPL"})
+        self.assertEqual(len(captures), 1)
+        self.assertEqual(gaps[0]["reason"], "MOOMOO_QUOTE_PAGE_FAILED")
+        self.assertEqual(gaps[0]["failure_code"], "MOOMOO_ENTITLEMENT_REQUIRED")
+
+        covered = [{"payload": {"rows": [
+            {"period_text": "2026/Q3"}, {"period_text": "2026/Q2"},
+            {"period_text": "2026/Q1"},
+        ]}}]
+        self.assertTrue(_institutional_history_covered(
+            covered, cutoff=datetime(2026, 9, 16, tzinfo=timezone.utc),
+        ))
+        self.assertFalse(_institutional_history_covered(
+            [{"payload": {"rows": [{"period_text": "2026/Q3"}, {"period_text": "2026/Q2"}]}}],
+            cutoff=datetime(2026, 9, 16, tzinfo=timezone.utc),
+        ))
 
     def test_yahoo_option_conversion_keeps_contract_identity_in_evidence_key(self):
         base = {

@@ -1143,7 +1143,7 @@ def collect_common_stock_data_from_handoff(
                     )
                 if collect_research_supplements:
                     from product.mcp.live.research_supplement_collection import (
-                        capture_external_research_results,
+                        SUPPLEMENT_COLLECTION_VERSION, capture_external_research_results,
                     )
 
                     profile_plan = plans["company_profile"]
@@ -1160,11 +1160,12 @@ def collect_common_stock_data_from_handoff(
                             )
                             persisted = json.loads(raw)
                             required = {
-                                "schema_version", "security_id", "ticker", "results",
+                                "schema_version", "collector_version", "security_id", "ticker", "results",
                             }
                             if set(persisted) != required \
                                     or persisted["schema_version"] \
                                     != "research-supplement-external-results/1.0.0" \
+                                    or persisted["collector_version"] != SUPPLEMENT_COLLECTION_VERSION \
                                     or persisted["security_id"] != security_id \
                                     or persisted["ticker"] != position["ticker"] \
                                     or not isinstance(persisted["results"], list) \
@@ -1176,6 +1177,15 @@ def collect_common_stock_data_from_handoff(
                             persisted_results = [
                                 dict(item) for item in persisted["results"]
                             ]
+                            from product.mcp.live.moomoo_normalize import ADAPTER_VERSION as moomoo_normalization_version
+                            if any(
+                                item.get("source") == "moomoo_sg"
+                                and any(not str(fact.get("source_version", "")).startswith(
+                                    moomoo_normalization_version + ";"
+                                ) for fact in item.get("evidence", []))
+                                for item in persisted_results
+                            ):
+                                raise ValueError("RESEARCH_SUPPLEMENT_NORMALIZER_VERSION_STALE")
                             environment_recheck = _source_environment_recheck_needed(persisted_results)
                             if environment_recheck:
                                 raise ValueError("RESEARCH_SUPPLEMENT_ENVIRONMENT_RECHECK")
@@ -1206,6 +1216,7 @@ def collect_common_stock_data_from_handoff(
                         completed_at = iso_utc(clock())
                         stored = memory.store_object({
                             "schema_version": "research-supplement-external-results/1.0.0",
+                            "collector_version": SUPPLEMENT_COLLECTION_VERSION,
                             "security_id": security_id,
                             "ticker": position["ticker"],
                             "results": external_research_results[security_id],
@@ -2142,7 +2153,7 @@ def collect_benchmark_research_series(
     try:
         result = market_collector(
             [{"security_id": benchmark_id, "ticker": benchmark_ticker, "currency": "USD"}],
-            start=(started.date() - timedelta(days=365)).isoformat(),
+            start=(started.date() - timedelta(days=550)).isoformat(),
             end=(started.date() + timedelta(days=1)).isoformat(),
             source_access=policy,
             cache=cache,

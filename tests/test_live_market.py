@@ -58,6 +58,15 @@ class LiveMarketTests(TestCase):
         self.assertFalse(downloader.call_args.kwargs["auto_adjust"])
         self.assertFalse(downloader.call_args.kwargs["threads"])
         self.assertIsNone(result["actual_http_requests"])
+        download_daily(
+            tickers=["TEST"], start="2025-03-26", end="2026-09-28",
+            source_access=access, downloader=downloader,
+        )
+        with self.assertRaisesRegex(ValueError, "YAHOO_DATE_RANGE_INVALID"):
+            download_daily(
+                tickers=["TEST"], start="2025-03-25", end="2026-09-28",
+                source_access=access, downloader=downloader,
+            )
 
     def test_real_calendar_holiday_early_close_and_dst(self):
         if find_spec("exchange_calendars") is None:

@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import base64
+import binascii
 from datetime import date, datetime, timezone
 from decimal import Decimal
 import hashlib
@@ -24,7 +26,7 @@ from product.mcp.provenance import content_hash, iso_utc, parse_timestamp
 
 
 QUOTE_MANIFEST_VERSION = "moomoo-opend-quote-manifest/1.0.0"
-ADAPTER_VERSION = "moomoo-opend-quote-adapter/2.0.0"
+ADAPTER_VERSION = "moomoo-opend-quote-adapter/2.1.0"
 SDK_DISTRIBUTION = "moomoo-api"
 DEFAULT_MANIFEST = Path(__file__).with_name("moomoo-opend-quote-manifest.json")
 
@@ -340,8 +342,23 @@ def _with_page_key(result: Any, error_code: str) -> Any:
         raise ValueError(error_code)
     ret, frame, page_key = result
     if hasattr(frame, "attrs"):
-        frame.attrs["next_key"] = page_key
+        frame.attrs["next_key"] = (
+            base64.b64encode(page_key).decode("ascii")
+            if isinstance(page_key, bytes) else page_key
+        )
     return ret, frame
+
+
+def _option_history_cursor(value: Any) -> bytes | None:
+    if value is None:
+        return None
+    try:
+        decoded = base64.b64decode(value, validate=True)
+    except (TypeError, ValueError, binascii.Error) as exc:
+        raise ValueError("MOOMOO_OPEND_OPTION_PAGE_KEY_INVALID") from exc
+    if not decoded or len(decoded) > 128:
+        raise ValueError("MOOMOO_OPEND_OPTION_PAGE_KEY_INVALID")
+    return decoded
 
 
 def _call_market_snapshot(context: Any, params: Mapping[str, Any]) -> Any:
@@ -361,7 +378,7 @@ def _call_company_executives(context: Any, params: Mapping[str, Any]) -> Any:
 
 
 def _call_rise_fall_distribution(context: Any, params: Mapping[str, Any]) -> Any:
-    return context.get_rise_fall_distribution(params["region"])
+    return context.get_rise_fall_distribution(market=params["region"])
 
 
 def _call_option_underlying_overview(context: Any, params: Mapping[str, Any]) -> Any:
@@ -370,13 +387,15 @@ def _call_option_underlying_overview(context: Any, params: Mapping[str, Any]) ->
 
 def _call_option_underlying_history(context: Any, params: Mapping[str, Any]) -> Any:
     return _with_page_key(context.get_option_underlying_his_statistic(
-        params["code"], params.get("start"), params.get("end"),
+        params["code"], begin_time=params["start"], end_time=params["end"],
+        page_req_key=_option_history_cursor(params.get("next_key")),
     ), "MOOMOO_OPEND_OPTION_HISTORY_RESPONSE_INVALID")
 
 
 def _call_option_underlying_volatility(context: Any, params: Mapping[str, Any]) -> Any:
     return _with_page_key(context.get_option_underlying_his_volatility(
-        params["code"], params.get("start"), params.get("end"),
+        params["code"], begin_time=params["start"], end_time=params["end"],
+        page_req_key=_option_history_cursor(params.get("next_key")),
     ), "MOOMOO_OPEND_OPTION_VOLATILITY_RESPONSE_INVALID")
 
 
@@ -407,8 +426,8 @@ def _call_fedwatch_dot_plot(context: Any, params: Mapping[str, Any]) -> Any:
 
 def _call_economic_calendar(context: Any, params: Mapping[str, Any]) -> Any:
     result = context.get_economic_calendar(
-        params.get("start"), params.get("end"), market_list=["US"],
-        count=params.get("count", 100),
+        params["start"], end_date=params["end"], market_list=["US"],
+        count=params["count"], next_page=params.get("next_key"),
     )
     if not isinstance(result, tuple) or len(result) != 4:
         raise ValueError("MOOMOO_OPEND_ECONOMIC_CALENDAR_RESPONSE_INVALID")
@@ -517,6 +536,20 @@ def _payload_row_count(payload: Mapping[str, Any]) -> int:
         return 0
 
     return max(1, count_lists(payload.get("value")))
+
+
+def _diagnostic_scope(params: Mapping[str, Any]) -> dict[str, Any]:
+    """Only public instrument/window fields enter diagnostics; never copy arbitrary SDK input."""
+    return {
+        name: params[name] for name in ("code", "region", "start", "end", "num")
+        if name in params
+    }
+
+
+def _response_shape(payload: Mapping[str, Any]) -> dict[str, Any]:
+    if payload["kind"] == "DATAFRAME":
+        return {"kind": "DATAFRAME", "columns": payload["columns"]}
+    return {"kind": "DICT", "keys": sorted(payload["value"])}
 
 
 def _runtime_sdk_version() -> str:
@@ -628,13 +661,37 @@ class MoomooOpenDQuoteClient:
         self.requests[capability_id] += 1
         self.total_requests += 1
         started_dt = self.now()
-        context = self._connect()
+        event = {
+            "capability_id": capability_id,
+            "method": capability["method"],
+            "parameter_names": sorted(params),
+            "request_scope": _diagnostic_scope(params),
+            "started_at": iso_utc(started_dt),
+            "stage": "CONNECT",
+        }
+        self.events.append(event)
         try:
+            context = self._connect()
+        except MoomooOpenDError:
+            event["status"] = "FAILED"
+            raise
+        try:
+            event["stage"] = "CALL"
             ret, value = _METHOD_CALLS[capability["method"]](context, params)
+        except TypeError as exc:
+            event.update(status="FAILED", stage="CALL_ARGUMENT_ERROR")
+            self.open_circuits.add(capability_id)
+            raise MoomooOpenDError("MOOMOO_OPEND_CALL_ARGUMENT_ERROR") from exc
+        except ValueError as exc:
+            event.update(status="FAILED", stage="CALL_RESPONSE_SHAPE")
+            self.open_circuits.add(capability_id)
+            raise MoomooOpenDError("MOOMOO_OPEND_CALL_RESPONSE_SHAPE_INVALID") from exc
         except AttributeError as exc:
+            event.update(status="FAILED", stage="CALL_METHOD_UNAVAILABLE")
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_METHOD_UNAVAILABLE") from exc
         except PermissionError as exc:
+            event.update(status="FAILED", stage="CALL_PERMISSION")
             self.open_circuits.add(capability_id)
             code = (
                 "MOOMOO_SDK_LOG_PERMISSION_DENIED" if _sdk_log_permission_denied(exc)
@@ -642,6 +699,7 @@ class MoomooOpenDQuoteClient:
             )
             raise MoomooOpenDError(code) from exc
         except (OSError, TimeoutError, ConnectionError) as exc:
+            event.update(status="FAILED", stage="CALL_TRANSPORT")
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_CALL_FAILED") from exc
         finally:
@@ -652,19 +710,12 @@ class MoomooOpenDQuoteClient:
         completed_dt = self.now()
         elapsed = (completed_dt - started_dt).total_seconds()
         if elapsed > capability["timeout_seconds"]:
+            event.update(status="FAILED", stage="TIME_BUDGET")
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_TIME_BUDGET_EXCEEDED")
-        event = {
-            "capability_id": capability_id,
-            "method": capability["method"],
-            "parameter_names": sorted(params),
-            "started_at": iso_utc(started_dt),
-            "completed_at": iso_utc(completed_dt),
-            "ret_code": ret,
-        }
-        self.events.append(event)
+        event.update(completed_at=iso_utc(completed_dt), ret_code=ret, stage="RESPONSE")
         if ret != 0:
-            event["status"] = "FAILED"
+            event.update(status="FAILED", stage="SOURCE_RETURN")
             self.open_circuits.add(capability_id)
             message = str(value).lower()
             if any(word in message for word in ("rate limit", "too many", "frequency")):
@@ -673,15 +724,34 @@ class MoomooOpenDQuoteClient:
                 raise MoomooOpenDError("MOOMOO_ENTITLEMENT_REQUIRED")
             raise MoomooOpenDError("MOOMOO_QUOTE_CALL_FAILED")
         payload, raw = serialize_quote_result(value, response_kind=capability["response_kind"])
+        # This endpoint returns one structured report: bull/bear and byline lists
+        # are sections of that report, not additional report rows.
+        row_count = (
+            1 if capability["method"] == "get_research_morningstar_report"
+            else _payload_row_count(payload)
+        )
+        event.update(
+            response_shape=_response_shape(payload), row_count=row_count,
+            response_bytes=len(raw), raw_content_hash=hashlib.sha256(raw).hexdigest(),
+        )
         fields = set(payload["columns"] if payload["kind"] == "DATAFRAME" else payload["value"])
         if not set(capability["response_fields"]) <= fields:
+            event.update(status="FAILED", stage="RESPONSE_SCHEMA")
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_SCHEMA_DRIFT")
-        row_count = _payload_row_count(payload)
-        if row_count > capability["max_rows"] or len(raw) > capability["max_response_bytes"]:
+        if row_count > capability["max_rows"]:
+            event.update(status="FAILED", stage="ROW_BUDGET")
             self.open_circuits.add(capability_id)
             raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_BUDGET_EXCEEDED")
-        scan_committable_payload(payload)
+        if len(raw) > capability["max_response_bytes"]:
+            event.update(status="FAILED", stage="BYTE_BUDGET")
+            self.open_circuits.add(capability_id)
+            raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_BUDGET_EXCEEDED")
+        try:
+            scan_committable_payload(payload)
+        except ValueError:
+            event.update(status="FAILED", stage="SECRET_SCAN")
+            raise
         security_code = params.get("code")
         security_codes = set(params.get("code_list", []))
         if security_code is not None:
@@ -702,6 +772,7 @@ class MoomooOpenDQuoteClient:
                         str(row[key]) for key in ("code", "symbol") if row.get(key) is not None
                     )
             if candidate_codes and candidate_codes != {security_code}:
+                event.update(status="FAILED", stage="SECURITY_BINDING")
                 self.open_circuits.add(capability_id)
                 raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_SECURITY_MISMATCH")
         elif security_codes:
@@ -713,6 +784,7 @@ class MoomooOpenDQuoteClient:
             if capability["method"] == "get_market_snapshot":
                 candidate_codes = {code for code in candidate_codes if code in security_codes}
             if candidate_codes and not candidate_codes <= security_codes:
+                event.update(status="FAILED", stage="SECURITY_BINDING")
                 self.open_circuits.add(capability_id)
                 raise MoomooOpenDError("MOOMOO_OPEND_RESPONSE_SECURITY_MISMATCH")
         raw_hash = hashlib.sha256(raw).hexdigest()
@@ -753,6 +825,7 @@ class MoomooOpenDQuoteClient:
             self.cache.read(record)
             result["record"] = record
         event["status"] = "FETCHED"
+        event["stage"] = "COMPLETE"
         event["raw_content_hash"] = raw_hash
         return result
 

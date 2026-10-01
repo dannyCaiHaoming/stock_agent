@@ -102,7 +102,7 @@ class DailyRequestBoundary:
         if not isinstance(symbol, str) or not re.fullmatch(r"[0-9]{3}\.[A-Z][A-Z0-9.-]{0,14}", symbol):
             raise ValueError("EASTMONEY_SYMBOL_INVALID")
         self.start, self.end = date.fromisoformat(start), date.fromisoformat(end)
-        if not 0 <= (self.end - self.start).days <= 365:
+        if not 0 <= (self.end - self.start).days <= 550:
             raise ValueError("EASTMONEY_DATE_RANGE_INVALID")
         if type(request_budget) is not int or request_budget < 1:
             raise ValueError("EASTMONEY_BUDGET_INVALID")

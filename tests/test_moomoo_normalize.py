@@ -290,6 +290,40 @@ class MoomooNormalizationTests(unittest.TestCase):
         self.assertTrue(all("moomoo_morningstar_section:" in item["semantic_field"]
                             for item in result["evidence"]))
 
+    def test_morningstar_nested_sections_keep_authors_and_reject_future_or_unknown_time(self):
+        result = normalize_opend_morningstar_report(self.capture(
+            method="get_research_morningstar_report", payload={"kind": "DICT", "value": {
+                "analyst_report_by_line": ["Analyst A"],
+                "analyst_report_update_time": 1788985740,
+                "bull_say": [
+                    {"context": "Bull A", "update_time": 1788985740},
+                    {"context": "Bull future", "update_time": 1893456000},
+                ],
+                "bear_say": [{"context": "Bear A", "update_time": 1788985740}],
+                "investment_thesis_content": {"context": "Thesis", "update_time": 1788985740},
+                "analyst_note_title": {"context": "Note title", "update_time": 1788985740},
+                "analyst_note_content": {"context": "Note body", "update_time": 1788985740},
+            }},
+        ), security_id=COMMON["security_id"], ticker="AAPL")
+        sections = {fact["semantic_field"]: fact for fact in result["evidence"]}
+        self.assertEqual(sections["moomoo_morningstar_section:bull_case:0"]["value"]["content"], "Bull A")
+        self.assertEqual(sections["moomoo_morningstar_section:bear_case:0"]["value"]["authors"], ["Analyst A"])
+        self.assertEqual(sections["moomoo_morningstar_section:analyst_note"]["value"]["title"], "Note title")
+        self.assertNotIn("moomoo_morningstar_section:bull_case:1", sections)
+        self.assertIn("MOOMOO_PROVIDER_CLOCK_AHEAD_OF_RETRIEVAL", {
+            gap["reason"] for gap in result["gaps"]
+        })
+
+        unknown = normalize_opend_morningstar_report(self.capture(
+            method="get_research_morningstar_report", payload={"kind": "DICT", "value": {
+                "bull_say": [{"context": "No date"}], "bear_say": [],
+            }},
+        ), security_id=COMMON["security_id"], ticker="AAPL")
+        self.assertFalse(unknown["evidence"])
+        self.assertIn("MOOMOO_MORNINGSTAR_SECTION_TIME_MISSING", {
+            gap["reason"] for gap in unknown["gaps"]
+        })
+
     def test_real_opend_institutional_rows_are_aggregate_periods_not_manager_13f(self):
         result = normalize_opend_institutional_aggregate(self.capture(
             method="get_shareholders_institutional", payload={
@@ -311,6 +345,59 @@ class MoomooNormalizationTests(unittest.TestCase):
         self.assertEqual(len(result["evidence"]), 2)
         self.assertEqual(result["coverage"], "SECONDARY_VENDOR_AGGREGATE_NOT_13F")
         self.assertIn("不是逐管理人 13F", " ".join(result["evidence"][0]["limitations"]))
+
+    def test_institutional_provisional_period_and_bad_rows_do_not_erase_completed_history(self):
+        def row(period, count, updated=1789560000):
+            return {
+                "period_text": period, "institution_quantity": count,
+                "institution_quantity_change": 1, "holder_quantity": 1000,
+                "holder_quantity_change": 10, "holder_pct": 60,
+                "holder_pct_change": 1, "update_time": updated,
+                "update_time_str": "2026-09-16 08:00:00", "next_key": "-1",
+            }
+        result = normalize_opend_institutional_aggregate(self.capture(
+            method="get_shareholders_institutional", payload={
+                "kind": "DATAFRAME", "columns": [], "dtypes": {}, "attrs": {},
+                "rows": [row("2026/Q3", 11), row("2026/Q2", 10),
+                         row("2026/Q1", 9), row("BAD", 8),
+                         row("2025/Q4", 7, 1893456000)],
+            },
+        ), security_id=COMMON["security_id"], ticker="AAPL")
+        self.assertEqual(len(result["evidence"]), 3)
+        by_period = {item["value"]["period_label"]: item for item in result["evidence"]}
+        self.assertTrue(by_period["2026/Q3"]["value"]["period_provisional"])
+        self.assertEqual(by_period["2026/Q3"]["value"]["period_end"], "2026-09-30")
+        self.assertEqual(by_period["2026/Q3"]["as_of"], by_period["2026/Q2"]["as_of"])
+        self.assertFalse(by_period["2026/Q2"]["value"]["period_provisional"])
+        self.assertFalse(by_period["2026/Q1"]["value"]["period_provisional"])
+        self.assertEqual({gap["reason"] for gap in result["gaps"]}, {
+            "MOOMOO_INSTITUTION_PERIOD_UNPARSEABLE",
+            "MOOMOO_PROVIDER_CLOCK_AHEAD_OF_RETRIEVAL",
+        })
+
+    def test_institutional_provider_clock_requires_later_real_observation(self):
+        from datetime import datetime, timezone
+        updated = int(datetime(2026, 9, 16, 13, 15, 2, tzinfo=timezone.utc).timestamp())
+        capture = self.capture(method="get_shareholders_institutional", payload={
+            "kind": "DATAFRAME", "columns": [], "dtypes": {}, "attrs": {},
+            "rows": [{"period_text": "2026/Q2", "institution_quantity": 10,
+                      "holder_quantity": 1000, "holder_pct": 70,
+                      "update_time": updated}],
+        })
+        initial = normalize_opend_institutional_aggregate(
+            capture, security_id=COMMON["security_id"], ticker="AAPL",
+        )
+        self.assertEqual(initial["evidence"], [])
+        capture["verified_at"] = "2026-09-16T13:15:03Z"
+        verified = normalize_opend_institutional_aggregate(
+            capture, security_id=COMMON["security_id"], ticker="AAPL",
+        )
+        self.assertEqual(len(verified["evidence"]), 1)
+        self.assertEqual(verified["evidence"][0]["as_of"], "2026-09-16T13:15:02Z")
+        self.assertEqual(verified["evidence"][0]["retrieved_at"], capture["verified_at"])
+        self.assertIn("MOOMOO_INSTITUTION_LATER_OBSERVATION", {
+            gap["reason"] for gap in verified["gaps"]
+        })
 
     def test_real_opend_insider_holders_and_trades_preserve_secondary_and_pagination_semantics(self):
         holders = normalize_opend_insider_holders(self.capture(
@@ -344,6 +431,26 @@ class MoomooNormalizationTests(unittest.TestCase):
         self.assertEqual(trades["coverage"]["all_count"], 199)
         self.assertEqual(trades["gaps"][0]["reason"], "MOOMOO_INSIDER_TRADES_MORE_PAGES")
         self.assertIn("不推断", " ".join(trades["evidence"][0]["limitations"]))
+        sibling = dict(self.capture(
+            method="get_insider_trade_list", payload={
+                "kind": "DATAFRAME", "columns": [], "dtypes": {}, "attrs": {},
+                "rows": [{**trades["evidence"][0]["value"],
+                          "trade_shares": 11, "min_trade_date": 1788796800,
+                          "min_trade_date_str": "2026-09-07", "max_trade_date": 1788796800,
+                          "max_trade_date_str": "2026-09-07",
+                          "min_price": 200, "max_price": 200,
+                          "security_holder_quantity": 89,
+                          "is_proposed_sale_of_securities": False,
+                          "holder_id": 1, "name": "Public Person", "title": "Officer",
+                          "security_description": "Common Stock", "transaction_type": "卖出",
+                          "source_group_name": "Form 4"}],
+            },
+        ))
+        other = normalize_opend_insider_trades(
+            sibling, security_id=COMMON["security_id"], ticker="AAPL",
+        )
+        self.assertNotEqual(trades["evidence"][0]["evidence_id"],
+                            other["evidence"][0]["evidence_id"])
 
     def test_real_opend_option_chain_is_static_and_never_fills_dynamic_fields(self):
         result = normalize_opend_option_chain(self.capture(
@@ -391,6 +498,26 @@ class MoomooNormalizationTests(unittest.TestCase):
         self.assertNotEqual(fact["as_of"], fact["published_at"])
         self.assertIn("不是研报正文", " ".join(fact["limitations"]))
         self.assertEqual(result["gaps"][0]["reason"], "MOOMOO_RATING_MORE_PAGES")
+        many = self.capture(method="get_research_rating_summary", payload={
+            "kind": "DICT", "value": {
+                "inst_rating_summary_list": [{
+                    "institution_info": {"institution_uid": 1,
+                                         "institution_name": "Research Co"},
+                    "rating_item_list": [{
+                        "recommendation_date": 1789448400,
+                        "recommendation_date_str": "2026-09-15", "rating": "BUY",
+                        "target_price": 300 + index, "update_time": 1789482701110206,
+                    } for index in range(21)],
+                }], "next_key": "-1",
+            },
+        })
+        bounded = normalize_opend_rating_summary(
+            many, security_id=COMMON["security_id"], ticker="AAPL",
+        )
+        self.assertEqual(len(bounded["evidence"]), 20)
+        self.assertIn("MOOMOO_RATING_ITEMS_BOUNDED", {
+            gap["reason"] for gap in bounded["gaps"]
+        })
 
         analyst = normalize_opend_rating_summary(self.capture(
             method="get_research_rating_summary", payload={"kind": "DICT", "value": {
@@ -437,7 +564,8 @@ class MoomooNormalizationTests(unittest.TestCase):
                 "code": first["selected_codes"][0], "stock_owner": "US.AAPL",
                 "update_time": "2026-09-16 09:14:00", "last_price": 3.0,
                 "bid_price": 2.9, "ask_price": 3.1, "volume": 10,
-                "option_open_interest": 100, "option_implied_volatility": 0.25,
+                "option_open_interest": 100, "option_implied_volatility": 25,
+                "option_contract_size": 100, "option_contract_multiplier": 100,
                 "option_delta": 0.5, "option_gamma": 0.1, "option_vega": 0.2,
                 "option_theta": -0.1, "option_rho": 0.01,
             }],
@@ -448,6 +576,8 @@ class MoomooNormalizationTests(unittest.TestCase):
         )
         self.assertEqual(len(result["evidence"]), 2)
         self.assertNotEqual(result["evidence"][0]["as_of"], result["evidence"][1]["as_of"])
+        self.assertEqual(result["evidence"][1]["value"]["implied_volatility"], "0.25")
+        self.assertEqual(result["evidence"][1]["value"]["contract_multiplier"], "100")
         self.assertEqual(result["gaps"][0]["reason"], "PROVIDER_EFFECTIVE_TIME_UNAVAILABLE")
 
     def test_option_selection_keeps_far_holding_and_reports_over_budget(self):
