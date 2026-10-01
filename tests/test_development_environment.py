@@ -370,6 +370,15 @@ class RetiredSandboxEntryTests(unittest.TestCase):
 
 
 class ModelConfigurationTests(unittest.TestCase):
+    def test_agent_development_test_model_is_separate_from_candidate_and_eval(self):
+        from product.runtime.model_routing import agent_development_test_model, select_product_runtime_model
+        policy = load_model_routing(ROOT / "product")
+        evaluation = tomllib.loads((ROOT / ".codex" / "agents" / "dev_eval.toml").read_text())
+        self.assertEqual(agent_development_test_model(), "gpt-6-luna")
+        self.assertEqual(select_product_runtime_model(ROOT / "product", requested_model="gpt-6-luna"), "gpt-6-luna")
+        self.assertEqual(policy["runtime_repeated"], evaluation["model"])
+        self.assertNotEqual(agent_development_test_model(), evaluation["model"])
+
     def test_runtime_eval_model_matches_product_policy(self):
         policy = load_model_routing(ROOT / "product")
         evaluation = tomllib.loads((ROOT / ".codex" / "agents" / "dev_eval.toml").read_text())

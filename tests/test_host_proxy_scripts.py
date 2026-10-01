@@ -177,6 +177,36 @@ class HostProxyTests(unittest.TestCase):
             self.assertIn('launch-multidimensional-research', call)
             self.assertIn('--task-name dimension_research_3 --initial-task', call)
 
+    def test_research_prepare_defaults_to_pinned_luna_without_model_call(self):
+        import json
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            wrapper = base / 'python3'
+            wrapper.write_text(
+                '#!/bin/bash\n'
+                'if [ "$1" = "-" ]; then exec "' + sys.executable + '" "$@"; fi\n'
+                'printf "%s\\n" "$*" >> "$TEST_COMMAND_LOG"\n'
+                'if [ "$2" = "validate-common-stock-research" ]; then echo "{}"; fi\n'
+            )
+            wrapper.chmod(0o700)
+            gate = base / 'gate.json'
+            gate.write_text(json.dumps({'run_id': 'luna-test'}))
+            log = base / 'commands'
+            result = subprocess.run(
+                ['bash', str(ROOT / 'scripts/run-product-smoke.sh'),
+                 '--stage', 'common-stock-research', '--handoff', str(base / 'handoff.json'),
+                 '--gate', str(gate), '--data-preparation', str(base / 'data.json'),
+                 '--source-bundle', str(base / 'source.json'),
+                 '--prepare-only', str(base / 'bundle')],
+                env={**os.environ, 'PATH': str(base) + os.pathsep + os.environ['PATH'],
+                     'TEST_COMMAND_LOG': str(log)},
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = log.read_text().splitlines()
+            self.assertTrue(any('prepare-common-stock-research' in call and '--model gpt-6-luna' in call for call in calls))
+
     def test_multidimensional_and_counter_prepare_default_to_luna(self):
         import json
         import sys

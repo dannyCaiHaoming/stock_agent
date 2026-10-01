@@ -64,9 +64,9 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 
 ## 模型与消耗
 
-保留 Sol 常规开发、Astra 复杂分析、Terra 产品开发期 LLM 测试的既有分工与成本控制。用户明确选择主开发会话模型时尊重其选择，不额外要求产品 `dispute_id` 或批准凭证，也不要求根开发默认模型等于产品 `development_default`。开发子 Agent 继续按职责和已有配置选模；Reviewer 使用其实际生效配置，不承诺跟随主会话自动切换，未观测到实际模型时标未确认。
+保留 Sol 常规开发、Astra 复杂分析的分工与成本控制；普通股、多维研究和独立反证的产品 Agent 开发测试入口默认固定 `gpt-6-luna`。完整 fixture Council 候选、历史运行以及 `dev_eval` 语义评分仍使用各自锁定模型。用户明确选择主开发会话模型时尊重其选择，不额外要求产品 `dispute_id` 或批准凭证，也不要求根开发默认模型等于产品 `development_default`。开发子 Agent 继续按职责和已有配置选模；Reviewer 使用其实际生效配置，不承诺跟随主会话自动切换，未观测到实际模型时标未确认。
 
-产品路由的权威来源仍为 [model-routing.json](../../product/model-routing.json)，产品、重复 Runtime 和真实 Runtime Eval 保持已有模型、预算、路由校验及运行锁。显式调用产品 `architecture_dispute` 路由仍需原争议 ID 和人工批准；该条件不反向约束手动开发选模。本 Change 不删除或修改任何既有模型配置，不建立自动路由。
+产品候选路由的权威来源仍为 [model-routing.json](../../product/model-routing.json)；开发测试的 Luna 默认值由产品模型选择模块单独固定，不修改候选模型、重复 Runtime 或真实 Runtime Eval 的既有运行锁与预算。显式调用产品 `architecture_dispute` 路由仍需原争议 ID 和人工批准；该条件不反向约束手动开发选模。
 
 模型由本机支持的配置或显式 `--model` 参数选择，而非 Prompt 自动切换。记录请求模型、配置来源及运行中实际模型；未知时标未确认，不把帮助包含 `--model` 当账户模型可用证明。Desktop 当前会话若无法由仓库配置改变，明确告知用户选择，不声称切换成功。
 

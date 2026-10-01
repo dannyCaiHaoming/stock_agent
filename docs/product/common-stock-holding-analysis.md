@@ -36,13 +36,13 @@ Company Analyst 默认看不到成本价、浮动盈亏、现金、其他持仓�
 ```text
 bash scripts/run-product-smoke.sh --stage common-stock-research \
   --handoff <仓库外已确认Handoff.json> \
-  --model gpt-5.6-terra \
+  --model gpt-6-luna \
   <新的仓库外产物目录>
 ```
 
 该入口需要现有外置 `LIVE_SOURCE_ACCESS_FILE`、`SEC_USER_AGENT`，可选 `LIVE_CACHE_ROOT`。它会自动生成最小化采集输入、冻结资料、Gate、研究请求和逐证券报告；不会把成本、浮亏、现金或组合约束传给 Company Analyst。`--gate` 仍保留为开发使用的显式冻结样本接缝，不替代真实用户入口。
 
-`--model` 只选择本批 Company Analyst 的研究模型；本次验收使用 `gpt-5.6-terra`。省略时沿用现有产品运行路由，不支持的名称会在模型启动前失败。父运行与研究模型分别记录，Eval 模型另行配置。
+`--model` 选择本批 Company Analyst 的研究模型；开发测试省略该参数时默认使用仓库固定的 `gpt-6-luna`。历史验收所用 Terra 保留在原运行记录中。父运行与研究模型分别记录，独立语义评分使用自己的模型；不支持的名称会在模型启动前失败。
 
 父调度不能用固定 `wait` 次数、普通消息、父线程自报 `dispatched` 数或 Codex 退出码代替终态。父线程每次准备结束时，`Stop` Hook 从冻结 dispatch index、允许派发记录及最小化生命周期日志重算缺失任务；缺失时要求继续等待，全部 task/invocation 终态齐备后才允许进入既有 finalizer。该 Hook 不读取研究正文，也不生成或修补报告；非法报告、引用不闭合或报告集合不完整仍由 finalizer 非零失败。审计位于运行目录的 `invocation/parent-stop-events.jsonl`，只保存任务名、父会话、时间和判定，不保存 Prompt、最终消息或 transcript。
 
