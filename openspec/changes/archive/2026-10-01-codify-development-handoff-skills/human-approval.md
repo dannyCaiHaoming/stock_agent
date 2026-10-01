@@ -21,4 +21,4 @@
 
 本批准不表示生产Promotion PASS，不授权修改生产指针、产品权限、Risk/PIT或历史证据。有限合成情境与静态检查不代表真实研究质量、实际加载、普遍跨项目效果或token收益。
 
-Task 2.3已获最终批准，归档及发布正在执行；实际完成后更新任务状态和结果，不提前宣称推送成功。
+Task 2.3已完成：主规格已同步，Change已归档到`2026-10-01-codify-development-handoff-skills`，限定提交`fe486e1fcfbbd523043b11f3caeb0ba3df09ca55`已实际推送到`origin/main`，执行详情见[publication.md](publication.md)。最终源码定位链接在发布收尾时改为已提交入口，方法及授权边界未变；原独立复核hash保留，最终交付hash和受影响检查另列于发布记录。
