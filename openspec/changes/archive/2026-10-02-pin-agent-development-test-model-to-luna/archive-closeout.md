@@ -1,6 +1,6 @@
 # Luna 开发测试默认模型：验收与发布收尾
 
-日期：2026-10-02（Asia/Shanghai）。用户明确要求“把收尾事项也处理了？主规格的Terra也要改成gpt-6-luna”，接续本会话对本 Change 的同步归档讨论，批准按既定范围完成同步、归档及限定提交推送。当前发布尚待执行，Task3.1 在实际推送核实后勾选。
+日期：2026-10-02（Asia/Shanghai）。用户明确要求“把收尾事项也处理了？主规格的Terra也要改成gpt-6-luna”，接续本会话对本 Change 的同步归档讨论，批准按既定范围完成同步、归档及限定提交推送。最终状态：**COMPLETED / SYNCED / ARCHIVED / PUSHED**，任务5/5。Task3.1 已在实际推送核实后勾选。
 
 ## 范围与规格
 
@@ -41,4 +41,6 @@ env PYTHONDONTWRITEBYTECODE=1 /private/tmp/stock-agent-schema-ZEXpH8/venv/bin/py
 
 独立 Reviewer `/root/macro_binding_admission_review` 对上述限定候选只读复核 PASS：10路径范围、delta/main完整一致、三个默认入口与显式选择/拒绝、候选/Eval/root隔离均核实；独立读取三份原真运行文件，确认8个Start全为Luna。Reviewer没有编辑、测试或新产品调用。Task2.1复用原已归档CIO设计的Luna默认及当时另行批准的Terra验收，不重写历史。
 
-`CHANGE_REVIEW: PASS`，当前范围可以按已获授权归档发布；最终提交及远端推送以随后真实收尾记录为准。复核不代替实际推送，也不等于 `CANDIDATE_PROMOTION`。
+`CHANGE_REVIEW: PASS`。已实际归档至 `openspec/changes/archive/2026-10-02-pin-agent-development-test-model-to-luna/`，主规格同步及11路径限定提交为 `eba72863733121473c3bfc301679cd866987eebc`，已成功推送至 `https://github.com/dannyCaiHaoming/stock_agent.git` 的 `main`；实际远端 `refs/heads/main` 已核对与提交一致。提交前限定候选实现/测试字节与已验证版本相同，范围敏感信息检查未命中，归档后21项主规格严格校验通过。
+
+本页和任务勾选的最终发布状态补记单独作文档收尾提交，不把该提交自身hash写入自身。其余用户修改仍留在工作区，未整体暂存或回退。`CANDIDATE_PROMOTION: NOT_RUN`，不把 Change 发布等同于产品晋升或新的模型效果验收。
