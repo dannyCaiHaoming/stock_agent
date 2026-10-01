@@ -32,7 +32,11 @@
 
 ## 发布状态
 
-人工完成批准有效，限定候选的零模型检查及独立只读发布复核已通过；归档、提交及推送收尾中。Task6.7 仅在实际归档、提交和推送后勾选，不以准备成功冒称发布完成。
+人工完成批准有效，限定候选的零模型检查及独立只读发布复核已通过；三个主规格已同步，本 Change 已归档至 `openspec/changes/archive/2026-10-02-simplify-research-handoffs-and-acceptance/`。
+
+实现、主规格及归档提交为 `cf9e087c3dfd637df314d7572d2a1347dd36581a`，已成功推送至 `https://github.com/dannyCaiHaoming/stock_agent.git` 的 `main`，并通过实际远端 `refs/heads/main` 核对一致。Task6.7 在此真实发布结果后勾选，任务30/30完成；本页及验收入口的最终状态补记单独以文档收尾提交发布，不将其提交自身hash写入自身。
+
+提交前限定120路径经过范围及敏感信息检查，82项实现与规格文件和已验证候选逐字节一致；归档后的21项主规格严格校验通过。发布未替换工作区；Tiger、交易复盘、其他活跃 Change、本地权限及模型配置仍为未纳入本次提交的用户修改。已接受的非阻断问题与 `CANDIDATE_PROMOTION: NOT_PROMOTABLE` 状态不变。
 
 ## 限定候选的零模型验证
 

@@ -10,7 +10,7 @@
 | 独立 Runtime Eval | [真实评分及收集恢复记录](native-runtime-eval-handoff-evidence.json)，`handoff-eval-normal-20261001-ZM36NZ`；独立Terra子会话完整读取冻结输入，原首稿收集/封装后五维PASS | PASS；原协调进程收集失败保留，不宣称该进程自动端到端成功 |
 | predecision CIO | [本轮记录](predecision-native-handoff-validation.md)及[最终独立增量复核](independent-predecision-review.md)；用户批准新真实正反包替代验收输入，CIO读取七报告、查询事实、首稿合法终态 | PASS；原反证期间错误未传播，保留为非阻断缺陷；不声称上游稿已修复、当前账户适配或候选晋升 |
 | Task6.6 独立只读复核 | [原独立复核](independent-review.md)保留；[新输入增量复核](independent-predecision-review.md)覆盖最终CIO及640项快照 | 已交付；H09补验及Task6.5通过，原包缺失不再是本次已批准输入的阻断 |
-| Task6.7 最终完成批准及发布 | 原批准及本次明确归档授权均有效；此前共享归属阻断已有八维发布基线可安全分离，见[最终收尾记录](archive-closeout.md) | 已批准、规格同步逐条核对；限定发布收尾中，实际结果以最终收尾记录为准 |
+| Task6.7 最终完成批准及发布 | 原批准及本次明确归档授权均有效；此前共享归属阻断已有八维发布基线可安全分离，见[最终收尾记录](archive-closeout.md) | 完成：三个主规格同步、归档、限定提交及远端推送均已核实；任务30/30，其他用户修改未纳入 |
 
 ## 本轮已关闭的机械阻断
 
