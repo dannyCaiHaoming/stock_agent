@@ -84,8 +84,7 @@ def ablation_cio_output(run_dir: Path) -> dict:
         "status": "COMPLETE",
         "agent": "runtime_cio",
         "consumed_reports": [
-            {"agent": name, "output_hash": digest}
-            for name, digest in cio_input["validated_report_hashes"].items()
+            item["identity"] for item in cio_input["report_catalog"]
         ],
         "action": "HOLD",
         "security_id": "SEC-AAA",

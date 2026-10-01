@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,9 @@ from product.runtime.runtime_eval import (
     finalize_eval_job,
     prepare_eval_job,
     render_eval_report,
+    validate_not_applicable_semantic_result,
+    validate_semantic_result,
+    verify_runtime_eval_job,
 )
 from tests.test_native_run_package import FIXTURES, ROOT, read_json, specialist_outputs
 from tests.test_replay_capsule import complete_run
@@ -108,6 +112,10 @@ class RuntimeEvalJobTests(unittest.TestCase):
             report["claims"][0]["evidence_refs"] = ["dangling"]
             write_json(run_dir / "agents" / "runtime_company_analyst.json", report)
             prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            error = read_json(run_dir / "run_error.json")
+            self.assertEqual("SPECIALIST_REPORT_VALIDATION_FAILED", error["code"])
+            self.assertEqual("EVIDENCE_CLOSURE_FAILED:dangling", error["message"])
+            self.assertFalse((run_dir / "decision.json").exists())
             eval_dir = root / "failed-eval"
             prepared = prepare_eval_job(
                 ROOT,
@@ -120,6 +128,26 @@ class RuntimeEvalJobTests(unittest.TestCase):
             result = finalize_eval_job(ROOT, eval_dir=eval_dir)
             self.assertEqual(result["status"], "PASS")
             self.assertEqual(result["hard_gates"]["risk_bypass"]["risk_attempts"], 0)
+            verified = verify_runtime_eval_job(ROOT, eval_result_path=eval_dir / "eval/result.json")
+            self.assertEqual(verified["status"], "PASS")
+            manifest = read_json(eval_dir / "input-manifest.json")
+            semantic = read_json(eval_dir / "semantic-rubric.json")
+            validate_not_applicable_semantic_result(semantic, repository_root=ROOT, input_manifest=manifest)
+            # Deterministic not-applicable is never accepted as model grading.
+            with self.assertRaisesRegex(RuntimeEvalError, "SEMANTIC_GRADER_LINEAGE_INVALID"):
+                validate_semantic_result(semantic, eval_id=manifest["eval_id"], input_manifest=manifest)
+            for field, value in (("model", "gpt-5.6-terra"), ("prompt_hash", "0" * 64)):
+                bad = deepcopy(semantic)
+                bad["grader"][field] = value
+                bad["output_hash"] = canonical_hash({k: v for k, v in bad.items() if k != "output_hash"})
+                with self.subTest(field=field), self.assertRaisesRegex(RuntimeEvalError, "EVAL_NOT_APPLICABLE_RESULT_INVALID"):
+                    validate_not_applicable_semantic_result(bad, repository_root=ROOT, input_manifest=manifest)
+            for field, value in (("status", "PASS"), ("grade", 0), ("evidence_refs", ["invented"])):
+                bad = deepcopy(semantic)
+                bad["dimensions"][SEMANTIC_DIMENSIONS[0]][field] = value
+                bad["output_hash"] = canonical_hash({k: v for k, v in bad.items() if k != "output_hash"})
+                with self.subTest(field=field), self.assertRaisesRegex(RuntimeEvalError, "EVAL_NOT_APPLICABLE_RESULT_INVALID"):
+                    validate_not_applicable_semantic_result(bad, repository_root=ROOT, input_manifest=manifest)
 
     def test_hard_gate_failure_cannot_be_averaged_away(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -37,12 +37,11 @@ def read_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def specialist_outputs(run_dir: Path):
+def specialist_outputs(run_dir: Path, *, persist=True):
     analyst = read_json(run_dir / "invocations" / "runtime_company_analyst.json")
     skeptic = read_json(run_dir / "invocations" / "runtime_skeptic.json")
-    write_json(
-        run_dir / "agents" / "runtime_company_analyst.json",
-        {
+    reports = {
+        "runtime_company_analyst": {
             "schema_version": "agent-research-report/2.0.0",
             "run_id": analyst["run_id"],
             "invocation_id": analyst["invocation_id"],
@@ -66,10 +65,7 @@ def specialist_outputs(run_dir: Path):
             "skill_execution": analyst["skill_execution"],
             "artifact_refs": [],
         },
-    )
-    write_json(
-        run_dir / "agents" / "runtime_skeptic.json",
-        {
+        "runtime_skeptic": {
             "schema_version": "counter-thesis-report/2.0.0",
             "run_id": skeptic["run_id"],
             "invocation_id": skeptic["invocation_id"],
@@ -94,7 +90,11 @@ def specialist_outputs(run_dir: Path):
             "skill_execution": skeptic["skill_execution"],
             "artifact_refs": [],
         },
-    )
+    }
+    if persist:
+        for agent, report in reports.items():
+            write_json(run_dir / "agents" / f"{agent}.json", report)
+    return reports
 
 
 def cio_output(run_dir: Path, *, target=(0.5, 0.5)):
@@ -136,6 +136,31 @@ def cio_output(run_dir: Path, *, target=(0.5, 0.5)):
 
 
 class NativeRunPackageTests(unittest.TestCase):
+    def test_nested_specialist_schema_failure_cannot_reach_cio(self):
+        for agent_name, field in (
+            ("runtime_company_analyst", "claims"),
+            ("runtime_skeptic", "challenges"),
+        ):
+            with self.subTest(agent=agent_name), tempfile.TemporaryDirectory() as directory:
+                run_dir = Path(directory) / "nested-schema-failure"
+                prepare_run(
+                    ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run_dir,
+                    run_id=f"nested-schema-{agent_name}", model="gpt-5.6-terra",
+                    research_question="检查正式报告 Schema", authenticity_required=False,
+                )
+                specialist_outputs(run_dir)
+                path = run_dir / "agents" / f"{agent_name}.json"
+                report = read_json(path)
+                report[field][0]["undeclared_field"] = "must not enter CIO"
+                write_json(path, report)
+                outcome = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+                self.assertEqual(outcome["terminal_state"], "FAILED_VALIDATION")
+                self.assertIn("SCHEMA_EXTRA_PROPERTY", outcome["message"])
+                self.assertEqual(read_json(run_dir / "run_error.json")["code"], "SPECIALIST_REPORT_VALIDATION_FAILED")
+                self.assertFalse((run_dir / "inputs" / "runtime_cio.json").exists())
+                self.assertFalse((run_dir / "decision.json").exists())
+                self.assertEqual(read_json(run_dir / "decision_trace.json")["risk_lineage"], [])
+
     def test_prepare_cio_missing_dependency_persists_failed_terminal(self):
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory) / "dependency-failure"
@@ -314,14 +339,17 @@ class NativeRunPackageTests(unittest.TestCase):
 
             cio_input = read_json(run_dir / "inputs" / "runtime_cio.json")
             self.assertEqual(
-                set(cio_input["validated_reports"]),
+                {item["report_id"] for item in cio_input["report_catalog"]},
                 {"runtime_company_analyst", "runtime_skeptic"},
             )
             self.assertEqual(
-                cio_input["validated_report_hashes"],
+                {item["report_id"]: item["identity"]["output_hash"] for item in cio_input["report_catalog"]},
                 {
                     agent_name: canonical_hash(report)
-                    for agent_name, report in cio_input["validated_reports"].items()
+                    for agent_name, report in {
+                        agent: read_json(run_dir / "agents" / f"{agent}.json")
+                        for agent in ("runtime_company_analyst", "runtime_skeptic")
+                    }.items()
                 },
             )
             serialized = json.dumps(cio_input, sort_keys=True)
@@ -336,7 +364,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 self.assertNotIn(forbidden, serialized)
 
             invocation = read_json(run_dir / "invocations" / "runtime_cio.json")
-            self.assertEqual(invocation["tool_permissions"], ["fixture_evidence.query"])
+            self.assertEqual(invocation["tool_permissions"], ["fixture_evidence.query", "research_reports.read"])
             tools = StatelessFixtureTools()
             evidence_id = cio_input["evidence_references"][0]
             queried = tools.query(
@@ -346,7 +374,9 @@ class NativeRunPackageTests(unittest.TestCase):
                 invocation_id=invocation["invocation_id"],
                 evidence_ids=[evidence_id],
             )
-            self.assertEqual(queried["evidence"][0]["evidence_id"], evidence_id)
+            from product.runtime.cio_handoff import build_cio_reference_map
+            mapping = build_cio_reference_map(run_dir, invocation, invocation["report_catalog"])
+            self.assertEqual(mapping["evidence"][queried["evidence"][0]["evidence_id"]], evidence_id)
             self.assertEqual(tools.events[-1]["agent"], "runtime_cio")
             with self.assertRaisesRegex(ToolAccessError, "TOOL_NOT_AUTHORIZED"):
                 tools.calculate(
@@ -370,6 +400,8 @@ class NativeRunPackageTests(unittest.TestCase):
                 model="gpt-5.6-terra",
                 research_question="研究 fixture。",
             )
+            from tests.test_council_semantic_handoff import start_council_specialists
+            start_council_specialists(run_dir)
             specialist_outputs(run_dir)
             prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
             write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
@@ -396,6 +428,8 @@ class NativeRunPackageTests(unittest.TestCase):
                 model="gpt-5.6-terra",
                 research_question="研究 fixture。",
             )
+            from tests.test_council_semantic_handoff import start_council_specialists
+            start_council_specialists(run_dir)
             specialist_outputs(run_dir)
             prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
             exit_code = runtime_cli_main(

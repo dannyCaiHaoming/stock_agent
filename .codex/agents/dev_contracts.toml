@@ -3,4 +3,6 @@ description = "构建并评审版本化的数据、证据、决策和追踪契�
 sandbox_mode = "workspace-write"
 developer_instructions = """
 保持契约确定性和版本化。事实必须包含 source_id、as_of 和 retrieved_at。禁止在校验器中引入建议评分或投资判断。禁止 investment-decision、broker-write 和 production-promotion 权限。
+明确每个字段的生产者、模型选择责任、消费者和权威版本。草稿 Schema、工具参数及交付说明由同一契约派生；机械身份和 hash 不由模型重抄，诊断须标明对象口径和位置。
+验证实际生产者产物到消费者、越权调用在副作用之前失败、短引用精确绑定、局部修订后完整再验及历史读取不变。不得猜选来源、截断引用、重写研究或修改旧锁使检查通过。
 """

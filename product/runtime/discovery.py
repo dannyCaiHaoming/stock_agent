@@ -9,7 +9,7 @@ from typing import Any
 
 from .decision_contract import load_decision_contract, verify_cio_schema
 from .hashing import canonical_hash, file_hash
-from .versioning import load_version_manifest
+from .versioning import load_version_manifest, validate_profile_agent_versions, validate_current_component_versions
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +81,10 @@ def discover_product_resources(repository_root: Path, *, source_profile: str = "
         for name, relative_path in RESOURCE_PATHS.items()
     }
     version_manifest = load_version_manifest(product_root / "version-manifest.json")
+    fixture_profile = json.loads((product_root / "runtime-profile.json").read_text(encoding="utf-8"))
+    if fixture_profile.get("profile_id") != version_manifest["runtime_profile"]:
+        raise ValueError("PROFILE_ID_DRIFT:fixture")
+    validate_profile_agent_versions(version_manifest, fixture_profile)
     decision_contract = load_decision_contract(product_root)
     if decision_contract["schema_version"] != version_manifest["decision_contract"]:
         raise ValueError("decision contract version differs from candidate manifest")
@@ -93,6 +97,7 @@ def discover_product_resources(repository_root: Path, *, source_profile: str = "
             if actual_hashes[name] != version_manifest["resource_hashes"].get(name)
         )
         raise ValueError(f"product resource hash mismatch: {','.join(mismatches)}")
+    validate_current_component_versions(product_root, version_manifest)
     if source_profile != "fixture":
         from copy import deepcopy
         from .runtime_profiles import load_source_profile

@@ -14,9 +14,15 @@ from typing import Any, Mapping, Sequence
 
 from product.council.intake_planning import validate_council_request
 from product.intake.v3 import validate_handoff
-from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
+from product.runtime.fixture_mcp import SKEPTIC_ADAPTER_VERSION
 from product.runtime.multidimensional_stage import check_multidimensional_bundle_consumable
 from product.runtime.validation import collect_evidence_refs
+from product.runtime.invocation import SPECIALIST_SEMANTIC_DRAFT, specialist_semantic_schema
+from product.runtime.multidimensional_references import (
+    VERSION as REFERENCE_TRANSPORT_VERSION, build_reference_map,
+    reference_output_schema, translate_references, validate_reference_map,
+)
 
 
 STAGE = "INDEPENDENT_COUNTER_THESIS_RESEARCH"
@@ -50,8 +56,19 @@ def _read(path: Path) -> dict[str, Any]:
     return value
 
 
-def _without_hash(value: Mapping[str, Any], key: str) -> dict[str, Any]:
-    return {name: item for name, item in value.items() if name != key}
+def _resolve_artifact(root: Path, relative: str) -> Path:
+    """只读依赖不得借原绝对路径或符号链接读取包外文件。"""
+    if (not isinstance(relative, str) or not relative
+            or Path(relative).is_absolute() or ".." in Path(relative).parts):
+        raise IndependentSkepticStageError(f"COUNTER_ARTIFACT_PATH_INVALID:{relative}")
+    candidate = root / relative
+    if any(path.is_symlink() for path in (candidate, *candidate.parents)
+           if path == root or path.is_relative_to(root)):
+        raise IndependentSkepticStageError(f"COUNTER_ARTIFACT_PATH_INVALID:{relative}")
+    resolved = candidate.resolve()
+    if not resolved.is_relative_to(root) or not resolved.is_file():
+        raise IndependentSkepticStageError(f"COUNTER_ARTIFACT_MISSING:{relative}")
+    return resolved
 
 
 def validate_report_query_closure(
@@ -87,18 +104,29 @@ def read_dispatch_index(run_dir: Path, index_ref: str | None = None) -> dict[str
     ) is None:
         raise IndependentSkepticStageError("COUNTER_DISPATCH_INDEX_PATH_INVALID")
     root = Path(run_dir).resolve()
-    index = _read(root / relative)
+    index = _read(_resolve_artifact(root, relative))
     if (index.get("schema_version") != DISPATCH_VERSION
-            or index.get("index_hash") != canonical_hash(_without_hash(index, "index_hash"))):
+            or index.get("index_hash") != legacy_envelope_hash(index, hash_field="index_hash")):
         raise IndependentSkepticStageError("COUNTER_DISPATCH_INDEX_INVALID")
     if _index_ref(index.get("attempt")) != relative:
         raise IndependentSkepticStageError("COUNTER_DISPATCH_ATTEMPT_INVALID")
+    if (not isinstance(index.get("tasks"), list)
+            or any(not isinstance(task, dict) for task in index["tasks"])
+            or index.get("semantic_output_version") not in {None, SPECIALIST_SEMANTIC_DRAFT}
+            or any(task.get("semantic_output_version") != index.get("semantic_output_version")
+                   for task in index["tasks"])):
+        raise IndependentSkepticStageError("COUNTER_OUTPUT_PROTOCOL_BINDING_INVALID")
+    if (index.get("reference_transport_version") not in {None, REFERENCE_TRANSPORT_VERSION}
+            or any(task.get("reference_transport_version") != index.get("reference_transport_version")
+                   for task in index["tasks"])):
+        raise IndependentSkepticStageError("COUNTER_REFERENCE_PROTOCOL_BINDING_INVALID")
     return index
 
 
 def resolve_skeptic_tool_scope(
     run_dir: Path, *, run_id: str, invocation_id: str, gate: Mapping[str, Any],
     index_ref: str | None = None,
+    for_execution: bool = True,
 ) -> tuple[Path, list[str]]:
     """服务端从可信映射解析权限；调用者不能提交任意路径或 Evidence 集合。"""
 
@@ -131,12 +159,17 @@ def resolve_skeptic_tool_scope(
             or task.get("markdown_ref") != f"{attempt_root}/reports/{slug}/counter-thesis.md"
             or task.get("task_id") != f"skeptic:{security_id}"):
         raise IndependentSkepticStageError("COUNTER_TASK_PATH_INVALID")
+    invocation_path = _resolve_artifact(root, task["invocation_ref"])
     invocation = _read(invocation_path)
-    agent_input = _read(input_path)
+    if invocation.get("semantic_output_version") != task.get("semantic_output_version"):
+        raise IndependentSkepticStageError("COUNTER_OUTPUT_PROTOCOL_BINDING_INVALID")
+    if invocation.get("reference_transport_version") != task.get("reference_transport_version"):
+        raise IndependentSkepticStageError("COUNTER_REFERENCE_PROTOCOL_BINDING_INVALID")
+    agent_input = _read(_resolve_artifact(root, task["input_ref"]))
     allowed = task.get("allowed_evidence_ids")
     if (not isinstance(allowed, list) or not allowed or allowed != sorted(set(allowed))
             or not set(allowed) <= set(gate.get("allowed_evidence_ids", []))
-            or invocation.get("manifest_hash") != canonical_hash(_without_hash(invocation, "manifest_hash"))
+            or invocation.get("manifest_hash") != legacy_envelope_hash(invocation, hash_field="manifest_hash")
             or invocation.get("run_id") != run_id
             or invocation.get("invocation_id") != invocation_id
             or invocation.get("agent", {}).get("name") != "runtime_skeptic"
@@ -149,6 +182,25 @@ def resolve_skeptic_tool_scope(
     if agent_input.get("attempt_id") != attempt:
         raise IndependentSkepticStageError("COUNTER_ATTEMPT_BINDING_INVALID")
     validate_first_pass_input(agent_input, allowed_ids=allowed)
+    if not for_execution:
+        # 只验证已冻结的输入/契约，不授予工具权限、不检查当前 Agent 文件。
+        # 老绝对 output_schema 留作历史记录；实际读取 task 的包内相对路径。
+        from product.runtime.schema_validation import validate_schema_definition
+        schema_path = _resolve_artifact(root, task["schema_ref"])
+        if file_hash(schema_path) != invocation.get("output_schema_hash"):
+            raise IndependentSkepticStageError("COUNTER_ARTIFACT_SCHEMA_DRIFT")
+        schema = _read(schema_path)
+        if schema.get("$id") != "portfolio-council/counter-thesis-report/2.1.0":
+            raise IndependentSkepticStageError("COUNTER_ARTIFACT_SCHEMA_UNSUPPORTED_VERSION")
+        validate_schema_definition(schema, schema_resources={})
+        prompt = _resolve_artifact(root, task["prompt_ref"]).read_text(encoding="utf-8")
+        if canonical_hash({"task_prompt": prompt}) != invocation.get("task_prompt_hash"):
+            raise IndependentSkepticStageError("COUNTER_ARTIFACT_PROMPT_DRIFT")
+        if (invocation.get("input_artifact") != task["input_ref"]
+                or invocation.get("task_prompt_artifact") != task["prompt_ref"]
+                or invocation.get("tool_permissions") != ["fixture_evidence.query", "fixture_math.calculate"]):
+            raise IndependentSkepticStageError("COUNTER_ARTIFACT_INVOCATION_INVALID")
+        return invocation_path, allowed
     from product.runtime.invocation import verify_invocation_manifest
     product_root = Path(str(
         _read(root / "run_manifest.json").get("discovery", {}).get("product_root", "")
@@ -314,6 +366,78 @@ def _write(path: Path, value: Mapping[str, Any] | str) -> None:
             stream.write("\n")
 
 
+def _skeptic_task_prompt(security_id: str) -> str:
+    return (
+        f"独立研究 {security_id} 的公司特定失败路径与替代解释。"
+        "第一轮不得读取或引用本系统 Company Analyst、Market Catalyst、CIO 等 Agent 的正向研究报告、摘要、未解决问题或其 hash；"
+        "本系统 Agent 产物与原始来源不同：Gate 已允许的发行人披露、行情、第三方 Morningstar 等来源资料"
+        "不是本系统 Analyst 结论。第三方投资观点只能标为来源观点或待验证推断，不得升级成公司事实；"
+        "不能只因原始资料字段名含 investment_thesis 而宣称本系统上下文隔离被破坏。"
+        "允许引用在本任务上下文顶层 allowed_evidence_ids 及 agent_input.allowed_evidence_ids，"
+        "不在已机械省略的 invocation 内；请先读取这份非空清单再选择需要核验的引用。"
+        "query 的 evidence_ids 必须来自该清单；空列表不是发现接口，不要用空查询代替读取清单。"
+        "只能按冻结包给出的任务短 Evidence 引用使用只读 fixture_runtime.query 主动核验非空事实。"
+        "引用仅从 allowed_evidence_ids 选择，不拼接来源、时间或说明；正式 ID 由运行时精确装配。"
+        "事实性断言用 Evidence 支持；纯情景显式标注本报告 assumptions，"
+        "说明传导逻辑、待补证据和可观察的推翻条件。"
+        "无法完成研究则如实使用 INSUFFICIENT_EVIDENCE 或 TIMEOUT，"
+        "不得编造风险或给出投资动作。只按交付的 output_schema 返回研究语义 JSON；"
+        "不要填运行身份、schema_version、Skill 执行元数据、hash 或 artifact_refs，"
+        "这些由可信运行记录装配。原报告 2.1.0 的研究、引用与信息隔离要求不变。"
+        f"scope 是字符串，不是对象；例如 \"{security_id}：冻结截止点下的独立失败路径研究\"，"
+        "必须包含本任务原始 security_id 并说明独立研究范围；"
+        "该研究范围标识不是 Evidence 短引用，不能用 ticker 或 e.* 替代。"
+        "assumptions 每项必须使用 assumption_id 和 statement；例如 "
+        "{\"assumption_id\":\"A1\",\"statement\":\"待检验的条件性假设\"}，不得使用 id 替代 assumption_id。"
+        "challenges.assumption_ids 仅引用本稿已声明的 assumption_id。"
+        "confidence 按交付 Schema 的数值类型填写，理由放 confidence_rationale；不得填 LOW 等等级字符串。"
+    )
+
+
+def _skeptic_packet(run_dir, *, identity, agent_input, invocation, prompt, schema):
+    """首轮和恢复共用冻结 packet；不接收正向报告或主张。"""
+    packet = {
+        "dispatch_contract": DISPATCH_VERSION, "identity": dict(identity),
+        "agent_input": agent_input, "invocation": invocation, "task_prompt": prompt,
+        "output_schema": specialist_semantic_schema(schema),
+        "tool_context": {
+            "mcp_server": "fixture_runtime", "query_tool": "fixture_runtime.query",
+            "required_identity_arguments": {key: identity[key] for key in ("run_id", "agent", "invocation_id")},
+        },
+    }
+    if invocation.get("reference_transport_version") == REFERENCE_TRANSPORT_VERSION:
+        packet["reference_transport_version"] = REFERENCE_TRANSPORT_VERSION
+        packet["allowed_evidence_ids"] = list(agent_input["allowed_evidence_ids"])
+        packet["reference_map"] = build_reference_map(
+            packet, canonical_hash(_read(Path(run_dir) / "evidence/gate.json")), str(Path(run_dir).resolve()),
+        )
+    return packet
+
+
+def skeptic_model_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
+    """只投影机械包装及引用；事实、限制、问题和研究结构保持原样。"""
+    version = packet.get("reference_transport_version")
+    mapping = packet.get("reference_map")
+    if version is None and mapping is None:
+        return copy.deepcopy(dict(packet))  # 历史读取不迁移、不改写。
+    if version != REFERENCE_TRANSPORT_VERSION or not isinstance(mapping, dict):
+        raise IndependentSkepticStageError("COUNTER_REFERENCE_PROTOCOL_BINDING_INVALID")
+    validate_reference_map(mapping)
+    base = {key: value for key, value in packet.items() if key != "reference_map"}
+    if mapping != build_reference_map(base, mapping["binding"]["gate_hash"], mapping["binding"]["run_dir"]):
+        raise IndependentSkepticStageError("COUNTER_REFERENCE_MAP_BINDING_INVALID")
+    result = translate_references(base, mapping, to_model=True)
+    result.pop("invocation")
+    result["agent_input"] = {key: value for key, value in result["agent_input"].items()
+                             if key not in {"run_id", "agent", "gate_hash", "request_id", "report_schema_version"}}
+    result["output_schema"] = reference_output_schema(packet["output_schema"], mapping)
+    return result
+
+
+def serialize_skeptic_dispatch_context(packet: Mapping[str, Any]) -> str:
+    return json.dumps(skeptic_model_packet(packet), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
 def prepare_skeptic_phase(repository_root: Path, run_dir: Path) -> dict[str, Any]:
     """正向包通过门禁后，为每只普通股建立独立、只含 Gate 上下文的任务。"""
 
@@ -333,7 +457,7 @@ def prepare_skeptic_phase(repository_root: Path, run_dir: Path) -> dict[str, Any
     gate = _read(run_dir / "evidence/gate.json")
     forward_index = _read(run_dir / "research/dispatch-index.json")
     if (forward_index.get("run_id") != proof["run_id"]
-            or forward_index.get("index_hash") != canonical_hash(_without_hash(forward_index, "index_hash"))
+            or forward_index.get("index_hash") != legacy_envelope_hash(forward_index, hash_field="index_hash")
             or manifest.get("dispatch_index_hash") != forward_index["index_hash"]):
         raise IndependentSkepticStageError("COUNTER_FORWARD_DISPATCH_INVALID")
     shared_ids = sorted({
@@ -384,15 +508,7 @@ def prepare_skeptic_phase(repository_root: Path, run_dir: Path) -> dict[str, Any
         invocation_ref = f"research/skeptic/invocations/{slug}.json"
         packet_ref = f"research/skeptic/packets/{slug}.json"
         task_name = f"independent_skeptic_{ordinal}"
-        prompt = (
-            f"独立研究 {security_id} 的公司特定失败路径与替代解释。"
-            "第一轮不得读取或引用任何正向研究报告、摘要、未解决问题或其 hash；"
-            "只能按冻结包给出的 Evidence IDs 使用只读 fixture_runtime.query 主动核验非空事实。"
-            "事实性断言用 Evidence 支持；纯情景显式标注本报告 assumptions，"
-            "说明传导逻辑、待补证据和可观察的推翻条件。"
-            "无法完成研究则如实使用 INSUFFICIENT_EVIDENCE 或 TIMEOUT，"
-            "不得编造风险或给出投资动作。只返回符合 2.1.0 Schema 的 JSON。"
-        )
+        prompt = _skeptic_task_prompt(security_id)
         _write(run_dir / input_ref, agent_input)
         _write(run_dir / schema_ref, schema)
         _write(run_dir / prompt_ref, prompt)
@@ -405,31 +521,21 @@ def prepare_skeptic_phase(repository_root: Path, run_dir: Path) -> dict[str, Any
         invocation["input_artifact"] = input_ref
         invocation["task_prompt_artifact"] = prompt_ref
         invocation["tool_permissions"] = ["fixture_evidence.query", "fixture_math.calculate"]
-        invocation["manifest_hash"] = canonical_hash(_without_hash(invocation, "manifest_hash"))
+        invocation["semantic_output_version"] = SPECIALIST_SEMANTIC_DRAFT
+        invocation["reference_transport_version"] = REFERENCE_TRANSPORT_VERSION
+        invocation["manifest_hash"] = legacy_envelope_hash(invocation, hash_field="manifest_hash")
         verify_invocation_manifest(repository_root, invocation, agent_input=agent_input)
         _write(run_dir / invocation_ref, invocation)
-        packet = {
-            "dispatch_contract": DISPATCH_VERSION,
-            "identity": {
+        packet = _skeptic_packet(run_dir, identity={
                 "run_id": proof["run_id"], "task_name": task_name,
                 "agent": "runtime_skeptic", "invocation_id": invocation["invocation_id"],
                 "security_id": security_id,
-            },
-            "agent_input": agent_input,
-            "invocation": invocation,
-            "task_prompt": prompt,
-            "output_schema": schema,
-            "tool_context": {
-                "mcp_server": "fixture_runtime", "query_tool": "fixture_runtime.query",
-                "required_identity_arguments": {
-                    "run_id": proof["run_id"], "agent": "runtime_skeptic",
-                    "invocation_id": invocation["invocation_id"],
-                },
-            },
-        }
+            }, agent_input=agent_input, invocation=invocation, prompt=prompt, schema=schema)
         _write(run_dir / packet_ref, packet)
         tasks.append({
             "task_id": f"skeptic:{security_id}",
+            "semantic_output_version": SPECIALIST_SEMANTIC_DRAFT,
+            "reference_transport_version": REFERENCE_TRANSPORT_VERSION,
             "attempt": 1,
             "task_name": task_name, "security_id": security_id,
             "agent": "runtime_skeptic", "invocation_id": invocation["invocation_id"],
@@ -442,6 +548,8 @@ def prepare_skeptic_phase(repository_root: Path, run_dir: Path) -> dict[str, Any
         })
     index = {
         "schema_version": DISPATCH_VERSION,
+        "semantic_output_version": SPECIALIST_SEMANTIC_DRAFT,
+        "reference_transport_version": REFERENCE_TRANSPORT_VERSION,
         "run_id": proof["run_id"], "attempt": 1,
         "forward_bundle_hash": proof["bundle_hash"],
         "forward_bundle_file_hash": proof["bundle_file_hash"],
@@ -449,7 +557,7 @@ def prepare_skeptic_phase(repository_root: Path, run_dir: Path) -> dict[str, Any
         "target_concurrency": min(manifest["target_concurrency"], len(tasks)),
         "tasks": tasks,
     }
-    index["index_hash"] = canonical_hash(index)
+    index["index_hash"] = legacy_envelope_hash(index, hash_field="index_hash")
     _write(root / "dispatch-index.json", index)
     return {"status": "PREPARED", "run_id": proof["run_id"], "task_count": len(tasks),
             "dispatch_index": str(root / "dispatch-index.json")}
@@ -468,6 +576,8 @@ def prepare_skeptic_resume(repository_root: Path, run_dir: Path) -> dict[str, An
         latest += 1
     previous_index_ref = _index_ref(latest)
     previous_index = read_dispatch_index(run_dir, previous_index_ref)
+    if previous_index.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION:
+        raise IndependentSkepticStageError("COUNTER_LEGACY_REFERENCE_RESUME_RETIRED")
     previous_package_ref = (
         "research/skeptic/pre-decision-research-package.json" if latest == 1
         else f"research/skeptic/attempts/{latest}/pre-decision-research-package.json"
@@ -512,7 +622,8 @@ def prepare_skeptic_resume(repository_root: Path, run_dir: Path) -> dict[str, An
         prompt_ref = f"{attempt_root}/prompts/{slug}.txt"
         invocation_ref = f"{attempt_root}/invocations/{slug}.json"
         packet_ref = f"{attempt_root}/packets/{slug}.json"
-        prompt = (run_dir / old["prompt_ref"]).read_text(encoding="utf-8")
+        # 新尝试生成当前语义协议说明，既有尝试的 Prompt/锁不回写。
+        prompt = _skeptic_task_prompt(old["security_id"])
         schema = _read(run_dir / old["schema_ref"])
         _write(run_dir / input_ref, agent_input)
         _write(run_dir / schema_ref, schema)
@@ -526,29 +637,21 @@ def prepare_skeptic_resume(repository_root: Path, run_dir: Path) -> dict[str, An
         invocation["input_artifact"] = input_ref
         invocation["task_prompt_artifact"] = prompt_ref
         invocation["tool_permissions"] = ["fixture_evidence.query", "fixture_math.calculate"]
-        invocation["manifest_hash"] = canonical_hash(_without_hash(invocation, "manifest_hash"))
+        invocation["semantic_output_version"] = SPECIALIST_SEMANTIC_DRAFT
+        invocation["reference_transport_version"] = REFERENCE_TRANSPORT_VERSION
+        invocation["manifest_hash"] = legacy_envelope_hash(invocation, hash_field="manifest_hash")
         verify_invocation_manifest(repository_root, invocation, agent_input=agent_input)
         _write(run_dir / invocation_ref, invocation)
-        packet = {
-            "dispatch_contract": DISPATCH_VERSION,
-            "identity": {
+        packet = _skeptic_packet(run_dir, identity={
                 "run_id": forward["run_id"], "task_name": old["task_name"],
                 "agent": "runtime_skeptic", "invocation_id": invocation["invocation_id"],
                 "security_id": old["security_id"],
-            },
-            "agent_input": agent_input, "invocation": invocation,
-            "task_prompt": prompt, "output_schema": schema,
-            "tool_context": {
-                "mcp_server": "fixture_runtime", "query_tool": "fixture_runtime.query",
-                "required_identity_arguments": {
-                    "run_id": forward["run_id"], "agent": "runtime_skeptic",
-                    "invocation_id": invocation["invocation_id"],
-                },
-            },
-        }
+            }, agent_input=agent_input, invocation=invocation, prompt=prompt, schema=schema)
         _write(run_dir / packet_ref, packet)
         tasks.append({
             **old, "attempt": attempt, "invocation_id": invocation["invocation_id"],
+            "semantic_output_version": SPECIALIST_SEMANTIC_DRAFT,
+            "reference_transport_version": REFERENCE_TRANSPORT_VERSION,
             "input_ref": input_ref, "schema_ref": schema_ref, "prompt_ref": prompt_ref,
             "invocation_ref": invocation_ref, "packet_ref": packet_ref,
             "packet_hash": canonical_hash(packet),
@@ -558,9 +661,10 @@ def prepare_skeptic_resume(repository_root: Path, run_dir: Path) -> dict[str, An
     index = {
         **{key: value for key, value in previous_index.items() if key not in {"tasks", "index_hash", "attempt"}},
         "attempt": attempt, "tasks": tasks,
+        "semantic_output_version": SPECIALIST_SEMANTIC_DRAFT,
         "previous_package": _artifact_record(run_dir, previous_package_ref, previous_package["package_hash"]),
     }
-    index["index_hash"] = canonical_hash(index)
+    index["index_hash"] = legacy_envelope_hash(index, hash_field="index_hash")
     ref = _index_ref(attempt)
     _write(run_dir / ref, index)
     return {"status": "PREPARED", "run_id": forward["run_id"], "attempt": attempt,
@@ -586,6 +690,32 @@ def build_skeptic_dispatch_packet(
         run_dir, run_id=index["run_id"], invocation_id=task["invocation_id"],
         gate=_read(run_dir / "evidence/gate.json"), index_ref=index_ref,
     )
+    if task.get("semantic_output_version") == SPECIALIST_SEMANTIC_DRAFT:
+        if (packet.get("invocation") != _read(run_dir / task["invocation_ref"])
+                or packet.get("agent_input") != _read(run_dir / task["input_ref"])
+                or packet.get("task_prompt") != (run_dir / task["prompt_ref"]).read_text(encoding="utf-8")
+                or packet.get("identity") != {
+                    "run_id": index["run_id"], "task_name": task_name,
+                    "agent": "runtime_skeptic", "invocation_id": task["invocation_id"],
+                    "security_id": task["security_id"],
+                }):
+            raise IndependentSkepticStageError("COUNTER_PACKET_CONTEXT_BINDING_INVALID")
+        formal_schema = _read(run_dir / task["schema_ref"])
+        if packet.get("output_schema") != specialist_semantic_schema(formal_schema):
+            raise IndependentSkepticStageError("COUNTER_SEMANTIC_SCHEMA_BINDING_INVALID")
+    if task.get("reference_transport_version") == REFERENCE_TRANSPORT_VERSION:
+        if task.get("semantic_output_version") != SPECIALIST_SEMANTIC_DRAFT:
+            raise IndependentSkepticStageError("COUNTER_REFERENCE_PROTOCOL_BINDING_INVALID")
+        expected = _skeptic_packet(
+            run_dir, identity=packet["identity"], agent_input=_read(run_dir / task["input_ref"]),
+            invocation=_read(run_dir / task["invocation_ref"]),
+            prompt=(run_dir / task["prompt_ref"]).read_text(encoding="utf-8"),
+            schema=_read(run_dir / task["schema_ref"]),
+        )
+        if packet != expected:
+            raise IndependentSkepticStageError("COUNTER_REFERENCE_MAP_BINDING_INVALID")
+    elif packet.get("reference_map") is not None or packet.get("reference_transport_version") is not None:
+        raise IndependentSkepticStageError("COUNTER_REFERENCE_PROTOCOL_BINDING_INVALID")
     return packet
 
 
@@ -650,7 +780,7 @@ def capture_skeptic_report(
 ) -> dict[str, Any]:
     """只封装 Invocation 技术字段；不改写 Agent 的研究内容。"""
 
-    from product.runtime.invocation import envelope_specialist_draft
+    from product.runtime.invocation import envelope_specialist_semantic_draft
     from product.runtime.schema_validation import validate_schema_instance
     from product.runtime.validation import validate_skeptic_report
 
@@ -659,6 +789,10 @@ def capture_skeptic_report(
     index = read_dispatch_index(run_dir, index_ref)
     task = next(item for item in index["tasks"] if item["task_name"] == task_name)
     invocation = packet["invocation"]
+    if task.get("semantic_output_version") != SPECIALIST_SEMANTIC_DRAFT:
+        raise IndependentSkepticStageError("COUNTER_LEGACY_OUTPUT_WRITE_RETIRED")
+    if task.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION:
+        raise IndependentSkepticStageError("COUNTER_LEGACY_REFERENCE_WRITE_RETIRED")
     if model != invocation["model"]:
         raise IndependentSkepticStageError("COUNTER_OUTPUT_MODEL_INVALID")
     try:
@@ -667,15 +801,15 @@ def capture_skeptic_report(
         raise IndependentSkepticStageError("COUNTER_OUTPUT_JSON_INVALID") from exc
     if not isinstance(raw, dict):
         raise IndependentSkepticStageError("COUNTER_OUTPUT_NOT_OBJECT")
-    report = (
-        envelope_specialist_draft(raw, invocation, model=model)
-        if "skill_execution" not in raw else copy.deepcopy(raw)
-    )
+    validate_schema_instance(raw, skeptic_model_packet(packet)["output_schema"])
+    raw = translate_references(raw, packet["reference_map"])
+    formal_schema = _read(run_dir / task["schema_ref"])
+    report = envelope_specialist_semantic_draft(raw, invocation, model=model, formal_schema=formal_schema)
     if (report.get("schema_version") != "counter-thesis-report/2.1.0"
             or report.get("artifact_refs") != []
             or task["security_id"] not in str(report.get("scope", ""))):
         raise IndependentSkepticStageError("COUNTER_OUTPUT_SCOPE_INVALID")
-    validate_schema_instance(report, packet["output_schema"])
+    validate_schema_instance(report, formal_schema)
     validate_skeptic_report(report, run_id=index["run_id"], manifest=invocation)
     allowed = set(task["allowed_evidence_ids"])
     gate = _read(run_dir / "evidence/gate.json")
@@ -689,6 +823,7 @@ def capture_skeptic_report(
         "status": "SAVED", "task_id": task["task_id"], "security_id": task["security_id"],
         "path": task["report_ref"], "markdown_path": task["markdown_ref"],
         "output_hash": canonical_hash(report),
+        "reference_map_hash": packet["reference_map"]["map_hash"],
     }
 
 
@@ -705,9 +840,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def _artifact_record(run_dir: Path, relative: str, content_hash: str) -> dict[str, str]:
-    path = (run_dir / relative).resolve()
-    if not path.is_relative_to(run_dir) or not path.is_file():
-        raise IndependentSkepticStageError("COUNTER_ARTIFACT_MISSING")
+    path = _resolve_artifact(run_dir, relative)
     return {"artifact_ref": relative, "file_hash": file_hash(path), "content_hash": content_hash}
 
 
@@ -720,22 +853,33 @@ def _forbidden_downstream_artifacts(run_dir: Path) -> None:
         raise IndependentSkepticStageError("COUNTER_DOWNSTREAM_ARTIFACT_FORBIDDEN")
 
 
-def validate_predecision_package(repository_root: Path, run_dir: Path, package: Mapping[str, Any]) -> None:
+def validate_predecision_package(
+    repository_root: Path, run_dir: Path, package: Mapping[str, Any], *,
+    for_execution: bool = True, artifact_schema: Mapping[str, Any] | None = None,
+) -> None:
     """仅重验绑定与引用；不从原报告归纳共识或动作。"""
 
     from product.runtime.schema_validation import validate_schema_instance
     from product.runtime.validation import validate_skeptic_report
 
     run_dir = Path(run_dir).resolve()
-    schema = _read(Path(repository_root) / "product/schemas/runtime/pre-decision-research-package.schema.json")
-    validate_schema_instance(package, schema)
-    if package.get("package_hash") != canonical_hash(_without_hash(package, "package_hash")):
-        raise IndependentSkepticStageError("COUNTER_PACKAGE_HASH_MISMATCH")
-    manifest = _read(run_dir / "run_manifest.json")
-    handoff = _read(run_dir / "audit/portfolio-handoff.json")
-    request = _read(run_dir / "council-request.json")
-    gate = _read(run_dir / "evidence/gate.json")
-    bundle = _read(run_dir / "research/holding-research-bundle.json")
+    if for_execution and artifact_schema is not None:
+        raise IndependentSkepticStageError("COUNTER_EXECUTION_SCHEMA_OVERRIDE_FORBIDDEN")
+    schema = (artifact_schema if artifact_schema is not None else
+              _read(Path(repository_root) / "product/schemas/runtime/pre-decision-research-package.schema.json"))
+    if (package.get("schema_version") != "pre-decision-research-package/1.0.0"
+            or schema.get("$id") != "pre-decision-research-package/1.0.0"):
+        raise IndependentSkepticStageError("COUNTER_ARTIFACT_SCHEMA_UNSUPPORTED_VERSION")
+    validate_schema_instance(package, schema, schema_resources=None if for_execution else {})
+    try:
+        verify_legacy_envelope_hash(package, hash_field="package_hash", location="product/runtime/independent_skeptic_stage.py:package.package_hash")
+    except HashContractError as exc:
+        raise IndependentSkepticStageError(f"COUNTER_PACKAGE_HASH_MISMATCH:{exc}") from exc
+    manifest = _read(_resolve_artifact(run_dir, "run_manifest.json"))
+    handoff = _read(_resolve_artifact(run_dir, "audit/portfolio-handoff.json"))
+    request = _read(_resolve_artifact(run_dir, "council-request.json"))
+    gate = _read(_resolve_artifact(run_dir, "evidence/gate.json"))
+    bundle = _read(_resolve_artifact(run_dir, "research/holding-research-bundle.json"))
     if (package["run_id"] != manifest["run_id"]
             or package["run_id"] != bundle["run_id"]
             or package["handoff_id"] != handoff["handoff_id"]
@@ -763,7 +907,7 @@ def validate_predecision_package(repository_root: Path, run_dir: Path, package: 
     for task in index["tasks"]:
         resolve_skeptic_tool_scope(
             run_dir, run_id=package["run_id"], invocation_id=task["invocation_id"],
-            gate=gate, index_ref=index_ref,
+            gate=gate, index_ref=index_ref, for_execution=for_execution,
         )
     if index.get("attempt", 1) > 1:
         previous_record = index.get("previous_package")
@@ -776,10 +920,11 @@ def validate_predecision_package(repository_root: Path, run_dir: Path, package: 
         )
         if prior_ref != expected_prior_ref:
             raise IndependentSkepticStageError("COUNTER_RESUME_CHAIN_INVALID")
-        prior = _read(run_dir / prior_ref)
+        prior = _read(_resolve_artifact(run_dir, prior_ref))
         if previous_record != _artifact_record(run_dir, prior_ref, prior["package_hash"]):
             raise IndependentSkepticStageError("COUNTER_RESUME_CHAIN_DRIFT")
-        validate_predecision_package(repository_root, run_dir, prior)
+        validate_predecision_package(repository_root, run_dir, prior,
+                                     for_execution=for_execution, artifact_schema=artifact_schema)
         prior_entries = {item["security_id"]: item for item in prior["counter_theses"]}
         prior_index = read_dispatch_index(run_dir, prior["dispatch_index"]["artifact_ref"])
         prior_tasks = {item["security_id"]: item for item in prior_index["tasks"]}
@@ -795,9 +940,9 @@ def validate_predecision_package(repository_root: Path, run_dir: Path, package: 
     )
     if package["execution_proof"]["artifact_ref"] != proof_ref:
         raise IndependentSkepticStageError("COUNTER_EXECUTION_PROOF_PATH_INVALID")
-    proof_path = run_dir / proof_ref
+    proof_path = _resolve_artifact(run_dir, proof_ref)
     proof = _read(proof_path)
-    if (proof.get("proof_hash") != canonical_hash(_without_hash(proof, "proof_hash"))
+    if (proof.get("proof_hash") != legacy_envelope_hash(proof, hash_field="proof_hash")
             or package["execution_proof"] != _artifact_record(run_dir, proof_ref, proof["proof_hash"])
             or proof.get("run_id") != package["run_id"]
             or proof.get("gate_hash") != package["gate_hash"]
@@ -818,10 +963,11 @@ def validate_predecision_package(repository_root: Path, run_dir: Path, package: 
         report_ref = entry["report"]["artifact_ref"]
         if report_ref != task["report_ref"]:
             raise IndependentSkepticStageError("COUNTER_PACKAGE_REPORT_PATH_INVALID")
-        report = _read(run_dir / report_ref)
-        invocation = _read(run_dir / task["invocation_ref"])
-        output_schema = _read(Path(str(invocation["output_schema"])))
-        validate_schema_instance(report, output_schema)
+        report = _read(_resolve_artifact(run_dir, report_ref))
+        invocation = _read(_resolve_artifact(run_dir, task["invocation_ref"]))
+        output_schema = _read(Path(str(invocation["output_schema"])) if for_execution
+                              else _resolve_artifact(run_dir, task["schema_ref"]))
+        validate_schema_instance(report, output_schema, schema_resources=None if for_execution else {})
         if (report.get("schema_version") != "counter-thesis-report/2.1.0"
                 or entry["report"] != _artifact_record(run_dir, report_ref, canonical_hash(report))
                 or entry["status"] != report["status"]
@@ -854,9 +1000,7 @@ def validate_predecision_package(repository_root: Path, run_dir: Path, package: 
     if package["consumability"] != ("DOWNSTREAM_READY" if ready else "STRUCTURALLY_CONSUMABLE"):
         raise IndependentSkepticStageError("COUNTER_PACKAGE_READINESS_INVALID")
     for relative in package["artifact_refs"]:
-        path = (run_dir / relative).resolve()
-        if not path.is_relative_to(run_dir) or not path.is_file():
-            raise IndependentSkepticStageError("COUNTER_PACKAGE_ARTIFACT_MISSING")
+        _resolve_artifact(run_dir, relative)
     _forbidden_downstream_artifacts(run_dir)
 
 
@@ -914,12 +1058,12 @@ def finalize_skeptic_phase(
                    and isinstance(item.get("evidence_ids"), list)
                    and item["evidence_ids"] and set(item["evidence_ids"]) <= allowed
                    and item.get("access_mode") == "read"
-                   and item.get("adapter_version") == "fixture-gate-scoped/2.3.0"
+                   and item.get("adapter_version") == SKEPTIC_ADAPTER_VERSION
                    and isinstance(item.get("input_hash"), str)
                    and len(item["input_hash"]) == 64
                    and isinstance(item.get("output_hash"), str)
                    and len(item["output_hash"]) == 64
-                   and item.get("event_hash") == canonical_hash(_without_hash(item, "event_hash"))]
+                   and item.get("event_hash") == legacy_envelope_hash(item, hash_field="event_hash")]
         authenticated = (
             len(dispatch) == 1 and len(starts) == 1 and len(stops) == 1
             and starts[0].get("child_session_id") == stops[0].get("child_session_id")
@@ -971,7 +1115,7 @@ def finalize_skeptic_phase(
         "forward_bundle_hash": forward["bundle_hash"], "tasks": execution,
         "complete_portfolio_decision": False,
     }
-    proof["proof_hash"] = canonical_hash(proof)
+    proof["proof_hash"] = legacy_envelope_hash(proof, hash_field="proof_hash")
     proof_ref = (
         "research/skeptic/execution-proof.json" if attempt == 1
         else f"research/skeptic/attempts/{attempt}/execution-proof.json"
@@ -1017,7 +1161,7 @@ def finalize_skeptic_phase(
             *(item["markdown_ref"] for item in entries if item["markdown_ref"] is not None),
         }),
     }
-    package["package_hash"] = canonical_hash(package)
+    package["package_hash"] = legacy_envelope_hash(package, hash_field="package_hash")
     validate_predecision_package(repository_root, run_dir, package)
     package_ref = (
         "research/skeptic/pre-decision-research-package.json" if attempt == 1
@@ -1100,6 +1244,10 @@ def launch_skeptic_phase(
         raise IndependentSkepticStageError("COUNTER_RUN_MANIFEST_INVALID")
     validate_forward_gate(repository_root, run_dir)
     index = read_dispatch_index(run_dir, index_ref)
+    if index.get("semantic_output_version") != SPECIALIST_SEMANTIC_DRAFT:
+        raise IndependentSkepticStageError("COUNTER_LEGACY_EXECUTION_RETIRED")
+    if index.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION:
+        raise IndependentSkepticStageError("COUNTER_LEGACY_REFERENCE_EXECUTION_RETIRED")
     selected = set(task_names) if task_names is not None else {task["task_name"] for task in index["tasks"]}
     if not selected or not selected <= {task["task_name"] for task in index["tasks"]}:
         raise IndependentSkepticStageError("COUNTER_RETRY_TASK_SET_INVALID")
@@ -1139,6 +1287,7 @@ def launch_skeptic_phase(
         final_message_path=tmp_dir / "final-message.json",
         hook_recorder_path=repository_root / "product/runtime/codex_hook_recorder.py",
         output_schema_path=schema_path, fixture_mcp_run_dir=run_dir,
+        fixture_mcp_skeptic_dispatch_index=INITIAL_INDEX_REF if index_ref is None else index_ref,
         hook_agent_matcher="^runtime_skeptic$",
     )
     events_path = invocation_dir / "codex-events.jsonl"

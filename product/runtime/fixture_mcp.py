@@ -649,6 +649,16 @@ class StatelessFixtureTools:
             # 工具目录可能在 prepare-cio 之前缓存；授权仍在每次调用时核验。
             identity = {key: {"type": "string"} for key in ("run_id", "agent", "invocation_id")}
             run = _load_object(self.default_run_dir / "run_manifest.json")
+            if run.get("stage") in {None, "PREDECISION_CIO_SYNTHESIS"} and run.get("source_mode") != "live":
+                manifest += ({
+                    "name": "read_reports", "description": "CIO only: read complete authorized reports by exact report_ids; runtime records delivery. Requires a prepared native CIO invocation with research_reports.read permission. Other roles cannot use this tool.",
+                    "annotations": {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
+                    "inputSchema": {"type": "object", "additionalProperties": False,
+                                    "required": [*identity, "report_ids"], "properties": {
+                                        **identity, "report_ids": {"type": "array", "minItems": 1,
+                                                                   "uniqueItems": True, "items": {"type": "string"}},
+                                    }},
+                },)
             index_path = self.default_run_dir / "research/dispatch-index.json"
             if index_path.is_file():
                 from product.runtime.research_submission import WRITE_VERSIONS, tool_manifest
@@ -742,6 +752,37 @@ class StatelessFixtureTools:
         return {**normalized, **({"invocation_id": identity["invocation_id"]}
                                  if name == "research_report_submit" else identity)}
 
+    def read_reports(self, *, run_id: str, agent: str, invocation_id: str,
+                     report_ids: list[str]) -> dict[str, Any]:
+        if self.default_run_dir is None or agent != "runtime_cio":
+            raise ToolAccessError("CIO_REPORT_READ_NOT_AUTHORIZED")
+        self._bound_tools(run_dir=None, run_id=run_id, agent=agent, invocation_id=invocation_id)
+        from product.runtime.cio_handoff import read_cio_reports
+        root = self._last_root
+        invocation = self._last_invocation
+        manifest = _load_object(root / "run_manifest.json")
+        predecision = manifest.get("stage") == "PREDECISION_CIO_SYNTHESIS"
+        if not predecision:
+            from product.runtime.invocation import verify_invocation_manifest
+            repository = Path(manifest["discovery"]["product_root"]).resolve().parent
+            verify_invocation_manifest(repository, invocation,
+                                       agent_input=_load_object(root / "inputs/runtime_cio.json"))
+        catalog = (manifest["report_catalog"] if predecision else invocation.get("report_catalog", []))
+        mapping = self._last_reference_map
+        if mapping is not None:
+            if any(ref not in mapping.get("reports", {}) for ref in report_ids):
+                raise ToolAccessError("CIO_REPORT_REFERENCE_UNKNOWN")
+            from product.runtime.multidimensional_references import translate_references
+            report_ids = translate_references({"report_ids": report_ids}, mapping)["report_ids"]
+        output, event = read_cio_reports(root, invocation, catalog, report_ids,
+                                        prefix="source-inputs" if predecision else "")
+        self.events.append(event)
+        if mapping is not None:
+            from product.runtime.cio_handoff import cio_model_view
+            output = cio_model_view(output, mapping)
+            output.update(run_id=run_id, reference_map_hash=mapping["map_hash"],
+                          canonical_result_hash=event["output_hash"], result_hash=canonical_hash(output))
+        return output
 
     def research_report_submit(self, *, invocation_id: str, draft: dict[str, Any], submission_token: str | None = None) -> dict[str, Any]:
         if self.default_run_dir is None:
@@ -874,6 +915,27 @@ class StatelessFixtureTools:
         self._last_reference_map = None
         multidimensional_ids = None
         industry_peer_security_ids = None
+        if run_manifest.get("stage") == "PREDECISION_CIO_SYNTHESIS":
+            from product.runtime.cio_handoff import build_cio_reference_map
+            self._last_reference_map = build_cio_reference_map(root, invocation, run_manifest["report_catalog"])
+        elif agent == "runtime_cio" and invocation.get("draft_delivery") == "native-cio-draft/1.0.0":
+            from product.runtime.cio_handoff import build_cio_reference_map, fixture_cio_model_input
+            from product.runtime.invocation import verify_invocation_manifest
+            agent_input = _load_object(root / "inputs/runtime_cio.json")
+            verify_invocation_manifest(repository_root, invocation, agent_input=agent_input)
+            if invocation.get("reference_transport_version") != run_manifest.get("cio_reference_transport_version"):
+                raise ToolAccessError("CIO_REFERENCE_PROTOCOL_INVALID")
+            self._last_reference_map = build_cio_reference_map(root, invocation, invocation["report_catalog"])
+            if self._last_reference_map is not None:
+                if _load_object(root / "inputs/runtime_cio.model.json") != fixture_cio_model_input(root, agent_input):
+                    raise ToolAccessError("CIO_MODEL_INPUT_DRIFT")
+                multidimensional_ids = invocation["evidence_ids"]
+        if skeptic_scope is not None:
+            from product.runtime.multidimensional_references import load_reference_packet
+            packet = load_reference_packet(
+                root, invocation_id, index_ref=os.environ.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
+            )
+            self._last_reference_map = packet.get("reference_map")
         if (run_manifest.get("stage") == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
                 or (run_manifest.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH"
                     and skeptic_scope is None)):
@@ -892,6 +954,11 @@ class StatelessFixtureTools:
         if run_manifest.get("stage") == "COMMON_STOCK_RESEARCH":
             if agent != "runtime_company_analyst":
                 raise ToolAccessError("COMMON_STOCK_AGENT_INVALID")
+            from product.runtime.multidimensional_references import load_reference_packet
+            packet = load_reference_packet(root, invocation_id)
+            self._last_reference_map = packet.get("reference_map")
+            if self._last_reference_map is not None:
+                multidimensional_ids = packet["allowed_evidence_ids"]
             index = _load_object(root / "research/dispatch-index.json")
             tasks = [
                 item for item in index.get("tasks", [])
@@ -1464,6 +1531,8 @@ def serve_stdio(
                     value = tools.query(**arguments)
                 elif name == "calculate":
                     value = tools.calculate(**arguments)
+                elif name == "read_reports" and isinstance(tools, StatelessFixtureTools):
+                    value = tools.read_reports(**arguments)
                 elif name == "research_task_state" and isinstance(tools, StatelessFixtureTools):
                     value = tools.research_task_state(**arguments)
                 elif name == "research_search":

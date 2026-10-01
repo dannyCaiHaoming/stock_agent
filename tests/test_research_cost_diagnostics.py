@@ -26,6 +26,32 @@ def records(*usages):
 
 
 class ResearchCostDiagnosticsTests(unittest.TestCase):
+    def test_main_cio_and_separate_skeptic_delivery_logs_are_observed_as_distinct_contexts(self):
+        from product.runtime.research_consumption_audit import _cost_diagnostics
+        from tests.test_cio_local_revision import CioLocalRevisionTests
+        from tests.test_skeptic_semantic_handoff import SkepticSemanticHandoffTests
+        helper = CioLocalRevisionTests()
+        self.addCleanup(helper.doCleanups)
+        root, _, _, _, _, _ = helper.launch(helper.fixture)
+        observed = _cost_diagnostics(root, {"by_invocation": [], "by_tool": []})["initial_contexts"]
+        main = next(item for item in observed if item["execution_context"] == "MAIN_THREAD")
+        self.assertEqual(main["agent"], "runtime_cio")
+        self.assertEqual(main["event_path"], "invocation/cio-stop-events.jsonl")
+        self.assertIsNone(main["child_session_id"])
+        with tempfile.TemporaryDirectory() as directory:
+            root, _, _, _, _ = SkepticSemanticHandoffTests().prepare(directory)
+            # 上游测试基线包含未签名历史桩，不能把它包装成可信当前成本事件。
+            with self.assertRaisesRegex(ValueError, "DELIVERY_HASH_MISMATCH"):
+                _cost_diagnostics(root, {"by_invocation": [], "by_tool": []})
+            mirrored = Path(directory) / "observed-cost-events"
+            path = mirrored / "invocation/skeptic/subagent-events.jsonl"
+            path.parent.mkdir(parents=True)
+            shutil.copyfile(root / "invocation/skeptic/subagent-events.jsonl", path)
+            observed = _cost_diagnostics(mirrored, {"by_invocation": [], "by_tool": []})["initial_contexts"]
+            separate = next(item for item in observed if item["event_path"] == "invocation/skeptic/subagent-events.jsonl")
+            self.assertEqual(separate["agent"], "runtime_skeptic")
+            self.assertEqual(separate["execution_context"], "SUBAGENT")
+            self.assertEqual(separate["measurement_status"], "OBSERVED")
 
     def test_parent_public_turn_usage_is_observed_without_inventing_child_or_cost(self):
         with tempfile.TemporaryDirectory() as directory:

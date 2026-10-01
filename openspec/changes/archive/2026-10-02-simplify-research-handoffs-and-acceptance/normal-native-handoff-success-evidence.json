@@ -1,0 +1,133 @@
+{
+  "schema_version": "normal-native-handoff-success-evidence/1.0.0",
+  "run_id": "host-normal-2191734a-baa7-4c9e-a6ad-565b5ca00ec1",
+  "run_dir": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-trace.kC4RPW/run",
+  "host_command": "PATH=/private/tmp/stock-agent-schema-ZEXpH8/venv/bin:$PATH PYTHONDONTWRITEBYTECODE=1 TMPDIR=/private/tmp bash scripts/run-product-smoke.sh '/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-trace.kC4RPW'",
+  "tool_session_id": 35935,
+  "launcher_exit_code": 0,
+  "status": "PASSED",
+  "codex_exit_code": 0,
+  "failure_code": null,
+  "model": "gpt-5.6-terra",
+  "completion_checks": {
+    "agents_md_loaded": true,
+    "cio_executed": true,
+    "dispatch_guard_active": true,
+    "required_artifacts": [
+      "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-trace.kC4RPW/run/decision.json",
+      "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-trace.kC4RPW/run/report.md",
+      "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-trace.kC4RPW/run/decision_trace.json",
+      "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-trace.kC4RPW/run/eval/result.json"
+    ],
+    "required_artifacts_complete": true,
+    "risk_reached_or_legally_skipped": true,
+    "runtime_resources_loaded": true,
+    "skill_loaded": true,
+    "specialists_executed": true,
+    "terminal_state": "SAFE_NO_TRADE",
+    "terminal_state_valid": true
+  },
+  "event_count": 44,
+  "last_event": {
+    "type": "turn.completed",
+    "usage": {
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 709888,
+      "input_tokens": 764442,
+      "output_tokens": 4814,
+      "reasoning_output_tokens": 1730
+    }
+  },
+  "source_integrity_unchanged": true,
+  "protected_runtime_snapshot_hash": "f54e50a528ba12d4c1061e4129ac2defa859abb8795a76a2999bca3890b7a105",
+  "protected_runtime_file_count": 175,
+  "full_protected_file_map_ref": "invocation/process-result.json#/source_integrity_after/files",
+  "current_protected_snapshot_matches": true,
+  "trace_terminal_state": "SAFE_NO_TRADE",
+  "risk_result": {
+    "feasible_bounds": {
+      "SEC-AAA": {
+        "maximum": 0.6,
+        "minimum": 0.0
+      }
+    },
+    "final_action": "NO_TRADE",
+    "original_action": "NO_TRADE",
+    "policy_version": "risk/reference/1.0.0",
+    "status": "APPROVED",
+    "veto_reason": null,
+    "violations": []
+  },
+  "canonical_evidence_refs": [
+    "ev-normal-debt",
+    "ev-normal-margin",
+    "ev-normal-price",
+    "ev-normal-revenue",
+    "ev-normal-update"
+  ],
+  "canonical_evidence_closure": true,
+  "fact_metadata_complete": true,
+  "no_trade_execution_fields_null": true,
+  "cio_consumption_events": [
+    {
+      "proof": {
+        "allowed_report_ids": [
+          "runtime_company_analyst",
+          "runtime_skeptic"
+        ],
+        "read_event_hashes": [
+          "aaedaafdb786a90e591b1a59ca5f62e9891f72c23ed77409110d4151821f7ed0"
+        ],
+        "read_report_ids": [
+          "runtime_company_analyst",
+          "runtime_skeptic"
+        ],
+        "reference_map_hash": "74128bd20585eb5e875461fa3bc1103414d8542258a54ba154178d9ec4a6b01b",
+        "selected_report_ids": [
+          "runtime_company_analyst",
+          "runtime_skeptic"
+        ],
+        "semantic_output_hash": "56966d7062f46a66d464dbafe55cab7c4f5813ef950f3f77ef384569063fb30c"
+      },
+      "stage": "CIO_REPORT_CONSUMPTION_VERIFIED"
+    }
+  ],
+  "artifact_file_hashes": {
+    "run_manifest.json": "256054a13590df161a37619927e3c8aa36b52da37064c7cd592eff68097ba5c7",
+    "invocation/process-result.json": "78011772bd5808c63c2d5acf1e78cc6e84b4aad269690a545bf12469c81e480a",
+    "invocation/invocation-manifest.json": "fc6b9f2a13b2ac64093ecafab76c123b9017f658a5026912aeec647f9269fb1d",
+    "invocation/environment-manifest.json": "f1e23c6112eae7dcac9edda37f0d193d184f612c6bd13a093c380bd22cb0c730",
+    "invocation/prompt.txt": "06817b0780da26630584e972eb690d66a04bf60d8aa115512a5c7183163c1c47",
+    "invocation/codex-events.jsonl": "04a7c0373898ca9db017742a0a2ed5538c66fd3c688bec2589984fe76e487f72",
+    "invocation/codex-stderr.log": "54570c698fb16080c83c455b1f0ca30d62f60fb858dc39b94fc3c6bf2d1859e4",
+    "invocation/subagent-events.jsonl": "011444955c705e265fafa3289d539eaf670ca6aef822883099f47439b377295b",
+    "decision.json": "21b10221c836b69233e4caef868d984fdec25865f23da8cae47c647c00931e61",
+    "decision_trace.json": "2a42c1ed4830cd9940bd658ad8ea497838908e3d391c9adc7408468ab243e4d4",
+    "report.md": "646faa57549bda89856b663c2001c3627f5547ea1ffacd36da6e65a412a7b8eb",
+    "evidence/gate.json": "723ded8851af38e6a834c381ea9bc52e5959f864fdbc8f68d3fc92f450b5a9d3",
+    "eval/result.json": "c88b174bcad8581c3be5b53600f0c119d4f378a4d0269b4f681231d22cf97dff",
+    "cio/runtime_cio.json": "0a56f43384bbaadc043856ce7df0f9a20f0ad2771b6b7d5bf1a41e7886a71e56"
+  },
+  "stderr_first_warning": "2026-09-30T19:36:19.896603Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: duplicate agent role name `runtime_company_analyst` declared in the same config layer",
+  "semantic_eval_status": "IN_PROGRESS_SEPARATE_JOB_NOT_NATIVE_EVAL",
+  "eval_dir": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-eval.ZM36NZ/job",
+  "predecision_status": "NOT_RUN_SOURCE_PACKAGE_MISSING",
+  "candidate_promotion": "NOT_PROMOTABLE",
+  "actual_cumulative_counts_before_semantic_eval": {
+    "parent_process_starts": 7,
+    "parent_model_runs": 6,
+    "specialist_child_starts": 11
+  },
+  "task_mapping": [
+    "2.3/H09",
+    "3.1/H01/H02/H08",
+    "4.5/H18",
+    "6.5/H19"
+  ],
+  "content_inspection": {
+    "thesis": "有限经营事实，不由快照推导增长、估值和产能回报。",
+    "counter_thesis": "现金流、债务期限及利润率趋势缺口，不把缺失当负面事实。",
+    "cio": "消费两份报告，保留共识、未决问题、低置信度和可核验重评条件。",
+    "independent_review": "IN_PROGRESS"
+  }
+}

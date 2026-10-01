@@ -284,6 +284,7 @@ def _verify_dispatch_input(tool_input: Mapping[str, Any], environment: Mapping[s
             "contract_version": module.EVAL_RUNTIME_VERSION,
             "input_hash": packet["input_manifest"]["input_hash"],
             "packet_hash": _canonical_hash(packet),
+            "model_packet_hash": _canonical_hash(module.common_stock_eval_model_packet(packet)),
             "parent_message_hash": (
                 _canonical_hash({"message": actual}) if isinstance(actual, str) else None
             ),
@@ -770,6 +771,47 @@ def _trusted_bound_output(
     return result
 
 
+def _bind_native_specialist_stop_identity(payload, record, environment):
+    """复用真实 Start/dispatch 记录绑定 Council 草稿，不信任草稿中的身份。"""
+    invocation_module = _invocation_module()
+    run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
+    agent = payload["agent_type"]
+    if agent not in invocation_module.SPECIALIST_AGENTS:
+        raise ValueError("SPECIALIST_CAPTURE_AGENT_INVALID")
+    start = invocation_module.verify_specialist_start_binding(
+        Path(__file__).resolve().parents[2], run_dir, agent,
+        parent_session_id=payload["session_id"],
+    )
+    binding = start["binding"]
+    if (start["child_session_id"] != payload["agent_id"]
+            or binding["model"] != payload["model"]):
+        raise ValueError("SPECIALIST_STOP_START_BINDING_INVALID")
+    dispatch_log = _resolve_scoped_log(environment, environment_key="STOCK_AGENT_SUBAGENT_DISPATCH_LOG")
+    task_name = invocation_module.SPECIALIST_TASK_NAMES[agent]
+    dispatches = [item for item in _read_jsonl_records_unlocked(dispatch_log)
+                  if item.get("decision") == "ALLOW" and item.get("agent_type") == agent
+                  and item.get("parent_session_id") == payload["session_id"]
+                  and item.get("task_name") == task_name and item.get("fork_turns") == "none"
+                  and item.get("dispatch_binding", {}).get("matched") is True]
+    if len(dispatches) != 1:
+        raise ValueError("SPECIALIST_STOP_DISPATCH_BINDING_INVALID")
+    dispatch = dispatches[0]
+    try:
+        verify_legacy_envelope_hash(dispatch, hash_field="event_hash", location="events/subagents/dispatch.jsonl")
+    except HashContractError as exc:
+        raise ValueError(f"SPECIALIST_STOP_DISPATCH_BINDING_INVALID:{exc}") from exc
+    if (dispatch["dispatch_binding"].get("contract_version") != binding["contract_version"]
+            or dispatch["dispatch_binding"].get("input_hash") != binding["input_hash"]):
+        raise ValueError("SPECIALIST_STOP_DISPATCH_BINDING_INVALID")
+    trusted = {key: binding[key] for key in ("run_id", "invocation_id", "agent")}
+    authored = record.get("output_binding")
+    if isinstance(authored, Mapping) and any(
+        authored.get(key) is not None and authored[key] != trusted[key] for key in trusted
+    ):
+        raise ValueError("SPECIALIST_OUTPUT_IDENTITY_CONFLICT")
+    record["output_binding"] = trusted
+    record["trusted_task_binding"] = {**trusted, "task_name": task_name, "task_id": task_name}
+    record["identity_binding"] = {"status": "BOUND", "source": "TRUSTED_DISPATCH_AND_START"}
 
 
 def _expected_parallel_agents(environment: Mapping[str, str]) -> set[str]:
@@ -1084,29 +1126,40 @@ def _capture_specialist_report(payload, record, environment):
     run_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
     manifest = json.loads((run_dir / "run_manifest.json").read_text())
     delivery = manifest.get("specialist_output_delivery")
-    if manifest.get("source_mode") != "live" or delivery not in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}:
+    module = _invocation_module()
+    if delivery in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}:
+        raise ValueError("SPECIALIST_LEGACY_OUTPUT_WRITE_RETIRED")
+    if (manifest.get("source_mode", "fixture") not in {"fixture", "live"}
+            or delivery != module.SPECIALIST_SEMANTIC_DRAFT):
         raise ValueError("SPECIALIST_CAPTURE_CONTRACT_INVALID")
     agent = payload["agent_type"]
     if agent not in {"runtime_company_analyst", "runtime_skeptic"}:
         raise ValueError("SPECIALIST_CAPTURE_AGENT_INVALID")
     invocation = json.loads((run_dir / "invocations" / f"{agent}.json").read_text())
     value = json.loads(payload["last_assistant_message"])
-    if (not isinstance(value, dict) or value.get("agent") != agent
-            or invocation.get("agent", {}).get("name") != agent
-            or any(value.get(k) != invocation.get(k) for k in ("run_id", "invocation_id"))):
+    if (not isinstance(value, dict) or invocation.get("agent", {}).get("name") != agent
+            or invocation.get("semantic_output_version") != delivery):
         raise ValueError("SPECIALIST_CAPTURE_BINDING_INVALID")
+    _trusted_bound_output(payload, record)
     if payload["model"] != invocation["model"]:
         raise ValueError("SPECIALIST_CAPTURE_MODEL_INVALID")
     raw_value = value
-    if delivery == "native-research-draft/1.0.0":
-        value = _invocation_module().envelope_specialist_draft(raw_value, invocation, model=payload["model"])
+    schema_path = Path(invocation["output_schema"]).resolve()
+    if not schema_path.is_relative_to(run_dir) or not schema_path.is_file():
+        raise ValueError("SPECIALIST_CAPTURE_SCHEMA_PATH_INVALID")
+    schema = json.loads(schema_path.read_text())
+    value = module.envelope_specialist_semantic_draft(raw_value, invocation, model=payload["model"], formal_schema=schema)
+    from product.runtime.schema_validation import validate_schema_instance
+    from product.runtime.validation import validate_company_report, validate_skeptic_report
+    validate_schema_instance(value, schema)
+    validator = validate_company_report if agent == "runtime_company_analyst" else validate_skeptic_report
+    validator(value, run_id=invocation["run_id"], manifest=invocation)
     directory = run_dir / "agents"
     if directory.is_symlink() or not directory.resolve().is_relative_to(run_dir):
         raise ValueError("SPECIALIST_CAPTURE_PATH_INVALID")
     directory.mkdir(exist_ok=True, mode=0o700)
     outputs = [(directory / f"{agent}.json", value)]
-    if delivery == "native-research-draft/1.0.0":
-        outputs.insert(0, (directory / f"{agent}.native.json", raw_value))
+    outputs.insert(0, (directory / f"{agent}.native.json", raw_value))
     for path, content in outputs:
         if path.is_symlink():
             raise ValueError("SPECIALIST_CAPTURE_PATH_INVALID")
@@ -1122,8 +1175,7 @@ def _capture_specialist_report(payload, record, environment):
                 os.fsync(stream.fileno())
     record["output_capture"] = {"version": delivery, "path": f"agents/{agent}.json",
                                 "output_hash": _canonical_hash(value), "status": "SAVED"}
-    if delivery == "native-research-draft/1.0.0":
-        record["output_capture"].update(raw_path=f"agents/{agent}.native.json", raw_output_hash=_canonical_hash(raw_value))
+    record["output_capture"].update(raw_path=f"agents/{agent}.native.json", raw_output_hash=_canonical_hash(raw_value))
 
 
 def _capture_common_stock_report(payload, record, environment):
@@ -1142,10 +1194,32 @@ def _capture_common_stock_report(payload, record, environment):
     invocation = json.loads((run_dir / task["invocation_path"]).read_text(encoding="utf-8"))
     if payload["model"] != invocation["model"] or task["security_id"] != request["security"]["security_id"]:
         raise ValueError("COMMON_STOCK_OUTPUT_MODEL_OR_SECURITY_INVALID")
+    run_manifest = stage._read_object(run_dir / "run_manifest.json")
+    if (task.get("semantic_output_version") not in {None, stage.SEMANTIC_OUTPUT_VERSION}
+            or task.get("semantic_output_version") != invocation.get("semantic_output_version")
+            or task.get("semantic_output_version") != run_manifest.get("semantic_output_version")):
+        raise ValueError("COMMON_STOCK_OUTPUT_PROTOCOL_BINDING_INVALID")
+    if task.get("semantic_output_version") != stage.SEMANTIC_OUTPUT_VERSION:
+        raise ValueError("COMMON_STOCK_LEGACY_OUTPUT_WRITE_RETIRED")
+    if (task.get("reference_transport_version") != invocation.get("reference_transport_version")
+            or task.get("reference_transport_version") != run_manifest.get("reference_transport_version")):
+        raise ValueError("COMMON_STOCK_REFERENCE_PROTOCOL_INVALID")
+    if task.get("reference_transport_version") != stage.REFERENCE_TRANSPORT_VERSION:
+        raise ValueError("COMMON_STOCK_LEGACY_REFERENCE_WRITE_RETIRED")
+    if (task.get("calculation_selection_version") != invocation.get("calculation_selection_version")
+            or task.get("calculation_selection_version") != run_manifest.get("calculation_selection_version")):
+        raise ValueError("COMMON_STOCK_CALCULATION_PROTOCOL_INVALID")
+    if task.get("calculation_selection_version") != stage.CALCULATION_SELECTION_VERSION:
+        raise ValueError("COMMON_STOCK_LEGACY_CALCULATION_WRITE_RETIRED")
+    packet = stage.build_common_stock_dispatch_packet(
+        Path(__file__).resolve().parents[2], run_dir, task["task_name"])
+    draft = stage.assemble_common_stock_semantic_draft(
+        Path(__file__).resolve().parents[2], json.loads(payload["last_assistant_message"]),
+        request=request, packet=packet,
+    )
     calculation_ids = stage._calculation_ids_for_invocation(
         run_dir, value["invocation_id"]
     )
-    draft = {key: item for key, item in value.items() if key not in {"run_id", "invocation_id", "agent"}}
     report = __import__(
         "product.council.common_stock_research", fromlist=["envelope_equity_research_draft"]
     ).envelope_equity_research_draft(
@@ -1173,6 +1247,11 @@ def _capture_common_stock_report(payload, record, environment):
         "markdown_path": str(Path(output["markdown"]).relative_to(run_dir)),
         "output_hash": output["json_hash"], "security_id": task["security_id"],
     }
+    if task.get("reference_transport_version") is not None:
+        record["output_capture"].update(
+            reference_map_hash=packet["reference_map"]["map_hash"],
+            semantic_output_hash=_canonical_hash(json.loads(payload["last_assistant_message"])),
+        )
 
 
 def _validate_multidimensional_tool_calculations(value, *, task, invocation, run_dir):
@@ -1681,13 +1760,8 @@ def _capture_research_material_preparation(payload, record, environment):
     }
 
 
-
-
-
-
-def _capture_common_stock_eval_result(payload, record, environment):
-    """保存 dev_eval 的原始结构化结果并由确定性收尾器验收。"""
-
+def _common_stock_eval_stop_packet(payload, environment):
+    """从真实 Start 取得评分输入；修订前后均重验，不信任作者回填身份。"""
     module = _common_stock_eval_module()
     eval_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
     if payload.get("agent_type") != "dev_eval":
@@ -1695,6 +1769,60 @@ def _capture_common_stock_eval_result(payload, record, environment):
     expected_model = environment.get("STOCK_AGENT_COMMON_STOCK_EVAL_MODEL")
     if not expected_model or payload.get("model") != expected_model:
         raise ValueError("COMMON_STOCK_EVAL_MODEL_INVALID")
+    packet = module.build_common_stock_eval_packet(eval_dir, expected_model=expected_model)
+    log_path = _resolve_scoped_log(environment)
+    starts = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    starts = [event for event in starts if event.get("hook_event_name") == "SubagentStart"
+              and event.get("parent_session_id") == payload.get("session_id")
+              and event.get("child_session_id") == payload.get("agent_id")]
+    if len(starts) == 1:
+        try:
+            verify_legacy_envelope_hash(starts[0], hash_field="event_hash", location="events/subagents:dev_eval:SubagentStart")
+        except HashContractError as exc:
+            raise ValueError(f"COMMON_STOCK_EVAL_START_BINDING_INVALID:{exc}") from exc
+    if (len(starts) != 1 or starts[0].get("agent_type") != "dev_eval"
+            or starts[0].get("model") != expected_model
+            or starts[0].get("context_binding", {}).get("packet_hash") != _canonical_hash(packet)
+            or starts[0].get("context_binding", {}).get("model_packet_hash") != _canonical_hash(module.common_stock_eval_model_packet(packet))
+            or starts[0].get("context_binding", {}).get("input_hash") != packet["input_manifest"]["input_hash"]):
+        raise ValueError("COMMON_STOCK_EVAL_START_BINDING_INVALID")
+    return packet
+
+
+def _bind_common_stock_eval_stop_identity(payload, record, environment):
+    packet = _common_stock_eval_stop_packet(payload, environment)
+    log = _resolve_scoped_log(environment, environment_key="STOCK_AGENT_SUBAGENT_DISPATCH_LOG")
+    dispatches = [item for item in _read_jsonl_records_unlocked(log)
+                  if item.get("decision") == "ALLOW" and item.get("agent_type") == "dev_eval"
+                  and item.get("parent_session_id") == payload["session_id"]
+                  and item.get("task_name") == "grade_common_stock_report" and item.get("fork_turns") == "none"
+                  and item.get("dispatch_binding", {}).get("matched") is True]
+    if len(dispatches) != 1:
+        raise ValueError("COMMON_STOCK_EVAL_DISPATCH_BINDING_INVALID")
+    dispatch = dispatches[0]
+    try:
+        verify_legacy_envelope_hash(dispatch, hash_field="event_hash", location="events/subagents:dev_eval:dispatch")
+    except HashContractError as exc:
+        raise ValueError(f"COMMON_STOCK_EVAL_DISPATCH_BINDING_INVALID:{exc}") from exc
+    if (dispatch["dispatch_binding"].get("contract_version") != packet["runtime_contract"]
+            or dispatch["dispatch_binding"].get("packet_hash") != _canonical_hash(packet)
+            or dispatch["dispatch_binding"].get("model_packet_hash") != _canonical_hash(
+                _common_stock_eval_module().common_stock_eval_model_packet(packet))
+            or dispatch["dispatch_binding"].get("input_hash") != packet["input_manifest"]["input_hash"]):
+        raise ValueError("COMMON_STOCK_EVAL_DISPATCH_BINDING_INVALID")
+    manifest = packet["input_manifest"]
+    record["trusted_task_binding"] = {
+        **{key: manifest[key] for key in ("run_id", "invocation_id")},
+        "agent": "dev_eval", "task_id": manifest["eval_id"], "task_name": "grade_common_stock_report",
+    }
+    record["identity_binding"] = {"status": "BOUND", "source": "TRUSTED_DISPATCH_AND_START"}
+
+
+def _capture_common_stock_eval_result(payload, record, environment):
+    """合法评分草稿才占用正式路径；失败原稿由有界修订边界另存。"""
+    module = _common_stock_eval_module()
+    eval_dir = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
+    packet = _common_stock_eval_stop_packet(payload, environment)
     message = payload.get("last_assistant_message")
     if not isinstance(message, str) or not message.strip():
         raise ValueError("COMMON_STOCK_EVAL_OUTPUT_MISSING")
@@ -1702,8 +1830,13 @@ def _capture_common_stock_eval_result(payload, record, environment):
         value = json.loads(message)
     except json.JSONDecodeError as exc:
         raise ValueError("COMMON_STOCK_EVAL_OUTPUT_NOT_JSON") from exc
-    if not isinstance(value, Mapping) or value.get("model") != payload.get("model"):
-        raise ValueError("COMMON_STOCK_EVAL_OUTPUT_MODEL_INVALID")
+    if not isinstance(value, Mapping):
+        raise ValueError("COMMON_STOCK_EVAL_OUTPUT_NOT_OBJECT")
+    # 纯装配执行原 Schema、引用闭合与聚合校验；不改变评分、阈值或 FAIL 结论。
+    module.envelope_common_stock_eval_draft(
+        value, manifest=packet["input_manifest"], actual_model=payload["model"],
+        input_binding_hash=packet["input_manifest"]["input_hash"],
+    )
     semantic_path = eval_dir / "invocation/semantic-result.json"
     if semantic_path.exists():
         raise ValueError("COMMON_STOCK_EVAL_OUTPUT_EXISTS")
@@ -1717,7 +1850,8 @@ def _capture_common_stock_eval_result(payload, record, environment):
         stream.flush()
         os.fsync(stream.fileno())
     result = module.finalize_common_stock_eval_job(
-        eval_dir=eval_dir, semantic_result_path=semantic_path
+        eval_dir=eval_dir, semantic_result_path=semantic_path,
+        actual_model=payload["model"], input_binding_hash=packet["input_manifest"]["input_hash"],
     )
     record["output_capture"] = {
         "version": module.EVAL_RESULT_VERSION,
@@ -3121,7 +3255,7 @@ def _multidimensional_repair_packet(
     return result
 
 
-def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: int):
+def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: int, trusted_record=None):
     """只在第一次结构错误时请求同一 Agent 修正格式，不改写研究。"""
 
     if attempt != 1 or not failure_code.startswith(("SCHEMA_", "COUNTER_OUTPUT_JSON_INVALID")):
@@ -3135,9 +3269,13 @@ def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: 
         draft = None
     if not isinstance(draft, Mapping):
         return None
+    if (not isinstance(trusted_record, Mapping)
+            or trusted_record.get("identity_binding", {}).get("status") != "BOUND"):
+        return None
+    invocation_id = trusted_record.get("trusted_task_binding", {}).get("invocation_id")
     matches = [
         item for item in _research_index(environment)["tasks"]
-        if item["invocation_id"] == draft.get("invocation_id")
+        if item["invocation_id"] == invocation_id
     ]
     if len(matches) != 1:
         return None
@@ -3151,7 +3289,7 @@ def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: 
         "task_id": task["task_id"], "invocation_id": task["invocation_id"],
         "attempt": attempt, "maximum_submissions": 2,
         "validation_error": failure_code, "original_draft": draft,
-        "output_schema": packet["output_schema"],
+        "output_schema": _independent_skeptic_module().skeptic_model_packet(packet)["output_schema"],
         "instruction": (
             "这是唯一一次格式修复机会。原 Agent 在当前会话返回完整 JSON；"
             "只修正字段、类型或 Schema 结构，不新增事实、Evidence、挑战、假设，"
@@ -3164,6 +3302,11 @@ def handle_hook_event(
     payload: Mapping[str, Any], *, environ: Mapping[str, str] | None = None
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     environment = os.environ if environ is None else environ
+    if payload.get("hook_event_name") in {"SessionStart", "Stop"} and environment.get("STOCK_AGENT_CIO_LOCAL_REVISION"):
+        from product.runtime.cio_local_revision import VERSION, handle
+        if environment["STOCK_AGENT_CIO_LOCAL_REVISION"] != VERSION:
+            raise ValueError("CIO_LOCAL_REVISION_PROTOCOL_INVALID")
+        return handle(payload, environment)
     if payload.get("hook_event_name") == "PreToolUse":
         return _handle_pre_tool_use(payload, environment=environment)
     if payload.get("hook_event_name") == "Stop":
@@ -3216,7 +3359,9 @@ def handle_hook_event(
                     Path(environment["STOCK_AGENT_RUN_DIR"]),
                     expected_model=expected_model,
                 )
+                comparison_packet = packet
                 manifest = packet["input_manifest"]
+                model_packet = module.common_stock_eval_model_packet(packet)
                 record["context_binding"] = {
                     "status": "DELIVERED",
                     "eval_id": manifest["eval_id"],
@@ -3225,12 +3370,13 @@ def handle_hook_event(
                     "security_id": manifest["security_id"],
                     "input_hash": manifest["input_hash"],
                     "packet_hash": _canonical_hash(packet),
+                    "model_packet_hash": _canonical_hash(model_packet),
                 }
                 response = {
                     "hookSpecificOutput": {
                         "hookEventName": "SubagentStart",
                         "additionalContext": json.dumps(
-                            packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                            model_packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
                         ),
                     }
                 }
@@ -3246,7 +3392,7 @@ def handle_hook_event(
                     }
                 }
             record.pop("event_hash")
-            record["event_hash"] = _canonical_hash(record)
+            record["event_hash"] = legacy_envelope_hash(record, hash_field="event_hash")
         if payload.get("hook_event_name") == "SubagentStart" and _research_stage(environment):
             try:
                 task_name = _next_research_task(
@@ -3304,6 +3450,8 @@ def handle_hook_event(
                     if _multidimensional_stage(environment)
                     else stage.serialize_research_materials_dispatch_context(packet)
                     if _research_materials_stage(environment)
+                    else stage.serialize_skeptic_dispatch_context(packet)
+                    if _independent_skeptic_stage(environment)
                     else json.dumps(
                         packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
                     )
@@ -3371,30 +3519,33 @@ def handle_hook_event(
             record.pop("event_hash")
             record["event_hash"] = legacy_envelope_hash(record, hash_field="event_hash")
         if (payload.get("hook_event_name") == "SubagentStop" and not blocked_stop
-                and environment.get("STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT") in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}):
+                and environment.get("STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT") in {
+                    "native-final-json/1.0.0", "native-research-draft/1.0.0", "specialist-semantic-draft/1.0.0"}):
             try:
-                _capture_specialist_report(payload, record, environment)
+                if environment["STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT"] == "specialist-semantic-draft/1.0.0":
+                    _bind_native_specialist_stop_identity(payload, record, environment)
+                    repair_response = _capture_revisable_research_output(
+                        payload, record, environment, log_path, _capture_specialist_report)
+                    if repair_response is not None:
+                        response = repair_response
+                else:
+                    _capture_specialist_report(payload, record, environment)
             except (OSError, ValueError, KeyError, TypeError) as exc:
                 record["output_capture"] = {"status": "FAILED", "failure_code": str(exc)}
             record.pop("event_hash")
-            record["event_hash"] = _canonical_hash(record)
+            record["event_hash"] = legacy_envelope_hash(record, hash_field="event_hash")
         if (
             payload.get("hook_event_name") == "SubagentStop"
             and not blocked_stop
             and _common_stock_stage(environment)
         ):
-            try:
-                _capture_common_stock_report(payload, record, environment)
-            except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
-                record["output_capture"] = {"status": "FAILED", "failure_code": str(exc)}
-                try:
-                    record["output_capture"].update(
-                        _persist_rejected_common_stock_output(payload, environment)
-                    )
-                except OSError:
-                    record["output_capture"]["rejected_persistence"] = "FAILED"
+            repair_response = _capture_revisable_research_output(
+                payload, record, environment, log_path, _capture_common_stock_report,
+            )
+            if repair_response is not None:
+                response = repair_response
             record.pop("event_hash")
-            record["event_hash"] = _canonical_hash(record)
+            record["event_hash"] = legacy_envelope_hash(record, hash_field="event_hash")
         if (
             payload.get("hook_event_name") == "SubagentStop"
             and not blocked_stop
@@ -3504,10 +3655,15 @@ def handle_hook_event(
         ):
             attempt = _multidimensional_output_attempt(log_path, payload)
             raw_capture: dict[str, Any] = {}
+            capture_payload = payload
+            record["local_revision_authorized"] = False
             try:
+                _resolve_local_revision(log_path, payload, record, environment, attempt, authorize_only=True)
+                record["local_revision_authorized"] = True
                 raw_capture = _persist_multidimensional_raw_output(
                     payload, environment, attempt=attempt,
                 )
+                capture_payload = _resolve_local_revision(log_path, payload, record, environment, attempt)
                 index = _research_index(environment)
                 binding = record.get("output_binding") or {}
                 matches = [
@@ -3516,14 +3672,18 @@ def handle_hook_event(
                 ]
                 if len(matches) != 1 or payload.get("agent_type") != "runtime_skeptic":
                     raise ValueError("COUNTER_OUTPUT_INVOCATION_UNKNOWN")
+                # 先核可信 Start/派发绑定；新模式不再将这些技术字段塞回模型原稿。
+                trusted_output = _trusted_bound_output(capture_payload, record)
+                from product.runtime.invocation import SPECIALIST_SEMANTIC_DRAFT
                 record["output_capture"] = _independent_skeptic_module().capture_skeptic_report(
                     Path(__file__).resolve().parents[2],
                     Path(environment["STOCK_AGENT_RUN_DIR"]),
                     task_name=matches[0]["task_name"],
-                    raw_message=json.dumps(
-                        _trusted_bound_output(payload, record),
+                    raw_message=(capture_payload["last_assistant_message"]
+                                 if matches[0].get("semantic_output_version") == SPECIALIST_SEMANTIC_DRAFT else json.dumps(
+                        trusted_output,
                         ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-                    ),
+                    )),
                     model=payload["model"],
                     index_ref=environment.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
                 )
@@ -3535,8 +3695,14 @@ def handle_hook_event(
             except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
                 failure_code = str(exc).split(":", 1)[0]
                 repair = _skeptic_repair_packet(
-                    payload, environment, failure_code=failure_code, attempt=attempt,
+                    capture_payload, environment, failure_code=failure_code, attempt=attempt,
+                    trusted_record=record,
                 )
+                try:
+                    repair = _bind_local_revision(repair, capture_payload, record, raw_capture, environment)
+                except (OSError, ValueError, KeyError, TypeError, ImportError) as binding_error:
+                    record["repair_binding_error"] = str(binding_error)
+                    repair = None
                 record["output_capture"] = {
                     "status": "FAILED", "failure_code": failure_code,
                     "attempt": attempt,
@@ -3551,31 +3717,38 @@ def handle_hook_event(
                             "maximum_submissions", "validation_error",
                         )
                     }
+                    record["repair_request"].update({key: repair[key] for key in (
+                        "base_draft_ref", "allowed_paths", "binding_path", "binding_hash") if key in repair})
                     response = {
                         "decision": "block",
-                        "reason": json.dumps(repair, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                        "reason": json.dumps(_repair_model_view(repair), ensure_ascii=False, sort_keys=True, separators=(",", ":")),
                     }
             record.pop("event_hash")
-            record["event_hash"] = _canonical_hash(record)
+            record["event_hash"] = legacy_envelope_hash(record, hash_field="event_hash")
         if (
             payload.get("hook_event_name") == "SubagentStop"
             and not blocked_stop
             and _common_stock_eval(environment)
         ):
             try:
-                _capture_common_stock_eval_result(payload, record, environment)
+                _bind_common_stock_eval_stop_identity(payload, record, environment)
+                repair_response = _capture_revisable_research_output(
+                    payload, record, environment, log_path, _capture_common_stock_eval_result)
+                if repair_response is not None:
+                    response = repair_response
             except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
                 record["output_capture"] = {
                     "status": "FAILED", "failure_code": str(exc)
                 }
-                try:
-                    record["output_capture"].update(
-                        _persist_rejected_common_stock_eval_output(payload, environment)
-                    )
-                except OSError:
-                    record["output_capture"]["rejected_persistence"] = "FAILED"
+                if record.get("identity_binding", {}).get("status") == "BOUND":
+                    try:
+                        record["output_capture"].update(
+                            _persist_rejected_common_stock_eval_output(payload, environment)
+                        )
+                    except OSError:
+                        record["output_capture"]["rejected_persistence"] = "FAILED"
             record.pop("event_hash")
-            record["event_hash"] = _canonical_hash(record)
+            record["event_hash"] = legacy_envelope_hash(record, hash_field="event_hash")
         delivered = response.get("hookSpecificOutput", {}).get("additionalContext")
         if (payload.get("hook_event_name") == "SubagentStart"
                 and isinstance(delivered, str)

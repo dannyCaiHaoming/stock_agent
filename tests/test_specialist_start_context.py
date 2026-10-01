@@ -94,20 +94,18 @@ class SpecialistStartContextTests(unittest.TestCase):
             self.assertEqual(handle_hook_event(bad, environ=self.env)[0]["decision"], "DENY_DISPATCH_CONTRACT")
         self.assertEqual(handle_hook_event(payload, environ=self.env)[0]["decision"], "ALLOW")
 
-    def test_research_draft_schema_only_removes_technical_field(self):
-        from product.runtime.invocation import build_specialist_dispatch_message
+    def test_semantic_draft_uses_authoritative_schema_and_rejects_protocol_downgrade(self):
+        from product.runtime.invocation import build_specialist_dispatch_message, specialist_semantic_schema
         before = json.loads(build_specialist_dispatch_message(ROOT, self.run, ANALYST))
+        formal = read_json(Path(before["invocation"]["output_schema"]))
+        self.assertEqual(before["output_schema"], specialist_semantic_schema(formal))
+        for key in ("run_id", "invocation_id", "agent", "skill_execution", "artifact_refs"):
+            self.assertNotIn(key, before["output_schema"]["properties"])
         manifest = read_json(self.run / "run_manifest.json")
         manifest["specialist_output_delivery"] = "native-research-draft/1.0.0"
         write_json(self.run / "run_manifest.json", manifest)
-        after = json.loads(build_specialist_dispatch_message(ROOT, self.run, ANALYST))
-        expected = copy.deepcopy(before["output_schema"])
-        expected["properties"].pop("skill_execution")
-        expected["required"].remove("skill_execution")
-        self.assertEqual(after["output_schema"], expected)
-        self.assertEqual(after["agent_input"], before["agent_input"])
-        self.assertEqual(after["invocation"], before["invocation"])
-        self.assertNotIn("skill_execution", after["contract_checks"]["required_output_fields"])
+        with self.assertRaisesRegex(ValueError, "SPECIALIST_SEMANTIC_PROTOCOL_BINDING_INVALID"):
+            build_specialist_dispatch_message(ROOT, self.run, ANALYST)
 
     def test_current_contract_requires_real_binding_not_report_receipt(self):
         self.use_current_contract()

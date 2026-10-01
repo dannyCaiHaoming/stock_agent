@@ -16,12 +16,18 @@ from typing import Any, Mapping, Sequence
 from product.council.common_stock_research import validate_equity_research_report
 from product.council.common_stock_research import validate_research_coverage
 from product.council.research_output import validate_persisted_equity_research_pair
-from product.runtime.hashing import canonical_hash, file_hash
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
+from product.runtime.schema_validation import (
+    SchemaValidationError,
+    validate_schema_definition,
+    validate_schema_instance,
+)
 
 
 EVAL_JOB_VERSION = "common-stock-research-eval-job/1.1.0"
 EVAL_RESULT_VERSION = "common-stock-research-eval-result/1.0.0"
 EVAL_RUNTIME_VERSION = "common-stock-research-eval-runtime/1.0.0"
+EVAL_DRAFT_VERSION = "common-stock-research-eval-draft/1.0.0"
 DIMENSIONS = (
     "business_understanding",
     "comparable_financial_analysis",
@@ -171,10 +177,11 @@ def prepare_common_stock_eval_job(
         },
         "report": report,
         "allowed_evidence": allowed_evidence,
+        "semantic_output_delivery": EVAL_DRAFT_VERSION,
     }
     if report_markdown is not None:
         payload["report_markdown"] = report_markdown
-    payload["input_hash"] = canonical_hash(payload)
+    payload["input_hash"] = legacy_envelope_hash(payload, hash_field="input_hash")
     output_dir.mkdir(parents=True)
     _write_object(output_dir / "input-manifest.json", payload)
     return payload
@@ -183,6 +190,10 @@ def prepare_common_stock_eval_job(
 def build_common_stock_eval_result_schema(
     manifest: Mapping[str, Any], *, expected_model: str | None = None
 ) -> dict[str, Any]:
+    from product.runtime.versioning import load_version_manifest, approved_component_version
+    approved_component_version(
+        load_version_manifest(Path(__file__).resolve().parents[1] / "version-manifest.json"),
+        "schemas", "common-stock-research-eval", observed=EVAL_RESULT_VERSION.rsplit("/", 1)[-1])
     dimension = {
         "type": "object", "additionalProperties": False,
         "required": ["status", "grade", "claim_refs", "evidence_refs", "rationale"],
@@ -194,7 +205,7 @@ def build_common_stock_eval_result_schema(
             "rationale": {"type": "string", "minLength": 1},
         },
     }
-    return {
+    schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object", "additionalProperties": False,
         "required": [
@@ -223,6 +234,47 @@ def build_common_stock_eval_result_schema(
             "result_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         },
     }
+    validate_schema_definition(schema)
+    return schema
+
+
+def build_common_stock_eval_draft_schema(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    schema = build_common_stock_eval_result_schema(manifest)
+    schema["required"] = ["schema_version", "status", "dimensions"]
+    schema["properties"] = {key: schema["properties"][key] for key in schema["required"]}
+    schema["properties"]["schema_version"] = {"type": "string", "const": EVAL_DRAFT_VERSION}
+    validate_schema_definition(schema)
+    return schema
+
+
+def _validated_eval_manifest(eval_dir: Path) -> dict[str, Any]:
+    manifest = _read_object(eval_dir / "input-manifest.json")
+    try:
+        verify_legacy_envelope_hash(manifest, hash_field="input_hash", location="input-manifest.json")
+    except HashContractError as exc:
+        raise CommonStockEvalError(f"COMMON_STOCK_EVAL_INPUT_HASH_INVALID:{exc}") from exc
+    return manifest
+
+
+def envelope_common_stock_eval_draft(draft: Mapping[str, Any], *, manifest: Mapping[str, Any],
+                                     actual_model: str, input_binding_hash: str) -> dict[str, Any]:
+    if manifest.get("semantic_output_delivery") != EVAL_DRAFT_VERSION:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_LEGACY_WRITE_RETIRED")
+    if not isinstance(actual_model, str) or not actual_model.strip():
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_PROOF_MISSING")
+    if input_binding_hash != manifest["input_hash"]:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_INPUT_BINDING_INVALID")
+    try:
+        validate_schema_instance(draft, build_common_stock_eval_draft_schema(manifest))
+    except SchemaValidationError as exc:
+        raise CommonStockEvalError(f"COMMON_STOCK_EVAL_RESULT_SCHEMA_INVALID:{exc}") from exc
+    result = {"schema_version": EVAL_RESULT_VERSION, "model": actual_model,
+              **{key: manifest[key] for key in ("eval_id", "run_id", "invocation_id", "security_id",
+                                                "input_hash", "rubric_id")},
+              "status": draft["status"], "dimensions": draft["dimensions"]}
+    result["result_hash"] = legacy_envelope_hash(result, hash_field="result_hash")
+    validate_common_stock_eval_result(result, manifest=manifest)
+    return result
 
 
 def build_common_stock_eval_prompt(
@@ -231,17 +283,7 @@ def build_common_stock_eval_prompt(
     """生成供既有 dev_eval Agent 使用的最小提示，不补充外部事实。"""
 
     eval_dir = Path(eval_dir).resolve()
-    manifest = _read_object(eval_dir / "input-manifest.json")
-    binding = {
-        "eval_id": manifest["eval_id"],
-        "run_id": manifest["run_id"],
-        "invocation_id": manifest["invocation_id"],
-        "security_id": manifest["security_id"],
-        "input_hash": manifest["input_hash"],
-        "rubric_id": manifest["rubric_id"],
-    }
-    if expected_model is not None:
-        binding["model"] = expected_model
+    manifest = _validated_eval_manifest(eval_dir)
     return (
         "读取本次普通股研究 Eval 输入，并使用已加载的 runtime-eval-grading 方法，"
         "只依据冻结报告和 Evidence 对 rubric 的九个维度逐项评分。输入若包含由同一份"
@@ -251,11 +293,9 @@ def build_common_stock_eval_prompt(
         "grade 只能为 0、1、2、3，并提供 report 中的 claim_refs/evidence_refs 和简短中文理由。"
         "本版本化聚焦阶段按设计停止于公司报告集，不生成 decision_trace、Artifact Replay、"
         "CIO 或 Risk 产物；不得因这些不适用产物缺失而拒绝评分。"
-        "只返回符合 common-stock-research-eval-result/1.0.0 的 JSON；claim_refs 只能使用"
+        "只返回符合 common-stock-research-eval-draft/1.0.0 的 JSON，字段只有 schema_version、status、dimensions；claim_refs 只能使用"
         "报告内原始 claim_id，evidence_refs 只能使用本包 allowed_evidence 内原始 evidence_id。"
-        "result_hash 是删除 result_hash 后，对 JSON 对象按 key 排序、紧凑 UTF-8 编码所得的"
-        "SHA-256；可使用确定性本地计算。逐字复制以下绑定：\n"
-        + json.dumps(binding, ensure_ascii=False, sort_keys=True)
+        "身份、模型、input_hash、rubric_id 和 result_hash 由运行层依据实际任务装配，不要填写或计算。\n"
         + "\n输入文件：" + str(eval_dir / "input-manifest.json")
     )
 
@@ -264,16 +304,16 @@ def build_common_stock_eval_packet(
     eval_dir: Path, *, expected_model: str | None = None
 ) -> dict[str, Any]:
     eval_dir = Path(eval_dir).resolve()
-    manifest = _read_object(eval_dir / "input-manifest.json")
+    manifest = _validated_eval_manifest(eval_dir)
+    if manifest.get("semantic_output_delivery") != EVAL_DRAFT_VERSION:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_LEGACY_WRITE_RETIRED")
     return {
         "runtime_contract": EVAL_RUNTIME_VERSION,
         "instruction": build_common_stock_eval_prompt(
             eval_dir, expected_model=expected_model
         ),
         "input_manifest": manifest,
-        "output_schema": build_common_stock_eval_result_schema(
-            manifest, expected_model=expected_model
-        ),
+        "output_schema": build_common_stock_eval_draft_schema(manifest),
     }
 
 
@@ -283,6 +323,24 @@ def build_common_stock_eval_dispatch_message(eval_dir: Path) -> str:
         f"普通股研究聚焦评分 {manifest['eval_id']}。等待 SubagentStart Hook 注入冻结 Eval 包；"
         "不得补充外部事实或修改研究报告。"
     )
+
+
+def common_stock_eval_model_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
+    """评分内容投影：完整输入和技术锁留在运行层，研究正文/引用/限制不裁剪。"""
+    import copy
+    manifest = packet["input_manifest"]
+    report = copy.deepcopy(manifest["report"])
+    # 保留报告原文整体（包括其必要上下文），只删外围重复的锁/路径/身份包装。
+    # 不按键名递归删除 hash/source 字段，以免删掉事实或报告内有意义的内容。
+    materials = {"run_id": manifest["run_id"], "security_id": manifest["security_id"],
+                 "report": report, "rubric": copy.deepcopy(manifest["rubric"]),
+                 "allowed_evidence": copy.deepcopy(manifest["allowed_evidence"]),
+                 "hard_gates": copy.deepcopy(manifest["hard_gates"])}
+    if "report_markdown" in manifest:
+        materials["report_markdown"] = manifest["report_markdown"]
+    return {"runtime_contract": packet["runtime_contract"], "model_view_version": "common-stock-eval-model-view/1.0.0",
+            "instruction": packet["instruction"], "input": materials,
+            "output_schema": copy.deepcopy(packet["output_schema"])}
 
 
 def validate_common_stock_eval_result(
@@ -339,10 +397,14 @@ def validate_common_stock_eval_result(
     expected_status = "PASS" if all(item == "PASS" for item in statuses) else "FAIL"
     if result.get("status") != expected_status:
         raise CommonStockEvalError("COMMON_STOCK_EVAL_AGGREGATE_INVALID")
-    body = dict(result)
-    claimed = body.pop("result_hash", None)
-    if claimed != canonical_hash(body):
-        raise CommonStockEvalError("COMMON_STOCK_EVAL_RESULT_HASH_INVALID")
+    try:
+        verify_legacy_envelope_hash(result, hash_field="result_hash", location="eval/result.json")
+    except HashContractError as exc:
+        raise CommonStockEvalError(f"COMMON_STOCK_EVAL_RESULT_HASH_INVALID:{exc}") from exc
+    try:
+        validate_schema_instance(result, build_common_stock_eval_result_schema(manifest))
+    except SchemaValidationError as exc:
+        raise CommonStockEvalError(f"COMMON_STOCK_EVAL_RESULT_SCHEMA_INVALID:{exc}") from exc
 
 
 def _attach_eval_to_coverage(
@@ -393,9 +455,7 @@ def _attach_eval_to_coverage(
         "eval_result_hash": result["result_hash"],
         "evaluated_report_hash": report_hash,
     })
-    coverage["coverage_hash"] = canonical_hash({
-        key: value for key, value in coverage.items() if key != "coverage_hash"
-    })
+    coverage["coverage_hash"] = legacy_envelope_hash(coverage, hash_field="coverage_hash")
     validate_research_coverage(coverage, handoff=handoff, council_request=council_request)
     coverage_path.write_text(
         json.dumps(coverage, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -404,14 +464,29 @@ def _attach_eval_to_coverage(
 
 
 def finalize_common_stock_eval_job(
-    *, eval_dir: Path, semantic_result_path: Path
+    *, eval_dir: Path, semantic_result_path: Path,
+    actual_model: str | None = None, input_binding_hash: str | None = None,
 ) -> dict[str, Any]:
     """验证 dev_eval 原始结果并生成 result.json/report.md。"""
 
     eval_dir = Path(eval_dir).resolve()
-    manifest = _read_object(eval_dir / "input-manifest.json")
-    result = _read_object(Path(semantic_result_path).resolve())
-    validate_common_stock_eval_result(result, manifest=manifest)
+    manifest = _validated_eval_manifest(eval_dir)
+    draft = _read_object(Path(semantic_result_path).resolve())
+    invocation_path = eval_dir / "invocation/invocation-manifest.json"
+    if invocation_path.is_file():
+        invocation = _read_object(invocation_path)
+        try:
+            verify_legacy_envelope_hash(invocation, hash_field="manifest_hash", location="invocation/invocation-manifest.json")
+        except HashContractError as exc:
+            raise CommonStockEvalError(f"COMMON_STOCK_EVAL_INVOCATION_BINDING_INVALID:{exc}") from exc
+        if (invocation.get("input_hash") != manifest["input_hash"]
+                or invocation.get("eval_id") != manifest["eval_id"]
+                or invocation.get("agent") != "dev_eval"
+                or invocation.get("model") != actual_model):
+            raise CommonStockEvalError("COMMON_STOCK_EVAL_INVOCATION_BINDING_INVALID")
+    result = envelope_common_stock_eval_draft(draft, manifest=manifest,
+                                             actual_model=actual_model,
+                                             input_binding_hash=input_binding_hash)
     _write_object(eval_dir / "eval" / "result.json", result)
     lines = [
         f"# {result['security_id']} 普通股研究 Eval", "",
@@ -439,7 +514,9 @@ def launch_common_stock_eval(
 
     repository_root = Path(repository_root).resolve()
     eval_dir = Path(eval_dir).resolve()
-    manifest = _read_object(eval_dir / "input-manifest.json")
+    manifest = _validated_eval_manifest(eval_dir)
+    if manifest.get("semantic_output_delivery") != EVAL_DRAFT_VERSION:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_LEGACY_WRITE_RETIRED")
     invocation_dir = eval_dir / "invocation"
     if invocation_dir.exists():
         raise CommonStockEvalError("COMMON_STOCK_EVAL_ALREADY_LAUNCHED")
@@ -501,7 +578,7 @@ def launch_common_stock_eval(
         ),
         "command": command,
     }
-    invocation_manifest["manifest_hash"] = canonical_hash(invocation_manifest)
+    invocation_manifest["manifest_hash"] = legacy_envelope_hash(invocation_manifest, hash_field="manifest_hash")
     _write_object(invocation_dir / "invocation-manifest.json", invocation_manifest)
     environment = dict(os.environ)
     environment.update({

@@ -7,7 +7,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from product.runtime.fixture_mcp import StatelessFixtureTools, ToolAccessError
+from product.runtime.fixture_mcp import (
+    SKEPTIC_ADAPTER_VERSION,
+    StatelessFixtureTools,
+    ToolAccessError,
+)
 from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.multidimensional_stage import prepare_multidimensional_stage_run
 from product.runtime.common_stock_stage import prepare_common_stock_stage_run
@@ -21,6 +25,7 @@ from product.runtime.independent_skeptic_stage import (
     DISPATCH_VERSION,
     IndependentSkepticStageError,
     build_first_pass_input,
+    build_skeptic_dispatch_packet,
     capture_skeptic_report,
     finalize_skeptic_phase,
     prepare_skeptic_phase,
@@ -35,6 +40,16 @@ from product.runtime.independent_skeptic_stage import (
 from product.runtime.hashing import canonical_hash, file_hash
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def semantic_draft(report, *, run=None, task=None, index_ref=None):
+    from product.runtime.invocation import SPECIALIST_TECHNICAL_FIELDS
+    result = {key: copy.deepcopy(value) for key, value in report.items() if key not in SPECIALIST_TECHNICAL_FIELDS}
+    if run is not None:
+        from product.runtime.multidimensional_references import translate_references
+        packet = build_skeptic_dispatch_packet(ROOT, run, task["task_name"], index_ref=index_ref)
+        result = translate_references(result, packet["reference_map"], to_model=True)
+    return result
 
 
 def prepare_complete_forward(root, *, count=1):
@@ -176,7 +191,7 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 "skill_execution": invocation["skill_execution"], "artifact_refs": [],
             }
             capture_skeptic_report(
-                ROOT, run, task_name=first["task_name"], raw_message=json.dumps(report),
+                ROOT, run, task_name=first["task_name"], raw_message=json.dumps(semantic_draft(report, run=run, task=first)),
                 model="gpt-5.6-terra",
             )
             event_dir = run / "invocation/skeptic"
@@ -229,6 +244,18 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(IndependentSkepticStageError, "COUNTER_INPUT_INVALID"):
                     prepare_skeptic_resume(ROOT, run)
             second = latest["tasks"][1]
+            old_second = original_index["tasks"][1]
+            old_packet = build_skeptic_dispatch_packet(ROOT, run, old_second["task_name"])
+            new_packet = build_skeptic_dispatch_packet(ROOT, run, second["task_name"], index_ref=resumed["dispatch_index"])
+            self.assertNotEqual(old_packet["reference_map"]["map_hash"], new_packet["reference_map"]["map_hash"])
+            self.assertTrue(set(old_packet["reference_map"]["evidence"]).isdisjoint(new_packet["reference_map"]["evidence"]))
+            tool = StatelessFixtureTools(default_run_dir=run)
+            with patch.dict("os.environ", {"STOCK_AGENT_SKEPTIC_DISPATCH_INDEX": resumed["dispatch_index"]}):
+                identity = {"run_id": "counter-resume-run", "agent": "runtime_skeptic", "invocation_id": second["invocation_id"]}
+                with self.assertRaisesRegex(ValueError, "MULTIDIMENSIONAL_REFERENCE_UNKNOWN"):
+                    tool.query(**identity, evidence_ids=[next(iter(old_packet["reference_map"]["evidence"]))])
+                result = tool.query(**identity, evidence_ids=list(new_packet["reference_map"]["evidence"]))
+                self.assertEqual(set(new_packet["reference_map"]["evidence"]), {fact["evidence_id"] for fact in result["evidence"]})
             retry_invocation = json.loads((run / second["invocation_ref"]).read_text())
             retry_evidence_id = second["allowed_evidence_ids"][0]
             retry_report = {
@@ -237,7 +264,7 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 "skill_execution": retry_invocation["skill_execution"],
             }
             capture_skeptic_report(
-                ROOT, run, task_name=second["task_name"], raw_message=json.dumps(retry_report),
+                ROOT, run, task_name=second["task_name"], raw_message=json.dumps(semantic_draft(retry_report, run=run, task=second, index_ref=resumed["dispatch_index"])),
                 model="gpt-5.6-terra", index_ref=resumed["dispatch_index"],
             )
             retry_events = run / "invocation/skeptic/attempt-2"
@@ -320,7 +347,7 @@ class IndependentSkepticContractTests(unittest.TestCase):
             }
             capture_skeptic_report(
                 ROOT, run, task_name=task["task_name"],
-                raw_message=json.dumps(report), model="gpt-5.6-terra",
+                raw_message=json.dumps(semantic_draft(report, run=run, task=task)), model="gpt-5.6-terra",
             )
             event_dir = run / "invocation/skeptic"
             event_dir.mkdir(parents=True)
@@ -342,14 +369,35 @@ class IndependentSkepticContractTests(unittest.TestCase):
             )
             event_path = run / "events/mcp/events.jsonl"
             event_path.parent.mkdir(parents=True)
-            tool_event = {
-                "event_type": "mcp_tool_result", "adapter_version": "fixture-gate-scoped/2.3.0",
-                "run_id": "counter-package-run", "agent": "runtime_skeptic",
-                "invocation_id": task["invocation_id"], "tool": "fixture_evidence.query",
-                "evidence_ids": [evidence_id], "access_mode": "read",
-                "input_hash": "a" * 64, "output_hash": "b" * 64,
-            }
-            tool_event["event_hash"] = canonical_hash(tool_event)
+            tool = StatelessFixtureTools(default_run_dir=run)
+            result = tool.query(
+                run_id="counter-package-run", agent="runtime_skeptic",
+                invocation_id=task["invocation_id"], evidence_ids=[evidence_id],
+            )
+            self.assertEqual(SKEPTIC_ADAPTER_VERSION, result["adapter_version"])
+            tool_event = tool.events[-1]
+            self.assertEqual(SKEPTIC_ADAPTER_VERSION, tool_event["adapter_version"])
+            from product.mcp.provenance import content_hash
+            from product.runtime.hashing import legacy_envelope_hash
+            from product.runtime.multidimensional_references import translate_references
+            packet = build_skeptic_dispatch_packet(ROOT, run, task["task_name"])
+            canonical_result = translate_references(result, packet["reference_map"])
+            canonical_result["result_hash"] = canonical_result.pop("canonical_result_hash")
+            canonical_result.pop("reference_map_hash")
+            self.assertEqual(content_hash(canonical_result), tool_event["output_hash"])
+            self.assertEqual(
+                legacy_envelope_hash(tool_event, hash_field="event_hash"),
+                tool_event["event_hash"],
+            )
+            self.assertEqual(
+                content_hash({key: value for key, value in tool_event.items() if key != "event_hash"}),
+                tool_event["event_hash"],
+            )
+            tampered_event = {**tool_event, "tool": "fixture_math.calculate"}
+            self.assertNotEqual(
+                legacy_envelope_hash(tampered_event, hash_field="event_hash"),
+                tampered_event["event_hash"],
+            )
             event_path.write_text(json.dumps(tool_event) + "\n", encoding="utf-8")
             with patch("product.runtime.independent_skeptic_stage.validate_forward_gate", return_value=fake_forward):
                 result = finalize_skeptic_phase(ROOT, run)
@@ -396,7 +444,8 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 "invocation_id": first["invocation_id"],
             }
             self.assertEqual(
-                own_id, tool.query(**identity, evidence_ids=[own_id])["evidence"][0]["evidence_id"]
+                next(iter(build_skeptic_dispatch_packet(ROOT, run, first["task_name"])["reference_map"]["evidence"])),
+                tool.query(**identity, evidence_ids=[own_id])["evidence"][0]["evidence_id"]
             )
             self.assertEqual(
                 "ratio", tool.calculate(
@@ -439,7 +488,7 @@ class IndependentSkepticContractTests(unittest.TestCase):
             }
             captured = capture_skeptic_report(
                 ROOT, run, task_name=first["task_name"],
-                raw_message=json.dumps(report), model="gpt-5.6-terra",
+                raw_message=json.dumps(semantic_draft(report, run=run, task=first)), model="gpt-5.6-terra",
             )
             self.assertEqual("SAVED", captured["status"])
             markdown = (run / captured["markdown_path"]).read_text()
@@ -497,7 +546,7 @@ class IndependentSkepticContractTests(unittest.TestCase):
             handle_hook_event(second_start, environ=second_env)
             second_stop = {
                 **second_start, "hook_event_name": "SubagentStop",
-                "last_assistant_message": json.dumps(second_report),
+                "last_assistant_message": json.dumps(semantic_draft(second_report, run=run, task=second)),
                 "stop_hook_active": False,
             }
             stopped, _ = handle_hook_event(second_stop, environ=second_env)
@@ -521,6 +570,9 @@ class IndependentSkepticContractTests(unittest.TestCase):
             }],
         }
         validate_core_coverage(bundle)
+        structural = copy.deepcopy(bundle)
+        structural["consumability"] = "STRUCTURALLY_CONSUMABLE"
+        validate_core_coverage(structural)
         source_limited_core = copy.deepcopy(bundle)
         source_limited_core["coverage"][2]["status"] = "SOURCE_LIMITED"
         validate_core_coverage(source_limited_core)

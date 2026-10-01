@@ -347,6 +347,7 @@ def build_nested_codex_command(
     fixture_mcp_skeptic_dispatch_index: str | None = None,
     hook_agent_matcher: str = "^(runtime_company_analyst|runtime_skeptic)$",
     enable_parent_stop_barrier: bool = False,
+    enable_cio_local_revision: bool = False,
     skip_git_repo_check: bool = False,
 ) -> list[str]:
     """Return the canonical nested Codex command without shell interpolation."""
@@ -426,6 +427,7 @@ def build_nested_codex_command(
             "enabled_tools=[\"query\",\"calculate\",\"equity_research_attachments.query\",\"research_search\",\"research_fetch\""
             + (",\"research_report_submit\"" if research_submission_enabled else "")
             + (",\"research_task_state\"" if research_task_state_enabled else "")
+            + (",\"read_reports\"" if enable_cio_local_revision else "")
             + "],startup_timeout_sec=10}"
         )
         command.extend(("-c", mcp_override))
@@ -447,7 +449,13 @@ def build_nested_codex_command(
         "-c",
         f"hooks.SubagentStop={hook_handler}",
     ]
-    if enable_parent_stop_barrier:
+    if enable_parent_stop_barrier and enable_cio_local_revision:
+        raise ValueError("PARENT_STOP_CONTRACT_CONFLICT")
+    if enable_cio_local_revision:
+        # CIO 主线程使用真正的 SessionStart/Stop，不伪造 SubagentStop。
+        cio_handler = '[{hooks=[{type="command",command=' + json.dumps(hook_command) + ',timeout=15}]}]'
+        hook_overrides.extend(("-c", f"hooks.SessionStart={cio_handler}", "-c", f"hooks.Stop={cio_handler}"))
+    elif enable_parent_stop_barrier:
         hook_overrides.extend(("-c", f"hooks.Stop={stop_hook_handler}"))
     command.extend([
         "--add-dir", str(run_dir),
@@ -537,6 +545,13 @@ def launch_nested_codex(
     manifest = _read_object(run_dir / "run_manifest.json")
     if manifest.get("source_mode") == "live" or manifest.get("compatibility_fixture"):
         raise ValueError("LIVE_COUNCIL_ENTRY_RETIRED")
+    from .invocation import START_CONTEXT_VERSION, SPECIALIST_SEMANTIC_DRAFT
+    if (manifest.get("specialist_output_delivery") != SPECIALIST_SEMANTIC_DRAFT
+            or manifest.get("specialist_context_delivery") != START_CONTEXT_VERSION):
+        raise ValueError("SPECIALIST_LEGACY_EXECUTION_RETIRED")
+    from .multidimensional_references import VERSION as REFERENCE_VERSION
+    if manifest.get("cio_reference_transport_version") != REFERENCE_VERSION:
+        raise ValueError("CIO_LEGACY_REFERENCE_EXECUTION_RETIRED")
     if Path(str(manifest.get("output_dir", ""))).resolve() != run_dir:
         raise ValueError("RUN_DIRECTORY_IDENTITY_MISMATCH")
     invocation_dir = run_dir / "invocation"
@@ -587,6 +602,8 @@ def launch_nested_codex(
         final_message_path=raw_final_path,
         hook_recorder_path=product_root / "runtime" / "codex_hook_recorder.py",
         output_schema_path=output_schema_path,
+        fixture_mcp_run_dir=run_dir,
+        enable_cio_local_revision=True,
     )
     environment = dict(os.environ)
     environment["TMPDIR"] = str(tmp_dir)
@@ -601,13 +618,10 @@ def launch_nested_codex(
     )
     environment.pop("STOCK_AGENT_START_CONTEXT", None)
     environment.pop("STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT", None)
-    if manifest.get("source_mode") == "live":
-        from .invocation import START_CONTEXT_VERSION
-        if manifest.get("specialist_context_delivery") != START_CONTEXT_VERSION:
-            raise ValueError("START_CONTEXT_CONTRACT_MISSING")
-        environment["STOCK_AGENT_START_CONTEXT"] = START_CONTEXT_VERSION
-        if manifest.get("specialist_output_delivery") in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}:
-            environment["STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT"] = manifest["specialist_output_delivery"]
+    environment["STOCK_AGENT_START_CONTEXT"] = START_CONTEXT_VERSION
+    environment["STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT"] = SPECIALIST_SEMANTIC_DRAFT
+    from .cio_local_revision import VERSION as CIO_LOCAL_REVISION_VERSION, implementation_hashes
+    environment["STOCK_AGENT_CIO_LOCAL_REVISION"] = CIO_LOCAL_REVISION_VERSION
     before = integrity_snapshot(repository_root)
     resources = _resource_hashes(repository_root, run_dir, manifest, prompt_path)
     writable_paths = {
@@ -621,6 +635,8 @@ def launch_nested_codex(
     }
     environment_manifest = {
         "schema_version": "nested-codex-environment/1.0.0",
+        "cio_local_revision_version": CIO_LOCAL_REVISION_VERSION,
+        "cio_local_revision_source_hashes": implementation_hashes(repository_root),
         "run_id": manifest["run_id"],
         "cwd": str(product_root),
         "repo_root": str(repository_root),
@@ -735,6 +751,10 @@ def launch_nested_codex(
         deterministic_continuation["attempted"] = True
         try:
             if not pre_agent_safe:
+                from .cio_local_revision import verify_completed
+                deterministic_continuation["cio_local_revision"] = verify_completed(
+                    run_dir,
+                    candidate=_read_object(run_dir / "cio/runtime_cio.json"))
                 proof_result = build_ephemeral_run_specialist_execution_proof(
                     repository_root,
                     run_dir=run_dir,

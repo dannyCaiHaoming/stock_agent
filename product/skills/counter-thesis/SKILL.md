@@ -25,6 +25,6 @@ metadata:
 
 ## 结构化输出
 
-新阶段返回 `CounterThesisReport/2.1.0` JSON 对象，包含 `status`、`mode`、`scope`、`challenges`、`assumptions`、`evidence_refs`、`counter_evidence_refs`、`uncertainties`、`data_gaps`、`invalidation_conditions` 和 `confidence`。旧 2.0.0 仅按其冻结契约读取。不得决定最终组合动作。
+按本次实际交付的 `output_schema` 返回研究 JSON；当前语义草稿不填写运行身份、版本、hash、Skill 执行元数据或产物路径。这些字段由可信运行层装配为正式 `CounterThesisReport`，不能以旧正式全包替代草稿。研究状态、挑战、假设、引用、缺口、失效条件和置信度及其理由仍由你形成，程序不代选证据或改写观点。旧正式报告仅按其冻结契约读取。不得决定最终组合动作。
 
 当来源缺失、过期、冲突、调用失败或超时时，应返回结构化缺口状态，不得编造不利证据。

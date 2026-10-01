@@ -1,0 +1,14 @@
+{
+  "purpose": "DEVELOPMENT_EVIDENCE_SOURCE_SNAPSHOT_NOT_PRODUCT_VERSION_LOCK",
+  "base_snapshot_ref": "predecision-hook-recovery-source-snapshot-delta.json",
+  "reconstruction_rule": "按基准及两级 delta 重建完整 files，再应用本文件 changed。仅绑定本次开发取证，不修改历史运行或产品版本锁。",
+  "file_count": 640,
+  "files_map_hash": "acb6109ca6e83a6259c8ff6f820623e1ae4d38f9fc30fbca1460541e6ee5fe49",
+  "changed": {
+    "product/runtime/independent_skeptic_stage.py": "4d248b91f3e0b430093894984592c13d1487f7cc9cb1dc9bfc0befb6ab1c7d4e",
+    "product/runtime/nested_codex.py": "97227e38cb8f3bfdee3534865e2723885b7dd46e0d3c7fa3ce7df77bdcf2f5ad",
+    "tests/test_predecision_source_preparation.py": "6a35d4621008496d1bbb104a2e92c293d05ac6545ffee2405fe48a9687e14e95"
+  },
+  "added": {},
+  "removed": []
+}

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from product.runtime import discover_product_resources, load_version_manifest
-from product.runtime.versioning import validate_version_manifest
+from product.runtime.versioning import derive_profile_agent_versions, validate_version_manifest
 from product.runtime.hashing import canonical_hash, file_hash
 from evals.regression.runner import load_regression_set
 
@@ -16,9 +16,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class VersionManifestTests(unittest.TestCase):
+    def test_profile_version_derivation_is_explicit_and_idempotent(self):
+        manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
+        profile = json.loads((ROOT / "product/runtime-profile.json").read_text(encoding="utf-8"))
+        stale = copy.deepcopy(profile)
+        stale["agents"]["runtime_cio"]["version"] = "3.1.0"
+        stale["multidimensional_holding_research_stage"]["market_agent_version"] = "1.0.1"
+        derived = derive_profile_agent_versions(manifest, stale)
+        self.assertEqual(derived, profile)
+        self.assertEqual(derive_profile_agent_versions(manifest, derived), derived)
+        self.assertEqual(stale["agents"]["runtime_cio"]["version"], "3.1.0")
+
     def test_candidate_manifest_locks_native_runtime_versions(self):
         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
-        self.assertEqual("0.3.0-candidate.1", manifest["candidate_version"])
+        self.assertRegex(manifest["candidate_version"], r"^\d+\.\d+\.\d+-candidate\.\d+(?:[-+].+)?$")
         self.assertEqual("codex-cli/0.153.4", manifest["codex_runtime"])
         self.assertEqual("gpt-5.6-terra", manifest["model"])
         self.assertIn("fixture-gate-scoped", manifest["mcp_adapters"])
@@ -111,6 +122,33 @@ class ProductDiscoveryTests(unittest.TestCase):
             target = product / "skills/portfolio-council/SKILL.md"
             target.write_text(target.read_text(encoding="utf-8") + "\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "resource hash mismatch"):
+                discover_product_resources(copied)
+
+    def test_discovery_rejects_stale_market_mirror_even_if_profile_hash_is_updated(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            copied = Path(temp_dir) / "repo"
+            product = copied / "product"
+            product.mkdir(parents=True)
+            for relative in (
+                ".codex-plugin/plugin.json", ".mcp.json", ".codex/config.toml",
+                "runtime-profile.json", "contracts/council-decision-contract.json",
+                "schemas/runtime/cio-decision-draft.schema.json",
+                "skills/portfolio-council/SKILL.md", ".codex/agents/runtime_cio.toml",
+                ".codex/agents/runtime_company_analyst.toml",
+                ".codex/agents/runtime_skeptic.toml", "version-manifest.json",
+            ):
+                target = product / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes((ROOT / "product" / relative).read_bytes())
+            profile_path = product / "runtime-profile.json"
+            profile = json.loads(profile_path.read_text(encoding="utf-8"))
+            profile["multidimensional_holding_research_stage"]["market_agent_version"] = "1.0.1"
+            profile_path.write_text(json.dumps(profile, ensure_ascii=False), encoding="utf-8")
+            manifest_path = product / "version-manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["resource_hashes"]["runtime_profile"] = file_hash(profile_path)
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "PROFILE_AGENT_VERSION_DRIFT:runtime_market_catalyst"):
                 discover_product_resources(copied)
 
 

@@ -25,7 +25,12 @@ from product.runtime import common_stock_eval as grading
 from product.runtime.fixture_mcp import StatelessFixtureTools
 from product.runtime.invocation import build_specialist_dispatch_message, build_specialist_start_context
 from tests import test_material_semantic_handoff as material_helpers
+from tests import test_common_stock_semantic_handoff as stock_helpers
 from tests import test_multidimensional_stage as dimension_helpers
+from tests import test_skeptic_semantic_handoff as skeptic_helpers
+from tests import test_council_eval_local_revision as eval_helpers
+from tests import test_cio_local_revision as cio_helpers
+from tests import test_runtime_eval_local_revision as runtime_eval_helpers
 from tests.test_common_stock_research_contracts import gate_for as base_gate
 
 REPO = Path(__file__).resolve().parents[1]
@@ -101,6 +106,30 @@ class ResearchInputDeliveryTests(unittest.TestCase):
                 self.assertEqual(updated["task"]["source_limitations"], full["task"]["source_limitations"])
                 self.retain("materials-" + kind.lower(), root, before, view)
 
+    def test_stock_actual_query_restores_complete_facts_and_preserves_request_semantics(self):
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "tests.test_common_stock_semantic_handoff.fixtures.gate_for", rich_gate):
+            helper = stock_helpers.CommonStockSemanticHandoffTests()
+            root, task, request, view, _, _ = helper.prepare(directory)
+            full = helper.frozen_packet(root, task)
+            original = copy.deepcopy(full)
+            result = helper.call(root, request, "query", evidence_ids=view["allowed_evidence_ids"])
+            mapping = full["reference_map"]
+            self.assert_facts(root, [mapping["evidence"][ref] for ref in view["allowed_evidence_ids"]], result, mapping)
+            removed = {"agent_binding", "skill_bindings", "council_request_hash", "evidence_bundle_hash",
+                       "handoff_hash", "portfolio_hash", "request_hash"}
+            translated = translate_references(full, mapping, to_model=True)
+            self.assertEqual(view["holding_research_request"], {
+                key: value for key, value in translated["holding_research_request"].items() if key not in removed})
+            full["holding_research_request"]["user_context"]["source_limitations"] = {
+                "request_hash": "来源正文里的字段", "footnote": "并非利润预测", "conflicts": ["定义不一致"]}
+            # 变化后的冻结输入建立自己的映射，而非放宽原映射漂移验证。
+            from product.runtime.multidimensional_references import build_reference_map
+            base = {key: value for key, value in full.items() if key not in {"reference_map", "context_budget"}}
+            full["reference_map"] = build_reference_map(base, mapping["binding"]["gate_hash"], mapping["binding"]["run_dir"])
+            projected = stocks.common_stock_model_packet(full)
+            self.assertEqual(projected["holding_research_request"]["user_context"], full["holding_research_request"]["user_context"])
+            self.retain("common-stock", root, original, view, tool_output=result)
 
     def test_all_eight_capabilities_deliver_authorized_catalog_and_exact_tool_facts(self):
         helper = dimension_helpers.MultidimensionalStageTests()
@@ -163,7 +192,68 @@ class ResearchInputDeliveryTests(unittest.TestCase):
                                 tool_output=result, tool_events=tools.events)
             self.assertEqual(capabilities, set(dimensions.EIGHT_DIMENSION_INPUTS))
 
+    def test_skeptic_and_fixture_specialists_keep_facts_and_independent_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            helper = skeptic_helpers.SkepticSemanticHandoffTests()
+            root, task, _, _, view = helper.prepare(directory)
+            full = skeptic.build_skeptic_dispatch_packet(REPO, root, task["task_name"])
+            result = helper.query(root, task, view["allowed_evidence_ids"])["result"]["structuredContent"]
+            self.assert_facts(root, task["allowed_evidence_ids"], result, full["reference_map"])
+            self.assertNotIn("forward_reports", view["agent_input"])
+            self.retain("independent-skeptic", root, full, view, tool_output=result)
+        helper = eval_helpers.CouncilEvalLocalRevisionTests()
+        helper.setUp()
+        self.addCleanup(helper.doCleanups)
+        root, _, _ = helper.specialist()
+        for agent in ("runtime_company_analyst", "runtime_skeptic"):
+            full = json.loads(build_specialist_dispatch_message(REPO, root, agent))
+            view = json.loads(build_specialist_start_context(REPO, root, agent)[0])
+            self.assertEqual(view["frozen_input"]["agent_input"], full["agent_input"])
+            self.assertNotIn("validated_reports", full["agent_input"])
+            self.assertNotIn("invocation", view["frozen_input"])
+            self.retain("fixture-" + agent, root, full, view)
 
+    def test_cio_and_eval_views_retain_complete_semantic_inputs(self):
+        cio = cio_helpers.CioLocalRevisionTests()
+        self.addCleanup(cio.doCleanups)
+        for prepare in (cio.fixture, cio.predecision):
+            root, draft, stop, complete, _, _ = cio.launch(prepare)
+            stopped, response = stop(draft)
+            self.assertNotEqual(response.get("decision"), "block", stopped)
+            proof = complete(draft)
+            self.assertIsNone(proof["delivery_diagnostics"]["total_cost"])
+            if prepare == cio.fixture:
+                full = json.loads((root / "inputs/runtime_cio.json").read_text())
+                view = json.loads((root / "inputs/runtime_cio.model.json").read_text())
+                self.assertEqual(view["mechanical_conflicts"], full["mechanical_conflicts"])
+                self.assertEqual(view["portfolio_metrics"], full["portfolio_metrics"])
+                scope = "FROZEN_JSON_REPRESENTATION_NOT_PROOF_OF_MODEL_READ"
+            else:
+                prompt = (root / "invocation/prompt.txt").read_text()
+                view = json.loads(prompt.split("<validated_research_context>\n", 1)[1].split("\n</validated_research_context>", 1)[0])
+                full = {**view, "request": json.loads((root / "predecision-cio-request.json").read_text())}
+                scope = "EMBEDDED_CONTEXT_REQUEST_WRAPPER_ONLY"
+            self.retain("cio-" + prepare.__name__, root, full, view, scope=scope)
+        evaluator = eval_helpers.CouncilEvalLocalRevisionTests()
+        evaluator.setUp()
+        self.addCleanup(evaluator.doCleanups)
+        root, _, _ = evaluator.evaluator()
+        full = grading.build_common_stock_eval_packet(root)
+        view = grading.common_stock_eval_model_packet(full)
+        for key in ("report", "report_markdown", "rubric", "allowed_evidence", "hard_gates"):
+            if key in full["input_manifest"]:
+                self.assertEqual(view["input"][key], full["input_manifest"][key])
+        self.retain("common-stock-eval", root, full, view)
+        evaluator = runtime_eval_helpers.RuntimeEvalLocalRevisionTests()
+        evaluator.setUp()
+        self.addCleanup(evaluator.doCleanups)
+        root, parent, child, _ = evaluator.job(invalid=False)
+        self.assertEqual(evaluator.collect(root, parent, child)["local_revision"]["status"], "FIRST_DRAFT")
+        full = json.loads((root / "grader-input.json").read_text())
+        view = json.loads((root / "grader-model-input.json").read_text())
+        from product.runtime.runtime_eval import runtime_eval_model_input
+        self.assertEqual(view, runtime_eval_model_input(full))
+        self.retain("runtime-eval", root, full, view, scope="CHILD_VERIFIED_GRADER_INPUT_FILE_READ_ONLY")
 
 
 if __name__ == "__main__":

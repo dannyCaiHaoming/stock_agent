@@ -845,9 +845,21 @@ def build_ephemeral_run_specialist_execution_proof(
     ]
     if any(event.get("hook_decision") != "BLOCK" for event in blocked_stops):
         raise ExecutionProofError("SUBAGENT_STOP_BARRIER_EVENT_INVALID")
+    # 同一已接受消息的 Hook 重复交付不是另一研究稿，仍验证其精确来源。
+    originals = {event["event_hash"]: event for event in hook_events if not event.get("duplicate_of")}
+    for event in hook_events:
+        if event.get("duplicate_of"):
+            original = originals.get(event["duplicate_of"], {})
+            fields = ("hook_event_name", "parent_session_id", "child_session_id", "agent_type", "model",
+                      "assistant_message_sha256", "final_structured_output_hash", "trusted_task_binding",
+                      "identity_binding", "local_revision", "output_capture")
+            if (original.get("output_capture", {}).get("status") != "SAVED"
+                    or any(event.get(key) != original.get(key) for key in fields)):
+                raise ExecutionProofError("SUBAGENT_DUPLICATE_DELIVERY_INVALID")
     lifecycle_events = [
         event for event in hook_events
         if event.get("hook_event_name") in {"SubagentStart", "SubagentStop"}
+        and not event.get("duplicate_of")
     ]
     for ordinal, event in enumerate(lifecycle_events):
         agent_name = str(event.get("agent_type", ""))
@@ -888,21 +900,43 @@ def build_ephemeral_run_specialist_execution_proof(
             raise ExecutionProofError(f"CHILD_TASK_BINDING_MISSING:{agent_name}")
         raw_output = report
         delivery = run_manifest.get("specialist_output_delivery")
-        if delivery == "native-research-draft/1.0.0":
-            from .invocation import envelope_specialist_draft
+        if delivery in {"native-research-draft/1.0.0", "specialist-semantic-draft/1.0.0"}:
+            from .invocation import envelope_specialist_draft, envelope_specialist_semantic_draft
             raw_path = run_dir / "agents" / f"{agent_name}.native.json"
             if raw_path.is_symlink() or not raw_path.is_file():
                 raise ExecutionProofError(f"SPECIALIST_NATIVE_DRAFT_MISSING:{agent_name}")
-            raw_output = json.loads(raw_path.read_text(encoding="utf-8"))
-            if envelope_specialist_draft(raw_output, manifest, model=stop.get("model")) != report:
+            try:
+                raw_output = json.loads(raw_path.read_text(encoding="utf-8"))
+                if delivery == "specialist-semantic-draft/1.0.0":
+                    schema_path = Path(manifest["output_schema"]).resolve()
+                    if not schema_path.is_relative_to(run_dir) or not schema_path.is_file():
+                        raise ValueError("SPECIALIST_CAPTURE_SCHEMA_PATH_INVALID")
+                    rebuilt = envelope_specialist_semantic_draft(
+                        raw_output, manifest, model=stop.get("model"),
+                        formal_schema=json.loads(schema_path.read_text(encoding="utf-8")),
+                    )
+                else:
+                    rebuilt = envelope_specialist_draft(raw_output, manifest, model=stop.get("model"))
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise ExecutionProofError(f"SPECIALIST_NATIVE_ENVELOPE_INVALID:{agent_name}:{exc}") from exc
+            if rebuilt != report:
                 raise ExecutionProofError(f"SPECIALIST_NATIVE_ENVELOPE_MISMATCH:{agent_name}")
             capture = stop.get("output_capture", {})
             if (capture.get("raw_output_hash") != canonical_hash(raw_output)
                     or capture.get("raw_path") != f"agents/{agent_name}.native.json"):
                 raise ExecutionProofError(f"SPECIALIST_NATIVE_DRAFT_HASH_MISMATCH:{agent_name}")
-        if stop.get("final_structured_output_hash") != canonical_hash(raw_output):
+        if delivery == "specialist-semantic-draft/1.0.0" and stop.get("local_revision"):
+            _verify_ephemeral_specialist_revision(run_dir, stop, hook_events, raw_output)
+        elif stop.get("final_structured_output_hash") != canonical_hash(raw_output):
             raise ExecutionProofError(f"CHILD_REPORT_OUTPUT_HASH_MISMATCH:{agent_name}")
-        if delivery in {"native-final-json/1.0.0", "native-research-draft/1.0.0"}:
+        elif delivery == "specialist-semantic-draft/1.0.0" and "submission_path" in stop.get("output_capture", {}):
+            try:
+                message = _verified_specialist_submission_message(run_dir, stop)
+                if json.loads(message) != raw_output:
+                    raise ValueError("LOCAL_REVISION_OUTPUT_DRIFT")
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise ExecutionProofError(f"SPECIALIST_NATIVE_MESSAGE_INVALID:{exc}") from exc
+        if delivery in {"native-final-json/1.0.0", "native-research-draft/1.0.0", "specialist-semantic-draft/1.0.0"}:
             capture = stop.get("output_capture", {})
             if (capture.get("status") != "SAVED" or capture.get("version") != delivery
                     or capture.get("output_hash") != canonical_hash(report)
@@ -1008,9 +1042,10 @@ def build_ephemeral_run_specialist_execution_proof(
             "assistant_output_hash": stop.get("assistant_message_sha256"),
             "final_structured_output_hash": canonical_hash(report),
             **({"raw_final_structured_output_hash": stop.get("final_structured_output_hash")}
-               if delivery == "native-research-draft/1.0.0" else {}),
+               if delivery in {"native-research-draft/1.0.0", "specialist-semantic-draft/1.0.0"} else {}),
         }
-        if run_manifest.get("source_mode") == "live":
+        if (run_manifest.get("source_mode") == "live"
+                or delivery == "specialist-semantic-draft/1.0.0"):
             from .invocation import verify_specialist_start_binding
             try:
                 children[agent_name]["start_context_binding"] = verify_specialist_start_binding(
@@ -1090,6 +1125,47 @@ def build_ephemeral_run_specialist_execution_proof(
         "next_state": "EXECUTION_PROOF_VERIFIED",
         "proof_hash": proof["proof_hash"],
     }
+
+
+def _verified_specialist_submission_message(run_dir, stop):
+    """原消息与已解析对象是两种 hash 口径，分别闭合，不互相代替。"""
+    from .local_revision import _path
+    capture = stop["output_capture"]
+    text = _path(run_dir, capture["submission_path"]).read_text(encoding="utf-8")
+    variants = [text, text[:-1]] if text.endswith("\n") else [text]
+    messages = [item for item in variants if canonical_hash({"assistant_message": item}) == capture["submission_hash"]
+                and canonical_hash({"assistant_message": item}) == stop.get("assistant_message_sha256")]
+    if len(messages) != 1 or canonical_hash(json.loads(messages[0])) != stop.get("final_structured_output_hash"):
+        raise ValueError("LOCAL_REVISION_MESSAGE_DRIFT")
+    return messages[0]
+
+
+def _verify_ephemeral_specialist_revision(run_dir, stop, hook_events, raw_output):
+    """证明正式语义稿来自原会话补丁，而非信任修订状态/hash摘要。"""
+    from .local_revision import resolve
+    capture = stop.get("output_capture", {})
+    if (capture.get("attempt") != 2 or capture.get("repair_state") != "REPAIRED"
+            or capture.get("status") != "SAVED"):
+        raise ExecutionProofError("SPECIALIST_LOCAL_REVISION_INVALID")
+    first = [event for event in hook_events
+             if event.get("parent_session_id") == stop.get("parent_session_id")
+             and event.get("child_session_id") == stop.get("child_session_id")
+             and event.get("output_capture", {}).get("attempt") == 1
+             and event.get("hook_event_name") == "SubagentStopBlocked"
+             and event.get("output_capture", {}).get("repair_state") == "REPAIR_REQUESTED"]
+    if len(first) != 1:
+        raise ExecutionProofError("SPECIALIST_LOCAL_REVISION_BASE_MISSING")
+    try:
+        message = _verified_specialist_submission_message(run_dir, stop)
+        payload = {"session_id": stop["parent_session_id"], "agent_id": stop["child_session_id"],
+                   "agent_type": stop["agent_type"], "model": stop["model"], "last_assistant_message": message}
+        verified_record = {key: stop[key] for key in ("identity_binding", "trusted_task_binding")}
+        rebuilt = resolve(run_dir, payload, verified_record, first[0])
+        if (json.loads(rebuilt["last_assistant_message"]) != raw_output
+                or verified_record.get("local_revision") != stop["local_revision"]):
+            raise ValueError("LOCAL_REVISION_OUTPUT_DRIFT")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise ExecutionProofError(f"SPECIALIST_LOCAL_REVISION_INVALID:{exc}") from exc
 
 
 def _read_object(path: Path) -> dict[str, Any]:

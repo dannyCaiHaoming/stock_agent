@@ -33,7 +33,33 @@ launcher 从运行目录内的一次性隔离源码副本启动并保存当前�
 
 自动 live 数据准备还必须配置仓库外 `RESEARCH_MEMORY_ROOT`。增量范围、报告原截止时间、严格复用、`--force-rerun`、补存和备份恢复以 [Company Research Memory 运行说明](../../docs/development/company-research-memory.md) 为准。全复用时 dispatch-index 为空且每只目标均须有有效复用引用，launcher 不创建模型进程；这不是“空任务自动成功”。
 
+### 1.2 多维定点调试：资料身份与执行身份分开
+
+复用旧冻结资料准备**新的正向多维运行**时，确定性准备入口显式添加 `--reuse-frozen-gate`，并提供新的 UUID `run_id`；宿主 `--stage multidimensional-holding-research` 自动生成新的执行身份并透传此模式。原 Gate 字节保存在新运行的 `audit/frozen-gate-source.json`，`gate_input_binding` 记录原 run/hash、原资料内容 hash 及本次执行 run/hash；原文件、Evidence、来源时间、截止点及历史锁不回写。来源 hash 不符、来源副本或执行视图被改动时拒绝启动。反证仍遵守原同批身份约束，不能使用该模式跨批导入。
+
+零模型准备示例（只创建运行资料，不启动产品）：
+
+```text
+python3 scripts/council-dev.py prepare-multidimensional-research \
+  --repo <repository-root> --handoff <confirmed-handoff.json> \
+  --gate <frozen-gate.json> --reuse-frozen-gate \
+  --run-dir <new-external-run-dir> --run-id <new-debug-UUID> \
+  --model <explicitly-selected-model> --structured-report-submission
+```
+
+定点真实执行只能在获批预算下，经宿主 `--start-multidimensional-task <new-run-dir> <actual-task-name> <new-output-dir>` 进入既有 launcher。任务名从实际 dispatch-index 选择：OPTIONS 只执行自身；RESEARCH_REPORT 只执行基本面→研报闭包；未知、缺失、循环或重名依赖在模型前失败。定点证明不生成完整八维通过状态。`--resume-multidimensional-task` 是同一运行的显式重试，不冒充新的运行；只读复用已有上游须重新验证来源/允许集、截止点、Agent/Skill、模型、Schema/工具拓扑、共享实现指纹、报告与执行事件。旧包缺少复用所需证明或配置漂移时拒绝复用，不补写旧证据、不自动新增模型调用。
+
 ## 2. Artifact Replay
+
+### 研报结构化提交试验入口
+
+从新资料准备完整运行时，宿主 `--stage multidimensional-holding-research` 同样接受显式 `--structured-report-submission` 并透传至原prepare；其他stage拒绝该开关，默认入口和旧包不变。可与 `--require-materials` 一起使用，先严格核对四项材料和同行取证，再启动八维；不增加重试或模型预算。
+
+本入口是显式 Change 验证，不是 Execution Replay。零模型 `prepare-multidimensional-research` 增加 `--structured-report-submission` 时，只为新包 RESEARCH_REPORT 授权 `research_report_submit`；默认不启用，旧包不迁移。当前新写入协议为 `research-object-submission/6.0.0`：Agent 以 invocation_id 路由，传本任务 submission_token 和不含技术身份的 draft；文档/计算使用实际交付的 `document_selections`/`calculation_selections`，上游计算沿已验证依赖选择，程序装配固定字段。研报每条外部主张引用须配同主张的 Agent 关系句，结构配对不表示语义通过。工具返回精确绑定草稿的短 `final_message`；最终原样返回该短引用，不抄序号或完整hash。可信 Stop 结合实际Start、冻结packet和短引用重验草稿、装配身份后执行完整报告校验。其它七维沿各自当前语义草稿返回方式，不能因提交工具可见而误用。工具写入限定于运行目录，不是任意文件写接口。
+
+任务凭据是防误路由的 bearer capability，不是 MCP caller 身份认证。它仅存本地私有 packet 并向对应任务交付，不进入普通审计；packet 和可能含工具参数的宿主原始转录不得直接发布或提交。旧v1–v5已有产物按对应读取器重验，不能据历史装配版本开放旧写入；新执行必须新准备当前包，不修改旧包。保存原稿与选择绑定，展示及下游读取重验上游报告、收据和事件；原文金额及来源主体仍需内容复核。
+
+有界上限为首稿加一次原Agent局部修订；已通过任务授权的无效提交也计入尝试。修订使用实际反馈的 `base_draft_ref`、`allowed_paths`及changes，不完整重交、不由程序改观点，修订后完整再验。权限/完整性错误不可用宽松修复绕过。工具参数/格式或语义仍可能失败，短回执不表示报告完成。定点验证经已批准宿主 `--start-multidimensional-task` 执行最小依赖闭包；完整八维经 `--resume-multidimensional-run`（8子/1父）。实际范围和预算以当前 Change 明确授权为准，没有额度时只准备与检查，不运行。
 
 ```text
 python3 -m product.runtime.cli artifact-replay \
@@ -86,12 +112,13 @@ python3 -m product.runtime.cli eval-prepare \
   --eval-id <eval-id>
 ```
 
-完整 Council 会生成 `grader-input.json` 和 `grader-prompt.txt`。由开发控制面的 `dev_eval` 使用 `runtime-eval-grading` Skill 输出结构化语义结果后执行：
+显式 Eval Job 准备后保留完整校验输入 `grader-input.json`，并生成移除外围重复技术包装的 `grader-model-input.json`、`grader-prompt.txt` 和权威 `semantic-output-schema.json`。独立 `dev_eval` 使用 `runtime-eval-grading`，在自己的子会话完整读取冻结 manifest 和模型视图，输出 native 语义草稿；不抄写 hash，也不自行写正式结果。视图不递归删除事实字段，读取证明、等价性及文件字节统计由程序核验，不把字节当 token。协调线程沿原收集入口读取真实 rollout：
 
 ```text
 python3 -m product.runtime.cli eval-execution-proof \
   --repo <repository-root> --eval-dir <eval-dir> \
-  --semantic-result <semantic-result.json> --sessions-root <codex-sessions-root>
+  --semantic-result <eval-dir>/semantic-result.json --sessions-root <codex-sessions-root> \
+  --collect-native-output
 
 python3 -m product.runtime.cli eval-finalize \
   --repo <repository-root> \
@@ -100,6 +127,8 @@ python3 -m product.runtime.cli eval-finalize \
 ```
 
 权威产物为 `eval/result.json`，`eval/report.md` 由同一结果确定性渲染。带语义评分的真实 Eval 必须先通过 `eval-execution-proof`，静态 JSON 不能代替真实 `dev_eval` 会话。Eval 不回写源 Run。预期 `FAILED_VALIDATION` 案例可通过重复的 `--expected-terminal-state FAILED_VALIDATION` 进行诊断。
+
+收集返回 `EVAL_LOCAL_REVISION_REQUIRED` 时只是待修订，不是 PASS：协调线程仅向返回的原 `child_session_id` 使用一次原生 `send_input`，消息为完整 `feedback`；等待同一子会话完成后再次收集。局部补丁只改允许路径，保留两版原文并完整再验；第二次失败、其它字段漂移或基础稿损坏均终止，禁止另派 grader 或重置额度。只有 `EVAL_EXECUTION_PROOF_VERIFIED` 才进入 `eval-finalize`。合法的低分或 FAIL 不触发重评。当前带局部修订标记的执行证明会重读原 rollout/原稿；不回填历史结果或扩大旧证据的适用范围。上述命令属于显式维护任务，不是普通开发自检的自动步骤。
 
 Rubric 校准使用人工标注的固定样本，并至少进行两次相互独立的 `dev_eval` 盲评。若同一维度的状态不一致或 grade 差值超过门槛，校准必须 FAIL；不得修改原始评分来追求通过。
 

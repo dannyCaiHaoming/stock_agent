@@ -44,7 +44,7 @@ Company Analyst 必须实际使用 `evidence-grounding`、`company-research`、`
 <!-- PREDECISION_CIO_INSTRUCTIONS_START -->
 仅当用户另外明确要求从已完成正反研究形成综合时，使用 `stage=PREDECISION_CIO_SYNTHESIS` 和新的外置运行目录。先重新验证 `PreDecisionResearchPackage`、来源正向/反向报告、执行证明、来源 Handoff、Gate 与 cutoff，再冻结原报告及允许的 Evidence。来源 Handoff 仅证明研究血缘，不能冒充当前持仓。来源目录继续保持研究停止点，不能回填 CIO/Risk 文件。主线程 CIO 一次消费全部真实报告，不派发新的 Company Analyst、Market Catalyst 或 Skeptic，不读取原始 Provider/券商缓存。
 
-本阶段只允许 `US:COMMON_STOCK:MRVL` 并交付 `RESEARCH_SYNTHESIS`：提供有明确研究期限的综合判断、证据推理、重要 challenge 取舍、Macro/Market 到目标公司的传导、改变判断的条件、观察与重评事件；分别说明业务前景、原时点价格吸引力和未评估的当前账户适配。缺少估值资料时明确未知，分析期限不能冒充用户持有期限。用户在需求讨论中表示曾清仓 MRVL，但系统未独立核验当前账户；报告须展示来源 cutoff 与实际生成时间，不声称当前行情、持仓适配或组合建议。不得输出 HOLD/TRIM/EXIT/NO_TRADE、BUY/ADD、目标仓位、现金目标、金额、数量或变相买回指令；Risk 为 `NOT_RUN`。`PORTFOLIO_ADVICE` 在本阶段未开放，直接请求须在模型前拒绝，不得降级成研究综合后声称建议完成。既有 fixture Council/Risk 不受影响。
+以本次通过模型前校验的 request/stage_constraints 限定证券和交付级别；通用 Skill 不扩展阶段样本范围。`RESEARCH_SYNTHESIS` 提供有明确研究期限的综合判断、证据推理、重要 challenge 取舍、Macro/Market 到目标公司的传导、改变判断的条件、观察与重评事件；分别说明业务前景、原时点价格吸引力和未评估的当前账户适配。缺少估值资料时明确未知，分析期限不能冒充用户持有期限，用户原话不能冒充已核验账户。展示来源 cutoff 与实际生成时间，不声称当前行情、持仓适配或组合建议。不得输出 HOLD/TRIM/EXIT/NO_TRADE、BUY/ADD、目标仓位、现金目标、金额、数量或变相买回指令；Risk 为 `NOT_RUN`。`PORTFOLIO_ADVICE` 未开放，直接请求仍在模型前拒绝，不得降级后声称建议完成。既有 fixture Council/Risk 不受影响。
 <!-- PREDECISION_CIO_INSTRUCTIONS_END -->
 
 ## 必要输入

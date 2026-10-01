@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import json
+import copy
 import shlex
+import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .artifact_matrix import validate_artifact_matrix
-from .hashing import canonical_hash, file_hash
+from .hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
 from .replay import replay_run
 from .regression_invariants import derive_runtime_invariant_facts
-from .schema_validation import validate_schema_instance
+from .schema_validation import (
+    SchemaValidationError,
+    validate_schema_definition,
+    validate_schema_instance,
+)
 from .trace_validation import trace_integrity_report
 from .validation import collect_evidence_refs
 from .eval_execution_proof import verify_eval_execution_proof
@@ -20,6 +26,7 @@ from .smoke_prompt import sessions_root_argument
 
 EVAL_JOB_VERSION = "runtime-eval-job/1.0.0"
 SEMANTIC_RESULT_VERSION = "semantic-rubric-result/1.0.0"
+MODEL_INPUT_VERSION = "runtime-eval-model-input/1.0.0"
 SEMANTIC_DIMENSIONS = (
     "no_trade_reasoning",
     "analyst_thesis_grounding",
@@ -86,6 +93,36 @@ def _semantic_input(run_dir: Path, trace: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def runtime_eval_model_input(full: Mapping[str, Any]) -> dict[str, Any]:
+    """只移除已知产物的外围技术包装，不递归删除事实或研究内容。"""
+    value = copy.deepcopy(dict(full))
+    excluded = {
+        "evidence/gate.json": {"schema_version", "run_id", "bundle_hash"},
+        "agents/runtime_company_analyst.json": {"schema_version", "run_id", "invocation_id", "skill_execution"},
+        "agents/runtime_skeptic.json": {"schema_version", "run_id", "invocation_id", "skill_execution"},
+        "cio/runtime_cio.json": {"schema_version", "run_id", "invocation_id", "skill_execution"},
+        "decision.json": {"schema_version", "run_id"},
+    }
+    for ref, fields in excluded.items():
+        artifact = value.get("artifacts", {}).get(ref)
+        if isinstance(artifact, dict):
+            for field in fields:
+                artifact.pop(field, None)
+    return value
+
+
+def verify_runtime_eval_model_input(eval_dir: Path, manifest: Mapping[str, Any]) -> dict | None:
+    contract = manifest.get("model_input_projection")
+    if contract is None and not manifest.get("local_revision_contract"):
+        return None  # 旧冻结包读取不回填新视图。
+    full = _read_object(eval_dir / "grader-input.json")
+    projected = _read_object(eval_dir / "grader-model-input.json")
+    if (contract != {"version": MODEL_INPUT_VERSION, "input_hash": canonical_hash(projected)}
+            or projected != runtime_eval_model_input(full)):
+        raise RuntimeEvalError("EVAL_MODEL_INPUT_PROJECTION_DRIFT")
+    return projected
+
+
 def _rubric_path(repository_root: Path, run_dir: Path) -> Path:
     manifest = _read_object(run_dir / "run_manifest.json")
     mode = manifest.get("source_mode", "fixture")
@@ -115,10 +152,10 @@ def _future_injection_check(
     reasons: list[str] = []
     if set(record) != required or record.get("schema_version") != "regression-injection/1.1.0":
         reasons.append("FUTURE_INJECTION_RECORD_SCHEMA_INVALID")
-    body = dict(record)
-    claimed_hash = body.pop("record_hash", None)
-    if claimed_hash != canonical_hash(body):
-        reasons.append("FUTURE_INJECTION_RECORD_HASH_INVALID")
+    try:
+        verify_legacy_envelope_hash(record, hash_field="record_hash", location="audit/regression-injection.json")
+    except HashContractError as exc:
+        reasons.append(f"FUTURE_INJECTION_RECORD_HASH_INVALID:{exc}")
     if (
         record.get("producer") != "regression-fixture-injector"
         or record.get("injection_mechanism") != "append_declared_evidence_before_pit_gate"
@@ -328,7 +365,49 @@ def semantic_output_schema(repository_root: Path, *, native_draft: bool = False)
         schema["required"] = ["schema_version", "eval_id", "dimensions"]
         schema["properties"] = {k: schema["properties"][k] for k in schema["required"]}
         schema["properties"]["schema_version"] = {"const": "semantic-rubric-draft/1.0.0"}
+    validate_schema_definition(schema)
     return schema
+
+
+def not_applicable_semantic_schema(repository_root: Path) -> dict[str, Any]:
+    """Validate the existing deterministic terminal branch, never a model draft.
+
+    Keep the historical model-result schema bytes and hashes unchanged. This
+    explicit projection describes the separately produced v1 terminal artifact;
+    it does not admit this identity in the dev_eval submission contract.
+    """
+    schema = semantic_output_schema(repository_root)
+    schema["$id"] = "portfolio-council/deterministic-not-applicable-result/1.0.0"
+    grader = schema["properties"]["grader"]["properties"]
+    grader["agent"] = {"const": "deterministic-not-applicable"}
+    grader["model"] = {"const": "none"}
+    for dimension in schema["properties"]["dimensions"]["properties"].values():
+        dimension["properties"]["status"] = {"const": "NOT_APPLICABLE"}
+        dimension["properties"]["grade"] = {"type": "null"}
+        dimension["properties"]["evidence_refs"] = {"type": "array", "maxItems": 0}
+    validate_schema_definition(schema)
+    return schema
+
+
+def validate_not_applicable_semantic_result(
+    value: Mapping[str, Any], *, repository_root: Path, input_manifest: Mapping[str, Any]
+) -> None:
+    """Revalidate the real deterministic producer output and trusted lineage."""
+    try:
+        validate_schema_instance(value, not_applicable_semantic_schema(repository_root))
+        verify_legacy_envelope_hash(value, hash_field="output_hash", location="semantic-rubric.json")
+    except (SchemaValidationError, HashContractError) as exc:
+        raise RuntimeEvalError(f"EVAL_NOT_APPLICABLE_RESULT_INVALID:{exc}") from exc
+    expected_grader = {
+        "agent": "deterministic-not-applicable", "model": "none",
+        "prompt_hash": input_manifest["source_hashes"]["grader_prompt"],
+        "rubric_hash": input_manifest["source_hashes"]["rubric"],
+        "input_hash": input_manifest["source_hashes"]["semantic_input"],
+    }
+    if (value["eval_id"] != input_manifest["eval_id"]
+            or value["grader"] != expected_grader
+            or value["dimensions"] != _default_semantic(applicable=False)):
+        raise RuntimeEvalError("EVAL_NOT_APPLICABLE_RESULT_INVALID:lineage")
 
 
 def prepare_eval_job(
@@ -339,6 +418,11 @@ def prepare_eval_job(
     eval_id: str,
     expected_terminal_states: Sequence[str] = ("COMPLETED", "SAFE_NO_TRADE"),
 ) -> dict[str, Any]:
+    from .versioning import load_version_manifest, validate_current_component_versions
+    product_root = repository_root.resolve() / "product"
+    validate_current_component_versions(product_root, load_version_manifest(product_root / "version-manifest.json"),
+                                        skill_names=(), schema_names=("semantic-rubric-result",),
+                                        adapter_scopes=(), check_risk=False)
     run_dir = run_dir.resolve()
     if eval_dir.exists():
         raise RuntimeEvalError("EVAL_DIRECTORY_ALREADY_EXISTS")
@@ -359,7 +443,7 @@ def prepare_eval_job(
         "不得创造新事实、不得更改投资动作、不得使用市场结果。输出 semantic-rubric-result/1.0.0 JSON。"
     )
     run_manifest = _read_object(run_dir / "run_manifest.json")
-    native_draft = run_manifest.get("source_mode") == "live"
+    native_draft = True
     semantic_schema = semantic_output_schema(repository_root.resolve(), native_draft=native_draft)
     if native_draft:
         prompt = ("你是开发控制面的 dev_eval，只依据冻结输入和 rubric 对五维度评分。"
@@ -386,10 +470,16 @@ def prepare_eval_job(
     }
     if native_draft:
         input_manifest["semantic_output_delivery"] = "native-draft/1.0.0"
+        from .eval_local_revision import VERSION as revision_version
+        input_manifest["local_revision_contract"] = revision_version
+        model_input = runtime_eval_model_input(semantic_input)
+        input_manifest["model_input_projection"] = {
+            "version": MODEL_INPUT_VERSION, "input_hash": canonical_hash(model_input)}
     eval_dir.mkdir(parents=True)
     _write_json(eval_dir / "input-manifest.json", input_manifest)
     _write_json(eval_dir / "deterministic.json", {"hard_gates": hard_gates})
     _write_json(eval_dir / "grader-input.json", semantic_input)
+    _write_json(eval_dir / "grader-model-input.json", model_input)
     _write_json(eval_dir / "semantic-output-schema.json", semantic_schema)
     (eval_dir / "grader-prompt.txt").write_text(prompt + "\n", encoding="utf-8")
     if _source_tree_hash(run_dir) != before:
@@ -443,10 +533,17 @@ def validate_semantic_result(
             raise RuntimeEvalError(f"SEMANTIC_DIMENSION_GRADE_INVALID:{name}")
         if not isinstance(item["evidence_refs"], list) or not isinstance(item["rationale"], str) or not item["rationale"]:
             raise RuntimeEvalError(f"SEMANTIC_DIMENSION_EVIDENCE_INVALID:{name}")
-    body = dict(value)
-    claimed = body.pop("output_hash")
-    if claimed != canonical_hash(body):
-        raise RuntimeEvalError("SEMANTIC_OUTPUT_HASH_INVALID")
+    try:
+        verify_legacy_envelope_hash(value, hash_field="output_hash", location="semantic-rubric.json")
+    except HashContractError as exc:
+        raise RuntimeEvalError(f"SEMANTIC_OUTPUT_HASH_INVALID:{exc}") from exc
+    try:
+        validate_schema_instance(
+            value,
+            semantic_output_schema(Path(__file__).resolve().parents[2]),
+        )
+    except SchemaValidationError as exc:
+        raise RuntimeEvalError(f"SEMANTIC_RESULT_SCHEMA_INVALID:{exc}") from exc
     return dict(value)
 
 
@@ -456,44 +553,28 @@ def build_eval_smoke_prompt(
     repository_root = repository_root.resolve()
     eval_dir = eval_dir.resolve()
     manifest = _read_object(eval_dir / "input-manifest.json")
-    hashes = manifest["source_hashes"]
     rubric_path = _rubric_path(repository_root, Path(manifest["run_dir"]))
+    if manifest.get("semantic_output_delivery") != "native-draft/1.0.0":
+        raise RuntimeEvalError("EVAL_LEGACY_WRITE_RETIRED")
     if manifest.get("semantic_output_delivery") == "native-draft/1.0.0":
+        runtime_python = shlex.quote(sys.executable)
         return f"""$runtime-eval-grading
 你是开发评分协调线程，不是 CIO；禁止修改产品或源 Run，不启动 Council。
 只启动一次独立子 Agent：agent_type=dev_eval、task_name=semantic_grading、fork_turns=none。
-子任务必须包含 eval_id={manifest['eval_id']}、eval_dir={eval_dir}、grader_prompt_hash={hashes['grader_prompt']}、rubric_hash={hashes['rubric']}、semantic_input_hash={hashes['semantic_input']}。
-要求完整读取 {eval_dir}/grader-prompt.txt、grader-input.json、semantic-output-schema.json 和 {rubric_path}，应用 runtime-eval-grading。
+子任务包含 eval_id={manifest['eval_id']} 和 eval_dir={eval_dir}。实际输入绑定由子线程读取冻结 manifest 的工具事件证明，hash 无需转抄。
+要求完整读取 {eval_dir}/grader-prompt.txt、grader-model-input.json、semantic-output-schema.json 和 {rubric_path}，应用 runtime-eval-grading。
+grader-input.json 是运行层完整校验输入，不必重复读取技术包装；模型视图保留事实、研究、反证、冲突和风险内容，哈希和等价性由程序核验。
 必须把以下要求逐字放入 dev_eval 子任务消息：你（子 Agent）在评分前单独完整读取并输出 {eval_dir}/input-manifest.json，使用绝对路径且输出不得截断；不可仅 jq 选择字段或比较 hash，父线程读取不能代替。协调线程不得自行完成这一步后省略子任务要求。用于运行层验证真实输入绑定，不要求模型复制 hash。
 本 Job 使用 semantic-rubric-draft/1.0.0，而不是历史 v1 完整结果；只返回 schema_version、eval_id、dimensions，五维评分/理由/引用不变。禁止生成或转抄任何证明 hash，禁止自行写结果文件。
 等待该子 Agent 完成后，不转抄其 JSON，直接执行：
-python3 -B -m product.runtime.cli eval-execution-proof --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))} --sessions-root {sessions_root_argument(sessions_root)} --collect-native-output
-成功后执行：
-python3 -B -m product.runtime.cli eval-finalize --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))}
+{runtime_python} -B -m product.runtime.cli eval-execution-proof --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))} --sessions-root {sessions_root_argument(sessions_root)} --collect-native-output
+如果返回 next_state=EVAL_LOCAL_REVISION_REQUIRED，这只是首稿校验反馈，不是评分通过：
+只向返回的原 child_session_id 使用原生 send_input，message 必须是返回的完整 feedback 字符串。
+不得新建评分 Agent、重置任务或改写评分文件；等待原子 Agent 返回唯一一次局部修订后，再执行上面同一收集命令一次。
+子 Agent 仅提交 base_draft_ref + changes，修改允许路径，其它分数、理由和引用不变；第二次仍错立即终止。
+只有收集返回已验证执行证明，才执行：
+{runtime_python} -B -m product.runtime.cli eval-finalize --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))}
 失败如实停止，禁止重评、修分、手工补 hash 或重写文件。
-"""
-    return f"""$runtime-eval-grading
-
-你是 Runtime Eval 的开发控制面协调线程，不是投资决策者。只处理 `{eval_dir}` 中已冻结的 Eval 输入，不补充外部事实，不修改源 Run 或产品文件。
-
-在等待前只启动一次独立子 Agent：`agent_type=dev_eval`、`task_name=semantic_grading`、`fork_turns=none`。子任务必须包含：
-- eval_id: `{manifest['eval_id']}`
-- eval_dir: `{eval_dir}`
-- grader_prompt_hash: `{hashes['grader_prompt']}`
-- rubric_hash: `{hashes['rubric']}`
-- semantic_input_hash: `{hashes['semantic_input']}`
-- semantic_output_schema_hash: `{hashes['semantic_output_schema']}`
-
-要求子 Agent 完整读取 `grader-prompt.txt`、`grader-input.json`、`semantic-output-schema.json` 与 `{rubric_path}`，应用 runtime-eval-grading Skill，只返回一个符合 Schema 的 JSON 对象。grader.agent 必须为 dev_eval，grader.model 必须为 gpt-5.6-terra，并逐字复制上述三个 lineage hash。不得生成投资建议或隐藏推理。
-`input-manifest.json` 中的 source_hashes 是 Runtime 按 canonical JSON/契约算法生成并已确定性验证的 lineage 值，不等同于文件字节 `sha256sum`。只核对上述值与 manifest 完全相同；禁止将其按文件字节哈希重新解释后误报完整性失败。
-
-收到结果后原样保存为 `{eval_dir / 'semantic-result.json'}`，然后运行：
-`python3 -m product.runtime.cli eval-execution-proof --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))} --sessions-root {sessions_root_argument(sessions_root)}`
-
-证明通过后运行：
-`python3 -m product.runtime.cli eval-finalize --repo {shlex.quote(str(repository_root))} --eval-dir {shlex.quote(str(eval_dir))} --semantic-result {shlex.quote(str(eval_dir / 'semantic-result.json'))}`
-
-最终只报告 eval_id、Eval 状态、`eval/result.json` 与 `eval/report.md`；不得改写评分以追求 PASS。
 """
 
 
@@ -504,12 +585,15 @@ def finalize_eval_job(
     semantic_result_path: Path | None = None,
 ) -> dict[str, Any]:
     input_manifest = _read_object(eval_dir / "input-manifest.json")
+    verify_runtime_eval_model_input(eval_dir, input_manifest)
     deterministic = _read_object(eval_dir / "deterministic.json")
     run_dir = Path(str(input_manifest["run_dir"]))
     if _source_tree_hash(run_dir) != input_manifest["source_hashes"]["run_tree"]:
         raise RuntimeEvalError("EVAL_SOURCE_RUN_MUTATED")
     semantic_input = _read_object(eval_dir / "grader-input.json")
     applicable = semantic_input["terminal_state"] in {"COMPLETED", "SAFE_NO_TRADE"} and bool(semantic_input["artifacts"].get("cio/runtime_cio.json"))
+    if applicable and input_manifest.get("semantic_output_delivery") != "native-draft/1.0.0":
+        raise RuntimeEvalError("EVAL_LEGACY_WRITE_RETIRED")
     if semantic_result_path is None:
         if applicable:
             raise RuntimeEvalError("SEMANTIC_RESULT_REQUIRED")
@@ -526,7 +610,9 @@ def finalize_eval_job(
             },
             "dimensions": dimensions,
         }
-        semantic["output_hash"] = canonical_hash(semantic)
+        semantic["output_hash"] = legacy_envelope_hash(semantic, hash_field="output_hash")
+        validate_not_applicable_semantic_result(
+            semantic, repository_root=repository_root, input_manifest=input_manifest)
     else:
         semantic = validate_semantic_result(
             _read_object(semantic_result_path),
@@ -569,7 +655,7 @@ def finalize_eval_job(
         "source_hashes": input_manifest["source_hashes"],
         "reason_codes": reason_codes,
     }
-    result["eval_hash"] = canonical_hash(result)
+    result["eval_hash"] = legacy_envelope_hash(result, hash_field="eval_hash")
     schema = _read_object(repository_root / "product" / "schemas" / "runtime" / "runtime-eval-job.schema.json")
     validate_schema_instance(result, schema)
     _write_json(eval_dir / "semantic-rubric.json", semantic)
@@ -634,6 +720,7 @@ def verify_runtime_eval_job(
     eval_result_path = eval_result_path.resolve()
     eval_dir = eval_result_path.parent.parent
     input_manifest = _read_object(eval_dir / "input-manifest.json")
+    verify_runtime_eval_model_input(eval_dir, input_manifest)
     deterministic = _read_object(eval_dir / "deterministic.json")
     semantic_input = _read_object(eval_dir / "grader-input.json")
     semantic = _read_object(eval_dir / "semantic-rubric.json")
@@ -684,14 +771,8 @@ def verify_runtime_eval_job(
             input_manifest=input_manifest,
         )
     else:
-        body = dict(semantic)
-        claimed = body.pop("output_hash", None)
-        if (
-            claimed != canonical_hash(body)
-            or semantic.get("grader", {}).get("agent") != "deterministic-not-applicable"
-            or semantic.get("dimensions") != _default_semantic(applicable=False)
-        ):
-            raise RuntimeEvalError("EVAL_NOT_APPLICABLE_RESULT_INVALID")
+        validate_not_applicable_semantic_result(
+            semantic, repository_root=repository_root, input_manifest=input_manifest)
     execution_proof = None
     if input_manifest.get("authenticity_required") is True and applicable:
         execution_proof = verify_eval_execution_proof(
@@ -728,7 +809,11 @@ def verify_runtime_eval_job(
         "source_hashes": input_manifest["source_hashes"],
         "reason_codes": reason_codes,
     }
-    expected_result["eval_hash"] = canonical_hash(expected_result)
+    expected_result["eval_hash"] = legacy_envelope_hash(expected_result, hash_field="eval_hash")
+    try:
+        verify_legacy_envelope_hash(saved, hash_field="eval_hash", location="eval/result.json")
+    except HashContractError as exc:
+        raise RuntimeEvalError(f"EVAL_RESULT_MISMATCH:{exc}") from exc
     if saved != expected_result:
         raise RuntimeEvalError("EVAL_RESULT_MISMATCH")
     validate_schema_instance(

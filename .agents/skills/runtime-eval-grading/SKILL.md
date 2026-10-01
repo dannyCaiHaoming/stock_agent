@@ -19,8 +19,10 @@ metadata:
 
 每项只能输出 `PASS`、`FAIL` 或 `NOT_APPLICABLE`，并提供 0–3 的离散 grade（不适用时为 null）、实际 Claim/Evidence 引用和简短理由。不得把固定动作、固定 Confidence、市场涨跌或隐藏推理作为正确答案。
 
-输出必须符合 `semantic-rubric-result/1.0.0`，并逐字复制 Eval Job 给出的 `eval_id`、Prompt hash、Rubric hash 和 Input hash。模型标识必须是实际调用模型；不得伪造 token、延迟或执行证明。
+当前 Job 以实际交付的 `semantic-output-schema.json` 为输出契约。native draft 只填写 `schema_version`、`eval_id`、`dimensions`；Prompt/Rubric/Input/Output hash、grader 身份、实际模型和执行血缘由运行层从冻结输入及真实会话装配，不填写、不重算或转抄这些字段。历史完整结果只用于对应版本读取，不作为当前新稿模板。
 
-Eval Job 的 lineage hash 使用 Runtime 声明的 canonical JSON/契约算法，可能不等于文件字节哈希。应核对任务给出的值与 `input-manifest.json` 完全一致，不得自行改用 `sha256sum` 重新解释并制造伪冲突；文件内容与 source hash 的确定性验证已经由 Eval Prepare 完成。
+按任务要求在自己的独立子会话完整读取冻结 `input-manifest.json`，以及评分输入、Prompt 和 Rubric；父线程代读或模型自报不能证明读取。保留原五维评分、理由和引用责任，不因运输结构简化改变阈值或把事实不足评为充分。
+
+若运行层给出有界修订反馈，只在原子会话纠正允许字段，最多一次；其它评分和理由保持原稿不变，修订后完整复核。不得重新派发评分 Agent、擅自加分、猜引用或以重启会话增加额度。没有安全的局部定位时如实失败。
 
 如果输入 hash、Rubric、Evidence Closure、PIT 或 Trace 前置验证不完整，停止评分并 fail closed，不自行修补产物。

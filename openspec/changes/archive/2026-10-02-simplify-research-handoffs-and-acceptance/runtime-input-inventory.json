@@ -1,0 +1,161 @@
+{
+  "check_scope": "READ_ONLY_INPUT_INVENTORY_NOT_EXECUTION_ADMISSION",
+  "checked_date": "2026-10-01",
+  "run_id": "eight-dimension-rebuild-20260928-v2",
+  "decision_cutoff": "2026-09-28T12:35:32.208143Z",
+  "files": [
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/run_manifest.json",
+      "exists": true,
+      "sha256": "9d89e3b451132630542885189a39b5b6f03d1db59554e4436de98e101b39939b"
+    },
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/evidence/gate.json",
+      "exists": true,
+      "sha256": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba"
+    },
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/audit/portfolio-handoff.json",
+      "exists": true,
+      "sha256": "42a586449b99c07c67756d59c8e65bafcaef3eaa3bda0c5f3e0708f856287a5b"
+    },
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/import-manifest.json",
+      "exists": true,
+      "sha256": "85a29b98501b20a177213a47495e516f14f619af37515650801ff7f6aea12b5f"
+    },
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/run_manifest.json",
+      "exists": true,
+      "sha256": "04b2272c7d887fe9a74719b74592375073781ec8e6b8858bfcf62b06e0adf4fb"
+    },
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/material-preparation-manifest.json",
+      "exists": true,
+      "sha256": "452845f31a790c1e9d8d00da9e4294b87cfb67cfc351a59c016698f869dd63fc"
+    },
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/gate.json",
+      "exists": true,
+      "sha256": "1cf19da2a30ffc832b44b6fe60ce4113bf453f14ea4604c7750aa3b12ee848eb"
+    },
+    {
+      "path": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/data-preparation.json",
+      "exists": true,
+      "sha256": "32a97f01aa53ac86ea4ad259b600fbf7b979187b46e08e7a830b8c50578c8de9"
+    }
+  ],
+  "gate_envelope_valid": true,
+  "manifest_gate_matches": true,
+  "import_envelope_valid": true,
+  "source_manifest_same_bytes": true,
+  "source_materials_manifest_same_bytes": true,
+  "copied_artifacts": [
+    {
+      "artifact_ref": "research/imported-materials/2623051c16f93e98/search-1.json",
+      "exists": true,
+      "sha256": "62dba626af3499776be638476781aeb85e976d7ba1097dfcee1070a5c6a0ee70",
+      "expected_sha256": "62dba626af3499776be638476781aeb85e976d7ba1097dfcee1070a5c6a0ee70",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/2623051c16f93e98/search-2.json",
+      "exists": true,
+      "sha256": "1cd1a7a00788e32f8002aa5815757466278967d9f165f3d66c687e4141640244",
+      "expected_sha256": "1cd1a7a00788e32f8002aa5815757466278967d9f165f3d66c687e4141640244",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/2623051c16f93e98/search-3.json",
+      "exists": true,
+      "sha256": "d12486400372da3b6591b42b6f02f9f7757149eb4c0d02683767530a6aa66767",
+      "expected_sha256": "d12486400372da3b6591b42b6f02f9f7757149eb4c0d02683767530a6aa66767",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/25b0fc07e028bfad/search-1.json",
+      "exists": true,
+      "sha256": "1aec36286728dcc5dafbc75ad2071265e207054990dd52926a49e87ddc560479",
+      "expected_sha256": "1aec36286728dcc5dafbc75ad2071265e207054990dd52926a49e87ddc560479",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/25b0fc07e028bfad/search-3.json",
+      "exists": true,
+      "sha256": "4d34f908740fe98d00cd53b9038bc4d982da23856ca9559227a6962ad48ce0fc",
+      "expected_sha256": "4d34f908740fe98d00cd53b9038bc4d982da23856ca9559227a6962ad48ce0fc",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/25b0fc07e028bfad/search-2.json",
+      "exists": true,
+      "sha256": "2950f8c8053b83bbb2621d431a291658d2099d3619faac36809f05141dbe0e3f",
+      "expected_sha256": "2950f8c8053b83bbb2621d431a291658d2099d3619faac36809f05141dbe0e3f",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/25b0fc07e028bfad/fetch-c8954f631dd982d6.json",
+      "exists": true,
+      "sha256": "e883c0533ce13e32fa54019fd260bc86898c468f02e7a57346c0e2c013c70047",
+      "expected_sha256": "e883c0533ce13e32fa54019fd260bc86898c468f02e7a57346c0e2c013c70047",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/00ce1f54cb7d5784/search-2.json",
+      "exists": true,
+      "sha256": "8217f6b14de15553f6833b02ba8229edf37c5df23aade199be5f6b1e5c2635c9",
+      "expected_sha256": "8217f6b14de15553f6833b02ba8229edf37c5df23aade199be5f6b1e5c2635c9",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/00ce1f54cb7d5784/search-3.json",
+      "exists": true,
+      "sha256": "6aa8e256d724517e1f803b39af1473cc285e7412e6853869c69748d9bf18001a",
+      "expected_sha256": "6aa8e256d724517e1f803b39af1473cc285e7412e6853869c69748d9bf18001a",
+      "matches": true
+    },
+    {
+      "artifact_ref": "research/imported-materials/00ce1f54cb7d5784/search-1.json",
+      "exists": true,
+      "sha256": "90a7cfabcd2b01d02d40383bea871fe13f341325a31a063d2af32277e95abfce",
+      "expected_sha256": "90a7cfabcd2b01d02d40383bea871fe13f341325a31a063d2af32277e95abfce",
+      "matches": true
+    }
+  ],
+  "missing_recorded_cio_sources": [
+    {
+      "path": "/private/tmp/activate-independent-skeptic-mrvl-20260924-v9/company-run",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/activate-independent-skeptic-mrvl-20260924-v9/run",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/verify-research-cio-20260926-v4/run",
+      "exists": false
+    },
+    {
+      "path": "/private/tmp/activate-cio-mrvl-enum-uvVgh3/run",
+      "exists": false
+    }
+  ],
+  "searched_cio_backup_root": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs",
+  "cio_backup_package_paths": [],
+  "readiness": {
+    "frozen_research_input": "PRESENT_HASH_INVENTORY_ONLY",
+    "current_execution_admission": "NOT_RUN",
+    "predecision_cio_source": "MISSING_IN_CHECKED_LOCATIONS",
+    "model_validation": "NOT_RUN"
+  },
+  "model_calls": 0,
+  "actual_command": "PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'\nfrom pathlib import Path\nimport json, hashlib\nfrom product.runtime.hashing import legacy_envelope_hash\nroot = Path('/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928')\nrun = root / 'eight-dimension-v4-acceptance.8iWZu9/run'\ndef load(path):\n    return json.loads(path.read_text())\ndef digest(path):\n    return hashlib.sha256(path.read_bytes()).hexdigest()\nmanifest = load(run / 'run_manifest.json')\ngate = load(run / 'evidence/gate.json')\nimported = load(run / 'research/imported-materials/import-manifest.json')\nsource = Path(imported['source_run'])\nchecks = []\nfor entry in imported['entries']:\n    for artifact in entry['copied_artifacts']:\n        path = run / artifact['artifact_ref']\n        checks.append({'artifact_ref':artifact['artifact_ref'],'exists':path.is_file(),'sha256':digest(path) if path.is_file() else None,'expected_sha256':artifact['file_hash'],'matches':path.is_file() and digest(path)==artifact['file_hash']})\nfiles = []\nfor path in [run/'run_manifest.json',run/'evidence/gate.json',run/'audit/portfolio-handoff.json',run/'research/imported-materials/import-manifest.json',source/'run_manifest.json',source/'research/material-preparation-manifest.json',root/'data-v2/gate.json',root/'data-v2/data-preparation.json']:\n    files.append({'path':str(path),'exists':path.is_file(),'sha256':digest(path) if path.is_file() else None})\nmissing = []\nfor path in [Path('/private/tmp/activate-independent-skeptic-mrvl-20260924-v9/company-run'),Path('/private/tmp/activate-independent-skeptic-mrvl-20260924-v9/run'),Path('/private/tmp/verify-research-cio-20260926-v4/run'),Path('/private/tmp/activate-cio-mrvl-enum-uvVgh3/run')]:\n    missing.append({'path':str(path),'exists':path.is_dir()})\npackage_refs = sorted(str(path) for path in (root.parent).rglob('pre-decision-research-package.json'))\nprint(json.dumps({'check_scope':'READ_ONLY_INPUT_INVENTORY_NOT_EXECUTION_ADMISSION','checked_date':'2026-10-01','run_id':manifest['run_id'],'decision_cutoff':gate['decision_cutoff'],'files':files,'gate_envelope_valid':gate['bundle_hash']==legacy_envelope_hash(gate,hash_field='bundle_hash'),'manifest_gate_matches':manifest['gate_hash']==gate['bundle_hash'],'import_envelope_valid':imported['import_hash']==legacy_envelope_hash(imported,hash_field='import_hash'),'source_manifest_same_bytes':digest(source/'run_manifest.json')==imported['source_manifest_file_hash'],'source_materials_manifest_same_bytes':digest(source/'research/material-preparation-manifest.json')==imported['source_materials_manifest_file_hash'],'copied_artifacts':checks,'missing_recorded_cio_sources':missing,'searched_cio_backup_root':str(root.parent),'cio_backup_package_paths':package_refs,'readiness':{'frozen_research_input':'PRESENT_HASH_INVENTORY_ONLY','current_execution_admission':'NOT_RUN','predecision_cio_source':'MISSING_IN_CHECKED_LOCATIONS','model_validation':'NOT_RUN'},'model_calls':0},ensure_ascii=False,indent=2))\nPY",
+  "process_exit_code": 0,
+  "observation_limits": [
+    "未执行测试、准备新运行、联网、模型、独立复核或完整 Gate。",
+    "原始运行和版本锁未修改；只记录实际文件字节及既有 envelope 算法结果。",
+    "稳定失败批次仅候选资料来源，不是有效正反研究包或研究质量通过证明。",
+    "未搜索整个用户目录；CIO 源缺失结论仅覆盖已记录路径和指定稳定验收根。",
+    "当前配置、新任务准入、资料原值与所有外置依赖完整验证尚未执行。"
+  ]
+}

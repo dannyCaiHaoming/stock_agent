@@ -11,6 +11,8 @@ import unittest
 from unittest.mock import patch
 
 from product.runtime.research_memory import (
+    FACT_PROJECTION,
+    LEGACY_FACT_PROJECTION,
     ResearchMemory,
     ResearchMemoryError,
     fact_content_hash,
@@ -18,6 +20,8 @@ from product.runtime.research_memory import (
     report_reuse_key,
     research_input_fingerprint,
     resolve_memory_root,
+    resolve_memory_view_fact_versions,
+    resolve_view_fact_versions,
 )
 from product.runtime.common_stock_data import (
     CommonStockDataError,
@@ -223,7 +227,7 @@ class ResearchMemoryTests(unittest.TestCase):
             ).fetchone())
         migrated = ResearchMemory(self.root)
         with migrated.session() as connection:
-            self.assertEqual(2, connection.execute("PRAGMA user_version").fetchone()[0])
+            self.assertEqual(3, connection.execute("PRAGMA user_version").fetchone()[0])
             columns = {
                 row[1] for row in connection.execute("PRAGMA table_info(reports)")
             }
@@ -293,6 +297,176 @@ class ResearchMemoryTests(unittest.TestCase):
         self.assertEqual(["110"], [item["value"] for item in current])
         later = self.memory.current_facts("US:MRVL", "2026-03-09T00:00:00Z")
         self.assertEqual({"110", "120"}, {item["value"] for item in later})
+
+    def test_nested_fact_value_fields_are_not_observation_metadata(self):
+        first = self.fact(value={"value": "100", "retrieved_at": "source-record-a"})
+        changed = self.fact(
+            evidence_id="ev-changed",
+            value={"value": "100", "retrieved_at": "source-record-b"},
+        )
+        self.assertEqual(logical_fact_key(first), logical_fact_key(changed))
+        self.assertNotEqual(fact_content_hash(first), fact_content_hash(changed))
+        plan = self.memory.plan(
+            "US:MRVL", "sec", "sec_companyfacts",
+            planning_as_of="2026-03-02T00:00:00Z",
+        )
+        result = self.memory.ingest_dataset(
+            plan=plan, facts=[first, changed], status="FETCHED_BOOTSTRAP",
+            completed_at="2026-03-02T00:00:00Z",
+        )
+        self.assertEqual(2, result["inserted_versions"])
+
+    def test_legacy_projection_is_read_without_collapsing_new_nested_value(self):
+        original = self.fact(value={"value": "100", "retrieved_at": "record-a"})
+        legacy_hash = fact_content_hash(original, algorithm=LEGACY_FACT_PROJECTION)
+        with self.memory.session() as connection:
+            connection.execute(
+                "INSERT INTO fact_versions (version_hash,projection_version,logical_key,"
+                "security_id,provider,dataset,source_id,evidence_id,as_of,published_at,"
+                "first_retrieved_at,payload_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    legacy_hash, None,
+                    logical_fact_key(original, algorithm=LEGACY_FACT_PROJECTION),
+                    original["security_id"], "sec", "sec_companyfacts",
+                    original["source_id"], original["evidence_id"],
+                    original["as_of"], original["published_at"],
+                    original["retrieved_at"], json.dumps(original),
+                ),
+            )
+        observed_again = self.fact(
+            evidence_id="ev-observed-again", retrieved_at="2026-03-03T00:00:00Z",
+            value={"value": "100", "retrieved_at": "record-a"},
+        )
+        changed = self.fact(
+            evidence_id="ev-nested-revision", retrieved_at="2026-03-03T00:00:00Z",
+            value={"value": "100", "retrieved_at": "record-b"},
+        )
+        self.assertEqual(0, self.memory.new_version_count([observed_again]))
+        self.assertEqual(1, self.memory.new_version_count([changed]))
+        plan = self.memory.plan(
+            "US:MRVL", "sec", "sec_companyfacts",
+            planning_as_of="2026-03-03T00:00:00Z",
+        )
+        result = self.memory.ingest_dataset(
+            plan=plan, facts=[observed_again, changed],
+            status="FETCHED_INCREMENTAL", completed_at="2026-03-03T00:00:00Z",
+        )
+        self.assertEqual(1, result["inserted_versions"])
+        self.assertEqual(2, result["observations"])
+        self.assertEqual([{
+            "legacy_version_hash": legacy_hash,
+            "new_version_hash": fact_content_hash(changed),
+        }], result["projection_conflicts"])
+        with self.memory.session() as connection:
+            rows = connection.execute(
+                "SELECT version_hash,projection_version FROM fact_versions ORDER BY version_hash"
+            ).fetchall()
+            attempt = connection.execute(
+                "SELECT details_json FROM attempts WHERE attempt_id=?",
+                (result["attempt_id"],),
+            ).fetchone()
+        self.assertEqual(
+            result["projection_conflicts"],
+            json.loads(attempt[0])["projection_conflicts"],
+        )
+        self.assertEqual(
+            {None, FACT_PROJECTION}, {row["projection_version"] for row in rows},
+        )
+        self.assertIn(legacy_hash, {row["version_hash"] for row in rows})
+        self.assertEqual(
+            [{"value": "100", "retrieved_at": "record-b"}],
+            [item["value"] for item in self.memory.current_facts(
+                "US:MRVL", "2026-03-04T00:00:00Z",
+            )],
+        )
+
+    def test_version_two_database_migrates_without_rehashing_legacy_fact(self):
+        original = self.fact()
+        legacy_hash = fact_content_hash(original, algorithm=LEGACY_FACT_PROJECTION)
+        with self.memory.session() as connection:
+            connection.execute(
+                "INSERT INTO fact_versions (version_hash,logical_key,security_id,"
+                "provider,dataset,source_id,evidence_id,as_of,published_at,"
+                "first_retrieved_at,payload_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    legacy_hash,
+                    logical_fact_key(original, algorithm=LEGACY_FACT_PROJECTION),
+                    original["security_id"], "sec", "sec_companyfacts",
+                    original["source_id"], original["evidence_id"],
+                    original["as_of"], original["published_at"],
+                    original["retrieved_at"], json.dumps(original),
+                ),
+            )
+            connection.execute("ALTER TABLE fact_versions DROP COLUMN projection_version")
+            connection.execute("PRAGMA user_version = 2")
+        self.assertEqual(
+            [legacy_hash],
+            resolve_memory_view_fact_versions(
+                self.root, security_id="US:MRVL", facts=[original],
+            ),
+        )
+        from product.web.read_only import ReadOnlyResearchMemory
+        page = ReadOnlyResearchMemory(self.root).facts_page("US:MRVL")
+        self.assertTrue(page["view_integrity"]["complete"])
+        self.assertEqual(legacy_hash, page["items"][0]["version_hash"])
+        restarted = ResearchMemory(self.root)
+        with restarted.session() as connection:
+            self.assertEqual(3, connection.execute("PRAGMA user_version").fetchone()[0])
+            row = connection.execute(
+                "SELECT version_hash,projection_version FROM fact_versions"
+            ).fetchone()
+            self.assertEqual(legacy_hash, row["version_hash"])
+            self.assertIsNone(row["projection_version"])
+
+    def test_gate_freshness_is_view_only_and_ambiguous_history_fails_closed(self):
+        fact = self.fact(metadata={
+            "tag": "Revenues", "period_end": "2026-01-31",
+            "accession": "0001", "evidence_id": "source-row-1",
+        })
+        plan = self.memory.plan(
+            "US:MRVL", "sec", "sec_companyfacts",
+            planning_as_of="2026-03-02T00:00:00Z",
+        )
+        with self.assertRaisesRegex(ResearchMemoryError, "VIEW_METADATA_NOT_FACT"):
+            self.memory.ingest_dataset(
+                plan=plan, facts=[dict(fact, freshness_status="FRESH")],
+                status="FETCHED_BOOTSTRAP", completed_at="2026-03-02T00:00:00Z",
+            )
+        self.assertIsNone(self.memory.checkpoint("US:MRVL", "sec", "sec_companyfacts"))
+
+        legacy_hash = fact_content_hash(fact, algorithm=LEGACY_FACT_PROJECTION)
+        current_hash = fact_content_hash(fact)
+        self.assertNotEqual(legacy_hash, current_hash)
+        with self.memory.session() as connection:
+            for digest, algorithm in (
+                (legacy_hash, None), (current_hash, FACT_PROJECTION),
+            ):
+                stored = dict(
+                    fact,
+                    evidence_id=fact["evidence_id"] + (
+                        "-legacy" if algorithm is None else "-current"
+                    ),
+                )
+                connection.execute(
+                    "INSERT INTO fact_versions (version_hash,projection_version,logical_key,"
+                    "security_id,provider,dataset,source_id,evidence_id,as_of,published_at,"
+                    "first_retrieved_at,payload_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        digest, algorithm,
+                        logical_fact_key(fact, algorithm=algorithm or LEGACY_FACT_PROJECTION),
+                        stored["security_id"], "sec", "sec_companyfacts", stored["source_id"],
+                        stored["evidence_id"], stored["as_of"], stored["published_at"],
+                        stored["retrieved_at"], json.dumps(stored),
+                    ),
+                )
+            delivered = dict(
+                fact, freshness_status="FRESH",
+                freshness_policy_version="live-freshness/1.0.0",
+            )
+            with self.assertRaisesRegex(ResearchMemoryError, "BINDING_AMBIGUOUS"):
+                resolve_view_fact_versions(
+                    connection, security_id="US:MRVL", facts=[delivered],
+                )
 
     def test_raw_closure_preflight_only_exempts_a_winning_new_version(self):
         plan = self.memory.plan(

@@ -18,7 +18,8 @@ from product.runtime.decision_contract import (
 )
 from product.runtime.discovery import discover_product_resources
 from product.runtime.run_package import prepare_cio, prepare_run
-from tests.test_native_run_package import FIXTURES, specialist_outputs
+from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
+from tests.test_native_run_package import FIXTURES, cio_output, specialist_outputs
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,6 +97,34 @@ class CanonicalDecisionContractTests(unittest.TestCase):
             "no_trade_explanation": None,
         }
         validate_decision_action(action, self.contract)
+
+    def test_actual_cio_schema_enforces_no_trade_without_replacing_action_validator(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            prepare_run(
+                ROOT, fixture_path=FIXTURES / "normal-research.json",
+                run_dir=run_dir, run_id="schema-no-trade", model="gpt-5.6-terra",
+                research_question="检查条件契约。", authenticity_required=False,
+            )
+            specialist_outputs(run_dir)
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            schema = json.loads((PRODUCT_ROOT / "schemas/runtime/cio-decision-draft.schema.json").read_text())
+            valid = cio_output(run_dir)
+            valid.update(
+                action="NO_TRADE", target_weight_range=None, maximum_notional=None,
+                no_trade_reason="EVIDENCE_CONFLICT", no_trade_explanation="资料冲突未消解。",
+                reevaluation_conditions=["等待可信新资料。"],
+            )
+            validate_schema_instance(valid, schema)
+            validate_decision_action(valid, self.contract)
+            for mutation in (
+                {"maximum_notional": 0},
+                {"target_weight_range": [0, 0]},
+            ):
+                with self.subTest(mutation=mutation), self.assertRaises(SchemaValidationError):
+                    validate_schema_instance({**valid, **mutation}, schema)
+                with self.assertRaises(DecisionContractError):
+                    validate_decision_action({**valid, **mutation}, self.contract)
 
     def test_schema_or_contract_tampering_fails_discovery(self):
         with tempfile.TemporaryDirectory() as directory:

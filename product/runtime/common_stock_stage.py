@@ -31,14 +31,20 @@ from product.council import (
     validate_research_coverage,
 )
 from product.intake.v3 import validate_handoff
-from product.runtime.hashing import canonical_hash, file_hash
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
+from product.runtime.schema_validation import validate_schema_definition, validate_schema_instance
 from product.runtime.versioning import load_version_manifest, read_skill_version, validate_current_component_versions
 from product.council.research_output import validate_persisted_equity_research_pair
+from product.runtime.multidimensional_references import (
+    VERSION as REFERENCE_TRANSPORT_VERSION, build_reference_map,
+    translate_references, validate_reference_map, reference_output_schema,
+)
+from product.runtime.calculation_handoff import VERSION as CALCULATION_SELECTION_VERSION, selection_draft_schema
 
 
 STAGE_VERSION = "common-stock-research-runtime/1.0.0"
 DISPATCH_VERSION = "common-stock-research-dispatch/1.2.0"
-COMPANY_AGENT_VERSION = "3.0.20"
+SEMANTIC_OUTPUT_VERSION = "equity-research-semantic-draft/1.0.0"
 # 阶段精简实验未通过内容验收；默认恢复原完整 Company 配置。
 COMPANY_AGENT_PROFILE = "agents/runtime_company_analyst.toml"
 COMMON_STOCK_START_CONTEXT_MAX_BYTES = 256 * 1024
@@ -146,7 +152,7 @@ def _replace_object(path: Path, value: Mapping[str, Any]) -> None:
 
 
 def _claimed_hash(value: Mapping[str, Any], field: str) -> str:
-    return canonical_hash({key: item for key, item in value.items() if key != field})
+    return legacy_envelope_hash(value, hash_field=field)
 
 
 def _current_source_reuse_status(
@@ -552,6 +558,7 @@ def current_research_bindings(repository_root: Path) -> tuple[dict[str, Any], li
 def _dynamic_draft_schema(
     repository_root: Path, *, run_id: str, invocation_id: str,
     allowed_evidence_ids: Sequence[str], calculation_artifact_ids: Sequence[str] = (),
+    native_semantic: bool = False,
 ) -> dict[str, Any]:
     schema = _read_object(
         Path(repository_root).resolve() / "product/schemas/runtime/equity-research-report.schema.json"
@@ -575,9 +582,43 @@ def _dynamic_draft_schema(
     if calculation_artifact_ids:
         calculation_schema = {"type": "string", "enum": list(calculation_artifact_ids)}
     schema["$defs"]["claim"]["properties"]["calculation_refs"]["items"] = calculation_schema
-    from product.runtime.schema_validation import validate_schema_definition
+    if native_semantic:
+        schema["$id"] = SEMANTIC_OUTPUT_VERSION
+        for key in ("run_id", "invocation_id", "agent", "artifact_refs"):
+            schema["properties"].pop(key)
+            schema["required"].remove(key)
     validate_schema_definition(schema)
     return schema
+
+
+def assemble_common_stock_semantic_draft(repository_root: Path, draft: Mapping[str, Any], *,
+                                          request: Mapping[str, Any],
+                                          packet: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """固定身份由原 envelope 绑定；仅投影模型明确选用的计算引用。"""
+    schema = _dynamic_draft_schema(repository_root, run_id=request["run_id"],
+        invocation_id=request["invocation_id"], allowed_evidence_ids=request["allowed_evidence_ids"],
+        native_semantic=True)
+    mapping = packet.get("reference_map") if packet is not None else None
+    if mapping is not None:
+        identity = packet.get("identity", {})
+        if (identity.get("run_id") != request["run_id"]
+                or identity.get("invocation_id") != request["invocation_id"]
+                or identity.get("security_id") != request["security"]["security_id"]
+                or not set(mapping["evidence"].values()).issubset(request["allowed_evidence_ids"])):
+            raise CommonStockStageError("COMMON_STOCK_REFERENCE_BINDING_INVALID")
+        schema = common_stock_model_packet(packet)["output_schema"]
+    validate_schema_instance(draft, schema)
+    result = copy.deepcopy(dict(draft))
+    if packet is not None and packet.get("calculation_selection_version") is not None:
+        from product.runtime.calculation_handoff import assemble_common_stock_calculation_selections
+        result = assemble_common_stock_calculation_selections(
+            Path(mapping["binding"]["run_dir"]), packet, result,
+        )
+    if mapping is not None:
+        result = translate_references(result, mapping,
+                                      local_claims={item["claim_id"] for item in draft["claims"]})
+    result["artifact_refs"] = sorted(_collect_calculation_identities(result))
+    return result
 
 
 def invocation_file_name(invocation_id: str) -> str:
@@ -630,6 +671,7 @@ def _research_input_fingerprint_for_holding(
     repository_root: Path, *, request: Mapping[str, Any], gate: Mapping[str, Any],
     attachment: Mapping[str, Any] | None, model: str,
     agent: Mapping[str, Any], skills: Sequence[Mapping[str, Any]],
+    calculation_selection_version: str | None = CALCULATION_SELECTION_VERSION,
 ) -> str:
     """Build the closed, run-wrapper-independent Company Agent input identity."""
 
@@ -710,6 +752,8 @@ def _research_input_fingerprint_for_holding(
         # model-visible fact times and time-derived attachment values are here.
         "time_context": time_context,
     }
+    if calculation_selection_version is not None:
+        payload["prompt_policy"]["calculation_selection_version"] = calculation_selection_version
     return research_input_fingerprint(payload)
 
 
@@ -827,23 +871,67 @@ def _persist_validated_report_package(
         "research_status": _report_status_to_research_status(report["status"]),
         "package_ref": stored["object_ref"],
     }
-    reference["reference_hash"] = canonical_hash(reference)
+    reference["reference_hash"] = legacy_envelope_hash(reference, hash_field="reference_hash")
     validate_report_reference(reference)
     memory.save_report_index(reference, metadata=manifest)
     _write_object(reference_path, reference)
     return reference
 
 
+def common_stock_model_packet(packet: Mapping[str, Any]) -> dict[str, Any]:
+    """只转换明确引用字段；完整映射留在运行层，不注入模型上下文。"""
+    mapping = packet.get("reference_map")
+    if mapping is None:
+        if packet.get("reference_transport_version") is not None:
+            raise CommonStockStageError("COMMON_STOCK_REFERENCE_MAP_MISSING")
+        return copy.deepcopy(dict(packet))
+    validate_reference_map(mapping)
+    base = {key: value for key, value in packet.items() if key not in {"reference_map", "context_budget"}}
+    if (packet.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION
+            or mapping != build_reference_map(base, mapping["binding"]["gate_hash"], mapping["binding"]["run_dir"])):
+        raise CommonStockStageError("COMMON_STOCK_REFERENCE_BINDING_INVALID")
+    result = translate_references(dict(packet), mapping, to_model=True)
+    result.pop("reference_map")
+    # 只去除目录中逐行重复的键；原值、顺序和可查询引用完全保留。
+    catalog = []
+    for group in result["evidence_catalog"]:
+        columns = ["evidence_id", *sorted({
+            key for item in group["items"] for key in item if key != "evidence_id"
+        })]
+        table = {
+            "semantic_field": group["semantic_field"], "columns": columns,
+            "items": [[item.get(key) for key in columns] for item in group["items"]],
+        }
+        # 少量记录保留对象格式；只在重复键确实多于列头时投影。
+        catalog.append(table if len(json.dumps(table)) < len(json.dumps(group)) else group)
+    result["evidence_catalog"] = catalog
+    result["instruction"] += (
+        " evidence_catalog 中含 columns 的组为列式索引：columns 定义 items 每行各位置的字段名，"
+        "evidence_id 位于第一列；null 表示原索引未提供该字段，不能推断为事实零值。"
+        "完整事实、期间和来源须经授权 query 读取。"
+    )
+    result["holding_research_request"] = {
+        key: value for key, value in result["holding_research_request"].items()
+        if key not in {"agent_binding", "skill_bindings", "council_request_hash",
+                       "evidence_bundle_hash", "handoff_hash", "portfolio_hash", "request_hash"}
+    }
+    result["output_schema"] = reference_output_schema(packet["output_schema"], mapping)
+    if packet.get("calculation_selection_version") == CALCULATION_SELECTION_VERSION:
+        result["output_schema"] = selection_draft_schema(result["output_schema"])
+        result.pop("calculation_context")
+    return result
+
+
 def serialize_common_stock_dispatch_context(packet: Mapping[str, Any]) -> str:
     """与 SubagentStart Hook 完全相同的 UTF-8 上下文序列化。"""
 
-    return json.dumps(packet, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return json.dumps(common_stock_model_packet(packet), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _bound_common_stock_dispatch_packet(packet: dict[str, Any]) -> dict[str, Any]:
     section_bytes = {
         key: len(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
-        for key, value in packet.items()
+        for key, value in common_stock_model_packet(packet).items()
     }
     budget = {
         "policy_version": "common-stock-start-context-budget/1.0.0",
@@ -873,6 +961,15 @@ def _build_common_stock_dispatch_packet(
     request = _read_object(run_dir / task["request_path"])
     invocation = _read_object(run_dir / task["invocation_path"])
     gate = _read_object(run_dir / "evidence/gate.json")
+    reference_version = task.get("reference_transport_version")
+    if (reference_version not in {None, REFERENCE_TRANSPORT_VERSION}
+            or reference_version != invocation.get("reference_transport_version")
+            or (reference_version is not None
+                and task.get("semantic_output_version") != SEMANTIC_OUTPUT_VERSION)):
+        raise CommonStockStageError("COMMON_STOCK_REFERENCE_PROTOCOL_INVALID")
+    if (task.get("calculation_selection_version") not in {None, CALCULATION_SELECTION_VERSION}
+            or task.get("calculation_selection_version") != invocation.get("calculation_selection_version")):
+        raise CommonStockStageError("COMMON_STOCK_CALCULATION_PROTOCOL_INVALID")
     request_allowed_ids = set(request["allowed_evidence_ids"])
     all_request_evidence = [
         copy.deepcopy(item) for item in gate["allowed_evidence"]
@@ -919,6 +1016,29 @@ def _build_common_stock_dispatch_packet(
     schema = _dynamic_draft_schema(
         repository_root, run_id=request["run_id"], invocation_id=request["invocation_id"],
         allowed_evidence_ids=request["allowed_evidence_ids"],
+        native_semantic=task.get("semantic_output_version") == SEMANTIC_OUTPUT_VERSION,
+    )
+    artifact_instruction = (
+        "只在 calculation_selections 选择工具实际返回的 k.* 引用并列出关联 claim_ids；"
+        "用途、计算限制及不确定性写在对应主张中。不要填写 claim.calculation_refs、计算数值、血缘或 artifact_refs；程序沿成功记录装配。"
+        if task.get("calculation_selection_version") == CALCULATION_SELECTION_VERSION else
+        "只在研究字段中选择实际计算引用；顶层 artifact_refs 由程序从你的明确引用装配，不填写身份或技术字段。"
+        if task.get("semantic_output_version") == SEMANTIC_OUTPUT_VERSION else
+        "同一个 ID 必须同时列入顶层 artifact_refs；"
+    )
+    calculation_instruction = (
+        "每条 Claim 至少由 evidence_refs、assumption_ids 或关联本 Claim 的 calculation_selections 支撑。"
+        "calculation_selections 的 calculation_ref 只可选择本次 calculate 成功返回的 k.*，"
+        "或本次获准且成功读取的冻结附件正文中的 k.*；claim_ids 填写本报告实际存在的主张。"
+        if task.get("calculation_selection_version") == CALCULATION_SELECTION_VERSION else
+        "每条 Claim 至少有一个 evidence_ref、assumption_id 或 calculation_ref；"
+        "calculation_ref 只可来自两类已经实际交付的结果：本次 calculate 成功返回的 calculation_id，"
+        "或本次获准且成功读取的冻结附件正文中的 calculation_ref。"
+    )
+    monetary_reference_instruction = (
+        "改写为等值的亿或万，并在 calculation_selections 用成功结果的 k.* 关联该主张；"
+        if task.get("calculation_selection_version") == CALCULATION_SELECTION_VERSION else
+        "改写为等值的亿或万，并引用其 calculation_id；"
     )
     attachment_instruction = (
         "本次若使用冻结附件，须先通过 tool_context.attachment_query_tool 读取正文，"
@@ -966,10 +1086,8 @@ def _build_common_stock_dispatch_packet(
             "时间或说明。只返回 output_schema 的一个 JSON，不输出交易动作、仓位或完整组合结论。"
             "提交前逐项把每个 evidence_refs 与 evidence_catalog 做完整字符串核对；任何字符增删、"
             "替换或手工重写都属于非法引用，必须改为直接复制允许列表中的原值。"
-            "每条 Claim 至少有一个 evidence_ref、assumption_id 或 calculation_ref；"
-            "calculation_ref 只可来自两类已经实际交付的结果：本次 calculate 成功返回的 calculation_id，"
-            "或本次获准且成功读取的冻结附件正文中的 calculation_ref。"
-            "同一个 ID 必须同时列入顶层 artifact_refs；未成功调用、只出现在启动索引、或未随附件正文"
+            f"{calculation_instruction}"
+            f"{artifact_instruction}未成功调用、只出现在启动索引、或未随附件正文"
             "实际返回的计算不得引用。引用附件中的 DERIVED 数值时，对应 Claim 必须同时引用该数值的 "
             "calculation_ref 与全部 input evidence_refs，不得只引用原始输入后自行复算。"
             "核心假设关联具体主张；counter_claim_refs 只可填写本报告已有的 claim_id；反证若挑战"
@@ -1006,7 +1124,7 @@ def _build_common_stock_dispatch_packet(
             "不适用或不能可靠展示时才使用定性状态并说明原因。"
             "金额必须保留来源币种、数量级和税前/税后语义。中文主张实际呈现 Evidence 中以 "
             "billion 或 million 表示的金额时，必须先对该 Evidence 调用 fixture_runtime.calculate 的"
-            "monetary_scale 操作，改写为等值的亿或万，并引用其 calculation_id；例如 $1.8 billion "
+            f"monetary_scale 操作，{monetary_reference_instruction}例如 $1.8 billion "
             "转为 18 亿美元。影响盈利质量的重大交易或一次性项目若在 Evidence 中有该类金额，"
             "必须在相关主张中呈现并完成换算；其他未纳入正文的金额无需调用。未成功调用时不得"
             "自行换算或复述该金额。"
@@ -1016,7 +1134,12 @@ def _build_common_stock_dispatch_packet(
             "缺口及验证条件。对最重要的"
             "未决问题说明基准判断、向好/向坏条件、受影响主张与观察信号；无依据时不强凑情景。"
             "JSON 的 summary、narrative、statement 不重复粘贴 evidence_id、source_id、as_of 或"
-            "retrieved_at；只在结构化 evidence_refs 中使用原始 ID，中文报告会生成简短引用与完整附录。"
+            "retrieved_at；"
+            + ("结构化 evidence_refs 只能选择本任务 allowed_evidence_ids 中的短引用；不得填写原始 ID、"
+               "拼接来源/时间或使用其它任务的引用。运行层精确装配原始 ID，中文报告生成完整附录。"
+               if reference_version is not None else
+               "只在结构化 evidence_refs 中使用原始 ID，中文报告会生成简短引用与完整附录。")
+            +
             "data_gaps.reason_code 只可为 NOT_FETCHED、NOT_YET_DISCLOSED、SOURCE_UNSUPPORTED、UNKNOWN，"
             "无法证明原因时使用 UNKNOWN。区分公司研究资料缺口与本阶段未研究的技术图形、市场/宏观、"
             "板块、期权、资金结构、新闻情绪和 ETF 方向；不得把未研究解释为无风险。"
@@ -1051,6 +1174,29 @@ def _build_common_stock_dispatch_packet(
         "equity_research_attachments": attachment_context,
         "output_schema": schema,
     }
+    if reference_version is not None:
+        attachment_ids: set[str] = set()
+        if attachment_package is not None:
+            from product.runtime.equity_research_package import _evidence_refs, MODEL_QUERY_ARTIFACT_KINDS
+            attachment_ids = {
+                ref for entry in attachment_package["artifacts"]
+                if entry["kind"] in MODEL_QUERY_ARTIFACT_KINDS
+                for ref in _evidence_refs(entry["artifact"])
+                if ref in request_allowed_ids
+            }
+        packet.update(reference_transport_version=reference_version,
+                      allowed_evidence_ids=sorted(catalog_ids | attachment_ids))
+        if task.get("calculation_selection_version") is not None:
+            packet.update(calculation_selection_version=CALCULATION_SELECTION_VERSION,
+                calculation_context={
+                    "run_id": request["run_id"], "agent": "runtime_company_analyst",
+                    "invocation_id": task["invocation_id"], "invocation_path": task["invocation_path"],
+                    "allowed_evidence_ids": packet["allowed_evidence_ids"],
+                    "calculation_selection_version": CALCULATION_SELECTION_VERSION,
+                    "calculation_ledger_ref": task["calculation_ledger_ref"],
+                    **{key: task[key] for key in ("equity_research_package_path", "equity_research_package_hash") if key in task},
+                })
+        packet["reference_map"] = build_reference_map(packet, canonical_hash(gate), str(run_dir.resolve()))
     return _bound_common_stock_dispatch_packet(packet)
 
 
@@ -1064,6 +1210,32 @@ def build_common_stock_dispatch_packet(repository_root: Path, run_dir: Path, tas
     packet = _read_object(run_dir / task["packet_path"])
     if canonical_hash(packet) != task["packet_hash"]:
         raise CommonStockStageError("COMMON_STOCK_DISPATCH_PACKET_HASH_MISMATCH")
+    # 新写入映射必须由冻结输入重建，不能只接受可自行重签的 map_hash。
+    manifest = _read_object(run_dir / "run_manifest.json")
+    invocation = _read_object(run_dir / task["invocation_path"])
+    version = manifest.get("reference_transport_version")
+    if (version not in {None, REFERENCE_TRANSPORT_VERSION}
+            or version != task.get("reference_transport_version")
+            or version != invocation.get("reference_transport_version")):
+        raise CommonStockStageError("COMMON_STOCK_REFERENCE_PROTOCOL_INVALID")
+    if (manifest.get("calculation_selection_version") not in {None, CALCULATION_SELECTION_VERSION}
+            or manifest.get("calculation_selection_version") != task.get("calculation_selection_version")
+            or manifest.get("calculation_selection_version") != invocation.get("calculation_selection_version")):
+        raise CommonStockStageError("COMMON_STOCK_CALCULATION_PROTOCOL_INVALID")
+    if version is not None or packet.get("reference_map") is not None:
+        gate = _read_object(run_dir / "evidence/gate.json")
+        if (manifest.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION
+                or task.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION
+                or manifest.get("manifest_hash") != _claimed_hash(manifest, "manifest_hash")
+                or index.get("index_hash") != _claimed_hash(index, "index_hash")
+                or index.get("index_hash") != manifest.get("dispatch_index_hash")
+                or index.get("run_id") != manifest.get("run_id")
+                or invocation.get("manifest_hash") != _claimed_hash(invocation, "manifest_hash")
+                or gate.get("bundle_hash") != _claimed_hash(gate, "bundle_hash")
+                or gate.get("bundle_hash") != manifest.get("gate_hash")):
+            raise CommonStockStageError("COMMON_STOCK_REFERENCE_BINDING_INVALID")
+        if packet != _build_common_stock_dispatch_packet(repository_root, run_dir, task):
+            raise CommonStockStageError("COMMON_STOCK_DISPATCH_PACKET_BINDING_INVALID")
     return packet
 
 
@@ -1114,7 +1286,7 @@ def _apply_focus_to_stage(
         coverage, handoff=handoff, council_request=council_request
     )
     stage.pop("stage_hash", None)
-    stage["stage_hash"] = canonical_hash(stage)
+    stage["stage_hash"] = legacy_envelope_hash(stage, hash_field="stage_hash")
 
 
 def prepare_common_stock_stage_run(
@@ -1126,10 +1298,16 @@ def prepare_common_stock_stage_run(
     focus_security_id: str | None = None,
     equity_research_package_paths: Sequence[Path] = (),
     memory_root: Path | None = None, force_rerun: bool = False,
+    reuse_frozen_gate: bool = False,
 ) -> dict[str, Any]:
     """冻结已确认持仓和 Gate，生成一个可由现有宿主 launcher 执行的阶段包。"""
 
     repository_root = Path(repository_root).resolve()
+    product_root = repository_root / "product"
+    validate_current_component_versions(product_root, load_version_manifest(product_root / "version-manifest.json"),
+                                        skill_names=REQUIRED_SKILLS,
+                                        schema_names=("equity-research-report", "research-coverage"),
+                                        adapter_scopes=("common-stock-field-query",), check_risk=False)
     run_dir = Path(run_dir).resolve()
     from product.runtime.model_routing import select_product_runtime_model
     analyst_model = select_product_runtime_model(
@@ -1141,6 +1319,11 @@ def prepare_common_stock_stage_run(
     handoff = _read_object(Path(handoff_path).resolve())
     validate_handoff(handoff)
     gate = _read_object(Path(gate_path).resolve())
+    source_gate = copy.deepcopy(gate)
+    gate_input_binding = None
+    if reuse_frozen_gate:
+        from product.runtime.evidence_gate import bind_frozen_gate_to_run
+        gate, gate_input_binding = bind_frozen_gate_to_run(Path(gate_path), run_id=run_id)
     if gate.get("run_id") != run_id:
         raise CommonStockStageError("COMMON_STOCK_STAGE_GATE_RUN_MISMATCH")
     attachment_packages: dict[str, tuple[Path, dict[str, Any]]] = {}
@@ -1169,7 +1352,7 @@ def prepare_common_stock_stage_run(
             raise CommonStockStageError("COMMON_STOCK_LIVE_DATA_PACKAGE_INCOMPLETE")
         from product.runtime.common_stock_data import validate_common_stock_source_bundle
         validate_common_stock_source_bundle(
-            handoff, gate=gate, preparation=data_preparation,
+            handoff, gate=source_gate, preparation=data_preparation,
             source_bundle_path=Path(source_bundle_path).resolve(),
         )
     from product.runtime.research_memory import (
@@ -1214,12 +1397,17 @@ def prepare_common_stock_stage_run(
         effective_concurrency=min(target_concurrency, sum(
             item["asset_type"] == "COMMON_STOCK" for item in handoff["portfolio"]["positions"]
         )), data_preparation=data_preparation,
+        data_source_run_id=source_gate["run_id"] if gate_input_binding is not None else None,
     )
     _apply_focus_to_stage(
         stage, handoff=handoff, council_request=request,
         focus_security_id=focus_security_id,
     )
     run_dir.mkdir(parents=True)
+    if gate_input_binding is not None:
+        source_copy = run_dir / gate_input_binding["source_ref"]
+        source_copy.parent.mkdir(parents=True, exist_ok=True)
+        source_copy.write_bytes(Path(gate_path).read_bytes())
     _write_object(run_dir / "audit/portfolio-handoff.json", handoff)
     _write_object(run_dir / "council-request.json", request)
     _write_object(run_dir / "evidence/gate.json", gate)
@@ -1263,10 +1451,18 @@ def prepare_common_stock_stage_run(
                 ),
             ],
             "request_path": request_path,
+            "semantic_output_version": SEMANTIC_OUTPUT_VERSION,
+            "reference_transport_version": REFERENCE_TRANSPORT_VERSION,
+            "calculation_selection_version": CALCULATION_SELECTION_VERSION,
+            "calculation_ledger_ref": "research/calculations/" + hashlib.sha256(holding_request["invocation_id"].encode()).hexdigest()[:16] + "/tool-results.jsonl",
         }
-        invocation["manifest_hash"] = canonical_hash(invocation)
+        invocation["manifest_hash"] = legacy_envelope_hash(invocation, hash_field="manifest_hash")
         invocation_path = f"invocations/by-id/{invocation_file_name(holding_request['invocation_id'])}"
         task = {
+            "semantic_output_version": SEMANTIC_OUTPUT_VERSION,
+            "reference_transport_version": REFERENCE_TRANSPORT_VERSION,
+            "calculation_selection_version": CALCULATION_SELECTION_VERSION,
+            "calculation_ledger_ref": invocation["calculation_ledger_ref"],
             "task_name": task_name,
             "security_id": holding_request["security"]["security_id"],
             "invocation_id": holding_request["invocation_id"],
@@ -1360,6 +1556,10 @@ def prepare_common_stock_stage_run(
             })
             continue
         _write_object(run_dir / invocation_path, invocation)
+        ledger = run_dir / task["calculation_ledger_ref"]
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        with ledger.open("x", encoding="utf-8"):
+            pass
         packet = _build_common_stock_dispatch_packet(repository_root, run_dir, task)
         packet_path = f"research/dispatch-packets/{invocation_file_name(holding_request['invocation_id'])}"
         _write_object(run_dir / packet_path, packet)
@@ -1399,20 +1599,23 @@ def prepare_common_stock_stage_run(
         "target_concurrency": target_concurrency,
         "tasks": tasks,
     }
-    index["index_hash"] = canonical_hash(index)
+    index["index_hash"] = legacy_envelope_hash(index, hash_field="index_hash")
     _write_object(run_dir / "research/dispatch-index.json", index)
     reuse_index = {
         "schema_version": "common-stock-research-reuse-index/1.0.0",
         "run_id": run_id,
         "items": reuse_items,
     }
-    reuse_index["index_hash"] = canonical_hash(reuse_index)
+    reuse_index["index_hash"] = legacy_envelope_hash(reuse_index, hash_field="index_hash")
     _write_object(run_dir / "research/reuse-index.json", reuse_index)
     fixture = Path(source_fixture).resolve() if source_fixture else (
         repository_root / "evals/fixtures/codex-native/common-stock-two-company-v1.json"
     ).resolve()
     manifest = {
         "schema_version": STAGE_VERSION, "run_id": run_id, "stage": "COMMON_STOCK_RESEARCH",
+        "semantic_output_version": SEMANTIC_OUTPUT_VERSION,
+        "reference_transport_version": REFERENCE_TRANSPORT_VERSION,
+        "calculation_selection_version": CALCULATION_SELECTION_VERSION,
         "source_mode": gate.get("source_mode", "fixture-research"), "model": parent_model,
         "parent_model": parent_model, "analyst_model": analyst_model,
         "output_dir": str(run_dir),
@@ -1431,13 +1634,14 @@ def prepare_common_stock_stage_run(
         "reuse_index_hash": reuse_index["index_hash"],
         "memory_root": str(resolved_memory_root) if resolved_memory_root is not None else None,
         "force_rerun": force_rerun,
+        "gate_input_binding": gate_input_binding,
         "focus_security_id": focus_security_id,
         "equity_research_package_hashes": sorted(
             package["package_hash"] for _path, package in attachment_packages.values()
         ),
         "prepared_at": _utc_now(), "complete_portfolio_decision": False,
     }
-    manifest["manifest_hash"] = canonical_hash(manifest)
+    manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")
     _write_object(run_dir / "run_manifest.json", manifest)
     return {
         "status": "PREPARED", "run_id": run_id, "run_dir": str(run_dir),
@@ -1618,7 +1822,7 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
         else "PARTIAL_RESEARCH" if has_gaps
         else "RESEARCH_COMPLETE"
     )
-    coverage["coverage_hash"] = canonical_hash({key: value for key, value in coverage.items() if key != "coverage_hash"})
+    coverage["coverage_hash"] = legacy_envelope_hash(coverage, hash_field="coverage_hash")
     validate_research_coverage(coverage, handoff=handoff, council_request=council_request)
     stage = _read_object(run_dir / "research/stage.json")
     stage["coverage"] = copy.deepcopy(coverage)
@@ -1639,7 +1843,7 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
         "agent": manifest["agent_binding"], "skills": manifest["skill_bindings"],
         "gate_hash": gate["bundle_hash"], "complete_portfolio_decision": False,
     }
-    proof["proof_hash"] = canonical_hash(proof)
+    proof["proof_hash"] = legacy_envelope_hash(proof, hash_field="proof_hash")
     _write_object(run_dir / "research/execution-proof.json", proof)
     return {
         "status": "PASSED" if proof["all_reports_valid"] else "FAILED",
@@ -1853,14 +2057,26 @@ def _validate_common_stock_stage_run_package(
     repository_root = Path(repository_root).resolve()
     run_dir = Path(run_dir).resolve()
     manifest = _read_object(run_dir / "run_manifest.json")
-    if manifest.get("manifest_hash") != _claimed_hash(manifest, "manifest_hash"):
-        raise CommonStockStageError("COMMON_STOCK_STAGE_MANIFEST_HASH_MISMATCH")
+    try:
+        verify_legacy_envelope_hash(manifest, hash_field="manifest_hash", location="product/runtime/common_stock_stage.py:manifest.manifest_hash")
+    except HashContractError as exc:
+        raise CommonStockStageError(f"COMMON_STOCK_STAGE_MANIFEST_HASH_MISMATCH:{exc}") from exc
     if (
         manifest.get("schema_version") != STAGE_VERSION
         or manifest.get("stage") != "COMMON_STOCK_RESEARCH"
         or Path(manifest.get("output_dir", "")).resolve() != run_dir
     ):
         raise CommonStockStageError("COMMON_STOCK_STAGE_MANIFEST_INVALID")
+    if manifest.get("semantic_output_version") not in {None, SEMANTIC_OUTPUT_VERSION}:
+        raise CommonStockStageError("COMMON_STOCK_STAGE_OUTPUT_PROTOCOL_INVALID")
+    if (manifest.get("reference_transport_version") not in {None, REFERENCE_TRANSPORT_VERSION}
+            or (manifest.get("reference_transport_version") is not None
+                and manifest.get("semantic_output_version") != SEMANTIC_OUTPUT_VERSION)):
+        raise CommonStockStageError("COMMON_STOCK_REFERENCE_PROTOCOL_INVALID")
+    if (manifest.get("calculation_selection_version") not in {None, CALCULATION_SELECTION_VERSION}
+            or (manifest.get("calculation_selection_version") is not None
+                and manifest.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION)):
+        raise CommonStockStageError("COMMON_STOCK_CALCULATION_PROTOCOL_INVALID")
 
     handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
     request = _read_object(run_dir / "council-request.json")
@@ -1871,16 +2087,26 @@ def _validate_common_stock_stage_run_package(
     reuse_index = _read_object(run_dir / "research/reuse-index.json")
     validate_handoff(handoff)
     validate_council_request(request, handoff=handoff)
-    if gate.get("bundle_hash") != _claimed_hash(gate, "bundle_hash"):
-        raise CommonStockStageError("COMMON_STOCK_GATE_HASH_MISMATCH")
-    if stage.get("stage_hash") != _claimed_hash(stage, "stage_hash"):
-        raise CommonStockStageError("COMMON_STOCK_RESEARCH_STAGE_HASH_MISMATCH")
-    if coverage.get("coverage_hash") != _claimed_hash(coverage, "coverage_hash"):
-        raise CommonStockStageError("COMMON_STOCK_RESEARCH_COVERAGE_HASH_MISMATCH")
-    if index.get("index_hash") != _claimed_hash(index, "index_hash"):
-        raise CommonStockStageError("COMMON_STOCK_DISPATCH_INDEX_HASH_MISMATCH")
-    if reuse_index.get("index_hash") != _claimed_hash(reuse_index, "index_hash"):
-        raise CommonStockStageError("COMMON_STOCK_REUSE_INDEX_HASH_MISMATCH")
+    try:
+        verify_legacy_envelope_hash(gate, hash_field="bundle_hash", location="product/runtime/common_stock_stage.py:gate.bundle_hash")
+    except HashContractError as exc:
+        raise CommonStockStageError(f"COMMON_STOCK_GATE_HASH_MISMATCH:{exc}") from exc
+    try:
+        verify_legacy_envelope_hash(stage, hash_field="stage_hash", location="product/runtime/common_stock_stage.py:stage.stage_hash")
+    except HashContractError as exc:
+        raise CommonStockStageError(f"COMMON_STOCK_RESEARCH_STAGE_HASH_MISMATCH:{exc}") from exc
+    try:
+        verify_legacy_envelope_hash(coverage, hash_field="coverage_hash", location="product/runtime/common_stock_stage.py:coverage.coverage_hash")
+    except HashContractError as exc:
+        raise CommonStockStageError(f"COMMON_STOCK_RESEARCH_COVERAGE_HASH_MISMATCH:{exc}") from exc
+    try:
+        verify_legacy_envelope_hash(index, hash_field="index_hash", location="product/runtime/common_stock_stage.py:index.index_hash")
+    except HashContractError as exc:
+        raise CommonStockStageError(f"COMMON_STOCK_DISPATCH_INDEX_HASH_MISMATCH:{exc}") from exc
+    try:
+        verify_legacy_envelope_hash(reuse_index, hash_field="index_hash", location="product/runtime/common_stock_stage.py:reuse_index.index_hash")
+    except HashContractError as exc:
+        raise CommonStockStageError(f"COMMON_STOCK_REUSE_INDEX_HASH_MISMATCH:{exc}") from exc
     if stage.get("coverage") != coverage:
         raise CommonStockStageError("COMMON_STOCK_STAGE_COVERAGE_BINDING_INVALID")
 
@@ -1904,6 +2130,13 @@ def _validate_common_stock_stage_run_package(
     ):
         raise CommonStockStageError("COMMON_STOCK_STAGE_RUN_BINDING_INVALID")
 
+    from product.runtime.evidence_gate import validate_frozen_gate_binding
+    validate_frozen_gate_binding(run_dir, manifest, gate)
+    source_gate = (
+        _read_object(run_dir / "audit/frozen-gate-source.json")
+        if manifest.get("gate_input_binding") is not None else gate
+    )
+
     agent, skills = current_research_bindings(repository_root)
     if manifest.get("agent_binding") != agent or manifest.get("skill_bindings") != skills:
         raise CommonStockStageError("COMMON_STOCK_STAGE_RUNTIME_BINDING_DRIFT")
@@ -1921,8 +2154,10 @@ def _validate_common_stock_stage_run_package(
     preparation_path = run_dir / "evidence/data-preparation.json"
     if preparation_path.is_file():
         preparation = _read_object(preparation_path)
-        if preparation.get("preparation_hash") != _claimed_hash(preparation, "preparation_hash"):
-            raise CommonStockStageError("COMMON_STOCK_PREPARATION_HASH_MISMATCH")
+        try:
+            verify_legacy_envelope_hash(preparation, hash_field="preparation_hash", location="product/runtime/common_stock_stage.py:preparation.preparation_hash")
+        except HashContractError as exc:
+            raise CommonStockStageError(f"COMMON_STOCK_PREPARATION_HASH_MISMATCH:{exc}") from exc
     if manifest.get("data_preparation_hash") != (
         preparation.get("preparation_hash") if preparation is not None else None
     ):
@@ -1937,6 +2172,7 @@ def _validate_common_stock_stage_run_package(
             sum(item["asset_type"] == "COMMON_STOCK" for item in handoff["portfolio"]["positions"]),
         ),
         data_preparation=preparation,
+        data_source_run_id=source_gate["run_id"] if manifest.get("gate_input_binding") is not None else None,
     )
     _apply_focus_to_stage(
         expected_stage, handoff=handoff, council_request=request,
@@ -2158,6 +2394,13 @@ def _validate_common_stock_stage_run_package(
             "research_input_fingerprint": task["research_input_fingerprint"],
             "reuse_key": task["reuse_key"],
         }
+        if manifest.get("semantic_output_version") == SEMANTIC_OUTPUT_VERSION:
+            expected_task["semantic_output_version"] = SEMANTIC_OUTPUT_VERSION
+        if manifest.get("reference_transport_version") is not None:
+            expected_task["reference_transport_version"] = REFERENCE_TRANSPORT_VERSION
+        if manifest.get("calculation_selection_version") is not None:
+            expected_task.update(calculation_selection_version=CALCULATION_SELECTION_VERSION,
+                calculation_ledger_ref="research/calculations/" + hashlib.sha256(holding_request["invocation_id"].encode()).hexdigest()[:16] + "/tool-results.jsonl")
         expected_fingerprint = _research_input_fingerprint_for_holding(
             repository_root, request=holding_request, gate=gate,
             attachment=(
@@ -2165,6 +2408,7 @@ def _validate_common_stock_stage_run_package(
                 if task.get("equity_research_package_path") is not None else None
             ),
             model=expected_model, agent=agent, skills=skills,
+            calculation_selection_version=manifest.get("calculation_selection_version"),
         )
         if (
             task.get("research_input_fingerprint") != expected_fingerprint
@@ -2250,7 +2494,14 @@ def _validate_common_stock_stage_run_package(
             ],
             "request_path": expected_task["request_path"],
         }
-        expected_invocation["manifest_hash"] = canonical_hash(expected_invocation)
+        if manifest.get("semantic_output_version") == SEMANTIC_OUTPUT_VERSION:
+            expected_invocation["semantic_output_version"] = SEMANTIC_OUTPUT_VERSION
+        if manifest.get("reference_transport_version") is not None:
+            expected_invocation["reference_transport_version"] = REFERENCE_TRANSPORT_VERSION
+        if manifest.get("calculation_selection_version") is not None:
+            expected_invocation.update(calculation_selection_version=CALCULATION_SELECTION_VERSION,
+                calculation_ledger_ref=expected_task["calculation_ledger_ref"])
+        expected_invocation["manifest_hash"] = legacy_envelope_hash(expected_invocation, hash_field="manifest_hash")
         if task != expected_task or invocation != expected_invocation:
             raise CommonStockStageError("COMMON_STOCK_DISPATCH_RECONSTRUCTION_MISMATCH")
         expected_tasks.append(expected_task)
@@ -2260,7 +2511,7 @@ def _validate_common_stock_stage_run_package(
         "target_concurrency": manifest["target_concurrency"],
         "tasks": expected_tasks,
     }
-    expected_index["index_hash"] = canonical_hash(expected_index)
+    expected_index["index_hash"] = legacy_envelope_hash(expected_index, hash_field="index_hash")
     if index != expected_index:
         raise CommonStockStageError("COMMON_STOCK_DISPATCH_INDEX_RECONSTRUCTION_MISMATCH")
 
@@ -2276,7 +2527,7 @@ def _validate_common_stock_stage_run_package(
             raise CommonStockStageError("COMMON_STOCK_LIVE_DATA_PACKAGE_INCOMPLETE")
         from product.runtime.common_stock_data import validate_common_stock_source_bundle
         validate_common_stock_source_bundle(
-            handoff, gate=gate, preparation=preparation,
+            handoff, gate=source_gate, preparation=preparation,
             source_bundle_path=source_bundle_path,
         )
     elif manifest.get("source_bundle_ref") is not None:
@@ -2365,6 +2616,10 @@ def launch_common_stock_stage(
     product_root = repository_root / "product"
     run_dir = Path(run_dir).resolve()
     manifest = _validate_common_stock_stage_run_package(repository_root, run_dir)
+    if manifest.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION:
+        raise CommonStockStageError("COMMON_STOCK_LEGACY_REFERENCE_EXECUTION_RETIRED")
+    if manifest.get("calculation_selection_version") != CALCULATION_SELECTION_VERSION:
+        raise CommonStockStageError("COMMON_STOCK_LEGACY_CALCULATION_EXECUTION_RETIRED")
     invocation_dir = run_dir / "invocation"
     if invocation_dir.exists():
         raise CommonStockStageError("COMMON_STOCK_STAGE_ALREADY_LAUNCHED")
@@ -2402,7 +2657,7 @@ def launch_common_stock_stage(
     isolated_product_root = isolated_source_root / "product"
     shutil.copytree(
         product_root, isolated_product_root,
-        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store"),
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", ".private"),
     )
     isolated_agent, isolated_skills = current_research_bindings(isolated_source_root)
     if (

@@ -15,6 +15,7 @@ if [ "${1:-}" = "--help" ]; then
   echo '或：bash run-product-smoke.sh --stage predecision-cio-synthesis --source-run <已完成正反研究目录> --target-security-id US:COMMON_STOCK:MRVL [--requested-level RESEARCH_SYNTHESIS] [--model <CIO模型>] <新的外置产物目录>（仅原截止点非动作研究）'
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'
   echo '多维新包可显式加 --structured-report-submission，仅启用研报结构化提交试验，默认关闭。'
+  echo '反证上游补验可显式加 --core-forward-only，仅运行现有六项核心准入，使用新执行身份复用冻结资料；不表示完整八维。'
   echo '在 macOS Terminal 中执行；默认 normal fixture 读取原候选路由；普通股/多维/反证/CIO 开发测试默认 gpt-6-luna。'
   echo '仅限宿主产品执行；不创建项目沙箱。--review 已停用并明确拒绝。'
   exit 0
@@ -44,6 +45,7 @@ company_research_run=
 stock_peer_candidates=
 require_materials=0
 structured_report_submission=0
+core_forward_only=0
 cio_source_run=
 cio_target_security_id=
 cio_requested_level=RESEARCH_SYNTHESIS
@@ -100,6 +102,7 @@ if [ "${1:-}" = "--stage" ]; then
       --peer-candidates) stock_peer_candidates=${2:-}; shift 2 ;;
       --require-materials) require_materials=1; shift ;;
       --structured-report-submission) structured_report_submission=1; shift ;;
+      --core-forward-only) core_forward_only=1; shift ;;
       --source-run) cio_source_run=${2:-}; shift 2 ;;
       --target-security-id) cio_target_security_id=${2:-}; shift 2 ;;
       --requested-level) cio_requested_level=${2:-}; shift 2 ;;
@@ -110,11 +113,17 @@ if [ "${1:-}" = "--stage" ]; then
       *) echo 'RESEARCH_STAGE_ARGUMENTS_INVALID：使用 --help 查看研究阶段参数。' >&2; exit 2 ;;
     esac
   done
+  if [ "$core_forward_only" = "1" ] && { [ -n "$stock_peer_candidates" ] || [ "$require_materials" = "1" ]; }; then
+    echo 'COUNTER_CORE_MATERIALS_FORBIDDEN：核心补验不启动资料批次；请勿组合 --peer-candidates 或 --require-materials。' >&2; exit 2
+  fi
   if [ "$predecision_cio_stage" = "1" ] && { [ -z "$cio_source_run" ] || [ -z "$cio_target_security_id" ]; }; then
     echo 'CIO_SOURCE_AND_TARGET_REQUIRED：必须指定已完成正反研究目录与已有普通股 ID。' >&2; exit 2
   fi
   if [ "$structured_report_submission" = "1" ] && [ "$stage" != "multidimensional-holding-research" ]; then
     echo 'STRUCTURED_REPORT_STAGE_UNSUPPORTED：结构化研报提交仅用于显式多维研究新包。' >&2; exit 2
+  fi
+  if [ "$core_forward_only" = "1" ] && [ "$stage" != "independent-counter-thesis-research" ]; then
+    echo 'COUNTER_CORE_SCOPE_STAGE_INVALID：核心范围仅用于显式反证上游补验。' >&2; exit 2
   fi
   if [ "$predecision_cio_stage" = "1" ] && [ "$cio_target_security_id" != "US:COMMON_STOCK:MRVL" ]; then
     echo 'CIO_RESEARCH_TARGET_NOT_IN_SCOPE：本需求只综合 MRVL 冻结研究。' >&2; exit 2
@@ -264,7 +273,7 @@ print(select_product_runtime_model(pathlib.Path(sys.argv[1]) / 'product', reques
 PY
 )
   fi
-  if [ "$stage" = "multidimensional-holding-research" ]; then
+  if [ "$stage" = "multidimensional-holding-research" ] || [ "$core_forward_only" = "1" ]; then
     # 冻结资料的来源 run_id 不等于新的研究执行身份；每次新准备均生成 UUID。
     run_id="host-multidimensional-$(uuidgen | tr '[:upper:]' '[:lower:]')"
   elif [ -n "$stock_gate" ]; then
@@ -301,7 +310,7 @@ PY
     stock_gate="$bundle/data/gate.json"
     stock_data_preparation="$bundle/data/data-preparation.json"
     stock_source_bundle="$bundle/data/source-bundle.json"
-    if [ -f "$bundle/data/peer-candidate-pool.json" ]; then
+    if [ "$core_forward_only" != "1" ] && [ -f "$bundle/data/peer-candidate-pool.json" ]; then
       stock_peer_candidates="$bundle/data/peer-candidate-pool.json"
     fi
   fi
@@ -309,6 +318,9 @@ PY
     set -- python3 "$repo_root/scripts/council-dev.py" prepare-common-stock-research --repo "$repo_root" \
       --handoff "$stock_handoff" --gate "$stock_gate" --run-dir "$bundle/company-run" \
       --run-id "$run_id" --model "$model" --question '研究当前确认的普通股持仓。' --force-rerun
+    if [ "$core_forward_only" = "1" ] && [ -n "$stock_gate" ]; then
+      set -- "$@" --reuse-frozen-gate
+    fi
     if [ -n "$stock_data_preparation" ]; then
       set -- "$@" --data-preparation "$stock_data_preparation" --source-bundle "$stock_source_bundle"
     fi
@@ -316,10 +328,13 @@ PY
     python3 "$repo_root/scripts/council-dev.py" launch-common-stock-research \
       --repo "$repo_root" --run-dir "$bundle/company-run"
     company_research_run="$bundle/company-run"
+    if [ "$core_forward_only" = "1" ]; then
+      stock_gate="$company_research_run/evidence/gate.json"
+    fi
   fi
   if [ "$multidimensional_stage" = "1" ]; then
     research_materials_run=
-    if [ -n "$stock_peer_candidates" ]; then
+    if [ "$core_forward_only" != "1" ] && [ -n "$stock_peer_candidates" ]; then
       python3 "$repo_root/scripts/council-dev.py" prepare-research-materials --repo "$repo_root" \
         --handoff "$stock_handoff" --gate "$stock_gate" --peer-candidates "$stock_peer_candidates" \
         --run-dir "$bundle/materials-run" --run-id "$run_id" --model "$model" \
@@ -386,6 +401,7 @@ PY
     fi
     if [ "$stage" = "independent-counter-thesis-research" ]; then
       set -- "$@" --stage INDEPENDENT_COUNTER_THESIS_RESEARCH
+      if [ "$core_forward_only" = "1" ]; then set -- "$@" --core-forward-only; fi
     fi
     if [ -n "$stock_peer_candidates" ]; then
       set -- "$@" --peer-candidates "$stock_peer_candidates"

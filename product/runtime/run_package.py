@@ -20,9 +20,11 @@ from .format_repair import (
     verify_format_repair,
 )
 from .hashing import canonical_hash, file_hash
+from .multidimensional_references import VERSION as CIO_REFERENCE_VERSION
 from .invocation import (
     OUTPUT_SCHEMAS,
     build_cio_ablation_output_schema,
+    build_bound_native_council_schema,
     build_live_cio_output_schema,
     build_specialist_output_schema,
     build_specialist_task_prompt,
@@ -30,10 +32,13 @@ from .invocation import (
     create_invocation_manifest,
     validate_skeptic_first_pass_input,
     verify_invocation_manifest,
+    SPECIALIST_SEMANTIC_DRAFT,
+    START_CONTEXT_VERSION,
 )
-from .risk_runtime import build_risk_snapshot, check_cio_draft
+from .risk_runtime import build_risk_snapshot, check_cio_draft, REFERENCE_RISK_POLICY_VERSION
 from .replay_capsule import build_replay_capsule, capsule_reference
 from .runtime_profiles import validate_runtime_mode
+from .schema_validation import SchemaValidationError, validate_schema_instance
 from .terminal_contract import (
     FailureStage,
     RISK_LINEAGE_VERSION,
@@ -311,7 +316,7 @@ def _safe_no_trade_decision(
         "risk_report": {
             "status": "NOT_RUN",
             "reason": "PRE_AGENT_SAFE_TERMINATION",
-            "policy_version": "risk/reference/1.0.0",
+            "policy_version": REFERENCE_RISK_POLICY_VERSION,
         },
     }
 
@@ -464,6 +469,9 @@ def prepare_run(
         integrity = integrity_snapshot(root)
         run_manifest = {
             "schema_version": RUN_PACKAGE_VERSION,
+            "specialist_context_delivery": START_CONTEXT_VERSION,
+            "specialist_output_delivery": SPECIALIST_SEMANTIC_DRAFT,
+            "cio_reference_transport_version": CIO_REFERENCE_VERSION,
             "run_id": run_id,
             "candidate_version": discovery.version_manifest["candidate_version"],
             "codex_runtime": discovery.version_manifest["codex_runtime"],
@@ -511,6 +519,9 @@ def prepare_run(
     integrity = integrity_snapshot(root)
     run_manifest = {
         "schema_version": RUN_PACKAGE_VERSION,
+        "specialist_context_delivery": START_CONTEXT_VERSION,
+        "specialist_output_delivery": SPECIALIST_SEMANTIC_DRAFT,
+        "cio_reference_transport_version": CIO_REFERENCE_VERSION,
         "run_id": run_id,
         "candidate_version": discovery.version_manifest["candidate_version"],
         "codex_runtime": discovery.version_manifest["codex_runtime"],
@@ -620,6 +631,7 @@ def _prepare_specialist_invocations(root: Path, *, run_dir: Path, run_id: str,
                                     inputs: Mapping[str, Any], trace: dict[str, Any],
                                     topology: Sequence[str], compatibility_fixture: bool = False) -> dict[str, Any]:
     """共用确定性准备步骤；实际 Agent 委派仍由 Codex Skill 执行。"""
+    semantic = _read_json(run_dir / "run_manifest.json").get("specialist_output_delivery") == SPECIALIST_SEMANTIC_DRAFT
     specialists = tuple(agent for agent in topology if agent != "runtime_cio")
     if "runtime_skeptic" in specialists:
         validate_skeptic_first_pass_input(inputs["runtime_skeptic"])
@@ -645,6 +657,7 @@ def _prepare_specialist_invocations(root: Path, *, run_dir: Path, run_id: str,
             agent_name=agent_name,
             allowed_evidence_ids=gate["allowed_evidence_ids"],
             source_mode=str(agent_input.get("source_mode", "fixture")),
+            semantic_output_version=SPECIALIST_SEMANTIC_DRAFT if semantic else None,
         )
         _write_text(run_dir / "prompts" / f"{agent_name}.txt", task_prompt)
         manifest = create_invocation_manifest(
@@ -658,6 +671,9 @@ def _prepare_specialist_invocations(root: Path, *, run_dir: Path, run_id: str,
             output_schema_path=specialist_schema_paths[agent_name],
             compatibility_fixture=compatibility_fixture,
         )
+        if semantic:
+            manifest["semantic_output_version"] = SPECIALIST_SEMANTIC_DRAFT
+            manifest["manifest_hash"] = canonical_hash({key: value for key, value in manifest.items() if key != "manifest_hash"})
         _write_json(run_dir / "invocations" / f"{agent_name}.json", manifest)
         trace["agents"].append(
             {
@@ -785,7 +801,8 @@ def prepare_live_run(repository_root: Path, *, portfolio_path: Path, snapshot_pa
     # 共用 fixture 已验证的 Schema、Prompt、Invocation 准备步骤。
     try:
         return _prepare_specialist_invocations(root, run_dir=run_dir, run_id=run_id, model=model,
-            gate=gate, inputs=inputs, trace=trace, compatibility_fixture=True, topology=validate_runtime_mode(run_mode="PRODUCT_COUNCIL", ablation_profile=None))
+            gate=gate, inputs=inputs, trace=trace, compatibility_fixture=True,
+            topology=validate_runtime_mode(run_mode="PRODUCT_COUNCIL", ablation_profile=None))
     except (OSError, ValueError) as exc:
         return fail_run(run_dir, run_id=run_id, code="LIVE_INVOCATION_PREPARE_FAILED", message=str(exc),
                         failed_stage=FailureStage.PREFLIGHT, trace=trace)
@@ -819,6 +836,7 @@ def prepare_cio(
             agent_input = _read_json(run_dir / "inputs" / f"{agent_name}.json")
             manifest = _read_json(run_dir / "invocations" / f"{agent_name}.json")
             verify_invocation_manifest(root, manifest, agent_input=agent_input)
+            specialist_schema = _read_json(Path(manifest["output_schema"]))
             report_path = run_dir / "agents" / f"{agent_name}.json"
             report = _read_json(report_path)
             repair_request_path = run_dir / "repairs" / f"{agent_name}-request-1.json"
@@ -844,6 +862,7 @@ def prepare_cio(
                     agent_name=agent_name,
                     allowed_evidence_ids=manifest["evidence_ids"],
                 )
+                validate_schema_instance(repaired, specialist_schema)
                 refs.update(validator(repaired, run_id=run_id, manifest=manifest))
                 original_path = run_dir / "repairs" / f"{agent_name}-attempt-1.json"
                 _write_json(original_path, report)
@@ -874,6 +893,20 @@ def prepare_cio(
                 report = repaired
             else:
                 try:
+                    try:
+                        validate_schema_instance(report, specialist_schema)
+                    except SchemaValidationError as schema_error:
+                        # Preserve the existing one-shot top-level format repair;
+                        # every other Schema failure remains fail-closed.
+                        try:
+                            validator(report, run_id=run_id, manifest=manifest)
+                        except ArtifactValidationError as legacy_error:
+                            if (
+                                is_format_only_error(legacy_error)
+                                or str(legacy_error).startswith("EVIDENCE_CLOSURE_FAILED:")
+                            ):
+                                raise legacy_error from schema_error
+                        raise
                     refs.update(validator(report, run_id=run_id, manifest=manifest))
                 except ArtifactValidationError as exc:
                     if not is_format_only_error(exc):
@@ -909,7 +942,9 @@ def prepare_cio(
                             / repair_request["repaired_output_relative_path"]
                         ),
                     }
-            if run_manifest.get("source_mode") == "live" and run_manifest.get("authenticity_required", True):
+            if (run_manifest.get("authenticity_required", True)
+                    and (run_manifest.get("source_mode") == "live"
+                         or run_manifest.get("specialist_output_delivery") == SPECIALIST_SEMANTIC_DRAFT)):
                 from .invocation import verify_specialist_start_binding
                 verify_specialist_start_binding(root, run_dir, agent_name, report=report)
             reports[agent_name] = report
@@ -966,6 +1001,19 @@ def prepare_cio(
         "allowed_evidence_ids": sorted(refs),
         "evidence_access": "fixture_evidence.query",
     }
+    if not live:
+        from .cio_handoff import NATIVE_CIO_VERSION
+        cio_input.pop("validated_reports")
+        cio_input.pop("validated_report_hashes")
+        cio_input.update(cio_submission=NATIVE_CIO_VERSION,
+                         cio_ablation=run_manifest.get("run_mode") == "EVAL_ABLATION",
+                         report_catalog=[{
+                             "report_id": agent_name, "artifact_ref": f"agents/{agent_name}.json",
+                             "file_hash": file_hash(run_dir / f"agents/{agent_name}.json"),
+                             "identity": {"agent": agent_name, "output_hash": canonical_hash(report)},
+                         } for agent_name, report in reports.items()])
+        if "cio_reference_transport_version" in run_manifest:
+            cio_input["reference_transport_version"] = run_manifest["cio_reference_transport_version"]
     if live:
         from product.mcp.live.identity import verify_frozen_identity
         identity = verify_frozen_identity(portfolio, evidence_snapshot["identity"], cutoff=evidence_snapshot["decision_cutoff"])
@@ -975,34 +1023,44 @@ def prepare_cio(
             gate_hash=gate["bundle_hash"], valuation_hash=valuation["valuation_hash"], identity_hash=identity["identity_hash"],
             valuation=valuation, mandate=portfolio["mandate"], data_gaps=evidence_snapshot["gaps"])
     _write_json(run_dir / "inputs" / "runtime_cio.json", cio_input)
+    if not live and cio_input.get("reference_transport_version") is not None:
+        from .cio_handoff import fixture_cio_model_input
+        _write_json(run_dir / "inputs/runtime_cio.model.json", fixture_cio_model_input(run_dir, cio_input))
     contract_prompt = render_cio_action_prompt(load_decision_contract(root / "product"))
     task_prompt = (
         f"按 {run_manifest.get('run_mode', 'PRODUCT_COUNCIL')} / {run_manifest.get('ablation_profile')} 拓扑，"
-        f"综合 {len(reports)} 份已验证结构化报告与 Gate-scoped Evidence，输出 CIODecisionDraft 2.1.0 JSON；"
-        "consumed_reports 必须逐字复制输入中的 validated_report_hashes，"
-        "不得自行计算文件字节哈希。\n"
+        f"综合 {len(reports)} 份已验证结构化报告与 Gate-scoped Evidence。"
+        "先用当前 MCP 的 read_reports 读取获准目录内全部报告，再综合。"
+        "输出 native-cio-draft/1.0.0 语义草稿，report_selections 明确选择所用报告 ID；"
+        "身份、Skill、consumed_reports 和 hash 由运行层装配为 CIODecisionDraft 2.1.0，不要填写。\n"
         f"{contract_prompt}"
     )
     if live:
+        task_prompt = (f"综合 {len(reports)} 份已验证结构化报告与 Gate-scoped Evidence，输出 CIODecisionDraft 2.1.0 JSON；"
+                       "这是退役 live-us-equity 兼容协议，consumed_reports 使用输入的 validated_report_hashes。\n"
+                       + contract_prompt)
         task_prompt += ("\n这是 live-us-equity 持仓研究，只允许 HOLD/TRIM/EXIT/NO_TRADE，security_id 必须为输入指定目标。"
                         "用中文说明持仓与期限、事实到假设到影响、独立反证及冲突取舍、可观察的失效条件和置信度依据。"
                         "不得把数据不足写成研究通过，不得补写无 Evidence 的事实；只使用 mcp__live_runtime__query。"
                         "当前估值基于完整组合，不能假定其他子运行建议已经成交。")
+    elif cio_input.get("reference_transport_version") is not None:
+        task_prompt += ("\n研究输入使用 inputs/runtime_cio.model.json；evidence_refs 选择该输入和实际 query 返回的 e.*，"
+                        "report_selections 选择目录/实际 read_reports 返回的 p.*，禁止原始 ID、拼接来源时间或跨运行引用。"
+                        "完整技术输入与映射保留在运行层，不要转抄。")
     _write_text(run_dir / "prompts" / "runtime_cio.txt", task_prompt)
     cio_schema_path: Path | None = None
     expected_report_agents: Sequence[str] | None = None
     if live:
         cio_schema_path = run_dir / "schemas" / "cio-decision-draft.schema.json"
         _write_json(cio_schema_path, build_live_cio_output_schema(root))
-    elif run_manifest.get("run_mode") == "EVAL_ABLATION":
+    elif not live:
         cio_schema_path = run_dir / "schemas" / "cio-decision-draft.schema.json"
         _write_json(
             cio_schema_path,
-            build_cio_ablation_output_schema(
-                root, expected_report_agents=specialists
-            ),
+            build_bound_native_council_schema(root, run_dir, cio_input),
         )
-        expected_report_agents = specialists
+        if run_manifest.get("run_mode") == "EVAL_ABLATION":
+            expected_report_agents = specialists
     manifest = create_invocation_manifest(
         root,
         run_id=run_id,
@@ -1101,13 +1159,53 @@ def finalize_cio(
             )
     try:
         verify_invocation_manifest(root, manifest, agent_input=cio_input)
+        if not live and manifest.get("draft_delivery") == "native-cio-draft/1.0.0":
+            if manifest.get("reference_transport_version") != run_manifest.get("cio_reference_transport_version"):
+                raise ArtifactValidationError("CIO_REFERENCE_PROTOCOL_INVALID")
+            if manifest.get("reference_transport_version") is not None:
+                from .cio_handoff import fixture_cio_model_input
+                if _read_json(run_dir / "inputs/runtime_cio.model.json") != fixture_cio_model_input(run_dir, cio_input):
+                    raise ArtifactValidationError("CIO_MODEL_INPUT_DRIFT")
         draft = _read_json(draft_path)
+        environment_path = run_dir / "invocation/environment-manifest.json"
+        if not revision and environment_path.is_file() and _read_json(environment_path).get("cio_local_revision_version"):
+            from .cio_local_revision import verify_completed
+            proof = verify_completed(run_dir, candidate=draft)
+            trace["events"].append({"stage": "CIO_LOCAL_REVISION_VERIFIED", "proof": proof})
+        pending_native = None
+        if manifest.get("draft_delivery") == "native-cio-draft/1.0.0":
+            if manifest.get("reference_transport_version") != CIO_REFERENCE_VERSION:
+                raise ArtifactValidationError("CIO_LEGACY_REFERENCE_WRITE_RETIRED")
+            from .cio_handoff import assemble_cio_draft
+            formal_schema = (build_cio_ablation_output_schema(root, expected_report_agents=specialists)
+                             if run_manifest.get("run_mode") == "EVAL_ABLATION" else
+                             _read_json(root / "product" / OUTPUT_SCHEMAS["runtime_cio"]))
+            if draft.get("schema_version") == "native-cio-draft/1.0.0":
+                raw = draft
+                draft, consumption = assemble_cio_draft(
+                    raw, formal_schema, {
+                        "schema_version": "cio-decision-draft/2.1.0", "run_id": run_id,
+                        "invocation_id": manifest["invocation_id"], "agent": "runtime_cio",
+                        "skill_execution": manifest["skill_execution"], "advisory_only": True,
+                        "consumed_reports": [item["identity"] for item in manifest["report_catalog"]],
+                    }, root=run_dir, invocation=manifest, catalog=manifest["report_catalog"])
+                pending_native = (raw, consumption)
+            elif run_manifest.get("authenticity_required") is not False:
+                raise ArtifactValidationError("NATIVE_CIO_DRAFT_REQUIRED")
+            validate_schema_instance(draft, formal_schema)
         report_hashes = {
             agent_name: canonical_hash(
                 _read_json(run_dir / "agents" / f"{agent_name}.json")
             )
             for agent_name in specialists
         }
+        frozen_schema = run_dir / "schemas/cio-decision-draft.schema.json"
+        schema_path = (
+            frozen_schema if frozen_schema.is_file()
+            else root / "product" / OUTPUT_SCHEMAS["runtime_cio"]
+        )
+        if manifest.get("draft_delivery") != "native-cio-draft/1.0.0":
+            validate_schema_instance(draft, _read_json(schema_path))
         validate_cio_draft(
             draft,
             run_id=run_id,
@@ -1130,6 +1228,12 @@ def finalize_cio(
             trace=trace,
         )
 
+    if pending_native is not None:
+        raw, consumption = pending_native
+        _write_json(run_dir / "cio" / ("native-revision.json" if revision else "native-draft.json"), raw)
+        _write_json(draft_path, draft, replace=True)
+        # 沿既有 Trace 2.1 的 events 扩展点保存消费证明，不新增消费者不接受的顶层字段。
+        trace["events"].append({"stage": "CIO_REPORT_CONSUMPTION_VERIFIED", "proof": consumption})
     risk_entry = {
         "schema_version": RISK_LINEAGE_VERSION,
         "run_id": run_id,

@@ -5,7 +5,7 @@ approval_policy = "never"
 model_reasoning_effort = "high"
 developer_instructions = """
 <!-- PREDECISION_CIO_INSTRUCTIONS_START -->
-若本次显式阶段为 `PREDECISION_CIO_SYNTHESIS`，来源正向研究及独立反证均已完成。只由当前主线程消费冻结的多份报告，不重新派发 Specialist；本阶段仅有 MRVL 的 `RESEARCH_SYNTHESIS`，只输出来源截止点的非动作研究综合，不用 `NO_TRADE` 代替缺账户资料，也不生成目标仓位、金额或买回建议。用户在需求讨论中表示曾清仓 MRVL，但系统未独立核验当前账户；不评估当前账户适配，Risk 为 `NOT_RUN`，不能把历史来源 Handoff 当成当前持仓。`PORTFOLIO_ADVICE` 未开放，此分支不得生成动作草案或调用 Risk。以本次动态 task prompt 的 Schema 和 Gate-scoped 查询身份为准，不套用下述固定两报告 fixture 默认规则。
+若本次显式阶段为 `PREDECISION_CIO_SYNTHESIS`，只由当前主线程消费冻结的正向与反证报告，不重新派发 Specialist。证券、截止点、用户上下文与实际允许交付级别由本次已验证 request/stage_constraints 给出；不扩大阶段能力，不把来源 Handoff 当当前账户。`RESEARCH_SYNTHESIS` 只输出非动作研究综合，不用 `NO_TRADE` 代替缺账户资料，不生成仓位、金额或买回建议，Risk 为 `NOT_RUN`。`PORTFOLIO_ADVICE` 未开放，不生成动作草案或调用 Risk。以实际 task prompt 的 Schema、报告读取和 Gate 查询契约为准，不套用下述 fixture 默认规则。
 <!-- PREDECISION_CIO_INSTRUCTIONS_END -->
 仅在用户调用 portfolio-council Skill 时担任 CIO。非 `PREDECISION_CIO_SYNTHESIS` 的默认完整 Council 先完成仓库产品包发现、portfolio 输入校验和 point-in-time Evidence Gate；存在可用证据时，在等待任何结果前并行委派 runtime_company_analyst 与 runtime_skeptic。不得使用 Python callback 或固定模板替代 LLM 研究。
 

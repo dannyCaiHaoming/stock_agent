@@ -40,6 +40,16 @@ class StrictSchemaValidationTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaisesRegex(SchemaValidationError, "SCHEMA_REF_UNSUPPORTED"):
                 validate_schema_definition(schema, schema_resources={name: {"type": "integer"}})
 
+    def test_current_cio_native_schema_is_checked_during_preparation(self):
+        from product.runtime.cio_handoff import COUNCIL_METADATA, native_cio_schema
+        root = Path(__file__).resolve().parents[1]
+        schema = json.loads((root / "product/schemas/runtime/cio-decision-draft.schema.json").read_text())
+        native_cio_schema(schema, report_ids=["runtime_company_analyst", "runtime_skeptic"],
+                          metadata=COUNCIL_METADATA)
+        schema["unreviewedConstraint"] = True
+        with self.assertRaisesRegex(SchemaValidationError, "SCHEMA_KEYWORD_UNSUPPORTED"):
+            native_cio_schema(schema, report_ids=["runtime_company_analyst", "runtime_skeptic"],
+                              metadata=COUNCIL_METADATA)
 
     def test_current_research_draft_schemas_fail_during_preparation(self):
         from product.runtime.common_stock_stage import _dynamic_draft_schema as stock_schema
@@ -89,6 +99,35 @@ class StrictSchemaValidationTests(unittest.TestCase):
                     agent="runtime_company_analyst", kind="RESEARCH_REPORT_DISCOVERY",
                 )
 
+    def test_current_eval_output_schemas_fail_before_grading(self):
+        from product.runtime.common_stock_eval import build_common_stock_eval_result_schema
+        from product.runtime.runtime_eval import semantic_output_schema
+
+        repository_root = Path(__file__).resolve().parents[1]
+        manifest = {
+            "eval_id": "schema-eval", "run_id": "schema-run",
+            "invocation_id": "schema-invocation", "security_id": "US:COMMON_STOCK:TEST",
+            "input_hash": "a" * 64, "rubric_id": "schema-rubric",
+        }
+        build_common_stock_eval_result_schema(manifest, expected_model="gpt-5.6-terra")
+        with patch(
+            "product.runtime.common_stock_eval.validate_schema_definition",
+            side_effect=SchemaValidationError("SCHEMA_DEFINITION_INVALID:preflight"),
+        ):
+            with self.assertRaisesRegex(SchemaValidationError, "preflight"):
+                build_common_stock_eval_result_schema(manifest)
+
+        source = json.loads(
+            (repository_root / "product/schemas/runtime/semantic-rubric-result.schema.json")
+            .read_text(encoding="utf-8")
+        )
+        for native_draft in (False, True):
+            with self.subTest(native_draft=native_draft):
+                semantic_output_schema(repository_root, native_draft=native_draft)
+                invalid = {**source, "unreviewedConstraint": True}
+                with patch("product.runtime.runtime_eval._read_object", return_value=invalid):
+                    with self.assertRaisesRegex(SchemaValidationError, "SCHEMA_KEYWORD_UNSUPPORTED"):
+                        semantic_output_schema(repository_root, native_draft=native_draft)
 
     def test_no_trade_conditional_and_sibling_constraints(self):
         schema = {

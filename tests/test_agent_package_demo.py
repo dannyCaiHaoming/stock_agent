@@ -145,6 +145,47 @@ class DemoInputAndTopologyTests(unittest.TestCase):
                 build_agent_package_topology(repo)
 
 
+    def test_current_source_tool_catalog_does_not_expand_demo_role_permissions(self):
+        from unittest.mock import patch
+        from product.demo import topology as module
+        original = module._read_json
+
+        def legacy_catalog(path):
+            value = original(path)
+            if path == ROOT / "product/.mcp.json":
+                value["mcpServers"]["fixture_runtime"]["enabled_tools"] = ["query", "calculate"]
+            return value
+
+        current = build_agent_package_topology(ROOT)
+        with patch.object(module, "_read_json", side_effect=legacy_catalog):
+            legacy = build_agent_package_topology(ROOT)
+        self.assertEqual(current["mcp"]["tools"], legacy["mcp"]["tools"])
+        for role in current["agents"]:
+            self.assertEqual(current["agents"][role], legacy["agents"][role])
+
+    def test_unapproved_or_incomplete_fixture_tool_catalog_still_fails_closed(self):
+        for tools in (
+            ["query"], ["query", "calculate", "research_fetch"],
+            ["query", "calculate", "order_create"],
+            ["query", "calculate", "research_search", "research_fetch", "read_reports"],
+        ):
+            with self.subTest(tools=tools), tempfile.TemporaryDirectory() as directory:
+                repo = Path(directory)
+                for relative in (
+                    ".codex-plugin/plugin.json", "runtime-profile.json", ".mcp.json",
+                    "skills/portfolio-council/SKILL.md",
+                ):
+                    target = repo / "product" / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(ROOT / "product" / relative, target)
+                path = repo / "product/.mcp.json"
+                value = read_json(path)
+                value["mcpServers"]["fixture_runtime"]["enabled_tools"] = tools
+                path.write_text(json.dumps(value), encoding="utf-8")
+                with self.assertRaisesRegex(DemoValidationError, "FIXTURE_MCP_TOOL_DRIFT"):
+                    build_agent_package_topology(repo)
+
+
 class DemoContractAndPortTests(unittest.TestCase):
     def setUp(self):
         self.demo_input = load_demo_input(FIXTURE)

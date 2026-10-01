@@ -2391,11 +2391,14 @@ def prepare_multidimensional_stage_run(
     structured_report_submission: bool = False,
     task_bound_tools: bool = False,
     reuse_frozen_gate: bool = False,
+    core_forward_only: bool = False,
 ) -> dict[str, Any]:
     repository_root = Path(repository_root).resolve()
     product_root = repository_root / "product"
     if task_bound_tools and stage != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
         raise MultidimensionalStageError("TASK_TOOL_IDENTITY_STAGE_INVALID")
+    if core_forward_only and stage != "INDEPENDENT_COUNTER_THESIS_RESEARCH":
+        raise MultidimensionalStageError("COUNTER_CORE_SCOPE_STAGE_INVALID")
     validate_current_component_versions(product_root, load_version_manifest(product_root / "version-manifest.json"))
     run_dir = Path(run_dir).resolve()
     if run_dir.exists():
@@ -2506,6 +2509,33 @@ def prepare_multidimensional_stage_run(
     from product.runtime.research_input_topology import build_research_provider_coverage
     capture_gate_path = resolved_gate_path
     capture_gate = source_gate if reuse_frozen_gate else gate
+    if core_forward_only and company_research_run_path is not None:
+        # 新执行视图与原采集包是两种身份。只在完整重验公司包及
+        # 两份 Gate 的精确绑定后，从原包解析相对采集路径；不重签历史数据。
+        from product.runtime.evidence_gate import validate_frozen_gate_binding
+        from product.runtime.common_stock_data import validate_common_stock_source_bundle
+        company_run = Path(company_research_run_path).resolve()
+        company_manifest = _read_object(company_run / "run_manifest.json")
+        company_gate = _read_object(company_run / "evidence/gate.json")
+        validate_frozen_gate_binding(company_run, company_manifest, company_gate)
+        if company_gate != gate:
+            raise MultidimensionalStageError("COUNTER_COMPANY_GATE_MISMATCH")
+        if company_manifest.get("gate_input_binding") is not None:
+            binding = company_manifest["gate_input_binding"]
+            frozen_source = _read_frozen_object(company_run, binding["source_ref"])
+            if company_manifest.get("source_bundle_ref") is not None:
+                source_bundle = _resolve_frozen_artifact(company_run, company_manifest["source_bundle_ref"])
+                package_ref = source_bundle.parent.relative_to(company_run)
+                capture_gate_path = _resolve_frozen_artifact(company_run, str(package_ref / "gate.json"))
+                _resolve_frozen_artifact(company_run, str(package_ref / "data-preparation.json"))
+                capture_gate = _read_object(capture_gate_path)
+                if capture_gate != frozen_source:
+                    raise MultidimensionalStageError("COUNTER_COMPANY_SOURCE_GATE_MISMATCH")
+                validate_common_stock_source_bundle(
+                    handoff, gate=frozen_source,
+                    preparation=_read_frozen_object(company_run, "evidence/data-preparation.json"),
+                    source_bundle_path=source_bundle,
+                )
     capture_batches = _load_research_capture_batches(
         gate_path=capture_gate_path, gate=capture_gate, security_ids=common_ids,
         base_gate_path=base_gate_path,
@@ -2568,6 +2598,9 @@ def prepare_multidimensional_stage_run(
     tasks: list[dict[str, Any]] = []
     ordinal = 0
     capabilities = RESEARCH_CAPABILITIES
+    if core_forward_only:
+        from product.runtime.independent_skeptic_stage import CORE_CAPABILITIES
+        capabilities = tuple(item for item in capabilities if item in CORE_CAPABILITIES)
     for capability in capabilities:
         agent, skill_name, scope = configured_capability_bindings[capability]
         scopes = [(None, common_ids)] if scope == "SHARED_MARKET" else [(security_id, [security_id]) for security_id in common_ids]
@@ -3415,6 +3448,9 @@ def prepare_multidimensional_stage_run(
         "prepared_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "complete_portfolio_decision": False, "downstream_stages_started": [],
     }
+    if core_forward_only:
+        manifest["forward_scope"] = "SKEPTIC_REQUIRED_CORE_ONLY"
+        manifest["selected_forward_capabilities"] = list(capabilities)
     if task_bound_tools:
         manifest["tool_identity_version"] = TASK_TOOL_IDENTITY_VERSION
     manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")

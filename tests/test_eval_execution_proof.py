@@ -43,12 +43,30 @@ def rollouts(
         f"eval_id={manifest['eval_id']} eval_dir={eval_dir} "
         f"{hashes['grader_prompt']} {hashes['rubric']} {hashes['semantic_input']}"
     ) if plaintext_bindings else f"eval_dir={eval_dir}"
+    native = manifest.get("semantic_output_delivery") == "native-draft/1.0.0"
+    final = ({"schema_version": "semantic-rubric-draft/1.0.0", "eval_id": manifest["eval_id"],
+              "dimensions": semantic["dimensions"]} if native else semantic)
+    read_events = ([
+        {"type": "response_item", "payload": {"type": "function_call", "name": "exec_command",
+                                              "call_id": "manifest-read", "arguments": json.dumps({
+                                                  "cmd": "cat " + str(eval_dir / "input-manifest.json")})}},
+        {"type": "response_item", "payload": {"type": "function_call_output", "call_id": "manifest-read",
+                                              "output": (eval_dir / "input-manifest.json").read_text()}},
+    ] if native else [])
+    if native and manifest.get("local_revision_contract"):
+        read_events.extend([
+            {"type": "response_item", "payload": {"type": "function_call", "name": "exec_command",
+                "call_id": "model-input-read", "arguments": json.dumps({"cmd": "cat " + str(eval_dir / "grader-model-input.json")})}},
+            {"type": "response_item", "payload": {"type": "function_call_output", "call_id": "model-input-read",
+                "output": (eval_dir / "grader-model-input.json").read_text()}},
+        ])
     child = [
         {"timestamp": "2026-09-07T00:00:00Z", "type": "session_meta", "payload": {"id": "eval-child", "parent_thread_id": parent_id, "agent_role": child_role, "cli_version": "0.153.4"}},
         message("developer", f"runtime\n{instructions}\nend"),
         message("user", child_user),
         {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
-        message("assistant", json.dumps(semantic, sort_keys=True)),
+        *read_events,
+        message("assistant", json.dumps(final, sort_keys=True)),
         {"timestamp": "2026-09-07T00:00:02Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 50, "cached_input_tokens": 10, "output_tokens": 40}}}},
     ]
     parent_path, child_path = root / "parent.jsonl", root / "child.jsonl"
@@ -130,7 +148,7 @@ class EvalExecutionProofTests(unittest.TestCase):
                 parent_rollout=parent,
                 child_rollout=child,
             )
-            self.assertEqual(proof["task_binding_method"], "protected_dispatch_plus_structured_output")
+            self.assertEqual(proof["task_binding_method"], "native_manifest_read")
 
 
 if __name__ == "__main__":

@@ -15,7 +15,8 @@ from .contracts import DemoValidationError, TOPOLOGY_VERSION
 
 ROLE_BINDINGS = {
     "runtime_company_analyst": {
-        "skills": ("evidence-grounding", "company-research", "valuation"),
+        "skills": ("evidence-grounding", "company-research", "valuation",
+                   "catalyst-analysis", "research-report-analysis"),
         "tools": ("fixture_evidence.query", "fixture_math.calculate"),
         "output_schema": "schemas/runtime/agent-research-report.schema.json",
         "adapter": "CompanyAnalystDemoAdapter",
@@ -88,7 +89,12 @@ def build_agent_package_topology(repository_root: Path) -> dict[str, Any]:
     fixture_server = mcp.get("mcpServers", {}).get("fixture_runtime")
     if not isinstance(fixture_server, Mapping) or fixture_server.get("enabled") is not True:
         raise DemoValidationError("FIXTURE_MCP_BINDING_MISSING")
-    if set(fixture_server.get("enabled_tools", [])) != {"query", "calculate"}:
+    # 当前来源检索工具可出现在包级目录，但不会授予 Demo 角色额外工具权限。
+    # 老的双工具配置保留兼容；任意新增工具或缺失原必需工具仍拒绝。
+    if set(fixture_server.get("enabled_tools", [])) not in (
+        {"query", "calculate"},
+        {"query", "calculate", "research_search", "research_fetch"},
+    ):
         raise DemoValidationError("FIXTURE_MCP_TOOL_DRIFT")
 
     resource_paths: set[Path] = {plugin_path, profile_path, mcp_path, entry_skill_path}

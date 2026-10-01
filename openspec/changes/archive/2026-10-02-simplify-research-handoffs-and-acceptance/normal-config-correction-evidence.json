@@ -1,0 +1,29 @@
+{
+  "change": "simplify-research-handoffs-and-acceptance",
+  "approval": "用户对最小全局配置修正和一次normal补跑明确回复：同意授权",
+  "scope": "仅删除 mcp_servers.computer-use.type，其他配置语义不变；不复制全局配置、认证、会话或凭据",
+  "before": {
+    "before_sha256": "1130cb9855982c2a21801db893fbd5054499b84138e1a048ff4df8680381a377",
+    "field": "stdio",
+    "expected_remaining_config_sha256": "e1daf203234dba941b9b320643a62f056131a43e608e3b8ecfdf0e111d4715a3"
+  },
+  "validation": {
+    "command": [
+      "codex",
+      "mcp",
+      "list",
+      "--json"
+    ],
+    "exit_code": 0,
+    "error": null,
+    "computer_use_entry_present": true
+  },
+  "preceding_command_error": "codex --strict-config mcp list --json: --strict-config is not supported for codex mcp; zero model calls",
+  "source_reference": "https://learn.chatgpt.com/docs/extend/mcp?surface=cli",
+  "run_root": "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-extra.5UMIQ0",
+  "launcher_command": "export PATH=\"/private/tmp/stock-agent-schema-ZEXpH8/venv/bin:$PATH\"\nexport PYTHONDONTWRITEBYTECODE=1\nexport TMPDIR=/private/tmp\nbash \"/Users/caihaoming/Documents/stock_agent/scripts/run-product-smoke.sh\" \"/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/handoff-normal-extra.5UMIQ0\"",
+  "normal_parent_limit": 1,
+  "normal_subagent_limit": 2,
+  "failed_runs_count": true,
+  "automatic_retry": false
+}

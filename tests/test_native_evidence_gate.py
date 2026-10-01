@@ -22,6 +22,8 @@ from product.runtime.fixture_mcp import (
     serve_stdio,
 )
 from product.runtime.run_package import prepare_run
+from product.runtime.hashing import legacy_envelope_hash
+from product.mcp.provenance import content_hash
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,6 +101,17 @@ class EvidenceGateTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(len(first["bundle_hash"]), 64)
         self.assertEqual(
+            first["bundle_hash"], legacy_envelope_hash(first, hash_field="bundle_hash")
+        )
+        self.assertEqual(
+            first["bundle_hash"],
+            content_hash({key: value for key, value in first.items() if key != "bundle_hash"}),
+        )
+        tampered = {**first, "decision_cutoff": first["decision_cutoff"] + "-tampered"}
+        self.assertNotEqual(
+            tampered["bundle_hash"], legacy_envelope_hash(tampered, hash_field="bundle_hash")
+        )
+        self.assertEqual(
             set(first["input_evidence_ids"]),
             set(first["allowed_evidence_ids"]) | set(first["excluded_evidence_ids"]),
         )
@@ -127,6 +140,36 @@ class GateScopedFixtureToolTests(unittest.TestCase):
         self.assertEqual(self.tools.events[-1]["tool"], "fixture_evidence.query")
         self.assertEqual(self.tools.events[-1]["agent"], "runtime_company_analyst")
         self.assertEqual(self.tools.events[-1]["invocation_id"], "inv-tools")
+
+    def test_industry_query_isolates_peer_bodies_without_reducing_allowed_set(self):
+        facts = [
+            {"evidence_id": "target", "security_id": "US:COMMON_STOCK:MRVL"},
+            {"evidence_id": "adi", "security_id": "US:COMMON_STOCK:ADI"},
+            {"evidence_id": "mpwr", "security_id": "US:COMMON_STOCK:MPWR"},
+            {"evidence_id": "benchmark", "security_id": "US:ETF:SPY"},
+        ]
+        gate = {
+            "run_id": "industry-run", "allowed_evidence": facts,
+            "allowed_evidence_ids": [item["evidence_id"] for item in facts],
+            "excluded_evidence_ids": [],
+        }
+        tools = GateScopedFixtureTools(
+            gate, run_id="industry-run", agent="runtime_market_catalyst",
+            invocation_id="industry-inv",
+            allowed_evidence_ids=gate["allowed_evidence_ids"],
+            industry_peer_security_ids=["US:COMMON_STOCK:ADI", "US:COMMON_STOCK:MPWR"],
+        )
+        query = dict(run_id="industry-run", agent="runtime_market_catalyst", invocation_id="industry-inv")
+        with self.assertRaisesRegex(ToolAccessError, "INDUSTRY_PEER_QUERY_MIXED"):
+            tools.query(**query, evidence_ids=["target", "adi", "mpwr"])
+        self.assertEqual(tools.events, [])
+        self.assertEqual(len(tools.query(**query, evidence_ids=["target", "adi", "benchmark"])["evidence"]), 3)
+        self.assertEqual(len(tools.query(**query, evidence_ids=["target", "mpwr"])["evidence"]), 2)
+        legacy = GateScopedFixtureTools(
+            gate, run_id="industry-run", agent="runtime_market_catalyst",
+            invocation_id="industry-inv", allowed_evidence_ids=gate["allowed_evidence_ids"],
+        )
+        self.assertEqual(len(legacy.query(**query, evidence_ids=["target", "adi", "mpwr"])["evidence"]), 3)
 
     def test_field_query_returns_every_authorized_period_and_revision_without_truncation(self):
         facts = [
@@ -264,13 +307,61 @@ class GateScopedFixtureToolTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["calculation_id"]["minLength"], 1)
         self.assertEqual(
             schema["properties"]["operation"]["enum"],
-            ["ratio", "percent_change", "monetary_scale"],
+            ["ratio", "percent_change", "institutional_period_change", "monetary_scale"],
         )
         self.assertIn("Do not send operands or expression", calculate["description"])
         parameters = set(inspect.signature(GateScopedFixtureTools.calculate).parameters)
         parameters.remove("self")
         self.assertEqual(parameters, set(schema["properties"]))
         self.assertFalse(schema["additionalProperties"])
+
+    def test_institutional_period_change_uses_two_completed_supplier_facts(self):
+        gate = dict(self.gate)
+        periods = [
+            ("2026/Q1", "2026-03-31", 1860, "740418491", "84.671"),
+            ("2026/Q2", "2026-06-30", 2562, "711138881", "81.291"),
+        ]
+        facts = [{
+            "evidence_id": f"ev-institutional-{label}",
+            "security_id": "US:COMMON_STOCK:MRVL",
+            "semantic_field": f"moomoo_institutional_aggregate:{label}",
+            "source_id": "moomoo-sg-opend-institutional:MRVL",
+            "as_of": "2026-09-27T07:24:25Z",
+            "retrieved_at": "2026-09-27T07:24:25Z",
+            "value": {
+                "period_label": label, "period_end": end,
+                "period_provisional": False,
+                "institution_count": count,
+                "aggregate_holder_quantity": quantity,
+                "aggregate_holder_percent": percent,
+            },
+        } for label, end, count, quantity, percent in periods]
+        gate["allowed_evidence"] = list(gate["allowed_evidence"]) + facts
+        gate["allowed_evidence_ids"] = list(gate["allowed_evidence_ids"]) + [
+            fact["evidence_id"] for fact in facts
+        ]
+        tools = GateScopedFixtureTools(
+            gate, run_id="run-tools", agent="runtime_company_analyst",
+            invocation_id="inv-tools",
+        )
+        arguments = {
+            "run_id": "run-tools", "agent": "runtime_company_analyst",
+            "invocation_id": "inv-tools", "calculation_id": "calc-institutional-q1-q2",
+            "operation": "institutional_period_change",
+            "evidence_ids": [fact["evidence_id"] for fact in facts],
+        }
+        result = tools.calculate(**arguments)
+        self.assertEqual(result["earlier_period"], "2026/Q1")
+        self.assertEqual(result["later_period"], "2026/Q2")
+        self.assertEqual(result["changes"]["institution_count"]["absolute_change"], "702")
+        self.assertEqual(result["changes"]["aggregate_holder_quantity"]["absolute_change"], "-29279610")
+        self.assertEqual(result["changes"]["aggregate_holder_percent"]["absolute_change"], "-3.380")
+        self.assertEqual(tools.events[-1]["calculation_id"], "calc-institutional-q1-q2")
+        with self.assertRaisesRegex(ToolAccessError, "INSTITUTIONAL_PERIODS_NOT_COMPARABLE"):
+            tools.calculate(**{**arguments, "evidence_ids": list(reversed(arguments["evidence_ids"]))})
+        facts[1]["value"]["period_provisional"] = True
+        with self.assertRaisesRegex(ToolAccessError, "INSTITUTIONAL_PERIODS_NOT_COMPARABLE"):
+            tools.calculate(**arguments)
 
     def test_monetary_scale_calculation_extracts_disclosed_amount_and_tax_basis(self):
         gate = dict(self.gate)
@@ -481,13 +572,45 @@ class GateScopedFixtureToolTests(unittest.TestCase):
             responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
             self.assertEqual(
                 responses[0]["error"]["message"],
-                "MISSING_TOOL_ARGUMENT:run_dir",
+                "SCHEMA_REQUIRED_MISSING:$:run_dir,run_id,agent,invocation_id,evidence_ids",
             )
             self.assertFalse(responses[1]["result"]["isError"])
             self.assertEqual(
                 responses[1]["result"]["structuredContent"]["evidence"][0]["evidence_id"],
                 "ev-normal-price",
             )
+
+    def test_tool_conditional_schema_rejects_before_calculation_side_effect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            prepare_run(
+                ROOT, fixture_path=FIXTURES / "normal-research.json",
+                run_dir=run_dir, run_id="schema-tool-conditional",
+                model="gpt-5.6-terra", research_question="工具契约前置验证。",
+            )
+            invocation = json.loads(
+                (run_dir / "invocations/runtime_company_analyst.json").read_text()
+            )
+            arguments = {
+                "run_dir": str(run_dir), "run_id": "schema-tool-conditional",
+                "agent": "runtime_company_analyst",
+                "invocation_id": invocation["invocation_id"],
+                "calculation_id": "calc-invalid", "operation": "monetary_scale",
+                "evidence_ids": ["ev-normal-revenue"],
+            }
+            request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                       "params": {"name": "calculate", "arguments": arguments}}
+            stdin = io.StringIO(json.dumps(request) + "\n")
+            stdout = io.StringIO()
+            with mock.patch("sys.stdin", stdin), mock.patch("sys.stdout", stdout):
+                serve_stdio(stateless=True)
+            response = json.loads(stdout.getvalue())
+            self.assertIn("SCHEMA_REQUIRED_MISSING", response["error"]["message"])
+            events = [json.loads(line) for line in (
+                run_dir / "events/mcp/events.jsonl"
+            ).read_text().splitlines()]
+            self.assertEqual([event["event_type"] for event in events], ["mcp_tool_error"])
+            self.assertFalse((run_dir / "research/calculations").exists())
 
 
 if __name__ == "__main__":

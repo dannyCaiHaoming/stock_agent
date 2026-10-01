@@ -40,6 +40,7 @@ from product.council import (
 from product.intake import build_handoff, build_manual_draft
 from product.deterministic.equity_valuation import build_fundamental_supplement
 from product.runtime.hashing import canonical_hash
+from product.runtime.multidimensional_references import translate_references
 from product.runtime.validation import validate_company_report
 from product.runtime.invocation import validate_skeptic_first_pass_input
 from product.runtime.common_stock_eval import (
@@ -97,7 +98,7 @@ PORTFOLIO_FIXTURE = ROOT / "evals/fixtures/portfolio-intake/synthetic-multi-asse
 
 def flattened_evidence_catalog(packet):
     return [
-        item
+        dict(zip(group["columns"], item)) if "columns" in group else item
         for group in packet["evidence_catalog"]
         for item in group["items"]
     ]
@@ -1089,7 +1090,8 @@ class HoldingResearchContractTests(unittest.TestCase):
             broken = copy.deepcopy(valid)
             broken["claims"][0]["evidence_refs"] = [request["allowed_evidence_ids"][0] + suffix]
             with self.subTest(suffix=suffix), self.assertRaisesRegex(
-                CommonStockResearchError, "CANONICAL_ID_INVALID|EVIDENCE_CLOSURE_FAILED"
+                CommonStockResearchError,
+                "CANONICAL_ID_INVALID|EVIDENCE_CLOSURE_FAILED|SCHEMA_PATTERN_INVALID",
             ):
                 validate_equity_research_report(broken, request=request)
 
@@ -1195,35 +1197,16 @@ class CompanyAnalystCapabilityTests(unittest.TestCase):
             <= configured
         )
         self.assertIn("research-report-analysis", configured)
-        instructions = config["developer_instructions"]
-        self.assertIn("事实→假设→业务影响→推翻条件", instructions)
-        self.assertIn("confidence 只表示资料对研究判断的支持程度", instructions)
-        self.assertIn("没有合格公司事件时", instructions)
-        self.assertIn("最重要的未决问题", instructions)
-        self.assertIn("局部缺口", instructions)
-        self.assertIn("即使只差一天", instructions)
-        self.assertIn("只有起止日完全相同", instructions)
-        self.assertIn("evidence_catalog", instructions)
-        self.assertIn("按每个实际采用的指标逐项自检", instructions)
-        self.assertIn("不能只写旧年度基线", instructions)
-        self.assertIn("10-K、FY 标签本身不构成证明", instructions)
-        self.assertIn("不得写成年度、财年、全年、TTM P/E", instructions)
-        self.assertIn("$1.8 billion 确定性换算为 18 亿美元", instructions)
-        self.assertIn("风险清单", instructions)
-        self.assertIn("向好与向坏条件", instructions)
-        self.assertIn("accounting_basis_status", instructions)
-        self.assertIn("期间均为91天", instructions)
-        self.assertIn("只能分别呈现两期原值", instructions)
-        self.assertIn("大幅百分比变化", instructions)
-        self.assertIn("完整字符串核对", instructions)
-        self.assertIn("不得仅写", instructions)
-        self.assertIn("不粘贴 evidence_id", instructions)
-        self.assertIn(
-            "equity_research_attachments.query` 实际返回附件正文中的冻结 calculation_ref",
-            instructions,
-        )
-        self.assertIn("FY + current YTD - prior YTD", instructions)
-        self.assertNotIn("新增 Catalyst Agent", instructions)
+        # 角色方法已委托实际 Skill / 任务交付；不要要求旧中文方法
+        # 逐句重复出现在常驻 Agent。业务边界由本文件其余正负例验证。
+        self.assertEqual("read-only", config["sandbox_mode"])
+        self.assertEqual("never", config["approval_policy"])
+        self.assertFalse(config["tools"]["web_search"])
+        self.assertFalse(config["apps"]["_default"]["enabled"])
+        self.assertTrue(config["developer_instructions"].strip())
+        for item in config["skills"]["config"]:
+            self.assertTrue(item["enabled"])
+            self.assertTrue((ROOT / "product" / item["path"] / "SKILL.md").is_file())
 
     def test_same_agent_definition_creates_independent_stock_invocations(self):
         handoff = confirmed_handoff()
@@ -1280,6 +1263,21 @@ class CommonStockDispatchTests(unittest.TestCase):
                 "artifact_refs",
             }
         }
+
+    @staticmethod
+    def semantic_draft(report, *, packet=None):
+        draft = {key: copy.deepcopy(value) for key, value in CommonStockDispatchTests.draft(report).items()
+                 if key != "artifact_refs"}
+        if packet is not None and packet.get("calculation_selection_version") is not None:
+            from product.runtime.calculation_handoff import build_common_stock_calculation_catalog
+            catalog = build_common_stock_calculation_catalog(Path(packet["reference_map"]["binding"]["run_dir"]), packet)
+            refs = {entry["calculation_id"]: ref for ref, entry in catalog.items()}
+            selected = {}
+            for claim in draft["claims"]:
+                for identifier in claim.pop("calculation_refs"):
+                    selected.setdefault(refs[identifier], []).append(claim["claim_id"])
+            draft["calculation_selections"] = [{"calculation_ref": ref, "claim_ids": ids} for ref, ids in selected.items()]
+        return translate_references(draft, packet["reference_map"], to_model=True) if packet else draft
 
     def test_runtime_envelopes_technical_bindings_without_repairing_content(self):
         _, _, requests, _ = self.prepared(1)
@@ -1454,6 +1452,12 @@ class CommonStockDispatchTests(unittest.TestCase):
 
     def test_runtime_model_selection_defaults_accepts_supported_and_rejects_unknown(self):
         product_root = ROOT / "product"
+        from product.runtime.model_routing import agent_development_test_model
+        self.assertEqual("gpt-6-luna", agent_development_test_model())
+        self.assertEqual(
+            "gpt-6-luna",
+            select_product_runtime_model(product_root, requested_model=agent_development_test_model()),
+        )
         self.assertEqual(
             "gpt-5.6-terra",
             select_product_runtime_model(product_root, requested_model=None),
@@ -1901,18 +1905,41 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
         value["result_hash"] = canonical_hash(value)
         return value
 
+    @staticmethod
+    def semantic_draft(job, *, failing=()):
+        value = CommonStockFocusedEvalTests.semantic_result(job, failing=failing)
+        return {"schema_version": "common-stock-research-eval-draft/1.0.0",
+                "status": value["status"], "dimensions": value["dimensions"]}
+
     def test_eval_reads_actual_report_and_produces_bound_result_and_chinese_report(self):
         with tempfile.TemporaryDirectory() as temp:
             _, _, eval_dir, job = self.prepare_job(temp)
             prompt = build_common_stock_eval_prompt(eval_dir)
-            self.assertIn(job["input_hash"], prompt)
+            packet = build_common_stock_eval_packet(eval_dir)
+            self.assertEqual(set(packet["output_schema"]["properties"]), {"schema_version", "status", "dimensions"})
             self.assertIn("不得补充外部事实", prompt)
             raw = Path(temp) / "semantic.json"
-            raw.write_text(json.dumps(self.semantic_result(job)), encoding="utf-8")
-            result = finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw)
+            raw.write_text(json.dumps(self.semantic_draft(job)), encoding="utf-8")
+            result = finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
+                                                    actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
             self.assertEqual("PASS", result["status"])
             self.assertTrue((eval_dir / "eval/result.json").is_file())
             self.assertIn("普通股研究 Eval", (eval_dir / "eval/report.md").read_text(encoding="utf-8"))
+
+    def test_eval_schema_rejects_boolean_grade_before_persisting_result(self):
+        with tempfile.TemporaryDirectory() as temp:
+            _, _, eval_dir, job = self.prepare_job(temp)
+            result = self.semantic_draft(job)
+            item = result["dimensions"]["business_understanding"]
+            item["status"] = "FAIL"
+            item["grade"] = True
+            result["status"] = "FAIL"
+            raw = Path(temp) / "semantic-boolean-grade.json"
+            raw.write_text(json.dumps(result), encoding="utf-8")
+            with self.assertRaisesRegex(CommonStockEvalError, "COMMON_STOCK_EVAL_RESULT_SCHEMA_INVALID"):
+                finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
+                                               actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
+            self.assertFalse((eval_dir / "eval/result.json").exists())
 
     def test_eval_revalidates_calculation_refs_from_actual_mcp_events(self):
         with tempfile.TemporaryDirectory(dir="/private/tmp") as temp:
@@ -1960,17 +1987,15 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             _, _, eval_dir, job = self.prepare_job(temp)
             raw = Path(temp) / "semantic.json"
-            invalid = self.semantic_result(job, failing={
+            invalid = self.semantic_draft(job, failing={
                 "business_understanding", "comparable_financial_analysis",
                 "thesis_causal_chain", "valuation_grounding",
             })
             invalid["status"] = "PASS"
-            invalid["result_hash"] = canonical_hash({
-                key: value for key, value in invalid.items() if key != "result_hash"
-            })
             raw.write_text(json.dumps(invalid), encoding="utf-8")
             with self.assertRaisesRegex(CommonStockEvalError, "AGGREGATE_INVALID"):
-                finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw)
+                finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
+                                               actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
 
     def test_report_with_action_or_dangling_evidence_never_reaches_semantic_eval(self):
         _, _, request = research_request()
@@ -1988,9 +2013,10 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             _, _, eval_dir, job = self.prepare_job(temp)
             raw = Path(temp) / "semantic.json"
-            result = self.semantic_result(job, failing={"valuation_grounding"})
+            result = self.semantic_draft(job, failing={"valuation_grounding"})
             raw.write_text(json.dumps(result), encoding="utf-8")
-            finalized = finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw)
+            finalized = finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
+                                                       actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
             self.assertEqual("FAIL", finalized["status"])
             self.assertEqual("FAIL", finalized["dimensions"]["valuation_grounding"]["status"])
 
@@ -2001,18 +2027,16 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
                 ("claim_refs", ["missing-claim"], "COMMON_STOCK_EVAL_CLAIM_REF_INVALID"),
                 ("evidence_refs", ["missing-evidence"], "COMMON_STOCK_EVAL_EVIDENCE_REF_INVALID"),
             ):
-                result = self.semantic_result(job)
+                result = self.semantic_draft(job)
                 result["dimensions"]["business_understanding"][field] = bad_value
-                result["result_hash"] = canonical_hash({
-                    key: value for key, value in result.items() if key != "result_hash"
-                })
                 raw = Path(temp) / f"{field}.json"
                 raw.write_text(json.dumps(result), encoding="utf-8")
                 with self.subTest(field=field), self.assertRaisesRegex(
                     CommonStockEvalError, code
                 ):
                     finalize_common_stock_eval_job(
-                        eval_dir=eval_dir, semantic_result_path=raw
+                        eval_dir=eval_dir, semantic_result_path=raw,
+                        actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"]
                     )
 
     def test_eval_hook_injects_sealed_packet_and_persists_exact_dev_eval_result(self):
@@ -2052,7 +2076,11 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
             }
             start_record, response = handle_hook_event(start, environ=environment)
             packet = json.loads(response["hookSpecificOutput"]["additionalContext"])
-            self.assertEqual(job["input_hash"], packet["input_manifest"]["input_hash"])
+            self.assertEqual(job["input_hash"], start_record["context_binding"]["input_hash"])
+            self.assertNotIn("input_manifest", packet)
+            self.assertEqual(job["report"], packet["input"]["report"])
+            self.assertEqual(job["allowed_evidence"], packet["input"]["allowed_evidence"])
+            self.assertEqual(canonical_hash(packet), start_record["context_binding"]["model_packet_hash"])
             self.assertEqual(
                 canonical_hash(build_common_stock_eval_packet(
                     eval_dir, expected_model="gpt-5.6-terra"
@@ -2060,11 +2088,26 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
                 start_record["context_binding"]["packet_hash"],
             )
             result = self.semantic_result(job, model="gpt-5.6-terra")
-            message = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+            message = json.dumps(self.semantic_draft(job), ensure_ascii=False, separators=(",", ":"))
             stop = {
                 **start, "hook_event_name": "SubagentStop",
                 "last_assistant_message": message, "stop_hook_active": False,
             }
+            wrong_model_record, _ = handle_hook_event({**stop, "model": "wrong-model"}, environ=environment)
+            self.assertEqual("FAILED", wrong_model_record["output_capture"]["status"])
+            self.assertIn("MODEL_INVALID", wrong_model_record["output_capture"]["failure_code"])
+            self.assertFalse((eval_dir / "eval/result.json").exists())
+            manifest_path = eval_dir / "input-manifest.json"
+            saved_manifest_text = manifest_path.read_text()
+            changed = json.loads(saved_manifest_text)
+            changed["report"]["summary"] = "changed after delivery"
+            changed["input_hash"] = canonical_hash({k: v for k, v in changed.items() if k != "input_hash"})
+            manifest_path.write_text(json.dumps(changed))
+            drift_record, _ = handle_hook_event(stop, environ=environment)
+            self.assertEqual("FAILED", drift_record["output_capture"]["status"])
+            self.assertIn("START_BINDING_INVALID", drift_record["output_capture"]["failure_code"])
+            self.assertFalse((eval_dir / "eval/result.json").exists())
+            manifest_path.write_text(saved_manifest_text)
             stop_record, _ = handle_hook_event(stop, environ=environment)
             self.assertEqual("SAVED", stop_record["output_capture"]["status"])
             self.assertEqual(
@@ -2093,9 +2136,11 @@ class CommonStockNativeStageTests(unittest.TestCase):
         other_mode = _agent_binding(ROOT / "product", "runtime_company_analyst")
         self.assertEqual("runtime_company_analyst", other_mode["name"])
         self.assertEqual(stage_agent, other_mode)
-        self.assertEqual("3.0.20", other_mode["version"])
+        self.assertEqual("3.0.21", other_mode["version"])
         with tempfile.TemporaryDirectory() as temp:
             product = Path(temp) / "product"
+            product.mkdir()
+            shutil.copy2(ROOT / "product/version-manifest.json", product / "version-manifest.json")
             profile = product / ".codex/agents/runtime_company_analyst.toml"
             profile.parent.mkdir(parents=True)
             shutil.copy2(ROOT / "product/.codex/agents/runtime_company_analyst.toml", profile)
@@ -2107,7 +2152,17 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 skill.parent.mkdir(parents=True)
                 shutil.copy2(ROOT / "product/skills" / item["name"] / "SKILL.md", skill)
             self.assertEqual(stage_agent, current_research_bindings(Path(temp))[0])
+            skill = product / "skills/company-research/SKILL.md"
+            original_skill = skill.read_text(encoding="utf-8")
+            skill.write_text(original_skill.replace('version: "2.8.0"', 'version: "0.0.0"', 1), encoding="utf-8")
+            with self.assertRaisesRegex(CommonStockStageError, "COMMON_STOCK_SKILL_VERSION_DRIFT:company-research"):
+                current_research_bindings(Path(temp))
+            skill.write_text(original_skill, encoding="utf-8")
             original = profile.read_text(encoding="utf-8")
+            profile.write_text(original + "\n# unauthorized resource drift\n", encoding="utf-8")
+            with self.assertRaisesRegex(CommonStockStageError, "COMMON_STOCK_AGENT_RESOURCE_DRIFT"):
+                current_research_bindings(Path(temp))
+            profile.write_text(original, encoding="utf-8")
             for altered in (original.replace('name = "runtime_company_analyst"', 'name = "wrong"', 1),
                             original.replace('sandbox_mode = "read-only"', 'sandbox_mode = "workspace-write"', 1),
                             original.replace('path = "skills/company-research"', 'path = "skills/research-report-analysis"', 1)):
@@ -2259,10 +2314,16 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 {"fundamental_supplement"},
                 set(responses[1]["result"]["structuredContent"]["artifacts"]),
             )
-            event = json.loads(
-                (root / "run/events/mcp/events.jsonl").read_text(encoding="utf-8").strip()
-            )
+            events = [json.loads(line) for line in
+                      (root / "run/events/mcp/events.jsonl").read_text(encoding="utf-8").splitlines()]
+            event = events[0]
             self.assertEqual("equity_research_attachments.query", event["tool"])
+            self.assertEqual(events[1]["reference_map_hash"], packet["reference_map"]["map_hash"])
+            delivered = responses[1]["result"]["structuredContent"]
+            canonical = translate_references(delivered, packet["reference_map"])
+            self.assertEqual(canonical["artifacts"]["fundamental_supplement"], supplement)
+            self.assertEqual(delivered["canonical_result_hash"], canonical_hash(canonical["artifacts"]))
+            self.assertEqual(delivered["result_hash"], canonical_hash(delivered["artifacts"]))
 
     def test_stage_rejects_tampered_gate_instead_of_resigning_it(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -2725,7 +2786,9 @@ class CommonStockNativeStageTests(unittest.TestCase):
         self.assertNotIn(
             "allowed_evidence_ids", packet["holding_research_request"]
         )
-        self.assertNotIn("allowed_evidence_ids", packet)
+        self.assertNotIn(technical["evidence_id"], packet["allowed_evidence_ids"])
+        self.assertEqual(set(packet["allowed_evidence_ids"]),
+                         {item["evidence_id"] for item in flattened_evidence_catalog(packet)})
         self.assertEqual(
             1, packet["catalog_policy"]["request_allowed_evidence_count"]
             - packet["catalog_policy"]["company_research_evidence_count"],
@@ -3203,7 +3266,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertEqual(index["tasks"][0]["packet_hash"], canonical_hash(packet))
             tools = StatelessFixtureTools()
             identity = packet["identity"]
-            catalog_evidence_id = flattened_evidence_catalog(packet)[0]["evidence_id"]
+            catalog_evidence_id = flattened_evidence_catalog(json.loads(serialize_common_stock_dispatch_context(packet)))[0]["evidence_id"]
             queried = tools.query(
                 run_dir=str(run), run_id=identity["run_id"], agent=identity["agent"],
                 invocation_id=identity["invocation_id"],
@@ -3247,7 +3310,8 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 if item["security_id"] == identity["security_id"]
                 and item["semantic_field"] == "revenue"
             ]
-            self.assertEqual(expected, [item["evidence_id"] for item in result["evidence"]])
+            model_expected = translate_references({"evidence_ids": expected}, packet["reference_map"], to_model=True)["evidence_ids"]
+            self.assertEqual(model_expected, [item["evidence_id"] for item in result["evidence"]])
             self.assertEqual(expected, tools.events[-1]["evidence_ids"])
             self.assertEqual("fixture-gate-scoped/2.4.0", result["adapter_version"])
             self.assertEqual(result["result_hash"], canonical_hash(result["evidence"]))
@@ -3284,7 +3348,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             )["inputSchema"]
             self.assertIn("semantic_field", tool_schema["properties"])
             self.assertEqual(
-                expected,
+                model_expected,
                 [item["evidence_id"] for item in responses[1]["result"]["structuredContent"]["evidence"]],
             )
             self.assertEqual([], tools.query(
@@ -3367,11 +3431,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
 
             first = tasks[0]
             request = json.loads((run / first["request_path"]).read_text())
-            native = {
-                "run_id": request["run_id"], "invocation_id": request["invocation_id"],
-                "agent": "runtime_company_analyst",
-                **CommonStockDispatchTests.draft(valid_report(request)),
-            }
+            native = CommonStockDispatchTests.semantic_draft(valid_report(request), packet=build_common_stock_dispatch_packet(ROOT, run, first["task_name"]))
             handle_hook_event(
                 self.event("SubagentStart", parent=parent, child="child-0", turn="turn-0"),
                 environ=env,
@@ -3454,10 +3514,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             full["claims"][0]["evidence_refs"] = []
             full["claims"][0]["assumption_ids"] = []
             full["claims"][0]["calculation_refs"] = []
-            native = {
-                "run_id": request["run_id"], "invocation_id": request["invocation_id"],
-                "agent": "runtime_company_analyst", **CommonStockDispatchTests.draft(full),
-            }
+            native = CommonStockDispatchTests.semantic_draft(full, packet=build_common_stock_dispatch_packet(ROOT, run, task["task_name"]))
             stopped, _ = handle_hook_event(
                 self.event(
                     "SubagentStop", parent=parent, child="child-invalid", turn="turn-invalid",
@@ -3511,12 +3568,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertEqual("block", response["decision"])
 
             request = json.loads((run / task["request_path"]).read_text())
-            native = {
-                "run_id": request["run_id"],
-                "invocation_id": request["invocation_id"],
-                "agent": "runtime_company_analyst",
-                **CommonStockDispatchTests.draft(valid_report(request)),
-            }
+            native = CommonStockDispatchTests.semantic_draft(valid_report(request), packet=build_common_stock_dispatch_packet(ROOT, run, task["task_name"]))
             wrong = dict(native)
             wrong["invocation_id"] = "wrong-invocation"
             handle_hook_event(
@@ -3598,12 +3650,13 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 )
             mcp_path = run / "events/mcp/events.jsonl"
             mcp_path.parent.mkdir(parents=True)
-            mcp_path.write_text(json.dumps({
-                "event_type": "mcp_tool_result",
-                "invocation_id": children[0][2]["invocation_id"],
-                "tool": "fixture_math.calculate",
-                "calculation_id": "calc-valuation-one",
-            }) + "\n", encoding="utf-8")
+            from product.runtime.fixture_mcp import StatelessFixtureTools
+            first_request = json.loads((run / children[0][2]["request_path"]).read_text())
+            tools = StatelessFixtureTools(default_run_dir=run)
+            tools.calculate(run_id=first_request["run_id"], invocation_id=first_request["invocation_id"],
+                agent="runtime_company_analyst", calculation_id="calc-valuation-one", operation="ratio",
+                evidence_ids=first_request["allowed_evidence_ids"])
+            mcp_path.write_text(json.dumps(tools.events[-1]) + "\n", encoding="utf-8")
             for position, (child, turn, task) in enumerate(children):
                 request = json.loads((run / task["request_path"]).read_text())
                 full = valid_report(request)
@@ -3612,11 +3665,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
                     full["artifact_refs"] = ["calc-valuation-one"]
                 if position == 1:
                     full["status"] = "LOW_CONFIDENCE"
-                draft = CommonStockDispatchTests.draft(full)
-                native = {
-                    "run_id": request["run_id"], "invocation_id": request["invocation_id"],
-                    "agent": "runtime_company_analyst", **draft,
-                }
+                native = CommonStockDispatchTests.semantic_draft(full, packet=build_common_stock_dispatch_packet(ROOT, run, task["task_name"]))
                 record, _ = handle_hook_event(
                     self.event("SubagentStop", parent=parent, child=child, turn=turn,
                                message=json.dumps(native, ensure_ascii=False)),
@@ -3648,9 +3697,10 @@ class CommonStockNativeStageTests(unittest.TestCase):
             )
             semantic = CommonStockFocusedEvalTests.semantic_result(job)
             semantic_path = Path(temp) / "semantic-result.json"
-            semantic_path.write_text(json.dumps(semantic), encoding="utf-8")
+            semantic_path.write_text(json.dumps(CommonStockFocusedEvalTests.semantic_draft(job)), encoding="utf-8")
             finalize_common_stock_eval_job(
-                eval_dir=eval_dir, semantic_result_path=semantic_path
+                eval_dir=eval_dir, semantic_result_path=semantic_path,
+                actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"]
             )
             updated = json.loads((run / "research/coverage.json").read_text())
             evaluated = next(
@@ -3959,12 +4009,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 environ=env,
             )
             request = json.loads((first / task["request_path"]).read_text())
-            native = {
-                "run_id": request["run_id"],
-                "invocation_id": request["invocation_id"],
-                "agent": "runtime_company_analyst",
-                **CommonStockDispatchTests.draft(valid_report(request)),
-            }
+            native = CommonStockDispatchTests.semantic_draft(valid_report(request), packet=build_common_stock_dispatch_packet(ROOT, first, task["task_name"]))
             stopped, _ = handle_hook_event(
                 self.event(
                     "SubagentStop", parent=parent,

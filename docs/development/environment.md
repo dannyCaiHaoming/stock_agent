@@ -74,6 +74,21 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 
 ## 排障顺序与证据
 
+组件版本只读取 `product/version-manifest.json` 的批准值；Agent 的实际内容 hash
+从文件取得，Skill frontmatter 和当前 Schema 的版本声明是必须核对的镜像，
+不是第二份批准来源。通用 MCP、普通股字段查询和独立 Skeptic 查询分别使用
+清单中的 `fixture-gate-scoped`、`common-stock-field-query`、
+`independent-skeptic-query` 作用域，不按最大版本号统一替换。阶段准备与工具调用
+检查对应作用域；版本相符不等于模型或工具已经加载。
+
+`python3 scripts/check-product-version-mirrors.py --repo <仓库> --check` 只读核对
+当前声明；`--render` 只输出从批准清单派生的 fixture profile。
+`--render --skill <名称>` 只输出该 Skill 的预期版本镜像，保留方法正文。
+两种渲染均不写文件、不调用模型、不批准版本或晋升；显式审阅后才能应用差异。
+已退役 `live-us-equity` profile 保留冻结字节供历史读取，不参加当前镜像升级。
+内部合成兼容构造必须显式标记 `compatibility_fixture` 且无真实执行证明；
+当前 Invocation/launcher 不允许将退役路径用于真实启动。
+
 先读取已有路径/manifest、命令与配置、加载事件和终态。只调用明确授权的确定性检查，不自动执行 doctor、网络探针或模型；需要补证先说明缺口。
 
 区分 `DISCOVERED`（文件/hash）、`CONFIG_VALIDATED`（配置解析）与 `LOAD_VERIFIED`（真实加载事件）。静态检查不得输出加载成功，模型自述“已加载”不能替代执行证明。

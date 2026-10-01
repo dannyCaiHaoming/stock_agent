@@ -86,6 +86,61 @@ class HostProxyTests(unittest.TestCase):
         self.assertNotIn('dangerously-bypass', text)
         self.assertNotIn('network_proxy=false', text)
 
+    def test_required_materials_guard_precedes_formal_model_launch(self):
+        text = (ROOT / 'scripts/run-product-smoke.sh').read_text()
+        self.assertIn('--require-materials) require_materials=1', text)
+        self.assertIn('--max-concurrency 2', text)
+        self.assertIn('REQUIRED_PEER_GATE_MISSING', text)
+        self.assertIn('REQUIRED_PEER_EVIDENCE_MISSING', text)
+        self.assertIn('require_complete_research_materials_stage(Path(sys.argv[2]))', text)
+        self.assertIn('set -- "$@" --base-gate "$base_stock_gate"', text)
+        self.assertLess(
+            text.index('require_complete_research_materials_stage(Path(sys.argv[2]))'),
+            text.index('materialize-selected-peers'),
+        )
+        self.assertLess(
+            text.index('REQUIRED_PEER_EVIDENCE_MISSING'),
+            text.index('prepare-multidimensional-research'),
+        )
+
+    def test_required_materials_failure_does_not_start_formal_research(self):
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            wrapper = base / 'python3'
+            wrapper.write_text(
+                '#!/bin/bash\n'
+                'if [ "$1" = "-" ]; then exec "' + os.sys.executable + '" "$@"; fi\n'
+                'printf "%s\\n" "$*" >> "$TEST_COMMAND_LOG"\n'
+            )
+            wrapper.chmod(0o700)
+            scutil = base / 'scutil'
+            scutil.write_text(
+                '#!/bin/bash\n'
+                'if [ "$1" = "--proxy" ]; then '
+                'printf "HTTPEnable : 1\\nHTTPProxy : localhost\\nHTTPPort : 23456\\n"; fi\n'
+            )
+            scutil.chmod(0o700)
+            gate = base / 'gate.json'
+            gate.write_text(json.dumps({'run_id': 'required-test'}))
+            pool = base / 'pool.json'
+            pool.write_text('{}')
+            log = base / 'commands'
+            result = subprocess.run(
+                ['bash', str(ROOT / 'scripts/run-product-smoke.sh'), '--stage',
+                 'multidimensional-holding-research', '--handoff', str(base / 'handoff.json'),
+                 '--gate', str(gate), '--peer-candidates', str(pool),
+                 '--require-materials', str(base / 'host')],
+                env={**os.environ, 'PATH': str(base) + os.pathsep + os.environ['PATH'],
+                     'TEST_COMMAND_LOG': str(log)},
+                text=True, capture_output=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            calls = log.read_text().splitlines()
+            self.assertTrue(any('launch-research-materials' in call for call in calls))
+            self.assertFalse(any('prepare-multidimensional-research' in call for call in calls))
+            self.assertFalse(any('launch-multidimensional-research' in call for call in calls))
+
     def test_initial_targeted_host_entry_routes_to_existing_launcher(self):
         import sys
         with tempfile.TemporaryDirectory() as directory:
@@ -121,6 +176,116 @@ class HostProxyTests(unittest.TestCase):
             call = log.read_text()
             self.assertIn('launch-multidimensional-research', call)
             self.assertIn('--task-name dimension_research_3 --initial-task', call)
+
+    def test_multidimensional_and_counter_prepare_default_to_luna(self):
+        import json
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            wrapper = base / 'python3'
+            wrapper.write_text(
+                '#!/bin/bash\n'
+                'if [ "$1" = "-" ]; then exec "' + sys.executable + '" "$@"; fi\n'
+                'printf "%s\\n" "$*" >> "$TEST_COMMAND_LOG"\n'
+            )
+            wrapper.chmod(0o700)
+            for name, body in {
+                'scutil': 'printf "HTTPEnable : 1\\nHTTPProxy : localhost\\nHTTPPort : 23456\\n"',
+                'networksetup': 'printf "Enabled: No\\n"',
+                'lsof': 'exit 0',
+                'route': 'exit 0',
+            }.items():
+                path = base / name
+                path.write_text('#!/bin/bash\n' + body + '\n')
+                path.chmod(0o700)
+            gate = base / 'gate.json'
+            gate.write_text(json.dumps({'run_id': 'luna-test'}))
+            log = base / 'commands'
+            for stage, structured in (
+                ('multidimensional-holding-research', False),
+                ('independent-counter-thesis-research', False),
+                ('multidimensional-holding-research', True),
+            ):
+                with self.subTest(stage=stage, structured=structured):
+                    result = subprocess.run(
+                        ['bash', str(ROOT / 'scripts/run-product-smoke.sh'), '--stage', stage,
+                         '--handoff', str(base / 'handoff.json'), '--gate', str(gate),
+                         *(['--structured-report-submission'] if structured else []),
+                         str(base / (stage + str(structured)))],
+                        env={**os.environ, 'PATH': str(base) + os.pathsep + os.environ['PATH'],
+                             'TEST_COMMAND_LOG': str(log)},
+                        text=True, capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+            calls = log.read_text().splitlines()
+            multidimensional = [call for call in calls if 'prepare-multidimensional-research' in call]
+            self.assertEqual(len(multidimensional), 3)
+            self.assertFalse(any('--structured-report-submission' in call for call in multidimensional[:2]))
+            self.assertIn('--structured-report-submission', multidimensional[2])
+            self.assertTrue(all('--model gpt-6-luna' in call for call in multidimensional))
+            import shlex
+            arguments = [shlex.split(call) for call in multidimensional]
+            identifiers = [args[args.index('--run-id') + 1] for args in arguments]
+            self.assertNotEqual(identifiers[0], identifiers[2])
+            self.assertTrue(all(identifier.startswith('host-multidimensional-')
+                                for identifier in (identifiers[0], identifiers[2])))
+            self.assertEqual(identifiers[1], 'luna-test')  # 反证同批身份契约不变。
+            self.assertTrue(all('--reuse-frozen-gate' in arguments[i] for i in (0, 2)))
+            self.assertNotIn('--reuse-frozen-gate', arguments[1])
+            company = [call for call in calls if 'prepare-common-stock-research' in call]
+            self.assertEqual(len(company), 1)
+            self.assertIn('--model gpt-6-luna', company[0])
+
+    def test_structured_report_flag_rejects_other_stages_before_launch(self):
+        for stage in ('common-stock-research', 'independent-counter-thesis-research',
+                      'predecision-cio-synthesis'):
+            result = subprocess.run(
+                ['bash', str(ROOT / 'scripts/run-product-smoke.sh'), '--stage', stage,
+                 '--handoff', 'unused', '--source-run', 'unused',
+                 '--target-security-id', 'US:COMMON_STOCK:MRVL',
+                 '--structured-report-submission', '/unused-not-created'],
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('STRUCTURED_REPORT_STAGE_UNSUPPORTED', result.stderr)
+
+    def test_prepared_common_stock_routes_to_existing_stage_launcher(self):
+        import json
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            wrapper = base / 'python3'
+            wrapper.write_text(
+                '#!/bin/bash\n'
+                'if [ "$1" = "-" ]; then exec "' + sys.executable + '" "$@"; fi\n'
+                'printf "%s\\n" "$*" >> "$TEST_COMMAND_LOG"\n'
+            )
+            wrapper.chmod(0o700)
+            for name, body in {
+                'scutil': 'printf "HTTPEnable : 1\\nHTTPProxy : localhost\\nHTTPPort : 23456\\n"',
+                'networksetup': 'printf "Enabled: No\\n"',
+                'lsof': 'exit 0',
+                'route': 'exit 0',
+            }.items():
+                path = base / name
+                path.write_text('#!/bin/bash\n' + body + '\n')
+                path.chmod(0o700)
+            prepared = base / 'prepared'
+            prepared.mkdir()
+            (prepared / 'run_manifest.json').write_text(json.dumps({'stage': 'COMMON_STOCK_RESEARCH'}))
+            log = base / 'commands'
+            result = subprocess.run(
+                ['bash', str(ROOT / 'scripts/run-product-smoke.sh'), '--prepared-run',
+                 str(prepared), str(base / 'bundle')],
+                env={**os.environ, 'PATH': str(base) + os.pathsep + os.environ['PATH'],
+                     'TEST_COMMAND_LOG': str(log)},
+                text=True, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                [line.split()[1] for line in log.read_text().splitlines()],
+                ['launch-common-stock-research'],
+            )
 
     def test_host_routes_and_preserves_failure(self):
         for status in (0, 9, 7):

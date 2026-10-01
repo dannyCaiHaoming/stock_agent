@@ -2,8 +2,11 @@ import json
 import re
 import tomllib
 import unittest
+from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
+
+from product.runtime.versioning import validate_profile_agent_versions
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +36,7 @@ AGENT_NAMES = {
     "runtime_skeptic",
     "runtime_market_catalyst",
 }
+CONFIG_AGENT_NAMES = AGENT_NAMES | {"runtime_company_analyst_common_stock"}
 FIXTURE_COUNCIL_AGENTS = {
     "runtime_cio",
     "runtime_company_analyst",
@@ -68,6 +72,7 @@ class SkillConfigTests(unittest.TestCase):
     def test_expected_skills_have_valid_minimal_frontmatter(self):
         found = {path.parent.name for path in SKILLS_ROOT.glob("*/SKILL.md")}
         self.assertTrue(SKILL_NAMES.issubset(found))
+        approved_skills = load_json(ROOT / "product" / "version-manifest.json")["skills"]
 
         for skill_name in sorted(SKILL_NAMES):
             text = (SKILLS_ROOT / skill_name / "SKILL.md").read_text(encoding="utf-8")
@@ -80,21 +85,10 @@ class SkillConfigTests(unittest.TestCase):
                 for key, value in [line.split(":", 1)]
             }
             self.assertEqual(fields.get("name"), skill_name)
-            expected_version = {
-                "portfolio-intake": "1.0.0",
-                "portfolio-council": "3.5.0",
-                "evidence-grounding": "2.1.0",
-                "company-research": "2.8.0",
-                "valuation": "2.5.0",
-                "counter-thesis": "2.1.0",
-                "catalyst-analysis": "1.3.0",
-                "technical-structure": "1.1.0",
-                "research-report-analysis": "1.2.0",
-                "industry-comparison": "1.4.0",
-                "macro-market-analysis": "2.2.0",
-                "ownership-disclosure": "1.0.0",
-                "options-market-structure": "1.0.0",
-            }[skill_name]
+            expected_version = (
+                "1.0.0" if skill_name == "portfolio-intake"
+                else approved_skills[skill_name]
+            )
             self.assertNotRegex(frontmatter, r"(?m)^version:")
             self.assertRegex(
                 frontmatter,
@@ -125,9 +119,12 @@ class RuntimeAgentConfigTests(unittest.TestCase):
         self.profile = load_json(ROOT / "product" / "runtime-profile.json")
 
     def test_expected_agents_are_valid_least_privilege_codex_configs(self):
-        self.assertEqual(set(self.configs), AGENT_NAMES)
+        self.assertEqual(set(self.configs), CONFIG_AGENT_NAMES)
         for filename, config in self.configs.items():
-            self.assertEqual(config["name"], filename)
+            self.assertEqual(
+                config["name"],
+                "runtime_company_analyst" if filename == "runtime_company_analyst_common_stock" else filename,
+            )
             self.assertTrue(config["description"])
             self.assertTrue(config["developer_instructions"])
             expected_sandbox = "workspace-write" if filename == "runtime_cio" else "read-only"
@@ -148,6 +145,9 @@ class RuntimeAgentConfigTests(unittest.TestCase):
                 "valuation",
                 "catalyst-analysis",
                 "research-report-analysis",
+            },
+            "runtime_company_analyst_common_stock": {
+                "evidence-grounding", "company-research", "valuation", "catalyst-analysis",
             },
             "runtime_skeptic": {"evidence-grounding", "counter-thesis"},
             "runtime_market_catalyst": {
@@ -172,11 +172,10 @@ class RuntimeAgentConfigTests(unittest.TestCase):
     def test_agent_tool_allowlists_are_read_only_and_outputs_are_structured(self):
         for name, config in self.configs.items():
             instructions = config["developer_instructions"]
-            tools = re.findall(r"[a-z_]+\.(?:lookup|query|calculate|check)", instructions)
-            self.assertTrue(tools, name)
-            self.assertTrue(
-                all(tool.rsplit(".", 1)[1] in READ_ONLY_TOOL_VERBS | {"check"} for tool in tools)
-            )
+            self.assertTrue(instructions.strip(), name)
+            self.assertFalse(config["tools"]["web_search"])
+            self.assertFalse(config["tools"]["view_image"])
+            self.assertFalse(config["apps"]["_default"]["enabled"])
             if name in FIXTURE_COUNCIL_AGENTS:
                 configured_tools = self.profile["agents"][name]["tool_permissions"]
                 self.assertTrue(configured_tools)
@@ -187,21 +186,19 @@ class RuntimeAgentConfigTests(unittest.TestCase):
                     )
                 )
             if name != "runtime_cio":
-                self.assertIn("只返回", instructions)
-                self.assertIn("data_gaps", instructions)
-                self.assertIn("TIMEOUT", instructions)
+                self.assertEqual(config["sandbox_mode"], "read-only")
 
     def test_fixture_profile_has_three_distinct_versioned_identities(self):
         profile = {name: self.configs[name] for name in FIXTURE_COUNCIL_AGENTS}
+        approved_agents = load_json(ROOT / "product" / "version-manifest.json")["agents"]
         self.assertEqual(
             {
                 name: self.profile["agents"][name]["version"]
                 for name in profile
             },
             {
-                "runtime_cio": "3.1.0",
-                "runtime_company_analyst": "3.0.20",
-                "runtime_skeptic": "2.2.0",
+                name: approved_agents[name.replace("_", "-")]
+                for name in profile
             },
         )
         self.assertEqual({config["name"] for config in profile.values()}, FIXTURE_COUNCIL_AGENTS)
@@ -215,17 +212,34 @@ class RuntimeAgentConfigTests(unittest.TestCase):
             "runtime_skeptic",
         ])
 
+    def test_current_profiles_mirror_approved_agent_versions(self):
+        manifest = load_json(ROOT / "product" / "version-manifest.json")
+        validate_profile_agent_versions(manifest, self.profile)
+
+        stale_market = deepcopy(self.profile)
+        stale_market["multidimensional_holding_research_stage"]["market_agent_version"] = "1.0.1"
+        with self.assertRaisesRegex(ValueError, "PROFILE_AGENT_VERSION_DRIFT:runtime_market_catalyst"):
+            validate_profile_agent_versions(manifest, stale_market)
+        stale_cio = deepcopy(self.profile)
+        stale_cio["agents"]["runtime_cio"]["version"] = "3.1.0"
+        with self.assertRaisesRegex(ValueError, "PROFILE_AGENT_VERSION_DRIFT:runtime_cio"):
+            validate_profile_agent_versions(manifest, stale_cio)
+
     def test_specialist_boundaries_are_explicit(self):
-        company = self.configs["runtime_company_analyst"]["developer_instructions"]
-        skeptic = self.configs["runtime_skeptic"]["developer_instructions"]
-        catalyst = self.configs["runtime_market_catalyst"]["developer_instructions"]
-        cio = self.configs["runtime_cio"]["developer_instructions"]
-        self.assertIn("禁止输出组合动作", company)
-        self.assertIn("CONTEXT_ISOLATION_VIOLATION", skeptic)
-        self.assertIn("禁止选择最终组合动作", skeptic)
-        self.assertIn("禁止选择最终组合动作", catalyst)
-        self.assertIn("deterministic Risk Engine", cio)
-        self.assertIn("不得覆盖 REJECTED", cio)
+        # 文字不授予权限；解析实际 profile 的研究停止点及独立工具集合。
+        self.assertEqual(set(self.profile["common_stock_research_stage"]["stops_before"]), {
+            "runtime_skeptic", "runtime_cio", "deterministic_risk_engine",
+        })
+        self.assertEqual(set(self.profile["multidimensional_holding_research_stage"]["stops_before"]), {
+            "runtime_skeptic", "runtime_cio", "deterministic_risk_engine",
+        })
+        self.assertEqual(self.profile["agents"]["runtime_skeptic"]["tool_permissions"], ["fixture_evidence.query"])
+        self.assertEqual(set(self.profile["agents"]["runtime_company_analyst"]["tool_permissions"]), {
+            "fixture_evidence.query", "fixture_math.calculate",
+        })
+        self.assertTrue({"broker", "account_mutation", "order_execution"}.issubset(
+            self.profile["disabled_capabilities"],
+        ))
 
 
 class CapabilityRegistryTests(unittest.TestCase):

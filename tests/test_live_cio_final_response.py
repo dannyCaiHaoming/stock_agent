@@ -126,35 +126,24 @@ class LiveCioFinalResponseTests(unittest.TestCase):
             default = build_smoke_prompt(run, repository_root=ROOT, defer_deterministic_finalize=True)
             self.assertIn("CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION", default)
 
-    def test_launcher_passes_schema_and_valid_response_reaches_existing_risk(self):
+    def test_compatibility_response_reader_still_reaches_existing_risk_without_model(self):
         with tempfile.TemporaryDirectory() as directory:
             run, draft = self.prepared(directory)
             text = json.dumps(draft, ensure_ascii=False)
 
-            def fake_process(command, **kwargs):
-                schema_path = Path(command[command.index("--output-schema") + 1])
-                validate_schema_instance(draft, read_json(schema_path))
-                self.assertEqual(command[command.index("--sandbox") + 1], "workspace-write")
-                Path(command[command.index("--output-last-message") + 1]).write_text(text)
-                for event in final_events(text):
-                    kwargs["stdout"].write(json.dumps(event) + "\n")
-                return subprocess.CompletedProcess(command, 0)
-
-            with patch("product.runtime.nested_codex.subprocess.run", side_effect=fake_process), patch(
-                "product.runtime.nested_codex.build_ephemeral_run_specialist_execution_proof",
-                return_value={"status": "SYNTHETIC_TEST_ONLY"}
-            ):
-                result, _ = launch_nested_codex(ROOT, run_dir=run)
-            self.assertIsNotNone(result["deterministic_continuation"]["risk_finalization"])
+            schema = build_live_cio_decoding_schema(ROOT, run_id=read_json(run / "run_manifest.json")["run_id"],
+                                                   allowed_evidence_ids=REFS)
+            validate_schema_instance(draft, schema)
+            _persist_cio_final_response(run, text, final_events(text))
+            result = finalize_cio(ROOT, run_dir=run)
+            self.assertEqual(result["next_state"], "SAFE_NO_TRADE")
             self.assertEqual((run / "cio/runtime_cio.json").read_text(), text)
             self.assertTrue((run / "decision.json").is_file())
             self.assertTrue(read_json(run / "decision_trace.json")["risk_lineage"])
-            environment = read_json(run / "invocation/environment-manifest.json")
-            from product.runtime.hashing import file_hash
-            self.assertEqual(environment["resource_hashes"]["cio_decoding_schema"],
-                             file_hash(run / "invocation/cio-output.schema.json"))
+            self.assertTrue(read_json(run / "run_manifest.json")["compatibility_fixture"])
+            self.assertFalse((run / "invocation/environment-manifest.json").exists())
 
-    def test_zero_exit_with_missing_final_event_fails_before_proof_and_risk(self):
+    def test_retired_compatibility_fixture_cannot_launch_even_a_zero_exit_process(self):
         with tempfile.TemporaryDirectory() as directory:
             run, _ = self.prepared(directory)
 
@@ -165,11 +154,11 @@ class LiveCioFinalResponseTests(unittest.TestCase):
             with patch("product.runtime.nested_codex.subprocess.run", side_effect=fake_process), patch(
                 "product.runtime.nested_codex.build_ephemeral_run_specialist_execution_proof"
             ) as proof, patch("product.runtime.nested_codex.finalize_cio") as risk:
-                result, code = launch_nested_codex(ROOT, run_dir=run)
-            self.assertNotEqual(code, 0)
-            self.assertIn("CIO_FINAL_EVENT_MISMATCH", result["failure_code"])
+                with self.assertRaisesRegex(ValueError, "LIVE_COUNCIL_ENTRY_RETIRED"):
+                    launch_nested_codex(ROOT, run_dir=run)
             proof.assert_not_called()
             risk.assert_not_called()
+            self.assertFalse((run / "invocation").exists())
 
 
 if __name__ == "__main__":

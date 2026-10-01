@@ -127,6 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
     stock_prepare.add_argument("--max-concurrency", type=int, default=3)
     stock_prepare.add_argument("--focus-security-id")
     stock_prepare.add_argument("--memory-root", type=Path)
+    stock_prepare.add_argument("--reuse-frozen-gate", action="store_true")
     stock_prepare.add_argument(
         "--force-rerun", action="store_true",
         help="忽略严格等价的持久化报告并创建新的 Company Agent 调用",
@@ -230,6 +231,8 @@ def build_parser() -> argparse.ArgumentParser:
     multi_prepare.add_argument("--structured-report-submission", action="store_true")
     multi_prepare.add_argument("--task-bound-tools", action="store_true",
                                help="仅新八维：工具用精确task_name，程序从冻结Invocation装配身份")
+    multi_prepare.add_argument("--core-forward-only", action="store_true",
+                               help="仅反证阶段：执行现有六项核心准入的正向依赖，不执行八维整批")
     multi_prepare.add_argument("--reuse-frozen-gate", action="store_true",
                                help="以新执行身份复用冻结 Gate，保留原文件及来源绑定")
 
@@ -652,6 +655,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             focus_security_id=args.focus_security_id,
             equity_research_package_paths=args.equity_research_package,
             memory_root=args.memory_root, force_rerun=args.force_rerun,
+            reuse_frozen_gate=args.reuse_frozen_gate,
         )
     elif args.command == "common-stock-research-prompt":
         print(build_common_stock_stage_prompt(args.repo, args.run_dir))
@@ -683,6 +687,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             structured_report_submission=args.structured_report_submission,
             task_bound_tools=args.task_bound_tools,
             reuse_frozen_gate=args.reuse_frozen_gate,
+            core_forward_only=args.core_forward_only,
         )
     elif args.command == "multidimensional-research-prompt":
         print(build_multidimensional_stage_prompt(args.repo, args.run_dir))
@@ -1012,6 +1017,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     parent_rollout=parent,
                     child_rollout=child,
                 )
+                if proof.get("next_state") == "EVAL_LOCAL_REVISION_REQUIRED":
+                    print(json.dumps(proof, ensure_ascii=False, sort_keys=True))
+                    return 0  # 这是同一子会话的待修订状态，不是评分/证明 PASS。
                 persist_eval_execution_proof(proof, eval_dir=args.eval_dir)
                 result = {
                     "eval_id": proof["eval_id"],

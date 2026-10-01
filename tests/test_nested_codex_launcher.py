@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -164,6 +166,63 @@ class NestedCodexLauncherTests(unittest.TestCase):
             'mcp_servers.live_runtime={command="/usr/bin/false",enabled=false}',
             command,
         )
+
+    def test_bound_council_mcp_starts_over_stdio_and_keeps_reader_authorization(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            prepare_run(
+                ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
+                run_dir=run_dir, run_id="bound-mcp-transport", model="gpt-5.6-terra",
+                research_question="验证本地 MCP 接缝，不启动模型。",
+            )
+            command = build_nested_codex_command(
+                codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
+                model="gpt-5.6-terra", sqlite_home=run_dir / "sqlite",
+                log_dir=run_dir / "logs", final_message_path=run_dir / "final.txt",
+                hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
+                fixture_mcp_run_dir=run_dir, enable_cio_local_revision=True,
+            )
+            transport = tomllib.loads(next(
+                item for item in command if item.startswith("mcp_servers.fixture_runtime=")
+            ))["mcp_servers"]["fixture_runtime"]
+            unbound_environment = {
+                key: value for key, value in os.environ.items()
+                if key not in {"STOCK_AGENT_FIXTURE_MCP_PYTHON", "STOCK_AGENT_FIXTURE_MCP_PYTHONPATH"}
+            }
+            unbound = subprocess.run(
+                [transport["command"], *transport["args"]], cwd=transport["cwd"],
+                env=unbound_environment, input="", capture_output=True, text=True, timeout=15,
+            )
+            self.assertEqual(unbound.returncode, 126)
+            self.assertIn("FIXTURE_MCP_PYTHON_NOT_BOUND", unbound.stderr)
+            requests = [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                    "protocolVersion": "2025-06-18", "capabilities": {},
+                    "clientInfo": {"name": "deterministic-seam-test", "version": "1"},
+                }},
+                {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+                {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {
+                    "name": "read_reports", "arguments": {
+                        "run_id": "bound-mcp-transport", "agent": "runtime_company_analyst",
+                        "invocation_id": "unauthorized-reader", "report_ids": ["r1"],
+                    },
+                }},
+            ]
+            # Execute only the generated local MCP transport, never codex.
+            completed = subprocess.run(
+                [transport["command"], *transport["args"]], cwd=transport["cwd"],
+                env={**os.environ, **transport["env"], "PYTHONDONTWRITEBYTECODE": "1"},
+                input="\n".join(json.dumps(item) for item in requests) + "\n",
+                capture_output=True, text=True, timeout=15,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            responses = {item["id"]: item for item in map(json.loads, completed.stdout.splitlines())}
+            self.assertIn("tools", responses[1]["result"]["capabilities"])
+            advertised = {item["name"] for item in responses[2]["result"]["tools"]}
+            self.assertIn("read_reports", advertised & set(transport["enabled_tools"]))
+            self.assertIn("CIO_REPORT_READ_NOT_AUTHORIZED", json.dumps(responses[3]))
+            self.assertFalse((run_dir / "cio/native-draft.json").exists())
 
     def test_multidimensional_matcher_can_include_market_agent_without_changing_default(self):
         run_dir = Path("/tmp/multidimensional-run")
@@ -558,6 +617,24 @@ class NestedCodexLauncherTests(unittest.TestCase):
             )
 
             def fake_run(command, **kwargs):
+                # Exercise the normal launcher, not just the optional builder
+                # argument: the actual command must bind the frozen run and
+                # expose the CIO reader. This stub never starts a model.
+                override = next(item for item in command
+                                if item.startswith("mcp_servers.fixture_runtime="))
+                transport = tomllib.loads(override)["mcp_servers"]["fixture_runtime"]
+                self.assertEqual(transport["command"], "/bin/sh")
+                self.assertEqual(transport["args"], [
+                    str(ROOT / "product/runtime/launch_fixture_mcp.sh"),
+                    "--stateless", "--default-run-dir", str(run_dir.resolve()),
+                ])
+                self.assertEqual(transport["cwd"], str(ROOT / "product"))
+                self.assertIn("read_reports", transport["enabled_tools"])
+                self.assertNotIn("research_report_submit", transport["enabled_tools"])
+                self.assertTrue(Path(transport["env"]["STOCK_AGENT_FIXTURE_MCP_PYTHON"]).is_absolute())
+                self.assertTrue(Path(transport["env"]["STOCK_AGENT_FIXTURE_MCP_PYTHONPATH"].split(":")[0]).is_absolute())
+                self.assertEqual(command[command.index("--sandbox") + 1], "workspace-write")
+                self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", command)
                 kwargs["stdout"].write(
                     json.dumps({"type": "thread.started", "thread_id": "test-thread"}) + "\n"
                 )
