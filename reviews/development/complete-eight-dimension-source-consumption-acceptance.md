@@ -2,6 +2,12 @@
 
 ## 当前摘要（2026-10-01，优先于下方历史暂停与入场计划）
 
+### COMPLETED / ARCHIVED：同批内容8/8，五类义务5/5，限定实现已推送
+
+最终人工批准、四份主规格54条同步和目录归档均完成。实现提交`05905dcd0f136bbce3a8d460d26d4aad38a3958e`已实际成功推送origin/main；范围与排除项见[发布核对](../../openspec/changes/archive/2026-10-01-complete-eight-dimension-source-consumption/publication-scope-review.md)。干净提交源树43模块759例PASS、3项可选环境SKIPPED，机械费用汇总接缝另23例PASS；旧模式141例及专用4例拒绝/修复PASS、严格规格/版本/差异/启动语法通过。原工作文件301项hash不变，其它196项未提交差异保留。
+
+同批MRVL真实八维最低内容8/8、原来源/引用/PIT门禁和275子/50父累计账不变；本次发布整理没有新增模型。原私有运行目录和hash不重签，源码Git副本不是私人运行目录的字节重放。A/B NOT_TESTED、子/全链费用NOT_OBSERVED、独立全文/13F/vintage/主动期权方向等真实限制仍保留，不等于新的Skeptic/CIO、操作建议、回测或Promotion。以下待批准/收尾中为历史截面。
+
 ### 最终批准已取得，四份规格已同步，限定发布范围核对中
 
 用户明确批准“批准，后续不用找我继续批准”，批准原件见[最终批准记录](../../openspec/changes/archive/2026-10-01-complete-eight-dimension-source-consumption/final-human-approval.md)。同批八维内容8/8、原门禁、来源与成本限制保持；不再以人工批准未取得作为阻断。四delta分别同步4/40/2/8条要求，全文核对54条与增量一致，21份主规格strict及git diff --check通过。当前4/5，5.5仅待归档及安全限定发布。共享运行实现混有其他需求的机械交接和无关功能，正在核对必要依赖与排除清单；尚未归档、暂存、提交或推送，不因批准而整文件认领混合差异，不新增模型验证。

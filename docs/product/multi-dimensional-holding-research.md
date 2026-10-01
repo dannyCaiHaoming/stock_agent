@@ -71,6 +71,8 @@ PortfolioHandoff v3
 
 ### 最新消费核对（2026-10-01）
 
+最终收尾：本Change已同步且归档，限定实现提交`05905dc`已推送origin/main，五类义务5/5完成。下段是取得批准时的核对事实，归档收尾现已执行完毕；真实来源限制、研究状态和成本口径不变。
+
 `complete-eight-dimension-source-consumption`已完成技术及八维内容验收并取得最终人工完成批准，四份主规格已同步，限定发布及归档收尾沿批准执行。第十三批`eight-dimension-readable-results-20261001.wN788G/run`同原资料与截止点、原shell入口实际8子/1父，八份报告保存且独立内容8/8 PASS。技术计算与有据推翻条件、基本面财季/单季累计/重组语义、同行比较、宏观原观测/传导、市场广度/波动/代理、所有权两期/内部人、期权报价/Greeks/规模/时点及许可研报正反/当批上游关系均达原最低问题；没有拼旧报告、降低门禁或增加Agent。旧计算引用方式和其他模式保持兼容。LOW_CONFIDENCE/SOURCE_LIMITED等真实限制保留，不把八份SAVED标为研究充分COMPLETE。版本/hash、实际查询/计算与成本限制见[验收记录](../../reviews/development/complete-eight-dimension-source-consumption-acceptance.md)。
 
 ### 第十二批诊断（历史，已由上述最终验收承接）
