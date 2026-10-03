@@ -50,6 +50,31 @@ def freeze_snapshot(*, snapshot_id: str, portfolio: dict, request_started_at: st
     return body
 
 
+def freeze_research_snapshot(*, request: dict, snapshot_id: str, request_started_at: str,
+                             decision_cutoff: str, facts: list, source_access: list,
+                             raw_records: list, collection_events: list, gaps: list,
+                             universe: dict, source_selections: list) -> dict:
+    """非持仓冻结分支；与原 Gate 共用事实/路由/PIT 校验。"""
+    from product.runtime.single_stock_input import validate_single_stock_request
+    validate_single_stock_request(request)
+    cutoff = iso_utc(decision_cutoff)
+    if request["resolved_cutoff"] != cutoff:
+        raise ValueError("SINGLE_STOCK_SNAPSHOT_CUTOFF_MISMATCH")
+    if {item["security_id"] for item in source_selections} != {request["security"]["security_id"]}:
+        raise ValueError("SINGLE_STOCK_ROUTING_SCOPE_MISMATCH")
+    body = deepcopy({"schema_version": "live-research-snapshot/1.0.0", "source_mode": "live",
+        "input_kind": "SINGLE_STOCK_RESEARCH", "research_request": request,
+        "research_request_hash": request["request_hash"], "snapshot_id": snapshot_id,
+        "request_started_at": iso_utc(request_started_at), "decision_cutoff": cutoff,
+        "source_access": source_access, "facts": facts, "raw_records": raw_records,
+        "collection_events": collection_events, "gaps": gaps,
+        "universe": universe, "source_selections": source_selections,
+        "freshness_policy_version": "live-freshness/1.0.0"})
+    body["snapshot_hash"] = content_hash(body)
+    validate_contract("snapshot", body)
+    return body
+
+
 def value_portfolio(portfolio: dict, snapshot: dict, gate: dict, *, calendar=None) -> dict:
     from product.runtime.evidence_gate import run_live_evidence_gate
     validate_contract("portfolio", portfolio)

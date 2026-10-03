@@ -744,7 +744,7 @@ def report_page(left: Mapping[str, Any], right: Mapping[str, Any] | None = None)
         report = item.get("report") if isinstance(item.get("report"), Mapping) else {}
         security = report.get("security") if isinstance(report.get("security"), Mapping) else {}
         title = security.get("display_symbol") or report.get("title") or report.get("report_id") or "研究报告"
-        content = supported_content(report) if report.get("schema_version") == "equity-research-report/1.0.0" else legacy_content(report)
+        content = supported_content(report) if report.get("schema_version") in {"equity-research-report/1.0.0", "equity-research-report/2.0.0"} else legacy_content(report)
         return f'<article class="report"><div class="report-meta"><span>研究截止 {h(item.get("original_report_cutoff"))}</span><span>状态 {h(item.get("research_status"))}</span><span>原 run {h(item.get("original_run_id"))}</span><span>报告 hash {h(str(item.get("report_hash") or "")[:16])}</span></div><h2>{h(title)}</h2>{content}</article>'
     panels = panel(left) + (panel(right) if right else "")
     return _layout("已保存研究报告" if right is None else "报告原文并排", "/companies", f'<div class="report-grid {"two" if right else ""}">{panels}</div>')

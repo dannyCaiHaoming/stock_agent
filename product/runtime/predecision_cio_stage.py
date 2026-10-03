@@ -10,7 +10,9 @@ import hashlib
 import json
 import os
 import shutil
+import signal
 import subprocess
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -20,10 +22,13 @@ from product.runtime.independent_skeptic_stage import (
     validate_forward_gate,
     validate_predecision_package,
 )
+from product.runtime.research_input import (
+    artifact_input_binding, is_single_stock, load_research_input, research_input_binding, research_input_ref, research_subjects,
+)
 from product.runtime.model_routing import agent_development_test_model, select_product_runtime_model
 from product.runtime.schema_validation import validate_schema_instance
 from product.runtime.cio_handoff import (
-    NATIVE_CIO_VERSION, PREDECISION_METADATA, REPORT_READ_TOOL,
+    NATIVE_CIO_VERSION, PREDECISION_METADATA, REPORT_READ_TOOL, REPORT_DELIVERY_VERSION,
     assemble_cio_draft, native_cio_schema,
     build_cio_reference_map, cio_model_schema, cio_model_view, REFERENCE_VERSION,
 )
@@ -32,6 +37,7 @@ from product.runtime.cio_handoff import (
 STAGE = "PREDECISION_CIO_SYNTHESIS"
 RESEARCH_TARGET = "US:COMMON_STOCK:MRVL"
 REQUEST_VERSION = "predecision-cio-request/1.0.0"
+GENERAL_REQUEST_VERSION = "predecision-cio-request/2.0.0"
 MANIFEST_VERSION = "predecision-cio-manifest/1.0.0"
 LOCKED_RESOURCES = (
     "product/AGENTS.md", "product/skills/portfolio-council/SKILL.md",
@@ -46,6 +52,8 @@ REFERENCE_LOCKED_RESOURCES = (
     "product/runtime/multidimensional_references.py", "product/runtime/hashing.py",
 )
 REQUEST_SCHEMA_REF = "product/schemas/runtime/predecision-cio-request.schema.json"
+GENERAL_REQUEST_SCHEMA_REF = "product/schemas/runtime/predecision-cio-request-v2.schema.json"
+GENERAL_OUTPUT_SCHEMA_REF = "product/schemas/runtime/predecision-cio-synthesis-v2.schema.json"
 FROZEN_REQUEST_SCHEMA_REF = "source-inputs/contracts/predecision-cio-request.schema.json"
 SOURCE_PACKAGE_SCHEMA_REF = "product/schemas/runtime/pre-decision-research-package.schema.json"
 FROZEN_SOURCE_PACKAGE_SCHEMA_REF = "source-inputs/contracts/pre-decision-research-package.schema.json"
@@ -175,14 +183,15 @@ def _report_catalog(source_run: Path, bundle: Mapping[str, Any],
 def _artifact_request_schema(repository_root: Path, root: Path,
                              manifest: Mapping[str, Any], request: Mapping[str, Any]) -> dict[str, Any]:
     """使用冻结契约；旧包仅在已登记版本与原字节锁吻合时复用读取器。"""
-    if (request.get("schema_version") != REQUEST_VERSION
+    if (request.get("schema_version") not in {REQUEST_VERSION, GENERAL_REQUEST_VERSION}
             or manifest.get("schema_version") != MANIFEST_VERSION):
         raise PredecisionCioStageError("CIO_ARTIFACT_UNSUPPORTED_VERSION")
-    expected_hash = manifest.get("resource_locks", {}).get(REQUEST_SCHEMA_REF)
+    schema_ref = GENERAL_REQUEST_SCHEMA_REF if request["schema_version"] == GENERAL_REQUEST_VERSION else REQUEST_SCHEMA_REF
+    expected_hash = manifest.get("resource_locks", {}).get(schema_ref)
     record = manifest.get("frozen_request_schema")
     if record is not None:
         if record != {"artifact_ref": FROZEN_REQUEST_SCHEMA_REF,
-                      "schema_version": REQUEST_VERSION, "file_hash": expected_hash}:
+                      "schema_version": request["schema_version"], "file_hash": expected_hash}:
             raise PredecisionCioStageError("CIO_ARTIFACT_SCHEMA_BINDING_INVALID")
         try:
             path = _resolve_ref(root, FROZEN_REQUEST_SCHEMA_REF)
@@ -190,13 +199,13 @@ def _artifact_request_schema(repository_root: Path, root: Path,
             raise PredecisionCioStageError("CIO_ARTIFACT_SCHEMA_MISSING_DEPENDENCY") from exc
     else:
         # 不以当前同名、不同正文的 Schema 冒充旧读取器，也不补写历史包。
-        path = Path(repository_root).resolve() / REQUEST_SCHEMA_REF
+        path = Path(repository_root).resolve() / schema_ref
         if not path.is_file() or file_hash(path) != expected_hash:
             raise PredecisionCioStageError("CIO_ARTIFACT_UNSUPPORTED_VERSION:request-schema")
     if not isinstance(expected_hash, str) or file_hash(path) != expected_hash:
         raise PredecisionCioStageError("CIO_ARTIFACT_SCHEMA_DRIFT")
     schema = _read(path)
-    if schema.get("$id") != REQUEST_VERSION:
+    if schema.get("$id") != request["schema_version"]:
         raise PredecisionCioStageError("CIO_ARTIFACT_UNSUPPORTED_VERSION:request-schema")
     return schema
 
@@ -219,9 +228,10 @@ def validate_predecision_cio_run(
         raise PredecisionCioStageError(f"CIO_REQUEST_DRIFT:{exc}") from exc
     if request.get("requested_level") == "PORTFOLIO_ADVICE" or request.get("actual_level") == "PORTFOLIO_ADVICE":
         raise PredecisionCioStageError("CIO_PORTFOLIO_ADVICE_NOT_AVAILABLE")
-    if request.get("target_security_id") != RESEARCH_TARGET:
+    if request.get("schema_version") == REQUEST_VERSION and request.get("target_security_id") != RESEARCH_TARGET:
         raise PredecisionCioStageError("CIO_RESEARCH_TARGET_NOT_IN_SCOPE")
-    schema = (_read(Path(repository_root).resolve() / REQUEST_SCHEMA_REF) if for_execution
+    schema_ref = GENERAL_REQUEST_SCHEMA_REF if request.get("schema_version") == GENERAL_REQUEST_VERSION else REQUEST_SCHEMA_REF
+    schema = (_read(Path(repository_root).resolve() / schema_ref) if for_execution
               else _artifact_request_schema(repository_root, root, manifest, request))
     validate_schema_instance(request, schema, schema_resources=None if for_execution else {})
     if (manifest.get("stage") != STAGE or request["stage"] != STAGE
@@ -235,7 +245,7 @@ def validate_predecision_cio_run(
         from product.runtime.discovery import discover_product_resources
         if manifest.get("product_discovery_hash") != discover_product_resources(repository_root).discovery_hash:
             raise PredecisionCioStageError("CIO_PRODUCT_DISCOVERY_DRIFT")
-        locked_paths = LOCKED_RESOURCES + (REFERENCE_LOCKED_RESOURCES
+        locked_paths = LOCKED_RESOURCES + ((GENERAL_REQUEST_SCHEMA_REF, GENERAL_OUTPUT_SCHEMA_REF) if request.get("schema_version") == GENERAL_REQUEST_VERSION else ()) + (REFERENCE_LOCKED_RESOURCES
             if manifest.get("reference_transport_version") == REFERENCE_VERSION else ())
         expected_locks = {relative: file_hash(repository_root / relative) for relative in locked_paths}
         if manifest.get("resource_locks") != expected_locks:
@@ -263,6 +273,13 @@ def validate_predecision_cio_run(
                              location=f"source-inputs/{item['artifact_ref']}")
         except HashContractError as exc:
             raise PredecisionCioStageError(f"CIO_REPORT_DRIFT:{exc}") from exc
+    source_input = load_research_input(root / "source-inputs")
+    package = _read(root / "source-inputs" / request["source_package_ref"])
+    bundle = _read(root / "source-inputs/research/holding-research-bundle.json")
+    if (request["target_security_id"] not in {item["security_id"] for item in research_subjects(source_input) if item["asset_type"] == "COMMON_STOCK"}
+            or request["target_security_id"] not in bundle.get("common_stock_security_ids", [])
+            or any(request.get(k) != v or package.get(k) != v for k, v in research_input_binding(source_input).items())):
+        raise PredecisionCioStageError("CIO_TARGET_SOURCE_BINDING_INVALID")
     source_gate = _read(root / "source-inputs/evidence/gate.json")
     stage_gate = _read(root / "evidence/gate.json")
     expected_gate = {**source_gate, "run_id": request["run_id"]}
@@ -283,6 +300,13 @@ def validate_predecision_cio_run(
     if (manifest.get("reference_transport_version") not in {None, REFERENCE_VERSION}
             or manifest.get("reference_transport_version") != invocation.get("reference_transport_version")):
         raise PredecisionCioStageError("CIO_REFERENCE_PROTOCOL_INVALID")
+    delivery = manifest.get("report_delivery_version")
+    if (delivery not in {None, REPORT_DELIVERY_VERSION}
+            or delivery != invocation.get("report_delivery_version")
+            or (delivery is not None and (not is_single_stock(source_input)
+                or invocation.get("draft_delivery") != NATIVE_CIO_VERSION
+                or invocation.get("reference_transport_version") != REFERENCE_VERSION))):
+        raise PredecisionCioStageError("CIO_REPORT_DELIVERY_PROTOCOL_INVALID")
     if not for_execution:
         # 哈希自洽不代替事实闭合。检查冻结 Gate 的实际事实及每个目录报告。
         from product.runtime.validation import collect_evidence_refs
@@ -298,7 +322,7 @@ def validate_predecision_cio_run(
             raise PredecisionCioStageError("CIO_ARTIFACT_SOURCE_BINDING_INVALID")
         frozen_refs = [item["artifact_ref"] for item in manifest["frozen_inputs"]]
         required_refs = {request["source_package_ref"], "run_manifest.json",
-                         "audit/portfolio-handoff.json", "council-request.json", "evidence/gate.json",
+                         research_input_ref(source_input), "council-request.json", "evidence/gate.json",
                          "research/holding-research-bundle.json", package["execution_proof"]["artifact_ref"],
                          *bundle.get("artifact_refs", []), *package.get("artifact_refs", []),
                          *(item["artifact_ref"] for item in catalog["reports"])}
@@ -308,7 +332,7 @@ def validate_predecision_cio_run(
         if not isinstance(source_contract, Mapping):
             raise PredecisionCioStageError("CIO_ARTIFACT_SOURCE_CONTRACT_MISSING")
         if (source_contract.get("artifact_ref") != FROZEN_SOURCE_PACKAGE_SCHEMA_REF
-                    or source_contract.get("schema_version") != "pre-decision-research-package/1.0.0"):
+                    or source_contract.get("schema_version") != package.get("schema_version")):
             raise PredecisionCioStageError("CIO_ARTIFACT_SOURCE_CONTRACT_UNSUPPORTED_VERSION")
         schema_path = _resolve_ref(root, FROZEN_SOURCE_PACKAGE_SCHEMA_REF)
         if file_hash(schema_path) != source_contract.get("file_hash"):
@@ -392,6 +416,21 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
 
     _, request = validate_predecision_cio_run(repository_root, run_dir)
     root = Path(run_dir).resolve()
+    invocation = _read(root / "invocations/runtime_cio.json")
+    report_delivery_instructions = ""
+    if invocation.get("report_delivery_version") == REPORT_DELIVERY_VERSION:
+        report_delivery_instructions = (
+            "read_reports 的 report_delivery 若存在，仅无损共享重复的计算 input_evidence_refs。"
+            "该字段若为 {input_evidence_ref_set: 键}，其完整有序列表在同响应"
+            " report_delivery.input_evidence_ref_sets[键]；按原位置解读，所有输入均保留。"
+            "这不是摘要或新的Evidence ID，不得将共享键用于query或最终引用，"
+            "不要为取得重复列表反复读取同一报告；事实仍须沿query核实。\n"
+            "本阶段仅授权 fixture_runtime.read_reports 和 fixture_runtime.query；"
+            "两者使用下文固定 run_id、agent=runtime_cio、invocation_id。"
+            "估值附件、calculate、research_search、research_fetch 和独立提交工具均未授权，"
+            "不要寻找或调用它们；只能从实际读取报告的引用经query核实已有事实。"
+            "最终JSON直接作为当前主线程最终答复，由原生Stop检查，不调用提交工具。\n"
+        )
     product_root = Path(repository_root).resolve() / "product"
     stage_instructions = _stage_instruction_bundle(product_root)
     catalog = _read(root / "report-catalog.json")["reports"]
@@ -407,13 +446,15 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
     mapping = build_cio_reference_map(root, _read(root / "invocations/runtime_cio.json"), catalog)
     context = cio_model_view(context, mapping)
     context["stage_constraints"] = {
-        "authorized_target_security_id": RESEARCH_TARGET,
+        "authorized_target_security_id": request["target_security_id"],
         "allowed_delivery_levels": ["RESEARCH_SYNTHESIS"],
         "risk_status": "NOT_RUN",
         "account_fit": "当前账户适配未评估",
         "user_context": {
-            "source_kind": "USER_REPORTED_NOT_ACCOUNT_EVIDENCE",
-            "statement": "用户在需求讨论中表示曾清仓 MRVL，系统未独立核验当前账户。",
+            "source_kind": "USER_REPORTED_NOT_ACCOUNT_EVIDENCE" if request["schema_version"] == REQUEST_VERSION else "RESEARCH_REQUEST_NOT_ACCOUNT_EVIDENCE",
+            "statement": ("用户在需求讨论中表示曾清仓 MRVL，系统未独立核验当前账户。"
+                          if request["schema_version"] == REQUEST_VERSION else
+                          "本请求不包含持仓或账户资料，不能推断持有、清仓或账户适配。"),
         },
     }
     if mapping is not None:
@@ -425,6 +466,40 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
             "evidence": "e.* 仅用于 Evidence 选择与 query 参数；原值、来源和时间由原查询返回。",
             "reports": "p.* 仅用于 report_ids/report_selections/report_id；本地 claim_id/challenge_id 保持原值。",
             "policy": "仅精确选择本任务引用，禁止原始 ID、拼接来源时间、跨类型或跨运行引用。"}
+    source_review_instructions = (
+        "上游报告保存及结构验证不代表每条内容正确。核对缺口理由与实际来源，"
+        "区分目录标题、截断正文和完整章节；目录行不能支持正文中的经营断言，"
+        "局部数字须有其实际计算依据，不能因别处出现相同数字就声称该原主张已闭合。"
+        "发现错误缺口或引用遗漏时，明确解释不采纳、以合法来源纠正或限制使用；"
+        "不能改写原报告、重记上游内容PASS或让无依据核心判断进入综合。"
+        "价格/EPS/股数存在不等于可用的正常化估值模型，未查询也不等于来源缺失。"
+        "Market 传导不能只写通用风险偏好；若冻结 Market/Technical 报告含可验证窗口，"
+        "结合其具体市场状态、目标证券对基准的相对表现及相反窗口解释为何能或不能传导，"
+        "并保留缺少 beta、宽度或信用资料的边界。\n"
+    )
+    if (request.get("input_kind") == "SINGLE_STOCK_RESEARCH"
+            and invocation.get("report_delivery_version") == REPORT_DELIVERY_VERSION):
+        source_review_instructions = (
+            "本次单股研究按以下顺序完成来源核验与综合，不提交中间稿或隐藏推理：\n"
+            "1. 完整读取报告后，先区分上游事实、解释和缺口，辨认缺口所针对的来源范围、"
+            "有疑点的正文/计算关联及每个重要反证的原挑战对象；报告保存或自评不代表内容正确。"
+            "从实际报告的合法引用自行确定需核实的资料，不因一个目录条目或未读取就推断来源不存在。\n"
+            "2. 先经query核实这些资料，再确定采纳、纠正、不采纳或限制。"
+            "正文核对目录、截断片段和完整章节的区别，以及事实期间/单位；"
+            "计算核对该局部主张自己的计算关联和输入依据，别处出现同数值不能补齐原主张。"
+            "即使最终不采用有疑点的上游主张，也在conflicts或limitations明确处置及判断影响，"
+            "不改原报告、不重记内容PASS。challenge_dispositions须针对原挑战对象，"
+            "区分实际支持、情景和量化未知，说明接受程度及judgment_impact，不能用另一个挑战的理由代替。\n"
+            "3. 基于核验结果再填写macro_market_transmission并形成综合判断。"
+            "对已读取Macro/Market/Technical报告中的可用政策、市场状态和目标/基准同窗口，"
+            "核实拟采用的原引用或计算输入，解释采用、不采用或限制的理由；"
+            "若窗口方向不同，说明相反窗口对传导解释的影响，不把局部价格变化当作宏观因果证明。"
+            "联系目标公司的需求、融资或资本投入等适用机制，不预设净影响方向；"
+            "beta、宽度、信用或量化敏感度未知可保留，但不能替代对已有材料的实际处置。"
+            "未查询不是来源缺失，观察清单不能代替本次综合；真正缺依据时准确限制，不编数值。"
+            "价格/EPS/股数存在仍不等于适用的正常化估值模型。"
+            "全部核验与取舍只写入原最终字段，不新增输出字段、工具、研究任务或语义修订次数。\n"
+        )
     return (
         "你是本次 PREDECISION_CIO_SYNTHESIS 的 Codex 主线程 CIO；用户已明确要求本阶段综合。"
         "前序正向研究和独立反证均已由来源运行完成、验证和冻结。只进行一次 CIO 综合，"
@@ -445,10 +520,8 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
         "将上游 INTERPRETATION 与已披露 FACT 分开；来源标记的文本冲突未消解时，"
         "不得把未验证的需求到利润/增长因果关系写成已验证事实，"
         "只能在明确限定下写为待验证的推断。"
-        "Market 传导不能只写通用风险偏好；若冻结 Market/Technical 报告含可验证窗口，"
-        "结合其具体市场状态、目标证券对基准的相对表现及相反窗口解释为何能或不能传导，"
-        "并保留缺少 beta、宽度或信用资料的边界。\n"
-        f"所有最终输出中的 Evidence ID（包括 key_facts 和顶层 evidence_refs）都必须先通过"
+        + source_review_instructions
+        + f"所有最终输出中的 Evidence ID（包括 key_facts 和顶层 evidence_refs）都必须先通过"
         f" fixture_runtime.query 实际查询；可一次批量查询，不能只查一个却引用多个。"
         f"调用时仅可使用 run_id={request['run_id']}、"
         f"agent=runtime_cio、invocation_id=cio:{request['run_id']}，evidence_ids 必须取自"
@@ -458,7 +531,8 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
         "原生 Stop 会在同一主会话检查草稿；若返回局部纠正反馈，最多再提交一次完整语义对象，"
         "只改反馈允许的字段，其余内容保持原稿不变，不重新派发研究、不抄写 hash。"
         "两版原文由运行层保留并完整再验；第二次失败终止，不以重启会话增加额度。\n"
-        "以下为本次锁定并交付的阶段适用产品指令、Skill 与 CIO 协议。\n"
+        + report_delivery_instructions
+        + "以下为本次锁定并交付的阶段适用产品指令、Skill 与 CIO 协议。\n"
         + stage_instructions + "\n"
         "<validated_research_context>\n"
         + json.dumps(context, ensure_ascii=False, sort_keys=True)
@@ -468,7 +542,8 @@ def build_predecision_cio_prompt(repository_root: Path, run_dir: Path) -> str:
 
 def _output_schema(repository_root: Path, request: Mapping[str, Any],
                    catalog: list[dict[str, Any]], *, run_dir: Path) -> dict[str, Any]:
-    schema = _read(Path(repository_root) / "product/schemas/runtime/predecision-cio-synthesis.schema.json")
+    schema = _read(Path(repository_root) / (GENERAL_OUTPUT_SCHEMA_REF if request["schema_version"] == GENERAL_REQUEST_VERSION
+                                          else "product/schemas/runtime/predecision-cio-synthesis.schema.json"))
     exact = {
         "run_id": request["run_id"], "invocation_id": f"cio:{request['run_id']}",
         "source_run_id": request["source_run_id"],
@@ -501,7 +576,7 @@ def _assemble_native_output(repository_root: Path, root: Path, request: Mapping[
                             catalog: list[dict[str, Any]], draft: Mapping[str, Any],
                             generated_at: str) -> tuple[dict[str, Any], dict[str, Any]]:
     formal = _output_schema(repository_root, request, catalog, run_dir=root)
-    metadata = {"schema_version": "predecision-cio-synthesis/1.0.0",
+    metadata = {"schema_version": formal["$id"],
                 "run_id": request["run_id"], "invocation_id": f"cio:{request['run_id']}",
                 "source_run_id": request["source_run_id"], "source_package_hash": request["source_package_hash"],
                 "target_security_id": request["target_security_id"], "requested_level": request["requested_level"],
@@ -513,7 +588,7 @@ def _assemble_native_output(repository_root: Path, root: Path, request: Mapping[
                               catalog=catalog, prefix="source-inputs")
 
 
-def _decoding_schema(authoritative: Mapping[str, Any]) -> dict[str, Any]:
+def _decoding_schema(authoritative: Mapping[str, Any], *, shared_evidence: bool = False) -> dict[str, Any]:
     """Project the finalizer contract onto Codex Structured Outputs' subset.
 
     Exact array/object identities and other unsupported JSON Schema keywords
@@ -541,6 +616,26 @@ def _decoding_schema(authoritative: Mapping[str, Any]) -> dict[str, Any]:
             project(node["items"])
 
     project(schema)
+    if shared_evidence:
+        definition = "cio_evidence_id"
+        if definition in schema.get("$defs", {}):
+            raise PredecisionCioStageError("CIO_DECODING_SCHEMA_DEFINITION_COLLISION")
+        top = schema["properties"]["evidence_refs"]
+        fact = schema["properties"]["key_facts"]["items"]["properties"]["evidence_refs"]
+        evidence = top["items"]
+        if evidence == fact["items"] and evidence.get("type") == "string" and evidence.get("enum"):
+            original = copy.deepcopy(schema)
+            reference = {"$ref": f"#/$defs/{definition}"}
+            top["items"], fact["items"] = dict(reference), dict(reference)
+            schema.setdefault("$defs", {})[definition] = copy.deepcopy(evidence)
+            expanded = copy.deepcopy(schema)
+            del expanded["$defs"][definition]
+            if "$defs" not in original and not expanded["$defs"]:
+                del expanded["$defs"]
+            expanded["properties"]["evidence_refs"]["items"] = copy.deepcopy(evidence)
+            expanded["properties"]["key_facts"]["items"]["properties"]["evidence_refs"]["items"] = copy.deepcopy(evidence)
+            if expanded != original:
+                raise PredecisionCioStageError("CIO_DECODING_SCHEMA_NOT_EQUIVALENT")
     return schema
 
 
@@ -704,7 +799,9 @@ def _render_research_synthesis(output: Mapping[str, Any], request: Mapping[str, 
     lines += ["", "## 限制与待补", ""]
     for item in output["limitations"]:
         lines.append(f"- {item}")
-    lines.append("- 用户在需求讨论中表示曾清仓 MRVL，系统未独立核验当前账户；本报告仅综合来源研究截止点，未评估当前账户适配。")
+    lines.append("- 用户在需求讨论中表示曾清仓 MRVL，系统未独立核验当前账户；本报告仅综合来源研究截止点，未评估当前账户适配。"
+                 if request.get("schema_version") == REQUEST_VERSION else
+                 "- 本报告仅综合来源研究截止点，未评估当前账户适配；不推断当前持仓。")
     lines += ["", f"置信度理由：{output['confidence_rationale']}", "",
               "本报告仅供研究参考，不构成投资或交易指令。", ""]
     return "\n".join(lines)
@@ -849,8 +946,23 @@ def check_predecision_cio_trace(repository_root: Path, run_dir: Path) -> dict[st
             or "failure_code" not in process or process["failure_code"] is not None
             or process.get("stage_status") != "COMPLETED_RESEARCH_SYNTHESIS"
             or process.get("stage_status") != terminal
-            or process.get("source_integrity_unchanged") is not True):
+            or process.get("source_integrity_unchanged") is not True
+            or process.get("interrupted", False) is not False
+            or process.get("execution_error") is not None):
         raise PredecisionCioStageError("CIO_PROCESS_RESULT_INVALID")
+    # 旧记录没有本地清理证明，继续只读兼容；新附加证明不可伪标完整。
+    if "local_process_group" in process or "remote_cancellation_status" in process:
+        group = process.get("local_process_group")
+        if (not isinstance(group, dict)
+                or type(group.get("pid")) is not int or group["pid"] <= 0
+                or type(group.get("term_sent")) is not bool
+                or type(group.get("kill_sent")) is not bool
+                or group.get("cleanup_complete") is not True
+                or group.get("signal_permission_denied", False) is not False
+                or process.get("remote_cancellation_status") != (
+                    "UNKNOWN" if group["term_sent"] or group["kill_sent"] else "NOT_APPLICABLE"
+                )):
+            raise PredecisionCioStageError("CIO_PROCESS_RESULT_INVALID")
     if trace.get("cio_model_proof") != _model_execution_proof(repository_root, root, request):
         raise PredecisionCioStageError("CIO_MODEL_PROOF_DRIFT")
     catalog = manifest["report_catalog"]
@@ -899,6 +1011,142 @@ def check_predecision_cio_trace(repository_root: Path, run_dir: Path) -> dict[st
             "terminal_state": terminal, "trace_hash": trace["trace_hash"]}
 
 
+def _run_cio_process(
+    command: list[str], *, prompt: str, cwd: Path,
+    environment: Mapping[str, str], timeout_seconds: float,
+    termination_grace_seconds: float = 2.0,
+) -> dict[str, Any]:
+    """限定本次进程组的本地收尾；不承诺远端请求已取消。"""
+    process = subprocess.Popen(
+        command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, cwd=cwd, env=dict(environment),
+        start_new_session=True,
+    )
+    term_sent = kill_sent = timed_out = permission_denied = False
+    drained = True
+
+    def group_exists() -> bool:
+        nonlocal permission_denied
+        process.poll()
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            permission_denied = True
+        return True
+
+    def send(sig: int) -> bool:
+        nonlocal permission_denied
+        if permission_denied:
+            return False
+        if not group_exists() or permission_denied:
+            return False
+        try:
+            os.killpg(process.pid, sig)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            permission_denied = True
+            return False
+        return True
+
+    def wait_group() -> None:
+        deadline = time.monotonic() + termination_grace_seconds
+        while group_exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+
+    interrupted = False
+    execution_error = None
+    stdout = stderr = b""
+    communicated = False
+
+    def defer_interrupt(signum: int, frame: Any) -> None:
+        nonlocal interrupted
+        interrupted = True
+
+    def capture_timeout(exc: subprocess.TimeoutExpired) -> None:
+        nonlocal stdout, stderr
+        stdout, stderr = exc.stdout or b"", exc.stderr or b""
+
+    try:
+        try:
+            stdout, stderr = process.communicate(input=prompt.encode("utf-8"), timeout=timeout_seconds)
+            communicated = True
+        except subprocess.TimeoutExpired as exc:
+            timed_out = True
+            capture_timeout(exc)
+        except KeyboardInterrupt:
+            interrupted = True
+        except OSError as exc:
+            execution_error = type(exc).__name__
+    finally:
+        # 收尾期间只延后可捕获的SIGINT；恢复原handler，不改变宿主配置。
+        previous_handler = signal.getsignal(signal.SIGINT)
+        try:
+            signal.signal(signal.SIGINT, defer_interrupt)
+        except ValueError:
+            # 非主线程不能安装handler，也不会收到Python的SIGINT异常。
+            previous_handler = None
+        try:
+            if not communicated:
+                term_sent = send(signal.SIGTERM)
+                for attempt in range(2):
+                    if attempt:
+                        kill_sent = send(signal.SIGKILL)
+                    try:
+                        stdout, stderr = process.communicate(timeout=termination_grace_seconds)
+                        communicated = True
+                        break
+                    except subprocess.TimeoutExpired as exc:
+                        capture_timeout(exc)
+                    except KeyboardInterrupt:
+                        interrupted = True
+                    except OSError as exc:
+                        execution_error = type(exc).__name__
+                if not communicated:
+                    # 逃离本组但仍持有管道的进程不在授权清理范围。
+                    drained = False
+                    for stream in (process.stdin, process.stdout, process.stderr):
+                        if stream is not None:
+                            stream.close()
+                    try:
+                        process.wait(timeout=termination_grace_seconds)
+                    except subprocess.TimeoutExpired:
+                        drained = False
+            # communicate返回也不代表关闭管道的同组派生进程退出。
+            if group_exists():
+                term_sent = send(signal.SIGTERM) or term_sent
+                wait_group()
+                if group_exists():
+                    kill_sent = send(signal.SIGKILL) or kill_sent
+                    wait_group()
+            group_absent = not group_exists()
+        finally:
+            if previous_handler is not None:
+                signal.signal(signal.SIGINT, previous_handler)
+    stdout_bytes, stderr_bytes = stdout, stderr
+    try:
+        stdout = stdout_bytes.decode("utf-8")
+        stderr = stderr_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        execution_error = "UnicodeDecodeError"
+        stdout = stdout_bytes.decode("utf-8", errors="replace")
+        stderr = stderr_bytes.decode("utf-8", errors="replace")
+    return {
+        "stdout": stdout, "stderr": stderr,
+        "stdout_bytes": stdout_bytes, "stderr_bytes": stderr_bytes,
+        "process_exit_code": 124 if timed_out else 130 if interrupted else 1 if execution_error else process.returncode,
+        "timed_out": timed_out, "interrupted": interrupted, "execution_error": execution_error,
+        "local_process_group": {
+            "pid": process.pid, "term_sent": term_sent, "kill_sent": kill_sent,
+            "signal_permission_denied": permission_denied,
+            "cleanup_complete": drained and process.poll() is not None and group_absent and not permission_denied,
+        },
+        "remote_cancellation_status": "UNKNOWN" if timed_out or interrupted or execution_error or term_sent or kill_sent or permission_denied else "NOT_APPLICABLE",
+    }
+
+
 def launch_predecision_cio_run(
     repository_root: Path, *, run_dir: Path, codex_binary: str = "codex",
     timeout_seconds: int = 2400,
@@ -922,7 +1170,7 @@ def launch_predecision_cio_run(
     prompt = build_predecision_cio_prompt(repository_root, root)
     schema = _decoding_schema(_native_output_schema(
         repository_root, request, manifest["report_catalog"], run_dir=root
-    ))
+    ), shared_evidence=manifest.get("report_delivery_version") == REPORT_DELIVERY_VERSION)
     invocation_dir.mkdir()
     prompt_path = invocation_dir / "prompt.txt"
     prompt_path.write_text(prompt, encoding="utf-8")
@@ -982,27 +1230,25 @@ def launch_predecision_cio_run(
         "source_integrity_before": before,
         "started_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    try:
-        process = subprocess.run(
-            command, input=prompt, text=True, cwd=repository_root / "product",
-            env=environment, capture_output=True, timeout=timeout_seconds, check=False,
-        )
-        stdout, stderr, process_code, timed_out = (
-            process.stdout, process.stderr, process.returncode, False
-        )
-    except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        stderr = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-        process_code, timed_out = 124, True
-    (invocation_dir / "codex-events.jsonl").write_text(stdout, encoding="utf-8")
-    (invocation_dir / "codex-stderr.log").write_text(stderr, encoding="utf-8")
+    execution = _run_cio_process(
+        command, prompt=prompt, cwd=repository_root / "product",
+        environment=environment, timeout_seconds=timeout_seconds,
+    )
+    stdout, stderr = execution["stdout"], execution["stderr"]
+    process_code, timed_out = execution["process_exit_code"], execution["timed_out"]
+    (invocation_dir / "codex-events.jsonl").write_bytes(execution.get("stdout_bytes", stdout.encode("utf-8")))
+    (invocation_dir / "codex-stderr.log").write_bytes(execution.get("stderr_bytes", stderr.encode("utf-8")))
     after = integrity_snapshot(repository_root)
     failure = None
     try:
         if timed_out:
             raise PredecisionCioStageError("CIO_STAGE_TIMEOUT")
+        if execution.get("interrupted") is True:
+            raise PredecisionCioStageError("CIO_STAGE_INTERRUPTED")
         if process_code != 0:
             raise PredecisionCioStageError("CIO_CODEX_PROCESS_FAILED")
+        if execution["local_process_group"]["cleanup_complete"] is not True:
+            raise PredecisionCioStageError("CIO_LOCAL_PROCESS_CLEANUP_INCOMPLETE")
         if before != after:
             raise PredecisionCioStageError("CIO_PRODUCT_SOURCE_CHANGED")
         events = [json.loads(line) for line in stdout.splitlines() if line.strip()]
@@ -1049,7 +1295,11 @@ def launch_predecision_cio_run(
         "schema_version": "predecision-cio-process/1.0.0",
         "run_id": request["run_id"], "process_exit_code": process_code,
         "timed_out": timed_out, "stage_status": result["status"],
+        "interrupted": execution.get("interrupted", False),
+        "execution_error": execution.get("execution_error"),
         "failure_code": failure, "source_integrity_unchanged": before == after,
+        "local_process_group": execution["local_process_group"],
+        "remote_cancellation_status": execution["remote_cancellation_status"],
     }, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     return result, 0 if result["status"] == "COMPLETED_RESEARCH_SYNTHESIS" else 7
 
@@ -1066,8 +1316,6 @@ def prepare_predecision_cio_run(
         raise PredecisionCioStageError("CIO_PORTFOLIO_ADVICE_NOT_AVAILABLE")
     if mandate_path is not None:
         raise PredecisionCioStageError("CIO_MANDATE_NOT_APPLICABLE_TO_RESEARCH")
-    if target_security_id != RESEARCH_TARGET:
-        raise PredecisionCioStageError("CIO_RESEARCH_TARGET_NOT_IN_SCOPE")
     if time_mode != "SOURCE_CUTOFF" or max_research_age_days is not None:
         raise PredecisionCioStageError("CIO_CURRENT_RESEARCH_REQUIRES_NEW_SOURCE")
     repository_root = Path(repository_root).resolve()
@@ -1090,6 +1338,7 @@ def prepare_predecision_cio_run(
     if source_package["consumability"] != "DOWNSTREAM_READY":
         raise PredecisionCioStageError("CIO_SOURCE_PACKAGE_NOT_READY")
     source_manifest = _read(source_run_dir / "run_manifest.json")
+    source_input = load_research_input(source_run_dir, manifest=source_manifest)
     if run_id == source_manifest["run_id"]:
         raise PredecisionCioStageError("CIO_RUN_ID_REUSED")
     bundle = _read(source_run_dir / "research/holding-research-bundle.json")
@@ -1109,7 +1358,7 @@ def prepare_predecision_cio_run(
         if item["report"] is not None
     )
     refs = sorted(set([
-        source_ref, "run_manifest.json", "audit/portfolio-handoff.json",
+        source_ref, "run_manifest.json", research_input_ref(source_input),
         "council-request.json", "evidence/gate.json",
         "research/holding-research-bundle.json", source_package["execution_proof"]["artifact_ref"],
         *report_refs, *bundle.get("artifact_refs", []), *source_package.get("artifact_refs", []),
@@ -1117,13 +1366,12 @@ def prepare_predecision_cio_run(
     ]))
     frozen = [{"artifact_ref": ref, "file_hash": file_hash(_resolve_ref(source_run_dir, ref))} for ref in refs]
     request = {
-        "schema_version": REQUEST_VERSION, "stage": STAGE, "run_id": run_id,
+        "schema_version": GENERAL_REQUEST_VERSION, "stage": STAGE, "run_id": run_id,
         "source_run_id": source_package["run_id"], "source_package_ref": source_ref,
         "source_package_hash": source_package["package_hash"],
         "source_request_id": source_package["request_id"],
         "source_request_hash": source_package["request_hash"],
-        "handoff_id": source_package["handoff_id"], "handoff_hash": source_package["handoff_hash"],
-        "portfolio_hash": source_package["portfolio_hash"],
+        **artifact_input_binding(source_package),
         "gate_hash": source_package["gate_hash"],
         "decision_cutoff": source_package["decision_cutoff"],
         "target_security_id": target_security_id,
@@ -1131,7 +1379,9 @@ def prepare_predecision_cio_run(
         "time_mode": "SOURCE_CUTOFF", "model": selected_model,
     }
     request["request_hash"] = legacy_envelope_hash(request, hash_field="request_hash")
-    schema = _read(repository_root / "product/schemas/runtime/predecision-cio-request.schema.json")
+    schema = _read(repository_root / GENERAL_REQUEST_SCHEMA_REF)
+    source_schema_ref = ("product/schemas/runtime/pre-decision-research-package-v2.schema.json"
+                         if is_single_stock(source_package) else SOURCE_PACKAGE_SCHEMA_REF)
     validate_schema_instance(request, schema)
     manifest = {
         "schema_version": MANIFEST_VERSION, "stage": STAGE, "run_id": run_id,
@@ -1143,20 +1393,22 @@ def prepare_predecision_cio_run(
         "request_hash": request["request_hash"], "frozen_inputs": frozen,
         "report_catalog": catalog,
         "resource_locks": {relative: file_hash(repository_root / relative)
-                           for relative in (*LOCKED_RESOURCES, *REFERENCE_LOCKED_RESOURCES)},
+                           for relative in (*LOCKED_RESOURCES, GENERAL_REQUEST_SCHEMA_REF, GENERAL_OUTPUT_SCHEMA_REF, *REFERENCE_LOCKED_RESOURCES)},
         "model": selected_model, "risk_status": "NOT_RUN",
         "reference_transport_version": REFERENCE_VERSION,
         "risk_not_run_reason": "RESEARCH_ONLY",
         "frozen_request_schema": {
-            "artifact_ref": FROZEN_REQUEST_SCHEMA_REF, "schema_version": REQUEST_VERSION,
-            "file_hash": file_hash(repository_root / REQUEST_SCHEMA_REF),
+            "artifact_ref": FROZEN_REQUEST_SCHEMA_REF, "schema_version": GENERAL_REQUEST_VERSION,
+            "file_hash": file_hash(repository_root / GENERAL_REQUEST_SCHEMA_REF),
         },
         "frozen_source_package_schema": {
             "artifact_ref": FROZEN_SOURCE_PACKAGE_SCHEMA_REF,
-            "schema_version": "pre-decision-research-package/1.0.0",
-            "file_hash": file_hash(repository_root / SOURCE_PACKAGE_SCHEMA_REF),
+            "schema_version": source_package["schema_version"],
+            "file_hash": file_hash(repository_root / source_schema_ref),
         },
     }
+    if is_single_stock(source_input):
+        manifest["report_delivery_version"] = REPORT_DELIVERY_VERSION
     manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")
     # All validation precedes the first write. The source directory is never modified.
     run_dir.mkdir(parents=True, exist_ok=False) if not run_dir.exists() else None
@@ -1166,8 +1418,8 @@ def prepare_predecision_cio_run(
         shutil.copyfile(_resolve_ref(source_run_dir, ref), target)
     frozen_schema_path = run_dir / FROZEN_REQUEST_SCHEMA_REF
     frozen_schema_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(repository_root / REQUEST_SCHEMA_REF, frozen_schema_path)
-    shutil.copyfile(repository_root / SOURCE_PACKAGE_SCHEMA_REF, run_dir / FROZEN_SOURCE_PACKAGE_SCHEMA_REF)
+    shutil.copyfile(repository_root / GENERAL_REQUEST_SCHEMA_REF, frozen_schema_path)
+    shutil.copyfile(repository_root / source_schema_ref, run_dir / FROZEN_SOURCE_PACKAGE_SCHEMA_REF)
     report_catalog = {"reports": catalog}
     report_catalog["catalog_hash"] = legacy_envelope_hash(report_catalog, hash_field="catalog_hash")
     (run_dir / "report-catalog.json").write_text(json.dumps(report_catalog, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
@@ -1185,6 +1437,8 @@ def prepare_predecision_cio_run(
         "gate_hash": source_gate["bundle_hash"],
         "allowed_evidence_ids": source_gate["allowed_evidence_ids"],
     }
+    if is_single_stock(source_input):
+        invocation["report_delivery_version"] = REPORT_DELIVERY_VERSION
     invocation["invocation_hash"] = legacy_envelope_hash(invocation, hash_field="invocation_hash")
     (run_dir / "invocations").mkdir(exist_ok=True)
     (run_dir / "invocations/runtime_cio.json").write_text(json.dumps(invocation, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")

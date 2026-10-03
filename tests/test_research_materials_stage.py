@@ -383,12 +383,20 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             kind="RESEARCH_REPORT_DISCOVERY",
         ))
 
-    def prepare(self, root: Path, count: int = 2, target_concurrency: int = 8):
-        handoff = stock_handoff(count)
-        gate = gate_for(handoff)
+    def prepare(self, root: Path, count: int = 2, target_concurrency: int = 8, single_stock=False):
+        if single_stock:
+            from tests.test_single_stock_input import SingleStockCompanyTests
+            from product.runtime.hashing import canonical_hash
+            handoff, _, gate, _ = SingleStockCompanyTests().prepare_values()
+            gate['run_id'] = 'materials-run'
+            gate['bundle_hash'] = canonical_hash({k: v for k, v in gate.items() if k != 'bundle_hash'})
+        else:
+            handoff = stock_handoff(count)
+            gate = gate_for(handoff)
+        from product.runtime.research_input import research_subjects
         holdings = [
             {"security_id": item["security_id"], "ticker": item["display_symbol"]}
-            for item in handoff["portfolio"]["positions"]
+            for item in research_subjects(handoff)
         ]
         observed = "2026-09-11T11:00:00Z"
         rows = []
@@ -419,7 +427,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         pool_path.write_text(json.dumps(pool), encoding="utf-8")
         run = root / "run"
         prepare_research_materials_stage(
-            ROOT, handoff_path=handoff_path, gate_path=gate_path,
+            ROOT, **({'research_input_path': handoff_path} if single_stock else {'handoff_path': handoff_path}), gate_path=gate_path,
             peer_candidate_pool_path=pool_path, run_dir=run,
             run_id="materials-run", model="gpt-5.6-terra",
             target_concurrency=target_concurrency,
@@ -429,12 +437,14 @@ class ResearchMaterialsStageTests(unittest.TestCase):
     def execute_with_hooks(self, run: Path, *, transform=None) -> dict:
         invocation = run / "invocation"
         invocation.mkdir(exist_ok=True)
+        manifest = json.loads((run / "run_manifest.json").read_text())
+        actual_model = manifest["model"]
         environment = {
             "STOCK_AGENT_RUN_DIR": str(run),
             "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
             "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
             "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
-            "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": STAGE_VERSION,
+            "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": manifest["schema_version"],
         }
         index = json.loads((run / "research/dispatch-index.json").read_text())
         tools = StatelessFixtureTools(default_run_dir=run)
@@ -452,7 +462,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             pre = {
                 "hook_event_name": "PreToolUse", "session_id": parent, "turn_id": turn,
                 "tool_name": "spawn_agent", "tool_use_id": f"tool-{ordinal}",
-                "cwd": str(ROOT / "product"), "model": "gpt-5.6-terra",
+                "cwd": str(ROOT / "product"), "model": actual_model,
                 "permission_mode": "workspace-write",
                 "tool_input": {
                     "agent_type": task["agent"], "task_name": task["task_name"],
@@ -464,7 +474,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             self.assertEqual(dispatch_record["decision"], "ALLOW")
             start = {
                 "hook_event_name": "SubagentStart", "session_id": parent, "turn_id": turn,
-                "agent_id": child, "agent_type": task["agent"], "model": "gpt-5.6-terra",
+                "agent_id": child, "agent_type": task["agent"], "model": actual_model,
                 "cwd": str(ROOT / "product"), "permission_mode": "read-only",
             }
             start_record, start_response = handle_hook_event(start, environ=environment)
@@ -489,12 +499,12 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                     "gaps": [],
                 }
             else:
-                candidate = packet["peer_candidate_group"]["candidates"][0]
+                candidates = packet["peer_candidate_group"]["candidates"]
                 output = {
-                    "status": "READY",
-                    "summary": "选择一个待核实同行。", "query_intents": [],
-                    "selections": [{"candidate_id": candidate["candidate_id"], "document_id": None, "rationale": "行业分类与规模接近。"}],
-                    "gaps": [],
+                    "status": "READY" if candidates else "SOURCE_LIMITED",
+                    "summary": "选择待核实同行，或保留候选目录缺口。", "query_intents": [],
+                    "selections": [{"candidate_id": candidates[0]["candidate_id"], "document_id": None, "rationale": "行业分类与规模接近。"}] if candidates else [],
+                    "gaps": [] if candidates else [{"reason_code": "NO_PEER_CANDIDATES", "description": "测试目录无同行候选", "impact": "无法做同行研究"}],
                 }
             if transform is not None:
                 output = transform(task, output)
@@ -750,18 +760,33 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 require_complete_research_materials_stage(run)
 
     def test_selected_peer_is_materialized_and_merged_only_after_collection_gate(self):
+        self.selected_peer_case()
+
+    def test_single_stock_selected_peer_reaches_actual_industry_consumer(self):
+        self.selected_peer_case(single_stock=True)
+
+    def test_selected_peer_memory_keeps_view_labels_out_of_source_facts(self):
+        self.selected_peer_case(with_memory=True)
+
+    def test_single_stock_peer_memory_keeps_view_labels_out_of_source_facts(self):
+        self.selected_peer_case(single_stock=True, with_memory=True)
+
+    def selected_peer_case(self, single_stock=False, with_memory=False):
         with tempfile.TemporaryDirectory() as temp, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
         ):
             root = Path(temp)
-            run = self.prepare(root, count=1)
+            run = self.prepare(root, count=1, single_stock=single_stock)
             self.execute_with_hooks(run)
+            if single_stock:
+                self.mark_material_process_success(run)
 
             def fake_collector(portfolio_path, *, access_path, output_dir, cache_root, sec_user_agent):
                 del access_path, cache_root, sec_user_agent
                 portfolio = json.loads(Path(portfolio_path).read_text())
                 output_dir.mkdir(parents=True)
-                snapshot = {"snapshot_hash": "s" * 64, "gaps": [], "portfolio": portfolio}
+                snapshot = {"snapshot_hash": "s" * 64, "gaps": [], "portfolio": portfolio,
+                            "decision_cutoff": "2026-09-11T11:00:00Z"}
                 (output_dir / "snapshot.json").write_text(json.dumps(snapshot))
                 (output_dir / "calendar.json").write_text("{}")
                 return {
@@ -776,6 +801,8 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 "as_of": "2026-09-11T11:00:00Z", "published_at": "2026-09-11T11:00:00Z",
                 "retrieved_at": "2026-09-11T11:00:00Z",
             }
+            if with_memory:
+                peer_fact.update(freshness_status="FRESH", freshness_policy_version="test/1.0.0")
             peer_gate = {
                 "bundle_hash": "p" * 64, "decision_cutoff": "2026-09-11T11:00:00Z",
                 "input_evidence_ids": ["peer-price"], "allowed_evidence": [peer_fact],
@@ -796,15 +823,37 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                     run, source_access_path=access_path, cache_root=root / "cache",
                     sec_user_agent="test", output_dir=run / "research/peer-materialization",
                     collector=fake_collector,
+                    memory_root=root / "memory" if with_memory else None,
                 )
             self.assertEqual(output["status"], "FROZEN")
             self.assertEqual(output["evidence_ids"], ["peer-price"])
             merged = json.loads((run / "research/peer-materialization/gate.json").read_text())
             self.assertIn("peer-price", merged["allowed_evidence_ids"])
             self.assertEqual(output["base_gate_content_hash"], merged["base_gate_content_hash"])
+            if with_memory:
+                from product.runtime.research_memory import ResearchMemory, VIEW_CONTEXT_FIELDS, fact_content_hash
+                memory = ResearchMemory(root / "memory")
+                persisted = memory.current_facts("US:COMMON_STOCK:PEER1", peer_gate["decision_cutoff"])
+                self.assertEqual(len(persisted), 1)
+                self.assertFalse(VIEW_CONTEXT_FIELDS.intersection(persisted[0]))
+                for key, value in peer_fact.items():
+                    if key not in VIEW_CONTEXT_FIELDS:
+                        self.assertEqual(persisted[0][key], value)
+                self.assertEqual(next(item for item in merged['allowed_evidence']
+                                      if item['evidence_id'] == 'peer-price'), peer_fact)
+                view = json.loads((run / 'research/peer-materialization/peer-views/PEER1.json').read_text())
+                self.assertEqual(len(view['selected_fact_versions']), 1)
+                self.assertEqual(view['selected_fact_versions'], [fact_content_hash(persisted[0])])
             formal = root / "formal-with-peer"
+            input_args = {'handoff_path': run / 'audit/portfolio-handoff.json'}
+            if single_stock:
+                from product.runtime.single_stock_input import freeze_latest_research_request
+                original = json.loads((run / 'audit/single-stock-request.json').read_text())
+                final = freeze_latest_research_request(original, resolved_cutoff=merged['decision_cutoff'])
+                (root / 'final-request.json').write_text(json.dumps(final))
+                input_args = {'research_input_path': root / 'final-request.json'}
             prepare_multidimensional_stage_run(
-                ROOT, handoff_path=run / "audit/portfolio-handoff.json",
+                ROOT, **input_args,
                 gate_path=run / "research/peer-materialization/gate.json",
                 run_dir=formal, run_id="materials-run", model="gpt-5.6-terra",
                 research_materials_run_path=run,
@@ -818,13 +867,20 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             self.assertEqual(packet["selected_peer_candidates"][0]["materialization_status"], "FROZEN")
             self.assertIn("同一指标、相近期间长度", packet["instruction"])
             self.assertIn("不同公司的收入与毛利", packet["instruction"])
-            self.assertIn("仅写半导体供应商、电子系统需求等行业共性不算回答", packet["instruction"])
+            if single_stock:
+                self.assertNotIn('半导体', packet['instruction'])
+            else:
+                self.assertIn("仅写半导体供应商、电子系统需求等行业共性不算回答", packet["instruction"])
             self.assertIn("无可核实交集或资料不足时说明依据与具体gap", packet["instruction"])
             self.assertIn("不得为满足格式虚构交集", packet["instruction"])
             self.assertIn("不得用当前财年标签替代历史变更的发生财年", packet["instruction"])
             view_path = run / "research/peer-materialization/final-view.json"
             final_view = json.loads(view_path.read_text())
             self.assertEqual(final_view["gate_hash"], merged["bundle_hash"])
+            if single_stock:
+                self.assertEqual(packet['identity']['input_kind'], 'SINGLE_STOCK_RESEARCH')
+                self.assertFalse((formal / 'audit/portfolio-handoff.json').exists())
+                return
             # 冻结资料用新执行身份复用时，真正的材料/同行导入不打桩。
             source_paths = [
                 run / "research/peer-materialization/gate.json", view_path,

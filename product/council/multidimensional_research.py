@@ -21,8 +21,10 @@ from product.runtime.validation import ArtifactValidationError, validate_evidenc
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_ROOT = REPO_ROOT / "product" / "schemas" / "runtime"
 DIMENSION_REPORT_VERSION = "research-dimension-report/2.0.0"
+SINGLE_STOCK_DIMENSION_REPORT_VERSION = "research-dimension-report/3.0.0"
 LEGACY_DIMENSION_REPORT_VERSION = "research-dimension-report/1.1.0"
 HOLDING_RESEARCH_BUNDLE_VERSION = "holding-research-bundle/2.0.0"
+SINGLE_STOCK_BUNDLE_VERSION = "holding-research-bundle/3.0.0"
 LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION = "holding-research-bundle/1.1.0"
 
 RESEARCH_CAPABILITIES = (
@@ -113,6 +115,9 @@ def validate_research_dimension_report(
 
     schema_version = value.get("schema_version")
     schema_name = (
+        "research-dimension-report-v3.schema.json"
+        if schema_version == SINGLE_STOCK_DIMENSION_REPORT_VERSION
+        else
         "research-dimension-report-v2.schema.json"
         if schema_version == DIMENSION_REPORT_VERSION
         else "research-dimension-report.schema.json"
@@ -132,7 +137,7 @@ def validate_research_dimension_report(
         raise MultiDimensionalResearchError(f"DIMENSION_REPORT_SCHEMA_INVALID:{exc}") from exc
     supported_capabilities = (
         RESEARCH_CAPABILITIES
-        if schema_version == DIMENSION_REPORT_VERSION
+        if schema_version in (DIMENSION_REPORT_VERSION, SINGLE_STOCK_DIMENSION_REPORT_VERSION)
         else LEGACY_RESEARCH_CAPABILITIES
     )
     if value.get("capability") not in supported_capabilities:
@@ -336,6 +341,9 @@ def validate_holding_research_bundle(
 
     schema_version = value.get("schema_version")
     schema_name = (
+        "holding-research-bundle-v3.schema.json"
+        if schema_version == SINGLE_STOCK_BUNDLE_VERSION
+        else
         "holding-research-bundle-v2.schema.json"
         if schema_version == HOLDING_RESEARCH_BUNDLE_VERSION
         else "holding-research-bundle-v1.1.schema.json"
@@ -390,7 +398,7 @@ def validate_holding_research_bundle(
     coverage = value.get("coverage", [])
     bundle_capabilities = (
         BUNDLE_CAPABILITIES
-        if schema_version == HOLDING_RESEARCH_BUNDLE_VERSION
+        if schema_version in (HOLDING_RESEARCH_BUNDLE_VERSION, SINGLE_STOCK_BUNDLE_VERSION)
         else LEGACY_BUNDLE_CAPABILITIES
     )
     expected_pairs = {
@@ -435,6 +443,7 @@ def validate_holding_research_bundle(
         if set(question.get("report_refs", [])) - known_report_ids:
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_QUESTION_REPORT_DANGLING")
     if schema_version in {
+        SINGLE_STOCK_BUNDLE_VERSION,
         HOLDING_RESEARCH_BUNDLE_VERSION,
         LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION,
     }:
@@ -633,7 +642,7 @@ def envelope_research_dimension_draft(
             raise MultiDimensionalResearchError("DIMENSION_DRAFT_TECHNICAL_NO_CALCULATION_GAP_MISSING")
     raw_hash = canonical_hash(draft)
     report = {
-        "schema_version": DIMENSION_REPORT_VERSION,
+        "schema_version": SINGLE_STOCK_DIMENSION_REPORT_VERSION if expected_bindings.get("input_kind") == "SINGLE_STOCK_RESEARCH" else DIMENSION_REPORT_VERSION,
         "report_id": f"dimension-report:{task['task_id']}",
         "run_id": task["run_id"],
         "invocation_id": task["invocation_id"],

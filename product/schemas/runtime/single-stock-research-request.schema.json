@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "single-stock-research-request/1.0.0",
+  "title": "Non-holding single stock research request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "input_kind", "request_id", "request_hash", "security", "research_question", "requested_at", "cutoff_mode", "requested_cutoff", "resolved_cutoff", "identity_sources"],
+  "properties": {
+    "schema_version": {"const": "single-stock-research-request/1.0.0"},
+    "input_kind": {"const": "SINGLE_STOCK_RESEARCH"},
+    "request_id": {"type": "string", "minLength": 1},
+    "request_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "preparation_request_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "research_question": {"type": "string", "minLength": 1},
+    "requested_at": {"type": "string", "format": "date-time"},
+    "cutoff_mode": {"enum": ["LATEST", "EXPLICIT"]},
+    "requested_cutoff": {"type": ["string", "null"], "format": "date-time"},
+    "resolved_cutoff": {"type": "string", "format": "date-time"},
+    "security": {
+      "type": "object", "additionalProperties": false,
+      "required": ["security_id", "ticker", "asset_type", "market", "currency", "exchange", "share_class", "cik", "issuer_name", "identity_status", "sec_mapping_hash", "security_metadata_hash"],
+      "properties": {
+        "security_id": {"type": "string", "pattern": "^US:COMMON_STOCK:[A-Z][A-Z0-9.-]{0,14}$"},
+        "ticker": {"type": "string", "pattern": "^[A-Z][A-Z0-9.-]{0,14}$"},
+        "asset_type": {"const": "COMMON_STOCK"}, "market": {"const": "US"}, "currency": {"const": "USD"},
+        "exchange": {"enum": ["XNAS", "XNYS", "XASE"]},
+        "share_class": {"type": "string", "minLength": 1},
+        "cik": {"type": "string", "pattern": "^[0-9]{10}$"},
+        "issuer_name": {"type": "string", "minLength": 1}, "identity_status": {"const": "RESOLVED"},
+        "sec_mapping_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "security_metadata_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "identity_sources": {
+      "type": "object", "additionalProperties": false, "required": ["sec_mapping", "security_metadata"],
+      "properties": {
+        "sec_mapping": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"type": "object"}},
+        "security_metadata": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"type": "object"}}
+      }
+    }
+  }
+}

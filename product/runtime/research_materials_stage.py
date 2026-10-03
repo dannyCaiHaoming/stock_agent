@@ -12,7 +12,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from product.intake.v3 import validate_handoff
+from product.runtime.research_input import (
+    artifact_input_binding, is_single_stock, load_research_input,
+    research_input_binding, research_input_ref, research_subjects, validate_research_input,
+)
 from product.mcp.live.peer_candidates import validate_peer_candidate_pool
 from product.mcp.provenance import parse_timestamp
 from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash
@@ -30,6 +33,7 @@ from .multidimensional_stage import (
 
 
 STAGE_VERSION = "multidimensional-material-preparation-runtime/1.1.0"
+SINGLE_STOCK_STAGE_VERSION = "multidimensional-material-preparation-runtime/2.0.0"
 DISPATCH_VERSION = "multidimensional-material-preparation-dispatch/1.2.0"
 SEMANTIC_OUTPUT_VERSION = "research-material-semantic-draft/1.0.0"
 MATERIAL_START_CONTEXT_MAX_BYTES = 256 * 1024
@@ -361,7 +365,7 @@ def verify_material_tool_audit(run_dir: Path, task: Mapping[str, Any], output: M
 
 
 def prepare_research_materials_stage(
-    repository_root: Path, *, handoff_path: Path, gate_path: Path,
+    repository_root: Path, *, handoff_path: Path | None = None, research_input_path: Path | None = None, gate_path: Path,
     peer_candidate_pool_path: Path, run_dir: Path, run_id: str,
     model: str, target_concurrency: int = 3,
     reuse_frozen_gate: bool = False,
@@ -382,8 +386,12 @@ def prepare_research_materials_stage(
         raise ResearchMaterialsStageError("RESEARCH_MATERIALS_CONCURRENCY_INVALID")
     from product.runtime.model_routing import select_product_runtime_model
     selected_model = select_product_runtime_model(product_root, requested_model=model)
-    handoff = _read_object(Path(handoff_path).resolve())
-    validate_handoff(handoff)
+    if (handoff_path is None) == (research_input_path is None):
+        raise ResearchMaterialsStageError("RESEARCH_MATERIALS_INPUT_PATH_INVALID")
+    handoff = _read_object(Path(research_input_path or handoff_path).resolve())
+    validate_research_input(handoff)
+    if research_input_path is not None and not is_single_stock(handoff):
+        raise ResearchMaterialsStageError("RESEARCH_MATERIALS_SINGLE_STOCK_REQUIRED")
     gate = _read_object(Path(gate_path).resolve())
     gate_input_binding = None
     if reuse_frozen_gate:
@@ -398,6 +406,8 @@ def prepare_research_materials_stage(
     if not isinstance(cutoff, str):
         raise ResearchMaterialsStageError("RESEARCH_MATERIALS_CUTOFF_MISSING")
     cutoff_time = parse_timestamp(cutoff)
+    if is_single_stock(handoff) and cutoff != handoff["resolved_cutoff"]:
+        raise ResearchMaterialsStageError("RESEARCH_MATERIALS_INPUT_CUTOFF_MISMATCH")
     for fact in gate.get("allowed_evidence", []):
         if any(
             not isinstance(fact.get(key), str) or parse_timestamp(fact[key]) > cutoff_time
@@ -409,7 +419,7 @@ def prepare_research_materials_stage(
     if parse_timestamp(pool["retrieved_at"]) > cutoff_time:
         raise ResearchMaterialsStageError("RESEARCH_MATERIALS_PEER_POOL_AFTER_CUTOFF")
     common = [
-        item for item in handoff["portfolio"]["positions"]
+        item for item in research_subjects(handoff)
         if item["asset_type"] == "COMMON_STOCK"
     ]
     groups = {item["security_id"]: item for item in pool["groups"]}
@@ -428,7 +438,7 @@ def prepare_research_materials_stage(
         source_copy = run_dir / gate_input_binding["source_ref"]
         source_copy.parent.mkdir(parents=True, exist_ok=True)
         source_copy.write_bytes(Path(gate_path).read_bytes())
-    _write_object(run_dir / "audit/portfolio-handoff.json", handoff)
+    _write_object(run_dir / research_input_ref(handoff), handoff)
     _write_object(run_dir / "evidence/gate.json", gate)
     _write_object(run_dir / "research/peer-candidate-pool.json", pool)
     tasks = []
@@ -495,6 +505,7 @@ def prepare_research_materials_stage(
                 "identity": {
                     "run_id": run_id, "invocation_id": invocation_id, "task_id": task_id,
                     "task_name": task_name, "agent": agent, "security_id": security_id,
+                    **(research_input_binding(handoff) if is_single_stock(handoff) else {}),
                 },
                 "instruction": instruction, "task": task,
                 "evidence_catalog": [
@@ -555,6 +566,8 @@ def prepare_research_materials_stage(
             "和影响。缺少正文 API key 等配置问题必须输出 BLOCKED_CONFIGURATION。"
             "保留 query_intents 和实际限制；身份、查询/获取审计及路径由程序装配，不填写 artifact_refs。"
         )
+        if is_single_stock(handoff):
+            instruction = instruction.replace('根据当前持仓与截止时点', '根据当前研究标的与截止时点')
         invocation = {
             "schema_version": "research-material-preparation-invocation/1.1.0",
             "run_id": run_id, "invocation_id": invocation_id,
@@ -580,6 +593,7 @@ def prepare_research_materials_stage(
             "identity": {
                 "run_id": run_id, "invocation_id": invocation_id, "task_id": task_id,
                 "task_name": task_name, "agent": agent, "security_id": security_id,
+                **(research_input_binding(handoff) if is_single_stock(handoff) else {}),
             },
             "instruction": instruction, "task": task,
             "evidence_catalog": [
@@ -612,17 +626,21 @@ def prepare_research_materials_stage(
     index["index_hash"] = legacy_envelope_hash(index, hash_field="index_hash")
     _write_object(run_dir / "research/dispatch-index.json", index)
     manifest = {
-        "schema_version": STAGE_VERSION, "run_id": run_id,
+        "schema_version": SINGLE_STOCK_STAGE_VERSION if is_single_stock(handoff) else STAGE_VERSION, "run_id": run_id,
         "stage": "MULTIDIMENSIONAL_MATERIAL_PREPARATION", "source_mode": "frozen-gate",
         **({"gate_input_binding": gate_input_binding} if gate_input_binding is not None else {}),
         "model": selected_model, "parent_model": selected_model, "output_dir": str(run_dir),
         "discovery": {"product_root": str(product_root)},
         "agent_bindings": agents, "skill_bindings": skills,
-        "handoff_hash": handoff["handoff_hash"], "portfolio_hash": handoff["portfolio_hash"],
+        **(research_input_binding(handoff) if is_single_stock(handoff) else {
+            "handoff_hash": handoff["handoff_hash"], "portfolio_hash": handoff["portfolio_hash"]}),
         "gate_hash": gate["bundle_hash"], "peer_candidate_pool_hash": pool["pool_hash"],
         "dispatch_index_hash": index["index_hash"], "target_concurrency": target_concurrency,
         "complete_portfolio_decision": False, "downstream_stages_started": [],
     }
+    if is_single_stock(handoff):
+        from product.runtime.research_input import single_stock_contract_locks
+        manifest["input_contract_locks"] = single_stock_contract_locks(product_root)
     manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")
     from product.runtime.evidence_gate import validate_frozen_gate_binding
     validate_frozen_gate_binding(run_dir, manifest, gate)
@@ -850,9 +868,11 @@ def finalize_research_materials_stage(repository_root: Path, run_dir: Path) -> d
             **audit_binding,
         })
     result = {
-        "schema_version": "research-material-preparation-manifest/1.0.0",
-        "run_id": manifest["run_id"], "handoff_hash": manifest["handoff_hash"],
-        "portfolio_hash": manifest["portfolio_hash"], "gate_hash": manifest["gate_hash"],
+        "schema_version": "research-material-preparation-manifest/2.0.0" if is_single_stock(manifest) else "research-material-preparation-manifest/1.0.0",
+        "run_id": manifest["run_id"],
+        **(artifact_input_binding(manifest) if is_single_stock(manifest) else {
+            "handoff_hash": manifest["handoff_hash"], "portfolio_hash": manifest["portfolio_hash"]}),
+        "gate_hash": manifest["gate_hash"],
         "gate_content_hash": canonical_hash({
             key: value for key, value in _read_object(run_dir / "evidence/gate.json").items()
             if key not in {"run_id", "bundle_hash"}
@@ -881,6 +901,13 @@ def require_complete_research_materials_stage(run_dir: Path) -> None:
     index = _read_object(run_dir / "research/dispatch-index.json")
     preparation = _read_object(run_dir / "research/material-preparation-manifest.json")
     process = _read_object(run_dir / "invocation/process-result.json")
+    if is_single_stock(manifest):
+        load_research_input(run_dir, manifest=manifest)
+        from product.runtime.research_input import single_stock_contract_locks
+        if manifest.get("input_contract_locks") != single_stock_contract_locks(Path(__file__).resolve().parents[1]):
+            raise ResearchMaterialsStageError("SINGLE_STOCK_CONTRACT_LOCK_DRIFT")
+    binding_keys = (tuple(artifact_input_binding(manifest)) if is_single_stock(manifest) else (
+        "handoff_hash", "portfolio_hash")) + ("gate_hash", "peer_candidate_pool_hash")
     tasks = index.get("tasks")
     outputs = preparation.get("outputs")
     if not isinstance(tasks, list) or not tasks or not isinstance(outputs, list):
@@ -895,11 +922,9 @@ def require_complete_research_materials_stage(run_dir: Path) -> None:
         or index.get("run_id") != manifest.get("run_id")
         or preparation.get("run_id") != manifest.get("run_id")
         or process.get("run_id") != manifest.get("run_id")
-        or preparation.get("schema_version") != "research-material-preparation-manifest/1.0.0"
+        or preparation.get("schema_version") != ("research-material-preparation-manifest/2.0.0" if is_single_stock(manifest) else "research-material-preparation-manifest/1.0.0")
         or preparation.get("manifest_hash") != legacy_envelope_hash(preparation, hash_field="manifest_hash")
-        or any(preparation.get(key) != manifest.get(key) for key in (
-            "handoff_hash", "portfolio_hash", "gate_hash", "peer_candidate_pool_hash"
-        ))
+        or any(preparation.get(key) != manifest.get(key) for key in binding_keys)
         or process.get("process_exit_code") != 0
         or process.get("timed_out") is not False
         or process.get("stage_status") != "PASSED"
@@ -1217,7 +1242,7 @@ def materialize_selected_peers(
                 _write_object(supplement_dir / f"{package['ticker']}-package.json", package["package"])
             peer_gate = prepared["gate"]
         if memory is not None:
-            from product.runtime.research_memory import infer_dataset, infer_provider
+            from product.runtime.research_memory import VIEW_CONTEXT_FIELDS, infer_dataset, infer_provider
             source_item = {
                 "access_hash": content_hash(source_access),
                 "supplement_results": supplement_results,
@@ -1249,7 +1274,10 @@ def materialize_selected_peers(
                          if fact.get("security_id") == security_id]
                 grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
                 for fact in facts:
-                    grouped.setdefault((infer_provider(fact), infer_dataset(fact)), []).append(fact)
+                    # Gate 时效标签属于冻结视图，不是来源事实版本；视图仍保留原 fact。
+                    source_fact = {key: value for key, value in fact.items()
+                                   if key not in VIEW_CONTEXT_FIELDS}
+                    grouped.setdefault((infer_provider(fact), infer_dataset(fact)), []).append(source_fact)
                 for (provider, dataset), dataset_facts in sorted(grouped.items()):
                     with memory.dataset_lock(security_id, provider, dataset):
                         plan = memory.plan(
@@ -1368,8 +1396,13 @@ def launch_research_materials_stage(
     product_root = repository_root / "product"
     run_dir = Path(run_dir).resolve()
     manifest = _read_object(run_dir / "run_manifest.json")
-    if manifest.get("schema_version") != STAGE_VERSION or manifest.get("stage") != "MULTIDIMENSIONAL_MATERIAL_PREPARATION":
+    if manifest.get("schema_version") != (SINGLE_STOCK_STAGE_VERSION if is_single_stock(manifest) else STAGE_VERSION) or manifest.get("stage") != "MULTIDIMENSIONAL_MATERIAL_PREPARATION":
         raise ResearchMaterialsStageError("RESEARCH_MATERIALS_MANIFEST_INVALID")
+    if is_single_stock(manifest):
+        load_research_input(run_dir, manifest=manifest)
+        from product.runtime.research_input import single_stock_contract_locks
+        if manifest.get("input_contract_locks") != single_stock_contract_locks(product_root):
+            raise ResearchMaterialsStageError("SINGLE_STOCK_CONTRACT_LOCK_DRIFT")
     from product.runtime.evidence_gate import validate_frozen_gate_binding
     validate_frozen_gate_binding(run_dir, manifest, _read_object(run_dir / "evidence/gate.json"))
     for task in _read_object(run_dir / "research/dispatch-index.json")["tasks"]:
@@ -1434,7 +1467,7 @@ def launch_research_materials_stage(
         "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(hook_events),
         "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(dispatch_events),
         "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
-        "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": STAGE_VERSION,
+        "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": manifest["schema_version"],
         **fixture_mcp_runtime_environment(),
     })
     environment.pop("STOCK_AGENT_START_CONTEXT", None)

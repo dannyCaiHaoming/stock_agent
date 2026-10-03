@@ -49,6 +49,31 @@ python3 scripts/council-dev.py prepare-multidimensional-research \
 
 定点真实执行只能在获批预算下，经宿主 `--start-multidimensional-task <new-run-dir> <actual-task-name> <new-output-dir>` 进入既有 launcher。任务名从实际 dispatch-index 选择：OPTIONS 只执行自身；RESEARCH_REPORT 只执行基本面→研报闭包；未知、缺失、循环或重名依赖在模型前失败。定点证明不生成完整八维通过状态。`--resume-multidimensional-task` 是同一运行的显式重试，不冒充新的运行；只读复用已有上游须重新验证来源/允许集、截止点、Agent/Skill、模型、Schema/工具拓扑、共享实现指纹、报告与执行事件。旧包缺少复用所需证明或配置漂移时拒绝复用，不补写旧证据、不自动新增模型调用。
 
+### 1.3 非持仓单股研究
+
+只提供股票代码时走 `SINGLE_STOCK_RESEARCH`，不得伪造 Handoff、数量或账户确认。沿用本节原宿主 shell launcher，先配置仓库外 `LIVE_SOURCE_ACCESS_FILE`、`RESEARCH_MEMORY_ROOT` 与 SEC 联系标识 `SEC_USER_AGENT`（不得提交授权配置）。
+
+```text
+bash scripts/run-product-smoke.sh --stage single-stock-research \
+  --single-stock ALB --through cio --prepare-only <new-external-plan-dir>
+```
+
+`--question` 可选；默认核实商业、经营、风险及不确定性。`--cutoff latest` 在资料准备及正文/同行取证后冻结正式研究截止点，原准备记录保留，只通过显式血缘导入；不以今日取数回填历史。prepare-only 采集真实来源并生成实际计划/packet，但不启动模型，不表示研究完成。显式历史冻结输入及回测另属专项，本 live 入口拒绝过去截止点。
+
+移除 `--prepare-only`、使用新的外置目录才执行真实研究。`--through forward`（默认）止于正向八维，`skeptic` 加独立反证，`cio` 再加主线程研究综合。完整链最多材料4＋Company1＋八维8＋Skeptic1专业子及5宿主父（含CIO1），失败计数、依赖失败即停，不自动补跑；必须已有相应调用授权。默认 `gpt-6-luna`；显式 `--model` 仍受原模型政策限制，不可用不静默回退。
+
+此入口输出 `RESEARCH_SYNTHESIS` 而非交易动作。不判断当前持仓、仓位、金额或账户适配，Risk 为 `NOT_RUN`；`PORTFOLIO_ADVICE`、账户及跨批来源参数在模型前拒绝。旧持仓/fixture 入口及旧冻结报告读取不迁移。发布或提交仅使用已审阅的报告与脱敏证明，不包含任务 packet bearer、凭据或宿主私人转录。
+
+若独立反证恢复尝试已经准备但尚未执行，获准后只从原宿主 resume 显式消费包内索引，不再次 prepare：
+
+```text
+bash scripts/run-product-smoke.sh --resume-independent-skeptic-run <external-run-dir> \
+  --prepared-index research/skeptic/attempts/<attempt>/dispatch-index.json \
+  <new-external-invocation-output-dir>
+```
+
+启动前只读重验最高尝试、同 run/forward/Gate、上一完整 package/process 链及本次 packet/当前 Invocation；已有启动、报告或终态时拒绝。仅派发本尝试未就绪任务，成功项与历史原件保留；不自动选尝试、不另建下一次、不启动 CIO。省略 `--prepared-index` 仍按原 prepare-resume 语义准备新尝试；已有未执行准备时不得用该默认分支替代显式消费。只读准备校验和合成测试不证明模型加载或研究通过，合法不足仍须保持 PARTIAL，CIO 必须等待 DOWNSTREAM_READY。
+
 ## 2. Artifact Replay
 
 ### 研报结构化提交试验入口

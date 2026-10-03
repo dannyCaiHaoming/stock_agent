@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from product.intake.v3 import validate_handoff
+from product.runtime.research_input import (
+    is_single_stock, research_input_binding, research_subjects, validate_research_input,
+)
 from product.mcp.provenance import iso_utc, parse_timestamp
 from product.runtime.hashing import canonical_hash
 from product.runtime.research_memory import fact_content_hash
@@ -165,7 +168,7 @@ def _validate_snapshot_cache(
     """Prove that every frozen raw reference still resolves to verified bytes."""
 
     if snapshot.get("schema_version") not in {
-        "live-snapshot/3.0.0", "live-snapshot/4.0.0",
+        "live-snapshot/3.0.0", "live-snapshot/4.0.0", "live-research-snapshot/1.0.0",
     }:
         # Legacy/synthetic test snapshots predate the raw-evidence contract.
         # Production routed snapshots always use one of the versions above.
@@ -554,15 +557,22 @@ def _security_live_result(
     from product.mcp.provenance import content_hash
     from product.runtime.evidence_gate import run_live_evidence_gate
 
-    validate_contract("portfolio", dict(live_portfolio))
     validate_contract("snapshot", dict(snapshot))
-    if snapshot.get("portfolio_hash") != content_hash(live_portfolio):
-        raise CommonStockDataError("COMMON_STOCK_LIVE_PORTFOLIO_BINDING_INVALID")
-    if {item["security_id"] for item in live_portfolio["positions"]} != {position["security_id"]}:
-        raise CommonStockDataError("COMMON_STOCK_LIVE_SECURITY_SET_MISMATCH")
-    verify_frozen_identity(
-        dict(live_portfolio), snapshot.get("identity"), cutoff=snapshot["decision_cutoff"]
-    )
+    if is_single_stock(live_portfolio):
+        validate_research_input(live_portfolio)
+        if (snapshot.get("schema_version") != "live-research-snapshot/1.0.0"
+                or snapshot["research_request"] != live_portfolio
+                or live_portfolio["security"]["security_id"] != position["security_id"]):
+            raise CommonStockDataError("SINGLE_STOCK_LIVE_INPUT_BINDING_INVALID")
+    else:
+        validate_contract("portfolio", dict(live_portfolio))
+        if snapshot.get("portfolio_hash") != content_hash(live_portfolio):
+            raise CommonStockDataError("COMMON_STOCK_LIVE_PORTFOLIO_BINDING_INVALID")
+        if {item["security_id"] for item in live_portfolio["positions"]} != {position["security_id"]}:
+            raise CommonStockDataError("COMMON_STOCK_LIVE_SECURITY_SET_MISMATCH")
+        verify_frozen_identity(
+            dict(live_portfolio), snapshot.get("identity"), cutoff=snapshot["decision_cutoff"]
+        )
     live_gate = run_live_evidence_gate(snapshot, run_id=run_id, calendar=calendar).artifact
     accepted = [
         copy.deepcopy(fact) for fact in live_gate["allowed_evidence"]
@@ -606,6 +616,149 @@ def _safe_security_component(security_id: str) -> str:
     return f"{label[:48]}-{canonical_hash(security_id)[:10]}"
 
 
+def _validate_collection_source_input(value, *, single):
+    from product.mcp.live.contracts import validate_contract
+    if single:
+        if not is_single_stock(value):
+            raise CommonStockDataError("SINGLE_STOCK_COLLECTION_MODE_MISMATCH")
+        validate_research_input(value)
+    else:
+        validate_contract("portfolio", value)
+
+
+def _final_single_stock_data_values(root: Path, bundle: Mapping[str, Any]):
+    """重验原采集与资料执行，再投影新的正式截止点；原件不重签。"""
+    from product.runtime.research_input import load_research_input
+    from product.runtime.single_stock_input import freeze_latest_research_request
+    from product.runtime.research_materials_stage import require_complete_research_materials_stage
+
+    def read(relative):
+        path = root / relative
+        if (not path.is_file() or not path.resolve().is_relative_to(root.resolve())
+                or any(p.is_symlink() for p in (path, *path.parents) if p.is_relative_to(root))):
+            raise CommonStockDataError("SINGLE_STOCK_FINAL_SOURCE_PATH_INVALID")
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    base_request = read("base-source/single-stock-request.json")
+    base_gate = read("base-source/gate.json")
+    base_preparation = read("base-source/data-preparation.json")
+    base_bundle = read("base-source/source-bundle.json")
+    if base_bundle.get("schema_version") != "common-stock-source-bundle/2.0.0":
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_BASE_VERSION_INVALID")
+    validate_common_stock_source_bundle(base_request, gate=base_gate, preparation=base_preparation,
+                                       source_bundle_path=root / "base-source/source-bundle.json")
+    materials_root = root / "materials-source"
+    require_complete_research_materials_stage(materials_root)
+    materials_input = load_research_input(materials_root)
+    materials_gate = read("materials-source/evidence/gate.json")
+    if materials_input != base_request or any(materials_gate.get(k) != v for k, v in base_gate.items() if k not in {"run_id", "bundle_hash"}):
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_MATERIALS_BASE_MISMATCH")
+    raw_gate = materials_gate
+    peer_path = materials_root / "research/peer-materialization/gate.json"
+    if peer_path.exists():
+        raw_gate = read("materials-source/research/peer-materialization/gate.json")
+        peers = read("materials-source/research/peer-materialization/peer-materialization-manifest.json")
+        view = read("materials-source/research/peer-materialization/final-view.json")
+        if (peers.get("materialization_hash") != _hash_without(peers, "materialization_hash")
+                or peers.get("merged_gate_hash") != raw_gate.get("bundle_hash")
+                or peers.get("final_view_hash") != view.get("view_hash")
+                or view.get("view_hash") != _hash_without(view, "view_hash")
+                or view.get("gate_hash") != raw_gate.get("bundle_hash")
+                or view.get("decision_cutoff") != raw_gate.get("decision_cutoff")
+                or view.get("allowed_evidence_ids") != raw_gate.get("allowed_evidence_ids")
+                or raw_gate.get("base_gate_content_hash") != canonical_hash({k: v for k, v in materials_gate.items() if k not in {"run_id", "bundle_hash"}})):
+            raise CommonStockDataError("SINGLE_STOCK_FINAL_PEER_BINDING_INVALID")
+        raw_by_id = {item["evidence_id"]: item for item in raw_gate["allowed_evidence"]}
+        if any(raw_by_id.get(item["evidence_id"]) != item for item in materials_gate["allowed_evidence"]):
+            raise CommonStockDataError("SINGLE_STOCK_FINAL_BASE_EVIDENCE_CHANGED")
+    if raw_gate.get("bundle_hash") != _hash_without(raw_gate, "bundle_hash"):
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_GATE_HASH_INVALID")
+    cutoff = max([raw_gate["decision_cutoff"], *[
+        item["retrieved_at"] for path in (materials_root / "research/materials").glob("*/document-*.json")
+        if (item := json.loads(path.read_text(encoding="utf-8"))).get("verification_status") == "BODY_VERIFIED"
+    ]], key=parse_timestamp)
+    request = freeze_latest_research_request(materials_input, resolved_cutoff=cutoff)
+    for fact in raw_gate["allowed_evidence"]:
+        if any(parse_timestamp(fact[key]) > parse_timestamp(cutoff) for key in ("as_of", "retrieved_at")):
+            raise CommonStockDataError("SINGLE_STOCK_FINAL_GATE_PIT_INVALID")
+    binding = research_input_binding(request)
+    if any(bundle.get(k) != v for k, v in binding.items()) or bundle.get("base_source_bundle_hash") != base_bundle["bundle_hash"]:
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_INPUT_BINDING_INVALID")
+    gate = {**raw_gate, "decision_cutoff": cutoff, "run_id": bundle["run_id"],
+            "base_gate_content_hash": canonical_hash({k: v for k, v in materials_gate.items() if k not in {"run_id", "bundle_hash"}}),
+            "source_bundle_id": bundle["bundle_id"], "source_bundle_hash": bundle["bundle_hash"]}
+    gate["bundle_hash"] = _hash_without(gate, "bundle_hash")
+    preparation = {**base_preparation, **binding, "common_cutoff": cutoff, "run_id": bundle["run_id"],
+                   "source_bundle_id": bundle["bundle_id"], "source_bundle_hash": bundle["bundle_hash"],
+                   "final_materials_manifest_hash": read("materials-source/research/material-preparation-manifest.json")["manifest_hash"]}
+    preparation["preparation_hash"] = _hash_without(preparation, "preparation_hash")
+    return request, gate, preparation
+
+
+def _validate_final_single_stock_data(handoff, *, gate, preparation, bundle, root):
+    if bundle.get("bundle_hash") != _hash_without(bundle, "bundle_hash"):
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_SOURCE_BUNDLE_HASH_INVALID")
+    request, expected_gate, expected_preparation = _final_single_stock_data_values(root, bundle)
+    if handoff != request or gate != expected_gate or preparation != expected_preparation:
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_DATA_RECONSTRUCTION_MISMATCH")
+
+
+def finalize_single_stock_research_data(*, data_dir: Path, materials_run: Path, output_dir: Path):
+    """确定性正式冻结入口；不取数、不启动模型、不修改原准备运行。"""
+    import shutil
+    from product.mcp.live.contracts import external_path
+    from product.runtime.research_input import load_research_input
+    from product.runtime.single_stock_input import freeze_latest_research_request
+    from product.runtime.research_materials_stage import require_complete_research_materials_stage
+    data_dir, materials_run, output_dir = map(external_path, (data_dir, materials_run, output_dir))
+    if output_dir.exists():
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_OUTPUT_EXISTS")
+    require_complete_research_materials_stage(materials_run)
+    request = load_research_input(materials_run)
+    if not is_single_stock(request):
+        raise CommonStockDataError("SINGLE_STOCK_FINAL_INPUT_REQUIRED")
+    base_bundle = json.loads((data_dir / "source-bundle.json").read_text(encoding="utf-8"))
+    output_dir.mkdir(parents=True, mode=0o700)
+    shutil.copytree(data_dir, output_dir / "base-source")
+    destination = output_dir / "materials-source"
+    for folder in ("audit", "evidence", "research", "events"):
+        if (materials_run / folder).is_dir():
+            # Private model packets and bearer tokens are not required by the
+            # material consumer. Original execution files remain in the run.
+            shutil.copytree(materials_run / folder, destination / folder,
+                            ignore=shutil.ignore_patterns("dispatch-packets", "dispatch-reference-maps"))
+    for ref in ("run_manifest.json", "invocation/process-result.json", "invocation/subagent-events.jsonl"):
+        target = destination / ref
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(materials_run / ref, target)
+    raw_gate_path = destination / "research/peer-materialization/gate.json"
+    if not raw_gate_path.exists():
+        raw_gate_path = destination / "evidence/gate.json"
+    raw_gate = json.loads(raw_gate_path.read_text(encoding="utf-8"))
+    cutoff = max([raw_gate["decision_cutoff"], *[
+        item["retrieved_at"] for path in (destination / "research/materials").glob("*/document-*.json")
+        if (item := json.loads(path.read_text(encoding="utf-8"))).get("verification_status") == "BODY_VERIFIED"
+    ]], key=parse_timestamp)
+    final_request = freeze_latest_research_request(request, resolved_cutoff=cutoff)
+    bundle = {"schema_version": "common-stock-source-bundle/3.0.0",
+              "run_id": raw_gate["run_id"], "bundle_id": f"final-single-stock-sources:{raw_gate['run_id']}",
+              **research_input_binding(final_request), "base_source_bundle_hash": base_bundle["bundle_hash"]}
+    bundle["bundle_hash"] = _hash_without(bundle, "bundle_hash")
+    final_request, gate, preparation = _final_single_stock_data_values(output_dir, bundle)
+    for name, value in (("single-stock-request", final_request), ("gate", gate),
+                        ("data-preparation", preparation), ("source-bundle", bundle)):
+        (output_dir / f"{name}.json").write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    validate_common_stock_source_bundle(final_request, gate=gate, preparation=preparation,
+                                       source_bundle_path=output_dir / "source-bundle.json")
+    return {"status": "FROZEN", "research_request_path": str(output_dir / "single-stock-request.json"),
+            "gate_path": str(output_dir / "gate.json"), "data_preparation_path": str(output_dir / "data-preparation.json"),
+            "source_bundle_path": str(output_dir / "source-bundle.json"), "resolved_cutoff": cutoff}
+
+
+def _collection_source_securities(value):
+    return [value["security"]] if is_single_stock(value) else value["positions"]
+
+
 def validate_common_stock_source_bundle(
     handoff: Mapping[str, Any], *, gate: Mapping[str, Any],
     preparation: Mapping[str, Any], source_bundle_path: Path,
@@ -616,7 +769,7 @@ def validate_common_stock_source_bundle(
     from product.mcp.live.market import load_locked_calendar
     from product.mcp.provenance import content_hash
 
-    validate_handoff(handoff)
+    validate_research_input(handoff)
     if gate.get("bundle_hash") != canonical_hash({
         key: value for key, value in gate.items() if key != "bundle_hash"
     }):
@@ -627,7 +780,13 @@ def validate_common_stock_source_bundle(
         raise CommonStockDataError("COMMON_STOCK_PREPARATION_HASH_MISMATCH")
     bundle_path = external_path(source_bundle_path)
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
-    if bundle.get("schema_version") != SOURCE_BUNDLE_VERSION:
+    if bundle.get("schema_version") == "common-stock-source-bundle/3.0.0":
+        if not is_single_stock(handoff):
+            raise CommonStockDataError("COMMON_STOCK_SOURCE_INPUT_KIND_MISMATCH")
+        _validate_final_single_stock_data(handoff, gate=gate, preparation=preparation,
+                                         bundle=bundle, root=bundle_path.parent)
+        return
+    if bundle.get("schema_version") != ("common-stock-source-bundle/2.0.0" if is_single_stock(handoff) else SOURCE_BUNDLE_VERSION):
         raise CommonStockDataError("COMMON_STOCK_SOURCE_BUNDLE_VERSION_INVALID")
     if bundle.get("bundle_hash") != canonical_hash({
         key: value for key, value in bundle.items() if key != "bundle_hash"
@@ -635,17 +794,13 @@ def validate_common_stock_source_bundle(
         raise CommonStockDataError("COMMON_STOCK_SOURCE_BUNDLE_HASH_MISMATCH")
     expected_bindings = {
         "run_id": gate.get("run_id"),
-        "handoff_id": handoff["handoff_id"],
-        "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"],
+        **research_input_binding(handoff),
     }
     if any(bundle.get(key) != value for key, value in expected_bindings.items()):
         raise CommonStockDataError("COMMON_STOCK_SOURCE_BUNDLE_BINDING_INVALID")
     if (
         gate.get("run_id") != preparation.get("run_id")
-        or preparation.get("handoff_id") != handoff["handoff_id"]
-        or preparation.get("handoff_hash") != handoff["handoff_hash"]
-        or preparation.get("portfolio_hash") != handoff["portfolio_hash"]
+        or any(preparation.get(key) != expected for key, expected in research_input_binding(handoff).items())
         or gate.get("decision_cutoff") != preparation.get("common_cutoff")
     ):
         raise CommonStockDataError("COMMON_STOCK_DATA_PACKAGE_BINDING_INVALID")
@@ -667,17 +822,20 @@ def validate_common_stock_source_bundle(
     if not collection_input_path.is_relative_to(root):
         raise CommonStockDataError("COMMON_STOCK_SOURCE_PATH_ESCAPE")
     collection_input = json.loads(collection_input_path.read_text(encoding="utf-8"))
-    validate_contract("portfolio", collection_input)
+    _validate_collection_source_input(collection_input, single=is_single_stock(handoff))
     if (
         canonical_hash(collection_input) != bundle.get("collection_input_hash")
         or preparation.get("collection_input_hash") != bundle.get("collection_input_hash")
     ):
         raise CommonStockDataError("COMMON_STOCK_COLLECTION_INPUT_HASH_MISMATCH")
+    if is_single_stock(handoff):
+        from product.runtime.single_stock_input import validate_preparation_request_lineage
+        validate_preparation_request_lineage(handoff, collection_input)
     expected_ids = {
-        item["security_id"] for item in handoff["portfolio"]["positions"]
+        item["security_id"] for item in research_subjects(handoff)
         if item["asset_type"] == "COMMON_STOCK"
     }
-    if {item["security_id"] for item in collection_input["positions"]} != expected_ids:
+    if {item["security_id"] for item in _collection_source_securities(collection_input)} != expected_ids:
         raise CommonStockDataError("COMMON_STOCK_COLLECTION_INPUT_COVERAGE_INVALID")
     items = bundle.get("items")
     if (
@@ -721,10 +879,10 @@ def validate_common_stock_source_bundle(
         security_id = item["security_id"]
         row = preparation_rows[security_id]
         _, scoped_input = read_ref(item, "collection_input_ref")
-        validate_contract("portfolio", scoped_input)
+        _validate_collection_source_input(scoped_input, single=is_single_stock(handoff))
         if (
             canonical_hash(scoped_input) != item.get("collection_input_hash")
-            or {value["security_id"] for value in scoped_input["positions"]} != {security_id}
+            or {value["security_id"] for value in _collection_source_securities(scoped_input)} != {security_id}
         ):
             raise CommonStockDataError("COMMON_STOCK_SCOPED_INPUT_HASH_MISMATCH")
         if item.get("status") == "FAILED":
@@ -761,15 +919,15 @@ def validate_common_stock_source_bundle(
         if item.get("status") != "FROZEN":
             raise CommonStockDataError("COMMON_STOCK_SOURCE_ITEM_STATUS_INVALID")
 
-        _, scoped_portfolio = read_ref(item, "portfolio_ref")
+        _, scoped_portfolio = read_ref(item, "research_request_ref" if is_single_stock(handoff) else "portfolio_ref")
         _, snapshot = read_ref(item, "snapshot_ref")
         _, calendar_record = read_ref(item, "calendar_ref")
         if scoped_input != scoped_portfolio or canonical_hash(scoped_input) != item.get("collection_input_hash"):
             raise CommonStockDataError("COMMON_STOCK_SCOPED_INPUT_HASH_MISMATCH")
-        validate_contract("portfolio", scoped_portfolio)
+        _validate_collection_source_input(scoped_portfolio, single=is_single_stock(handoff))
         validate_contract("snapshot", snapshot)
         if (
-            canonical_hash(scoped_portfolio) != item.get("portfolio_hash")
+            canonical_hash(scoped_portfolio) != item.get("research_request_hash" if is_single_stock(handoff) else "portfolio_hash")
             or snapshot.get("snapshot_id") != item.get("snapshot_id")
             or snapshot.get("snapshot_hash") != item.get("snapshot_hash")
             or canonical_hash(calendar_record) != item.get("calendar_hash")
@@ -786,7 +944,7 @@ def validate_common_stock_source_bundle(
         ):
             raise CommonStockDataError("COMMON_STOCK_SOURCE_SELECTION_BINDING_INVALID")
         position = next(
-            value for value in handoff["portfolio"]["positions"]
+            value for value in research_subjects(handoff)
             if value["security_id"] == security_id
         )
         result = _security_live_result(
@@ -873,6 +1031,13 @@ def validate_common_stock_source_bundle(
             raise CommonStockDataError("COMMON_STOCK_SUPPLEMENTAL_ARTIFACT_HASH_MISMATCH")
         return value
 
+    if is_single_stock(handoff):
+        supplemental_cutoff = preparation.get("supplement_preparation_cutoff")
+        if not isinstance(supplemental_cutoff, str) or parse_timestamp(supplemental_cutoff) < parse_timestamp(expected["gate"]["decision_cutoff"]):
+            raise CommonStockDataError("SINGLE_STOCK_SUPPLEMENT_CUTOFF_INVALID")
+        expected["gate"]["decision_cutoff"] = supplemental_cutoff
+        expected["preparation"]["common_cutoff"] = supplemental_cutoff
+        expected["gate"]["bundle_hash"] = _hash_without(expected["gate"], "bundle_hash")
     if "benchmark" in preparation:
         expected = merge_benchmark_research_evidence(
             expected, benchmark=read_snapshot("benchmark-snapshot.json")
@@ -904,7 +1069,7 @@ def validate_common_stock_source_bundle(
             package=read_supplement("research-supplement-package.json"),
             batch=read_supplement("research-capture-batch.json"),
             allowed_security_ids={
-                item["security_id"] for item in handoff["portfolio"]["positions"]
+                item["security_id"] for item in research_subjects(handoff)
             },
         )
     plural_supplements = preparation.get("research_supplements", [])
@@ -951,7 +1116,7 @@ def validate_common_stock_source_bundle(
         expected = merge_research_supplement_evidence(
             expected, background=background, package=package, batch=batch,
             allowed_security_ids={
-                item["security_id"] for item in handoff["portfolio"]["positions"]
+                item["security_id"] for item in research_subjects(handoff)
             },
             artifact_refs={
                 field: str(record[field]) for field in (
@@ -980,12 +1145,15 @@ def validate_common_stock_source_bundle(
             "reason": "SNAPSHOT_UNIVERSE_MISSING",
             "selection_authority": "LLM_REQUIRED",
         }
+    if is_single_stock(handoff):
+        expected["preparation"].update(research_input_binding(handoff))
+        expected["preparation"]["supplement_preparation_cutoff"] = preparation["supplement_preparation_cutoff"]
     expected["preparation"].update({
-        "collection_input_schema": COLLECTION_PORTFOLIO_VERSION,
+        "collection_input_schema": collection_input["schema_version"],
         "collection_input_hash": bundle["collection_input_hash"],
         "collection_input_ref": "collection-input.json",
         "source_bundle_ref": "source-bundle.json",
-        "authoritative_portfolio_source": "portfolio-handoff-v3",
+        **({"authoritative_research_source": "single-stock-request"} if is_single_stock(handoff) else {"authoritative_portfolio_source": "portfolio-handoff-v3"}),
         "collection_only_fields_not_for_research": [],
         "peer_candidate_pool": peer_record,
     })
@@ -1911,84 +2079,9 @@ def collect_common_stock_data_from_handoff(
             json.dumps(peer_candidate_pool, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-    if (benchmark_id is None) != (benchmark_ticker is None):
-        raise CommonStockDataError("COMMON_STOCK_BENCHMARK_BINDING_INCOMPLETE")
-    if benchmark_id is not None and benchmark_ticker is not None and calendar_record is not None:
-        try:
-            benchmark = collect_benchmark_research_series(
-                access_path=access_path,
-                output_path=destination / "benchmark-snapshot.json",
-                state_dir=destination / "benchmark-yahoo-state",
-                cache_root=cache_root,
-                calendar=load_locked_calendar(calendar_record),
-                benchmark_id=benchmark_id,
-                benchmark_ticker=benchmark_ticker,
-            )
-        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
-            code = str(exc).split(":", 1)[0]
-            benchmark = {
-                "schema_version": "benchmark-research-snapshot/1.0.0",
-                "status": "SOURCE_LIMITED",
-                "benchmark_id": benchmark_id,
-                "benchmark_ticker": benchmark_ticker,
-                "evidence": [],
-                "gaps": [{
-                    "reason": code,
-                    "impact": "技术研究不能计算相对广泛市场基准表现。",
-                }],
-                "retrieved_at": _utc_now(),
-            }
-            benchmark["snapshot_hash"] = canonical_hash(benchmark)
-            (destination / "benchmark-snapshot.json").write_text(
-                json.dumps(benchmark, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
-        prepared = merge_benchmark_research_evidence(
-            prepared,
-            benchmark=benchmark,
-        )
-        from product.mcp.live.macro import collect_official_macro_snapshot
-        macro = collect_official_macro_snapshot(
-            policy_path=Path(__file__).resolve().parents[1] / "mcp/live/research-source-policy.json",
-            output_path=destination / "official-macro-snapshot.json",
-            cache_root=cache_root,
-        )
-        prepared = merge_macro_research_evidence(prepared, macro=macro)
-        from product.mcp.live.market_context import collect_market_context_snapshot
-        market_context = collect_market_context_snapshot(
-            policy_path=Path(__file__).resolve().parents[1] / "mcp/live/research-source-policy.json",
-            output_path=destination / "market-context-snapshot.json",
-            cache_root=cache_root,
-        )
-        prepared = merge_market_context_evidence(prepared, market_context=market_context)
-        from product.mcp.live.options import collect_portfolio_option_snapshots
-        option_securities = [
-            {"security_id": item["security_id"], "ticker": item["display_symbol"].upper()}
-            for item in handoff["portfolio"]["positions"]
-            if item["asset_type"] == "COMMON_STOCK"
-        ]
-        try:
-            options = collect_portfolio_option_snapshots(
-                securities=option_securities, access_path=access_path,
-                output_path=destination / "portfolio-option-snapshot.json",
-                state_root=destination / "option-yahoo-state", cache_root=cache_root,
-            )
-        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
-            code = str(exc).split(":", 1)[0]
-            options = {
-                "schema_version": "portfolio-option-snapshot/1.0.0",
-                "status": "SOURCE_LIMITED", "decision_cutoff": _utc_now(),
-                "security_ids": sorted(item["security_id"] for item in option_securities),
-                "evidence": [], "excluded_evidence_ids": [],
-                "gaps": [{"reason": "OPTIONS_SOURCE_LIMITED", "failure_code": code}],
-                "events": [], "records": [], "adapter_version": "yahoo-option-snapshot/1.0.0",
-            }
-            options["snapshot_hash"] = canonical_hash(options)
-            (destination / "portfolio-option-snapshot.json").write_text(
-                json.dumps(options, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-                encoding="utf-8",
-            )
-        prepared = merge_option_research_evidence(prepared, options=options)
+    prepared = _collect_research_context(prepared, destination=destination, access_path=access_path,
+        cache_root=cache_root, calendar_record=calendar_record, benchmark_id=benchmark_id,
+        benchmark_ticker=benchmark_ticker, subjects=research_subjects(handoff))
     prepared["preparation"].update({
         "collection_input_schema": COLLECTION_PORTFOLIO_VERSION,
         "collection_input_hash": canonical_hash(collection_portfolio),
@@ -2581,13 +2674,13 @@ def assemble_common_stock_evidence(
 ) -> dict[str, Any]:
     """按证券调用既有数据层并冻结共同 Gate；单项失败不删除持仓。"""
 
-    validate_handoff(handoff)
+    validate_research_input(handoff)
     if validate_shared_configuration is not None:
         try:
             validate_shared_configuration()
         except Exception as exc:
             raise CommonStockDataError("COMMON_STOCK_SHARED_CONFIGURATION_INVALID") from exc
-    positions = [item for item in handoff["portfolio"]["positions"] if item["asset_type"] == "COMMON_STOCK"]
+    positions = [item for item in research_subjects(handoff) if item["asset_type"] == "COMMON_STOCK"]
     rows: list[dict[str, Any]] = []
     successful: list[tuple[Mapping[str, Any], Mapping[str, Any]]] = []
     for position in positions:
@@ -2632,7 +2725,8 @@ def assemble_common_stock_evidence(
             row["failure_code"] = _collection_failure_code(exc)
         rows.append(row)
     cutoffs = [parse_timestamp(result["decision_cutoff"]) for _, result in successful]
-    common_cutoff = max(cutoffs).isoformat().replace("+00:00", "Z") if cutoffs else handoff["confirmation"]["confirmed_at"]
+    fallback_cutoff = handoff["resolved_cutoff"] if is_single_stock(handoff) else handoff["confirmation"]["confirmed_at"]
+    common_cutoff = max(cutoffs).isoformat().replace("+00:00", "Z") if cutoffs else fallback_cutoff
     cutoff_time = parse_timestamp(common_cutoff)
     allowed, excluded = [], []
     identifiers = set()
@@ -2679,10 +2773,9 @@ def assemble_common_stock_evidence(
     }
     gate["bundle_hash"] = canonical_hash(gate)
     preparation = {
-        "schema_version": DATA_PREPARATION_VERSION, "run_id": run_id,
-        "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"],
-        "account_source_as_of": handoff["account_snapshot"]["as_of"],
+        "schema_version": "common-stock-data-preparation/2.0.0" if is_single_stock(handoff) else DATA_PREPARATION_VERSION,
+        "run_id": run_id, **research_input_binding(handoff),
+        **({} if is_single_stock(handoff) else {"account_source_as_of": handoff["account_snapshot"]["as_of"]}),
         "common_cutoff": common_cutoff, "items": rows,
         "provider_requests_completed_before_freeze": True,
         "model_calls": 0, "completed_at": _utc_now(),
@@ -2789,3 +2882,224 @@ def assemble_common_stock_evidence_from_live_snapshot(
         key: value for key, value in preparation.items() if key != "preparation_hash"
     })
     return {"gate": gate, "preparation": preparation}
+
+
+def collect_single_stock_research_data(symbol, *, access_path: Path, output_dir: Path,
+    sec_user_agent: str, run_id: str, repository_root: Path, memory_root: Path | None,
+    cache_root: Path | None = None,
+    question=None, cutoff="latest", benchmark_id="US:SPY", benchmark_ticker="SPY",
+    collection_options=None):
+    """单股数据入口：复用实际采集/增强/Gate，不产生假账户或新的研究调度。"""
+    from product.mcp.live.collection import collect_single_stock_snapshot
+    from product.mcp.live.contracts import external_path
+    from product.mcp.live.market import load_locked_calendar
+    from product.mcp.live.peer_candidates import build_peer_candidate_pool
+    from product.mcp.live.research_supplement_collection import (
+        capture_external_research_results, capture_shared_research_results,
+        capture_public_company_news_result, build_research_supplements,
+    )
+    from product.mcp.live.research_supplement import render_company_background_markdown
+    from product.runtime.research_memory import ResearchMemory, resolve_memory_root, infer_dataset, infer_provider, VIEW_CONTEXT_FIELDS
+    from product.runtime.single_stock_input import (
+        normalize_single_stock_intent, freeze_latest_research_request,
+    )
+    # 在任何网络/输出之前检查语法、目录和必要配置；不按历史日期抓今日资料。
+    normalize_single_stock_intent(symbol, question=question, cutoff=cutoff)
+    if cutoff.lower() != "latest":
+        raise CommonStockDataError("SINGLE_STOCK_HISTORICAL_FROZEN_INPUT_REQUIRED")
+    resolved_memory = resolve_memory_root(repository_root, memory_root)
+    memory = ResearchMemory(resolved_memory)
+    cache_root = Path(cache_root or (resolved_memory / "raw-cache")).resolve()
+    destination = external_path(output_dir)
+    if destination.exists():
+        raise CommonStockDataError("COMMON_STOCK_DATA_OUTPUT_EXISTS")
+    destination.mkdir(parents=True, mode=0o700)
+
+    def write(name, value):
+        path = destination / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    collected = collect_single_stock_snapshot(symbol, question=question, cutoff=cutoff,
+        access_path=access_path, output_dir=destination / "source-snapshot", cache_root=cache_root,
+        sec_user_agent=sec_user_agent, **dict(collection_options or {}))
+    core_request = json.loads(Path(collected["research_request_path"]).read_text(encoding="utf-8"))
+    snapshot = json.loads(Path(collected["snapshot_path"]).read_text(encoding="utf-8"))
+    calendar_record = json.loads(Path(collected["calendar_lock"]).read_text(encoding="utf-8"))
+    _validate_snapshot_cache(snapshot, cache_root=cache_root)
+    write("collection-input.json", core_request)
+    subject = research_subjects(core_request)[0]
+    result = _security_live_result(subject, live_portfolio=core_request, snapshot=snapshot,
+        calendar=load_locked_calendar(calendar_record), run_id=run_id)
+    prepared = assemble_common_stock_evidence(core_request, run_id=run_id, collect_security=lambda _: result)
+    # assemble 只装配研究可用事实；原 Live Gate 的排除与冲突也必须保留，
+    # 否则真实多期财务资料重建时会丢失审核结论（持仓分支同样保留这些字段）。
+    accepted_ids = set(prepared["gate"]["allowed_evidence_ids"])
+    excluded = {item["evidence_id"]: copy.deepcopy(item) for item in result["excluded"]
+                if item["evidence_id"] not in accepted_ids}
+    prepared["gate"].update({
+        "input_evidence_ids": sorted(result["input_evidence_ids"]),
+        "excluded_evidence_ids": sorted(excluded),
+        "excluded": [excluded[key] for key in sorted(excluded)],
+        "conflicts": copy.deepcopy(result["conflicts"]),
+    })
+    prepared["gate"]["bundle_hash"] = _hash_without(prepared["gate"], "bundle_hash")
+    position = {"security_id": subject["security_id"], "ticker": subject["display_symbol"]}
+    external = capture_external_research_results([position], access=snapshot["source_access"],
+        cache_root=cache_root, state_root=destination / "supplement-state")
+    external[subject["security_id"]].extend(capture_shared_research_results(cache_root=cache_root))
+    external[subject["security_id"]].append(capture_public_company_news_result(
+        security_id=subject["security_id"], ticker=subject["display_symbol"],
+        issuer_name=core_request["security"]["issuer_name"], cache_root=cache_root))
+    # 预采集后才封装增强资料；不丢弃晚于 core collection 的合法最新资料。
+    prepared["gate"]["decision_cutoff"] = _utc_now()
+    prepared["preparation"]["common_cutoff"] = prepared["gate"]["decision_cutoff"]
+    prepared["preparation"]["supplement_preparation_cutoff"] = prepared["gate"]["decision_cutoff"]
+    prepared["gate"]["bundle_hash"] = _hash_without(prepared["gate"], "bundle_hash")
+    for supplement in build_research_supplements([position], gate=prepared["gate"], external_results=external, run_id=run_id):
+        refs = {"background_ref": "research-supplements/company-background-snapshot.json",
+                "package_ref": "research-supplements/research-supplement-package.json",
+                "batch_ref": "research-supplements/research-capture-batch.json",
+                "markdown_ref": "research-supplements/company-background.md"}
+        for field, value in (("background_ref", supplement["background"]), ("package_ref", supplement["package"]), ("batch_ref", supplement["batch"])):
+            write(refs[field], value)
+        (destination / refs["markdown_ref"]).write_text(render_company_background_markdown(supplement["background"]), encoding="utf-8")
+        prepared = merge_research_supplement_evidence(prepared, background=supplement["background"],
+            package=supplement["package"], batch=supplement["batch"],
+            allowed_security_ids={subject["security_id"]}, artifact_refs=refs)
+    prepared = _collect_research_context(prepared, destination=destination, access_path=access_path,
+        cache_root=cache_root, calendar_record=calendar_record, benchmark_id=benchmark_id,
+        benchmark_ticker=benchmark_ticker, subjects=[subject])
+    request = freeze_latest_research_request(core_request, resolved_cutoff=prepared["gate"]["decision_cutoff"])
+    write("single-stock-request.json", request)
+    prepared["preparation"].update(research_input_binding(request))
+    pool = build_peer_candidate_pool([position], universe=snapshot["universe"])
+    write("peer-candidate-pool.json", pool)
+    source_item = {"security_id": subject["security_id"], "status": "FROZEN",
+        "collection_input_ref": "collection-input.json", "collection_input_hash": canonical_hash(core_request),
+        "research_request_ref": "source-snapshot/single-stock-request.json", "research_request_hash": canonical_hash(core_request),
+        "snapshot_ref": "source-snapshot/snapshot.json", "snapshot_id": snapshot["snapshot_id"], "snapshot_hash": snapshot["snapshot_hash"],
+        "calendar_ref": "source-snapshot/calendar.json", "calendar_hash": canonical_hash(calendar_record),
+        "source_selection": snapshot["source_selections"][0], "source_selection_hash": snapshot["source_selections"][0]["selection_hash"]}
+    bundle = {"schema_version": "common-stock-source-bundle/2.0.0", "bundle_id": f"common-stock-source:{run_id}",
+        "run_id": run_id, **research_input_binding(request), "collection_input_hash": canonical_hash(core_request),
+        "source_access": snapshot["source_access"], "source_access_hash": canonical_hash(snapshot["source_access"]),
+        "decision_cutoff": core_request["resolved_cutoff"], "items": [source_item],
+        "research_supplements": prepared["preparation"].get("research_supplements", [])}
+    bundle["bundle_hash"] = canonical_hash(bundle)
+    write("source-bundle.json", bundle)
+    for body in (prepared["gate"], prepared["preparation"]):
+        body.update(source_mode="live-read-only", source_bundle_id=bundle["bundle_id"], source_bundle_hash=bundle["bundle_hash"])
+    prepared["preparation"].update(collection_input_schema=core_request["schema_version"],
+        collection_input_hash=canonical_hash(core_request), collection_input_ref="collection-input.json",
+        source_bundle_ref="source-bundle.json", authoritative_research_source="single-stock-request",
+        collection_only_fields_not_for_research=[], peer_candidate_pool={"status": "CANDIDATES_FROZEN",
+        "artifact_ref": "peer-candidate-pool.json", "pool_hash": pool["pool_hash"], "selection_authority": "LLM_REQUIRED"})
+    prepared["gate"]["bundle_hash"] = _hash_without(prepared["gate"], "bundle_hash")
+    prepared["preparation"]["preparation_hash"] = _hash_without(prepared["preparation"], "preparation_hash")
+    write("gate.json", prepared["gate"])
+    write("data-preparation.json", prepared["preparation"])
+    validate_common_stock_source_bundle(request, gate=prepared["gate"], preparation=prepared["preparation"], source_bundle_path=destination / "source-bundle.json")
+    # 使用原 Memory ingest/view；证券事实共享，账户/建议数据从未进入本入口。
+    grouped = {}
+    for fact in prepared["gate"]["allowed_evidence"]:
+        if fact["security_id"] == subject["security_id"]:
+            raw_fact = {key: value for key, value in fact.items() if key not in VIEW_CONTEXT_FIELDS}
+            grouped.setdefault((infer_provider(fact), infer_dataset(fact)), []).append(raw_fact)
+    for (provider, dataset), facts in grouped.items():
+        with memory.dataset_lock(subject["security_id"], provider, dataset):
+            plan = memory.plan(subject["security_id"], provider, dataset, planning_as_of=request["resolved_cutoff"])
+            memory.ingest_dataset(plan=plan, facts=facts, status="FETCHED_BOOTSTRAP" if plan["mode"] == "BOOTSTRAP" else "FETCHED_INCREMENTAL",
+                completed_at=request["resolved_cutoff"], watermark=max(f["as_of"] for f in facts), details={"input_kind": "SINGLE_STOCK_RESEARCH"})
+    view = memory.save_view(run_id=run_id, security_id=subject["security_id"], decision_cutoff=request["resolved_cutoff"],
+        facts=[f for f in prepared["gate"]["allowed_evidence"] if f["security_id"] == subject["security_id"]],
+        gaps=prepared["gate"].get("excluded", []), conflicts=prepared["gate"].get("conflicts", []))
+    write("research-memory/view.json", view)
+    return {"status": "FROZEN", "run_id": run_id, "research_request": str(destination / "single-stock-request.json"),
+        "gate": str(destination / "gate.json"), "data_preparation": str(destination / "data-preparation.json"),
+        "source_bundle": str(destination / "source-bundle.json"), "peer_candidate_pool": str(destination / "peer-candidate-pool.json")}
+
+
+def _collect_research_context(prepared, *, destination, access_path, cache_root,
+                              calendar_record, benchmark_id, benchmark_ticker, subjects):
+    """两个输入分支共用的基准、官方宏观、市场及期权只读采集。"""
+    from product.mcp.live.market import load_locked_calendar
+    if (benchmark_id is None) != (benchmark_ticker is None):
+        raise CommonStockDataError("COMMON_STOCK_BENCHMARK_BINDING_INCOMPLETE")
+    if benchmark_id is not None and benchmark_ticker is not None and calendar_record is not None:
+        try:
+            benchmark = collect_benchmark_research_series(
+                access_path=access_path,
+                output_path=destination / "benchmark-snapshot.json",
+                state_dir=destination / "benchmark-yahoo-state",
+                cache_root=cache_root,
+                calendar=load_locked_calendar(calendar_record),
+                benchmark_id=benchmark_id,
+                benchmark_ticker=benchmark_ticker,
+            )
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            code = str(exc).split(":", 1)[0]
+            benchmark = {
+                "schema_version": "benchmark-research-snapshot/1.0.0",
+                "status": "SOURCE_LIMITED",
+                "benchmark_id": benchmark_id,
+                "benchmark_ticker": benchmark_ticker,
+                "evidence": [],
+                "gaps": [{
+                    "reason": code,
+                    "impact": "技术研究不能计算相对广泛市场基准表现。",
+                }],
+                "retrieved_at": _utc_now(),
+            }
+            benchmark["snapshot_hash"] = canonical_hash(benchmark)
+            (destination / "benchmark-snapshot.json").write_text(
+                json.dumps(benchmark, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        prepared = merge_benchmark_research_evidence(
+            prepared,
+            benchmark=benchmark,
+        )
+        from product.mcp.live.macro import collect_official_macro_snapshot
+        macro = collect_official_macro_snapshot(
+            policy_path=Path(__file__).resolve().parents[1] / "mcp/live/research-source-policy.json",
+            output_path=destination / "official-macro-snapshot.json",
+            cache_root=cache_root,
+        )
+        prepared = merge_macro_research_evidence(prepared, macro=macro)
+        from product.mcp.live.market_context import collect_market_context_snapshot
+        market_context = collect_market_context_snapshot(
+            policy_path=Path(__file__).resolve().parents[1] / "mcp/live/research-source-policy.json",
+            output_path=destination / "market-context-snapshot.json",
+            cache_root=cache_root,
+        )
+        prepared = merge_market_context_evidence(prepared, market_context=market_context)
+        from product.mcp.live.options import collect_portfolio_option_snapshots
+        option_securities = [
+            {"security_id": item["security_id"], "ticker": item["display_symbol"].upper()}
+            for item in subjects
+            if item["asset_type"] == "COMMON_STOCK"
+        ]
+        try:
+            options = collect_portfolio_option_snapshots(
+                securities=option_securities, access_path=access_path,
+                output_path=destination / "portfolio-option-snapshot.json",
+                state_root=destination / "option-yahoo-state", cache_root=cache_root,
+            )
+        except (OSError, ValueError, KeyError, TypeError, ImportError) as exc:
+            code = str(exc).split(":", 1)[0]
+            options = {
+                "schema_version": "portfolio-option-snapshot/1.0.0",
+                "status": "SOURCE_LIMITED", "decision_cutoff": _utc_now(),
+                "security_ids": sorted(item["security_id"] for item in option_securities),
+                "evidence": [], "excluded_evidence_ids": [],
+                "gaps": [{"reason": "OPTIONS_SOURCE_LIMITED", "failure_code": code}],
+                "events": [], "records": [], "adapter_version": "yahoo-option-snapshot/1.0.0",
+            }
+            options["snapshot_hash"] = canonical_hash(options)
+            (destination / "portfolio-option-snapshot.json").write_text(
+                json.dumps(options, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        prepared = merge_option_research_evidence(prepared, options=options)
+    return prepared

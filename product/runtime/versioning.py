@@ -45,6 +45,19 @@ CURRENT_SCHEMA_FILES = {
     "pre-decision-research-package": "schemas/runtime/pre-decision-research-package.schema.json",
     "predecision-cio-synthesis": "schemas/runtime/predecision-cio-synthesis.schema.json",
     "semantic-rubric-result": "schemas/runtime/semantic-rubric-result.schema.json",
+    # Explicit input-mode mirrors; old contract versions remain approved for holding/history.
+    "single-stock.single-stock-research-request": "schemas/runtime/single-stock-research-request.schema.json",
+    "single-stock.live-research-snapshot": "schemas/runtime/live-research-snapshot.schema.json",
+    "single-stock.council-request": "schemas/intake/council-request-v3.schema.json",
+    "single-stock.council-research-plan": "schemas/intake/council-research-plan-v2.schema.json",
+    "single-stock.holding-research-request": "schemas/runtime/holding-research-request-v2.schema.json",
+    "single-stock.equity-research-report": "schemas/runtime/equity-research-report-v2.schema.json",
+    "single-stock.research-coverage": "schemas/runtime/research-coverage-v2.schema.json",
+    "single-stock.research-dimension-report": "schemas/runtime/research-dimension-report-v3.schema.json",
+    "single-stock.holding-research-bundle": "schemas/runtime/holding-research-bundle-v3.schema.json",
+    "single-stock.pre-decision-research-package": "schemas/runtime/pre-decision-research-package-v2.schema.json",
+    "single-stock.predecision-cio-request": "schemas/runtime/predecision-cio-request-v2.schema.json",
+    "single-stock.predecision-cio-synthesis": "schemas/runtime/predecision-cio-synthesis-v2.schema.json",
 }
 
 
@@ -109,9 +122,10 @@ def validate_current_component_versions(
         relative = CURRENT_SCHEMA_FILES[name]
         schema = json.loads((product_root / relative).read_text(encoding="utf-8"))
         declared = schema.get("properties", {}).get("schema_version", {}).get("const")
-        if not isinstance(declared, str) or not declared.startswith(name + "/"):
+        contract_name = name.removeprefix("single-stock.")
+        if not isinstance(declared, str) or not declared.startswith(contract_name + "/"):
             raise ValueError(f"COMPONENT_SCHEMA_ID_INVALID:{relative}:{declared}")
-        approved_component_version(manifest, "schemas", name, observed=declared[len(name) + 1:])
+        approved_component_version(manifest, "schemas", name, observed=declared[len(contract_name) + 1:])
     # Explicit stage scopes: the highest adapter number is not every stage's API.
     from .fixture_mcp import (
         MCP_ADAPTER_VERSION, COMMON_STOCK_FIELD_QUERY_ADAPTER_VERSION, SKEPTIC_ADAPTER_VERSION,

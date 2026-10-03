@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .hashing import canonical_hash, file_hash, legacy_envelope_hash
+from .hashing import canonical_hash, canonical_json, file_hash, legacy_envelope_hash
 from .schema_validation import validate_schema_definition, validate_schema_instance
 from .multidimensional_references import (
     VERSION as REFERENCE_VERSION, build_reference_map, reference_output_schema, translate_references,
@@ -15,6 +15,7 @@ from .multidimensional_references import (
 
 NATIVE_CIO_VERSION = "native-cio-draft/1.0.0"
 REPORT_READ_TOOL = "research_reports.read"
+REPORT_DELIVERY_VERSION = "cio-report-delivery/1.0.0"
 COUNCIL_METADATA = frozenset({
     "schema_version", "run_id", "invocation_id", "agent", "consumed_reports",
     "skill_execution", "advisory_only",
@@ -55,6 +56,101 @@ def cio_model_schema(schema: Mapping[str, Any], mapping: Mapping[str, Any] | Non
 
 def cio_model_view(value: Any, mapping: Mapping[str, Any] | None) -> Any:
     return translate_references(value, mapping, to_model=True) if mapping is not None else copy.deepcopy(value)
+
+
+def _report_calculations(value: Mapping[str, Any]):
+    for entry in value["reports"]:
+        for calculation in entry["report"].get("calculations", []):
+            if "input_evidence_refs" in calculation:
+                yield calculation
+
+
+def expand_cio_report_view(value: Mapping[str, Any], *, binding: Mapping[str, Any]) -> dict[str, Any]:
+    """只展开同响应的计算输入共享列表；验证绑定，不改写任何研究字段。"""
+    output = copy.deepcopy(dict(value))
+    if "report_delivery" not in output:
+        return output
+    delivery = output.pop("report_delivery")
+    if (set(output) != {"reports"} or not isinstance(delivery, dict)
+            or set(delivery) != {"version", "binding", "expanded_output_hash", "input_evidence_ref_sets"}
+            or delivery["version"] != REPORT_DELIVERY_VERSION or delivery["binding"] != dict(binding)):
+        raise ValueError("CIO_REPORT_DELIVERY_BINDING_INVALID")
+    definitions = delivery["input_evidence_ref_sets"]
+    if not isinstance(definitions, dict) or not definitions:
+        raise ValueError("CIO_REPORT_DELIVERY_DEFINITIONS_INVALID")
+    for key, refs in definitions.items():
+        if (not isinstance(refs, list) or any(not isinstance(ref, str) for ref in refs)
+                or key != "refs." + canonical_hash(refs)):
+            raise ValueError("CIO_REPORT_DELIVERY_DEFINITION_DRIFT")
+    uses = {key: 0 for key in definitions}
+    for calculation in _report_calculations(output):
+        refs = calculation["input_evidence_refs"]
+        if isinstance(refs, list):
+            continue
+        if (not isinstance(refs, dict) or set(refs) != {"input_evidence_ref_set"}
+                or not isinstance(refs["input_evidence_ref_set"], str)
+                or refs["input_evidence_ref_set"] not in definitions):
+            raise ValueError("CIO_REPORT_DELIVERY_REFERENCE_INVALID")
+        key = refs["input_evidence_ref_set"]
+        calculation["input_evidence_refs"] = copy.deepcopy(definitions[key])
+        uses[key] += 1
+    if any(count < 2 for count in uses.values()):
+        raise ValueError("CIO_REPORT_DELIVERY_UNUSED_DEFINITION")
+    if canonical_hash(output) != delivery["expanded_output_hash"]:
+        raise ValueError("CIO_REPORT_DELIVERY_OUTPUT_DRIFT")
+    return output
+
+
+def compact_cio_report_view(value: Mapping[str, Any], invocation: Mapping[str, Any],
+                            mapping: Mapping[str, Any] | None) -> dict[str, Any]:
+    """新准备显式启用；仅去重完全相同的重复计算血缘，旧交付不变。"""
+    version = invocation.get("report_delivery_version")
+    if version is None:
+        return copy.deepcopy(dict(value))
+    if version != REPORT_DELIVERY_VERSION or mapping is None or set(value) != {"reports"}:
+        raise ValueError("CIO_REPORT_DELIVERY_PROTOCOL_INVALID")
+    binding = {"run_id": invocation["run_id"], "invocation_id": invocation["invocation_id"],
+               "reference_map_hash": mapping["map_hash"]}
+    groups: dict[str, list[dict[str, Any]]] = {}
+    output = copy.deepcopy(dict(value))
+    for calculation in _report_calculations(output):
+        refs = calculation["input_evidence_refs"]
+        if not isinstance(refs, list) or any(not isinstance(ref, str) for ref in refs):
+            raise ValueError("CIO_REPORT_DELIVERY_INPUT_INVALID")
+        key = "refs." + canonical_hash(refs)
+        group = groups.setdefault(key, [])
+        if group and group[0]["input_evidence_refs"] != refs:
+            raise ValueError("CIO_REPORT_DELIVERY_HASH_COLLISION")
+        group.append(calculation)
+    definitions = {}
+    for key, group in groups.items():
+        refs = group[0]["input_evidence_refs"]
+        marker = {"input_evidence_ref_set": key}
+        if (len(group) < 2 or len(canonical_json(refs).encode("utf-8"))
+                <= len(canonical_json(marker).encode("utf-8"))):
+            continue
+        definitions[key] = copy.deepcopy(refs)
+        for calculation in group:
+            calculation["input_evidence_refs"] = dict(marker)
+    if not definitions:
+        return output
+    output["report_delivery"] = {"version": version, "binding": binding,
+        "expanded_output_hash": canonical_hash(value), "input_evidence_ref_sets": definitions}
+    if expand_cio_report_view(output, binding=binding) != value:
+        raise ValueError("CIO_REPORT_DELIVERY_NOT_EQUIVALENT")
+    if len(canonical_json(output).encode("utf-8")) >= len(canonical_json(value).encode("utf-8")):
+        return copy.deepcopy(dict(value))
+    return output
+
+
+def cio_report_model_result(output: Mapping[str, Any], event: Mapping[str, Any],
+                            invocation: Mapping[str, Any], mapping: Mapping[str, Any] | None) -> dict[str, Any]:
+    projected = cio_model_view(output, mapping)
+    if mapping is not None:
+        projected = compact_cio_report_view(projected, invocation, mapping)
+        projected.update(run_id=invocation["run_id"], reference_map_hash=mapping["map_hash"],
+                         canonical_result_hash=event["output_hash"], result_hash=canonical_hash(projected))
+    return projected
 
 
 def build_fixture_cio_reference_map(root: Path, agent_input: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -156,12 +252,12 @@ def verify_cio_report_reads(root: Path, invocation: Mapping[str, Any],
         raise ValueError("CIO_REPORT_OUTSIDE_CATALOG")
     read_ids: set[str] = set()
     event_hashes = []
+    expected_deliveries = []
+    events = []
     path = root / "events/mcp/events.jsonl"
     if path.exists():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            event = json.loads(line)
+        events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        for event in events:
             if not isinstance(event, dict):
                 raise ValueError("CIO_REPORT_READ_EVENT_INVALID")
             if event.get("tool") != REPORT_READ_TOOL:
@@ -170,12 +266,27 @@ def verify_cio_report_reads(root: Path, invocation: Mapping[str, Any],
                     or event.get("invocation_id") != invocation["invocation_id"]
                     or event.get("agent") != "runtime_cio"):
                 raise ValueError("CIO_REPORT_READ_IDENTITY_INVALID")
-            _, expected = read_cio_reports(root, invocation, catalog,
-                                           event.get("report_ids"), prefix=prefix)
+            output, expected = read_cio_reports(root, invocation, catalog,
+                                                event.get("report_ids"), prefix=prefix)
             if event != expected:
                 raise ValueError("CIO_REPORT_READ_EVENT_INVALID")
+            if invocation.get("report_delivery_version") is not None:
+                mapping = build_cio_reference_map(root, invocation, catalog)
+                delivered = cio_report_model_result(output, event, invocation, mapping)
+                transport = {"event_type": "mcp_reference_transport", "run_id": invocation["run_id"],
+                    "invocation_id": invocation["invocation_id"], "tool": "read_reports",
+                    "canonical_event_hash": event["event_hash"], "reference_map_hash": mapping["map_hash"],
+                    "output_hash": canonical_hash(delivered),
+                    "output_bytes": len(canonical_json(delivered).encode("utf-8"))}
+                transport["event_hash"] = legacy_envelope_hash(transport, hash_field="event_hash")
+                expected_deliveries.append(transport)
             read_ids.update(event["report_ids"])
             event_hashes.append(event["event_hash"])
+    if invocation.get("report_delivery_version") is not None:
+        actual_deliveries = [event for event in events
+                            if event.get("event_type") == "mcp_reference_transport" and event.get("tool") == "read_reports"]
+        if sorted(map(canonical_json, actual_deliveries)) != sorted(map(canonical_json, expected_deliveries)):
+            raise ValueError("CIO_REPORT_DELIVERY_EVENT_INVALID")
     if not set(selections) <= read_ids:
         raise ValueError("CIO_SELECTED_REPORT_NOT_READ")
     if read_ids != allowed:

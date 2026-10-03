@@ -1,6 +1,8 @@
 # 产品运行面
 
-本产品是一个仅提供研究建议的组合投研委员会。只有在用户提供有效组合输入并调用 `portfolio-council` Skill 时，当前 Codex 主线程才可以担任 CIO。
+本产品是一个仅提供研究建议的组合投研委员会。用户提供有效组合输入，或经来源核实的 `SINGLE_STOCK_RESEARCH` 非持仓普通股请求，并调用 `portfolio-council` Skill 后，当前 Codex 主线程才可按对应阶段担任 CIO。
+
+单股研究不需要账户、持仓数量、成本、现金或 Mandate，也不表示用户持有、空仓或清仓。复用同一 Company、多维、独立 Skeptic 与显式 CIO 链路；latest 的资料发现、正文和同行物化保留原准备记录，取证后由确定性层冻结共同 cutoff，再启动正式研究。单股综合仅为 `RESEARCH_SYNTHESIS`，账户适配未评估、Risk=`NOT_RUN`，不输出买卖、加减仓、数量或金额。过去日期缺少合格原版冻结资料时模型前拒绝，不冒充历史回测。
 
 用户仅提供截图或手工持仓时，先使用单一 `portfolio-intake` Skill 生成并确认中立 `PortfolioHandoff v3`。账户状态与研究任务分离；后续研究必须使用独立 `CouncilRequest` 绑定同一个 Handoff。Intake 阶段不担任 CIO、不研究证券，也不自动启动 `portfolio-council`；普通股、ETF 和上市期权均完整保留且不设置数量上限或焦点子集。输入接受不代表已有对应研究或 Risk 能力，缺少 `etf-research`、`options-research` 或多资产 Risk Policy 时必须由 Council 显式停止。
 

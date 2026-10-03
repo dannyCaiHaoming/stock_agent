@@ -15,6 +15,9 @@ from typing import Any, Mapping
 from product.intake.v3 import HANDOFF_SCHEMA_VERSION, IntakeV3ValidationError, validate_handoff
 from product.runtime.hashing import canonical_hash
 from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
+from product.runtime.research_input import (
+    is_single_stock, research_input_binding, research_subjects, validate_research_input,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -97,6 +100,10 @@ def build_common_stock_council_request(
     They remain mandatory for the historical/full-Council request builder.
     """
 
+    if is_single_stock(handoff):
+        return build_single_stock_stage_request(handoff, request_id=request_id,
+            research_question=research_question, stage=COMMON_STOCK_RESEARCH_STAGE,
+            benchmark_id=benchmark_id)
     validate_handoff(handoff)
     for field, value in (("request_id", request_id), ("research_question", research_question)):
         if not isinstance(value, str) or not value.strip():
@@ -174,6 +181,22 @@ def build_independent_counter_thesis_research_request(
     return request
 
 
+def build_single_stock_stage_request(value, *, request_id, research_question, stage, benchmark_id=None):
+    validate_research_input(value)
+    if not is_single_stock(value):
+        raise CouncilPlanningError("SINGLE_STOCK_INPUT_REQUIRED")
+    if not isinstance(research_question, str) or not research_question.strip():
+        raise CouncilPlanningError("COUNCIL_REQUEST_TEXT_REQUIRED:research_question")
+    request = {"schema_version": "council-request/3.0.0", **research_input_binding(value),
+        "stage": stage, "request_id": request_id, "research_question": research_question,
+        "research_scope": "SINGLE_COMMON_STOCK", "research_security_ids": [value["security"]["security_id"]],
+        "holding_horizon": None, "benchmark_id": benchmark_id, "mandate_artifact_id": None,
+        "constraints": {}}
+    request["request_hash"] = canonical_hash(_without_hash(request, "request_hash"))
+    validate_council_request(request, handoff=value)
+    return request
+
+
 def validate_council_request(
     request: Mapping[str, Any], *, handoff: Mapping[str, Any] | None = None
 ) -> None:
@@ -183,6 +206,8 @@ def validate_council_request(
         if version == REQUEST_SCHEMA_VERSION
         else "council-request-v2.schema.json"
         if version == RESEARCH_REQUEST_SCHEMA_VERSION
+        else "council-request-v3.schema.json"
+        if version == "council-request/3.0.0"
         else None
     )
     if schema_name is None:
@@ -193,7 +218,7 @@ def validate_council_request(
         raise CouncilPlanningError(f"COUNCIL_REQUEST_SCHEMA_INVALID:{exc}") from exc
     if request.get("request_hash") != canonical_hash(_without_hash(request, "request_hash")):
         raise CouncilPlanningError("COUNCIL_REQUEST_HASH_MISMATCH")
-    if version == RESEARCH_REQUEST_SCHEMA_VERSION:
+    if version in (RESEARCH_REQUEST_SCHEMA_VERSION, "council-request/3.0.0"):
         stage = request.get("stage")
         if stage not in {
             COMMON_STOCK_RESEARCH_STAGE,
@@ -207,6 +232,13 @@ def validate_council_request(
                 if not isinstance(request.get(field), str) or not request[field].strip():
                     raise CouncilPlanningError(f"COUNCIL_REQUEST_FULL_STAGE_FIELD_REQUIRED:{field}")
     if handoff is not None:
+        if version == "council-request/3.0.0":
+            validate_research_input(handoff)
+            if not is_single_stock(handoff) or any(request.get(key) != expected for key, expected in research_input_binding(handoff).items()):
+                raise CouncilPlanningError("COUNCIL_REQUEST_SINGLE_STOCK_BINDING_INVALID")
+            if request["research_security_ids"] != [handoff["security"]["security_id"]]:
+                raise CouncilPlanningError("COUNCIL_REQUEST_COVERAGE_INVALID")
+            return
         validate_handoff(handoff)
         if handoff.get("schema_version") != HANDOFF_SCHEMA_VERSION:
             raise CouncilPlanningError("COUNCIL_REQUEST_HANDOFF_VERSION_INVALID")
@@ -232,7 +264,7 @@ def build_research_plan(
 ) -> dict[str, Any]:
     """Create a full-portfolio, planning-only capability map."""
 
-    validate_handoff(handoff)
+    validate_research_input(handoff)
     validate_council_request(request, handoff=handoff)
     if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
         raise CouncilPlanningError("COUNCIL_PLAN_BATCH_SIZE_INVALID")
@@ -240,7 +272,7 @@ def build_research_plan(
     available = set(available_capabilities)
     if not available <= known:
         raise CouncilPlanningError("COUNCIL_PLAN_CAPABILITY_UNKNOWN")
-    positions = sorted(handoff["portfolio"]["positions"], key=lambda item: item["security_id"])
+    positions = sorted(research_subjects(handoff), key=lambda item: item["security_id"])
     items: list[dict[str, Any]] = []
     for index, position in enumerate(positions):
         capability = CAPABILITY_BY_ASSET[position["asset_type"]]
@@ -252,11 +284,10 @@ def build_research_plan(
         })
     gaps = sorted({item["required_capability"] for item in items if item["capability_status"] == "MISSING"})
     plan: dict[str, Any] = {
-        "schema_version": PLAN_SCHEMA_VERSION, "planning_only": True,
-        "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"], "request_id": request["request_id"],
+        "schema_version": "council-research-plan/2.0.0" if is_single_stock(handoff) else PLAN_SCHEMA_VERSION, "planning_only": True,
+        **research_input_binding(handoff), "request_id": request["request_id"],
         "request_hash": request["request_hash"], "total": len(items), "pending": len(items),
-        "batch_size": batch_size, "coverage_status": RESEARCH_SCOPE,
+        "batch_size": batch_size, "coverage_status": "SINGLE_COMMON_STOCK" if is_single_stock(handoff) else RESEARCH_SCOPE,
         "capability_status": "CAPABILITY_GAP" if gaps else "READY",
         "capability_gaps": gaps, "items": items, "agent_invocations": 0, "llm_invocations": 0,
     }
@@ -269,7 +300,7 @@ def validate_research_plan(
     plan: Mapping[str, Any], *, handoff: Mapping[str, Any], request: Mapping[str, Any]
 ) -> None:
     try:
-        validate_schema_instance(plan, _schema("council-research-plan.schema.json"))
+        validate_schema_instance(plan, _schema("council-research-plan-v2.schema.json" if is_single_stock(handoff) else "council-research-plan.schema.json"))
     except SchemaValidationError as exc:
         raise CouncilPlanningError(f"COUNCIL_PLAN_SCHEMA_INVALID:{exc}") from exc
     if plan.get("plan_hash") != canonical_hash(_without_hash(plan, "plan_hash")):
@@ -277,14 +308,11 @@ def validate_research_plan(
     validate_council_request(request, handoff=handoff)
     if any(
         plan[field] != expected
-        for field, expected in (
-            ("handoff_id", handoff["handoff_id"]), ("handoff_hash", handoff["handoff_hash"]),
-            ("portfolio_hash", handoff["portfolio_hash"]), ("request_id", request["request_id"]),
-            ("request_hash", request["request_hash"]),
-        )
+        for field, expected in {**research_input_binding(handoff), "request_id": request["request_id"],
+                               "request_hash": request["request_hash"]}.items()
     ):
         raise CouncilPlanningError("COUNCIL_PLAN_BINDING_INVALID")
-    expected_ids = sorted(position["security_id"] for position in handoff["portfolio"]["positions"])
+    expected_ids = sorted(position["security_id"] for position in research_subjects(handoff))
     plan_ids = sorted(item["security_id"] for item in plan["items"])
     if plan_ids != expected_ids or plan["total"] != len(expected_ids) or plan["pending"] != len(expected_ids):
         raise CouncilPlanningError("COUNCIL_PLAN_COVERAGE_INVALID")

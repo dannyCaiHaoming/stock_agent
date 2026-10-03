@@ -88,7 +88,9 @@ class HostProxyTests(unittest.TestCase):
 
     def test_required_materials_guard_precedes_formal_model_launch(self):
         text = (ROOT / 'scripts/run-product-smoke.sh').read_text()
+        # Check the original holding branch, not the earlier single-stock path.
         self.assertIn('--require-materials) require_materials=1', text)
+        text = text[text.index('if [ "$stage" = "common-stock-research" ] || [ "$multidimensional_stage" = "1" ]; then'):]
         self.assertIn('--max-concurrency 2', text)
         self.assertIn('REQUIRED_PEER_GATE_MISSING', text)
         self.assertIn('REQUIRED_PEER_EVIDENCE_MISSING', text)
@@ -177,6 +179,137 @@ class HostProxyTests(unittest.TestCase):
             self.assertIn('launch-multidimensional-research', call)
             self.assertIn('--task-name dimension_research_3 --initial-task', call)
 
+    def test_prepared_skeptic_host_resume_forwards_index_without_prepare_and_preserves_failure(self):
+        import sys
+        for index_ref in (None, 'research/skeptic/attempts/6/dispatch-index.json'):
+            for status in (0, 7):
+                with self.subTest(index_ref=index_ref, status=status), tempfile.TemporaryDirectory() as directory:
+                    base = Path(directory)
+                    prepared = base / 'prepared run'
+                    prepared.mkdir()
+                    wrapper = base / 'python3'
+                    wrapper.write_text('#!/bin/bash\nif [ "$1" = "-" ]; then exec "' + sys.executable + '" "$@"; fi\nprintf "%s\\n" "$*" >> "$TEST_COMMAND_LOG"\nexit "$TEST_STATUS"\n')
+                    wrapper.chmod(0o700)
+                    scutil = base / 'scutil'
+                    scutil.write_text('#!/bin/bash\nif [ "$1" = "--proxy" ]; then printf "HTTPEnable : 1\\nHTTPProxy : localhost\\nHTTPPort : 23456\\n"; fi\n')
+                    scutil.chmod(0o700)
+                    log = base / 'commands'
+                    result = subprocess.run(['bash', str(ROOT / 'scripts/run-product-smoke.sh'),
+                        '--resume-independent-skeptic-run', str(prepared),
+                        *(['--prepared-index', index_ref] if index_ref else []), str(base / 'host')],
+                        env={**os.environ, 'PATH': str(base) + os.pathsep + os.environ['PATH'],
+                             'TEST_COMMAND_LOG': str(log), 'TEST_STATUS': str(status)}, text=True, capture_output=True)
+                    self.assertEqual(result.returncode, status, result.stderr)
+                    calls = log.read_text().splitlines()
+                    self.assertEqual(len(calls), 1)
+                    self.assertIn('resume-independent-skeptic', calls[0])
+                    self.assertEqual('--prepared-index' in calls[0], index_ref is not None)
+                    if index_ref:
+                        self.assertTrue(calls[0].endswith('--prepared-index ' + index_ref))
+                    self.assertNotIn('prepare-independent-skeptic', calls[0])
+                    self.assertNotIn('predecision-cio', calls[0])
+
+    def test_single_stock_entry_captures_complete_scope_and_stops_before_dependents(self):
+        import json
+        import shlex
+        import sys
+        for prepare_only, failed_stage in ((True, ''), (False, ''), (False, 'launch-research-materials'), (False, 'launch-independent-skeptic'), (False, 'launch-predecision-cio')):
+            with self.subTest(prepare_only=prepare_only, failed_stage=failed_stage), tempfile.TemporaryDirectory() as directory:
+                base = Path(directory)
+                wrapper = base / 'python3'
+                wrapper_body = base / 'python-wrapper.py'
+                wrapper.write_text('#!/bin/bash\nexec ' + shlex.quote(sys.executable) + ' ' + shlex.quote(str(wrapper_body)) + ' "$@"\n')
+                wrapper_body.write_text('''
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+if args[0] == '-':
+    os.execv(sys.executable, [sys.executable, *args])
+with open(os.environ['TEST_COMMAND_LOG'], 'a') as log:
+    log.write(json.dumps(args) + '\\n')
+with open(os.environ['TEST_ENVIRONMENT_LOG'], 'a') as log:
+    log.write(json.dumps({'command': args[1], 'host_launch': os.environ.get('STOCK_AGENT_PRODUCT_HOST_LAUNCH')}) + '\\n')
+command = args[1]
+if command == 'launch-predecision-cio' and os.environ.get('STOCK_AGENT_PRODUCT_HOST_LAUNCH') != '1':
+    sys.exit('CIO_HOST_LAUNCH_REQUIRED')
+def argument(name):
+    return args[args.index(name) + 1]
+if command == os.environ.get('TEST_FAIL_STAGE'):
+    sys.exit(7)
+if command == 'collect-single-stock-data':
+    root = Path(argument('--output-dir')); root.mkdir(parents=True)
+    request = {'input_kind': 'SINGLE_STOCK_RESEARCH', 'request_hash': 'a'*64,
+        'resolved_cutoff': '2026-10-02T00:00:00Z', 'research_question': argument('--question'),
+        'security': {'security_id': 'US:COMMON_STOCK:ALB'}}
+    (root / 'single-stock-request.json').write_text(json.dumps(request))
+elif command == 'prepare-research-materials':
+    root = Path(argument('--run-dir')); (root / 'research').mkdir(parents=True)
+    model = argument('--model')
+    (root / 'run_manifest.json').write_text(json.dumps({'model': model, 'parent_model': model,
+        'manifest_hash': 'b'*64}))
+    (root / 'research/dispatch-index.json').write_text(json.dumps({'tasks': [{}, {}, {}, {}]}))
+elif command == 'freeze-single-stock-data':
+    root = Path(argument('--output-dir')); root.mkdir(parents=True)
+    (root / 'single-stock-request.json').write_bytes((Path(argument('--data-dir')) / 'single-stock-request.json').read_bytes())
+''')
+                wrapper.chmod(0o700)
+                scutil = base / 'scutil'
+                scutil.write_text('#!/bin/bash\nif [ "$1" = "--proxy" ]; then printf "HTTPEnable : 1\\nHTTPProxy : localhost\\nHTTPPort : 23456\\n"; fi\n')
+                scutil.chmod(0o700)
+                log = base / 'commands'
+                bundle = base / 'host'
+                args = ['bash', str(ROOT / 'scripts/run-product-smoke.sh'), '--stage', 'single-stock-research',
+                    '--single-stock', 'ALB', '--question', '核验雅宝的经营与周期风险', '--through', 'cio']
+                if prepare_only:
+                    args.append('--prepare-only')
+                environment_log = base / 'environment'
+                host_environment = {key: value for key, value in os.environ.items()
+                    if key != 'STOCK_AGENT_PRODUCT_HOST_LAUNCH'}
+                result = subprocess.run([*args, str(bundle)], env={**host_environment,
+                    'PATH': str(base) + os.pathsep + os.environ['PATH'], 'TEST_COMMAND_LOG': str(log),
+                    'TEST_ENVIRONMENT_LOG': str(environment_log),
+                    'TEST_FAIL_STAGE': failed_stage, 'LIVE_SOURCE_ACCESS_FILE': str(base / 'external-config'),
+                    'SEC_USER_AGENT': 'synthetic contact@example.invalid', 'RESEARCH_MEMORY_ROOT': str(base / 'memory')},
+                    text=True, capture_output=True)
+                self.assertEqual(result.returncode, 7 if failed_stage else 0, result.stderr)
+                calls = [json.loads(line) for line in log.read_text().splitlines()]
+                commands = [item[1] for item in calls]
+                environments = [json.loads(line) for line in environment_log.read_text().splitlines()]
+                self.assertEqual([item['command'] for item in environments], commands)
+                for environment in environments:
+                    self.assertEqual(environment['host_launch'],
+                        '1' if environment['command'] in ('prepare-predecision-cio', 'launch-predecision-cio', 'check-predecision-cio') else None)
+                self.assertEqual(commands[0], 'collect-single-stock-data')
+                self.assertIn('--cutoff', calls[0]); self.assertIn('latest', calls[0])
+                self.assertIn('ALB', calls[0]); self.assertIn('核验雅宝的经营与周期风险', calls[0])
+                for call in calls:
+                    self.assertNotIn('--handoff', call)
+                    if '--model' in call:
+                        self.assertEqual(call[call.index('--model') + 1], 'gpt-6-luna')
+                plan = json.loads((bundle / 'single-stock-run-plan.json').read_text())
+                self.assertEqual(sum(plan['specialist_call_limits'].values()), 14)
+                self.assertEqual(plan['host_parent_limit'], 5)
+                self.assertEqual(plan['model'], 'gpt-6-luna')
+                if prepare_only:
+                    self.assertFalse(any(item.startswith('launch-') for item in commands))
+                    self.assertIn('validate-common-stock-research', commands)
+                    dimensions = next(item for item in calls if item[1] == 'prepare-multidimensional-research')
+                    self.assertEqual(dimensions[dimensions.index('--stage') + 1], 'INDEPENDENT_COUNTER_THESIS_RESEARCH')
+                    self.assertNotIn('--task-bound-tools', dimensions)
+                elif failed_stage:
+                    self.assertEqual(commands[-1], failed_stage)
+                    if failed_stage == 'launch-research-materials':
+                        self.assertNotIn('freeze-single-stock-data', commands)
+                    elif failed_stage == 'launch-independent-skeptic':
+                        self.assertNotIn('prepare-predecision-cio', commands)
+                    else:
+                        self.assertNotIn('check-predecision-cio', commands)
+                else:
+                    self.assertEqual([item for item in commands if item.startswith('launch-')],
+                        ['launch-research-materials', 'launch-common-stock-research',
+                         'launch-multidimensional-research', 'launch-independent-skeptic', 'launch-predecision-cio'])
+                    self.assertIn('check-predecision-cio', commands)
+
     def test_research_prepare_defaults_to_pinned_luna_without_model_call(self):
         import json
         import sys
@@ -197,7 +330,7 @@ class HostProxyTests(unittest.TestCase):
                 ['bash', str(ROOT / 'scripts/run-product-smoke.sh'),
                  '--stage', 'common-stock-research', '--handoff', str(base / 'handoff.json'),
                  '--gate', str(gate), '--data-preparation', str(base / 'data.json'),
-                 '--source-bundle', str(base / 'source.json'),
+                 '--source-bundle', str(base / 'source.json'), '--question', '研究当前确认的普通股持仓。',
                  '--prepare-only', str(base / 'bundle')],
                 env={**os.environ, 'PATH': str(base) + os.pathsep + os.environ['PATH'],
                      'TEST_COMMAND_LOG': str(log)},
@@ -206,6 +339,7 @@ class HostProxyTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             calls = log.read_text().splitlines()
             self.assertTrue(any('prepare-common-stock-research' in call and '--model gpt-6-luna' in call for call in calls))
+            self.assertTrue(any('--question 研究当前确认的普通股持仓。' in call for call in calls))
 
     def test_multidimensional_and_counter_prepare_default_to_luna(self):
         import json
@@ -373,7 +507,7 @@ class EntrySeparationTests(unittest.TestCase):
             common = ['/bin/bash', str(ROOT / 'scripts/run-product-smoke.sh'),
                       '--stage', 'predecision-cio-synthesis', '--source-run', '/missing/source']
             for security_id, extra, expected in (
-                ('US:COMMON_STOCK:ALB', [], 'CIO_RESEARCH_TARGET_NOT_IN_SCOPE'),
+                ('US:COMMON_STOCK:ALB', ['--requested-level', 'PORTFOLIO_ADVICE'], 'CIO_PORTFOLIO_ADVICE_NOT_AVAILABLE'),
                 ('US:COMMON_STOCK:MRVL', ['--time-mode', 'CURRENT'],
                  'CIO_CURRENT_RESEARCH_REQUIRES_NEW_SOURCE'),
             ):

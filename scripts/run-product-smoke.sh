@@ -8,11 +8,12 @@ if [ "${1:-}" = "--help" ]; then
   echo '或：bash run-product-smoke.sh --resume-multidimensional-task <已准备的多维运行目录> <task_name> <新的外置调用产物目录>（自动包含最小依赖闭包）'
   echo '或：bash run-product-smoke.sh --start-multidimensional-task <全新准备的多维运行目录> <task_name> <新的外置调用产物目录>（首次定点执行）'
   echo '或：bash run-product-smoke.sh --launch-independent-skeptic-run <已完成正向多维运行目录> <新的外置调用产物目录>'
-  echo '或：bash run-product-smoke.sh --resume-independent-skeptic-run <已运行的独立反证目录> <新的外置调用产物目录>（只重试未完成股票）'
-  echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--focus-security-id <证券ID>] <新的外置产物目录>'
+  echo '或：bash run-product-smoke.sh --resume-independent-skeptic-run <已运行的独立反证目录> [--prepared-index <包内dispatch-index>] <新的外置调用产物目录>（只重试未完成股票；显式消费已准备尝试时不再prepare）'
+  echo '或：bash run-product-smoke.sh --stage common-stock-research --handoff <已确认Handoff> [--prepare-only] [--gate <冻结Gate> --data-preparation <准备清单> --source-bundle <来源包>] [--model <研究模型>] [--question <研究问题>] [--focus-security-id <证券ID>] <新的外置产物目录>'
+  echo '或：bash run-product-smoke.sh --stage single-stock-research --single-stock ALB [--question <研究问题>] [--cutoff latest] [--prepare-only] [--through forward|skeptic|cio] [--model <研究模型>] <新的外置产物目录>（无持仓的非动作研究）'
   echo '或：bash run-product-smoke.sh --stage multidimensional-holding-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--peer-candidates <冻结候选池>] [--require-materials] [--model <研究模型>] [--company-research-run <已完成普通股研究运行>] <新的外置产物目录>'
   echo '或：bash run-product-smoke.sh --stage independent-counter-thesis-research --handoff <已确认Handoff> [--gate <冻结Gate>] [--model <研究模型>] <新的外置产物目录>（同次正向研究后逐股独立反证；不启动 CIO/Risk）'
-  echo '或：bash run-product-smoke.sh --stage predecision-cio-synthesis --source-run <已完成正反研究目录> --target-security-id US:COMMON_STOCK:MRVL [--requested-level RESEARCH_SYNTHESIS] [--model <CIO模型>] <新的外置产物目录>（仅原截止点非动作研究）'
+  echo '或：bash run-product-smoke.sh --stage predecision-cio-synthesis --source-run <已完成正反研究目录> --target-security-id <已研究普通股ID> [--requested-level RESEARCH_SYNTHESIS] [--model <CIO模型>] <新的外置产物目录>（仅原截止点非动作研究）'
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'
   echo '多维新包可显式加 --structured-report-submission，仅启用研报结构化提交试验，默认关闭。'
   echo '反证上游补验可显式加 --core-forward-only，仅运行现有六项核心准入，使用新执行身份复用冻结资料；不表示完整八维。'
@@ -33,13 +34,19 @@ resume_multidimensional_task=
 initial_multidimensional_task=0
 launch_independent_skeptic_run=
 resume_independent_skeptic_run=
+skeptic_prepared_index=
 stage=full-council
 stock_handoff=
+single_stock_symbol=
+single_stock_cutoff=latest
+single_stock_through=forward
 stock_gate=
 base_stock_gate=
 stock_data_preparation=
 stock_source_bundle=
 stock_model=
+stock_question='分析已确认的普通股持仓。'
+stock_question_explicit=0
 stock_focus_security_id=
 company_research_run=
 stock_peer_candidates=
@@ -74,9 +81,12 @@ if [ "${1:-}" = "--start-multidimensional-task" ]; then
   shift 3
 fi
 if [ "${1:-}" = "--resume-independent-skeptic-run" ]; then
-  if [ "$#" -ne 3 ]; then echo '--resume-independent-skeptic-run 需要已运行目录及新的外置调用产物目录。' >&2; exit 2; fi
+  if [ "$#" -ne 3 ] && { [ "$#" -ne 5 ] || [ "$3" != "--prepared-index" ] || [ -z "$4" ]; }; then
+    echo '--resume-independent-skeptic-run 需要已运行目录、可选 --prepared-index <包内dispatch-index> 及新的外置调用产物目录。' >&2; exit 2
+  fi
   resume_independent_skeptic_run=$(cd "$2" && pwd -P)
   shift 2
+  if [ "${1:-}" = "--prepared-index" ]; then skeptic_prepared_index=$2; shift 2; fi
 fi
 if [ "${1:-}" = "--launch-independent-skeptic-run" ]; then
   if [ "$#" -ne 3 ]; then echo '--launch-independent-skeptic-run 需要已完成正向多维运行目录及新的外置调用产物目录。' >&2; exit 2; fi
@@ -84,7 +94,7 @@ if [ "${1:-}" = "--launch-independent-skeptic-run" ]; then
   shift 2
 fi
 if [ "${1:-}" = "--stage" ]; then
-  if [ "$#" -lt 5 ] || { [ "$2" != "common-stock-research" ] && [ "$2" != "multidimensional-holding-research" ] && [ "$2" != "independent-counter-thesis-research" ] && [ "$2" != "predecision-cio-synthesis" ]; }; then
+  if [ "$#" -lt 5 ] || { [ "$2" != "single-stock-research" ] && [ "$2" != "common-stock-research" ] && [ "$2" != "multidimensional-holding-research" ] && [ "$2" != "independent-counter-thesis-research" ] && [ "$2" != "predecision-cio-synthesis" ]; }; then
     echo 'RESEARCH_STAGE_ARGUMENTS_INVALID：使用 --help 查看研究阶段参数。' >&2; exit 2
   fi
   stage=$2
@@ -93,10 +103,14 @@ if [ "${1:-}" = "--stage" ]; then
   while [ "$#" -gt 1 ]; do
     case "$1" in
       --handoff) stock_handoff=${2:-}; shift 2 ;;
+      --single-stock) single_stock_symbol=${2:-}; shift 2 ;;
+      --cutoff) single_stock_cutoff=${2:-}; shift 2 ;;
+      --through) single_stock_through=${2:-}; shift 2 ;;
       --gate) stock_gate=${2:-}; shift 2 ;;
       --data-preparation) stock_data_preparation=${2:-}; shift 2 ;;
       --source-bundle) stock_source_bundle=${2:-}; shift 2 ;;
       --model) stock_model=${2:-}; shift 2 ;;
+      --question) stock_question=${2:-}; stock_question_explicit=1; shift 2 ;;
       --focus-security-id) stock_focus_security_id=${2:-}; shift 2 ;;
       --company-research-run) company_research_run=${2:-}; shift 2 ;;
       --peer-candidates) stock_peer_candidates=${2:-}; shift 2 ;;
@@ -125,9 +139,6 @@ if [ "${1:-}" = "--stage" ]; then
   if [ "$core_forward_only" = "1" ] && [ "$stage" != "independent-counter-thesis-research" ]; then
     echo 'COUNTER_CORE_SCOPE_STAGE_INVALID：核心范围仅用于显式反证上游补验。' >&2; exit 2
   fi
-  if [ "$predecision_cio_stage" = "1" ] && [ "$cio_target_security_id" != "US:COMMON_STOCK:MRVL" ]; then
-    echo 'CIO_RESEARCH_TARGET_NOT_IN_SCOPE：本需求只综合 MRVL 冻结研究。' >&2; exit 2
-  fi
   if [ "$predecision_cio_stage" = "1" ] && [ "$cio_requested_level" != "RESEARCH_SYNTHESIS" ]; then
     echo 'CIO_PORTFOLIO_ADVICE_NOT_AVAILABLE：本阶段仅交付非动作研究综合。' >&2; exit 2
   fi
@@ -137,14 +148,28 @@ if [ "${1:-}" = "--stage" ]; then
   if [ "$predecision_cio_stage" = "1" ] && { [ "$cio_time_mode" != "SOURCE_CUTOFF" ] || [ -n "$cio_max_research_age_days" ]; }; then
     echo 'CIO_CURRENT_RESEARCH_REQUIRES_NEW_SOURCE：当前研究需重新准备上游包。' >&2; exit 2
   fi
-  if [ "$predecision_cio_stage" = "0" ] && [ -z "$stock_handoff" ]; then
+  if [ "$predecision_cio_stage" = "0" ] && [ "$stage" != "single-stock-research" ] && [ -z "$stock_handoff" ]; then
     echo 'COMMON_STOCK_HANDOFF_REQUIRED：缺少已确认 Handoff。' >&2; exit 2
+  fi
+  if [ "$stock_question_explicit" = "1" ] && { { [ "$stage" != "common-stock-research" ] && [ "$stage" != "single-stock-research" ]; } || [ -z "$stock_question" ]; }; then
+    echo 'COMMON_STOCK_QUESTION_INVALID：--question 仅适用于非空的普通股研究问题。' >&2; exit 2
   fi
   if [ "$stage" = "common-stock-research" ] && [ -n "$stock_gate" ] && { [ -z "$stock_data_preparation" ] || [ -z "$stock_source_bundle" ]; }; then
     echo 'COMMON_STOCK_DATA_PACKAGE_REQUIRED：外部 Gate 必须同时提供 data-preparation 与 source-bundle。' >&2; exit 2
   fi
-  if [ "$prepare_only" = "1" ] && [ "$stage" != "common-stock-research" ]; then
+  if [ "$prepare_only" = "1" ] && [ "$stage" != "common-stock-research" ] && [ "$stage" != "single-stock-research" ]; then
     echo 'PREPARE_ONLY_STAGE_UNSUPPORTED：当前仅支持普通股公司研究阶段。' >&2; exit 2
+  fi
+  if [ "$stage" = "single-stock-research" ]; then
+    if [ "$cio_time_mode" != "SOURCE_CUTOFF" ] || [ -n "$cio_max_research_age_days" ]; then
+      echo 'SINGLE_STOCK_TIME_MODE_UNSUPPORTED：本入口冻结来源截止点，不接受隐式历史重放或时效改写。' >&2; exit 2
+    fi
+    if [ -z "$single_stock_symbol" ] || [ -n "$stock_handoff" ] || [ -n "$stock_gate" ] || [ -n "$stock_data_preparation" ] || [ -n "$stock_source_bundle" ] || [ -n "$stock_focus_security_id" ] || [ -n "$stock_peer_candidates" ] || [ -n "$company_research_run" ] || [ -n "$cio_source_run" ] || [ -n "$cio_target_security_id" ] || [ -n "$cio_mandate" ] || [ "$core_forward_only" = "1" ] || [ "$cio_requested_level" != "RESEARCH_SYNTHESIS" ]; then
+      echo 'SINGLE_STOCK_INPUT_ARGUMENTS_INVALID：只接受单股研究输入，不接受账户、跨批报告或交易建议。' >&2; exit 2
+    fi
+    case "$single_stock_through" in forward|skeptic|cio) ;; *) echo 'SINGLE_STOCK_STOP_INVALID' >&2; exit 2;; esac
+  elif [ -n "$single_stock_symbol" ] || [ "$single_stock_cutoff" != "latest" ] || [ "$single_stock_through" != "forward" ]; then
+    echo 'SINGLE_STOCK_STAGE_REQUIRED' >&2; exit 2
   fi
   if [ "$stage" = "multidimensional-holding-research" ] || [ "$stage" = "independent-counter-thesis-research" ]; then
     multidimensional_stage=1
@@ -218,8 +243,9 @@ fi
 if [ -n "$resume_independent_skeptic_run" ]; then
   case "$resume_independent_skeptic_run/" in "$repo_root/"*) echo '反证运行目录必须位于源码之外。' >&2; exit 2;; esac
   echo "恢复宿主独立反证阶段；运行目录：$resume_independent_skeptic_run" >&2
-  python3 "$repo_root/scripts/council-dev.py" resume-independent-skeptic \
-    --repo "$repo_root" --run-dir "$resume_independent_skeptic_run"
+  set -- --repo "$repo_root" --run-dir "$resume_independent_skeptic_run"
+  if [ -n "$skeptic_prepared_index" ]; then set -- "$@" --prepared-index "$skeptic_prepared_index"; fi
+  python3 "$repo_root/scripts/council-dev.py" resume-independent-skeptic "$@"
   exit $?
 fi
 if [ -n "$launch_independent_skeptic_run" ]; then
@@ -230,6 +256,104 @@ if [ -n "$launch_independent_skeptic_run" ]; then
   python3 "$repo_root/scripts/council-dev.py" launch-independent-skeptic \
     --repo "$repo_root" --run-dir "$launch_independent_skeptic_run"
   exit $?
+fi
+if [ "$stage" = "single-stock-research" ]; then
+  if [ -z "${LIVE_SOURCE_ACCESS_FILE:-}" ] || [ -z "${SEC_USER_AGENT:-}" ] || [ -z "${RESEARCH_MEMORY_ROOT:-}" ]; then
+    echo 'SINGLE_STOCK_SOURCE_CONFIGURATION_REQUIRED：需要外置来源配置、SEC 联系身份与稳定 Research Memory。' >&2; exit 2
+  fi
+  model=$(python3 - "$repo_root" "$stock_model" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from product.runtime.model_routing import agent_development_test_model, select_product_runtime_model
+print(select_product_runtime_model(Path(sys.argv[1]) / 'product', requested_model=sys.argv[2] or agent_development_test_model()))
+PY
+)
+  run_id="host-single-stock-$(uuidgen | tr '[:upper:]' '[:lower:]')"
+  collect_args=(--repo "$repo_root" --single-stock "$single_stock_symbol" --cutoff "$single_stock_cutoff"
+    --source-access "$LIVE_SOURCE_ACCESS_FILE" --output-dir "$bundle/data" --run-id "$run_id"
+    --memory-root "$RESEARCH_MEMORY_ROOT" --cache-root "${LIVE_CACHE_ROOT:-$RESEARCH_MEMORY_ROOT/raw-cache}")
+  if [ "$stock_question_explicit" = "1" ]; then collect_args+=(--question "$stock_question"); fi
+  python3 "$repo_root/scripts/council-dev.py" collect-single-stock-data "${collect_args[@]}"
+  input_file="$bundle/data/single-stock-request.json"
+  python3 "$repo_root/scripts/council-dev.py" prepare-research-materials --repo "$repo_root" \
+    --research-input "$input_file" --gate "$bundle/data/gate.json" --peer-candidates "$bundle/data/peer-candidate-pool.json" \
+    --run-dir "$bundle/materials-run" --run-id "$run_id" --model "$model" --max-concurrency 3
+  python3 - "$bundle" "$single_stock_through" <<'PY'
+import json, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+request = json.loads((root / 'data/single-stock-request.json').read_text())
+materials = json.loads((root / 'materials-run/run_manifest.json').read_text())
+index = json.loads((root / 'materials-run/research/dispatch-index.json').read_text())
+if len(index['tasks']) != 4 or materials['model'] != materials['parent_model']:
+    raise SystemExit('SINGLE_STOCK_PREPARATION_PLAN_INVALID')
+through = sys.argv[2]
+plan = {'status': 'PREPARED_NOT_RESEARCHED', 'input_kind': request['input_kind'],
+    'input_request_hash': request['request_hash'], 'target_security_id': request['security']['security_id'],
+    'research_question': request['research_question'], 'provisional_cutoff': request['resolved_cutoff'],
+    'final_cutoff_status': 'PENDING_MATERIALIZATION', 'model': materials['model'], 'through': through,
+    'specialist_call_limits': {'materials': 4, 'company': 1, 'dimensions': 8,
+        'skeptic': 0 if through == 'forward' else 1},
+    'host_parent_limit': {'forward': 3, 'skeptic': 4, 'cio': 5}[through],
+    'cio_parent_limit': int(through == 'cio'), 'automatic_retry': False,
+    'failure_counts_toward_limit': True, 'stop_on_dependency_failure': True,
+    'actual_preparation_manifest_hash': materials['manifest_hash']}
+(root / 'single-stock-run-plan.json').write_text(json.dumps(plan, ensure_ascii=False, indent=2) + '\n')
+PY
+  research_stage=MULTI_DIMENSIONAL_HOLDING_RESEARCH
+  if [ "$single_stock_through" != "forward" ]; then research_stage=INDEPENDENT_COUNTER_THESIS_RESEARCH; fi
+  forward_tool_args=(--structured-report-submission)
+  if [ "$research_stage" = "MULTI_DIMENSIONAL_HOLDING_RESEARCH" ]; then forward_tool_args+=(--task-bound-tools); fi
+  if [ "$prepare_only" = "1" ]; then
+    # These actual packets are preparation checks, not formal research outputs.
+    python3 "$repo_root/scripts/council-dev.py" prepare-common-stock-research --repo "$repo_root" \
+      --research-input "$input_file" --gate "$bundle/data/gate.json" --data-preparation "$bundle/data/data-preparation.json" \
+      --source-bundle "$bundle/data/source-bundle.json" --run-dir "$bundle/company-plan" --run-id "$run_id" --model "$model"
+    python3 "$repo_root/scripts/council-dev.py" validate-common-stock-research --repo "$repo_root" --run-dir "$bundle/company-plan"
+    python3 "$repo_root/scripts/council-dev.py" prepare-multidimensional-research --repo "$repo_root" \
+      --research-input "$input_file" --gate "$bundle/data/gate.json" --peer-candidates "$bundle/data/peer-candidate-pool.json" \
+      --run-dir "$bundle/eight-plan" --run-id "$run_id" --model "$model" \
+      --stage "$research_stage" "${forward_tool_args[@]}"
+    echo 'PREPARED_NOT_RESEARCHED：未启动模型；正式截止点待资料取证后冻结。'
+    exit 0
+  fi
+  python3 "$repo_root/scripts/council-dev.py" launch-research-materials --repo "$repo_root" --run-dir "$bundle/materials-run"
+  python3 "$repo_root/scripts/council-dev.py" materialize-selected-peers --materials-run "$bundle/materials-run" \
+    --source-access "$LIVE_SOURCE_ACCESS_FILE" --cache-root "${LIVE_CACHE_ROOT:-$RESEARCH_MEMORY_ROOT/raw-cache}" \
+    --memory-root "$RESEARCH_MEMORY_ROOT" --output-dir "$bundle/materials-run/research/peer-materialization"
+  python3 "$repo_root/scripts/council-dev.py" freeze-single-stock-data --data-dir "$bundle/data" \
+    --materials-run "$bundle/materials-run" --output-dir "$bundle/final-data"
+  input_file="$bundle/final-data/single-stock-request.json"
+  python3 "$repo_root/scripts/council-dev.py" prepare-common-stock-research --repo "$repo_root" \
+    --research-input "$input_file" --gate "$bundle/final-data/gate.json" --data-preparation "$bundle/final-data/data-preparation.json" \
+    --source-bundle "$bundle/final-data/source-bundle.json" --run-dir "$bundle/company-run" --run-id "$run_id" \
+    --model "$model" --memory-root "$RESEARCH_MEMORY_ROOT"
+  python3 "$repo_root/scripts/council-dev.py" launch-common-stock-research --repo "$repo_root" --run-dir "$bundle/company-run"
+  python3 "$repo_root/scripts/council-dev.py" prepare-multidimensional-research --repo "$repo_root" \
+    --research-input "$input_file" --gate "$bundle/final-data/gate.json" --base-gate "$bundle/final-data/base-source/gate.json" \
+    --peer-candidates "$bundle/data/peer-candidate-pool.json" --run-dir "$bundle/run" --run-id "$run_id" --model "$model" \
+    --company-research-run "$bundle/company-run" --research-materials-run "$bundle/materials-run" \
+    --stage "$research_stage" "${forward_tool_args[@]}"
+  python3 "$repo_root/scripts/council-dev.py" launch-multidimensional-research --repo "$repo_root" --run-dir "$bundle/run"
+  python3 "$repo_root/scripts/council-dev.py" check-multidimensional-consumption --repo "$repo_root" --run-dir "$bundle/run"
+  if [ "$single_stock_through" != "forward" ]; then
+    python3 "$repo_root/scripts/council-dev.py" prepare-independent-skeptic --repo "$repo_root" --run-dir "$bundle/run"
+    python3 "$repo_root/scripts/council-dev.py" launch-independent-skeptic --repo "$repo_root" --run-dir "$bundle/run"
+  fi
+  if [ "$single_stock_through" = "cio" ]; then
+    export STOCK_AGENT_PRODUCT_HOST_LAUNCH=1
+    target_id=$(python3 - "$input_file" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1]))['security']['security_id'])
+PY
+)
+    python3 "$repo_root/scripts/council-dev.py" prepare-predecision-cio --repo "$repo_root" \
+      --source-run "$bundle/run" --run-dir "$bundle/cio-run" --run-id "cio-$run_id" --target-security-id "$target_id" --model "$model"
+    python3 "$repo_root/scripts/council-dev.py" launch-predecision-cio --repo "$repo_root" --run-dir "$bundle/cio-run"
+    python3 "$repo_root/scripts/council-dev.py" check-predecision-cio --repo "$repo_root" --run-dir "$bundle/cio-run"
+  fi
+  exit 0
 fi
 if [ "$predecision_cio_stage" = "1" ]; then
   case "$cio_source_run/" in "$repo_root/"*) echo '来源研究目录必须位于源码之外。' >&2; exit 2;; esac
@@ -423,11 +547,11 @@ PY
       --handoff "$stock_handoff" --gate "$stock_gate" --data-preparation "$stock_data_preparation" \
       --source-bundle "$stock_source_bundle" \
       --run-dir "$bundle/run" --run-id "$run_id" --model "$model" \
-      --question '分析已确认的普通股持仓。'
+      --question "$stock_question"
   else
     set -- python3 "$repo_root/scripts/council-dev.py" prepare-common-stock-research --repo "$repo_root" \
       --handoff "$stock_handoff" --gate "$stock_gate" --run-dir "$bundle/run" \
-      --run-id "$run_id" --model "$model" --question '分析已确认的普通股持仓。'
+      --run-id "$run_id" --model "$model" --question "$stock_question"
   fi
   if [ "$multidimensional_stage" != "1" ] && [ -n "${RESEARCH_MEMORY_ROOT:-}" ]; then
     set -- "$@" --memory-root "$RESEARCH_MEMORY_ROOT"

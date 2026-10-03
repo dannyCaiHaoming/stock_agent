@@ -307,6 +307,8 @@ def schema_issue_locations(value: Any, schema: Mapping[str, Any] | bool) -> list
     _reject_nonfinite(value, path="$")
     validator = Draft202012Validator(schema, registry=_local_registry(), format_checker=FormatChecker())
     result = []
+    seen = set()
+    field_paths = set()
     for error in validator.iter_errors(value):
         parts = list(error.absolute_path)
         fields = None
@@ -316,8 +318,18 @@ def schema_issue_locations(value: Any, schema: Mapping[str, Any] | bool) -> list
             fields = [key for key in error.instance if key not in error.schema.get("properties", {})
                       and not any(re.search(p, key) for p in error.schema.get("patternProperties", {}))]
         locations = [parts + [key] for key in fields] if fields is not None else [parts]
-        result.extend({"code": _ERROR_CODES.get(str(error.validator), "SCHEMA_CONSTRAINT_INVALID"),
-                       "path": pointer(location)} for location in locations if location)
-        if len(result) > 32:
-            raise SchemaValidationError("SCHEMA_DIAGNOSTICS_TOO_MANY")
+        for location in locations:
+            if not location:
+                continue
+            path = pointer(location)
+            code = _ERROR_CODES.get(str(error.validator), "SCHEMA_CONSTRAINT_INVALID")
+            if (code, path) in seen:
+                continue
+            seen.add((code, path))
+            field_paths.add(path)
+            # required errors repeat the same object for each missing property.
+            # Bound editable fields, not repeated messages about those fields.
+            if len(field_paths) > 32:
+                raise SchemaValidationError("SCHEMA_DIAGNOSTICS_TOO_MANY")
+            result.append({"code": code, "path": path})
     return result

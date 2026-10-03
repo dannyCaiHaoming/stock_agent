@@ -355,11 +355,16 @@ def build_nested_codex_command(
     if externally_sandboxed:
         raise ValueError("LEGACY_SANDBOX_MODE_RETIRED")
     skeptic_mcp_environment = ""
+    skeptic_catalog_enabled = False
     if fixture_mcp_skeptic_dispatch_index is not None:
         if fixture_mcp_run_dir is None:
             raise ValueError("SKEPTIC_MCP_BOUND_RUN_REQUIRED")
-        from .independent_skeptic_stage import read_dispatch_index
-        read_dispatch_index(fixture_mcp_run_dir, fixture_mcp_skeptic_dispatch_index)
+        from .independent_skeptic_stage import DELIVERY_VERSION, read_dispatch_index
+        from .research_input import is_single_stock
+        index = read_dispatch_index(fixture_mcp_run_dir, fixture_mcp_skeptic_dispatch_index)
+        skeptic_catalog_enabled = (is_single_stock(_read_object(fixture_mcp_run_dir / "run_manifest.json"))
+            and any(_read_object(fixture_mcp_run_dir / task["invocation_ref"]).get("skeptic_delivery_version") == DELIVERY_VERSION
+                    for task in index["tasks"]))
         skeptic_mcp_environment = (
             ",STOCK_AGENT_SKEPTIC_DISPATCH_INDEX="
             + json.dumps(fixture_mcp_skeptic_dispatch_index)
@@ -413,6 +418,24 @@ def build_nested_codex_command(
             fixture_python_root = Path(sys.prefix).resolve()
         fixture_environment = fixture_mcp_runtime_environment()
         fixture_entrypoint = Path(product_root).resolve() / "runtime/launch_fixture_mcp.sh"
+        enabled_tools = ["query", "calculate", "equity_research_attachments.query", "research_search", "research_fetch"]
+        if research_submission_enabled:
+            enabled_tools.append("research_report_submit")
+        if research_task_state_enabled or skeptic_catalog_enabled:
+            enabled_tools.append("research_task_state")
+        if skeptic_catalog_enabled:
+            enabled_tools.append("evidence_catalog")
+        if enable_cio_local_revision:
+            enabled_tools.append("read_reports")
+            from .cio_handoff import REPORT_DELIVERY_VERSION
+            from .research_input import is_single_stock
+            manifest_path = fixture_mcp_run_dir / "run_manifest.json"
+            manifest = _read_object(manifest_path) if manifest_path.is_file() else {}
+            if manifest.get("report_delivery_version") == REPORT_DELIVERY_VERSION:
+                request = _read_object(fixture_mcp_run_dir / "predecision-cio-request.json")
+                if not is_single_stock(request) or manifest.get("stage") != "PREDECISION_CIO_SYNTHESIS":
+                    raise ValueError("CIO_REPORT_DELIVERY_PROTOCOL_INVALID")
+                enabled_tools = ["query", "read_reports"]
         mcp_override = (
             "mcp_servers.fixture_runtime={"
             "command=\"/bin/sh\","
@@ -424,11 +447,7 @@ def build_nested_codex_command(
             f"STOCK_AGENT_FIXTURE_MCP_PYTHONPATH={json.dumps(fixture_environment['STOCK_AGENT_FIXTURE_MCP_PYTHONPATH'])}"
             + skeptic_mcp_environment +
             "},"
-            "enabled_tools=[\"query\",\"calculate\",\"equity_research_attachments.query\",\"research_search\",\"research_fetch\""
-            + (",\"research_report_submit\"" if research_submission_enabled else "")
-            + (",\"research_task_state\"" if research_task_state_enabled else "")
-            + (",\"read_reports\"" if enable_cio_local_revision else "")
-            + "],startup_timeout_sec=10}"
+            f"enabled_tools={json.dumps(enabled_tools, separators=(',', ':'))},startup_timeout_sec=10}}"
         )
         command.extend(("-c", mcp_override))
         # This launcher serves a frozen Gate through fixture_runtime.  Avoid

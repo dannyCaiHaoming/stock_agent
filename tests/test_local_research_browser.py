@@ -795,6 +795,45 @@ class LocalResearchBrowserTests(unittest.TestCase):
         # 未改写，不冒称全进程文件系统无写入。
         self.assertEqual(after, before)
 
+    def test_nonholding_report_uses_matching_reader_and_never_a_holding_binding(self):
+        def as_single_stock(package):
+            request = package["request"]
+            request["schema_version"] = "holding-research-request/2.0.0"
+            for key in ("handoff_id", "handoff_hash", "portfolio_hash"):
+                request.pop(key, None)
+            input_binding = {"input_kind": "SINGLE_STOCK_RESEARCH",
+                "input_request_id": "synthetic-single-stock",
+                "input_request_hash": "a" * 64,
+                "input_artifact_ref": "audit/single-stock-request.json"}
+            request.update(input_binding)
+            request["request_hash"] = canonical_hash({k: v for k, v in request.items() if k != "request_hash"})
+            report = package["report"]
+            report["schema_version"] = "equity-research-report/2.0.0"
+            report["research_scope"] = "SINGLE_COMMON_STOCK"
+            for key in ("handoff_id", "handoff_hash", "portfolio_hash"):
+                report["bindings"].pop(key, None)
+            report["bindings"].update(input_binding)
+            report["bindings"]["holding_research_request_hash"] = request["request_hash"]
+        self.store_report(entry_id="nonholding", package_mutator=as_single_stock)
+        result = self.reader().report("US:MRVL", "nonholding")
+        self.assertEqual(result["report"]["research_scope"], "SINGLE_COMMON_STOCK")
+        stored = self.writer.reusable_report("US:MRVL", report_reuse_key("US:MRVL", "fingerprint:nonholding"))
+        loaded = self.writer.load_report_package(stored["package_ref"], stored["package_hash"])
+        self.assertEqual(loaded["report"]["schema_version"], "equity-research-report/2.0.0")
+        page = ResearchBrowser(self.reader(), ArtifactCatalog()).dispatch(
+            "GET", "/companies/US%3AMRVL/report?entry=nonholding", {"Host": "localhost"}).body.decode()
+        self.assertIn("业务、竞争与财务", page)
+        self.assertNotIn("REPORT_SCHEMA_UNSUPPORTED", page)
+        def wrong_mode(package):
+            as_single_stock(package)
+            package["request"]["schema_version"] = "holding-research-request/1.0.0"
+        self.store_report(entry_id="wrong-mode", package_mutator=wrong_mode)
+        with self.assertRaisesRegex(BrowserDataError, "CONTRACT_INVALID"):
+            self.reader().report("US:MRVL", "wrong-mode")
+        stored = self.writer.reusable_report("US:MRVL", report_reuse_key("US:MRVL", "fingerprint:wrong-mode"))
+        with self.assertRaisesRegex(ResearchMemoryError, "BINDING_INVALID"):
+            self.writer.load_report_package(stored["package_ref"], stored["package_hash"])
+
     def test_report_package_rejects_request_evidence_attachment_and_manifest_drift(self):
         prices = [
             {

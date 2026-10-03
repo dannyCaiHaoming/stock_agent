@@ -30,7 +30,7 @@ from product.council import (
     validate_holding_research_request,
     validate_research_coverage,
 )
-from product.intake.v3 import validate_handoff
+from product.runtime.research_input import (is_single_stock, research_input_binding, research_subjects, validate_research_input, research_input_ref, load_research_input)
 from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
 from product.runtime.schema_validation import validate_schema_definition, validate_schema_instance
 from product.runtime.versioning import load_version_manifest, read_skill_version, validate_current_component_versions
@@ -731,9 +731,10 @@ def _research_input_fingerprint_for_holding(
         "model": model,
         "agent_binding": copy.deepcopy(agent),
         "skill_bindings": copy.deepcopy(list(skills)),
+        **({"input_kind": "SINGLE_STOCK_RESEARCH"} if is_single_stock(request) else {}),
         "schema_hash": file_hash(
-            Path(repository_root).resolve()
-            / "product/schemas/runtime/equity-research-report.schema.json"
+            Path(repository_root).resolve() / "product/schemas/runtime"
+            / ("equity-research-report-v2.schema.json" if is_single_stock(request) else "equity-research-report.schema.json")
         ),
         "prompt_policy": {
             "dispatch_contract": DISPATCH_VERSION,
@@ -1061,6 +1062,13 @@ def _build_common_stock_dispatch_packet(
     }
     if attachment_context is not None:
         tool_context["attachment_query_tool"] = "fixture_runtime.equity_research_attachments.query"
+    # 新单股输入沿用实际目录边界；资金流属于 Market，不要求 Company 消费未交付目录。
+    # 旧持仓指引保留，避免借本次新入口改动旧运行 Profile。
+    vendor_flow_instruction = "" if is_single_stock(request) else (
+        "若存在 moomoo_sg 的 vendor_money_flow，"
+        "还须查询它，并用一条带明确供应商口径限制的 FACT Claim 呈现当前已完成区间观察，"
+        "不得把正负号解释为真实买卖方身份、预测或交易动作。"
+    )
     packet = {
         "dispatch_contract": DISPATCH_VERSION,
         "identity": {
@@ -1079,9 +1087,13 @@ def _build_common_stock_dispatch_packet(
             "evidence_catalog 按 semantic_field 分组；其 items 若含 dataset/source_family，表示已通过同一 Gate 准入的三源"
             "补充事实，不是另一个未冻结数据源。目录只用于定位，完整 kind、source_type、batch_id 和比较限制必须通过"
             "fixture_runtime.query 读取，不得由目录缺字段推断。至少查询并核对 identity_profile 或 business_segments、"
-            "financial_history 与当前核心问题相关的事实；若存在 moomoo_sg 的 vendor_money_flow，"
-            "还须查询它，并用一条带明确供应商口径限制的 FACT Claim 呈现当前已完成区间观察，"
-            "不得把正负号解释为真实买卖方身份、预测或交易动作。"
+            "financial_history 与当前核心问题相关的事实；"
+            f"{vendor_flow_instruction}"
+            + ("若目录已有EPS、股数、经营现金流及资本支出，先查询核实其期间、单位、主体与一次性因素，"
+               "再说明是否适合当前估值问题；缺冻结附件不等于这些来源事实缺失。"
+               "不得把季度/累计EPS年化或冒充预测，不强制计算P/E或估值结论。"
+               if is_single_stock(request) else "")
+            +
             "使用确定性计算工具。evidence_refs 只能原样复制 evidence_catalog 各组 items 中的 evidence_id，禁止拼接来源、"
             "时间或说明。只返回 output_schema 的一个 JSON，不输出交易动作、仓位或完整组合结论。"
             "提交前逐项把每个 evidence_refs 与 evidence_catalog 做完整字符串核对；任何字符增删、"
@@ -1290,7 +1302,8 @@ def _apply_focus_to_stage(
 
 
 def prepare_common_stock_stage_run(
-    repository_root: Path, *, handoff_path: Path, gate_path: Path, run_dir: Path,
+    repository_root: Path, *, handoff_path: Path | None = None, research_input_path: Path | None = None,
+    gate_path: Path, run_dir: Path,
     run_id: str, model: str, research_question: str = "分析已确认的普通股持仓。",
     source_fixture: Path | None = None, target_concurrency: int = 3,
     data_preparation_path: Path | None = None,
@@ -1316,8 +1329,14 @@ def prepare_common_stock_stage_run(
     parent_model = analyst_model
     if run_dir.exists():
         raise CommonStockStageError("COMMON_STOCK_STAGE_RUN_EXISTS")
-    handoff = _read_object(Path(handoff_path).resolve())
-    validate_handoff(handoff)
+    if (handoff_path is None) == (research_input_path is None):
+        raise CommonStockStageError("COMMON_STOCK_INPUT_PATH_REQUIRED_EXACTLY_ONCE")
+    handoff = _read_object(Path(research_input_path or handoff_path).resolve())
+    validate_research_input(handoff)
+    if research_input_path is not None and not is_single_stock(handoff):
+        raise CommonStockStageError("COMMON_STOCK_SINGLE_STOCK_INPUT_REQUIRED")
+    if is_single_stock(handoff):
+        research_question = handoff["research_question"]
     gate = _read_object(Path(gate_path).resolve())
     source_gate = copy.deepcopy(gate)
     gate_input_binding = None
@@ -1326,6 +1345,8 @@ def prepare_common_stock_stage_run(
         gate, gate_input_binding = bind_frozen_gate_to_run(Path(gate_path), run_id=run_id)
     if gate.get("run_id") != run_id:
         raise CommonStockStageError("COMMON_STOCK_STAGE_GATE_RUN_MISMATCH")
+    if is_single_stock(handoff) and handoff["resolved_cutoff"] != gate.get("decision_cutoff"):
+        raise CommonStockStageError("COMMON_STOCK_SINGLE_STOCK_CUTOFF_MISMATCH")
     attachment_packages: dict[str, tuple[Path, dict[str, Any]]] = {}
     if equity_research_package_paths:
         from product.runtime.equity_research_package import validate_equity_research_package
@@ -1395,7 +1416,7 @@ def prepare_common_stock_stage_run(
         handoff, request, gate, run_id=run_id, batch_id=f"batch:{run_id}",
         agent_binding=agent, skill_bindings=skills, target_concurrency=target_concurrency,
         effective_concurrency=min(target_concurrency, sum(
-            item["asset_type"] == "COMMON_STOCK" for item in handoff["portfolio"]["positions"]
+            item["asset_type"] == "COMMON_STOCK" for item in research_subjects(handoff)
         )), data_preparation=data_preparation,
         data_source_run_id=source_gate["run_id"] if gate_input_binding is not None else None,
     )
@@ -1408,7 +1429,7 @@ def prepare_common_stock_stage_run(
         source_copy = run_dir / gate_input_binding["source_ref"]
         source_copy.parent.mkdir(parents=True, exist_ok=True)
         source_copy.write_bytes(Path(gate_path).read_bytes())
-    _write_object(run_dir / "audit/portfolio-handoff.json", handoff)
+    _write_object(run_dir / research_input_ref(handoff), handoff)
     _write_object(run_dir / "council-request.json", request)
     _write_object(run_dir / "evidence/gate.json", gate)
     if data_preparation is not None:
@@ -1622,7 +1643,7 @@ def prepare_common_stock_stage_run(
         "fixture": str(fixture),
         "discovery": {"product_root": str(repository_root / "product")},
         "agent_binding": agent, "skill_bindings": skills,
-        "handoff_hash": handoff["handoff_hash"], "portfolio_hash": handoff["portfolio_hash"],
+        **{key: value for key, value in research_input_binding(handoff).items() if key != "handoff_id"},
         "council_request_hash": request["request_hash"], "gate_hash": gate["bundle_hash"],
         "data_preparation_hash": (
             data_preparation.get("preparation_hash") if data_preparation is not None else None
@@ -1641,6 +1662,9 @@ def prepare_common_stock_stage_run(
         ),
         "prepared_at": _utc_now(), "complete_portfolio_decision": False,
     }
+    if is_single_stock(handoff):
+        from product.runtime.research_input import single_stock_contract_locks
+        manifest["input_contract_locks"] = single_stock_contract_locks(product_root)
     manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")
     _write_object(run_dir / "run_manifest.json", manifest)
     return {
@@ -1657,7 +1681,8 @@ def build_common_stock_stage_prompt(repository_root: Path, run_dir: Path) -> str
         for item in index["tasks"]
     }
     concurrency = min(index["target_concurrency"], len(messages))
-    return f"""你是普通股持仓研究阶段的 Codex 主线程，只负责有界派发和归集，不担任 CIO。
+    subject_label = "非持仓单股" if is_single_stock(load_research_input(run_dir)) else "普通股持仓"
+    return f"""你是{subject_label}研究阶段的 Codex 主线程，只负责有界派发和归集，不担任 CIO。
 读取产品 AGENTS.md 与 portfolio-council Skill 中的普通股研究阶段说明。使用 Agent 工具，agent_type 必须为 runtime_company_analyst，fork_turns=none。
 最多同时保持 {concurrency} 个活跃 Subagent。在等待任何一个结果前，先按映射顺序发起最初 {concurrency} 个独立任务；任一任务结束后立即用下一个未派发任务补位，直到全部任务结束。不得一次派发超过并发上限：
 {json.dumps(messages, ensure_ascii=False, sort_keys=True)}
@@ -1673,7 +1698,7 @@ def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dic
     run_dir = Path(run_dir).resolve()
     _validate_common_stock_stage_run_package(repository_root, run_dir)
     manifest = _read_object(run_dir / "run_manifest.json")
-    handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
+    handoff = load_research_input(run_dir)
     council_request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
     coverage = _read_object(run_dir / "research/coverage.json")
@@ -1936,7 +1961,7 @@ def _finalize_failed_common_stock_stage(
     """把异常退出归集到既有 Coverage v1 与 stage；不伪造 Stop 或报告。"""
 
     run_dir = Path(run_dir).resolve()
-    handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
+    handoff = load_research_input(run_dir)
     council_request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
     coverage = _read_object(run_dir / "research/coverage.json")
@@ -2078,14 +2103,18 @@ def _validate_common_stock_stage_run_package(
                 and manifest.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION)):
         raise CommonStockStageError("COMMON_STOCK_CALCULATION_PROTOCOL_INVALID")
 
-    handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
+    handoff = load_research_input(run_dir)
     request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
     stage = _read_object(run_dir / "research/stage.json")
     coverage = _read_object(run_dir / "research/coverage.json")
     index = _read_object(run_dir / "research/dispatch-index.json")
     reuse_index = _read_object(run_dir / "research/reuse-index.json")
-    validate_handoff(handoff)
+    validate_research_input(handoff)
+    if is_single_stock(handoff):
+        from product.runtime.research_input import single_stock_contract_locks
+        if manifest.get("input_contract_locks") != single_stock_contract_locks(repository_root / "product"):
+            raise CommonStockStageError("SINGLE_STOCK_CONTRACT_LOCK_DRIFT")
     validate_council_request(request, handoff=handoff)
     try:
         verify_legacy_envelope_hash(gate, hash_field="bundle_hash", location="product/runtime/common_stock_stage.py:gate.bundle_hash")
@@ -2112,8 +2141,7 @@ def _validate_common_stock_stage_run_package(
 
     expected = {
         "run_id": manifest["run_id"],
-        "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"],
+        **{key: value for key, value in research_input_binding(handoff).items() if key != "handoff_id"},
         "council_request_hash": request["request_hash"],
         "gate_hash": gate["bundle_hash"],
         "stage_hash": stage["stage_hash"],
@@ -2169,7 +2197,7 @@ def _validate_common_stock_stage_run_package(
         skill_bindings=skills, target_concurrency=manifest["target_concurrency"],
         effective_concurrency=min(
             manifest["target_concurrency"],
-            sum(item["asset_type"] == "COMMON_STOCK" for item in handoff["portfolio"]["positions"]),
+            sum(item["asset_type"] == "COMMON_STOCK" for item in research_subjects(handoff)),
         ),
         data_preparation=preparation,
         data_source_run_id=source_gate["run_id"] if manifest.get("gate_input_binding") is not None else None,

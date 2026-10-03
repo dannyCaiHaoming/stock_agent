@@ -92,7 +92,7 @@ class InvocationManifestTests(unittest.TestCase):
         ):
             self.assertEqual(manifest["agent"]["name"], agent)
             expected_version = (
-                "3.0.21" if agent == "runtime_company_analyst" else "2.2.0"
+                "3.0.21" if agent == "runtime_company_analyst" else "2.2.2"
             )
             self.assertEqual(manifest["agent"]["version"], expected_version)
             self.assertEqual(
@@ -304,6 +304,28 @@ class StructuredArtifactValidationTests(unittest.TestCase):
         scenario["challenges"][0]["evidence_refs"] = []
         scenario["evidence_refs"] = []
         validate_skeptic_report(scenario, run_id="run-validation", manifest=self.skeptic_manifest)
+
+    def test_skeptic_pure_gap_is_not_an_ungrounded_challenge(self):
+        report = self.valid_skeptic()
+        report['schema_version'] = 'counter-thesis-report/2.1.0'
+        report['assumptions'] = []
+        report['data_gaps'].append('没有完成估值材料核验，不能形成估值反证。')
+        validate_skeptic_report(report, run_id='run-validation', manifest=self.skeptic_manifest)
+        broken = copy.deepcopy(report)
+        broken['challenges'].append({'challenge_id': 'gap-only',
+            'statement': report['data_gaps'][-1], 'evidence_refs': [], 'assumption_ids': [],
+            'resolution_evidence_needed': ['核验适用材料']})
+        with self.assertRaisesRegex(ArtifactValidationError, 'UNGROUNDED_CHALLENGE'):
+            validate_skeptic_report(broken, run_id='run-validation', manifest=self.skeptic_manifest)
+        invented_assumption = copy.deepcopy(broken)
+        invented_assumption['challenges'][-1]['assumption_ids'] = ['not-defined']
+        with self.assertRaisesRegex(ArtifactValidationError, 'UNKNOWN_ASSUMPTION'):
+            validate_skeptic_report(invented_assumption, run_id='run-validation', manifest=self.skeptic_manifest)
+        invented_evidence = copy.deepcopy(broken)
+        invented_evidence['challenges'][-1]['evidence_refs'] = ['ev-not-allowed']
+        with self.assertRaises(ArtifactValidationError):
+            validate_skeptic_report(invented_evidence, run_id='run-validation', manifest=self.skeptic_manifest)
+        self.assertEqual(report['challenges'][0]['evidence_refs'], ['ev-normal-debt'])
 
     def test_specialist_evidence_id_contract_matrix(self):
         correct = self.valid_company()

@@ -22,7 +22,10 @@ from product.council import (
     build_multidimensional_holding_research_request,
 )
 from product.council.multidimensional_research import RESEARCH_CAPABILITIES
-from product.intake.v3 import validate_handoff
+from product.runtime.research_input import (
+    artifact_input_binding, is_single_stock, load_research_input, research_input_binding,
+    research_input_ref, research_subjects, validate_research_input,
+)
 from product.mcp.provenance import parse_timestamp
 from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
 from product.runtime.multidimensional_references import VERSION as REFERENCE_VERSION, known_claim_references
@@ -36,9 +39,18 @@ from product.runtime.versioning import load_version_manifest, read_skill_version
 
 
 STAGE_VERSION = "multidimensional-holding-research-runtime/2.0.0"
+SINGLE_STOCK_STAGE_VERSION = "multidimensional-holding-research-runtime/3.0.0"
 DISPATCH_VERSION = "multidimensional-research-dispatch/2.1.0"
 OUTPUT_CONTRACT_RULES = {
     "version": "multidimensional-output-guidance/1.0.0",
+    "local_claim_ids": (
+        "claim_id 是本稿本地主张名称，例如 claim_business 或 business；"
+        "不得以 e.、c.、d.、k.、p. 开头，也不得使用程序内部 rc1 引用前缀；"
+        "这些是保留的运输引用命名空间。"
+        "c.* 仅用于目录提供的上游主张引用，不能用作新主张 claim_id。"
+        "observation_conditions.claim_refs 及本地关系引用须逐字指向本稿合法 claim_id。"
+        "程序不自动改名，也不猜测引用。"
+    ),
     "status": (
         "按实际覆盖选择状态，不因部分来源缺失自动判整项失败。"
         "现有校验要求：status=SOURCE_LIMITED 时 evaluation_status 必须为 SOURCE_LIMITED；"
@@ -104,6 +116,11 @@ TECHNICAL_SUMMARY_GUIDANCE = {
         "摘要不引入正文和计算未支持的结论；计算、引用和状态仍由原门禁校验。"
     ),
 }
+
+
+def _stage_input_binding(value):
+    binding = research_input_binding(value)
+    return binding if is_single_stock(value) else {k: v for k, v in binding.items() if k != "handoff_id"}
 
 
 def _parent_output_schema(run_id: str, task_count: int) -> dict[str, Any]:
@@ -966,10 +983,9 @@ def _import_company_research_reports(
     repository_root = Path(manifest["discovery"]["product_root"]).resolve().parent
     if manifest.get("stage") != "COMMON_STOCK_RESEARCH":
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_STAGE_INVALID")
-    source_handoff = _read_object(source_run / "audit/portfolio-handoff.json")
+    source_handoff = load_research_input(source_run, manifest=manifest)
     if (
-        source_handoff.get("handoff_hash") != expected_handoff.get("handoff_hash")
-        or source_handoff.get("portfolio_hash") != expected_handoff.get("portfolio_hash")
+        research_input_binding(source_handoff) != research_input_binding(expected_handoff)
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_PORTFOLIO_MISMATCH")
     source_gate = _read_object(source_run / "evidence/gate.json")
@@ -979,6 +995,7 @@ def _import_company_research_reports(
         not isinstance(source_cutoff, str)
         or not isinstance(target_cutoff, str)
         or parse_timestamp(source_cutoff) > parse_timestamp(target_cutoff)
+        or (is_single_stock(expected_handoff) and source_cutoff != target_cutoff)
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_SOURCE_CUTOFF_INVALID")
     source_index = _read_object(source_run / "research/dispatch-index.json")
@@ -1148,8 +1165,7 @@ def _import_company_research_reports(
         "source_run_id": manifest.get("run_id"),
         "source_manifest_file_hash": file_hash(source_run / "run_manifest.json"),
         "source_execution_proof_file_hash": file_hash(source_run / "research/execution-proof.json"),
-        "handoff_hash": expected_handoff["handoff_hash"],
-        "portfolio_hash": expected_handoff["portfolio_hash"],
+        **_stage_input_binding(expected_handoff),
         "target_decision_cutoff": target_cutoff,
         "reports": imported,
         "rejected_reports": rejected,
@@ -1354,11 +1370,20 @@ def _import_research_materials(
     source_manifest = _read_object(source_run / "run_manifest.json")
     materials = _read_object(source_run / "research/material-preparation-manifest.json")
     source_index = _read_object(source_run / "research/dispatch-index.json")
+    if is_single_stock(expected_handoff):
+        from product.runtime.single_stock_input import validate_preparation_request_lineage
+        from product.runtime.research_materials_stage import require_complete_research_materials_stage
+        source_input = load_research_input(source_run, manifest=source_manifest)
+        validate_preparation_request_lineage(expected_handoff, source_input)
+        require_complete_research_materials_stage(source_run)
+        if any(materials.get(k) != v for k, v in research_input_binding(source_input).items()):
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_INPUT_BINDING_INVALID")
     if (
         source_manifest.get("stage") != "MULTIDIMENSIONAL_MATERIAL_PREPARATION"
         or materials.get("manifest_hash") != legacy_envelope_hash(materials, hash_field="manifest_hash")
-        or materials.get("handoff_hash") != expected_handoff.get("handoff_hash")
-        or materials.get("portfolio_hash") != expected_handoff.get("portfolio_hash")
+        or (not is_single_stock(expected_handoff) and (
+            materials.get("handoff_hash") != expected_handoff.get("handoff_hash")
+            or materials.get("portfolio_hash") != expected_handoff.get("portfolio_hash")))
     ):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_MATERIALS_SOURCE_INVALID")
     target_gate_content_hash = canonical_hash({
@@ -1383,12 +1408,19 @@ def _import_research_materials(
             final_view = _read_object(
                 source_run / "research/peer-materialization/final-view.json"
             )
+            peer_gate = target_gate
+            if is_single_stock(expected_handoff):
+                peer_gate = _read_object(source_run / "research/peer-materialization/gate.json")
+                delivery_fields = {"source_bundle_id", "source_bundle_hash", "run_id", "decision_cutoff", "bundle_hash"}
+                if (any(target_gate.get(k) != v for k, v in peer_gate.items() if k not in delivery_fields)
+                        or parse_timestamp(peer_gate["decision_cutoff"]) > parse_timestamp(target_gate["decision_cutoff"])):
+                    raise MultidimensionalStageError("MULTIDIMENSIONAL_PEER_FINAL_SOURCE_CHANGED")
             if (
                 final_view.get("view_hash") != materialization["final_view_hash"]
                 or final_view["view_hash"] != legacy_envelope_hash(final_view, hash_field="view_hash")
-                or final_view.get("gate_hash") != target_gate.get("bundle_hash")
-                or materialization.get("merged_gate_hash") != target_gate.get("bundle_hash")
-                or final_view.get("decision_cutoff") != target_gate.get("decision_cutoff")
+                or final_view.get("gate_hash") != peer_gate.get("bundle_hash")
+                or materialization.get("merged_gate_hash") != peer_gate.get("bundle_hash")
+                or final_view.get("decision_cutoff") != peer_gate.get("decision_cutoff")
                 or final_view.get("allowed_evidence_ids") != target_gate.get("allowed_evidence_ids")
             ):
                 raise MultidimensionalStageError("MULTIDIMENSIONAL_PEER_FINAL_VIEW_INVALID")
@@ -1553,7 +1585,7 @@ def _import_research_materials(
         "source_run": str(source_run), "source_run_id": source_manifest.get("run_id"),
         "source_manifest_file_hash": file_hash(source_run / "run_manifest.json"),
         "source_materials_manifest_file_hash": file_hash(source_run / "research/material-preparation-manifest.json"),
-        "handoff_hash": expected_handoff["handoff_hash"], "portfolio_hash": expected_handoff["portfolio_hash"],
+        **_stage_input_binding(expected_handoff),
         "gate_content_hash": comparable_gate_hash, "entries": import_entries,
         "peer_materialization_file_hash": (
             file_hash(materialization_path) if materialization_path.is_file() else None
@@ -2175,6 +2207,18 @@ def _load_research_capture_batches(
 
     preparation_path = gate_path.parent / "data-preparation.json"
     preparation_gate = gate
+    final_single_stock_package = False
+    bundle_path = gate_path.parent / "source-bundle.json"
+    if bundle_path.is_file() and _read_object(bundle_path).get("schema_version") == "common-stock-source-bundle/3.0.0":
+        from product.runtime.common_stock_data import validate_common_stock_source_bundle
+        source_input = _read_object(gate_path.parent / "single-stock-request.json")
+        validate_common_stock_source_bundle(source_input, gate=gate, preparation=_read_object(preparation_path),
+                                            source_bundle_path=bundle_path)
+        expected_base = gate_path.parent / "base-source/gate.json"
+        if base_gate_path is not None and Path(base_gate_path).resolve() != expected_base.resolve():
+            raise MultidimensionalStageError("MULTIDIMENSIONAL_BASE_GATE_BINDING_INVALID")
+        base_gate_path = expected_base
+        final_single_stock_package = True
     if gate.get("source_mode") == "live-read-only" and gate.get("base_gate_content_hash") is not None:
         if base_gate_path is None:
             raise MultidimensionalStageError("MULTIDIMENSIONAL_BASE_GATE_REQUIRED")
@@ -2188,7 +2232,7 @@ def _load_research_capture_batches(
             })
             or (not allow_source_run_rebinding and base_gate.get("run_id") != gate.get("run_id"))
             or base_gate.get("source_mode") != gate.get("source_mode")
-            or base_gate.get("source_bundle_hash") != gate.get("source_bundle_hash")
+            or (not final_single_stock_package and base_gate.get("source_bundle_hash") != gate.get("source_bundle_hash"))
             or parse_timestamp(base_gate["decision_cutoff"])
             > parse_timestamp(gate["decision_cutoff"])
         ):
@@ -2380,7 +2424,7 @@ def _task_provider_coverage_view(
 
 
 def prepare_multidimensional_stage_run(
-    repository_root: Path, *, handoff_path: Path, gate_path: Path, run_dir: Path,
+    repository_root: Path, *, handoff_path: Path | None = None, research_input_path: Path | None = None, gate_path: Path, run_dir: Path,
     run_id: str, model: str, research_question: str = "补全普通股持仓的免费多维研究资料。",
     benchmark_id: str = "US:SPY", target_concurrency: int = 3,
     peer_candidate_pool_path: Path | None = None,
@@ -2408,8 +2452,14 @@ def prepare_multidimensional_stage_run(
     from product.runtime.model_routing import select_product_runtime_model
     selected_model = select_product_runtime_model(product_root, requested_model=model)
     resolved_gate_path = Path(gate_path).resolve()
-    handoff = _read_object(Path(handoff_path).resolve())
-    validate_handoff(handoff)
+    if (handoff_path is None) == (research_input_path is None):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_INPUT_PATH_INVALID")
+    handoff = _read_object(Path(research_input_path or handoff_path).resolve())
+    validate_research_input(handoff)
+    if research_input_path is not None and not is_single_stock(handoff):
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_SINGLE_STOCK_REQUIRED")
+    if is_single_stock(handoff):
+        research_question = handoff["research_question"]
     gate = _read_object(resolved_gate_path)
     source_gate = copy.deepcopy(gate)
     gate_input_binding = None
@@ -2427,6 +2477,8 @@ def prepare_multidimensional_stage_run(
     if not isinstance(cutoff, str):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_CUTOFF_MISSING")
     cutoff_time = parse_timestamp(cutoff)
+    if is_single_stock(handoff) and cutoff != handoff["resolved_cutoff"]:
+        raise MultidimensionalStageError("MULTIDIMENSIONAL_INPUT_CUTOFF_MISMATCH")
     evidence = gate.get("allowed_evidence")
     if not isinstance(evidence, list) or {item.get("evidence_id") for item in evidence} != set(gate.get("allowed_evidence_ids", [])):
         raise MultidimensionalStageError("MULTIDIMENSIONAL_GATE_INVALID")
@@ -2464,7 +2516,8 @@ def prepare_multidimensional_stage_run(
             if (source_run.parent != run_dir.parent
                     or source_manifest.get("run_id") != run_id
                     or source_gate.get("run_id") != run_id
-                    or source_gate.get("decision_cutoff") != cutoff):
+                    or (source_gate.get("decision_cutoff") != cutoff
+                        and not (role == "MATERIALS" and is_single_stock(handoff)))):
                 raise MultidimensionalStageError(f"COUNTER_{role}_CROSS_RUN_IMPORT_FORBIDDEN")
     request_builder = (
         build_independent_counter_thesis_research_request
@@ -2476,7 +2529,7 @@ def prepare_multidimensional_stage_run(
         research_question=research_question, benchmark_id=benchmark_id,
     )
     common_ids = [
-        item["security_id"] for item in handoff["portfolio"]["positions"]
+        item["security_id"] for item in research_subjects(handoff)
         if item["asset_type"] == "COMMON_STOCK"
     ]
     if not common_ids:
@@ -2496,8 +2549,7 @@ def prepare_multidimensional_stage_run(
         if set(peer_groups) != set(common_ids):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_PEER_POOL_SCOPE_INVALID")
     bindings = {
-        "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"], "council_request_id": request["request_id"],
+        **research_input_binding(handoff), "council_request_id": request["request_id"],
         "council_request_hash": request["request_hash"], "decision_cutoff": cutoff,
     }
     from product.runtime.research_input_topology import (
@@ -2571,7 +2623,7 @@ def prepare_multidimensional_stage_run(
         source_copy = run_dir / gate_input_binding["source_ref"]
         source_copy.parent.mkdir(parents=True, exist_ok=True)
         source_copy.write_bytes(resolved_gate_path.read_bytes())
-    _write_object(run_dir / "audit/portfolio-handoff.json", handoff)
+    _write_object(run_dir / research_input_ref(handoff), handoff)
     _write_object(run_dir / "council-request.json", request)
     _write_object(run_dir / "evidence/gate.json", gate)
     _write_object(run_dir / "audit/provider-coverage.json", provider_coverage)
@@ -2995,7 +3047,11 @@ def prepare_multidimensional_stage_run(
                         "SECTION_TEXT 不保证整份申报全文，UNKNOWN 不等于无数据，短文本也可能有实质内容。"
                         " 具体业务比较须从双方实际查询的正文核对终端应用：有证据支持共同终端时，"
                         "写出该交集及各自产品作用差异；无可核实交集或资料不足时说明依据与具体gap，"
-                        "不得为满足格式虚构交集。仅写半导体供应商、电子系统需求等行业共性不算回答。"
+                        "不得为满足格式虚构交集。"
+                        + ("仅泛述行业共性，不算回答目标与同行的具体业务可比性。"
+                           if is_single_stock(handoff) else
+                           "仅写半导体供应商、电子系统需求等行业共性不算回答。")
+                        +
                         "引用分类变更或收购发生时点时，逐项核对所引原文的财年和季度，"
                         "不得用当前财年标签替代历史变更的发生财年。"
                         "每次query至多读取一只已物化同行，可同时读取目标公司及基准；比较另一同行时另查，"
@@ -3262,6 +3318,9 @@ def prepare_multidimensional_stage_run(
                     "不得因缺少第二只持仓而判定资料不足，也不得自动补入另一家公司。"
                 )
                 instruction += "不得用主观风险标签替代计算和冻结 Evidence。"
+            if is_single_stock(handoff):
+                instruction = instruction.replace("当前只有一只普通股持仓", "当前只有一只普通股研究标的")
+                instruction = instruction.replace("不得因缺少第二只持仓", "不得因缺少第二只研究标的")
             if task.get("material_preparation", {}).get("status") == "FAILED":
                 instruction += (
                     " material_preparation 已记录上游资料准备的确定性失败；本维度必须输出"
@@ -3273,7 +3332,7 @@ def prepare_multidimensional_stage_run(
             task["task_hash"] = legacy_envelope_hash(task, hash_field="task_hash")
             _write_object(run_dir / task_path, task)
             input_refs = [
-                "audit/portfolio-handoff.json", "council-request.json",
+                research_input_ref(handoff), "council-request.json",
                 "evidence/gate.json", "audit/provider-coverage.json", task_path,
             ]
             if capability == "INDUSTRY_COMPARISON" and peer_candidate_pool is not None:
@@ -3337,7 +3396,8 @@ def prepare_multidimensional_stage_run(
                 "dispatch_contract": DISPATCH_VERSION,
                 "reference_transport_version": REFERENCE_VERSION,
                 "identity": {"run_id": run_id, "invocation_id": invocation_id, "task_id": task_id,
-                             "task_name": task_name, "agent": agent, "security_ids": security_ids},
+                             "task_name": task_name, "agent": agent, "security_ids": security_ids,
+                             **(research_input_binding(handoff) if is_single_stock(handoff) else {})},
                 "instruction": instruction,
                 "minimum_questions": minimum_questions,
                 "task": task,
@@ -3422,7 +3482,7 @@ def prepare_multidimensional_stage_run(
     index["index_hash"] = legacy_envelope_hash(index, hash_field="index_hash")
     _write_object(run_dir / "research/dispatch-index.json", index)
     manifest = {
-        "schema_version": STAGE_VERSION, "run_id": run_id,
+        "schema_version": SINGLE_STOCK_STAGE_VERSION if is_single_stock(handoff) else STAGE_VERSION, "run_id": run_id,
         "stage": stage, "source_mode": "frozen-gate",
         **({"gate_input_binding": gate_input_binding} if gate_input_binding is not None else {}),
         "reference_transport_version": REFERENCE_VERSION,
@@ -3433,7 +3493,7 @@ def prepare_multidimensional_stage_run(
         "provider_coverage_hash": provider_coverage["coverage_hash"],
         "provider_coverage_ref": "audit/provider-coverage.json",
         "agent_bindings": agent_bindings, "skill_bindings": skill_bindings,
-        "handoff_hash": handoff["handoff_hash"], "portfolio_hash": handoff["portfolio_hash"],
+        **_stage_input_binding(handoff),
         "council_request_hash": request["request_hash"], "gate_hash": gate["bundle_hash"],
         "dispatch_index_hash": index["index_hash"], "target_concurrency": target_concurrency,
         "peer_candidate_pool_hash": (
@@ -3453,6 +3513,9 @@ def prepare_multidimensional_stage_run(
         manifest["selected_forward_capabilities"] = list(capabilities)
     if task_bound_tools:
         manifest["tool_identity_version"] = TASK_TOOL_IDENTITY_VERSION
+    if is_single_stock(handoff):
+        from product.runtime.research_input import single_stock_contract_locks
+        manifest["input_contract_locks"] = single_stock_contract_locks(product_root)
     manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")
     from product.runtime.evidence_gate import validate_frozen_gate_binding
     validate_frozen_gate_binding(run_dir, manifest, gate)
@@ -3496,8 +3559,15 @@ def read_multidimensional_task_state(run_dir: Path) -> dict[str, Any]:
     try:
         manifest = _read_object(root / "run_manifest.json")
         index = _read_object(root / "research/dispatch-index.json")
-        if (manifest.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
-                or manifest.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION
+        single_forward = (is_single_stock(manifest)
+                          and manifest.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH")
+        if single_forward:
+            # Only the coordinator's read-only lifecycle projection is shared.
+            # This does not enable task_name query/calculation identity routing.
+            load_research_input(root, manifest=manifest)
+        if ((not single_forward and (
+                manifest.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+                or manifest.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION))
                 or manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash")
                 or index.get("index_hash") != legacy_envelope_hash(index, hash_field="index_hash")
                 or manifest.get("dispatch_index_hash") != index.get("index_hash")
@@ -3519,7 +3589,7 @@ def read_multidimensional_task_state(run_dir: Path) -> dict[str, Any]:
                     or invocation.get("run_id") != index["run_id"]
                     or invocation.get("invocation_id") != task["invocation_id"]
                     or task.get("run_id") != index["run_id"]
-                    or task.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION
+                    or (not single_forward and task.get("tool_identity_version") != TASK_TOOL_IDENTITY_VERSION)
                     or any(dep not in by_id for dep in task.get("depends_on", []))):
                 reject()
         dispatches, events = lifecycle_snapshot()
@@ -3601,9 +3671,9 @@ def read_multidimensional_task_state(run_dir: Path) -> dict[str, Any]:
                 snapshot.update(research_status=report["status"], coverage_status=report["sufficiency"])
         # 复用报告消费者的结构/引用检查；不运行Finalizer或内容评级。
         from product.council.multidimensional_research import validate_research_dimension_report
-        handoff = _read_object(root / "audit/portfolio-handoff.json")
+        handoff = load_research_input(root, manifest=manifest)
         request = _read_object(root / "council-request.json")
-        if (handoff.get("handoff_hash") != manifest.get("handoff_hash")
+        if (any(manifest.get(k) != v for k, v in _stage_input_binding(handoff).items())
                 or request.get("request_hash") != manifest.get("council_request_hash")):
             reject()
         for task_id, report in reports.items():
@@ -3611,8 +3681,7 @@ def read_multidimensional_task_state(run_dir: Path) -> dict[str, Any]:
             dependencies = [reports[dep] for dep in task.get("depends_on", [])]
             validate_research_dimension_report(
                 report, expected_bindings={
-                    "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
-                    "portfolio_hash": handoff["portfolio_hash"], "council_request_id": request["request_id"],
+                    **research_input_binding(handoff), "council_request_id": request["request_id"],
                     "council_request_hash": request["request_hash"], "decision_cutoff": task["time_context"]["window_end"],
                 }, allowed_security_ids=task["security_ids"], allowed_evidence_ids=task["allowed_evidence_ids"],
                 allowed_calculation_evidence_ids=task.get("allowed_calculation_evidence_ids", []),
@@ -3682,7 +3751,8 @@ def build_multidimensional_stage_prompt(repository_root: Path, run_dir: Path) ->
     }
     state_instruction = ""
     manifest = _read_object(Path(run_dir).resolve() / "run_manifest.json")
-    if manifest.get("tool_identity_version") == "research-tool-identity/1.0.0":
+    if (manifest.get("tool_identity_version") == "research-tool-identity/1.0.0"
+            or (is_single_stock(manifest) and manifest.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH")):
         state_instruction = (
             "派发前、每次wait返回后、最终返回前必须调用MCP research_task_state（参数{}），"
             "以可信task_name状态核对你自己的归集，不凭wait空返回、正文消息或文件存在推断仍有活跃任务。"
@@ -3800,7 +3870,7 @@ def _verified_retry_dependencies(run_dir: Path, task_name: str) -> list[dict[str
                 or packet.get("allowed_evidence_ids") != task["allowed_evidence_ids"]
                 or packet.get("task", {}).get("time_context") != task["time_context"]):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_VERSION_INCOMPATIBLE")
-    handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
+    handoff = load_research_input(run_dir)
     request = _read_object(run_dir / "council-request.json")
     for value, field in ((manifest, "manifest_hash"), (index, "index_hash"), (gate, "bundle_hash")):
         try:
@@ -3819,8 +3889,7 @@ def _verified_retry_dependencies(run_dir: Path, task_name: str) -> list[dict[str
         raise MultidimensionalStageError("MULTIDIMENSIONAL_REUSE_BINDING_INVALID")
     validate_research_dimension_report(
         report, expected_bindings={
-            "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
-            "portfolio_hash": handoff["portfolio_hash"], "council_request_id": request["request_id"],
+            **research_input_binding(handoff), "council_request_id": request["request_id"],
             "council_request_hash": request["request_hash"], "decision_cutoff": gate["decision_cutoff"],
         }, allowed_security_ids=dependency["security_ids"],
         allowed_evidence_ids=dependency["allowed_evidence_ids"],
@@ -3963,19 +4032,17 @@ def finalize_multidimensional_task_evidence(
     if len(saved) != len(executed) or set(saved_by_task) != expected_ids:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TARGET_OUTPUT_INVALID")
     saved_by_task.update({d["task_id"]: d["source_event"] for d in reused})
-    handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
+    handoff = load_research_input(run_dir)
     request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
     bindings = {
-        "handoff_id": handoff["handoff_id"],
-        "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"],
+        **research_input_binding(handoff),
         "council_request_id": request["request_id"],
         "council_request_hash": request["request_hash"],
         "decision_cutoff": gate["decision_cutoff"],
     }
     security_ids = [
-        item["security_id"] for item in handoff["portfolio"]["positions"]
+        item["security_id"] for item in research_subjects(handoff)
         if item["asset_type"] == "COMMON_STOCK"
     ]
     validated_reports: dict[str, dict[str, Any]] = {}
@@ -4076,7 +4143,7 @@ def finalize_multidimensional_stage_run(
     del repository_root
     run_dir = Path(run_dir).resolve()
     manifest = _read_object(run_dir / "run_manifest.json")
-    handoff = _read_object(run_dir / "audit/portfolio-handoff.json")
+    handoff = load_research_input(run_dir)
     council_request = _read_object(run_dir / "council-request.json")
     gate = _read_object(run_dir / "evidence/gate.json")
     index = _read_object(run_dir / "research/dispatch-index.json")
@@ -4205,12 +4272,11 @@ def finalize_multidimensional_stage_run(
     if not user_interrupted and allowed_names | terminal_names != expected_names:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_DISPATCH_PROOF_INCOMPLETE")
     common_ids = [
-        item["security_id"] for item in handoff["portfolio"]["positions"]
+        item["security_id"] for item in research_subjects(handoff)
         if item["asset_type"] == "COMMON_STOCK"
     ]
     bindings = {
-        "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"], "council_request_id": council_request["request_id"],
+        **research_input_binding(handoff), "council_request_id": council_request["request_id"],
         "council_request_hash": council_request["request_hash"], "decision_cutoff": gate["decision_cutoff"],
     }
     reports: list[dict[str, Any]] = []
@@ -4288,8 +4354,7 @@ def finalize_multidimensional_stage_run(
         if import_manifest.get("import_hash") != legacy_envelope_hash(import_manifest, hash_field="import_hash"):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_IMPORT_PROOF_INVALID")
         if (
-            import_manifest.get("handoff_hash") != handoff["handoff_hash"]
-            or import_manifest.get("portfolio_hash") != handoff["portfolio_hash"]
+            any(import_manifest.get(k) != v for k, v in _stage_input_binding(handoff).items())
             or import_manifest.get("target_decision_cutoff") != gate["decision_cutoff"]
         ):
             raise MultidimensionalStageError("MULTIDIMENSIONAL_COMPANY_IMPORT_BINDING_INVALID")
@@ -4420,7 +4485,7 @@ def finalize_multidimensional_stage_run(
     )
     declared_content_failure = any(report.get("evaluation_status") == "FAIL" for report in reports)
     bundle = finalize_holding_research_bundle({
-        "schema_version": HOLDING_RESEARCH_BUNDLE_VERSION,
+        "schema_version": "holding-research-bundle/3.0.0" if is_single_stock(handoff) else HOLDING_RESEARCH_BUNDLE_VERSION,
         "bundle_id": f"holding-research-bundle:{manifest['run_id']}",
         "run_id": manifest["run_id"],
         "bindings": {key: value for key, value in bindings.items() if key != "decision_cutoff"},
@@ -4693,7 +4758,7 @@ def assemble_canonical_holding_research_package(
         raise MultidimensionalStageError("CANONICAL_PACKAGE_OUTPUT_INSIDE_SOURCE")
 
     base_manifest = _read_object(base_run / "run_manifest.json")
-    base_handoff = _read_object(base_run / "audit/portfolio-handoff.json")
+    base_handoff = load_research_input(base_run, manifest=base_manifest)
     base_request = _read_object(base_run / "council-request.json")
     base_gate = _read_object(base_run / "evidence/gate.json")
     base_bundle = _read_object(base_run / "research/holding-research-bundle.json")
@@ -4726,7 +4791,7 @@ def assemble_canonical_holding_research_package(
     )
     assembly_capabilities = (
         BUNDLE_CAPABILITIES
-        if base_bundle.get("schema_version") == HOLDING_RESEARCH_BUNDLE_VERSION
+        if base_bundle.get("schema_version") in {HOLDING_RESEARCH_BUNDLE_VERSION, "holding-research-bundle/3.0.0"}
         else LEGACY_BUNDLE_CAPABILITIES
         if base_bundle.get("schema_version") == LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION
         else None
@@ -4747,7 +4812,7 @@ def assemble_canonical_holding_research_package(
     )
 
     target.mkdir(parents=True)
-    _write_object(target / "audit/portfolio-handoff.json", base_handoff)
+    _write_object(target / research_input_ref(base_handoff), base_handoff)
     _write_object(target / "council-request.json", base_request)
     canonical_gate = {
         "schema_version": "canonical-holding-research-evidence-gate/1.0.0",
@@ -5234,7 +5299,7 @@ def launch_multidimensional_stage(
     run_dir = Path(run_dir).resolve()
     manifest = _read_object(run_dir / "run_manifest.json")
     if (
-        manifest.get("schema_version") != STAGE_VERSION
+        manifest.get("schema_version") != (SINGLE_STOCK_STAGE_VERSION if is_single_stock(manifest) else STAGE_VERSION)
         or manifest.get("stage") not in {
             "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH",
         }
@@ -5244,6 +5309,11 @@ def launch_multidimensional_stage(
     index = _read_object(run_dir / "research/dispatch-index.json")
     from product.runtime.evidence_gate import validate_frozen_gate_binding
     validate_frozen_gate_binding(run_dir, manifest, _read_object(run_dir / "evidence/gate.json"))
+    if is_single_stock(manifest):
+        from product.runtime.research_input import single_stock_contract_locks
+        load_research_input(run_dir, manifest=manifest)
+        if manifest.get("input_contract_locks") != single_stock_contract_locks(product_root):
+            raise MultidimensionalStageError("SINGLE_STOCK_CONTRACT_LOCK_DRIFT")
     if initial_task:
         if task_name is None or manifest["stage"] != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
             raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_TASK_INVALID")
@@ -5379,12 +5449,14 @@ def launch_multidimensional_stage(
         output_schema_path=schema_path, fixture_mcp_run_dir=run_dir,
         research_submission_enabled=any(t.get("submission_version") for t in index["tasks"]),
         research_task_state_enabled=(
-            manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
-            and manifest.get("tool_identity_version") == "research-tool-identity/1.0.0"
+            (manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+             and manifest.get("tool_identity_version") == "research-tool-identity/1.0.0")
+            or (is_single_stock(manifest) and manifest["stage"] == "INDEPENDENT_COUNTER_THESIS_RESEARCH")
         ),
         hook_agent_matcher="^(runtime_company_analyst|runtime_market_catalyst)$",
     )
-    if manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+    if (manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
+            or is_single_stock(manifest)):
         # Desktop-only user MCP fields are rejected by the host CLI's strict
         # parser. The CLI also skips project agent registration in this mode,
         # so register only the specialists required by this frozen dispatch.
@@ -5420,7 +5492,7 @@ def launch_multidimensional_stage(
             if target_tasks
             else "runtime_company_analyst,runtime_market_catalyst"
         ),
-        "STOCK_AGENT_MULTIDIMENSIONAL_STAGE": STAGE_VERSION,
+        "STOCK_AGENT_MULTIDIMENSIONAL_STAGE": manifest["schema_version"],
         **fixture_mcp_runtime_environment(),
     })
     if task_name is not None:

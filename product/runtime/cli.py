@@ -48,7 +48,7 @@ from .common_stock_eval import (
 from .common_stock_data import (
     attach_research_supplement,
     assemble_common_stock_evidence_from_live_snapshot,
-    collect_common_stock_data_from_handoff,
+    collect_common_stock_data_from_handoff, collect_single_stock_research_data, finalize_single_stock_research_data,
 )
 from .multidimensional_stage import (
     assemble_canonical_holding_research_package,
@@ -65,7 +65,7 @@ from .research_materials_stage import (
 )
 from .independent_skeptic_stage import (
     prepare_skeptic_phase, launch_skeptic_phase, finalize_skeptic_phase,
-    prepare_skeptic_resume,
+    prepare_skeptic_resume, validate_prepared_skeptic_resume,
     validate_forward_gate,
 )
 from .predecision_cio_stage import (
@@ -115,7 +115,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="从已确认 Handoff 与冻结 Gate 准备普通股研究阶段；不启动模型",
     )
     stock_prepare.add_argument("--repo", type=Path, required=True)
-    stock_prepare.add_argument("--handoff", type=Path, required=True)
+    stock_prepare_input = stock_prepare.add_mutually_exclusive_group(required=True)
+    stock_prepare_input.add_argument("--handoff", type=Path)
+    stock_prepare_input.add_argument("--research-input", type=Path)
     stock_prepare.add_argument("--gate", type=Path, required=True)
     stock_prepare.add_argument("--data-preparation", type=Path)
     stock_prepare.add_argument("--source-bundle", type=Path)
@@ -162,6 +164,21 @@ def build_parser() -> argparse.ArgumentParser:
     stock_collect.add_argument("--benchmark-id")
     stock_collect.add_argument("--benchmark-ticker")
 
+    single_collect = subparsers.add_parser("collect-single-stock-data", help="按真实来源核实单股并准备研究资料，不含账户或模型调用")
+    single_collect.add_argument("--repo", type=Path, required=True)
+    single_collect.add_argument("--single-stock", required=True)
+    single_collect.add_argument("--question")
+    single_collect.add_argument("--cutoff", default="latest")
+    single_collect.add_argument("--source-access", type=Path, required=True)
+    single_collect.add_argument("--output-dir", type=Path, required=True)
+    single_collect.add_argument("--cache-root", type=Path)
+    single_collect.add_argument("--memory-root", type=Path)
+    single_collect.add_argument("--run-id", required=True)
+    single_final = subparsers.add_parser("freeze-single-stock-data", help="重验资料执行并冻结正式研究资料，不改写原审计")
+    single_final.add_argument("--data-dir", type=Path, required=True)
+    single_final.add_argument("--materials-run", type=Path, required=True)
+    single_final.add_argument("--output-dir", type=Path, required=True)
+
     stock_supplement = subparsers.add_parser(
         "attach-research-supplement",
         help="把冻结的三源补充包接入既有普通股 Gate；不采集网络或启动模型",
@@ -203,7 +220,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="从确认 Handoff 与冻结 Gate 准备免费多维研究阶段；不启动模型",
     )
     multi_prepare.add_argument("--repo", type=Path, required=True)
-    multi_prepare.add_argument("--handoff", type=Path, required=True)
+    multi_prepare_input = multi_prepare.add_mutually_exclusive_group(required=True)
+    multi_prepare_input.add_argument("--handoff", type=Path)
+    multi_prepare_input.add_argument("--research-input", type=Path)
     multi_prepare.add_argument("--gate", type=Path, required=True)
     multi_prepare.add_argument(
         "--base-gate", type=Path,
@@ -285,6 +304,7 @@ def build_parser() -> argparse.ArgumentParser:
     counter_resume.add_argument("--run-dir", type=Path, required=True)
     counter_resume.add_argument("--codex-binary", default="codex")
     counter_resume.add_argument("--timeout-seconds", type=int, default=2400)
+    counter_resume.add_argument("--prepared-index", help="显式执行已经准备且未启动的最高尝试；不再 prepare")
 
     counter_check = subparsers.add_parser(
         "check-independent-skeptic", help="只读验证本次正向研究包的反证前置门禁",
@@ -353,7 +373,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="准备研报发现与同行选择任务；不启动模型或网络",
     )
     materials_prepare.add_argument("--repo", type=Path, required=True)
-    materials_prepare.add_argument("--handoff", type=Path, required=True)
+    materials_prepare_input = materials_prepare.add_mutually_exclusive_group(required=True)
+    materials_prepare_input.add_argument("--handoff", type=Path)
+    materials_prepare_input.add_argument("--research-input", type=Path)
     materials_prepare.add_argument("--gate", type=Path, required=True)
     materials_prepare.add_argument("--peer-candidates", type=Path, required=True)
     materials_prepare.add_argument("--run-dir", type=Path, required=True)
@@ -578,6 +600,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             ablation_profile=args.ablation_profile,
             trigger_reason=args.trigger_reason,
         )
+    elif args.command == "collect-single-stock-data":
+        import os
+        result = collect_single_stock_research_data(
+            args.single_stock, question=args.question, cutoff=args.cutoff,
+            access_path=args.source_access, output_dir=args.output_dir,
+            cache_root=args.cache_root, memory_root=args.memory_root, repository_root=args.repo,
+            sec_user_agent=os.environ.get("SEC_USER_AGENT", ""), run_id=args.run_id,
+        )
+    elif args.command == "freeze-single-stock-data":
+        result = finalize_single_stock_research_data(data_dir=args.data_dir,
+            materials_run=args.materials_run, output_dir=args.output_dir)
     elif args.command == "collect-common-stock-data":
         try:
             import os
@@ -646,7 +679,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 2
     elif args.command == "prepare-common-stock-research":
         result = prepare_common_stock_stage_run(
-            args.repo, handoff_path=args.handoff, gate_path=args.gate,
+            args.repo, handoff_path=args.handoff, research_input_path=args.research_input, gate_path=args.gate,
             run_dir=args.run_dir, run_id=args.run_id, model=args.model,
             research_question=args.question, source_fixture=args.source_fixture,
             target_concurrency=args.max_concurrency,
@@ -675,7 +708,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return exit_code
     elif args.command == "prepare-multidimensional-research":
         result = prepare_multidimensional_stage_run(
-            args.repo, handoff_path=args.handoff, gate_path=args.gate,
+            args.repo, handoff_path=args.handoff, research_input_path=args.research_input, gate_path=args.gate,
             run_dir=args.run_dir, run_id=args.run_id, model=args.model,
             research_question=args.question, benchmark_id=args.benchmark_id,
             target_concurrency=args.max_concurrency,
@@ -712,7 +745,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return exit_code
     elif args.command == "resume-independent-skeptic":
-        prepared = prepare_skeptic_resume(args.repo, args.run_dir)
+        prepared = (validate_prepared_skeptic_resume(args.repo, args.run_dir, args.prepared_index)
+                    if args.prepared_index else prepare_skeptic_resume(args.repo, args.run_dir))
         result, exit_code = launch_skeptic_phase(
             args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
             timeout_seconds=args.timeout_seconds, index_ref=prepared["dispatch_index"],
@@ -755,7 +789,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     elif args.command == "prepare-research-materials":
         result = prepare_research_materials_stage(
-            args.repo, handoff_path=args.handoff, gate_path=args.gate,
+            args.repo, handoff_path=args.handoff, research_input_path=args.research_input, gate_path=args.gate,
             peer_candidate_pool_path=args.peer_candidates, run_dir=args.run_dir,
             run_id=args.run_id, model=args.model,
             target_concurrency=args.max_concurrency,

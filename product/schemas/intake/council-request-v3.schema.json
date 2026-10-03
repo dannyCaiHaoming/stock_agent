@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "council-request/3.0.0",
+  "title": "CouncilRequest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "stage",
+    "request_id",
+    "research_question",
+    "holding_horizon",
+    "research_scope",
+    "research_security_ids",
+    "benchmark_id",
+    "mandate_artifact_id",
+    "constraints",
+    "request_hash",
+    "input_kind",
+    "input_request_id",
+    "input_request_hash",
+    "input_artifact_ref"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "council-request/3.0.0"
+    },
+    "stage": {
+      "enum": [
+        "COMMON_STOCK_RESEARCH",
+        "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
+        "INDEPENDENT_COUNTER_THESIS_RESEARCH"
+      ]
+    },
+    "request_id": {
+      "$ref": "council-request-v2.schema.json#/properties/request_id"
+    },
+    "research_question": {
+      "$ref": "council-request-v2.schema.json#/properties/research_question"
+    },
+    "holding_horizon": {
+      "type": "null"
+    },
+    "research_scope": {
+      "const": "SINGLE_COMMON_STOCK"
+    },
+    "research_security_ids": {
+      "$ref": "council-request-v2.schema.json#/properties/research_security_ids"
+    },
+    "benchmark_id": {
+      "$ref": "council-request-v2.schema.json#/properties/benchmark_id"
+    },
+    "mandate_artifact_id": {
+      "type": "null"
+    },
+    "constraints": {
+      "$ref": "council-request-v2.schema.json#/properties/constraints"
+    },
+    "request_hash": {
+      "$ref": "council-request-v2.schema.json#/properties/request_hash"
+    },
+    "input_kind": {
+      "const": "SINGLE_STOCK_RESEARCH"
+    },
+    "input_request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_request_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_artifact_ref": {
+      "const": "audit/single-stock-request.json"
+    }
+  }
+}

@@ -101,7 +101,7 @@ class CioArtifactReadingTests(unittest.TestCase):
                 with self.assertRaisesRegex(cio.PredecisionCioStageError, "CIO_PRODUCT_DISCOVERY_DRIFT"):
                     cio.validate_predecision_cio_run(ROOT, target)
             upgraded_repo = root / "upgraded-repository"
-            for relative in (*cio.LOCKED_RESOURCES, *cio.REFERENCE_LOCKED_RESOURCES):
+            for relative in json.loads((target / "run_manifest.json").read_text())["resource_locks"]:
                 path = upgraded_repo / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / relative, path)

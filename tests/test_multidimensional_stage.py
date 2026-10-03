@@ -1766,16 +1766,15 @@ class MultidimensionalStageTests(unittest.TestCase):
         }
 
     def complete_with_explicit_gaps(self, run: Path) -> None:
+        from product.runtime.research_input import load_research_input, research_input_binding, research_subjects
         invocation_dir = run / "invocation"
         invocation_dir.mkdir()
         index = json.loads((run / "research/dispatch-index.json").read_text())
-        handoff = json.loads((run / "audit/portfolio-handoff.json").read_text())
+        handoff = load_research_input(run)
         request = json.loads((run / "council-request.json").read_text())
         gate = json.loads((run / "evidence/gate.json").read_text())
         bindings = {
-            "handoff_id": handoff["handoff_id"],
-            "handoff_hash": handoff["handoff_hash"],
-            "portfolio_hash": handoff["portfolio_hash"],
+            **research_input_binding(handoff),
             "council_request_id": request["request_id"],
             "council_request_hash": request["request_hash"],
             "decision_cutoff": gate["decision_cutoff"],
@@ -1815,7 +1814,7 @@ class MultidimensionalStageTests(unittest.TestCase):
                 invocation=invocation,
                 expected_bindings=bindings,
                 allowed_security_ids=[
-                    item["security_id"] for item in handoff["portfolio"]["positions"]
+                    item["security_id"] for item in research_subjects(handoff)
                     if item["asset_type"] == "COMMON_STOCK"
                 ],
                 allowed_evidence_ids=task["allowed_evidence_ids"],

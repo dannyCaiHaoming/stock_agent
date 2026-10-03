@@ -92,11 +92,16 @@ def envelope_specialist_draft(draft, invocation, *, model):
     return {**copy.deepcopy(draft), "skill_execution": copy.deepcopy(invocation["skill_execution"])}
 
 
-def compact_specialist_schema(schema: dict, allowed_ids: Sequence[str]) -> dict:
+def compact_specialist_schema(
+    schema: dict, allowed_ids: Sequence[str], *, evidence_schema: Mapping[str, Any] | None = None,
+) -> dict:
     """仅共享完全相同的枚举节点；展开必须与原 Schema 完全相等。"""
     definition = "start_context_evidence_id"
     reference = {"$ref": f"#/$defs/{definition}"}
-    evidence = _evidence_id_schema(allowed_ids)
+    evidence = (copy.deepcopy(dict(evidence_schema)) if evidence_schema is not None
+                else _evidence_id_schema(allowed_ids))
+    if evidence.get("type") != "string" or evidence.get("enum") != sorted(set(allowed_ids)):
+        raise ValueError("START_CONTEXT_SCHEMA_ALLOWED_SET_MISMATCH")
     if definition in schema.get("$defs", {}):
         raise ValueError("START_CONTEXT_SCHEMA_DEFINITION_COLLISION")
 

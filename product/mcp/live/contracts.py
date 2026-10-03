@@ -53,7 +53,9 @@ def validate_contract(kind: str, value: dict) -> None:
         suffix = "-v3"
     if kind in ("source-access", "snapshot") and value.get("schema_version") == f"live-{kind}/4.0.0":
         suffix = "-v4"
-    schema = json.loads((SCHEMAS / f"live-{kind}{suffix}.schema.json").read_text())
+    research = kind == "snapshot" and value.get("schema_version") == "live-research-snapshot/1.0.0"
+    name = "live-research-snapshot.schema.json" if research else f"live-{kind}{suffix}.schema.json"
+    schema = json.loads((SCHEMAS / name).read_text())
     validate_schema_instance(value, schema)
     _extra_schema_checks(value, schema)
     for field in ("as_of", "retrieved_at", "published_at", "checked_at", "request_started_at", "decision_cutoff"):
@@ -113,7 +115,18 @@ def validate_contract(kind: str, value: dict) -> None:
             if not number.is_finite() or (value["kind"] == "price" and number <= 0):
                 raise ValueError("LIVE_FACT_NUMBER_INVALID")
     elif kind == "snapshot":
-        if value["schema_version"] in ("live-snapshot/3.0.0", "live-snapshot/4.0.0"):
+        if research:
+            from product.runtime.single_stock_input import validate_single_stock_request
+            request = value["research_request"]
+            validate_single_stock_request(request)
+            if (request["request_hash"] != value["research_request_hash"]
+                    or request["resolved_cutoff"] != value["decision_cutoff"]
+                    or {s["security_id"] for s in value["source_selections"]} != {request["security"]["security_id"]}):
+                raise ValueError("SINGLE_STOCK_SNAPSHOT_BINDING_MISMATCH")
+            if any("completed_at" not in event or parse_timestamp(event["completed_at"]) > parse_timestamp(value["decision_cutoff"])
+                   for event in value["collection_events"]):
+                raise ValueError("LIVE_COLLECTION_NOT_FINISHED_AT_CUTOFF")
+        if research or value["schema_version"] in ("live-snapshot/3.0.0", "live-snapshot/4.0.0"):
             from product.mcp.live.source_routing import validate_selection
             validate_contract("universe", value["universe"])
             if parse_timestamp(value["universe"]["retrieved_at"]) > parse_timestamp(value["decision_cutoff"]):
@@ -121,7 +134,8 @@ def validate_contract(kind: str, value: dict) -> None:
             sources = value["source_access"]
             if len(sources) != 4 or {a.get("provider") for a in sources} != {"nasdaq", "yahoo", "eastmoney", "sec"}:
                 raise ValueError("LIVE_ROUTING_SOURCE_SET_INVALID")
-            if any(a.get("schema_version") != value["schema_version"].replace("snapshot", "source-access") for a in sources):
+            access_version = "live-source-access/4.0.0" if research else value["schema_version"].replace("snapshot", "source-access")
+            if any(a.get("schema_version") != access_version for a in sources):
                 raise ValueError("LIVE_ROUTING_ACCESS_VERSION_INVALID")
             selections = value["source_selections"]
             if len({s["security_id"] for s in selections}) != len(selections):
@@ -158,7 +172,7 @@ def validate_contract(kind: str, value: dict) -> None:
             raise ValueError("LIVE_DUPLICATE_EVIDENCE")
         for access in value["source_access"]:
             validate_contract("source-access", access)
-            if value["schema_version"] == "live-snapshot/4.0.0":
+            if research or value["schema_version"] == "live-snapshot/4.0.0":
                 require_source_admission(access, at=value["request_started_at"])
         if len({a["provider"] for a in value["source_access"]}) != len(value["source_access"]):
             raise ValueError("LIVE_DUPLICATE_SOURCE")

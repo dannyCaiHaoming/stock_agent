@@ -339,14 +339,32 @@ def validate_live_collection_configuration(access_path: Path, *, at) -> list[dic
     return access
 
 
-def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir: Path, cache_root: Path,
+def collect_live_snapshot(portfolio_path: Path, **kwargs):
+    """原持仓入口保持原始 Portfolio 绑定，不接受研究请求替代。"""
+    portfolio = load_live_portfolio(portfolio_path)
+    return _collect_target_snapshot(portfolio["positions"], portfolio=portfolio, **kwargs)
+
+
+def collect_single_stock_snapshot(symbol: str, *, question=None, cutoff="latest", **kwargs):
+    """共享同一真实采集核心；不创建 Portfolio、账户或 Handoff。"""
+    from product.runtime.single_stock_input import normalize_single_stock_intent
+    clock = kwargs.get("now", lambda: datetime.now(UTC))
+    intent = normalize_single_stock_intent(symbol, question=question, cutoff=cutoff, at=clock())
+    # 当前取数无法证明过去可知。合格冻结包另走只读入口，不能用今日取数回填。
+    if intent["cutoff_mode"] != "LATEST":
+        raise ValueError("SINGLE_STOCK_HISTORICAL_FROZEN_INPUT_REQUIRED")
+    subject = {"security_id": f"US:COMMON_STOCK:{intent['ticker']}", "ticker": intent["ticker"]}
+    return _collect_target_snapshot([subject], research_intent=intent, **kwargs)
+
+
+def _collect_target_snapshot(targets, *, portfolio=None, research_intent=None,
+                          access_path: Path, output_dir: Path, cache_root: Path,
                           sec_user_agent: str, now=lambda: datetime.now(UTC), sec_factory=SecClient,
                           session_factory=None, market_collector=collect_daily, calendar_factory=ExchangeCalendar,
                           universe_factory=None, backup_factory=None,
                           market_start: str | None = None, market_end: str | None = None,
                           peer_scope: bool = False):
     """依赖注入仅用于零网络测试；产品入口不提供 fake/test 开关。"""
-    portfolio = load_live_portfolio(portfolio_path)
     started = now()
     access = validate_live_collection_configuration(access_path, at=started)
     policies = {entry["provider"]: entry for entry in access}
@@ -392,7 +410,7 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
         mapped = sec.read_ticker_map(max_age_seconds=86400)
         keep(mapped["record"])
         selected = []
-        for position in portfolio["positions"]:
+        for position in targets:
             matches = [
                 m for m in mapped["mapping"]
                 if m["ticker"] == position["ticker"]
@@ -607,17 +625,28 @@ def collect_live_snapshot(portfolio_path: Path, *, access_path: Path, output_dir
             events.extend(backup_client.events)
         cutoff = iso_utc(now())
         stage = "FREEZE"
-        identity = freeze_identity(portfolio, sec_mapping=mapping, security_metadata=metadata, cutoff=cutoff)
-        snapshot = freeze_snapshot(snapshot_id=f"live-snapshot-{uuid4()}", portfolio=portfolio,
+        common = dict(snapshot_id=f"live-snapshot-{uuid4()}",
             request_started_at=iso_utc(started), decision_cutoff=cutoff, facts=facts, source_access=access,
             raw_records=list(records.values()), collection_events=events,
-            gaps=[g if isinstance(g, str) else json.dumps(g, ensure_ascii=False, sort_keys=True) for g in gaps], identity=identity,
+            gaps=[g if isinstance(g, str) else json.dumps(g, ensure_ascii=False, sort_keys=True) for g in gaps],
             **({"universe": universe, "source_selections": selections} if routed else {}))
-        for name, value in (("portfolio.json", portfolio), ("snapshot.json", snapshot), ("calendar.json", calendar.lock_record())):
+        if portfolio is not None:
+            identity = freeze_identity(portfolio, sec_mapping=mapping, security_metadata=metadata, cutoff=cutoff)
+            snapshot = freeze_snapshot(portfolio=portfolio, identity=identity, **common)
+            input_name, input_value = "portfolio.json", portfolio
+        else:
+            from product.runtime.single_stock_input import build_single_stock_request
+            from product.runtime.live_input import freeze_research_snapshot
+            request = build_single_stock_request(research_intent, sec_mapping=mapping,
+                security_metadata=metadata, resolved_cutoff=cutoff)
+            snapshot = freeze_research_snapshot(request=request, **common)
+            input_name, input_value = "single-stock-request.json", request
+        for name, value in ((input_name, input_value), ("snapshot.json", snapshot), ("calendar.json", calendar.lock_record())):
             with (destination / name).open("x", encoding="utf-8") as stream:
                 json.dump(value, stream, ensure_ascii=False, sort_keys=True, allow_nan=False)
         return {"status": "FROZEN", "collection_version": COLLECTION_VERSION, "snapshot_hash": snapshot["snapshot_hash"],
-                "snapshot_path": str(destination / "snapshot.json"), "portfolio_path": str(destination / "portfolio.json"),
+                "snapshot_path": str(destination / "snapshot.json"),
+                ("portfolio_path" if portfolio is not None else "research_request_path"): str(destination / input_name),
                 "calendar_lock": str(destination / "calendar.json"), "cache_root": str(cache.root)}
     except Exception as exc:
         # 不保存异常正文/请求头，以免 SDK 异常含 cookie 或联系身份。

@@ -62,7 +62,7 @@ def _parts(path: Any) -> list[str]:
     return parts
 
 
-def located_paths(findings: list[Mapping[str, Any]]) -> list[str]:
+def located_paths(findings: list[Mapping[str, Any]], *, exact_fields: bool = False) -> list[str]:
     """Convert only complete validator locators, never identifiers/error prose."""
     paths = set()
     for finding in findings:
@@ -79,7 +79,9 @@ def located_paths(findings: list[Mapping[str, Any]]) -> list[str]:
         else:
             continue
         # 仅定位到的单个主张/条件/计算选择可由原作者纠正或删除，不开放整数组。
-        if len(parts) >= 2 and parts[0] in {"claims", "observation_conditions", "calculation_selections"} and parts[1].isdigit():
+        if (not exact_fields and len(parts) >= 2
+                and parts[0] in {"claims", "observation_conditions", "calculation_selections"}
+                and parts[1].isdigit()):
             parts = parts[:2]
         value = pointer(parts)
         try:
@@ -124,7 +126,8 @@ def _path(root: Path, relative: str) -> Path:
 
 
 def bind(root: Path, payload: Mapping[str, Any], record: Mapping[str, Any],
-         raw: Mapping[str, Any], repair: Mapping[str, Any], findings: list[Mapping[str, Any]]) -> dict | None:
+         raw: Mapping[str, Any], repair: Mapping[str, Any], findings: list[Mapping[str, Any]],
+         *, exact_fields: bool = False) -> dict | None:
     """Persist an immutable bound base; return a small model-visible edit contract."""
     identity = _identity(payload, record)
     message = payload.get("last_assistant_message")
@@ -134,7 +137,7 @@ def bind(root: Path, payload: Mapping[str, Any], record: Mapping[str, Any],
         draft = json.loads(message)
     except ValueError:
         return None  # 无可证明的对象边界时，不伪造 AST 或自动修 JSON。
-    allowed = located_paths(findings)
+    allowed = located_paths(findings, exact_fields=exact_fields)
     if not isinstance(draft, dict) or not allowed:
         return None
     json.dumps(draft, allow_nan=False)

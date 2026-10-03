@@ -165,6 +165,11 @@ HOLDING_RESEARCH_REQUEST_SCHEMA = json.loads(
         encoding="utf-8",
     )
 )
+SINGLE_STOCK_HOLDING_RESEARCH_REQUEST_SCHEMA = json.loads(
+    (Path(__file__).resolve().parents[1] / "schemas/runtime/holding-research-request-v2.schema.json").read_text(
+        encoding="utf-8",
+    )
+)
 
 
 def _safe_regular_file(root: Path, path: Path) -> bool:
@@ -367,9 +372,9 @@ def _validated_report(
     }
     if report_hash != expected_report_hash or any(manifest.get(key) != value for key, value in expected_hashes.items()):
         raise BrowserDataError("BROWSER_REPORT_HASH_MISMATCH")
-    if report.get("schema_version") != "equity-research-report/1.0.0":
+    if report.get("schema_version") not in {"equity-research-report/1.0.0", "equity-research-report/2.0.0"}:
         raise BrowserDataError("BROWSER_REPORT_READER_UNSUPPORTED_VERSION")
-    if report.get("schema_version") == "equity-research-report/1.0.0":
+    if report.get("schema_version") in {"equity-research-report/1.0.0", "equity-research-report/2.0.0"}:
         request = package.get("request")
         if not isinstance(request, Mapping):
             raise BrowserDataError("BROWSER_REPORT_CONTRACT_INVALID")
@@ -377,7 +382,9 @@ def _validated_report(
         if not isinstance(evidence, list) or any(not isinstance(item, Mapping) for item in evidence):
             raise BrowserDataError("BROWSER_REPORT_CONTRACT_INVALID")
         try:
-            validate_schema_instance(request, HOLDING_RESEARCH_REQUEST_SCHEMA)
+            validate_schema_instance(request, SINGLE_STOCK_HOLDING_RESEARCH_REQUEST_SCHEMA
+                if report["schema_version"] == "equity-research-report/2.0.0"
+                else HOLDING_RESEARCH_REQUEST_SCHEMA)
         except (KeyError, TypeError, ValueError) as exc:
             raise BrowserDataError("BROWSER_REPORT_CONTRACT_INVALID") from exc
         request_body = {key: deepcopy(value) for key, value in request.items() if key != "request_hash"}

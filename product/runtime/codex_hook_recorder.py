@@ -7,6 +7,7 @@ persist only the Specialist's final structured report, without model re-copying.
 
 from __future__ import annotations
 
+import copy
 import fcntl
 import hashlib
 import json
@@ -132,16 +133,29 @@ def _invocation_module():
     return invocation
 
 
+def _cio_local_revision_module():
+    if __package__:
+        from . import cio_local_revision
+    else:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from product.runtime import cio_local_revision
+    return cio_local_revision
+
+
 def _common_stock_stage(environment: Mapping[str, str]) -> bool:
     return environment.get("STOCK_AGENT_COMMON_STOCK_STAGE") == COMMON_STOCK_STAGE_VERSION
 
 
 def _multidimensional_stage(environment: Mapping[str, str]) -> bool:
-    return environment.get("STOCK_AGENT_MULTIDIMENSIONAL_STAGE") == MULTIDIMENSIONAL_STAGE_VERSION
+    return environment.get("STOCK_AGENT_MULTIDIMENSIONAL_STAGE") in {
+        MULTIDIMENSIONAL_STAGE_VERSION, "multidimensional-holding-research-runtime/3.0.0",
+    }
 
 
 def _research_materials_stage(environment: Mapping[str, str]) -> bool:
-    return environment.get("STOCK_AGENT_RESEARCH_MATERIALS_STAGE") == RESEARCH_MATERIALS_STAGE_VERSION
+    return environment.get("STOCK_AGENT_RESEARCH_MATERIALS_STAGE") in {
+        RESEARCH_MATERIALS_STAGE_VERSION, "multidimensional-material-preparation-runtime/2.0.0",
+    }
 
 
 def _independent_skeptic_stage(environment: Mapping[str, str]) -> bool:
@@ -1665,7 +1679,8 @@ def _read_multidimensional_report_artifact(value, record, *, task, invocation, r
         value, task=task, invocation=invocation, run_dir=run_dir,
     )
     stage.validate_breadth_calculation_references(run_dir, value)
-    handoff = json.loads((run_dir / "audit/portfolio-handoff.json").read_text(encoding="utf-8"))
+    from product.runtime.research_input import load_research_input, research_input_binding, research_subjects
+    handoff = load_research_input(run_dir)
     council_request = json.loads((run_dir / "council-request.json").read_text(encoding="utf-8"))
     gate = json.loads((run_dir / "evidence/gate.json").read_text(encoding="utf-8"))
     from product.runtime.research_submission import selected_calculation_outputs
@@ -1678,8 +1693,7 @@ def _read_multidimensional_report_artifact(value, record, *, task, invocation, r
     ):
         raise ValueError("DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED")
     bindings = {
-        "handoff_id": handoff["handoff_id"], "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"], "council_request_id": council_request["request_id"],
+        **research_input_binding(handoff), "council_request_id": council_request["request_id"],
         "council_request_hash": council_request["request_hash"], "decision_cutoff": gate["decision_cutoff"],
     }
     dependency_claim_ids = []
@@ -1701,7 +1715,7 @@ def _read_multidimensional_report_artifact(value, record, *, task, invocation, r
     ).envelope_research_dimension_draft(
         value, task=task, invocation=invocation, expected_bindings=bindings,
         allowed_security_ids=[
-            item["security_id"] for item in handoff["portfolio"]["positions"]
+            item["security_id"] for item in research_subjects(handoff)
             if item["asset_type"] == "COMMON_STOCK"
         ],
         allowed_evidence_ids=task["allowed_evidence_ids"],
@@ -2065,7 +2079,10 @@ def _bind_local_revision(repair, payload, record, raw, environment):
         findings.extend(diagnostics.get("findings", []))
     if repair["validation_error"] == "DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED":
         findings.extend(_monetary_repetition_context(draft, findings))
-    binding = bind(Path(environment["STOCK_AGENT_RUN_DIR"]).resolve(), payload, record, raw, repair, findings)
+    period_revision = repair["validation_error"].startswith(
+        "EQUITY_RESEARCH_FACT_PERIOD_LINEAGE_INCOMPLETE:")
+    binding = bind(Path(environment["STOCK_AGENT_RUN_DIR"]).resolve(), payload, record, raw, repair, findings,
+                   exact_fields=period_revision)
     if binding is None:
         return None
     result = {**repair, **binding}
@@ -2080,6 +2097,12 @@ def _bind_local_revision(repair, payload, record, raw, environment):
         "可修正定位到的错误主张/观察条件；关联未改部分会再次校验，出现悬空引用仍失败。"
         "无需抄写 hash 或重发整稿；第二次失败终止，Python 不代写研究。"
     )
+    if period_revision:
+        result["instruction"] += (
+            " 本次仅可改已定位FACT的statement，核对其原已选Evidence的真实期间，"
+            "逐项显式保留YYYY-MM-DD起止日；不能改kind、引用、status、身份或其他主张。"
+            "保留原研究含义与期间可比性限制，不借删除字段或改成推断规避期间校验。"
+        )
     if (repair["validation_error"] == "DIMENSION_REPORT_CLAIM_UNGROUNDED"
             or any(f.get("code") == "DIMENSION_REPORT_CLAIM_UNGROUNDED" for f in findings)):
         result["instruction"] += (
@@ -2137,7 +2160,67 @@ def _simple_research_draft_schema(environment, invocation_id):
     return module.build_research_materials_dispatch_packet(repository, root, task["task_name"])["output_schema"]
 
 
+def _company_period_revision_findings(payload, record, environment, failure_code):
+    """只定位新单股Company原已选期间；不补正文、不选择新Evidence。"""
+    from product.runtime.research_input import is_single_stock
+    from product.council.research_output import _mentioned_dates, _validate_fact_period_lineage
+    if not _common_stock_stage(environment):
+        return []
+    root = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
+    trusted = record["trusted_task_binding"]
+    tasks = [item for item in _research_index(environment)["tasks"]
+             if item["invocation_id"] == trusted["invocation_id"]]
+    if len(tasks) != 1:
+        return []
+    task = tasks[0]
+    request = json.loads((root / task["request_path"]).read_text())
+    if not is_single_stock(request):
+        return []
+    stage = _common_stock_module()
+    repository = Path(__file__).resolve().parents[2]
+    packet = stage.build_common_stock_dispatch_packet(repository, root, task["task_name"])
+    raw_draft = json.loads(payload["last_assistant_message"])
+    draft = stage.assemble_common_stock_semantic_draft(repository, raw_draft, request=request, packet=packet)
+    gate = json.loads((root / "evidence/gate.json").read_text())
+    evidence = {item["evidence_id"]: item for item in gate["allowed_evidence"]
+                if item["evidence_id"] in request["allowed_evidence_ids"]}
+    # 重现原校验器首处拒绝，不能从错误文本猜测另一个主张或开放路径。
+    try:
+        _validate_fact_period_lineage(draft, evidence_by_id=evidence)
+    except ValueError as error:
+        if str(error) != failure_code:
+            return []
+    else:
+        return []
+    code, claim_id, missing_date = failure_code.rsplit(":", 2)
+    matches = [(i, claim) for i, claim in enumerate(draft["claims"])
+               if claim["claim_id"] == claim_id and claim["kind"] == "FACT"]
+    if len(matches) != 1:
+        return []
+    index, claim = matches[0]
+    periods = []
+    for ref in claim["evidence_refs"]:
+        metadata = evidence[ref].get("metadata", {})
+        if metadata.get("context_type") == "duration" or metadata.get("period_start") is not None:
+            periods.append({field: metadata.get(field) for field in ("period_start", "period_end")})
+    required = {value for period in periods for value in period.values() if value is not None}
+    if missing_date not in required - _mentioned_dates(claim["statement"]):
+        return []
+    return [{"code": code, "path": f"claims[{index}].statement", "claim_id": claim_id,
+             "selected_periods": periods,
+             "missing_dates": sorted(required - _mentioned_dates(claim["statement"]))}]
+
+
 def _simple_research_repair_packet(payload, record, environment, *, failure_code, attempt):
+    if (attempt == 1 and record.get("identity_binding", {}).get("status") == "BOUND"
+            and failure_code.startswith("EQUITY_RESEARCH_FACT_PERIOD_LINEAGE_INCOMPLETE:")):
+        findings = _company_period_revision_findings(payload, record, environment, failure_code)
+        if not findings:
+            return None
+        trusted = record["trusted_task_binding"]
+        return {"task_id": trusted["task_id"], "invocation_id": trusted["invocation_id"],
+                "attempt": 1, "maximum_submissions": 2, "validation_error": failure_code,
+                "validation_details": {"findings": findings}}
     located_selection_errors = (
         "MULTIDIMENSIONAL_REFERENCE_UNKNOWN:",
         "RESEARCH_MATERIALS_DOCUMENT_SELECTION_INVALID:",
@@ -2668,6 +2751,13 @@ def _multidimensional_draft_diagnostics(
                 finding["identifier_hash"] = _canonical_hash(identifier)
             finding.update(details)
             result["findings"].append(finding)
+
+        if mapping.get("binding", {}).get("version") == "multidimensional-references/2.0.0":
+            for index, claim in enumerate(claims):
+                identifier = claim.get("claim_id") if isinstance(claim, Mapping) else None
+                if isinstance(identifier, str) and identifier.startswith(("e.", "c.", "d.", "k.", "p.", "rc1.")):
+                    add("MULTIDIMENSIONAL_REFERENCE_LOCAL_NAMESPACE_COLLISION",
+                        f"claims[{index}].claim_id", identifier)
 
         if draft.get("status") == "SOURCE_LIMITED" and draft.get("evaluation_status") != "SOURCE_LIMITED":
             add("DIMENSION_REPORT_SOURCE_LIMITED_STATE_INVALID", "evaluation_status", draft.get("evaluation_status"))
@@ -3256,7 +3346,7 @@ def _multidimensional_repair_packet(
 
 
 def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: int, trusted_record=None):
-    """只在第一次结构错误时请求同一 Agent 修正格式，不改写研究。"""
+    """首稿结构错误或新交付版空依据挑战沿原作者一次局部修订；程序不改研究。"""
 
     if attempt != 1 or not failure_code.startswith(("SCHEMA_", "COUNTER_OUTPUT_JSON_INVALID")):
         return None
@@ -3284,6 +3374,35 @@ def _skeptic_repair_packet(payload, environment, *, failure_code: str, attempt: 
         Path(__file__).resolve().parents[2], Path(environment["STOCK_AGENT_RUN_DIR"]),
         task["task_name"], index_ref=environment.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"),
     )
+    from product.runtime.independent_skeptic_stage import DELIVERY_VERSION
+    from product.runtime.schema_validation import validate_schema_instance
+    challenges = draft.get("challenges", [])
+    grounding_paths = [f"/challenges/{i}" for i, challenge in enumerate(challenges if isinstance(challenges, list) else [])
+                       if isinstance(challenge, Mapping) and challenge.get("evidence_refs") == []
+                       and challenge.get("assumption_ids") == []]
+    if grounding_paths and packet["invocation"].get("skeptic_delivery_version") == DELIVERY_VERSION:
+        # Only this previously delivered hard gate is eligible; unrelated structure errors
+        # retain the format path. The author chooses whether to ground, revise or remove.
+        legacy_shape = copy.deepcopy(_independent_skeptic_module().skeptic_model_packet(packet)["output_schema"])
+        legacy_shape["properties"]["challenges"]["items"].pop("anyOf", None)
+        try:
+            validate_schema_instance(draft, legacy_shape)
+        except ValueError:
+            pass
+        else:
+            return {
+                "repair_contract": "independent-skeptic-grounding-repair/1.0.0",
+                "task_id": task["task_id"], "invocation_id": task["invocation_id"],
+                "attempt": attempt, "maximum_submissions": 2, "validation_error": failure_code,
+                "validation_details": {"findings": [{"code": "UNGROUNDED_CHALLENGE", "path": path}
+                                                     for path in [*grounding_paths, "/data_gaps"]]},
+                "instruction": (
+                    "定位挑战的Evidence与假设同时为空。仅纠正这些挑战及data_gaps：由你自行查询核验真实依据、"
+                    "修改陈述，或移除无法形成挑战的纯缺口并在data_gaps保留。程序不会挑引用或删稿。"
+                    "不要添加无依据引用，不得编造假设、改其他挑战、身份、mode、status、confidence或assumptions。"
+                    "仅一次原作者同会话局部补丁；完整重验，第二次失败停止。"
+                ),
+            }
     return {
         "repair_contract": "independent-skeptic-format-repair/1.0.0",
         "task_id": task["task_id"], "invocation_id": task["invocation_id"],
@@ -3303,10 +3422,10 @@ def handle_hook_event(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     environment = os.environ if environ is None else environ
     if payload.get("hook_event_name") in {"SessionStart", "Stop"} and environment.get("STOCK_AGENT_CIO_LOCAL_REVISION"):
-        from product.runtime.cio_local_revision import VERSION, handle
-        if environment["STOCK_AGENT_CIO_LOCAL_REVISION"] != VERSION:
+        revision = _cio_local_revision_module()
+        if environment["STOCK_AGENT_CIO_LOCAL_REVISION"] != revision.VERSION:
             raise ValueError("CIO_LOCAL_REVISION_PROTOCOL_INVALID")
-        return handle(payload, environment)
+        return revision.handle(payload, environment)
     if payload.get("hook_event_name") == "PreToolUse":
         return _handle_pre_tool_use(payload, environment=environment)
     if payload.get("hook_event_name") == "Stop":

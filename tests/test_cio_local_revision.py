@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+import subprocess
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -80,7 +83,7 @@ class CioLocalRevisionTests(unittest.TestCase):
         helper._write_model_proof(draft)
         return root, draft, "gpt-6-luna", str(root)
 
-    def launch(self, prepare):
+    def launch(self, prepare, *, script_hooks=False):
         root, draft, model, cwd = prepare()
         invocation = root / "invocation"
         invocation.mkdir(exist_ok=True)
@@ -103,7 +106,21 @@ class CioLocalRevisionTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(manifest))
         env = {"STOCK_AGENT_RUN_DIR": str(root), "STOCK_AGENT_CIO_LOCAL_REVISION": revision.VERSION}
         base = {"session_id": "cio-main", "cwd": cwd, "model": model}
-        start, _ = handle_hook_event({**base, "hook_event_name": "SessionStart", "source": "startup"}, environ=env)
+        def dispatch(payload):
+            if not script_hooks:
+                return handle_hook_event(payload, environ=env)
+            option = next(value for value in command if value.startswith(f"hooks.{payload['hook_event_name']}="))
+            hook = tomllib.loads(option)["hooks"][payload["hook_event_name"]][0]["hooks"][0]["command"]
+            result = subprocess.run(
+                ["/bin/sh", "-lc", hook], input=json.dumps(payload, ensure_ascii=False),
+                text=True, cwd=cwd, capture_output=True, timeout=30, check=False,
+                env={"PATH": os.defpath, "HOME": str(root), "SHELL": "/bin/sh",
+                     "PYTHONDONTWRITEBYTECODE": "1", **env},
+            )
+            if result.returncode != 0:
+                raise ValueError(result.stderr.strip())
+            return revision._records(root)[-1], json.loads(result.stdout)
+        start, _ = dispatch({**base, "hook_event_name": "SessionStart", "source": "startup"})
         self.assertEqual(start["execution_context"], "MAIN_THREAD")
         def stop(candidate, **override):
             message = json.dumps(candidate, ensure_ascii=False)
@@ -111,8 +128,8 @@ class CioLocalRevisionTests(unittest.TestCase):
             if prepare != self.predecision:
                 (root / "cio").mkdir(exist_ok=True)
                 (root / "cio/runtime_cio.json").write_text(message)
-            return handle_hook_event({**base, "hook_event_name": "Stop", "turn_id": "turn",
-                                      "last_assistant_message": response_text, **override}, environ=env)
+            return dispatch({**base, "hook_event_name": "Stop", "turn_id": "turn",
+                             "last_assistant_message": response_text, **override})
         def complete(candidate):
             message = json.dumps(candidate, ensure_ascii=False) if prepare == self.predecision else "CIO_DRAFT_READY_FOR_DETERMINISTIC_FINALIZATION"
             (invocation / "codex-events.jsonl").write_text("\n".join(json.dumps(event) for event in (
@@ -122,6 +139,46 @@ class CioLocalRevisionTests(unittest.TestCase):
             (invocation / "final-message.json").write_text(message)
             return revision.verify_completed(root, candidate=candidate)
         return root, draft, stop, complete, env, base
+
+    def test_external_script_hooks_without_pythonpath_preserve_raw_and_complete(self):
+        for repair in (False, True):
+            with self.subTest(repair=repair):
+                root, draft, stop, complete, _, _ = self.launch(self.predecision, script_hooks=True)
+                self.assertFalse(root.is_relative_to(REPO))
+                candidate = {**draft, "confidence_rationale": 12} if repair else draft
+                first, response = stop(candidate)
+                raw = root / first["output_capture"]["raw_path"]
+                original = raw.read_bytes()
+                if repair:
+                    self.assertEqual(first["status"], "REPAIR_REQUESTED", first)
+                    self.assertEqual(json.loads(response["reason"])["allowed_paths"], ["/confidence_rationale"])
+                    second, response = stop(draft)
+                    self.assertEqual(second["status"], "SAVED", second)
+                else:
+                    self.assertEqual(first["status"], "SAVED", first)
+                self.assertEqual(response, {})
+                self.assertEqual(complete(draft)["attempts"], 2 if repair else 1)
+                self.assertEqual(raw.read_bytes(), original)
+                self.assertEqual(json.loads(original), candidate)
+                self.assertFalse((root / "decision.json").exists())
+                self.assertFalse((root / "risk.json").exists())
+
+    def test_external_script_hooks_keep_protocol_binding_and_completion_gates(self):
+        root, draft, stop, complete, env, _ = self.launch(self.predecision, script_hooks=True)
+        before = (root / revision.LOG).read_bytes()
+        with self.assertRaisesRegex(ValueError, "COMPLETION_INVALID"):
+            complete(draft)
+        for override in ({"model": "wrong"}, {"session_id": "foreign"},
+                         {"agent_id": "pretend-child"}, {"cwd": "/foreign"}):
+            with self.subTest(override=override), self.assertRaisesRegex(ValueError, "BINDING_INVALID|SESSION_UNBOUND"):
+                stop(draft, **override)
+            self.assertEqual((root / revision.LOG).read_bytes(), before)
+        env["STOCK_AGENT_CIO_LOCAL_REVISION"] = "invalid"
+        with self.assertRaisesRegex(ValueError, "PROTOCOL_INVALID"):
+            stop(draft)
+        self.assertEqual((root / revision.LOG).read_bytes(), before)
+        self.assertFalse((root / "invocation/cio-drafts").exists())
+        self.assertFalse((root / "cio-research-synthesis.json").exists())
 
     def test_both_main_cio_entries_repair_one_field_preserve_base_and_reverify(self):
         for prepare, field, bad in ((self.fixture, "confidence", "bad"),

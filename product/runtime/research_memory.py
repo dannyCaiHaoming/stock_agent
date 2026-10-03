@@ -1187,8 +1187,22 @@ class ResearchMemory:
         manifest = value.get("manifest")
         if not isinstance(report, Mapping) or not isinstance(manifest, Mapping):
             raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_INVALID")
-        if report.get("schema_version") != "equity-research-report/1.0.0":
+        request = value.get("request")
+        supported_request = {
+            "equity-research-report/1.0.0": "holding-research-request/1.0.0",
+            "equity-research-report/2.0.0": "holding-research-request/2.0.0",
+        }.get(report.get("schema_version"))
+        if supported_request is None:
             raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_READER_UNSUPPORTED_VERSION")
+        if not isinstance(request, Mapping) or request.get("schema_version") != supported_request:
+            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_BINDING_INVALID")
+        from product.council.common_stock_research import validate_equity_research_report
+        try:
+            validate_equity_research_report(report, request=request,
+                calculation_artifact_ids=[item["calculation_id"] for item in value["calculations"]
+                    if isinstance(item, Mapping) and "calculation_id" in item])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_BINDING_INVALID") from exc
         try:
             verify_legacy_object_hash(report, manifest.get("report_hash"), kind="canonical-object",
                                       location="company-research-report-package:report")
@@ -1252,6 +1266,10 @@ def research_input_fingerprint(payload: Mapping[str, Any]) -> str:
         "agent_binding", "skill_bindings", "schema_hash", "prompt_policy",
         "data_policy", "risk_policy", "adapter_versions", "time_context",
     }
+    if "input_kind" in payload:
+        if payload["input_kind"] != "SINGLE_STOCK_RESEARCH":
+            raise ResearchMemoryError("RESEARCH_INPUT_FINGERPRINT_KIND_INVALID")
+        allowed.add("input_kind")
     if set(payload) != allowed:
         raise ResearchMemoryError("RESEARCH_INPUT_FINGERPRINT_FIELDS_INVALID")
     return canonical_hash(payload)

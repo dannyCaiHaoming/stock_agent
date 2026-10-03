@@ -1,13 +1,21 @@
 ---
 name: portfolio-council
-description: 用户提供已确认 PortfolioHandoff 并调用投资委员会时，主持普通股持仓研究或多维研究阶段；fixture 兼容链路可完成专业研究、CIO 综合和确定性风险校验；不用于开发任务。
+description: 用户提供已确认 PortfolioHandoff 或指定经来源核实的美股普通股并调用投资委员会时，主持 Company、多维、独立反证及显式研究综合；单股不提供账户或交易动作，fixture 兼容链路保留；不用于开发任务。
 metadata:
-  version: "3.7.1"
+  version: "3.8.0"
 ---
 
 # Portfolio Council
 
 本 Skill 是 Council 的唯一产品入口。已确认 `PortfolioHandoff v3` 是当前用户持仓入口；旧 `live-us-equity` 完整 Council 宿主入口已退役。当进入 fixture 完整 Council 兼容链路时，Codex 主线程担任 CIO。Python 只执行数据获取与标准化、确定性预检、Evidence Gate、数学计算、Schema/引用校验、Risk Engine、哈希、渲染与存储，不得生成 Thesis、动作或置信度。
+
+## 非持仓单股入口
+
+用户只指定美股普通股（例如 ALB）时，使用独立 `SINGLE_STOCK_RESEARCH`，不伪造 Handoff、不要求数量/成本/现金，也不假设持有或已清仓。来源核实发行人、交易市场与证券类型；未知、歧义、ETF、未来/非法日期在模型前拒绝。默认中立研究问题与 latest，显式过去 cutoff 只能消费合格原版冻结资料，本入口不重建历史。
+
+沿现有宿主入口先采集目标/基准/宏观，再执行四个资料准备任务。正文与模型选择的同行物化后，保留原准备任务、cutoff/hash与审计，冻结新的共同研究 cutoff；Company1、八维8、独立 Skeptic1 和 CIO 共享最终请求/Gate。固定身份和序列化由程序负责，模型只提交研究字段、合法引用及计算选择。Agent 身份、原门禁、首轮隔离及三槽不变，不另建调度器。
+
+`--prepare-only` 只做真实取数和零模型准入，不宣称完成研究；`--through forward|skeptic|cio` 明确停止点，默认 forward，用户请求完整综合才选 cio。单股 CIO 只输出非动作 `RESEARCH_SYNTHESIS`，账户适配未评估、Risk=`NOT_RUN`。核心依赖失败即停止，保留已有报告和来源缺口；不得借用 MRVL 或旧持仓报告凑齐。
 
 ## 普通股持仓研究阶段
 
@@ -49,6 +57,7 @@ Company Analyst 必须实际使用 `evidence-grounding`、`company-research`、`
 
 ## 必要输入
 
+- 非持仓单股：经实际来源核实的 `SINGLE_STOCK_RESEARCH`，包含中立研究问题、证券身份及 cutoff，不接受账户占位。
 - 持仓研究：已确认的 `PortfolioHandoff v3`；系统从中派生内部普通股采集请求，冻结 snapshot、Gate 和 data-preparation manifest。
 - fixture 完整 Council：仓库内版本化 `portfolio_fixture`。旧 live profile 及三股 batch 入口不再是产品入口。
 - `decision_cutoff`、显式 `model`、全新的 `output_dir` 和用户研究目标。

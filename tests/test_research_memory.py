@@ -468,6 +468,49 @@ class ResearchMemoryTests(unittest.TestCase):
                     connection, security_id="US:MRVL", facts=[delivered],
                 )
 
+    def test_calendar_snapshot_hash_is_observed_without_masking_fact_corrections(self):
+        first = self.fact(metadata={
+            "tag": "Revenues", "period_end": "2026-01-31",
+            "accession": "0001", "calendar_hash": "a" * 64,
+        })
+        second = self.fact(
+            evidence_id="ev-calendar-updated",
+            retrieved_at="2026-03-03T00:00:00Z",
+            metadata={**first["metadata"], "calendar_hash": "b" * 64},
+        )
+        self.assertEqual(fact_content_hash(first), fact_content_hash(second))
+        self.assertNotEqual(
+            fact_content_hash(first), fact_content_hash(dict(first, value="101")),
+        )
+        self.assertNotEqual(
+            fact_content_hash(first), fact_content_hash(dict(first, unit="shares")),
+        )
+        self.assertNotEqual(
+            fact_content_hash(first), fact_content_hash(dict(first, source_id="sec-other")),
+        )
+        self.assertNotEqual(
+            fact_content_hash(first), fact_content_hash(dict(
+                first, metadata={**first["metadata"], "period_end": "2025-12-31"},
+            )),
+        )
+        plan = self.memory.plan(
+            "US:MRVL", "sec", "sec_companyfacts",
+            planning_as_of="2026-03-03T00:00:00Z",
+        )
+        result = self.memory.ingest_dataset(
+            plan=plan, facts=[first, second], status="FETCHED_BOOTSTRAP",
+            completed_at="2026-03-03T00:00:00Z",
+        )
+        self.assertEqual((1, 2), (result["inserted_versions"], result["observations"]))
+        with self.memory.session() as connection:
+            observations = [
+                json.loads(row[0])["calendar_hash"]
+                for row in connection.execute("SELECT payload_json FROM observations")
+            ]
+        self.assertEqual({"a" * 64, "b" * 64}, set(observations))
+
+
+
     def test_raw_closure_preflight_only_exempts_a_winning_new_version(self):
         plan = self.memory.plan(
             "US:MRVL", "sec", "sec_companyfacts",
@@ -761,6 +804,40 @@ class ResearchMemoryTests(unittest.TestCase):
         self.assertGreater(stale["request_range"]["start"], "2025-09-10")
         self.assertEqual("2026-09-13", stale["request_range"]["end"])
 
+    def test_peer_facts_remain_available_when_security_becomes_research_target(self):
+        peer_id = "US:ALAB"
+        plan = self.memory.plan(
+            peer_id, "sec", "sec_companyfacts",
+            planning_as_of="2026-03-02T00:00:00Z",
+        )
+        peer_fact = self.fact(
+            evidence_id="ev-alab-peer-revenue",
+            security_id=peer_id,
+            source_id="sec-companyfacts-alab",
+        )
+        inserted = self.memory.ingest_dataset(
+            plan=plan, facts=[peer_fact], status="FETCHED_BOOTSTRAP",
+            completed_at="2026-03-02T00:00:00Z", watermark=peer_fact["as_of"],
+        )
+        self.assertEqual(1, inserted["inserted_versions"])
+
+        # Memory is keyed by security and source, not by whether a security
+        # first appeared as a peer or as the user's next research target.
+        restarted = ResearchMemory(self.root)
+        self.assertEqual("SKIP_FRESH", restarted.plan(
+            peer_id, "sec", "sec_companyfacts",
+            planning_as_of="2026-03-02T00:01:00Z",
+        )["mode"])
+        self.assertEqual(
+            [peer_fact["evidence_id"]],
+            [fact["evidence_id"] for fact in restarted.current_facts(
+                peer_id, "2026-03-02T00:01:00Z",
+            )],
+        )
+        self.assertEqual([], restarted.current_facts(
+            "US:MRVL", "2026-03-02T00:01:00Z",
+        ))
+
     def test_atomic_ingest_rolls_back_versions_attempt_and_checkpoint(self):
         initial = self.memory.plan(
             "US:MRVL", "sec", "sec_companyfacts",
@@ -936,6 +1013,10 @@ class ResearchMemoryTests(unittest.TestCase):
         changed = dict(base, attachments=["a2"])
         self.assertNotEqual(first, research_input_fingerprint(changed))
         self.assertNotEqual(report_reuse_key("US:MRVL", first), report_reuse_key("US:MRVL", research_input_fingerprint(changed)))
+        single = dict(base, input_kind='SINGLE_STOCK_RESEARCH')
+        self.assertNotEqual(first, research_input_fingerprint(single))
+        self.assertNotEqual(research_input_fingerprint(single), research_input_fingerprint(
+            dict(single, model={'name': 'gpt-6-luna'})))
         with self.assertRaisesRegex(ResearchMemoryError, "FIELDS_INVALID"):
             research_input_fingerprint(dict(base, unclassified_new_input=True))
 

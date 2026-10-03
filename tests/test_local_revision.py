@@ -156,6 +156,25 @@ class LocalRevisionMechanicsTests(unittest.TestCase):
                   "required": ["summary"], "additionalProperties": False}
         self.assertEqual(located_paths(schema_issue_locations({"extra": 1}, schema)), ["/extra", "/summary"])
 
+    def test_schema_diagnostic_limit_counts_unique_fields_not_repeated_required_errors(self):
+        from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
+        schema = {'type': 'object', 'properties': {f'field_{i}': {'type': 'string'} for i in range(32)},
+                  'required': [f'field_{i}' for i in range(32)], 'additionalProperties': False}
+        findings = schema_issue_locations({}, schema)
+        self.assertEqual(len(findings), 32)
+        self.assertEqual(len({f['path'] for f in findings}), 32)
+        with self.assertRaisesRegex(SchemaValidationError, 'SCHEMA_REQUIRED_MISSING'):
+            validate_schema_instance({}, schema)
+        too_many = {**schema, 'properties': {**schema['properties'], 'field_32': {'type': 'string'}},
+                    'required': [*schema['required'], 'field_32']}
+        with self.assertRaisesRegex(SchemaValidationError, 'SCHEMA_DIAGNOSTICS_TOO_MANY'):
+            schema_issue_locations({}, too_many)
+        multiple_constraints = {'type': 'object', 'properties': {'choice': {'type': 'string', 'enum': ['x']}}}
+        results = schema_issue_locations({'choice': 1}, multiple_constraints)
+        self.assertEqual(len(results), 2)
+        self.assertEqual({r['path'] for r in results}, {'/choice'})
+        self.assertEqual(len({r['code'] for r in results}), 2)
+
     def test_paths_do_not_parse_error_prose_or_allow_technical_identity(self):
         self.assertEqual(located_paths([{"path": "claims[0].evidence_refs[1]"},
                                        {"path": "run_id"}, {"path": "error: claims[1]"}]), ["/claims/0"])

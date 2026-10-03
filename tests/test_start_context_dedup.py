@@ -90,6 +90,36 @@ class StartContextDedupTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "DEFINITION_COLLISION"):
             compact_specialist_schema({"$defs": {"start_context_evidence_id": {}}}, self.ids)
 
+    def test_exact_semantic_enum_node_is_shared_without_adding_description_or_allowing_foreign_ids(self):
+        node = {'type': 'string', 'enum': self.ids}
+        schema = {'type': 'object', 'required': ['evidence_refs', 'counter_evidence_refs'],
+            'additionalProperties': False, 'properties': {
+                key: {'type': 'array', 'items': copy.deepcopy(node)}
+                for key in ('evidence_refs', 'counter_evidence_refs')}}
+        before = copy.deepcopy(schema)
+        compact = compact_specialist_schema(schema, self.ids, evidence_schema=node)
+        self.assertEqual(schema, before)
+        self.assertEqual(compact['$defs']['start_context_evidence_id'], node)
+        self.assertNotIn('description', compact['$defs']['start_context_evidence_id'])
+        for key in schema['properties']:
+            self.assertEqual(compact['properties'][key]['items'], {'$ref': '#/$defs/start_context_evidence_id'})
+        for candidate in ({'evidence_refs': self.ids[:1], 'counter_evidence_refs': []},
+                          {'evidence_refs': ['e.foreign'], 'counter_evidence_refs': []},
+                          {'evidence_refs': [{'evidence_id': self.ids[0]}], 'counter_evidence_refs': []},
+                          {'evidence_refs': [], 'counter_evidence_refs': [self.ids[-1]], 'extra': 1}):
+            outcomes = []
+            for view in (schema, compact):
+                try:
+                    validate_schema_instance(candidate, view)
+                    outcomes.append('PASS')
+                except SchemaValidationError as exc:
+                    outcomes.append(str(exc))
+            self.assertEqual(outcomes[0], outcomes[1])
+        for invalid in ({'type': 'string', 'enum': self.ids[:-1]},
+                        {'type': 'object', 'enum': self.ids}):
+            with self.assertRaisesRegex(ValueError, 'ALLOWED_SET_MISMATCH'):
+                compact_specialist_schema(schema, self.ids, evidence_schema=invalid)
+
     def test_remaining_duplicate_invocation_ids_are_losslessly_shared(self):
         packet = self.packet()
         packet["padding"] = "x" * 65000

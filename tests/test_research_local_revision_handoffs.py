@@ -16,6 +16,102 @@ from tests.test_research_materials_stage import FakeOpenAlexClient
 
 
 class ResearchLocalRevisionHandoffTests(unittest.TestCase):
+    def prepare_period_case(self, root, *, single=True):
+        from product.runtime import common_stock_stage as stage
+        from tests import test_common_stock_research_contracts as fixtures
+        from tests.test_single_stock_input import SingleStockCompanyTests
+        if single:
+            source, _, gate, _ = SingleStockCompanyTests().prepare_values()
+            second = copy.deepcopy(gate["allowed_evidence"][0])
+            second.update(evidence_id="ev-alb-cash", semantic_field="operating_cash_flow", value="20")
+            gate["allowed_evidence"].append(second)
+            gate["input_evidence_ids"].append(second["evidence_id"])
+            gate["allowed_evidence_ids"].append(second["evidence_id"])
+            input_args = {"research_input_path": root / "input.json"}
+        else:
+            source = fixtures.stock_handoff(1)
+            gate = fixtures.gate_for(source, "period-holding-run")
+            input_args = {"handoff_path": root / "input.json"}
+        for fact, start in zip(gate["allowed_evidence"], ("2026-04-01", "2026-01-01"), strict=True):
+            fact["metadata"] = {"context_type": "duration", "period_start": start, "period_end": "2026-06-30"}
+        gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
+        (root / "input.json").write_text(json.dumps(source))
+        (root / "gate.json").write_text(json.dumps(gate))
+        run = root / "run"
+        stage.prepare_common_stock_stage_run(fixtures.ROOT, **input_args,
+            gate_path=root / "gate.json", run_dir=run, run_id=gate["run_id"], model="gpt-5.6-terra")
+        task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
+        helper = fixtures.CommonStockNativeStageTests()
+        env = helper.hook_environment(run)
+        handle_hook_event(helper.dispatch_payload(run, task), environ=env)
+        start = helper.event("SubagentStart", parent="parent-session", child="period-child", turn="period-turn")
+        _, response = handle_hook_event(start, environ=env)
+        packet = json.loads(response["hookSpecificOutput"]["additionalContext"])
+        request = json.loads((run / task["request_path"]).read_text())
+        semantic = company_fixtures.CommonStockSemanticHandoffTests()
+        semantic.call(run, request, "query", evidence_ids=packet["allowed_evidence_ids"])
+        draft = semantic.draft(request, semantic.frozen_packet(run, task))
+        draft["claims"][0].update(kind="FACT", evidence_refs=packet["allowed_evidence_ids"],
+            statement="季度2026年4月1日至6月30日、累计2026年1月1日至6月30日；期间不可混同。")
+        return run, env, start, draft
+
+    def test_single_company_period_statement_patch_passes_full_persistence_without_changing_base(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run, env, start, draft = self.prepare_period_case(Path(directory))
+            gate_before = (run / "evidence/gate.json").read_bytes()
+            first, repair = self.first(env, start, draft)
+            self.assertEqual(repair["allowed_paths"], ["/claims/0/statement"])
+            self.assertEqual(repair["validation_details"]["findings"][0]["missing_dates"], ["2026-06-30"])
+            from product.runtime.codex_hook_recorder import _simple_research_repair_packet
+            payload = {**start, "last_assistant_message": json.dumps(draft, ensure_ascii=False)}
+            for code, attempt in (("EQUITY_RESEARCH_FACT_PERIOD_LINEAGE_INCOMPLETE:unknown:2026-06-30", 1),
+                                  ("EQUITY_RESEARCH_FACT_PERIOD_LINEAGE_INCOMPLETE:claim-core:2026-01-01", 1),
+                                  (repair["validation_error"], 2)):
+                self.assertIsNone(_simple_research_repair_packet(payload, first, env,
+                    failure_code=code, attempt=attempt))
+            base = run / first["output_capture"]["raw_path"]
+            before = base.read_bytes()
+            statement = "季度2026-04-01至2026-06-30、累计2026-01-01至2026-06-30；期间不可混同。"
+            second, _ = self.stop(env, start, {"base_draft_ref": repair["base_draft_ref"], "changes": [
+                {"op": "replace", "path": "/claims/0/statement", "value": statement}]})
+            self.assertEqual(second["output_capture"]["status"], "SAVED", second)
+            saved = json.loads((run / second["output_capture"]["path"]).read_text())
+            self.assertEqual(saved["claims"][0]["statement"], statement)
+            for field in ("kind", "assumption_ids", "counter_claim_refs", "invalidation_condition_ids"):
+                self.assertEqual(saved["claims"][0][field], draft["claims"][0][field])
+            self.assertEqual(saved["status"], draft["status"])
+            self.assertEqual(base.read_bytes(), before)
+            self.assertEqual((run / "evidence/gate.json").read_bytes(), gate_before)
+
+    def test_period_patch_cannot_change_refs_kind_status_identity_other_claim_or_hide_missing_period(self):
+        cases = [("/claims/0/kind", "INTERPRETATION"), ("/claims/0/evidence_refs", []),
+                 ("/status", "LOW_CONFIDENCE"), ("/claims/1/statement", "其他主张"),
+                 ("/run_id", "other-run"), ("/claims/0/statement", "仍没有完整期间。")]
+        for path, value in cases:
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as directory:
+                run, env, start, draft = self.prepare_period_case(Path(directory))
+                _, repair = self.first(env, start, draft)
+                second, _ = self.stop(env, start, {"base_draft_ref": repair["base_draft_ref"], "changes": [
+                    {"op": "replace", "path": path, "value": value}]})
+                self.assertEqual(second["output_capture"]["status"], "FAILED", second)
+                self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
+                self.assertFalse((run / "research/reports").exists())
+                if path == "/claims/0/statement":
+                    self.assertIn("PERIOD_LINEAGE_INCOMPLETE", second["output_capture"]["failure_code"])
+                else:
+                    self.assertIn("LOCAL_REVISION_", second["output_capture"]["failure_code"])
+                third, _ = self.stop(env, start, draft)
+                self.assertEqual(third["output_capture"]["failure_code"], "LOCAL_REVISION_LIMIT_EXHAUSTED")
+
+    def test_period_revision_does_not_extend_legacy_holding_or_unbound_task(self):
+        for single in (False, True):
+            with self.subTest(single=single), tempfile.TemporaryDirectory() as directory:
+                _, env, start, draft = self.prepare_period_case(Path(directory), single=single)
+                record, response = self.stop(env, start, draft, **({"model": "foreign-model"} if single else {}))
+                self.assertEqual(record["output_capture"]["repair_state"], "NOT_ALLOWED")
+                self.assertNotIn("repair_request", record)
+                self.assertEqual(response, {})
+
     def prepare(self, root, role):
         if role == "company":
             helper = company_fixtures.CommonStockSemanticHandoffTests()

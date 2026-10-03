@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from product.intake.v3 import validate_handoff
+from product.runtime.research_input import (is_single_stock, research_input_binding, artifact_input_binding, research_subjects, validate_research_input)
 from product.mcp.provenance import parse_timestamp
 from product.runtime.hashing import canonical_hash, legacy_envelope_hash
 from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
@@ -164,10 +164,10 @@ def build_holding_research_requests(
 ) -> list[dict[str, Any]]:
     """Derive one minimal request for every researchable common stock."""
 
-    validate_handoff(handoff)
+    validate_research_input(handoff)
     validate_council_request(council_request, handoff=handoff)
     if (
-        council_request.get("schema_version") != RESEARCH_REQUEST_SCHEMA_VERSION
+        council_request.get("schema_version") not in (RESEARCH_REQUEST_SCHEMA_VERSION, "council-request/3.0.0")
         or council_request.get("stage") != COMMON_STOCK_RESEARCH_STAGE
     ):
         raise CommonStockResearchError("COMMON_STOCK_RESEARCH_STAGE_REQUIRED")
@@ -188,7 +188,7 @@ def build_holding_research_requests(
         raise CommonStockResearchError("RESEARCH_GATE_HASH_INVALID")
 
     requests: list[dict[str, Any]] = []
-    for position in handoff["portfolio"]["positions"]:
+    for position in research_subjects(handoff):
         if position["asset_type"] != "COMMON_STOCK":
             continue
         security_id = position["security_id"]
@@ -197,13 +197,11 @@ def build_holding_research_requests(
         thesis = (user_theses or {}).get(security_id)
         questions = list((user_questions or {}).get(security_id, ()))
         value: dict[str, Any] = {
-            "schema_version": HOLDING_REQUEST_VERSION,
+            "schema_version": "holding-research-request/2.0.0" if is_single_stock(handoff) else HOLDING_REQUEST_VERSION,
             "request_id": request_id,
             "run_id": run_id,
             "invocation_id": invocation_id,
-            "handoff_id": handoff["handoff_id"],
-            "handoff_hash": handoff["handoff_hash"],
-            "portfolio_hash": handoff["portfolio_hash"],
+            **research_input_binding(handoff),
             "council_request_id": council_request["request_id"],
             "council_request_hash": council_request["request_hash"],
             "security": {
@@ -242,15 +240,13 @@ def validate_holding_research_request(
     council_request: Mapping[str, Any], gate: Mapping[str, Any]
 ) -> None:
     try:
-        validate_schema_instance(value, _schema("holding-research-request.schema.json"))
+        validate_schema_instance(value, _schema("holding-research-request-v2.schema.json" if is_single_stock(handoff) else "holding-research-request.schema.json"))
     except SchemaValidationError as exc:
         raise CommonStockResearchError(f"HOLDING_RESEARCH_REQUEST_SCHEMA_INVALID:{exc}") from exc
-    validate_handoff(handoff)
+    validate_research_input(handoff)
     validate_council_request(council_request, handoff=handoff)
     expected = {
-        "handoff_id": handoff["handoff_id"],
-        "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"],
+        **research_input_binding(handoff),
         "council_request_id": council_request["request_id"],
         "council_request_hash": council_request["request_hash"],
         "decision_cutoff": gate["decision_cutoff"],
@@ -258,7 +254,7 @@ def validate_holding_research_request(
     }
     if any(value.get(field) != expected_value for field, expected_value in expected.items()):
         raise CommonStockResearchError("HOLDING_RESEARCH_REQUEST_BINDING_INVALID")
-    positions = {item["security_id"]: item for item in handoff["portfolio"]["positions"]}
+    positions = {item["security_id"]: item for item in research_subjects(handoff)}
     security = value["security"]
     if security.get("security_id") not in positions or positions[security["security_id"]]["asset_type"] != "COMMON_STOCK":
         raise CommonStockResearchError("HOLDING_RESEARCH_SECURITY_INVALID")
@@ -310,7 +306,7 @@ def validate_equity_research_report(
             ):
                 raise CommonStockResearchError("EQUITY_RESEARCH_GAP_REASON_INVALID")
     try:
-        validate_schema_instance(value, _schema("equity-research-report.schema.json"))
+        validate_schema_instance(value, _schema("equity-research-report-v2.schema.json" if is_single_stock(request) else "equity-research-report.schema.json"))
     except SchemaValidationError as exc:
         detail = str(exc)
         claim_match = re.search(r"\$\.claims\[(\d+)\]", detail)
@@ -324,19 +320,17 @@ def validate_equity_research_report(
     forbidden = _find_forbidden_keys(value)
     if forbidden:
         raise CommonStockResearchError(f"EQUITY_RESEARCH_ACTION_FIELD_FORBIDDEN:{','.join(sorted(forbidden))}")
-    if value.get("schema_version") != EQUITY_REPORT_VERSION:
+    if value.get("schema_version") != ("equity-research-report/2.0.0" if is_single_stock(request) else EQUITY_REPORT_VERSION):
         raise CommonStockResearchError("EQUITY_RESEARCH_VERSION_INVALID")
     if (
         value.get("run_id") != request.get("run_id")
         or value.get("invocation_id") != request.get("invocation_id")
         or value.get("agent") != "runtime_company_analyst"
-        or value.get("research_scope") != "SINGLE_COMMON_STOCK_HOLDING"
+        or value.get("research_scope") != ("SINGLE_COMMON_STOCK" if is_single_stock(request) else "SINGLE_COMMON_STOCK_HOLDING")
     ):
         raise CommonStockResearchError("EQUITY_RESEARCH_INVOCATION_BINDING_INVALID")
     expected_bindings = {
-        "handoff_id": request["handoff_id"],
-        "handoff_hash": request["handoff_hash"],
-        "portfolio_hash": request["portfolio_hash"],
+        **artifact_input_binding(request),
         "council_request_id": request["council_request_id"],
         "council_request_hash": request["council_request_hash"],
         "holding_research_request_id": request["request_id"],
@@ -445,7 +439,7 @@ def build_initial_research_coverage(
 ) -> dict[str, Any]:
     """Build full-portfolio coverage without claiming any research completed."""
 
-    validate_handoff(handoff)
+    validate_research_input(handoff)
     validate_council_request(council_request, handoff=handoff)
     if not isinstance(target_concurrency, int) or isinstance(target_concurrency, bool) or target_concurrency < 1:
         raise CommonStockResearchError("RESEARCH_TARGET_CONCURRENCY_INVALID")
@@ -458,7 +452,7 @@ def build_initial_research_coverage(
         raise CommonStockResearchError("RESEARCH_TIME_BUDGET_INVALID")
     effective_concurrency = min(target_concurrency, effective_concurrency)
     items = []
-    for position in handoff["portfolio"]["positions"]:
+    for position in research_subjects(handoff):
         common = position["asset_type"] == "COMMON_STOCK"
         items.append({
             "security_id": position["security_id"],
@@ -479,11 +473,9 @@ def build_initial_research_coverage(
     has_common = any(item["asset_type"] == "COMMON_STOCK" for item in items)
     has_gap = any(item["coverage_status"] == "CAPABILITY_GAP" for item in items)
     value: dict[str, Any] = {
-        "schema_version": COVERAGE_VERSION,
+        "schema_version": "research-coverage/2.0.0" if is_single_stock(handoff) else COVERAGE_VERSION,
         "batch_id": batch_id,
-        "handoff_id": handoff["handoff_id"],
-        "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"],
+        **research_input_binding(handoff),
         "council_request_id": council_request["request_id"],
         "council_request_hash": council_request["request_hash"],
         "stage_status": "PARTIAL_RESEARCH" if has_common and has_gap else "NO_COMMON_STOCKS" if not has_common else "PARTIAL_RESEARCH",
@@ -536,14 +528,12 @@ def prepare_common_stock_research_stage(
         ):
             raise CommonStockResearchError("RESEARCH_DATA_PREPARATION_HASH_MISMATCH")
         expected_common_ids = {
-            item["security_id"] for item in handoff["portfolio"]["positions"]
+            item["security_id"] for item in research_subjects(handoff)
             if item["asset_type"] == "COMMON_STOCK"
         }
         if (
             data_preparation.get("run_id") != (data_source_run_id or run_id)
-            or data_preparation.get("handoff_id") != handoff["handoff_id"]
-            or data_preparation.get("handoff_hash") != handoff["handoff_hash"]
-            or data_preparation.get("portfolio_hash") != handoff["portfolio_hash"]
+            or any(data_preparation.get(key) != expected for key, expected in research_input_binding(handoff).items())
             or data_preparation.get("common_cutoff") != gate["decision_cutoff"]
         ):
             raise CommonStockResearchError("RESEARCH_DATA_PREPARATION_BINDING_INVALID")
@@ -596,7 +586,7 @@ def prepare_common_stock_research_stage(
     )
     preparation = []
     by_security = {item["security"]["security_id"]: item for item in all_requests}
-    for position in handoff["portfolio"]["positions"]:
+    for position in research_subjects(handoff):
         request = by_security.get(position["security_id"])
         prepared = preparation_by_security.get(position["security_id"])
         prepared_status = prepared.get("status") if prepared else None
@@ -651,19 +641,17 @@ def validate_research_coverage(
     value: Mapping[str, Any], *, handoff: Mapping[str, Any], council_request: Mapping[str, Any]
 ) -> None:
     try:
-        validate_schema_instance(value, _schema("research-coverage.schema.json"))
+        validate_schema_instance(value, _schema("research-coverage-v2.schema.json" if is_single_stock(handoff) else "research-coverage.schema.json"))
     except SchemaValidationError as exc:
         raise CommonStockResearchError(f"RESEARCH_COVERAGE_SCHEMA_INVALID:{exc}") from exc
     expected_bindings = {
-        "handoff_id": handoff["handoff_id"],
-        "handoff_hash": handoff["handoff_hash"],
-        "portfolio_hash": handoff["portfolio_hash"],
+        **research_input_binding(handoff),
         "council_request_id": council_request["request_id"],
         "council_request_hash": council_request["request_hash"],
     }
     if any(value.get(field) != expected for field, expected in expected_bindings.items()):
         raise CommonStockResearchError("RESEARCH_COVERAGE_BINDING_INVALID")
-    positions = {item["security_id"]: item for item in handoff["portfolio"]["positions"]}
+    positions = {item["security_id"]: item for item in research_subjects(handoff)}
     items = value.get("items", [])
     if len(items) != len(positions) or {item.get("security_id") for item in items} != set(positions):
         raise CommonStockResearchError("RESEARCH_COVERAGE_POSITION_SET_INVALID")
@@ -718,15 +706,13 @@ def envelope_equity_research_draft(
     if "skill_execution" in draft or "bindings" in draft or "security" in draft:
         raise CommonStockResearchError("EQUITY_RESEARCH_DRAFT_TECHNICAL_FIELD_FORBIDDEN")
     report = {
-        "schema_version": EQUITY_REPORT_VERSION,
+        "schema_version": "equity-research-report/2.0.0" if is_single_stock(request) else EQUITY_REPORT_VERSION,
         "run_id": request["run_id"],
         "invocation_id": request["invocation_id"],
         "report_id": report_id,
         "agent": "runtime_company_analyst",
         "bindings": {
-            "handoff_id": request["handoff_id"],
-            "handoff_hash": request["handoff_hash"],
-            "portfolio_hash": request["portfolio_hash"],
+            **artifact_input_binding(request),
             "council_request_id": request["council_request_id"],
             "council_request_hash": request["council_request_hash"],
             "holding_research_request_id": request["request_id"],
@@ -737,7 +723,7 @@ def envelope_equity_research_draft(
             key: request["security"][key]
             for key in ("security_id", "display_symbol", "display_name", "market", "asset_type")
         },
-        "research_scope": "SINGLE_COMMON_STOCK_HOLDING",
+        "research_scope": "SINGLE_COMMON_STOCK" if is_single_stock(request) else "SINGLE_COMMON_STOCK_HOLDING",
         **copy.deepcopy(dict(draft)),
         "skill_execution": copy.deepcopy(list(skill_execution)),
     }

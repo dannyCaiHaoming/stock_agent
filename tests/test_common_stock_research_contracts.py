@@ -946,6 +946,7 @@ def research_request():
 
 
 def valid_report(request, evidence_refs=None):
+    from product.runtime.research_input import artifact_input_binding, is_single_stock
     evidence_refs = list(evidence_refs or request["allowed_evidence_ids"][:1])
     claims = [{
         "claim_id": "claim-core", "statement": "收入事实支持当前商业规模判断。",
@@ -971,13 +972,12 @@ def valid_report(request, evidence_refs=None):
         )
     }
     return {
-        "schema_version": "equity-research-report/1.0.0",
+        "schema_version": "equity-research-report/2.0.0" if is_single_stock(request) else "equity-research-report/1.0.0",
         "run_id": request["run_id"], "invocation_id": request["invocation_id"],
         "report_id": "equity-report-1", "status": "COMPLETE",
         "agent": "runtime_company_analyst",
         "bindings": {
-            "handoff_id": request["handoff_id"], "handoff_hash": request["handoff_hash"],
-            "portfolio_hash": request["portfolio_hash"],
+            **artifact_input_binding(request),
             "council_request_id": request["council_request_id"],
             "council_request_hash": request["council_request_hash"],
             "holding_research_request_id": request["request_id"],
@@ -987,7 +987,7 @@ def valid_report(request, evidence_refs=None):
         "security": {key: request["security"][key] for key in (
             "security_id", "display_symbol", "display_name", "market", "asset_type"
         )},
-        "research_scope": "SINGLE_COMMON_STOCK_HOLDING",
+        "research_scope": "SINGLE_COMMON_STOCK" if is_single_stock(request) else "SINGLE_COMMON_STOCK_HOLDING",
         "research_summary": {
             "summary": "核心经济逻辑有依据，但现金转化是主要反证。",
             "claim_refs": ["claim-core", "claim-counter"],
@@ -2753,6 +2753,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             {item["evidence_id"] for item in flattened_evidence_catalog(packet)},
         )
         self.assertIn("vendor_money_flow", packet["catalog_policy"]["excluded_datasets"])
+        self.assertIn("若存在 moomoo_sg 的 vendor_money_flow", packet["instruction"])
         self.assertEqual(
             1,
             packet["catalog_policy"]["request_allowed_evidence_count"]

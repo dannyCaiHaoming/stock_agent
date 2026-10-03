@@ -649,9 +649,14 @@ class StatelessFixtureTools:
             # 工具目录可能在 prepare-cio 之前缓存；授权仍在每次调用时核验。
             identity = {key: {"type": "string"} for key in ("run_id", "agent", "invocation_id")}
             run = _load_object(self.default_run_dir / "run_manifest.json")
+            report_description = "CIO only: read complete authorized reports by exact report_ids; runtime records delivery. Requires a prepared native CIO invocation with research_reports.read permission. Other roles cannot use this tool."
+            if run.get("report_delivery_version") == "cio-report-delivery/1.0.0":
+                report_description += (" Repeated calculation input_evidence_refs may be {input_evidence_ref_set: key};"
+                    " the full ordered list is in this response's report_delivery.input_evidence_ref_sets[key]."
+                    " This is lossless sharing, not a summary or an Evidence ID; do not query the shared key or reread to obtain duplicates.")
             if run.get("stage") in {None, "PREDECISION_CIO_SYNTHESIS"} and run.get("source_mode") != "live":
                 manifest += ({
-                    "name": "read_reports", "description": "CIO only: read complete authorized reports by exact report_ids; runtime records delivery. Requires a prepared native CIO invocation with research_reports.read permission. Other roles cannot use this tool.",
+                    "name": "read_reports", "description": report_description,
                     "annotations": {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
                     "inputSchema": {"type": "object", "additionalProperties": False,
                                     "required": [*identity, "report_ids"], "properties": {
@@ -664,8 +669,33 @@ class StatelessFixtureTools:
                 from product.runtime.research_submission import WRITE_VERSIONS, tool_manifest
                 if any(t.get("submission_version") in WRITE_VERSIONS for t in _load_object(index_path).get("tasks", [])):
                     manifest += (tool_manifest(),)
-            if run.get("tool_identity_version") == TASK_TOOL_IDENTITY_VERSION:
-                if run.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
+            from product.runtime.research_input import is_single_stock
+            if is_single_stock(run) and run.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH":
+                from product.runtime.independent_skeptic_stage import DELIVERY_VERSION, read_dispatch_index
+                try:
+                    skeptic_index = read_dispatch_index(self.default_run_dir, os.environ.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"))
+                except (OSError, ValueError):
+                    skeptic_index = {"tasks": []}  # The forward-only stage has no skeptic invocation yet.
+                if any(_load_object(self.default_run_dir / t["invocation_ref"]).get("skeptic_delivery_version") == DELIVERY_VERSION
+                       for t in skeptic_index["tasks"]):
+                    manifest += ({
+                        "name": "evidence_catalog",
+                        "description": "New independent Skeptic tasks only: discover task-authorized metadata, not facts or Analyst conclusions. Use view=fields to discover indicators, view=records to select IDs; then query the chosen IDs. Follow next_offset; unvisited pages are not missing sources. Bound identity required, no run_dir.",
+                        "annotations": {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
+                        "inputSchema": {"type": "object", "additionalProperties": False,
+                            "required": [*identity, "view"], "properties": {
+                                **identity, "view": {"enum": ["fields", "records"]},
+                                "security_id": {"type": "string", "minLength": 1},
+                                "semantic_field": {"type": "string", "minLength": 1, "maxLength": 256},
+                                "semantic_field_prefix": {"type": "string", "minLength": 1, "maxLength": 256},
+                                "offset": {"type": "integer", "minimum": 0},
+                                "limit": {"type": "integer", "minimum": 1, "maximum": 64},
+                            }},
+                    },)
+            single_forward_state = (is_single_stock(run)
+                                    and run.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH")
+            if single_forward_state or run.get("tool_identity_version") == TASK_TOOL_IDENTITY_VERSION:
+                if not single_forward_state and run.get("stage") != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
                     raise ToolAccessError("TASK_TOOL_IDENTITY_STAGE_INVALID")
                 # Preserve a rejected first routing attempt too, before any successful binding.
                 self.dynamic_event_log = self.default_run_dir / "events/mcp/events.jsonl"
@@ -675,6 +705,10 @@ class StatelessFixtureTools:
                     "annotations": {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
                     "inputSchema": {"type": "object", "additionalProperties": False, "properties": {}},
                 },)
+                if single_forward_state:
+                    # State-only reuse: preserve the existing explicit Invocation
+                    # identity and permissions for every research tool.
+                    return manifest
                 for item in manifest:
                     if item["name"] not in {"query", "calculate", "research_report_submit"}:
                         continue
@@ -699,7 +733,16 @@ class StatelessFixtureTools:
         if self.default_run_dir is None:
             raise ToolAccessError("TASK_STATE_BOUND_RUN_REQUIRED")
         from product.runtime.multidimensional_stage import read_multidimensional_task_state
-        result = read_multidimensional_task_state(self.default_run_dir)
+        from product.runtime.independent_skeptic_stage import DELIVERY_VERSION, read_dispatch_index, read_skeptic_task_state
+        index_ref = os.environ.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX")
+        new_skeptic = False
+        if index_ref is not None:
+            index = read_dispatch_index(self.default_run_dir, index_ref)
+            new_skeptic = bool(index["tasks"]) and all(
+                _load_object(self.default_run_dir / task["invocation_ref"]).get("skeptic_delivery_version") == DELIVERY_VERSION
+                for task in index["tasks"])
+        result = (read_skeptic_task_state(self.default_run_dir, index_ref=index_ref) if new_skeptic
+                  else read_multidimensional_task_state(self.default_run_dir))
         event = {"event_type": "mcp_tool_result", "tool": "research_task_state",
                  "run_id": result["run_id"], "invocation_id": None, "input_hash": canonical_hash({}),
                  "output_hash": canonical_hash(result), "output_bytes": len(canonical_json(result).encode("utf-8")),
@@ -752,6 +795,29 @@ class StatelessFixtureTools:
         return {**normalized, **({"invocation_id": identity["invocation_id"]}
                                  if name == "research_report_submit" else identity)}
 
+    def evidence_catalog(self, *, run_id: str, agent: str, invocation_id: str, **selectors) -> dict[str, Any]:
+        if self.default_run_dir is None or agent != "runtime_skeptic":
+            raise ToolAccessError("COUNTER_CATALOG_NOT_AUTHORIZED")
+        bound = self._bound_tools(run_dir=None, run_id=run_id, agent=agent, invocation_id=invocation_id)
+        from product.runtime.research_input import is_single_stock
+        from product.runtime.independent_skeptic_stage import (
+            build_skeptic_dispatch_packet, read_dispatch_index, read_skeptic_evidence_catalog,
+        )
+        root = self._last_root
+        if not is_single_stock(_load_object(root / "run_manifest.json")) or "fixture_evidence.query" not in bound.allowed_tools:
+            raise ToolAccessError("COUNTER_CATALOG_NOT_AUTHORIZED")
+        index_ref = os.environ.get("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX")
+        task = next(t for t in read_dispatch_index(root, index_ref)["tasks"] if t["invocation_id"] == invocation_id)
+        packet = build_skeptic_dispatch_packet(Path(__file__).resolve().parents[2], root, task["task_name"], index_ref=index_ref)
+        result = read_skeptic_evidence_catalog(packet, _load_object(root / "evidence/gate.json"), **selectors)
+        event = {"event_type": "mcp_tool_result", "tool": "fixture_evidence.catalog", "access_mode": "read",
+                 "run_id": run_id, "agent": agent, "invocation_id": invocation_id,
+                 "adapter_version": SKEPTIC_ADAPTER_VERSION, "input_hash": content_hash(selectors),
+                 "output_hash": content_hash(result), "output_bytes": len(canonical_json(result).encode()),
+                 "returned_rows": len(result["rows"])}
+        self.events.append({**event, "event_hash": content_hash(event)})
+        return result
+
     def read_reports(self, *, run_id: str, agent: str, invocation_id: str,
                      report_ids: list[str]) -> dict[str, Any]:
         if self.default_run_dir is None or agent != "runtime_cio":
@@ -777,12 +843,8 @@ class StatelessFixtureTools:
         output, event = read_cio_reports(root, invocation, catalog, report_ids,
                                         prefix="source-inputs" if predecision else "")
         self.events.append(event)
-        if mapping is not None:
-            from product.runtime.cio_handoff import cio_model_view
-            output = cio_model_view(output, mapping)
-            output.update(run_id=run_id, reference_map_hash=mapping["map_hash"],
-                          canonical_result_hash=event["output_hash"], result_hash=canonical_hash(output))
-        return output
+        from product.runtime.cio_handoff import cio_report_model_result
+        return cio_report_model_result(output, event, invocation, mapping)
 
     def research_report_submit(self, *, invocation_id: str, draft: dict[str, Any], submission_token: str | None = None) -> dict[str, Any]:
         if self.default_run_dir is None:
@@ -1529,6 +1591,8 @@ def serve_stdio(
                     validate_schema_instance(arguments, declared[0]["inputSchema"])
                 if name == "query":
                     value = tools.query(**arguments)
+                elif name == "evidence_catalog" and isinstance(tools, StatelessFixtureTools):
+                    value = tools.evidence_catalog(**arguments)
                 elif name == "calculate":
                     value = tools.calculate(**arguments)
                 elif name == "read_reports" and isinstance(tools, StatelessFixtureTools):
