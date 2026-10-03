@@ -444,3 +444,10 @@ Task4.1c确定性验证：新的实际初始/完整视图交付本地命名说�
 - 归档前OpenSpec报告spec-driven、四规划artifact均done、25/26任务；唯一未勾选4.4就是已获人工批准的同步归档/提交/推送收尾动作，待实际发布及远端核验后更新。四delta已同步且无待应用增量；不重复ADDED、不跳过校验、不改原验收历史。
 - 原分支`archive/independent-tiger-trading-skills`不变，origin为批准远端；发布前本地HEAD与远端分支均`589ab0e6cda614ac58e5194dc50deeb0e990411e`，没有待夹带的其他未发布提交。归档目标为`openspec/changes/archive/2026-10-03-enable-single-stock-research-synthesis`，不存在时才移动，保留.openspec.yaml。归档和Git发布实际结果在后续记录，不提前记成功。
 - Git归档包含规划、脱敏实施记录、主规格及限定实现；原运行包和模型原始转录不提交。因此Git副本不是完整运行目录备份，不能仅凭Git重算原包的所有文件；原始hash和授权本地原件保留，不编造缺失材料。本地交付report.md SHA256仍`29d84a4a6b34fba9c011467d9e27b51f6d51bafb9000a1f4d99c5e83afec9ca1`。
+
+### 实际归档与首笔限定发布完成
+
+- 2026-10-03已实际将本Change移至`openspec/changes/archive/2026-10-03-enable-single-stock-research-synthesis`，九项文件逐字节保真移动，.openspec.yaml保留，原active路径不再存在。归档前Change和四主规格strict再次通过，delta与main完整Requirement块全部相符。
+- 首笔实现/主规格/归档提交为`25e473fb8749889514dcda4b206523ef091196f0`，实际76项路径与审阅清单完全一致。67项实现/主规格cached blobs仍与558项已测候选字节相同；最终cached diff检查与敏感pattern辅助扫描通过。没有夹带其他Change、Tiger、用户配置或私有运行内容，未新建/切换分支、合入main、创建PR或force push。
+- 已实际push到批准origin的原分支`archive/independent-tiger-trading-skills`；随后git ls-remote读取该分支为同一完整commit hash，确认远端发布。提交前后的已跟踪工作区文件字节全部不变，未暂存共享Tiger增量仍保留。仅在这次实际发布及远端核验完成后勾选4.4，当前26/26任务完成；本段及checkbox是后续限定文档提交，不提前编造其自身hash。
+- 本期结论为限定版人工验收与Change归档完成，不是原Reviewer第六稿PASS或候选晋升。完整年度风险/Macro/Market覆盖、上游局部错误、估值未知、运行耗时与Hook未修等限制继续随报告保留；Risk及专项Eval/Replay/Regression/Calibration/Ablation/Promotion仍NOT_RUN。本轮新增模型调用0、累计21专业子/18宿主父不变。
