@@ -1,0 +1,4 @@
+interface:
+  display_name: "个人交易反思"
+  short_description: "结合历史交易、K 线与当时事件，形成有证据和反例的改进练习"
+  default_prompt: "使用 $trading-reflection，基于已保存的全部个人操作进行交易反思。"

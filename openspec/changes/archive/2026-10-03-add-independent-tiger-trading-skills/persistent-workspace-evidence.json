@@ -1,0 +1,70 @@
+{
+  "source_id": "development:persistent-journal-workspace",
+  "as_of": "2026-10-03T08:01:07.092257Z",
+  "retrieved_at": "2026-10-03T08:01:07.092257Z",
+  "status": "DEPLOYED_VISUAL_UNVERIFIED",
+  "skills_version": "1.4.0",
+  "code_hashes": {
+    "product/trading_journal/app.py": "a9d74d50ce487f4d9dc82b950b8a236048e41d0996e60f6acd28fb722fe480a9",
+    "product/trading_journal/app_ui.py": "345f64b0ce6d4192ed47a609f7bc7fd85725e9916f2c3af4370435cc4fe4e191",
+    "product/trading_journal/updates.py": "bd5871b829e02dcd01ee5c3f2cffe3645fabe9e714189ad7d844deaee43b5389",
+    "product/trading_journal/ledger.py": "465332735614ebb9fb45dc4909b3cfd8d9c695e031bee7417c6e888903a1fe99",
+    "product/trading_journal/cli.py": "403948cbf68eac85762ff976eaf2bbdef49e487f36d59e680eb3a8e2d1077bce",
+    "product/trading_journal/packaging.py": "62ecad9e3838336954a3fa6d60e9e7abb5926be3eba98c26fff9b3e550c38e43",
+    "product/skills/tiger-trade-journal/SKILL.md": "f552ab1d1dd7d6b59788d8bd40e8b67e7ed7114b6f789c4b537f69dd05abb479",
+    "product/skills/tiger-trade-journal/references/usage.md": "c4c4215a3b37aabe82ec004c3470edf1a5f07081bd19ccef6d88de3fcfdd253f",
+    "product/skills/trading-reflection/SKILL.md": "ec21610f2fb69be019cf1d2b27e449ddb778118e993bab48f615c11316d35d0e",
+    "tests/test_trading_journal_app.py": "a0b436d12d5d313c5e5e32961c00d3a2122c6b7c2de060f6c17a78fc2768acf0",
+    "tests/test_trading_journal_app_ui.py": "cfefdd4ec778bfa9116c5e992c8b8f7ed599334d1a043237e21f783b50f46a5b",
+    "tests/test_trading_journal_updates.py": "f117db7a0501bc3f34b787b0dc616b18ae3d1de0082ef4b25b80c75586099247",
+    "tests/test_trading_journal_privacy.py": "cf556c5c0a51a6f487c1d226edd202e45389498d6665d021eaaa52a7c5bc06df"
+  },
+  "checks": {
+    "journal_suite": {
+      "status": "PASS",
+      "count": 441,
+      "seconds": 44.737,
+      "session": 73205,
+      "scope": "全部交易账本；之后仅本地marketplace过滤5行变化"
+    },
+    "final_installer_privacy_cli": {
+      "status": "PASS",
+      "count": 76,
+      "seconds": 13.279,
+      "session": 5069
+    },
+    "strict_openspec": "PASS",
+    "diff_check": "PASS"
+  },
+  "browser": {
+    "fixture": "WHOLLY_FICTIONAL",
+    "status": "BLOCKED",
+    "error": "ERR_BLOCKED_BY_CLIENT",
+    "real_private_visual": "UNVERIFIED",
+    "private_browser_requests": 0,
+    "alternate_route_attempted": false,
+    "screenshot": ".codex-local/local-journal-implementation/chrome-blocked.jpg"
+  },
+  "deployment": {
+    "status": "RUNNING",
+    "url": "http://127.0.0.1:8765/",
+    "public_health": "RUNNING",
+    "stop_restart_verified": true,
+    "private_files_before": 263,
+    "private_files_after": 263,
+    "private_files_changed": 0,
+    "source_hash": "0f0dee1709bc77d6af5922fc02b8f0a19be78b21ef4809344731284ee0df9cb8",
+    "installed_copy_hash": "0f0dee1709bc77d6af5922fc02b8f0a19be78b21ef4809344731284ee0df9cb8",
+    "baseline_files_equivalent": 205,
+    "installed_registration": "VERIFIED",
+    "actual_ledger_and_report_binding": "PASS",
+    "new_real_market_calls": 0,
+    "new_real_broker_calls": 0,
+    "new_real_llm_calls": 0
+  },
+  "limitations": [
+    "12.7浏览器交互尚未验收；保留未勾。",
+    "既有6.1真实可视及6.3人工完成批准未勾。",
+    "未归档、提交、推送或晋升。"
+  ]
+}

@@ -47,7 +47,7 @@ def self_hashed(value: dict, field: str) -> dict:
 
 def baseline_repository(root: Path, candidate: dict) -> tuple[Path, dict]:
     repository = root / "baseline-repository"
-    shutil.copytree(ROOT / "product", repository / "product")
+    shutil.copytree(ROOT / "product", repository / "product", ignore=shutil.ignore_patterns(".private", "__pycache__"))
     shutil.copytree(ROOT / "evals" / "grading", repository / "evals" / "grading")
     shutil.copytree(ROOT / "evals" / "ablation", repository / "evals" / "ablation")
     shutil.copytree(ROOT / "evals" / "fixtures", repository / "evals" / "fixtures")

@@ -20,6 +20,9 @@ venv/
 .env
 .env.*
 !.env.example
+# 独立个人交易 Skill 的私人记录与本地洁净插件副本。
+/product/.private/
+/.codex-local/
 
 # Editor-local state
 .idea/

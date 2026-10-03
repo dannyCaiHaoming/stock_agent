@@ -130,13 +130,13 @@ class DemoInputAndTopologyTests(unittest.TestCase):
     def test_missing_or_drifted_package_binding_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
-            shutil.copytree(ROOT / "product", repo / "product")
+            shutil.copytree(ROOT / "product", repo / "product", ignore=shutil.ignore_patterns(".private", "__pycache__"))
             (repo / "product/skills/company-research/SKILL.md").unlink()
             with self.assertRaisesRegex(DemoValidationError, "PACKAGE_BINDING_MISSING"):
                 build_agent_package_topology(repo)
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
-            shutil.copytree(ROOT / "product", repo / "product")
+            shutil.copytree(ROOT / "product", repo / "product", ignore=shutil.ignore_patterns(".private", "__pycache__"))
             path = repo / "product/runtime-profile.json"
             value = read_json(path)
             value["agents"]["runtime_skeptic"]["skills"] = ["counter-thesis"]

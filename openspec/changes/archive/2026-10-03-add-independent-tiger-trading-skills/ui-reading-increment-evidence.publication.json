@@ -1,0 +1,237 @@
+{
+  "source_id": "ui-reading-increment:2026-10-03",
+  "as_of": "2026-10-03T02:16:27.431471+00:00",
+  "retrieved_at": "2026-10-03T02:16:27.431471+00:00",
+  "scope": "Tasks 10.1-10.7 only",
+  "authorization": "用户按方案实施",
+  "focused_checks": {
+    "source_id": "ui-increment-focused-tests",
+    "as_of": "2026-10-03T02:13:35.958977+00:00",
+    "retrieved_at": "2026-10-03T02:13:35.958977+00:00",
+    "status": "PASS",
+    "tests": 204,
+    "seconds": 27.378,
+    "command": "python3 -m unittest tests.test_trading_journal_charts tests.test_trading_journal_viewport tests.test_trading_journal_review tests.test_trading_journal_viewer tests.test_trading_journal_reflection tests.test_trading_journal_presentation tests.test_trading_journal_custom_dates tests.test_trading_journal_cli tests.test_trading_journal_privacy tests.test_trading_journal_lessons",
+    "source_hashes": {
+      "charts.py": "368d931cad0e141049d2ec6f7d17935e5bb42063ed1f1364724669c16912ff06",
+      "cli.py": "2fe17a588855bc6d908e79f4cbcd14049c18be31d328594a6cafe1ba79dfe39c",
+      "windows.py": "688309e91aee651de9a69ff5c3bf1a67247d9c5d637edf927e7de81a2cd70ca0",
+      "review.py": "3b5bca86bf59a07022c6d81d97a5331e2c1468b8708aaffffe21b86b8fd8a05f",
+      "viewer.py": "87711e3ebb739b0df88e05edd67cd32d224d7eb314b30f9907f35c37d7eadaa6",
+      "reflection.py": "ca96d1fac05415d825d2e2a9865f6acd5c70da66f121c78a3b20f7427d3f7478",
+      "presentation.py": "6b46a324ec14b36fd2c75881353ddf7a28161283f9b897b4a5213600968b7a68"
+    },
+    "initial_failures_repaired": [
+      "CLI_LOCAL_HASHLIB_IMPORT_SHADOW",
+      "TEST_USED_WRITE_FREEZE_ON_READONLY_LEDGER"
+    ],
+    "model_calls": 0,
+    "broker_calls": 0,
+    "actual_private_browser": false
+  },
+  "final_reader_mapping_check": {
+    "tests": 7,
+    "seconds": 0.098,
+    "status": "PASS",
+    "source_hash": "6b46a324ec14b36fd2c75881353ddf7a28161283f9b897b4a5213600968b7a68"
+  },
+  "independent_reviews": [
+    {
+      "reviewer": "ui_review_impl",
+      "scope": "charts/presentation/reflection/cli/skills",
+      "status": "PASS",
+      "resolved_findings": [
+        "introduced-public-URL-protection"
+      ]
+    },
+    {
+      "reviewer": "ui_readable_markdown",
+      "scope": "review/viewer/projection/persistence",
+      "status": "PASS",
+      "resolved_findings": [
+        "real-ledger-coverage-shape",
+        "requested-source-record-ranges-separate",
+        "coverage-gaps-retained"
+      ]
+    },
+    {
+      "reviewer": "ui_chart_impl",
+      "scope": "Skill/CLI date boundaries",
+      "status": "PASS",
+      "resolved_findings": [
+        "manual-import-filter-before-persist",
+        "chart-bind-imported-snapshot-window"
+      ]
+    }
+  ],
+  "fictional_browser": {
+    "source_id": "fictional-chrome-ui-increment",
+    "as_of": "2026-10-03T02:14:34.012705+00:00",
+    "retrieved_at": "2026-10-03T02:14:34.012705+00:00",
+    "fictional_only": true,
+    "fixture_records": 7,
+    "fixture_cases": 7,
+    "fixture_bars": 1698,
+    "fixture_hash": "fcc3853ae599bd7e5836aecd935e39dc8a59fc407716f95211d06d7119d7f90c",
+    "screenshot": "LOCAL_ONLY_LOCATOR_REDACTED",
+    "screenshot_hash": "60eb6ed5a2f2225f9d4933999775a935b147256d52ba5c5a9be6aeab4be2e7be",
+    "browser": "Chrome",
+    "checks": [
+      "continuous_cross_year_dates",
+      "year_shortcut_fills_and_restores_dates",
+      "invalid_reverse_dates_rejected",
+      "case_switch_restores_valid_dates",
+      "real_native_wheel_zoom",
+      "real_native_horizontal_drag",
+      "marker_click_after_zoom_drag_correct_date_and_contracts",
+      "same_day_three_events_all_selectable",
+      "event_pit_precision_public_link_retained",
+      "all_nested_details_expanded_without_visible_internal_metadata",
+      "public_urls_and_financial_numbers_retained",
+      "case_expansion_state_and_three_records_preserved_on_zoom",
+      "480_pixel_viewport_no_page_overflow",
+      "console_no_errors",
+      "report_basis_separate_from_viewport",
+      "account_start_gap_readable"
+    ],
+    "real_private_content_loaded": false,
+    "real_page_visual_status": "UNVERIFIED",
+    "temporary_tab_closed": true,
+    "temporary_server_stopped": true
+  },
+  "installed_actual_projection": {
+    "source_id": "ui-increment-installed-projection-audit",
+    "as_of": "2026-10-03T02:15:19.091163+00:00",
+    "retrieved_at": "2026-10-03T02:15:19.091163+00:00",
+    "status": "PASS",
+    "report_id": "reflection-181a308a65034199a71e1a81ec06bb8f",
+    "installed_source_hash": "8c460b37e8eee8d8407e6dc99b809a1b23923b5331c2ecf60b580558136efd1d",
+    "record_count": 970,
+    "case_count": 138,
+    "lesson_count": 138,
+    "practice_count": 5,
+    "event_count": 244,
+    "analyzed_units": 785,
+    "pending_units": 0,
+    "all_case_projection_record_union": 970,
+    "protected_original_files_unchanged": 260,
+    "real_browser_visual": "UNVERIFIED",
+    "real_service_started": false,
+    "broker_calls": 0,
+    "market_calls": 0,
+    "model_calls": 0
+  },
+  "installation": {
+    "status": "VERIFIED",
+    "source_id": "plugin-isolation:8c460b37e8eee8d8407e6dc99b809a1b23923b5331c2ecf60b580558136efd1d",
+    "as_of": "2026-10-03T02:14:39.730654Z",
+    "retrieved_at": "2026-10-03T02:14:39.730654Z",
+    "repository_root": "LOCAL_ONLY_LOCATOR_REDACTED",
+    "installed_baseline": "LOCAL_ONLY_LOCATOR_REDACTED",
+    "original_installed_baseline": "LOCAL_ONLY_LOCATOR_REDACTED",
+    "baseline_hash": "5dc9de1c82688e0fc9aed24e579f91a6580eed1d80e0e18d752de1d67d423960",
+    "source_hash": "8c460b37e8eee8d8407e6dc99b809a1b23923b5331c2ecf60b580558136efd1d",
+    "overlays": {
+      "skills/tiger-trade-journal": "73051c44b8fd91115c76692d7b72f89c1d273100e48511d931a0ff67429d2c5e",
+      "skills/trading-reflection": "ba64d372bc473a598fdcd78f4ea3b5a3442ac8a147c51538f19920080b26b7fd",
+      "trading_journal": "f6db75c5162ec4188bcb91139d637ff3c289c61a5905bd1002f6942c0abbffd5"
+    },
+    "unchanged_baseline_file_count": 205,
+    "copy_guard_hash": "bb0730dfe30896d5b30afdac9113bdaa1e6453453bec6d236d55ab05b3353c6b",
+    "original_source": {
+      "source": "local",
+      "path": "./.codex-local/product-plugin"
+    },
+    "marketplace_hash": "7528780578b041a66e61f21c97397c143ba207ae3683cf655a88ac43c2598ae4",
+    "installed_copy": "LOCAL_ONLY_LOCATOR_REDACTED",
+    "installed_hash": "8c460b37e8eee8d8407e6dc99b809a1b23923b5331c2ecf60b580558136efd1d",
+    "registration": {
+      "plugin_id": "product@stock-agent-local",
+      "version": "0.3.0+trading-journal.93b63fd7e52d",
+      "source_path": "LOCAL_ONLY_LOCATOR_REDACTED",
+      "cache_path": "LOCAL_ONLY_LOCATOR_REDACTED"
+    },
+    "synthetic_sentinel_sha256": "f8c839b83bc331dd7364fb2588bf1a27a4f8bad33b12803e213be0e41aac5114",
+    "proof_hash": "2e7c48eea9b0c7fd3866ad2ff47f5a7e433882adfc87be6d1ae289cf923fce09"
+  },
+  "delivery": {
+    "first": {
+      "report_id": "reflection-181a308a65034199a71e1a81ec06bb8f",
+      "review_path": "LOCAL_ONLY_LOCATOR_REDACTED",
+      "content_hash": "3196a46e1482929109e212770f28c61bd84acceb56930e4f45520fa91111fbbc",
+      "reused": false,
+      "markdown_path": "LOCAL_ONLY_LOCATOR_REDACTED",
+      "markdown_content_hash": "abf2dcee0fca4ed80508a244e90e92d40971c9c287424b4cadd9e5f937c259b1",
+      "markdown_reused": false
+    },
+    "second": {
+      "report_id": "reflection-181a308a65034199a71e1a81ec06bb8f",
+      "review_path": "LOCAL_ONLY_LOCATOR_REDACTED",
+      "content_hash": "3196a46e1482929109e212770f28c61bd84acceb56930e4f45520fa91111fbbc",
+      "reused": true,
+      "markdown_path": "LOCAL_ONLY_LOCATOR_REDACTED",
+      "markdown_content_hash": "abf2dcee0fca4ed80508a244e90e92d40971c9c287424b4cadd9e5f937c259b1",
+      "markdown_reused": true
+    },
+    "stable_immutable_reuse": true,
+    "installed_entry": "LOCAL_ONLY_LOCATOR_REDACTED",
+    "source_hash": "8c460b37e8eee8d8407e6dc99b809a1b23923b5331c2ecf60b580558136efd1d"
+  },
+  "capability_gaps": {
+    "coverage_status": "PARTIAL",
+    "scope_mode": "SNAPSHOT_WINDOW",
+    "diary_entries": 0,
+    "calculation_status_counts": {
+      "UNAVAILABLE": 785,
+      "null": 2
+    },
+    "financial_claim_count": 0,
+    "evidence_count": 84,
+    "publication_precision_counts": {
+      "DATE": 31,
+      "UNKNOWN": 42,
+      "MINUTE": 11
+    },
+    "practice_status_counts": {
+      "PROPOSED": 5
+    }
+  },
+  "isolation": {
+    "original_private_files_unchanged": 260,
+    "unrelated_baseline_files_unchanged": 205,
+    "other_manifest_entries_equal": true,
+    "retained_baseline_recoverable": true,
+    "private_directory_in_installed_copy": false,
+    "sentinel_in_installed_copy": false,
+    "tracked_private_files": 0
+  },
+  "limitations": [
+    "真实私人页面浏览器视觉UNVERIFIED，沿用先前协议拒绝；未换通道访问真实数据。",
+    "本节未重新采集行情、账户记录或运行LLM，旧报告仍为当时判断。",
+    "6.1与6.3未完成；未归档、提交、推送或晋升。"
+  ],
+  "_publication": {
+    "source_id": "archive-publication:trading-skills:20261003",
+    "as_of": "2026-10-03",
+    "retrieved_at": "2026-10-03",
+    "kind": "REDACTED_DERIVATIVE_NOT_ORIGINAL_EVIDENCE",
+    "original_local_file": "ui-reading-increment-evidence.json",
+    "original_sha256": "67127f0431c549cf5c13f6d64bd31e85fef1b552234387b5e5eecc2057559230",
+    "redacted_locator_fields": [
+      ".fictional_browser.screenshot",
+      ".installation.repository_root",
+      ".installation.installed_baseline",
+      ".installation.original_installed_baseline",
+      ".installation.installed_copy",
+      ".installation.registration.source_path",
+      ".installation.registration.cache_path",
+      ".delivery.first.review_path",
+      ".delivery.first.markdown_path",
+      ".delivery.second.review_path",
+      ".delivery.second.markdown_path",
+      ".delivery.installed_entry"
+    ],
+    "original_in_git": false,
+    "limitation": "原件仅留本地；本副本不能重算原件或完整私人产物目录的hash，也不构成新运行/安装/模型证明。其余历史字段未改写。"
+  }
+}

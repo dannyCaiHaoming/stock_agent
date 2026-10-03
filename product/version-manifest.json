@@ -28,7 +28,9 @@
     "options-market-structure": "1.0.0",
     "ownership-disclosure": "1.0.0",
     "research-report-analysis": "1.4.2",
-    "technical-structure": "1.1.1"
+    "technical-structure": "1.1.1",
+    "tiger-trade-journal": "1.4.0",
+    "trading-reflection": "1.4.0"
   },
   "agents": {
     "runtime-cio": "3.1.2",

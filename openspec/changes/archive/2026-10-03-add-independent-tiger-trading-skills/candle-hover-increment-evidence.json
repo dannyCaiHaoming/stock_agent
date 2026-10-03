@@ -1,0 +1,119 @@
+{
+  "source_id": "development-evidence:candle-hover-increment:20261003",
+  "as_of": "2026-10-03T04:32:36.861248+00:00",
+  "retrieved_at": "2026-10-03T04:32:36.861248+00:00",
+  "implementation_status": "COMPLETE_FOR_SECTION_11",
+  "tests": {
+    "trading_journal": {
+      "count": 379,
+      "status": "PASS",
+      "seconds": 39.094
+    },
+    "charts_viewport_hover": {
+      "count": 57,
+      "status": "PASS",
+      "seconds": 8.134,
+      "included_in_379": true
+    },
+    "review_presentation_viewer_reflection_lessons_dates": {
+      "count": 102,
+      "status": "PASS",
+      "seconds": 5.157,
+      "included_in_379": true
+    },
+    "skill_validator": "PASS_BOTH_1.3.0",
+    "scoped_diff_check": "PASS",
+    "openspec_strict": "PASS"
+  },
+  "independent_review": {
+    "path": "candle-hover-increment-independent-review.md",
+    "sha256": "b0d06856535c5e21eba65c0551a1641a33d8919d1831a5faaa95dca6bed69324",
+    "status": "PASS_FOR_IMPLEMENTATION_AND_FICTIONAL_EVIDENCE"
+  },
+  "installed": {
+    "status": "VERIFIED",
+    "source_hash": "793ba6ec405c9f9b0b5f012259ed1575a7ea46299c990b45542b01aeb1fa8fca",
+    "installed_hash": "793ba6ec405c9f9b0b5f012259ed1575a7ea46299c990b45542b01aeb1fa8fca",
+    "baseline_hash": "5dc9de1c82688e0fc9aed24e579f91a6580eed1d80e0e18d752de1d67d423960",
+    "unchanged_baseline_file_count": 205,
+    "overlays": {
+      "skills/tiger-trade-journal": "91198d2473e1c3dab9d4964467cf5b1b6b1145c87bbb9418d6ba434c13ab009c",
+      "skills/trading-reflection": "963eb6d32e9d2132eea34bfe86b2d7a4a22006265eba6c2be99381a5b7ab6775",
+      "trading_journal": "d26fb141c9fa7334743282209c11311735532e95e08d592e1e201b5eb3c08d98"
+    },
+    "registered_install_verified": true,
+    "skills": {
+      "tiger-trade-journal": "1.3.0",
+      "trading-reflection": "1.3.0"
+    }
+  },
+  "original_private_report": {
+    "record_count": 970,
+    "case_count": 138,
+    "practice_count": 5,
+    "initial_summary_points": 12,
+    "all_original_summary_points": 138,
+    "event_count": 244,
+    "analyzed_units": 785,
+    "pending_units": 0,
+    "case_record_union": 970,
+    "protected_original_files_unchanged": 262,
+    "original_text_and_reference_equal": true
+  },
+  "immutable_delivery": {
+    "new_private_html_files": 1,
+    "repeat_reuses_same_html": true,
+    "old_markdown_reused": true,
+    "new_file_mode": "0600",
+    "all_old_files_byte_mtime_mode_unchanged": true,
+    "private_and_local_proofs_git_ignored": true,
+    "tracked_private_files": 0
+  },
+  "fictional_chrome": {
+    "status": "PASS",
+    "fixture_records": 8,
+    "fixture_cases": 15,
+    "fixture_plans": 5,
+    "fixture_candles": 1698,
+    "pointer_hover_click_pin": true,
+    "summary_async_pagination_and_scope": true,
+    "responsive": {
+      "viewport_width": 480,
+      "chart_width": 402,
+      "letter_font": 14,
+      "letter_rect_width": 9.09375,
+      "letter_rect_height": 16.5,
+      "axis_font": 11,
+      "horizontal_overflow": false,
+      "pinned_day_operations": 4
+    },
+    "same_day_event_members": 3,
+    "wheel_drag_pin_retained": true,
+    "screenshots": [
+      {
+        "name": "chrome-candle-proof.png",
+        "sha256": "8ad4787a08cd687b1d5dd6d09e077a1f60c84926d2fa402bee0adf63263b67aa"
+      },
+      {
+        "name": "chrome-summary-proof.png",
+        "sha256": "adad4f5ad28b33175c6e304f8b83f0ff653979579bd3d2781b1b95c5f04059a5"
+      }
+    ],
+    "product_console_errors": [],
+    "separate_extension_keydown_error": true,
+    "temporary_tabs_and_servers_closed": true,
+    "viewport_reset": true
+  },
+  "real_browser_visual": "UNVERIFIED",
+  "real_service_started": false,
+  "broker_calls": 0,
+  "market_calls": 0,
+  "model_calls": 0,
+  "archive": "NOT_RUN",
+  "commit": "NOT_RUN",
+  "push": "NOT_RUN",
+  "remaining_whole_change_tasks": [
+    "6.1",
+    "6.3"
+  ]
+}

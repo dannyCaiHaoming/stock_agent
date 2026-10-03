@@ -129,7 +129,7 @@ class CanonicalDecisionContractTests(unittest.TestCase):
     def test_schema_or_contract_tampering_fails_discovery(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
-            shutil.copytree(PRODUCT_ROOT, repo / "product")
+            shutil.copytree(PRODUCT_ROOT, repo / "product", ignore=shutil.ignore_patterns(".private", "__pycache__"))
             schema_path = (
                 repo / "product" / "schemas" / "runtime" / "cio-decision-draft.schema.json"
             )
@@ -143,7 +143,7 @@ class CanonicalDecisionContractTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
-            shutil.copytree(PRODUCT_ROOT, repo / "product")
+            shutil.copytree(PRODUCT_ROOT, repo / "product", ignore=shutil.ignore_patterns(".private", "__pycache__"))
             contract_path = repo / "product" / "contracts" / "council-decision-contract.json"
             contract = json.loads(contract_path.read_text(encoding="utf-8"))
             contract["prompt_examples"][0]["example_id"] = "tampered-example"
@@ -155,7 +155,7 @@ class CanonicalDecisionContractTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
-            shutil.copytree(PRODUCT_ROOT, repo / "product")
+            shutil.copytree(PRODUCT_ROOT, repo / "product", ignore=shutil.ignore_patterns(".private", "__pycache__"))
             (repo / "product" / "contracts" / "council-decision-contract.json").unlink()
             with self.assertRaises(FileNotFoundError):
                 discover_product_resources(repo)

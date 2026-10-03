@@ -8,7 +8,7 @@
       "name": "product",
       "source": {
         "source": "local",
-        "path": "./product"
+        "path": "./.codex-local/product-plugin"
       },
       "policy": {
         "installation": "AVAILABLE",

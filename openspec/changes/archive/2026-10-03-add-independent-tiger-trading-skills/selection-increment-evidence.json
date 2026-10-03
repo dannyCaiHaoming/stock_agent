@@ -1,0 +1,124 @@
+{
+  "source_id": "development:selection-chart-reflection-increment-20261003",
+  "as_of": "2026-10-02T17:56:46.382962Z",
+  "retrieved_at": "2026-10-02T17:56:46.382970Z",
+  "scope": "已授权的独立交易 Skill 选择式展示与三层讲解增量",
+  "approval": "用户确认允许更新既有规划并实施；无归档/提交/推送批准",
+  "checks": [
+    {
+      "command": "python3 -m unittest tests.test_trading_journal_reflection tests.test_trading_journal_viewer tests.test_trading_journal_cli",
+      "tests": 68,
+      "status": "PASS"
+    },
+    {
+      "command": "python3 -m unittest tests.test_trading_journal_charts tests.test_trading_journal_review -v",
+      "tests": 48,
+      "status": "PASS"
+    },
+    {
+      "command": "python3 -m unittest tests.test_trading_journal_lessons",
+      "tests": 8,
+      "status": "PASS"
+    },
+    {
+      "command": "python3 -m unittest tests.test_trading_journal_privacy",
+      "tests": 41,
+      "status": "PASS_REUSED_UNCHANGED_CODE"
+    },
+    {
+      "command": "quick_validate.py 两个限定 Skill",
+      "status": "PASS",
+      "dependency": "临时隔离 PyYAML，不改系统环境"
+    },
+    {
+      "command": "openspec validate add-independent-tiger-trading-skills --strict",
+      "status": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "status": "PASS"
+    },
+    {
+      "command": "限定两个 Skill manifest/frontmatter/实际安装版本镜像",
+      "status": "PASS_1.1.0"
+    },
+    {
+      "command": "全项目 check-product-version-mirrors.py",
+      "status": "NOT_COMPLETED",
+      "reason": "当前 Python 缺 jsonschema；未将全项目版本检查冒称 PASS"
+    }
+  ],
+  "browser": {
+    "method": "Chrome / computer-use / 新有界查看器 / 完全虚构数据",
+    "fictional_records": 227,
+    "fictional_cases": 7,
+    "verified": [
+      "初始目录无交易/案例正文",
+      "标的与案例选择",
+      "同日220条分200/20两页且保留110买/110卖标记",
+      "三层讲解展开",
+      "事件锚与逐笔事后层",
+      "跨标的反例独立轴",
+      "完整期权合约与独立时间注释",
+      "只含选中年份与近邻背景",
+      "窄屏正文无横向溢出",
+      "默认来源字段折叠"
+    ],
+    "console_warnings_errors": 0,
+    "screenshot": "仅虚构数据，保存在被忽略的 .codex-local/；不发布真实截图",
+    "cleanup": "两个临时监听已停止；临时Chrome页已关闭；viewport已恢复",
+    "real_visual": "UNVERIFIED_TOOL_ROUTE_REJECTED",
+    "restriction": "既有 file:// 请求被工具拒绝且明确禁止改协议/通道绕过；用户授权、HTTP测试、脱敏与新查看器均不解除真实资料准入限制"
+  },
+  "review": {
+    "code": "独立只读增量复核无剩余实现阻断；DATE精度/PIT和截止边界问题已修正",
+    "content": "跨作者复核94+41案，9处LLM撰写的字段修正另存；不改原始发现、计算或草稿",
+    "limits": "研究内容复核不等于 Runtime Eval/Promotion"
+  },
+  "installation": {
+    "plugin_version": "0.3.0+trading-journal.cef56bea7b08",
+    "skill_versions": "1.1.0",
+    "source_cache_hash": "d6f7adc7503d47a71562934f78a2a4893ff214d6b96c72f6c8056e3f85a30e5e",
+    "baseline_hash": "9cbac6271685f7e66e3aee276da76e6a1810dbd8db3c5024c995116271fae1fd",
+    "unchanged_other_baseline_files": 205,
+    "actual_registration": "VERIFIED",
+    "real_write_guard": "PASS",
+    "private_in_plugin_source_cache": false
+  },
+  "private_delivery": {
+    "schema": "1.1.0",
+    "records": 967,
+    "asset_counts": {
+      "STOCK": 515,
+      "ETF": 363,
+      "OPTION": 89
+    },
+    "securities": 72,
+    "chart_groups": 40,
+    "candles": 8038,
+    "analysis_units": 784,
+    "cases": 135,
+    "event_links": 229,
+    "progress": "COMPLETE_ALL_SAVED_UNITS",
+    "coverage": "PARTIAL_ACCOUNT_START_UNKNOWN",
+    "model_deployment": "UNVERIFIED_CURRENT_SESSION_LLM_AND_SUBAGENTS",
+    "additional_external_model_api_calls": 0,
+    "report_id": "reflection-75f352c02a464431a266230316086f82",
+    "report_hash": "83b2032b42ee89434d205a48df70c5b50448ec68d10d798e325dd300fcad23e1",
+    "input_hash": "742e7b94578f93e8d7621c3a2b677532eb04d76efd70a890a2bfaa46e34e85e7",
+    "page_hash": "6543e804269c19e177bdb0ae8e5200c8dc28b4b4b2315cd953a14afa98a12c8b",
+    "private_permissions": "0700/0600",
+    "source_binding": "已保存报告/输入/账本快照一致",
+    "old_report_packet_drafts": "UNCHANGED",
+    "source_page_verification": "投影完整性与绑定通过；不冒称真实浏览器验收",
+    "financial_limits": "费用/期初/生命周期与价格口径等缺口保留，不计算不具备条件的盈亏/胜率/能力评分",
+    "chart_context_limit": "同年窗口前90日内最多60根；年初可能没有去年背景"
+  },
+  "not_run": [
+    "真实页面浏览器检查",
+    "Runtime Smoke/Eval/Replay/Regression/Promotion",
+    "归档",
+    "Git提交",
+    "Git推送"
+  ]
+}
