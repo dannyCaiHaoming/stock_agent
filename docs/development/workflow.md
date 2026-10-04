@@ -37,7 +37,7 @@ apply 获批后，范围内实施、普通错误修复和聚焦检查持续推�
 
 - 日常开发：纵向切片使用任务声明的受影响聚焦验证，保留输入、实际命令、输出和完整 hash；验证不完整不勾选。不把 Change 收尾、完整产品运行或发布级证明作为每步前置。
 - Change 验收：开始时写明对应规格、实际差异、受影响依赖、旧证据标识/适用理由和缺口，只补受影响且无有效证据的项目。修改产品启动或加载行为须有受影响的真实 Smoke；仅开发文档和 Reviewer 规则改变只检查相应文档/配置。
-- Change 实现完成：满足当前 Change 明确的规格、任务、独立评审及人工批准。apply 授权、阶段汇报或 Reviewer PASS 不等于人工完成批准；历史基线不足不等于当前实现失败。小 Change 通过不能替代尚未完成的股票验收。
+- Change 实现完成：满足当前 Change 明确的规格、任务、按需独立评审及人工批准。apply 授权、阶段汇报或 Reviewer PASS 不等于人工完成批准；历史基线不足不等于当前实现失败。小 Change 通过不能替代尚未完成的股票验收。
 - 候选晋升：独立满足版本锁、OpenSpec 校验、完整确定性测试、Eval/Regression、架构评审及人工批准。Evidence/PIT/Risk/Schema/Trace 硬门禁不能由平均分覆盖。
 - `CHANGE_REVIEW: PASS` 可与 `CANDIDATE_PROMOTION: NOT_PROMOTABLE` 并存，不得因此修改生产版本指针。历史 Replay/Ablation 不能包装为新候选晋升证据。
 - 未修改相关能力时，不默认重复 Calibration、Ablation、Promotion；如当前规格明确要求更广验收，先透明提出调整供批准，而非自行忽略。

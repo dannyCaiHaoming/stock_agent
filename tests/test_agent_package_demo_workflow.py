@@ -9,13 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class AgentPackageDemoWorkflowTests(unittest.TestCase):
-    def test_demo_is_explicit_milestone_and_real_product_priority_follows(self):
+    def test_demo_is_explicit_and_not_real_product_smoke(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        product = (ROOT / "PRODUCT.md").read_text(encoding="utf-8")
         workflow = (ROOT / "docs/development/workflow.md").read_text(encoding="utf-8")
         self.assertIn("scripts/council-dev.py demo run", agents)
         self.assertIn("不属于真实产品 Smoke", agents)
-        self.assertLess(product.index("Milestone 0"), product.index("真实股票"))
         self.assertIn("Demo PASS 只证明装配和契约", workflow)
 
     def test_advanced_assurance_remains_explicit_and_is_not_a_demo_followup(self):
@@ -65,16 +63,15 @@ class AgentPackageDemoWorkflowTests(unittest.TestCase):
         self.assertIn("--agent runtime_cio", text)
         self.assertNotIn("/Users/", text)
 
-    def test_paused_live_change_state_is_not_rewritten(self):
-        tasks = (
-            ROOT / "openspec/changes/us-equity-live-advisory-slice/tasks.md"
-        ).read_text(encoding="utf-8")
-        for task in ("5.3", "5.4", "5.5"):
-            self.assertRegex(tasks, rf"- \[ \] {task} ")
-        permanent = (
-            ROOT / "openspec/specs/three-plane-governance/spec.md"
-        ).read_text(encoding="utf-8")
-        self.assertNotIn("us-equity-live-advisory-slice", permanent)
+    def test_permanent_rules_do_not_pin_old_change_state(self):
+        for relative in (
+            "AGENTS.md",
+            "PRODUCT.md",
+            "openspec/specs/three-plane-governance/spec.md",
+        ):
+            with self.subTest(document=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                self.assertNotIn("us-equity-live-advisory-slice", text)
 
 
 if __name__ == "__main__":

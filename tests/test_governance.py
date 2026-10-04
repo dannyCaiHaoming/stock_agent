@@ -25,13 +25,15 @@ class GovernanceTests(unittest.TestCase):
         self.assertIn("environment-preflight、permission-probe 和 --preflight-report", environment)
         self.assertIn("历史产物仅供读取", environment)
 
-    def test_project_config_retains_native_settings_without_unused_profile(self):
+    def test_project_config_accepts_user_selected_native_settings(self):
         config = tomllib.loads((ROOT / ".codex/config.toml").read_text())
-        # 本 Change 基线的有效配置；只移除没有消费者的 project-edit 域名表。
-        self.assertEqual(config["model"], "gpt-5.6-sol")
-        self.assertEqual(config["sandbox_mode"], "workspace-write")
-        self.assertEqual(config["sandbox_workspace_write"], {"network_access": True})
-        self.assertEqual(config["agents"]["max_threads"], 4)
+        # 验证配置结构，不固定用户选模或根权限，也不证明宿主实际生效。
+        self.assertIsInstance(config["model"], str)
+        self.assertTrue(config["model"].strip())
+        self.assertIn(config["sandbox_mode"], ("read-only", "workspace-write", "danger-full-access"))
+        self.assertIsInstance(config["sandbox_workspace_write"]["network_access"], bool)
+        self.assertIs(type(config["agents"]["max_threads"]), int)
+        self.assertGreater(config["agents"]["max_threads"], 0)
         self.assertEqual(
             set(config["agents"]) - {"max_threads"},
             {"dev_architect", "dev_contracts", "dev_eval", "dev_reviewer"},

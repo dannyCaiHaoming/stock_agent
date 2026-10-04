@@ -10,7 +10,8 @@
 - 开发自检在当前 Codex 环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。
 - 使用显式 `python3 scripts/council-dev.py demo run ...` 运行零 LLM 合成装配演示；它不属于真实产品 Smoke，不证明 Skill 推理、Codex Subagent、主线程 CIO 或候选晋升。
 - 真实 Smoke 与 Execution Replay 仅从宿主 Terminal 使用 [宿主 launcher](scripts/run-product-smoke.sh)；重放使用 `--prepared-run`，准备及收尾见运行手册。底层 `python3 -m product.runtime.cli` 仅为内部实现及确定性工具入口，不另造编排后端、不绕过宿主入口直接启动模型。
-- 独立复核默认读取差异、规格与已有证据；缺证据只提出具体宿主补跑需求，不自行启动产品或额外沙箱。旧 review/probe/preflight 启动入口已退役。
+- 独立 Reviewer 按需使用；其他已批准 Change 的明确复核要求保留。独立复核默认读取差异、规格与已有证据；缺证据只提出具体宿主补跑需求，不自行启动产品或额外沙箱。旧 review/probe/preflight 启动入口已退役。
+- 外部引入的 OpenSpec 及其他 Skill 保持只读，不修改；项目规则维护在自有内容中。
 - 实施、验收或归档时读取 [开发流程](docs/development/workflow.md)；配置、路径、权限或启动排障时读取 [开发环境](docs/development/environment.md)；实际运行/重放/Eval 时读取 [运行手册](reviews/runtime/runtime-replay-eval-runbook.md) 的对应章节。无关专项文档不必全部加载。
 
 - 当前任务与优先级以用户在会话中的明确指示为准，范围、进度与停止条件由对应 OpenSpec Change 记录；多个活跃 Change 不代表执行顺序，未明确时结合会话确认，不按名称、时间或任务数量自行排序。
@@ -33,7 +34,7 @@
 - 所有承载事实的契约都必须包含 `source_id`、`as_of` 和 `retrieved_at`。
 - 研究能力说明输入、工具、推理方法和结构化输出；确定性能力说明输入、处理和结构化输出。验证与实际行为对应，不为确定性能力强制新增 Agent、Skill 或 LLM Eval。
 - 候选版本必须锁定模型、Skill、Agent、Schema、MCP Adapter、Risk Policy 和数据版本。
-- 日常开发按纵向切片做聚焦验证，验证后才勾选；Change 按既定 Specs/Tasks、独立复核和人工批准收尾；晋升另需版本锁、OpenSpec、完整确定性测试、Eval/Regression 和架构评审及人工批准。复用有效证据，不把发布级检查作为每步前置；Change 完成不代表 Promotion PASS。
+- 日常开发按纵向切片做聚焦验证，验证后才勾选；Change 按既定 Specs/Tasks、按需独立复核和人工批准收尾；晋升另需版本锁、OpenSpec、完整确定性测试、Eval/Regression 和架构评审及人工批准。复用有效证据，不把发布级检查作为每步前置；Change 完成不代表 Promotion PASS。
 - Runtime Eval、Execution Replay、Regression、Calibration、Ablation 与 Promotion 只能由对应的显式维护或晋升任务触发；普通开发、自检、Demo、差异复核和归档准备不得隐式启动，也不得把“未运行”伪造成 PASS。
 - 测试/复核必须保护源码并允许指定产物和临时目录写入；实际权限不足即报告最小授权需求，不自动提权或关闭沙箱。配置存在和事后 hash 均不能代替权限或实际加载证明。
 - 禁止提交凭据、私人会话数据库及无关用户消息；发现疑似敏感信息、未审阅变更或校验失败时停止相关发布并报告。
