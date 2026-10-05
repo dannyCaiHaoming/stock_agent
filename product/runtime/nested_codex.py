@@ -408,6 +408,8 @@ def build_nested_codex_command(
     fixture_python_root: Path | None = None
     if fixture_mcp_run_dir is not None:
         fixture_mcp_run_dir = Path(fixture_mcp_run_dir).resolve()
+        if fixture_mcp_run_dir != Path(run_dir).resolve():
+            raise ValueError("FIXTURE_MCP_RUN_BINDING_MISMATCH")
         # A host launcher may itself run from an external, run-scoped virtual
         # environment.  The hook process is started by the parent runtime, but
         # Subagent MCP startup is subject to the child sandbox and otherwise
@@ -438,6 +440,7 @@ def build_nested_codex_command(
                 enabled_tools = ["query", "read_reports"]
         mcp_override = (
             "mcp_servers.fixture_runtime={"
+            "enabled=true,"
             "command=\"/bin/sh\","
             f"args=[{json.dumps(str(fixture_entrypoint))},\"--stateless\",\"--default-run-dir\","
             f"{json.dumps(str(fixture_mcp_run_dir))}],"
@@ -531,6 +534,32 @@ def _persist_cio_final_response(run_dir: Path, final_text: str,
         output.write(final_text)
 
 
+def build_verified_nested_codex_command(*, runtime_binding_path: Path, **kwargs: Any) -> list[str]:
+    """Bind the selected binary before any model-bearing host command is returned."""
+
+    from .codex_runtime import capture_codex_runtime
+    run_dir = Path(kwargs["run_dir"])
+    run_manifest_path = run_dir / "run_manifest.json"
+    run_manifest = _read_object(run_manifest_path) if run_manifest_path.is_file() else {}
+    expected = run_manifest.get("codex_runtime")
+    lock_path = run_manifest_path
+    if "codex_runtime" not in run_manifest:
+        product_root = Path(kwargs["product_root"])
+        lock_path = product_root / "version-manifest.json"
+        if not lock_path.is_file():
+            lock_path = product_root / "product" / "version-manifest.json"
+        expected = _read_object(lock_path).get("codex_runtime")
+    # Construct first so invalid tool/environment bindings still fail without a process.
+    command = build_nested_codex_command(**kwargs)
+    binding = capture_codex_runtime(
+        kwargs["codex_binary"], expected_runtime=expected,
+        run_id=str(run_manifest.get("run_id", "")), lock_path=lock_path,
+        output_path=runtime_binding_path,
+    )
+    command[0] = binding["binary_path"]
+    return command
+
+
 def run_nested_codex_connectivity_probe(
     repository_root: Path,
     *,
@@ -611,7 +640,8 @@ def launch_nested_codex(
     dispatch_events_path = invocation_dir / "subagent-dispatches.jsonl"
     stderr_path = invocation_dir / "codex-stderr.log"
     raw_final_path = tmp_dir / "final-message.txt"
-    command = build_nested_codex_command(
+    command = build_verified_nested_codex_command(
+        runtime_binding_path=invocation_dir / "codex-runtime.json",
         codex_binary=codex_binary,
         product_root=product_root,
         run_dir=run_dir,

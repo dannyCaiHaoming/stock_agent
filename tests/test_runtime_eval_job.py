@@ -29,7 +29,7 @@ def semantic_result(eval_dir: Path, *, status: str = "PASS", grade: int = 2) -> 
         "eval_id": manifest["eval_id"],
         "grader": {
             "agent": "dev_eval",
-            "model": "gpt-5.6-sol",
+            "model": manifest.get("grader_model", "gpt-5.6-sol"),
             "prompt_hash": manifest["source_hashes"]["grader_prompt"],
             "rubric_hash": manifest["source_hashes"]["rubric"],
             "input_hash": manifest["source_hashes"]["semantic_input"],
@@ -103,7 +103,7 @@ class RuntimeEvalJobTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="eval-failed",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
@@ -111,7 +111,7 @@ class RuntimeEvalJobTests(unittest.TestCase):
             report = read_json(run_dir / "agents" / "runtime_company_analyst.json")
             report["claims"][0]["evidence_refs"] = ["dangling"]
             write_json(run_dir / "agents" / "runtime_company_analyst.json", report)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             error = read_json(run_dir / "run_error.json")
             self.assertEqual("SPECIALIST_REPORT_VALIDATION_FAILED", error["code"])
             self.assertEqual("EVIDENCE_CLOSURE_FAILED:dangling", error["message"])
@@ -136,7 +136,7 @@ class RuntimeEvalJobTests(unittest.TestCase):
             # Deterministic not-applicable is never accepted as model grading.
             with self.assertRaisesRegex(RuntimeEvalError, "SEMANTIC_GRADER_LINEAGE_INVALID"):
                 validate_semantic_result(semantic, eval_id=manifest["eval_id"], input_manifest=manifest)
-            for field, value in (("model", "gpt-5.6-terra"), ("prompt_hash", "0" * 64)):
+            for field, value in (("model", "gpt-6-luna"), ("prompt_hash", "0" * 64)):
                 bad = deepcopy(semantic)
                 bad["grader"][field] = value
                 bad["output_hash"] = canonical_hash({k: v for k, v in bad.items() if k != "output_hash"})

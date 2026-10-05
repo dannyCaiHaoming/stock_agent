@@ -21,6 +21,7 @@ from .execution_proof import (
     _turn_context,
 )
 from .hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash, HashContractError
+from .model_routing import eval_model_from_manifest
 
 
 class EvalExecutionProofError(ValueError):
@@ -78,7 +79,7 @@ def normalize_native_grade(final, manifest, *, model):
         return final
     if (not isinstance(final, Mapping) or set(final) != {"schema_version", "eval_id", "dimensions"}
             or final["schema_version"] != "semantic-rubric-draft/1.0.0"
-            or final["eval_id"] != manifest["eval_id"] or model != "gpt-5.6-terra"):
+            or final["eval_id"] != manifest["eval_id"] or model != eval_model_from_manifest(manifest)):
         raise EvalExecutionProofError("EVAL_NATIVE_DRAFT_INVALID")
     hashes = manifest["source_hashes"]
     value = {"schema_version": "semantic-rubric-result/1.0.0", "eval_id": final["eval_id"],
@@ -190,7 +191,7 @@ def _eval_context(repository_root: Path, *, eval_dir: Path, parent_rollout: Path
         raise EvalExecutionProofError("EVAL_DEV_AGENT_CONTEXT_INVALID")
     if child_meta.get("parent_thread_id") != parent_meta.get("id") or child_meta.get("agent_role") != "dev_eval":
         raise EvalExecutionProofError("EVAL_DEV_AGENT_IDENTITY_INVALID")
-    if parent_context.get("model") != "gpt-5.6-terra" or child_context.get("model") != "gpt-5.6-terra":
+    if parent_context.get("model") != eval_model_from_manifest(manifest) or child_context.get("model") != eval_model_from_manifest(manifest):
         raise EvalExecutionProofError("MODEL_ROUTE_INVALID:eval-grader")
     agent_path = repository_root / ".codex" / "agents" / "dev_eval.toml"
     skill_path = repository_root / ".agents" / "skills" / "runtime-eval-grading" / "SKILL.md"
@@ -267,7 +268,7 @@ def build_eval_execution_proof(
         "parent_session_id": parent_meta.get("id"),
         "child_session_id": child_meta.get("id"),
         "agent": "dev_eval",
-        "model": "gpt-5.6-terra",
+        "model": child_context["model"],
         "agent_hash": file_hash(agent_path),
         "skill_hash": file_hash(skill_path),
         "prompt_hash": manifest["source_hashes"]["grader_prompt"],
@@ -331,7 +332,7 @@ def verify_eval_execution_proof(
     manifest = _read(eval_dir.resolve() / "input-manifest.json")
     expected = {
         "agent": "dev_eval",
-        "model": semantic_result["grader"]["model"],
+        "model": eval_model_from_manifest(manifest),
         "prompt_hash": manifest["source_hashes"]["grader_prompt"],
         "rubric_hash": manifest["source_hashes"]["rubric"],
         "input_hash": manifest["source_hashes"]["semantic_input"],

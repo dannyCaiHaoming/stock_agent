@@ -1563,7 +1563,7 @@ def launch_skeptic_phase(
     """仅供宿主 launcher 调用一次；不运行 CIO、Risk 或任何决策层。"""
 
     from product.runtime.nested_codex import (
-        build_nested_codex_command, fixture_mcp_runtime_environment, integrity_snapshot,
+        build_verified_nested_codex_command, fixture_mcp_runtime_environment, integrity_snapshot,
     )
 
     repository_root = Path(repository_root).resolve()
@@ -1610,7 +1610,8 @@ def launch_skeptic_phase(
     }
     schema_path = invocation_dir / "parent-output.schema.json"
     _write(schema_path, parent_schema)
-    command = build_nested_codex_command(
+    command = build_verified_nested_codex_command(
+        runtime_binding_path=invocation_dir / "codex-runtime.json",
         codex_binary=codex_binary, product_root=repository_root / "product",
         run_dir=run_dir, model=manifest["parent_model"],
         sqlite_home=sqlite_home, log_dir=log_dir,

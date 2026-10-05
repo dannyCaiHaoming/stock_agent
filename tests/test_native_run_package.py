@@ -145,7 +145,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 run_dir = Path(directory) / "nested-schema-failure"
                 prepare_run(
                     ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run_dir,
-                    run_id=f"nested-schema-{agent_name}", model="gpt-5.6-terra",
+                    run_id=f"nested-schema-{agent_name}", model="gpt-6-luna",
                     research_question="检查正式报告 Schema", authenticity_required=False,
                 )
                 specialist_outputs(run_dir)
@@ -153,7 +153,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 report = read_json(path)
                 report[field][0]["undeclared_field"] = "must not enter CIO"
                 write_json(path, report)
-                outcome = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+                outcome = prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
                 self.assertEqual(outcome["terminal_state"], "FAILED_VALIDATION")
                 self.assertIn("SCHEMA_EXTRA_PROPERTY", outcome["message"])
                 self.assertEqual(read_json(run_dir / "run_error.json")["code"], "SPECIALIST_REPORT_VALIDATION_FAILED")
@@ -165,13 +165,13 @@ class NativeRunPackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory) / "dependency-failure"
             prepare_run(ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run_dir,
-                        run_id="dependency-failure", model="gpt-5.6-terra",
+                        run_id="dependency-failure", model="gpt-6-luna",
                         research_question="合成依赖故障", authenticity_required=False)
             specialist_outputs(run_dir)
             with patch("product.runtime.run_package.verify_invocation_manifest",
                        side_effect=PackageNotFoundError("exchange-calendars")):
                 exit_code = runtime_cli_main(["prepare-cio", "--repo", str(ROOT),
-                    "--run-dir", str(run_dir), "--model", "gpt-5.6-terra"])
+                    "--run-dir", str(run_dir), "--model", "gpt-6-luna"])
             self.assertNotEqual(exit_code, 0)
             error = read_json(run_dir / "run_error.json")
             self.assertEqual(error["code"], "RUNTIME_DEPENDENCY_MISSING")
@@ -188,7 +188,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "evidence-conflict.json",
                 run_dir=run_dir,
                 run_id="gate-scoped-schema-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究冲突证据。",
                 authenticity_required=False,
             )
@@ -257,7 +257,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "future-or-stale.json",
                 run_dir=run_dir,
                 run_id="safe-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
@@ -277,7 +277,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "invalid-portfolio.json",
                 run_dir=run_dir,
                 run_id="invalid-input-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
@@ -294,14 +294,14 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="complete-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
             self.assertEqual(prepared["next_state"], "DISPATCH_REQUIRED")
             specialist_outputs(run_dir)
             self.assertEqual(
-                prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")["next_state"],
+                prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")["next_state"],
                 "CIO_SYNTHESIS_REQUIRED",
             )
             write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
@@ -329,12 +329,12 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="cio-boundary",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
             specialist_outputs(run_dir)
-            result = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            result = prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             self.assertEqual(result["next_state"], "CIO_SYNTHESIS_REQUIRED")
 
             cio_input = read_json(run_dir / "inputs" / "runtime_cio.json")
@@ -397,13 +397,13 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="authenticity-required",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             from tests.test_council_semantic_handoff import start_council_specialists
             start_council_specialists(run_dir)
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
             result = finalize_cio(ROOT, run_dir=run_dir)
             self.assertEqual(result["terminal_state"], "FAILED_VALIDATION")
@@ -425,13 +425,13 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="proof-failure",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             from tests.test_council_semantic_handoff import start_council_specialists
             start_council_specialists(run_dir)
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             exit_code = runtime_cli_main(
                 [
                     "execution-proof",
@@ -456,7 +456,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="failed-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
@@ -465,7 +465,7 @@ class NativeRunPackageTests(unittest.TestCase):
             report = read_json(report_path)
             report["claims"][0]["evidence_refs"] = ["dangling"]
             report_path.write_text(json.dumps(report), encoding="utf-8")
-            result = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            result = prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             self.assertEqual(result["terminal_state"], "FAILED_VALIDATION")
             self.assertTrue((run_dir / "run_error.json").is_file())
             self.assertFalse((run_dir / "decision.json").exists())
@@ -479,7 +479,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="format-repair-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
@@ -503,7 +503,7 @@ class NativeRunPackageTests(unittest.TestCase):
             ):
                 self.assertIn(instruction, prompt)
 
-            requested = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            requested = prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             self.assertEqual(
                 requested["next_state"], "ONE_SPECIALIST_FORMAT_REPAIR_REQUIRED"
             )
@@ -511,7 +511,7 @@ class NativeRunPackageTests(unittest.TestCase):
             repaired.pop("evidence_refs")
             write_json(Path(requested["repaired_output"]), repaired)
 
-            accepted = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            accepted = prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             self.assertEqual(accepted["next_state"], "CIO_SYNTHESIS_REQUIRED")
             self.assertEqual(read_json(report_path), repaired)
             self.assertTrue(
@@ -560,7 +560,7 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="format-repair-failure",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
@@ -569,13 +569,13 @@ class NativeRunPackageTests(unittest.TestCase):
             original = read_json(report_path)
             original["format_noise"] = "still invalid"
             write_json(report_path, original)
-            requested = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            requested = prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
 
             repaired = dict(original)
             repaired["claims"] = [dict(original["claims"][0])]
             repaired["claims"][0]["statement"] = "A newly invented factual claim."
             write_json(Path(requested["repaired_output"]), repaired)
-            result = prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            result = prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
 
             self.assertEqual(result["terminal_state"], "FAILED_VALIDATION")
             self.assertIn(
@@ -589,10 +589,10 @@ class NativeRunPackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory) / "revision-veto"
             prepare_run(ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run_dir,
-                        run_id="revision-veto", model="gpt-5.6-terra", research_question="合成接缝测试",
+                        run_id="revision-veto", model="gpt-6-luna", research_question="合成接缝测试",
                         authenticity_required=False)
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             draft = cio_output(run_dir, target=(0.55, 0.8))
             write_json(run_dir / "cio/runtime_cio.json", draft)
             self.assertEqual(finalize_cio(ROOT, run_dir=run_dir)["next_state"], "ONE_CIO_REVISION_REQUIRED")
@@ -612,12 +612,12 @@ class NativeRunPackageTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="revision-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             write_json(
                 run_dir / "cio" / "runtime_cio.json",
                 cio_output(run_dir, target=(0.55, 0.8)),

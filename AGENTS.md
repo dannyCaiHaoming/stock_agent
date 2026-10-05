@@ -4,7 +4,7 @@
 
 ## 适用范围与入口
 
-- 开发任务不充当 CIO；产品分析仅在有效组合输入与 `portfolio-council` 调用下应用 [product/AGENTS.md](product/AGENTS.md)，不执行开发归档、Git 提交或推送。
+- 开发任务不充当 CIO；产品任务按各入口的输入与授权条件应用 [product/AGENTS.md](product/AGENTS.md)。持仓或非持仓单股研究经 `portfolio-council` 指定阶段执行，只有明确的综合/决策阶段赋予主线程 CIO 职责；Intake、交易记录和复盘可独立调用，不自动启动 Council。产品任务不执行开发归档、Git 提交或推送。
 - 行为变更使用 OpenSpec：先 propose/update，再显式 apply；实施前阅读当前 Proposal、Specs、Design、Tasks。
 - 已获 apply 授权后持续推进范围内实现、普通错误修复和聚焦检查，阶段汇报后继续；只有真实阻断或人工完成批准才暂停相应工作，不突破权限、范围或模型预算。
 - 开发自检在当前 Codex 环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。

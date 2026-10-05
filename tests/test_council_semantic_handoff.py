@@ -41,7 +41,7 @@ def start_council_specialists(run):
         record, _ = handle_hook_event({
             "hook_event_name": "PreToolUse", "session_id": "fixture-parent", "turn_id": "fixture-turn",
             "tool_name": "spawn_agent", "tool_use_id": "spawn-" + agent,
-            "cwd": str(ROOT / "product"), "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+            "cwd": str(ROOT / "product"), "model": "gpt-6-luna", "permission_mode": "workspace-write",
             "tool_input": {"agent_type": agent, "task_name": SPECIALIST_TASK_NAMES[agent],
                            "fork_turns": "none", "message": "按冻结上下文开展当前研究。"},
         }, environ=env)
@@ -50,7 +50,7 @@ def start_council_specialists(run):
     for agent in sorted(SPECIALIST_AGENTS):
         start = {
             "hook_event_name": "SubagentStart", "session_id": "fixture-parent", "turn_id": "fixture-turn",
-            "agent_id": "child-" + agent, "agent_type": agent, "model": "gpt-5.6-terra",
+            "agent_id": "child-" + agent, "agent_type": agent, "model": "gpt-6-luna",
             "cwd": str(ROOT / "product"), "permission_mode": "read-only",
         }
         record, response = handle_hook_event(start, environ=env)
@@ -69,7 +69,7 @@ class CouncilSemanticHandoffTests(unittest.TestCase):
     def prepare(self, root):
         run = Path(root) / "run"
         prepare_run(ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run,
-                    run_id="semantic-fixture", model="gpt-5.6-terra", research_question="测试研究交接。")
+                    run_id="semantic-fixture", model="gpt-6-luna", research_question="测试研究交接。")
         env, starts, packets = start_council_specialists(run)
         drafts = {agent: {key: value for key, value in report.items() if key not in SPECIALIST_TECHNICAL_FIELDS}
                   for agent, report in specialist_outputs(run, persist=False).items()}
@@ -112,7 +112,7 @@ class CouncilSemanticHandoffTests(unittest.TestCase):
                 self.assertEqual(read_json(run / f"agents/{agent}.native.json"), drafts[agent])
                 self.assertEqual(record["output_capture"]["raw_output_hash"], canonical_hash(drafts[agent]))
                 hashes[agent] = file_hash(run / f"agents/{agent}.json")
-            result = prepare_cio(ROOT, run_dir=run, model="gpt-5.6-terra")
+            result = prepare_cio(ROOT, run_dir=run, model="gpt-6-luna")
             self.assertEqual(result["next_state"], "CIO_SYNTHESIS_REQUIRED", result)
             cio = read_json(run / "inputs/runtime_cio.json")
             self.assertEqual(len(cio["report_catalog"]), 2)
@@ -219,7 +219,7 @@ class CouncilSemanticHandoffTests(unittest.TestCase):
             with self.subTest(fixture=fixture), tempfile.TemporaryDirectory() as directory:
                 run = Path(directory) / "safe-run"
                 result = prepare_run(ROOT, fixture_path=FIXTURES / fixture, run_dir=run,
-                                     run_id="safe-test", model="gpt-5.6-terra", research_question="输入安全终止测试。")
+                                     run_id="safe-test", model="gpt-6-luna", research_question="输入安全终止测试。")
                 self.assertEqual(result["next_state"], "SAFE_NO_TRADE")
                 manifest = read_json(run / "run_manifest.json")
                 self.assertEqual(manifest["specialist_context_delivery"], START_CONTEXT_VERSION)
@@ -297,7 +297,7 @@ class CouncilSemanticHandoffTests(unittest.TestCase):
                 self.assertNotIn("agent_input", ticket)
             legacy_run = Path(directory) / "legacy-run"
             prepare_run(ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=legacy_run,
-                        run_id="legacy-test", model="gpt-5.6-terra", research_question="旧入口拒绝测试。")
+                        run_id="legacy-test", model="gpt-6-luna", research_question="旧入口拒绝测试。")
             manifest = read_json(legacy_run / "run_manifest.json")
             manifest["specialist_output_delivery"] = "native-research-draft/1.0.0"
             write_json(legacy_run / "run_manifest.json", manifest)

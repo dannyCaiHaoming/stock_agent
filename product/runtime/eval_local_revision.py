@@ -35,7 +35,7 @@ def _sources(repository: Path, root: Path, context: dict) -> dict:
     model_input = verify_runtime_eval_model_input(root, manifest)
     if model_input is not None:
         checks["semantic_model_input"] = canonical_hash(model_input)
-    return {"eval_id": manifest["eval_id"], "agent": "dev_eval", "model": "gpt-5.6-terra",
+    return {"eval_id": manifest["eval_id"], "agent": "dev_eval", "model": context["child_context"]["model"],
             "manifest_hash": canonical_hash(manifest), "agent_hash": file_hash(context["agent_path"]),
             "skill_hash": file_hash(context["skill_path"]), "input_hashes": checks}
 

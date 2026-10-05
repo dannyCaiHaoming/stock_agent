@@ -103,11 +103,11 @@ class CanonicalDecisionContractTests(unittest.TestCase):
             run_dir = Path(directory) / "run"
             prepare_run(
                 ROOT, fixture_path=FIXTURES / "normal-research.json",
-                run_dir=run_dir, run_id="schema-no-trade", model="gpt-5.6-terra",
+                run_dir=run_dir, run_id="schema-no-trade", model="gpt-6-luna",
                 research_question="检查条件契约。", authenticity_required=False,
             )
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             schema = json.loads((PRODUCT_ROOT / "schemas/runtime/cio-decision-draft.schema.json").read_text())
             valid = cio_output(run_dir)
             valid.update(
@@ -173,12 +173,12 @@ class CanonicalDecisionContractTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="contract-prompt",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证 canonical prompt。",
                 authenticity_required=False,
             )
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             prompt = (run_dir / "prompts" / "runtime_cio.txt").read_text(
                 encoding="utf-8"
             )

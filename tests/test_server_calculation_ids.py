@@ -129,7 +129,7 @@ class ServerCalculationIdentityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run = Path(directory) / "legacy-run"
             prepare_run(fixtures.ROOT, fixture_path=fixtures.ROOT / "evals/fixtures/codex-native/normal-research.json",
-                        run_dir=run, run_id="legacy-id-contract", model="gpt-5.6-terra",
+                        run_dir=run, run_id="legacy-id-contract", model="gpt-6-luna",
                         research_question="仅验证旧协议确定性参数。")
             invocation = json.loads((run / "invocations/runtime_company_analyst.json").read_text())
             args = {"run_dir": str(run), "run_id": "legacy-id-contract", "agent": "runtime_company_analyst",

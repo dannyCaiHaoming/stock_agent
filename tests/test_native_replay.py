@@ -19,12 +19,12 @@ class NativeReplayTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="replay-source",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
             finalize_cio(ROOT, run_dir=run_dir)
             first = replay_run(ROOT, run_dir=run_dir)
@@ -44,7 +44,7 @@ class NativeReplayTests(unittest.TestCase):
                 fixture_path=FIXTURES / "future-or-stale.json",
                 run_dir=run_dir,
                 run_id="replay-tamper",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             (run_dir / "report.md").write_text("tampered\n", encoding="utf-8")

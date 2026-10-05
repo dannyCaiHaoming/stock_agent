@@ -31,7 +31,7 @@ class VersionManifestTests(unittest.TestCase):
         manifest = load_version_manifest(ROOT / "product" / "version-manifest.json")
         self.assertRegex(manifest["candidate_version"], r"^\d+\.\d+\.\d+-candidate\.\d+(?:[-+].+)?$")
         self.assertEqual("codex-cli/0.153.4", manifest["codex_runtime"])
-        self.assertEqual("gpt-5.6-terra", manifest["model"])
+        self.assertEqual("gpt-6-luna", manifest["model"])
         self.assertIn("fixture-gate-scoped", manifest["mcp_adapters"])
         self.assertIn("runtime-cio", manifest["agents"])
         self.assertEqual(len(manifest["resource_hashes"]), 9)

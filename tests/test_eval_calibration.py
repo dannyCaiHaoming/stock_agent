@@ -40,14 +40,14 @@ def execution_proof_record(root: Path, case_id: str, repeat: int, output_path: P
     parent = [
         {"timestamp": f"2026-09-07T00:00:0{repeat}Z", "type": "session_meta", "payload": {"id": parent_id}},
         message("user", f"case_id={case_id} prompt={prompt_hash} input={input_hash}"),
-        {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+        {"type": "turn_context", "payload": {"model": "gpt-6-luna"}},
         {"type": "response_item", "payload": {"type": "function_call", "namespace": "collaboration", "name": "spawn_agent", "call_id": f"call-{repeat}", "arguments": json.dumps({"agent_type": "dev_eval", "task_name": "semantic_grading", "fork_turns": "none", "message": "gAAAA" + "A" * 120})}},
     ]
     child = [
         {"timestamp": f"2026-09-07T00:00:1{repeat}Z", "type": "session_meta", "payload": {"id": child_id, "parent_thread_id": parent_id, "agent_role": "dev_eval"}},
         message("developer", f"runtime\n{instructions}\nend"),
         message("user", f"case_id={case_id} prompt={prompt_hash} input={input_hash}"),
-        {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+        {"type": "turn_context", "payload": {"model": "gpt-6-luna"}},
         message("assistant", json.dumps(output, sort_keys=True)),
     ]
     rollout_dir = root / "rollouts" / case_id / str(repeat)
@@ -72,6 +72,18 @@ def execution_proof_record(root: Path, case_id: str, repeat: int, output_path: P
 
 
 class EvalCalibrationTests(unittest.TestCase):
+    def test_new_calibration_rejects_legacy_grader_before_rollout_read(self):
+        from evals.grading.calibration import LEGACY_CALIBRATION_GRADER
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "legacy.json"
+            output.write_text(json.dumps({"grader": LEGACY_CALIBRATION_GRADER}))
+            before = output.read_bytes()
+            with self.assertRaisesRegex(ValueError, "CALIBRATION_LEGACY_WRITE_RETIRED"):
+                build_calibration_execution_proof(ROOT, case_id="old", repeat=1,
+                    grader_output_path=output, parent_rollout=Path(directory) / "missing-parent",
+                    child_rollout=Path(directory) / "missing-child", prompt_path=output, input_path=output)
+            self.assertEqual(output.read_bytes(), before)
+
     def test_execution_proof_recomputes_bound_prompt_and_input_hashes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

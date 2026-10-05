@@ -189,8 +189,8 @@ class ModelRoutingTests(unittest.TestCase):
     def test_required_routes_are_versioned(self):
         policy = load_model_routing(ROOT / "product")
         self.assertEqual(policy["development_default"], "gpt-5.6-sol")
-        self.assertEqual(policy["runtime_repeated"], "gpt-5.6-terra")
-        self.assertEqual(select_model(ROOT / "product", route="runtime_repeated"), "gpt-5.6-terra")
+        self.assertEqual(policy["runtime_repeated"], "gpt-6-luna")
+        self.assertEqual(select_model(ROOT / "product", route="runtime_repeated"), "gpt-6-luna")
 
     def test_astra_requires_dispute_and_human_approval(self):
         with self.assertRaisesRegex(ValueError, "ASTRA_APPROVAL_MISSING"):

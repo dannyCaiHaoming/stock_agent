@@ -32,12 +32,12 @@ def complete_run(run_dir: Path, run_id: str) -> None:
         fixture_path=FIXTURES / "normal-research.json",
         run_dir=run_dir,
         run_id=run_id,
-        model="gpt-5.6-terra",
+        model="gpt-6-luna",
         research_question="研究 fixture。",
         authenticity_required=False,
     )
     specialist_outputs(run_dir)
-    prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+    prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
     write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
     finalize_cio(ROOT, run_dir=run_dir)
 
@@ -183,7 +183,7 @@ class ReplayCapsuleTests(unittest.TestCase):
             self.assertEqual(prepared["next_state"], "DISPATCH_REQUIRED")
             workspace = Path(prepared["workspace"])
             specialist_outputs(replay)
-            prepare_cio(workspace, run_dir=replay, model="gpt-5.6-terra")
+            prepare_cio(workspace, run_dir=replay, model="gpt-6-luna")
             write_json(replay / "cio" / "runtime_cio.json", cio_output(replay))
             finalize_cio(workspace, run_dir=replay)
             output = root / "comparison"
@@ -214,7 +214,7 @@ class ReplayCapsuleTests(unittest.TestCase):
             workspace = Path(prepared["workspace"])
             os.chmod(workspace / "product", 0o755)
             specialist_outputs(replay)
-            prepare_cio(workspace, run_dir=replay, model="gpt-5.6-terra")
+            prepare_cio(workspace, run_dir=replay, model="gpt-6-luna")
             write_json(replay / "cio" / "runtime_cio.json", cio_output(replay))
             finalize_cio(workspace, run_dir=replay)
             with self.assertRaisesRegex(ExecutionReplayError, "MATERIALIZED_PATH_WRITABLE"):
@@ -277,7 +277,7 @@ class ReplayCapsuleTests(unittest.TestCase):
                 fixture_path=FIXTURES / "future-or-stale.json",
                 run_dir=source,
                 run_id="stale-source",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证无可用 Evidence。",
                 authenticity_required=True,
             )

@@ -19,12 +19,12 @@ class NativeArtifactMatrixTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=chain,
                 run_id="matrix-chain",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
             specialist_outputs(chain)
-            prepare_cio(ROOT, run_dir=chain, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=chain, model="gpt-6-luna")
             write_json(chain / "cio" / "runtime_cio.json", cio_output(chain))
             finalize_cio(ROOT, run_dir=chain)
             self.assertEqual(
@@ -37,7 +37,7 @@ class NativeArtifactMatrixTests(unittest.TestCase):
                 fixture_path=FIXTURES / "future-or-stale.json",
                 run_dir=safe,
                 run_id="matrix-safe",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             self.assertEqual(
@@ -52,12 +52,12 @@ class NativeArtifactMatrixTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="matrix-missing",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
             finalize_cio(ROOT, run_dir=run_dir)
             (run_dir / "agents" / "runtime_skeptic.json").unlink()

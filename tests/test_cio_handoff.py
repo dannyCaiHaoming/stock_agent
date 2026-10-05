@@ -30,10 +30,10 @@ class CioHandoffTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.run = Path(directory.name) / "council"
         prepare_run(REPO, fixture_path=REPO / "evals/fixtures/codex-native/normal-research.json",
-                    run_dir=self.run, run_id="cio-native-test", model="gpt-5.6-terra",
+                    run_dir=self.run, run_id="cio-native-test", model="gpt-6-luna",
                     research_question="公司研究交接", authenticity_required=False)
         specialist_outputs(self.run)
-        prepare_cio(REPO, run_dir=self.run, model="gpt-5.6-terra")
+        prepare_cio(REPO, run_dir=self.run, model="gpt-6-luna")
         self.invocation = read_json(self.run / "invocations/runtime_cio.json")
         self.mapping = build_cio_reference_map(self.run, self.invocation, self.invocation["report_catalog"])
         self.tools = StatelessFixtureTools(default_run_dir=self.run)
@@ -232,7 +232,7 @@ class CioHandoffTests(unittest.TestCase):
         write_json(schema_path, build_native_council_schema(REPO, [item["report_id"] for item in source["report_catalog"]]))
         invocation = create_invocation_manifest(REPO, run_id=source["run_id"], agent_name="runtime_cio",
             agent_input=source, task_prompt=(self.run / "prompts/runtime_cio.txt").read_text(),
-            model="gpt-5.6-terra", evidence_ids=source["allowed_evidence_ids"], output_schema_path=schema_path)
+            model="gpt-6-luna", evidence_ids=source["allowed_evidence_ids"], output_schema_path=schema_path)
         write_json(self.run / "invocations/runtime_cio.json", invocation)
         manifest = read_json(self.run / "run_manifest.json")
         del manifest["cio_reference_transport_version"]

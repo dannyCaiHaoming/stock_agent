@@ -178,13 +178,13 @@ class NativeArtifactEvalTests(unittest.TestCase):
             fixture_path=FIXTURES / fixture,
             run_dir=run_dir,
             run_id=f"eval-{fixture.removesuffix('.json')}",
-            model="gpt-5.6-terra",
+            model="gpt-6-luna",
             research_question="研究 fixture。",
             authenticity_required=False,
         )
         if fixture != "future-or-stale.json":
             scenario_specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             write_json(
                 run_dir / "cio" / "runtime_cio.json",
                 scenario_cio_output(run_dir, include_conflict=include_conflict),
@@ -200,12 +200,12 @@ class NativeArtifactEvalTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="eval-chain",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
                 authenticity_required=False,
             )
             specialist_outputs(run_dir)
-            prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+            prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
             finalize_cio(ROOT, run_dir=run_dir)
             with self.assertRaisesRegex(NativeEvalError, "TEST_ONLY_RUN"):
@@ -229,7 +229,7 @@ class NativeArtifactEvalTests(unittest.TestCase):
                 fixture_path=FIXTURES / "future-or-stale.json",
                 run_dir=run_dir,
                 run_id="eval-safe",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             result = evaluate_run(ROOT, run_dir=run_dir)
@@ -244,7 +244,7 @@ class NativeArtifactEvalTests(unittest.TestCase):
                 fixture_path=FIXTURES / "future-or-stale.json",
                 run_dir=run_dir,
                 run_id="eval-missing",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             (run_dir / "evidence" / "gate.json").unlink()

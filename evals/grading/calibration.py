@@ -24,9 +24,19 @@ from product.runtime.schema_validation import validate_schema_instance
 
 EXPECTED_CALIBRATION_GRADER = {
     "agent": "dev_eval",
-    "model": "gpt-5.6-terra",
-    "grader_version": "runtime-eval-grading/1.0.0",
+    "model": "gpt-6-luna",
+    "grader_version": "runtime-eval-grading/1.1.0",
 }
+
+LEGACY_CALIBRATION_GRADER = {"agent": "dev_eval", "model": "gpt-5.6-terra",
+                             "grader_version": "runtime-eval-grading/1.0.0"}
+
+
+def _grader_identity(output):
+    grader = output.get("grader")
+    if grader not in (EXPECTED_CALIBRATION_GRADER, LEGACY_CALIBRATION_GRADER):
+        raise ValueError("CALIBRATION_GRADER_IDENTITY_INVALID")
+    return grader
 
 
 def _rollout_bounds(records: Sequence[Mapping[str, Any]]) -> tuple[str, str]:
@@ -54,10 +64,14 @@ def build_calibration_execution_proof(
     child_rollout: Path,
     prompt_path: Path,
     input_path: Path,
+    _historical: bool = False,
 ) -> dict[str, Any]:
     """Build a replayable proof from one real, isolated dev_eval child session."""
 
     output = json.loads(grader_output_path.read_text(encoding="utf-8"))
+    grader = _grader_identity(output)
+    if not _historical and grader != EXPECTED_CALIBRATION_GRADER:
+        raise ValueError("CALIBRATION_LEGACY_WRITE_RETIRED")
     prompt_text = prompt_path.read_text(encoding="utf-8").rstrip("\n")
     input_value = json.loads(input_path.read_text(encoding="utf-8"))
     prompt_hash = canonical_hash({"prompt": prompt_text})
@@ -76,7 +90,7 @@ def build_calibration_execution_proof(
         raise ValueError("CALIBRATION_DEV_EVAL_DISPATCH_INVALID")
     if child_meta.get("parent_thread_id") != parent_id or child_meta.get("agent_role") != "dev_eval":
         raise ValueError("CALIBRATION_DEV_EVAL_SESSION_INVALID")
-    if _turn_context(child_records).get("model") != "gpt-5.6-terra":
+    if _turn_context(child_records).get("model") != grader["model"]:
         raise ValueError("CALIBRATION_MODEL_ROUTE_INVALID")
     agent_path = repository_root / ".codex" / "agents" / "dev_eval.toml"
     skill_path = repository_root / ".agents" / "skills" / "runtime-eval-grading" / "SKILL.md"
@@ -118,7 +132,7 @@ def build_calibration_execution_proof(
         "parent_session_id": parent_id,
         "session_id": child_id,
         "agent": "dev_eval",
-        "model": "gpt-5.6-terra",
+        "model": grader["model"],
         "agent_hash": file_hash(agent_path),
         "skill_hash": file_hash(skill_path),
         "prompt_hash": prompt_hash,
@@ -163,11 +177,12 @@ def verify_calibration_execution_proof(
         raise ValueError(f"CALIBRATION_EXECUTION_PROOF_HASH_INVALID:{case_id}")
     expected_output_hash = file_hash(grader_output_path)
     output = json.loads(grader_output_path.read_text(encoding="utf-8"))
+    grader = _grader_identity(output)
     expected = {
         "case_id": case_id,
         "repeat": repeat,
         "agent": "dev_eval",
-        "model": "gpt-5.6-terra",
+        "model": grader["model"],
         "agent_hash": file_hash(repository_root / ".codex" / "agents" / "dev_eval.toml"),
         "skill_hash": file_hash(repository_root / ".agents" / "skills" / "runtime-eval-grading" / "SKILL.md"),
         "output_hash": output.get("output_hash"),
@@ -195,6 +210,7 @@ def verify_calibration_execution_proof(
         child_rollout=Path(proof["child_rollout"]["path"]),
         prompt_path=Path(proof["prompt_artifact"]["path"]),
         input_path=Path(proof["input_artifact"]["path"]),
+        _historical=True,
     )
     if rebuilt != proof:
         raise ValueError(f"CALIBRATION_EXECUTION_PROOF_REPLAY_MISMATCH:{case_id}")
@@ -257,6 +273,7 @@ def run_calibration(
     labels_path: Path,
     grader_index_path: Path,
     output_dir: Path,
+    _historical: bool = False,
 ) -> dict[str, Any]:
     """Compare immutable repeated grader outputs with the human-label ranges."""
 
@@ -288,7 +305,7 @@ def run_calibration(
                 raise ValueError(f"CALIBRATION_GRADER_OUTPUT_HASH_INVALID:{case_id}")
             if value.get("schema_version") != "semantic-rubric-result/1.0.0":
                 raise ValueError(f"CALIBRATION_GRADER_SCHEMA_INVALID:{case_id}")
-            if value.get("grader") != EXPECTED_CALIBRATION_GRADER:
+            if _grader_identity(value) != EXPECTED_CALIBRATION_GRADER and not _historical:
                 raise ValueError(f"CALIBRATION_GRADER_IDENTITY_INVALID:{case_id}")
             if set(value.get("dimensions", {})) != set(
                 next(item["human_labels"] for item in labels["cases"] if item["case_id"] == case_id)
@@ -377,6 +394,7 @@ def verify_calibration_result(repository_root: Path, result_path: Path) -> dict[
             labels_path=Path(sources["labels"]["path"]),
             grader_index_path=Path(sources["grader_index"]["path"]),
             output_dir=Path(directory) / "result",
+            _historical=True,
         )
     if rebuilt != saved:
         raise ValueError("CALIBRATION_RESULT_RECOMPUTE_MISMATCH")

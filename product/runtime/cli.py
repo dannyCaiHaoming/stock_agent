@@ -429,7 +429,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     stock_eval_launch.add_argument("--repo", type=Path, required=True)
     stock_eval_launch.add_argument("--eval-dir", type=Path, required=True)
-    stock_eval_launch.add_argument("--model", default="gpt-5.6-terra")
+    from .model_routing import DEFAULT_GRADER_MODEL
+    stock_eval_launch.add_argument("--model", default=DEFAULT_GRADER_MODEL)
     stock_eval_launch.add_argument("--codex-binary", default="codex")
     stock_eval_launch.add_argument("--timeout-seconds", type=int, default=900)
 

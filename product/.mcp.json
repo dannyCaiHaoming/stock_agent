@@ -4,7 +4,7 @@
       "command": "python3",
       "args": ["-m", "runtime.live_mcp"],
       "cwd": ".",
-      "enabled": true,
+      "enabled": false,
       "enabled_tools": ["query", "calculate"],
       "default_tools_approval_mode": "approve",
       "startup_timeout_sec": 10
@@ -16,7 +16,7 @@
         "--stateless"
       ],
       "cwd": ".",
-      "enabled": true,
+      "enabled": false,
       "enabled_tools": ["query", "calculate", "research_search", "research_fetch"],
       "default_tools_approval_mode": "approve",
       "startup_timeout_sec": 10

@@ -39,20 +39,62 @@ class EvalHandoffTests(unittest.TestCase):
         path.write_text(json.dumps(draft))
         result = common.finalize_common_stock_eval_job(
             eval_dir=directory, semantic_result_path=path,
-            actual_model="test-adapter-model", input_binding_hash=manifest["input_hash"])
+            actual_model="gpt-6-luna", input_binding_hash=manifest["input_hash"])
         self.assertEqual(result["dimensions"], draft["dimensions"])
         self.assertEqual(result["status"], "FAIL")
         self.assertEqual(result["input_hash"], manifest["input_hash"])
-        self.assertEqual(result["model"], "test-adapter-model")
+        self.assertEqual(result["model"], "gpt-6-luna")
         common.validate_common_stock_eval_result(result, manifest=manifest)
         self.assertEqual(json.loads(path.read_text()), draft)
+
+    def test_new_focused_eval_locks_luna_and_wrong_launch_has_no_effect(self):
+        from unittest.mock import patch
+        _, _, directory, manifest = self.stock_job()
+        self.assertEqual(manifest["grader_model"], "gpt-6-luna")
+        with patch.object(common.subprocess, "run") as process:
+            with self.assertRaisesRegex(common.CommonStockEvalError, "MODEL_MISMATCH"):
+                common.launch_common_stock_eval(ROOT, eval_dir=directory, model="gpt-5.6-terra")
+            process.assert_not_called()
+        self.assertFalse((directory / "invocation").exists())
+        draft = stock_fixtures.CommonStockFocusedEvalTests.semantic_draft(manifest)
+        with self.assertRaisesRegex(common.CommonStockEvalError, "MODEL_MISMATCH"):
+            common.envelope_common_stock_eval_draft(draft, manifest=manifest,
+                actual_model="gpt-5.6-terra", input_binding_hash=manifest["input_hash"])
+        self.assertFalse((directory / "eval/result.json").exists())
+
+    def test_new_job_cannot_downgrade_to_terra_by_deleting_model_lock(self):
+        _, _, directory, manifest = self.stock_job()
+        manifest.pop("grader_model")
+        manifest["input_hash"] = legacy_envelope_hash(manifest, hash_field="input_hash")
+        (directory / "input-manifest.json").write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(common.CommonStockEvalError, "MODEL_LOCK_INVALID"):
+            common.build_common_stock_eval_packet(directory)
+        _, runtime, result = self.runtime_job()
+        runtime.pop("grader_model")
+        draft = {"schema_version": "semantic-rubric-draft/1.0.0", "eval_id": runtime["eval_id"],
+                 "dimensions": result["dimensions"]}
+        with self.assertRaisesRegex(ValueError, "eval-grader-lock-missing"):
+            normalize_native_grade(draft, runtime, model="gpt-5.6-terra")
+
+    def test_focused_historical_terra_result_is_read_only_and_retains_identity(self):
+        _, _, directory, manifest = self.stock_job()
+        manifest.pop("grader_model")
+        manifest["schema_version"] = "common-stock-research-eval-job/1.1.0"
+        manifest["input_hash"] = legacy_envelope_hash(manifest, hash_field="input_hash")
+        result = stock_fixtures.CommonStockFocusedEvalTests.semantic_result(manifest, model="gpt-5.6-terra")
+        source = self.root / "historical-result.json"
+        source.write_text(json.dumps(result))
+        before = source.read_bytes()
+        common.validate_common_stock_eval_result(json.loads(source.read_text()), manifest=manifest)
+        self.assertEqual(source.read_bytes(), before)
+        self.assertEqual(result["model"], "gpt-5.6-terra")
 
     def test_common_rejects_wrong_input_and_missing_model_without_publishing(self):
         _, _, directory, manifest = self.stock_job()
         path = self.root / "draft.json"
         path.write_text(json.dumps(stock_fixtures.CommonStockFocusedEvalTests.semantic_draft(manifest)))
         for model, digest, error in ((None, manifest["input_hash"], "MODEL_PROOF_MISSING"),
-                                      ("test-model", "0" * 64, "INPUT_BINDING_INVALID")):
+                                      ("gpt-6-luna", "0" * 64, "INPUT_BINDING_INVALID")):
             with self.subTest(error=error), self.assertRaisesRegex(common.CommonStockEvalError, error):
                 common.finalize_common_stock_eval_job(eval_dir=directory, semantic_result_path=path,
                                                       actual_model=model, input_binding_hash=digest)
@@ -60,7 +102,7 @@ class EvalHandoffTests(unittest.TestCase):
         (directory / "input-manifest.json").write_text(json.dumps(manifest))
         with self.assertRaisesRegex(common.CommonStockEvalError, "INPUT_HASH_INVALID"):
             common.finalize_common_stock_eval_job(eval_dir=directory, semantic_result_path=path,
-                                                  actual_model="test-model", input_binding_hash=manifest["input_hash"])
+                                                  actual_model="gpt-6-luna", input_binding_hash=manifest["input_hash"])
         self.assertFalse((directory / "eval/result.json").exists())
 
     def test_common_legacy_full_output_is_readable_but_rejected_for_new_write(self):
@@ -78,7 +120,7 @@ class EvalHandoffTests(unittest.TestCase):
         _, _, directory, manifest = self.stock_job()
         draft = stock_fixtures.CommonStockFocusedEvalTests.semantic_draft(manifest)
         result = common.envelope_common_stock_eval_draft(
-            draft, manifest=manifest, actual_model="test-model", input_binding_hash=manifest["input_hash"])
+            draft, manifest=manifest, actual_model="gpt-6-luna", input_binding_hash=manifest["input_hash"])
         self.assertEqual(result["result_hash"], legacy_envelope_hash(result, hash_field="result_hash"))
         original = result["result_hash"]
         result["dimensions"][common.DIMENSIONS[0]]["rationale"] += "改动原稿"
@@ -93,7 +135,7 @@ class EvalHandoffTests(unittest.TestCase):
         prepare_eval_job(ROOT, run_dir=run, eval_dir=evaluation, eval_id="native-eval")
         manifest = json.loads((evaluation / "input-manifest.json").read_text())
         result = runtime_fixtures.semantic_result(evaluation)
-        result["grader"]["model"] = "gpt-5.6-terra"
+        result["grader"]["model"] = "gpt-6-luna"
         result["output_hash"] = canonical_hash({k: v for k, v in result.items() if k != "output_hash"})
         return evaluation, manifest, result
 
@@ -146,7 +188,11 @@ class EvalHandoffTests(unittest.TestCase):
     def test_runtime_historical_result_stays_readable_but_native_execution_is_retired(self):
         from product.runtime.runtime_eval import validate_semantic_result, RuntimeEvalError
         directory, manifest, result = self.runtime_job()
+        manifest["schema_version"] = "runtime-eval-input/1.0.0"
         manifest.pop("semantic_output_delivery")
+        manifest.pop("grader_model")
+        result["grader"]["model"] = "gpt-5.6-terra"
+        result["output_hash"] = legacy_envelope_hash(result, hash_field="output_hash")
         source = directory / "input-manifest.json"
         source.write_text(json.dumps(manifest))
         original = source.read_bytes()

@@ -52,16 +52,16 @@ class CouncilEvalLocalRevisionTests(unittest.TestCase):
                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(directory / "invocation/subagent-dispatches.jsonl"),
                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "dev_eval",
                "STOCK_AGENT_COMMON_STOCK_EVAL": common.EVAL_RUNTIME_VERSION,
-               "STOCK_AGENT_COMMON_STOCK_EVAL_MODEL": "gpt-5.6-terra"}
+               "STOCK_AGENT_COMMON_STOCK_EVAL_MODEL": "gpt-6-luna"}
         dispatch = {"hook_event_name": "PreToolUse", "session_id": "eval-parent", "turn_id": "turn",
                     "tool_name": "spawn_agent", "tool_use_id": "dispatch", "cwd": str(stock_fixtures.ROOT),
-                    "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                    "model": "gpt-6-luna", "permission_mode": "workspace-write",
                     "tool_input": {"agent_type": "dev_eval", "task_name": "grade_common_stock_report",
                                    "fork_turns": "none", "message": common.build_common_stock_eval_dispatch_message(directory)}}
         record, _ = handle_hook_event(dispatch, environ=env)
         self.assertEqual(record["decision"], "ALLOW", record)
         start = {"hook_event_name": "SubagentStart", "session_id": "eval-parent", "turn_id": "turn",
-                 "agent_id": "eval-child", "agent_type": "dev_eval", "model": "gpt-5.6-terra",
+                 "agent_id": "eval-child", "agent_type": "dev_eval", "model": "gpt-6-luna",
                  "cwd": str(stock_fixtures.ROOT), "permission_mode": "read-only"}
         record, _ = handle_hook_event(start, environ=env)
         self.assertEqual(record["context_binding"]["status"], "DELIVERED", record)
@@ -217,7 +217,7 @@ class CouncilEvalLocalRevisionTests(unittest.TestCase):
 
     def test_eval_model_view_keeps_negation_footnotes_conflicts_and_exact_values(self):
         _, _, directory, manifest = stock_fixtures.CommonStockFocusedEvalTests().prepare_job(self.temp.name)
-        packet = common.build_common_stock_eval_packet(directory, expected_model="gpt-5.6-terra")
+        packet = common.build_common_stock_eval_packet(directory, expected_model="gpt-6-luna")
         # 纯表示反例，不写回真实输入、冻结锁或历史报告。
         packet["input_manifest"]["report"]["research_summary"] = "不能由成交量认定净流入；资料冲突尚未解决。"
         packet["input_manifest"]["report"]["claims"][0]["statement"] = "收入不是现金流；期间及主体不可混同。"

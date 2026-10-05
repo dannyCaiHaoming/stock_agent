@@ -69,6 +69,14 @@ def load_json(path: Path):
 
 
 class SkillConfigTests(unittest.TestCase):
+    def test_plugin_discovers_skills_without_starting_research_servers(self):
+        plugin = load_json(ROOT / "product/.codex-plugin/plugin.json")
+        self.assertTrue((ROOT / "product" / plugin["skills"]).is_dir())
+        servers = load_json(ROOT / "product" / plugin["mcpServers"])["mcpServers"]
+        self.assertEqual(set(servers), {"fixture_runtime", "live_runtime"})
+        for server in servers.values():
+            self.assertIs(server["enabled"], False)
+
     def test_expected_skills_have_valid_minimal_frontmatter(self):
         found = {path.parent.name for path in SKILLS_ROOT.glob("*/SKILL.md")}
         self.assertTrue(SKILL_NAMES.issubset(found))

@@ -114,7 +114,7 @@ class ComponentVersionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run = Path(directory) / "run"
             prepare_run(ROOT, fixture_path=FIXTURES / "normal-research.json", run_dir=run,
-                        run_id="component-version-test", model="gpt-5.6-terra",
+                        run_id="component-version-test", model="gpt-6-luna",
                         research_question="确定性接缝。", authenticity_required=False)
             tools = StatelessFixtureTools(default_run_dir=run)
             invocation = json.loads((run / "invocations/runtime_company_analyst.json").read_text())
@@ -130,7 +130,7 @@ class ComponentVersionTests(unittest.TestCase):
             with self.assertRaisesRegex(RunPackageError, "LIVE_COUNCIL_ENTRY_RETIRED"):
                 prepare_live_run(ROOT, portfolio_path=root / "missing-portfolio", snapshot_path=root / "missing-snapshot",
                                  cache_root=root / "missing-cache", calendar=None, run_dir=root / "run",
-                                 run_id="retired-live-test", model="gpt-5.6-terra")
+                                 run_id="retired-live-test", model="gpt-6-luna")
             self.assertFalse((root / "run").exists())
 
 

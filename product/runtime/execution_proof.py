@@ -794,6 +794,11 @@ def build_ephemeral_run_specialist_execution_proof(
     if Path(str(run_manifest.get("output_dir", ""))).resolve() != run_dir:
         raise ExecutionProofError("RUN_DIRECTORY_IDENTITY_MISMATCH")
     run_id = str(run_manifest.get("run_id", ""))
+    from .codex_runtime import read_codex_runtime_binding
+    runtime_path = run_dir / "invocation" / "codex-runtime.json"
+    runtime_binding = read_codex_runtime_binding(
+        runtime_path, expected_runtime=run_manifest.get("codex_runtime"), run_id=run_id,
+    )
     topology = validate_runtime_mode(
         run_mode=str(run_manifest.get("run_mode", "PRODUCT_COUNCIL")),
         ablation_profile=run_manifest.get("ablation_profile"),
@@ -1005,7 +1010,8 @@ def build_ephemeral_run_specialist_execution_proof(
             "agent_role": agent_name,
             "thread_source": "subagent_hook",
             "model": manifest.get("model"),
-            "codex_runtime": run_manifest.get("codex_runtime"),
+            "codex_runtime": runtime_binding["observed_runtime"],
+            "codex_runtime_source": "host_binary_measurement",
             "multi_agent_version": "codex-subagent-hooks/1.0.0",
             "rollout_sha256": None,
             "agent_resource_sha256": manifest["agent"]["sha256"],
@@ -1063,6 +1069,9 @@ def build_ephemeral_run_specialist_execution_proof(
     proof: dict[str, Any] = {
         "schema_version": PROOF_SCHEMA_VERSION,
         "capture_mode": "ephemeral_lifecycle_hooks",
+        "codex_runtime_binding": {"path": "invocation/codex-runtime.json",
+                                  "sha256": file_hash(runtime_path),
+                                  "binding_hash": runtime_binding["binding_hash"]},
         "capture_sources": {
             "codex_events_sha256": file_hash(codex_events_path),
             "subagent_events_sha256": file_hash(hook_events_path),
@@ -1070,7 +1079,8 @@ def build_ephemeral_run_specialist_execution_proof(
         "parent": {
             "session_id": parent_session_id,
             "model": run_manifest.get("model"),
-            "codex_runtime": run_manifest.get("codex_runtime"),
+            "codex_runtime": runtime_binding["observed_runtime"],
+            "codex_runtime_source": "host_binary_measurement",
             "rollout_sha256": None,
         },
         "dispatches": sorted(dispatches, key=lambda item: item["dispatch_ordinal"]),

@@ -17,7 +17,7 @@ if [ "${1:-}" = "--help" ]; then
   echo 'live 需 LIVE_SOURCE_ACCESS_FILE（外置已准入来源 JSON）与 SEC_USER_AGENT；可选 LIVE_CACHE_ROOT。'
   echo '多维新包可显式加 --structured-report-submission，仅启用研报结构化提交试验，默认关闭。'
   echo '反证上游补验可显式加 --core-forward-only，仅运行现有六项核心准入，使用新执行身份复用冻结资料；不表示完整八维。'
-  echo '在 macOS Terminal 中执行；默认 normal fixture 读取原候选路由；普通股/多维/反证/CIO 开发测试默认 gpt-6-luna。'
+  echo '在 macOS Terminal 中执行；新 normal fixture、普通股/多维/反证/CIO 与新评分默认 gpt-6-luna；prepared-run 保留冻结模型。'
   echo '仅限宿主产品执行；不创建项目沙箱。--review 已停用并明确拒绝。'
   exit 0
 fi

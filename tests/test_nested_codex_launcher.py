@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import tomllib
 import unittest
+import venv
 from pathlib import Path
 from unittest.mock import patch
 
@@ -31,7 +32,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
             codex_binary="codex",
             product_root=ROOT / "product",
             run_dir=run_dir,
-            model="gpt-5.6-terra",
+            model="gpt-6-luna",
             sqlite_home=run_dir / ".codex-runtime" / "sqlite",
             log_dir=run_dir / ".codex-runtime" / "logs",
             final_message_path=run_dir / ".codex-runtime" / "tmp" / "final.txt",
@@ -62,7 +63,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
             codex_binary="codex",
             product_root=ROOT / "product",
             run_dir=run_dir,
-            model="gpt-5.6-terra",
+            model="gpt-6-luna",
             sqlite_home=run_dir / ".codex-runtime/sqlite",
             log_dir=run_dir / ".codex-runtime/logs",
             final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
@@ -79,7 +80,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
             codex_binary="codex",
             product_root=ROOT / "product",
             run_dir=run_dir,
-            model="gpt-5.6-terra",
+            model="gpt-6-luna",
             sqlite_home=run_dir / ".codex-runtime/sqlite",
             log_dir=run_dir / ".codex-runtime/logs",
             final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
@@ -102,7 +103,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
         run_dir = Path("/tmp/common-stock-run")
         command = build_nested_codex_command(
             codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
-            model="gpt-5.6-terra", sqlite_home=run_dir / ".codex-runtime/sqlite",
+            model="gpt-6-luna", sqlite_home=run_dir / ".codex-runtime/sqlite",
             log_dir=run_dir / ".codex-runtime/logs",
             final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
             hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
@@ -111,6 +112,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
         override = next(
             item for item in command if item.startswith("mcp_servers.fixture_runtime=")
         )
+        self.assertTrue(tomllib.loads(override)["mcp_servers"]["fixture_runtime"]["enabled"])
         self.assertIn('"--default-run-dir","/private/tmp/common-stock-run"', override)
         self.assertIn(
             'enabled_tools=["query","calculate","equity_research_attachments.query","research_search","research_fetch"]',
@@ -136,7 +138,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
         ):
             command = build_nested_codex_command(
                 codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
-                model="gpt-5.6-terra", sqlite_home=run_dir / ".codex-runtime/sqlite",
+                model="gpt-6-luna", sqlite_home=run_dir / ".codex-runtime/sqlite",
                 log_dir=run_dir / ".codex-runtime/logs",
                 final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
                 hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
@@ -172,12 +174,12 @@ class NestedCodexLauncherTests(unittest.TestCase):
             run_dir = Path(directory) / "run"
             prepare_run(
                 ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
-                run_dir=run_dir, run_id="bound-mcp-transport", model="gpt-5.6-terra",
+                run_dir=run_dir, run_id="bound-mcp-transport", model="gpt-6-luna",
                 research_question="验证本地 MCP 接缝，不启动模型。",
             )
             command = build_nested_codex_command(
                 codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
-                model="gpt-5.6-terra", sqlite_home=run_dir / "sqlite",
+                model="gpt-6-luna", sqlite_home=run_dir / "sqlite",
                 log_dir=run_dir / "logs", final_message_path=run_dir / "final.txt",
                 hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
                 fixture_mcp_run_dir=run_dir, enable_cio_local_revision=True,
@@ -195,6 +197,29 @@ class NestedCodexLauncherTests(unittest.TestCase):
             )
             self.assertEqual(unbound.returncode, 126)
             self.assertIn("FIXTURE_MCP_PYTHON_NOT_BOUND", unbound.stderr)
+            invalid = subprocess.run(
+                [transport["command"], *transport["args"]], cwd=transport["cwd"],
+                env={**unbound_environment, **transport["env"],
+                     "STOCK_AGENT_FIXTURE_MCP_PYTHON": str(Path(directory) / "missing-python")},
+                input="", capture_output=True, text=True, timeout=15,
+            )
+            self.assertEqual(invalid.returncode, 126)
+            self.assertIn("FIXTURE_MCP_PYTHON_NOT_EXECUTABLE", invalid.stderr)
+            empty_env = Path(directory) / "without-dependencies"
+            venv.EnvBuilder(with_pip=False).create(empty_env)
+            missing_dependency = subprocess.run(
+                [transport["command"], *transport["args"]], cwd=transport["cwd"],
+                env={**unbound_environment,
+                     "STOCK_AGENT_FIXTURE_MCP_PYTHON": str(empty_env / "bin/python"),
+                     "STOCK_AGENT_FIXTURE_MCP_PYTHONPATH": str(ROOT)},
+                input="", capture_output=True, text=True, timeout=15,
+            )
+            self.assertEqual(missing_dependency.returncode, 126)
+            self.assertIn("FIXTURE_MCP_DEPENDENCY_UNAVAILABLE:jsonschema", missing_dependency.stderr)
+            invocation = json.loads((run_dir / "invocations/runtime_company_analyst.json").read_text())
+            evidence_id = json.loads((run_dir / "evidence/gate.json").read_text())["allowed_evidence_ids"][0]
+            query = {"run_id": "bound-mcp-transport", "agent": "runtime_company_analyst",
+                     "invocation_id": invocation["invocation_id"], "evidence_ids": [evidence_id]}
             requests = [
                 {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
                     "protocolVersion": "2025-06-18", "capabilities": {},
@@ -208,6 +233,10 @@ class NestedCodexLauncherTests(unittest.TestCase):
                         "invocation_id": "unauthorized-reader", "report_ids": ["r1"],
                     },
                 }},
+                {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {
+                    "name": "query", "arguments": query}},
+                {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {
+                    "name": "query", "arguments": {**query, "run_id": "other-run"}}},
             ]
             # Execute only the generated local MCP transport, never codex.
             completed = subprocess.run(
@@ -222,13 +251,26 @@ class NestedCodexLauncherTests(unittest.TestCase):
             advertised = {item["name"] for item in responses[2]["result"]["tools"]}
             self.assertIn("read_reports", advertised & set(transport["enabled_tools"]))
             self.assertIn("CIO_REPORT_READ_NOT_AUTHORIZED", json.dumps(responses[3]))
+            self.assertFalse(responses[4]["result"].get("isError", False), responses[4])
+            self.assertIn(evidence_id, json.dumps(responses[4]))
+            self.assertIn("INVOCATION_IDENTITY_MISMATCH", responses[5]["error"]["message"])
             self.assertFalse((run_dir / "cio/native-draft.json").exists())
+
+    def test_mcp_run_binding_cannot_target_another_run(self):
+        with self.assertRaisesRegex(ValueError, "FIXTURE_MCP_RUN_BINDING_MISMATCH"):
+            build_nested_codex_command(
+                codex_binary="codex", product_root=ROOT / "product", run_dir=Path("/tmp/run-one"),
+                model="gpt-6-luna", sqlite_home=Path("/tmp/sqlite"), log_dir=Path("/tmp/logs"),
+                final_message_path=Path("/tmp/final.txt"),
+                hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
+                fixture_mcp_run_dir=Path("/tmp/run-two"),
+            )
 
     def test_multidimensional_matcher_can_include_market_agent_without_changing_default(self):
         run_dir = Path("/tmp/multidimensional-run")
         arguments = dict(
             codex_binary="codex", product_root=ROOT / "product", run_dir=run_dir,
-            model="gpt-5.6-terra", sqlite_home=run_dir / ".codex-runtime/sqlite",
+            model="gpt-6-luna", sqlite_home=run_dir / ".codex-runtime/sqlite",
             log_dir=run_dir / ".codex-runtime/logs",
             final_message_path=run_dir / ".codex-runtime/tmp/final.txt",
             hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
@@ -275,7 +317,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
                 "turn_id": "turn-1",
                 "agent_id": "child-1",
                 "agent_type": "runtime_skeptic",
-                "model": "gpt-5.6-terra",
+                "model": "gpt-6-luna",
                 "cwd": str(ROOT / "product"),
                 "permission_mode": "dontAsk",
                 "agent_transcript_path": None,
@@ -323,7 +365,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
             common = {
                 "session_id": "parent-1",
                 "turn_id": "turn-1",
-                "model": "gpt-5.6-terra",
+                "model": "gpt-6-luna",
                 "cwd": str(ROOT / "product"),
                 "permission_mode": "dontAsk",
             }
@@ -374,7 +416,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
                 "turn_id": "turn-1",
                 "tool_name": "spawn_agent",
                 "tool_use_id": "call-1",
-                "model": "gpt-5.6-terra",
+                "model": "gpt-6-luna",
                 "cwd": str(ROOT / "product"),
                 "permission_mode": "dontAsk",
                 "tool_input": {
@@ -385,7 +427,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
                 },
             }
             prepare_run(ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
-                        run_dir=run_dir, run_id="hook-dispatch", model="gpt-5.6-terra",
+                        run_dir=run_dir, run_id="hook-dispatch", model="gpt-6-luna",
                         research_question="合成派发测试", authenticity_required=False)
             payload["tool_input"]["message"] = build_specialist_dispatch_message(
                 ROOT, run_dir, "runtime_skeptic")
@@ -481,7 +523,7 @@ class NestedCodexLauncherTests(unittest.TestCase):
                 fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "normal-research.json",
                 run_dir=run_dir,
                 run_id="nested-prepare-only",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证 prepare-only 失败判定。",
             )
             checks, failure = _completion_checks(run_dir)
@@ -606,13 +648,13 @@ class NestedCodexLauncherTests(unittest.TestCase):
 
     def test_zero_codex_exit_cannot_mask_incomplete_council(self):
         with tempfile.TemporaryDirectory() as directory:
-            run_dir = Path(directory) / "run"
+            run_dir = Path(directory).resolve() / "run"
             prepare_run(
                 ROOT,
                 fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "normal-research.json",
                 run_dir=run_dir,
                 run_id="nested-exit-zero-incomplete",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证退出码不能替代终态校验。",
             )
 
@@ -643,10 +685,14 @@ class NestedCodexLauncherTests(unittest.TestCase):
                 final_path.write_text("prepare only", encoding="utf-8")
                 return subprocess.CompletedProcess(command, 0)
 
+            cli = run_dir / "version-only-codex"
+            cli.write_text("#!/bin/sh\nprintf 'codex-cli 0.160.0\\n'\n")
+            cli.chmod(0o700)
             with patch("product.runtime.nested_codex.subprocess.run", side_effect=fake_run):
                 result, exit_code = launch_nested_codex(
                     ROOT,
                     run_dir=run_dir,
+                    codex_binary=str(cli),
                     timeout_seconds=5,
                 )
 

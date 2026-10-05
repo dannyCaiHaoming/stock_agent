@@ -13,7 +13,17 @@ import sys
 INSTALLATION_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(INSTALLATION_ROOT))
 
-from product.runtime.cli import build_parser  # noqa: E402
+try:
+    from product.runtime.cli import build_parser  # noqa: E402
+except ModuleNotFoundError as exc:
+    # Fail before parsing or launching a run, including when base dependencies
+    # cannot be imported by the interpreter selected in the host Terminal.
+    print(json.dumps({
+        "status": "BLOCKED", "failure_code": "DEVELOPMENT_DEPENDENCY_MISSING",
+        "dependency": exc.name, "python": sys.executable, "llm_calls": 0,
+        "remedy": "选择项目 .venv 并按 README 安装对应依赖。",
+    }, ensure_ascii=False))
+    raise SystemExit(2) from None
 from product.runtime.environment_preflight import reject_legacy_entry  # noqa: E402
 
 

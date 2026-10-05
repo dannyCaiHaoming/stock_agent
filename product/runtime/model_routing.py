@@ -7,9 +7,21 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-POLICY_VERSION = "model-routing-policy/1.0.0"
+POLICY_VERSION = "model-routing-policy/1.1.0"
 ROUTES = {"development_default", "runtime_repeated", "architecture_dispute"}
 AGENT_DEVELOPMENT_TEST_MODEL = "gpt-6-luna"
+DEFAULT_GRADER_MODEL = AGENT_DEVELOPMENT_TEST_MODEL
+LEGACY_GRADER_MODEL = "gpt-5.6-terra"
+
+
+def eval_model_from_manifest(manifest: Mapping[str, Any]) -> str:
+    """Frozen new-job model; absent field retains the historical Terra contract."""
+    if manifest.get("schema_version") == "runtime-eval-input/1.1.0" and "grader_model" not in manifest:
+        raise ValueError("MODEL_ROUTE_INVALID:eval-grader-lock-missing")
+    model = manifest.get("grader_model", LEGACY_GRADER_MODEL)
+    if not isinstance(model, str) or model not in {DEFAULT_GRADER_MODEL, LEGACY_GRADER_MODEL}:
+        raise ValueError("MODEL_ROUTE_INVALID:eval-grader-lock")
+    return str(model)
 
 
 def agent_development_test_model() -> str:
@@ -24,7 +36,7 @@ def load_model_routing(product_root: Path) -> dict[str, Any]:
         raise ValueError("MODEL_ROUTE_INVALID:policy")
     if any(not isinstance(value.get(route), str) or not value[route] for route in ROUTES):
         raise ValueError("MODEL_ROUTE_INVALID:route")
-    if value["development_default"] != "gpt-5.6-sol" or value["runtime_repeated"] != "gpt-5.6-terra":
+    if value["development_default"] != "gpt-5.6-sol" or value["runtime_repeated"] != AGENT_DEVELOPMENT_TEST_MODEL:
         raise ValueError("MODEL_ROUTE_INVALID:required-models")
     if value["architecture_dispute"] != "gpt-6-astra":
         raise ValueError("MODEL_ROUTE_INVALID:architecture-model")
@@ -60,7 +72,8 @@ def select_product_runtime_model(
     if requested_model is None:
         return select_model(product_root, route=default_route)
     supported = {str(policy[route]) for route in ROUTES}
-    supported.add(AGENT_DEVELOPMENT_TEST_MODEL)
+    supported.update({AGENT_DEVELOPMENT_TEST_MODEL, LEGACY_GRADER_MODEL})
+    # Explicit historical consumption is supported; Terra is never a new default.
     if requested_model not in supported:
         raise ValueError(f"PRODUCT_RUNTIME_MODEL_UNSUPPORTED:{requested_model}")
     return requested_model

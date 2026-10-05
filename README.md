@@ -276,11 +276,13 @@ Intake 不会自动启动研究，研究阶段也不会未经授权自动推进�
 - 仅在真实数据任务中安装可选 live 依赖
 
 ```bash
-# 基础开发安装
-python3 -m pip install -e .
+# 基础开发安装：在仓库根创建并选择项目环境
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
 
 # 需要真实只读数据适配时
-python3 -m pip install -e '.[live]'
+python -m pip install -e '.[live]'
 
 # 查看当前 OpenSpec Change
 openspec list
@@ -289,7 +291,7 @@ openspec list
 openspec validate --all --strict
 
 # 运行确定性测试
-python3 -m unittest discover -s tests
+python -m unittest discover -s tests
 ```
 
 开始改动前先阅读 [AGENTS.md](AGENTS.md)。涉及产品方向或 Capability 取舍时再阅读 [PRODUCT.md](PRODUCT.md)；涉及产品运行契约时阅读 [product/AGENTS.md](product/AGENTS.md)。不要把所有专项文档都作为每次任务的固定前置。

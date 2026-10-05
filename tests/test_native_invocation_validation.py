@@ -78,7 +78,7 @@ class InvocationManifestTests(unittest.TestCase):
             agent_name=agent,
             agent_input=self.inputs[agent],
             task_prompt="只返回指定 Schema JSON。",
-            model="gpt-5.6-terra",
+            model="gpt-6-luna",
             evidence_ids=self.inputs[agent]["allowed_evidence_ids"],
             output_schema_path=self.schema_paths[agent],
         )
@@ -99,7 +99,7 @@ class InvocationManifestTests(unittest.TestCase):
                 manifest["decision_contract"]["version"],
                 "council-decision-contract/1.0.0",
             )
-            self.assertEqual(manifest["model"], "gpt-5.6-terra")
+            self.assertEqual(manifest["model"], "gpt-6-luna")
             self.assertTrue(manifest["skills"])
             self.assertTrue(manifest["tool_permissions"])
             for field in (
@@ -195,7 +195,7 @@ class StructuredArtifactValidationTests(unittest.TestCase):
             agent_name="runtime_company_analyst",
             agent_input=inputs["runtime_company_analyst"],
             task_prompt="只返回 JSON。",
-            model="gpt-5.6-terra",
+            model="gpt-6-luna",
             evidence_ids=gate.allowed_ids,
             output_schema_path=schema_paths["runtime_company_analyst"],
         )
@@ -205,7 +205,7 @@ class StructuredArtifactValidationTests(unittest.TestCase):
             agent_name="runtime_skeptic",
             agent_input=inputs["runtime_skeptic"],
             task_prompt="只返回 JSON。",
-            model="gpt-5.6-terra",
+            model="gpt-6-luna",
             evidence_ids=gate.allowed_ids,
             output_schema_path=schema_paths["runtime_skeptic"],
         )

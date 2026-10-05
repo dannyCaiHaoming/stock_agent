@@ -227,7 +227,8 @@ def run_promotion_gate(
     baseline_id = baseline.get("candidate_version") or baseline.get("version")
     if baseline_id != inputs["baseline_version"]:
         raise RuntimePromotionError("PROMOTION_BASELINE_VERSION_MISMATCH")
-    if model_policy.get("schema_version") != "model-routing-policy/1.0.0":
+    if (model_policy.get("schema_version") not in {"model-routing-policy/1.0.0", "model-routing-policy/1.1.0"}
+            or model_policy["schema_version"] != "model-routing-policy/" + candidate.get("assurance", {}).get("model-routing-policy", "")):
         raise RuntimePromotionError("PROMOTION_MODEL_POLICY_INVALID")
     try:
         test_verification = _verify_deterministic_tests(repository_root, tests_path)
@@ -285,16 +286,21 @@ def run_promotion_gate(
     if len(grader_proofs) != len(eval_pairs):
         raise RuntimePromotionError("PROMOTION_GRADER_PROOF_SET_INVALID")
     for (eval_path, evaluation), proof in zip(eval_pairs, grader_proofs):
-        _self_hash(proof, "proof_hash", code="PROMOTION_GRADER_PROOF_HASH_INVALID")
-        eval_dir = eval_path.parent.parent
-        semantic = _read(eval_dir / "semantic-rubric.json")
-        verified = verify_eval_execution_proof(
-            repository_root,
-            eval_dir=eval_dir,
-            semantic_result=semantic,
-        )
-        if verified != proof or proof.get("eval_id") != evaluation.get("eval_id"):
-            raise RuntimePromotionError("PROMOTION_GRADER_PROOF_MISMATCH")
+        try:
+            _self_hash(proof, "proof_hash", code="PROMOTION_GRADER_PROOF_HASH_INVALID")
+            eval_dir = eval_path.parent.parent
+            semantic = _read(eval_dir / "semantic-rubric.json")
+            verified = verify_eval_execution_proof(
+                repository_root,
+                eval_dir=eval_dir,
+                semantic_result=semantic,
+            )
+            if verified != proof or proof.get("eval_id") != evaluation.get("eval_id"):
+                raise RuntimePromotionError("PROMOTION_GRADER_PROOF_MISMATCH")
+        except (ValueError, OSError) as exc:
+            verification_errors["runtime_eval"].append(
+                f"PROMOTION_GRADER_PROOF_REJECTED:{evaluation.get('eval_id')}:{exc}"
+            )
     verified_traces: list[dict[str, Any]] = []
     for trace in traces:
         try:
@@ -624,6 +630,11 @@ def run_promotion_gate(
     lines.extend(f"- {name}: `{item['status']}`" for name, item in hard_gates.items())
     lines.extend(["", "## Reasons", ""])
     lines.extend([f"- `{code}`" for code in result["reason_codes"]] or ["- 无"])
+    proof_rejections = [error for error in verification_errors["runtime_eval"]
+                        if error.startswith("PROMOTION_GRADER_PROOF_REJECTED:")]
+    if proof_rejections:
+        lines.extend(["", "## 评分证明拒绝", ""])
+        lines.extend(f"- {error}" for error in proof_rejections)
     lines.extend(
         [
             "",

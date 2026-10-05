@@ -1,0 +1,103 @@
+{
+  "source_id": "human-approved-config-alignment-closeout:2026-10-05",
+  "as_of": "2026-10-05T01:26:09.148562Z",
+  "retrieved_at": "2026-10-05T01:26:09.148562Z",
+  "human_approval": "好，批准同步且归档",
+  "change": "align-codex-config-and-product-loading",
+  "archive_path": "openspec/changes/archive/2026-10-05-align-codex-config-and-product-loading",
+  "status": "SPECS_SYNCED_ARCHIVE_AND_SCOPED_PUBLICATION_AUTHORIZED",
+  "spec_sync": [
+    {
+      "capability": "codex-development-environment",
+      "added": [
+        "产品研究 MCP 必须按授权运行启用",
+        "开发与宿主解释器必须能够明确复现",
+        "产品插件更新必须关联批准来源与实际安装",
+        "开发 Regression 必须消费当前报告交付契约",
+        "Promotion 评分证明拒绝必须形成可审计失败",
+        "宿主 CLI 必须在模型前核验实际版本"
+      ],
+      "modified": [
+        "版本与模型配置必须以可验证能力为准"
+      ],
+      "unchanged_requirements_preserved": 19,
+      "all_deltas_synced": true,
+      "after_sha256": "d9808bdb03a3dfb2300061d320c4b2a07a11ac7637e9c27fb22066e159669295"
+    },
+    {
+      "capability": "three-plane-governance",
+      "added": [
+        "产品指令必须显式限定入口与阶段",
+        "配置维护必须保持用户确认范围"
+      ],
+      "modified": [],
+      "unchanged_requirements_preserved": 13,
+      "all_deltas_synced": true,
+      "after_sha256": "82faed860da487d4ec9035512b597d032658a361724e9d8b4059e2ed222f0a11"
+    }
+  ],
+  "validation": {
+    "change_strict": "PASS",
+    "main_specs_strict": {
+      "passed": 24,
+      "failed": 0
+    }
+  },
+  "shared_files": [
+    {
+      "path": "AGENTS.md",
+      "workspace_sha256": "f749811470524406cea5b823a7ffcf38b9282b24c6e1582f26b41151aaf70852",
+      "git_content_sha256": "d68d1287a35a3c5ab3c18a7443b912e7e2724c7220c1346f21a0f4895df05434",
+      "handling": "仅提交本 Change 差异；其他 Change hunk 保留在工作区"
+    },
+    {
+      "path": "product/AGENTS.md",
+      "workspace_sha256": "f3d9ec7af4e5b35c9d4f4d476ff2a88c57bec9752e3f95766d9379acb85e02ca",
+      "git_content_sha256": "294f46ca8ce78e2d88978ee1c9a60c3cbc4177cee33aa5cb170f85ac77edf6f1",
+      "handling": "仅提交本 Change 差异；其他 Change hunk 保留在工作区"
+    },
+    {
+      "path": "scripts/run-product-smoke.sh",
+      "workspace_sha256": "01fd6800a9eb54bb8fa4054e61932ee395773e0c25abf705449e757dce1c5630",
+      "git_content_sha256": "7707ffc1e8ec332689f3a9021a3935c39d539e06ef3625f784826e93c3910a9f",
+      "handling": "仅提交本 Change 差异；其他 Change hunk 保留在工作区"
+    }
+  ],
+  "evidence_reuse": "当前70项实施文件 hash 与最后有效阶段记录一致；阶段 C/D 的5项顶层索引刷新，原阶段证据保持原样。复用阶段 F 的62/8/42项通过日志并核对 hash；未重复运行测试或模型。",
+  "limits": {
+    "old_smoke_cli_mismatch": "原 candidate.7 的0.153.4声明与0.160.0实际测量保留；原字节不改写",
+    "candidate8_real_model_smoke": "NOT_RUN",
+    "model_invocations_total": 3,
+    "new_model_invocations": 0,
+    "desktop_gui": "UNVERIFIED_TOOL_SAFETY_RESTRICTION",
+    "expanded_assurance": "一个旧 Demo 断言在原洁净基线复现，范围外；未声称全套通过",
+    "guardian_warning": "USER_ACCEPTED_NO_ROOT_CAUSE_CLAIM",
+    "promotion": "NOT_RUN"
+  },
+  "excluded": [
+    "用户级配置与全局 Git 规则",
+    ".codex-local、本机安装缓存、隔离凭据与恢复副本",
+    "真实私人账本、会话数据库、原始 prompts/Hook 事件",
+    "其他活跃 Change 与无关 dirty 修改"
+  ],
+  "git_publication": {
+    "status": "PENDING",
+    "remote": "https://github.com/dannyCaiHaoming/stock_agent.git",
+    "branch": "main",
+    "method": "scoped commit and non-force push"
+  },
+  "git_copy_limit": "实施证据中的 workspace hash 记录完整共享文件；Git 副本只包含本次批准 hunk，3个共享文件的 Git hash 另列。插件 hash 与私有 Smoke 的完整内容在本机审计目录保存，Git 中仅发布清单和脱敏摘要，不能从本次提交重算私有完整目录。",
+  "publication_review": {
+    "staged_file_count": 85,
+    "allowlist": "70个实施文件、2份主规格、13份本Change归档记录",
+    "scoped_shared_file_contents_verified": true,
+    "sensitive_content_scan": "PASS_WITH_ONE_REVIEWED_SYNTHETIC_NEGATIVE_TEST",
+    "reviewed_synthetic_test": [
+      {
+        "path": "tests/test_replay_capsule.py",
+        "match_sha256": "82be8a4d9cdebab78235e6d0618fdea34065fcb6f498073283ff4ec7376e551a",
+        "classification": "既有拒绝敏感内容的合成测试：完整字母表与连续六位数字；本次未新增。"
+      }
+    ]
+  }
+}

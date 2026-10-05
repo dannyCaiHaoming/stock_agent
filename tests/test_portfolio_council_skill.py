@@ -50,7 +50,7 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
                 / "normal-research.json",
                 run_dir=run_dir,
                 run_id="smoke-prompt-gate",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证 Smoke Release Gate。",
             )
             prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
@@ -75,7 +75,7 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
                 / "future-or-stale.json",
                 run_dir=run_dir,
                 run_id="smoke-prompt-stale",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证时点不足安全终止。",
             )
             self.assertEqual("SAFE_NO_TRADE", result["next_state"])
@@ -101,7 +101,7 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
                     fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "normal-research.json",
                     run_dir=run_dir,
                     run_id=f"smoke-{profile}",
-                    model="gpt-5.6-terra",
+                    model="gpt-6-luna",
                     research_question="评估拓扑。",
                     authenticity_required=True,
                     run_mode="EVAL_ABLATION",
@@ -128,7 +128,7 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
                 fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "future-or-stale.json",
                 run_dir=run_dir,
                 run_id="smoke-stale-ablation",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="评估无可用 Evidence 的实验拓扑。",
                 authenticity_required=True,
                 run_mode="EVAL_ABLATION",

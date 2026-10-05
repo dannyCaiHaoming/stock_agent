@@ -65,12 +65,12 @@ def complete_run_for_repository(repository_root: Path, run_dir: Path, run_id: st
         fixture_path=repository_root / "evals" / "fixtures" / "codex-native" / "normal-research.json",
         run_dir=run_dir,
         run_id=run_id,
-        model="gpt-5.6-terra",
+        model="gpt-6-luna",
         research_question="研究 fixture。",
         authenticity_required=False,
     )
     specialist_outputs(run_dir)
-    prepare_cio(repository_root, run_dir=run_dir, model="gpt-5.6-terra")
+    prepare_cio(repository_root, run_dir=run_dir, model="gpt-6-luna")
     write_json(run_dir / "cio" / "runtime_cio.json", ablation_cio_output(run_dir))
     finalize_cio(repository_root, run_dir=run_dir)
 
@@ -95,7 +95,7 @@ def promotion_input(
         eval_dir = root / "runtime-evals" / name
         prepare_eval_job(repository_root, run_dir=run_dir, eval_dir=eval_dir, eval_id=f"promotion-{name}")
         semantic = semantic_result(eval_dir)
-        semantic["grader"]["model"] = "gpt-5.6-terra"
+        semantic["grader"]["model"] = "gpt-6-luna"
         semantic.pop("output_hash")
         semantic["output_hash"] = canonical_hash(semantic)
         semantic_path = root / "grader-results" / f"{name}.json"
@@ -125,7 +125,7 @@ def promotion_input(
     )
     workspace = Path(prepared["workspace"])
     specialist_outputs(replay_dir)
-    prepare_cio(workspace, run_dir=replay_dir, model="gpt-5.6-terra")
+    prepare_cio(workspace, run_dir=replay_dir, model="gpt-6-luna")
     write_json(replay_dir / "cio" / "runtime_cio.json", ablation_cio_output(replay_dir))
     finalize_cio(workspace, run_dir=replay_dir)
     execution_dir = root / "execution-replay"
@@ -294,6 +294,54 @@ def promotion_input(
 
 
 class RuntimePromotionTests(unittest.TestCase):
+    def assert_saved_proof_rejection(self, root: Path, result: dict) -> None:
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue((root / "out/FAIL").is_file())
+        self.assertFalse((root / "out/PASS").exists())
+        saved = json.loads((root / "out/result.json").read_text())
+        self.assertEqual(saved, result)
+        errors = result["hard_gates"]["evidence_closure"]["detail"]["verification_errors"]
+        self.assertTrue(any("PROMOTION_GRADER_PROOF_REJECTED:" in error
+                            and "EVAL_LOCAL_REVISION_INPUT_DRIFT" in error for error in errors))
+        report = (root / "out/report.md").read_text()
+        for error in errors:
+            if error.startswith("PROMOTION_GRADER_PROOF_REJECTED:"):
+                self.assertIn(error, report)
+
+    def test_invalid_grader_proof_hash_and_identity_are_saved_as_fail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_path = promotion_input(root)
+            original = json.loads(input_path.read_text())
+            record = original["artifacts"]["grader_proofs"][0]
+            original_proof = json.loads(Path(record["path"]).read_text())
+            for defect, code in (("hash", "PROMOTION_GRADER_PROOF_HASH_INVALID"),
+                                 ("identity", "PROMOTION_GRADER_PROOF_MISMATCH")):
+                with self.subTest(defect=defect):
+                    inputs = json.loads(json.dumps(original))
+                    inputs["gate_id"] = f"proof-rejection-{defect}"
+                    proof = dict(original_proof)
+                    if defect == "hash":
+                        proof["proof_hash"] = "0" * 64
+                    else:
+                        proof["eval_id"] = "another-eval"
+                        proof.pop("proof_hash")
+                        proof["proof_hash"] = canonical_hash(proof)
+                    inputs["artifacts"]["grader_proofs"][0] = write(root / f"bad-proof-{defect}.json", proof)
+                    variant = root / f"input-{defect}.json"
+                    variant.write_text(json.dumps(inputs))
+                    out = root / f"out-{defect}"
+                    result = run_promotion_gate(ROOT, input_manifest_path=variant, output_dir=out)
+                    self.assertEqual(result["status"], "FAIL")
+                    self.assertEqual(result["hard_gates"]["evidence_closure"]["status"], "FAIL")
+                    errors = result["hard_gates"]["evidence_closure"]["detail"]["verification_errors"]
+                    self.assertTrue(any("PROMOTION_GRADER_PROOF_REJECTED:" in error and code in error
+                                        for error in errors))
+                    self.assertTrue((out / "FAIL").is_file())
+                    self.assertFalse((out / "PASS").exists())
+                    self.assertEqual(json.loads((out / "result.json").read_text()), result)
+                    self.assertIn(code, (out / "report.md").read_text())
+
     def test_valid_real_evidence_graph_passes_without_mutating_product(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -319,6 +367,7 @@ class RuntimePromotionTests(unittest.TestCase):
             self.assertEqual(result["status"], "FAIL")
             self.assertIn("PROMOTION_HARD_GATE_FAILED:pit_leakage", result["reason_codes"])
             self.assertTrue((root / "out" / "FAIL").is_file())
+            self.assert_saved_proof_rejection(root, result)
 
     def test_dangling_evidence_is_injected_in_runtime_artifact_and_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -334,6 +383,7 @@ class RuntimePromotionTests(unittest.TestCase):
             result = run_promotion_gate(ROOT, input_manifest_path=input_path, output_dir=root / "out")
             self.assertEqual(result["status"], "FAIL")
             self.assertEqual(result["hard_gates"]["evidence_closure"]["status"], "FAIL")
+            self.assert_saved_proof_rejection(root, result)
 
     def test_risk_lineage_bypass_is_injected_in_trace_and_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -347,6 +397,7 @@ class RuntimePromotionTests(unittest.TestCase):
             trace_path.write_text(json.dumps(trace), encoding="utf-8")
             result = run_promotion_gate(ROOT, input_manifest_path=input_path, output_dir=root / "out")
             self.assertEqual(result["hard_gates"]["risk_bypass"]["status"], "FAIL")
+            self.assert_saved_proof_rejection(root, result)
 
     def test_missing_trace_is_rejected_from_bottom_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -357,6 +408,7 @@ class RuntimePromotionTests(unittest.TestCase):
             (Path(trace_report["source_run_dir"]) / "decision_trace.json").unlink()
             result = run_promotion_gate(ROOT, input_manifest_path=input_path, output_dir=root / "out")
             self.assertEqual(result["hard_gates"]["trace_completeness"]["status"], "FAIL")
+            self.assert_saved_proof_rejection(root, result)
 
     def test_execution_configuration_drift_is_recomputed_and_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

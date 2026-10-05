@@ -21,7 +21,7 @@ class NativeRerunTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=source,
                 run_id="source-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             result = prepare_native_rerun(
@@ -48,7 +48,7 @@ class NativeRerunTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=source,
                 run_id="source-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             manifest_path = source / "run_manifest.json"

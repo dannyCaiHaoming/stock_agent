@@ -2635,7 +2635,7 @@ def launch_common_stock_stage(
     """通过现有 nested Codex 命令构造器运行显式普通股研究阶段。"""
 
     from product.runtime.nested_codex import (
-        build_nested_codex_command,
+        build_verified_nested_codex_command,
         fixture_mcp_runtime_environment,
         integrity_snapshot,
     )
@@ -2726,7 +2726,8 @@ def launch_common_stock_stage(
     parent_stop_events_path = invocation_dir / "parent-stop-events.jsonl"
     stderr_path = invocation_dir / "codex-stderr.log"
     raw_final_path = tmp_dir / "final-message.json"
-    command = build_nested_codex_command(
+    command = build_verified_nested_codex_command(
+        runtime_binding_path=invocation_dir / "codex-runtime.json",
         codex_binary=codex_binary, product_root=isolated_product_root, run_dir=run_dir,
         model=manifest["parent_model"], sqlite_home=sqlite_home, log_dir=log_dir,
         final_message_path=raw_final_path,

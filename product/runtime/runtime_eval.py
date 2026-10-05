@@ -22,6 +22,7 @@ from .trace_validation import trace_integrity_report
 from .validation import collect_evidence_refs
 from .eval_execution_proof import verify_eval_execution_proof
 from .smoke_prompt import sessions_root_argument
+from .model_routing import DEFAULT_GRADER_MODEL, eval_model_from_manifest
 
 
 EVAL_JOB_VERSION = "runtime-eval-job/1.0.0"
@@ -417,6 +418,7 @@ def prepare_eval_job(
     eval_dir: Path,
     eval_id: str,
     expected_terminal_states: Sequence[str] = ("COMPLETED", "SAFE_NO_TRADE"),
+    contract_only: bool = False,
 ) -> dict[str, Any]:
     from .versioning import load_version_manifest, validate_current_component_versions
     product_root = repository_root.resolve() / "product"
@@ -451,7 +453,8 @@ def prepare_eval_job(
                   "评分、理由、引用由你生成；不输出 grader 或 output_hash，这些由运行层根据真实会话计算。"
                   "不得创造新事实、更改投资动作或使用市场结果。")
     input_manifest = {
-        "schema_version": "runtime-eval-input/1.0.0",
+        "schema_version": "runtime-eval-input/1.1.0",
+        "grader_model": DEFAULT_GRADER_MODEL,
         "eval_id": eval_id,
         "run_id": trace["run_id"],
         "run_dir": str(run_dir),
@@ -475,6 +478,9 @@ def prepare_eval_job(
         model_input = runtime_eval_model_input(semantic_input)
         input_manifest["model_input_projection"] = {
             "version": MODEL_INPUT_VERSION, "input_hash": canonical_hash(model_input)}
+    if contract_only:
+        input_manifest["semantic_evaluation_mode"] = "regression-contract-only/1.0.0"
+    semantic_required = _semantic_applicable(run_dir, semantic_input, input_manifest)
     eval_dir.mkdir(parents=True)
     _write_json(eval_dir / "input-manifest.json", input_manifest)
     _write_json(eval_dir / "deterministic.json", {"hard_gates": hard_gates})
@@ -484,7 +490,6 @@ def prepare_eval_job(
     (eval_dir / "grader-prompt.txt").write_text(prompt + "\n", encoding="utf-8")
     if _source_tree_hash(run_dir) != before:
         raise RuntimeEvalError("EVAL_SOURCE_RUN_MUTATED")
-    semantic_required = trace["terminal_state"] in {"COMPLETED", "SAFE_NO_TRADE"} and (run_dir / "invocations").is_dir()
     return {
         "eval_id": eval_id,
         "run_id": trace["run_id"],
@@ -492,6 +497,30 @@ def prepare_eval_job(
         "semantic_required": semantic_required,
         "hard_gate_status": "PASS" if all(item["status"] == "PASS" for item in hard_gates.values()) else "FAIL",
     }
+
+
+def _semantic_applicable(run_dir: Path, semantic_input: Mapping[str, Any],
+                         input_manifest: Mapping[str, Any]) -> bool:
+    """契约夹具的显式零模型路径；普通/历史作业继续要求真实语义评分。"""
+    mode = input_manifest.get("semantic_evaluation_mode")
+    if mode is not None:
+        if mode != "regression-contract-only/1.0.0":
+            raise RuntimeEvalError("EVAL_SEMANTIC_MODE_INVALID")
+        manifest = _read_object(run_dir / "run_manifest.json")
+        record = _read_object(run_dir / "audit/regression-injection.json")
+        if (input_manifest.get("authenticity_required") is not False
+                or manifest.get("authenticity_required") is not False
+                or manifest.get("source_mode", "fixture") != "fixture"
+                or manifest.get("trigger_reason") != "regression_deterministic_injection"
+                or set(record) != {"schema_version", "case_id", "injection", "deterministic_outcome_hash", "llm_calls"}
+                or record.get("schema_version") != "regression-injection/1.0.0"
+                or record.get("case_id") != "valid-action-contract"
+                or record.get("injection") != "valid-action-contract"
+                or type(record.get("llm_calls")) is not int or record["llm_calls"] != 0):
+            raise RuntimeEvalError("EVAL_CONTRACT_ONLY_NOT_AUTHORIZED")
+        return False
+    return (semantic_input["terminal_state"] in {"COMPLETED", "SAFE_NO_TRADE"}
+            and bool(semantic_input["artifacts"].get("cio/runtime_cio.json")))
 
 
 def validate_semantic_result(
@@ -516,6 +545,8 @@ def validate_semantic_result(
         or grader.get("input_hash") != source_hashes["semantic_input"]
         or not isinstance(grader.get("model"), str)
         or not grader["model"]
+        or (("grader_model" in input_manifest or input_manifest.get("schema_version") == "runtime-eval-input/1.1.0")
+            and grader["model"] != eval_model_from_manifest(input_manifest))
     ):
         raise RuntimeEvalError("SEMANTIC_GRADER_LINEAGE_INVALID")
     dimensions = value.get("dimensions")
@@ -553,6 +584,9 @@ def build_eval_smoke_prompt(
     repository_root = repository_root.resolve()
     eval_dir = eval_dir.resolve()
     manifest = _read_object(eval_dir / "input-manifest.json")
+    if manifest.get("semantic_evaluation_mode") is not None:
+        _semantic_applicable(Path(manifest["run_dir"]), _read_object(eval_dir / "grader-input.json"), manifest)
+        raise RuntimeEvalError("EVAL_CONTRACT_ONLY_MODEL_EXECUTION_FORBIDDEN")
     rubric_path = _rubric_path(repository_root, Path(manifest["run_dir"]))
     if manifest.get("semantic_output_delivery") != "native-draft/1.0.0":
         raise RuntimeEvalError("EVAL_LEGACY_WRITE_RETIRED")
@@ -560,6 +594,7 @@ def build_eval_smoke_prompt(
         runtime_python = shlex.quote(sys.executable)
         return f"""$runtime-eval-grading
 你是开发评分协调线程，不是 CIO；禁止修改产品或源 Run，不启动 Council。
+父协调线程和评分子线程必须使用冻结模型 {eval_model_from_manifest(manifest)}，不一致即停止。
 只启动一次独立子 Agent：agent_type=dev_eval、task_name=semantic_grading、fork_turns=none。
 子任务包含 eval_id={manifest['eval_id']} 和 eval_dir={eval_dir}。实际输入绑定由子线程读取冻结 manifest 的工具事件证明，hash 无需转抄。
 要求完整读取 {eval_dir}/grader-prompt.txt、grader-model-input.json、semantic-output-schema.json 和 {rubric_path}，应用 runtime-eval-grading。
@@ -591,7 +626,7 @@ def finalize_eval_job(
     if _source_tree_hash(run_dir) != input_manifest["source_hashes"]["run_tree"]:
         raise RuntimeEvalError("EVAL_SOURCE_RUN_MUTATED")
     semantic_input = _read_object(eval_dir / "grader-input.json")
-    applicable = semantic_input["terminal_state"] in {"COMPLETED", "SAFE_NO_TRADE"} and bool(semantic_input["artifacts"].get("cio/runtime_cio.json"))
+    applicable = _semantic_applicable(run_dir, semantic_input, input_manifest)
     if applicable and input_manifest.get("semantic_output_delivery") != "native-draft/1.0.0":
         raise RuntimeEvalError("EVAL_LEGACY_WRITE_RETIRED")
     if semantic_result_path is None:
@@ -614,6 +649,8 @@ def finalize_eval_job(
         validate_not_applicable_semantic_result(
             semantic, repository_root=repository_root, input_manifest=input_manifest)
     else:
+        if not applicable:
+            raise RuntimeEvalError("EVAL_NOT_APPLICABLE_MODEL_RESULT_FORBIDDEN")
         semantic = validate_semantic_result(
             _read_object(semantic_result_path),
             eval_id=str(input_manifest["eval_id"]),
@@ -621,7 +658,7 @@ def finalize_eval_job(
         )
     execution_proof = None
     if input_manifest.get("authenticity_required") is True and semantic_result_path is not None:
-        if semantic["grader"]["model"] != "gpt-5.6-terra":
+        if semantic["grader"]["model"] != eval_model_from_manifest(input_manifest):
             raise RuntimeEvalError("MODEL_ROUTE_INVALID:runtime-eval")
         execution_proof = verify_eval_execution_proof(
             repository_root,
@@ -760,10 +797,7 @@ def verify_runtime_eval_job(
         or semantic_input != _semantic_input(run_dir, trace)
     ):
         raise RuntimeEvalError("EVAL_INPUT_LINEAGE_MISMATCH")
-    applicable = (
-        semantic_input["terminal_state"] in {"COMPLETED", "SAFE_NO_TRADE"}
-        and bool(semantic_input["artifacts"].get("cio/runtime_cio.json"))
-    )
+    applicable = _semantic_applicable(run_dir, semantic_input, input_manifest)
     if applicable:
         validate_semantic_result(
             semantic,

@@ -22,9 +22,10 @@ from product.runtime.schema_validation import (
     validate_schema_definition,
     validate_schema_instance,
 )
+from .model_routing import DEFAULT_GRADER_MODEL
 
 
-EVAL_JOB_VERSION = "common-stock-research-eval-job/1.1.0"
+EVAL_JOB_VERSION = "common-stock-research-eval-job/1.2.0"
 EVAL_RESULT_VERSION = "common-stock-research-eval-result/1.0.0"
 EVAL_RUNTIME_VERSION = "common-stock-research-eval-runtime/1.0.0"
 EVAL_DRAFT_VERSION = "common-stock-research-eval-draft/1.0.0"
@@ -161,6 +162,7 @@ def prepare_common_stock_eval_job(
         coverage_binding = None
     payload = {
         "schema_version": EVAL_JOB_VERSION,
+        "grader_model": DEFAULT_GRADER_MODEL,
         "eval_id": eval_id,
         "run_id": report["run_id"],
         "invocation_id": report["invocation_id"],
@@ -253,6 +255,8 @@ def _validated_eval_manifest(eval_dir: Path) -> dict[str, Any]:
         verify_legacy_envelope_hash(manifest, hash_field="input_hash", location="input-manifest.json")
     except HashContractError as exc:
         raise CommonStockEvalError(f"COMMON_STOCK_EVAL_INPUT_HASH_INVALID:{exc}") from exc
+    if manifest.get("schema_version") == EVAL_JOB_VERSION and manifest.get("grader_model") != DEFAULT_GRADER_MODEL:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_LOCK_INVALID")
     return manifest
 
 
@@ -260,10 +264,14 @@ def envelope_common_stock_eval_draft(draft: Mapping[str, Any], *, manifest: Mapp
                                      actual_model: str, input_binding_hash: str) -> dict[str, Any]:
     if manifest.get("semantic_output_delivery") != EVAL_DRAFT_VERSION:
         raise CommonStockEvalError("COMMON_STOCK_EVAL_LEGACY_WRITE_RETIRED")
+    if manifest.get("schema_version") == EVAL_JOB_VERSION and manifest.get("grader_model") != DEFAULT_GRADER_MODEL:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_LOCK_INVALID")
     if not isinstance(actual_model, str) or not actual_model.strip():
         raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_PROOF_MISSING")
     if input_binding_hash != manifest["input_hash"]:
         raise CommonStockEvalError("COMMON_STOCK_EVAL_INPUT_BINDING_INVALID")
+    if "grader_model" in manifest and actual_model != manifest["grader_model"]:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_MISMATCH")
     try:
         validate_schema_instance(draft, build_common_stock_eval_draft_schema(manifest))
     except SchemaValidationError as exc:
@@ -284,6 +292,8 @@ def build_common_stock_eval_prompt(
 
     eval_dir = Path(eval_dir).resolve()
     manifest = _validated_eval_manifest(eval_dir)
+    if expected_model is not None and "grader_model" in manifest and expected_model != manifest["grader_model"]:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_MISMATCH")
     return (
         "读取本次普通股研究 Eval 输入，并使用已加载的 runtime-eval-grading 方法，"
         "只依据冻结报告和 Evidence 对 rubric 的九个维度逐项评分。输入若包含由同一份"
@@ -355,6 +365,10 @@ def validate_common_stock_eval_result(
     for key in ("eval_id", "run_id", "invocation_id", "security_id", "input_hash", "rubric_id"):
         if result.get(key) != manifest.get(key):
             raise CommonStockEvalError(f"COMMON_STOCK_EVAL_RESULT_BINDING_INVALID:{key}")
+    if manifest.get("schema_version") == EVAL_JOB_VERSION and manifest.get("grader_model") != DEFAULT_GRADER_MODEL:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_LOCK_INVALID")
+    if "grader_model" in manifest and result.get("model") != manifest["grader_model"]:
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_MISMATCH")
     if not isinstance(result.get("model"), str) or not result["model"]:
         raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_MISSING")
     dimensions = result.get("dimensions")
@@ -505,18 +519,24 @@ def finalize_common_stock_eval_job(
 
 
 def launch_common_stock_eval(
-    repository_root: Path, *, eval_dir: Path, model: str = "gpt-5.6-terra",
+    repository_root: Path, *, eval_dir: Path, model: str = DEFAULT_GRADER_MODEL,
     codex_binary: str = "codex", timeout_seconds: int = 900,
 ) -> tuple[dict[str, Any], int]:
     """通过现有 Codex 原生 Agent 派发运行一次真实聚焦 Eval。"""
 
-    from product.runtime.nested_codex import build_nested_codex_command, integrity_snapshot
+    from product.runtime.nested_codex import build_verified_nested_codex_command, integrity_snapshot
 
     repository_root = Path(repository_root).resolve()
     eval_dir = Path(eval_dir).resolve()
     manifest = _validated_eval_manifest(eval_dir)
     if manifest.get("semantic_output_delivery") != EVAL_DRAFT_VERSION:
         raise CommonStockEvalError("COMMON_STOCK_EVAL_LEGACY_WRITE_RETIRED")
+    if model != manifest.get("grader_model", "gpt-5.6-terra"):
+        raise CommonStockEvalError("COMMON_STOCK_EVAL_MODEL_MISMATCH")
+    import tomllib
+    with (repository_root / ".codex/agents/dev_eval.toml").open("rb") as stream:
+        if tomllib.load(stream).get("model") != model:
+            raise CommonStockEvalError("COMMON_STOCK_EVAL_AGENT_MODEL_MISMATCH")
     invocation_dir = eval_dir / "invocation"
     if invocation_dir.exists():
         raise CommonStockEvalError("COMMON_STOCK_EVAL_ALREADY_LAUNCHED")
@@ -552,7 +572,8 @@ def launch_common_stock_eval(
     dispatch_path = invocation_dir / "subagent-dispatches.jsonl"
     stderr_path = invocation_dir / "codex-stderr.log"
     raw_final_path = tmp_dir / "final-message.json"
-    command = build_nested_codex_command(
+    command = build_verified_nested_codex_command(
+        runtime_binding_path=invocation_dir / "codex-runtime.json",
         codex_binary=codex_binary, product_root=repository_root, run_dir=eval_dir,
         model=model, sqlite_home=sqlite_home, log_dir=log_dir,
         final_message_path=raw_final_path,

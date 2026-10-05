@@ -28,9 +28,9 @@ class CioLocalRevisionTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         root = Path(directory.name) / "council"
         prepare_run(REPO, fixture_path=REPO / "evals/fixtures/codex-native/normal-research.json",
-                    run_dir=root, run_id="cio-pending-test", model="gpt-5.6-terra",
+                    run_dir=root, run_id="cio-pending-test", model="gpt-6-luna",
                     research_question="验证先启动后准备 CIO", authenticity_required=False)
-        return root, None, "gpt-5.6-terra", str(REPO / "product")
+        return root, None, "gpt-6-luna", str(REPO / "product")
 
     def prepare_pending_cio(self, root):
         from product.runtime.run_package import prepare_cio
@@ -39,7 +39,7 @@ class CioLocalRevisionTests(unittest.TestCase):
         from tests.test_native_run_package import specialist_outputs, cio_output, read_json
         # 与宿主真实运行顺序一致：SessionStart 后才产生专业报告和 CIO 输入。
         specialist_outputs(root)
-        prepare_cio(REPO, run_dir=root, model="gpt-5.6-terra")
+        prepare_cio(REPO, run_dir=root, model="gpt-6-luna")
         helper = fixture_helpers.CioHandoffTests()
         helper.run = root
         helper.invocation = read_json(root / "invocations/runtime_cio.json")
@@ -318,7 +318,7 @@ class CioLocalRevisionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             kwargs = dict(codex_binary="codex", product_root=REPO / "product", run_dir=root,
-                          model="gpt-5.6-terra", sqlite_home=root / "sqlite", log_dir=root / "logs",
+                          model="gpt-6-luna", sqlite_home=root / "sqlite", log_dir=root / "logs",
                           final_message_path=root / "final.json",
                           hook_recorder_path=REPO / "product/runtime/codex_hook_recorder.py")
             command = build_nested_codex_command(**kwargs, enable_cio_local_revision=True)

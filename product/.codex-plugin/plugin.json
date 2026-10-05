@@ -1,9 +1,9 @@
 {
   "name": "product",
   "version": "0.3.0+codex.20260915123924",
-  "description": "\u9762\u5411 Codex\u3001\u8bc1\u636e\u4f18\u5148\u4e14\u4ec5\u4f9b\u7814\u7a76\u5efa\u8bae\u7684 Portfolio Council",
+  "description": "面向 Codex、证据优先且仅供研究建议的 Portfolio Council",
   "author": {
-    "name": "Portfolio Council \u9879\u76ee"
+    "name": "Portfolio Council 项目"
   },
   "license": "MIT",
   "keywords": [
@@ -17,17 +17,17 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Portfolio Council",
-    "shortDescription": "\u57fa\u4e8e\u8bc1\u636e\u5e76\u7ecf\u8fc7\u786c\u98ce\u9669\u6821\u9a8c\u7684\u7ec4\u5408\u7814\u7a76\u3002",
-    "longDescription": "\u8fd0\u884c\u4ec5\u4f9b\u5efa\u8bae\u7684 CIO \u59d4\u5458\u4f1a\uff0c\u4f7f\u7528\u9694\u79bb\u7684\u4e13\u4e1a\u7814\u7a76\u3001point-in-time \u8bc1\u636e\u3001\u7ed3\u6784\u5316 NO_TRADE \u7ed3\u679c\u548c\u786e\u5b9a\u6027\u98ce\u9669\u5426\u51b3\u3002",
-    "developerName": "Portfolio Council \u9879\u76ee",
+    "shortDescription": "持仓与单股研究、组合输入整理、交易记录和复盘。",
+    "longDescription": "按明确入口与阶段开展只读投资研究；研究综合不输出交易动作，完整 fixture Council 保留确定性 Risk 校验。独立交易记录与复盘不自动启动 Council。",
+    "developerName": "Portfolio Council 项目",
     "category": "Productivity",
     "capabilities": [
-      "\u53ea\u8bfb\u7814\u7a76",
-      "\u7ed3\u6784\u5316\u8f93\u51fa",
-      "\u786e\u5b9a\u6027\u98ce\u9669\u6821\u9a8c"
+      "只读研究",
+      "结构化输出",
+      "确定性风险校验"
     ],
     "defaultPrompt": [
-      "\u8bc4\u5ba1\u6211\u7684\u6301\u4ed3\uff0c\u5e76\u8fd4\u56de\u57fa\u4e8e\u8bc1\u636e\u7684\u7814\u7a76\u5efa\u8bae\u8ba1\u5212\u6216 NO_TRADE\u3002"
+      "整理我的组合输入，或按我指定的研究阶段分析普通股。"
     ]
   }
 }

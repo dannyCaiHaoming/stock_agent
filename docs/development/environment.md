@@ -2,6 +2,14 @@
 
 ## 入口和路径
 
+在仓库根用 `python3 -m venv .venv` 创建项目环境，并用 `source .venv/bin/activate` 选择它，然后执行 `python -m pip install -e .` 安装已有基础依赖。新 Terminal 运行确定性检查或宿主脚本前须重新选择该环境；从仓库外可使用 `source <仓库路径>/.venv/bin/activate`。宿主脚本的 `python3` 沿用这个 PATH，MCP 的解释器与依赖目录由宿主绑定，不依赖子 Agent 的偶然 PATH。可选 live/券商依赖仅在对应授权任务需要时安装。
+
+排障时记录实际 Python 路径/版本、依赖状态以及 Codex CLI 路径/版本。桌面内置与终端 CLI 可以不同；不自动升级或改写历史运行锁。当前后续候选要求 `codex-cli/0.160.0`。宿主启动会解析所选二进制并执行零模型 `--version` 核验，在本次 invocation 保存路径、文件 hash、实际版本和锁来源；不匹配会在模型调用前拒绝。纯命令渲染不执行核验，实际各阶段 launcher 使用同一核验包装。完整 fixture 优先消费冻结 run 锁；其他尚无 CLI 运行字段的阶段明确消费所选产品 manifest，不宣称它们已有冻结 CLI 锁。
+
+在桌面内置 CLI 与终端默认版本不同时，可在宿主调用的 PATH 中显式选择已核验的 0.160.0 目录，然后运行既有宿主脚本；不写入机器路径到版本化配置。新的 ephemeral 完整 Council 证明消费宿主测量记录，子 Agent 的 CLI 归属是同一宿主进程运行时，不能从声明推断为观测。原运行及其版本差异记录保持不变。缺少依赖属于环境未就绪，不把未完成的检查报告为产品断言失败或通过。
+
+产品插件在普通开发会话中只提供 Skills 发现，`fixture_runtime` 与 `live_runtime` 默认禁用。研究 MCP 仅由现有宿主 launcher 按具体运行显式启用并绑定产品根、解释器、run 和阶段工具权限；独立 Intake、交易记录和复盘不自动启动研究 MCP。配置/工具清单可读不代表实际加载，须分别记录。
+
 现有底层入口为 `python3 -m product.runtime.cli`（模块调用从仓库根），`nested-codex-smoke` 是宿主脚本消费的统一 LLM launcher，不是开发自检的直接模型入口。真实运行使用下文宿主方式，不复制旧管道命令或创建第二套 Python LLM 编排。旧 preflight 执行入口已退役，历史产物仅供读取。
 
 路径无关转发入口为 `python3 <仓库路径>/scripts/council-dev.py <既有子命令> ...`。它复用底层 CLI 参数；普通命令省略 `--repo` 时从脚本位置定位，其他相对路径按调用时目录解析。`prepare-execution-replay` 仍由原实现物化密封快照，之后 `nested-codex-smoke --run-dir ...` 自动选择该运行 manifest 的冻结 workspace，最后调用原 `finalize-execution-replay`。Regression 仍显式消费 run-index，缺案例不会自动启动模型；已获授权的新案例先经 prepare 和同一 nested-codex-smoke 执行。
@@ -32,7 +40,7 @@
 
 ## 宿主代理与手动 Product Smoke
 
-按本次用户授权，宿主 Terminal 可以运行 `bash <仓库路径>/scripts/run-product-smoke.sh`。
+获得对应场景、模型调用预算与执行授权后，从已选择项目环境的宿主 Terminal 运行 `bash <仓库路径>/scripts/run-product-smoke.sh`。
 脚本每次调用 `detect-host-proxy.sh`，保存只读系统查询的原始输出与退出码，
 优先使用 `scutil --proxy` 的生效 HTTP/HTTPS 设置；禁用服务中的旧端口和进程名称不作为代理依据。
 HTTP/HTTPS 地址分别传递大小写代理环境变量；仅 SOCKS 时使用 `socks5h`，先由现有
@@ -43,8 +51,8 @@ HTTP/HTTPS 地址分别传递大小写代理环境变量；仅 SOCKS 时使用 `
 脚本复用 `prepare → nested-codex-smoke → check-run`，保留已有 Codex 原生沙箱、Hook、
 run-scoped 状态及严格完成判定；不启动额外外层沙箱，不修改代理/域名/源码权限配置。
 这是一条用户授权的宿主产品启动方式，不是独立只读复核权限证明；不得将它冒充
-Task 4.2 的全进程源码保护证据。TUN 网络下不再要求外层嵌套成功。
-本次仅执行脚本聚焦测试与宿主只读检测，不自动调用模型或完整 Gate。
+全进程源码保护证据。TUN 网络下不再要求外层嵌套成功。
+脚本聚焦测试与已授权的宿主只读检测不自动授权模型或完整 Gate；实际执行与验收状态记录在对应 Change 证据中。
 
 Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完新运行后，仅在宿主 Terminal 使用：
 `bash <仓库路径>/scripts/run-product-smoke.sh --prepared-run <新重放run目录> <新的外置调用证据目录>`。
@@ -56,7 +64,7 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 给冻结 launcher 调用的 Codex 补 --skip-git-repo-check，实际命令及适配器 hash
 存入 run/invocation/host-transport.json。普通运行不使用该参数；缺来源指针拒绝。
 既有失败 run 不复用、不补写；使用原 source_run 和新的目录/run_id 重新 prepare。
-本轮未执行 Replay，不能宣称这条重放链已有真实验收。
+只有对应重放的真实执行与 finalizer 证据齐全时才能声明该次 Replay 通过；文档中的入口说明不是实际验收证明。
 
 普通股专项运行在启动模型前还会验证实际 Hook 紧凑 JSON 不超过 256 KiB。超限、附件绑定不完整或运行包重建漂移都在创建 Codex 进程前失败。模型运行采用独立本地进程组；超时后有界发送 TERM/KILL 并记录清理结果，远端取消状态无法核实时保持 `UNKNOWN`。这些行为不授予自动模型重试或额外模型预算。
 
@@ -64,9 +72,9 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 
 ## 模型与消耗
 
-保留 Sol 常规开发、Astra 复杂分析的分工与成本控制；普通股、多维研究和独立反证的产品 Agent 开发测试入口默认固定 `gpt-6-luna`。完整 fixture Council 候选、历史运行以及 `dev_eval` 语义评分仍使用各自锁定模型。用户明确选择主开发会话模型时尊重其选择，不额外要求产品 `dispute_id` 或批准凭证，也不要求根开发默认模型等于产品 `development_default`。开发子 Agent 继续按职责和已有配置选模；Reviewer 使用其实际生效配置，不承诺跟随主会话自动切换，未观测到实际模型时标未确认。
+保留 Sol 常规开发、Astra 复杂分析的分工与成本控制；新产品运行（完整 fixture、普通股、多维、独立反证、CIO、重复 Runtime）及新 `dev_eval` 语义评分/Calibration 默认统一为 `gpt-6-luna`。用户明确选择主开发会话模型时尊重其选择，不额外要求产品 `dispute_id` 或批准凭证，也不要求根开发默认模型等于产品 `development_default`。开发子 Agent 继续按职责和已有配置选模；Reviewer 使用其实际生效配置，不承诺跟随主会话自动切换，未观测到实际模型时标未确认。
 
-产品候选路由的权威来源仍为 [model-routing.json](../../product/model-routing.json)；开发测试的 Luna 默认值由产品模型选择模块单独固定，不修改候选模型、重复 Runtime 或真实 Runtime Eval 的既有运行锁与预算。显式调用产品 `architecture_dispute` 路由仍需原争议 ID 和人工批准；该条件不反向约束手动开发选模。
+当前产品路由权威来源为 [model-routing.json](../../product/model-routing.json)，政策版本为 1.1.0。新评分准备由确定性层冻结 `grader_model`，实际模型、可信结果装配、局部修订与完成校验必须一致，错误模型拒绝。旧候选、历史包和密封 Replay 保留原模型与 hash；没有新模型字段的历史 Runtime Eval 沿用原 Terra 读取契约，历史证明仍按其原冻结资源核验，不重标为 Luna，也不因当前配置改变改写历史。显式受支持模型请求如实记录；已批准历史包可显式消费其原模型，不静默回退。产品 `architecture_dispute` 仍需原争议 ID 和人工批准，该条件不反向约束手动开发选模。新默认和配置一致不等于实际模型可用、评分质量或候选晋升通过。
 
 模型由本机支持的配置或显式 `--model` 参数选择，而非 Prompt 自动切换。记录请求模型、配置来源及运行中实际模型；未知时标未确认，不把帮助包含 `--model` 当账户模型可用证明。Desktop 当前会话若无法由仓库配置改变，明确告知用户选择，不声称切换成功。
 

@@ -43,12 +43,12 @@ def _prepare_chain(run_dir: Path, run_id: str) -> None:
         fixture_path=FIXTURES / "normal-research.json",
         run_dir=run_dir,
         run_id=run_id,
-        model="gpt-5.6-terra",
+        model="gpt-6-luna",
         research_question="研究 fixture。",
         authenticity_required=False,
     )
     specialist_outputs(run_dir)
-    prepare_cio(ROOT, run_dir=run_dir, model="gpt-5.6-terra")
+    prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
 
 
 def _no_trade_draft(run_dir: Path, *, maximum_notional=None, target=None):
@@ -320,7 +320,7 @@ class ReleaseGateTests(unittest.TestCase):
                 fixture_path=FIXTURES / "future-or-stale.json",
                 run_dir=run_dir,
                 run_id="gate-stale",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
             missing, exit_code = check_run(ROOT, run_dir=run_dir)

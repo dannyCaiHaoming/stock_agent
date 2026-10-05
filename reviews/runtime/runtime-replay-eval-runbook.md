@@ -159,7 +159,7 @@ Rubric 校准使用人工标注的固定样本，并至少进行两次相互独�
 
 ## 5. Regression 与 Ablation
 
-Regression Set 位于 `evals/regression/v1/`。需要 LLM 的案例必须在 run index 中引用真实 Terra Run 和外置 Eval；确定性反例不得调用 LLM。无变化时按 case、候选、模型、Profile、Evidence、Rubric 和 Grader hash 复用已验证缓存。
+Regression Set 位于 `evals/regression/v1/`。需要 LLM 的案例必须在 run index 中引用真实冻结 Run 和外置 Eval（新默认 Luna，历史 Terra 保留原锁）；确定性反例不得调用 LLM。无变化时按 case、候选、模型、Profile、Evidence、Rubric 和 Grader hash 复用已验证缓存。
 
 ```text
 python3 -m product.runtime.cli regression --repo <repository-root> \
@@ -208,7 +208,7 @@ python3 -m product.runtime.cli promotion --repo <repository-root> \
 ## 7. 模型与消耗
 
 - 普通开发：`gpt-5.6-sol`。
-- Execution Replay、重复 Regression 与 Ablation：`gpt-5.6-terra`。
+- 新产品、重复 Regression/Ablation 与语义评分默认：`gpt-6-luna`；Execution Replay 使用来源密封模型，历史 Terra 不重标。
 - `gpt-6-astra`：仅限记录在案的重大架构或 Eval 方法争议，并要求 dispute ID 与人工批准产物。
 
 每次真实 LLM 执行从 Codex rollout 的 `token_count` 与时间戳生成最小化遥测，记录模型、输入/输出 token、可用的 cache token、延迟、调用数、触发原因和 cache provenance。原始 Prompt 与隐藏推理不会复制进证明。缺失遥测标记为 `MISSING_TELEMETRY`，不能当作零成本。

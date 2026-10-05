@@ -216,6 +216,24 @@ class PrivateRootTests(SyntheticProject):
 
 
 class CleanSourceTests(SyntheticProject):
+    def test_distinct_reviewed_base_versions_keep_same_overlay_installs_separate(self):
+        first = self.prepare()
+        source = self.repo / ".codex-local/product-plugin"
+        old_version = json.loads((source / ".codex-plugin/plugin.json").read_text())["version"]
+        self.put(self.baseline, "runtime/common_stock_stage.py", "REVIEWED_NEW_RUNTIME\n")
+        self.put(self.baseline, ".codex-plugin/plugin.json",
+                 json.dumps({"name": "product", "version": "0.3.0-config.new-reviewed-base"}))
+        updated_hash = tree_hash(self.baseline)
+        second = self.prepare(expected_hash=updated_hash)
+        new_version = json.loads((source / ".codex-plugin/plugin.json").read_text())["version"]
+        self.assertNotEqual(old_version, new_version)
+        self.assertEqual(first["overlays"], second["overlays"])
+        self.assertNotEqual(first["source_hash"], second["source_hash"])
+        self.assertEqual(tree_hash(Path(first["installed_baseline"])), first["baseline_hash"])
+        self.assertEqual(tree_hash(Path(second["installed_baseline"])), updated_hash)
+        retained_previous = self.repo / ".codex-local" / ("product-plugin.previous-" + first["source_hash"][:12])
+        self.assertEqual(tree_hash(retained_previous), first["source_hash"])
+
     def test_only_two_journal_skill_versions_propagate_from_working_source(self):
         declared = {"skills": {"tiger-trade-journal": "1.1.0", "trading-reflection": "2.3.4",
                                 "company-research": "9.9.9"},

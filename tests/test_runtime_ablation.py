@@ -123,7 +123,7 @@ def build_variant(
         fixture_path=repository_root / "evals" / "fixtures" / "codex-native" / fixture,
         run_dir=run_dir,
         run_id=f"ablation-{root.parent.name}-{root.name}-{profile}",
-        model="gpt-5.6-terra",
+        model="gpt-6-luna",
         research_question="Ablation fixture。",
         authenticity_required=False,
         run_mode="EVAL_ABLATION",
@@ -131,13 +131,13 @@ def build_variant(
     )
     if profile == "analyst-cio":
         analyst_output(run_dir)
-        prepare_cio(repository_root, run_dir=run_dir, model="gpt-5.6-terra")
+        prepare_cio(repository_root, run_dir=run_dir, model="gpt-6-luna")
     elif profile == "full-council":
         if fixture == "normal-research.json":
             specialist_outputs(run_dir)
         else:
             generic_specialist_outputs(run_dir)
-        prepare_cio(repository_root, run_dir=run_dir, model="gpt-5.6-terra")
+        prepare_cio(repository_root, run_dir=run_dir, model="gpt-6-luna")
     else:
         assert result["next_state"] == "CIO_SYNTHESIS_REQUIRED"
     if fixture == "risk-veto.json":
@@ -161,7 +161,7 @@ def build_variant(
     prepare_eval_job(repository_root, run_dir=run_dir, eval_dir=eval_dir, eval_id=f"eval-{profile}")
     grader = root / f"grader-{profile}.json"
     semantic = semantic_result(eval_dir)
-    semantic["grader"]["model"] = "gpt-5.6-terra"
+    semantic["grader"]["model"] = "gpt-6-luna"
     semantic.pop("output_hash")
     semantic["output_hash"] = canonical_hash(semantic)
     write_json(grader, semantic)
@@ -170,7 +170,7 @@ def build_variant(
         "run_dir": str(run_dir),
         "eval_result": str(eval_dir / "eval" / "result.json"),
         "case_id": case_id,
-        "model": "gpt-5.6-terra",
+        "model": "gpt-6-luna",
         "input_tokens": 100,
         "output_tokens": 50,
         "latency_ms": 1000,
@@ -312,7 +312,7 @@ class RuntimeAblationTests(unittest.TestCase):
                         "portfolio_hash": "d" * 64,
                         "gate_context_hash": "e" * 64,
                         "version_lock_hash": ("f" if profile != "full-council" else "0") * 64,
-                        "model": "gpt-5.6-terra",
+                        "model": "gpt-6-luna",
                         "risk_policy": "fixture-risk/1.0.0",
                         "rubric_hash": "1" * 64,
                         "case_id": "normal-research",
@@ -378,7 +378,7 @@ class RuntimeAblationTests(unittest.TestCase):
                         "portfolio_hash": "d" * 64,
                         "gate_context_hash": "e" * 64,
                         "version_lock_hash": "f" * 64,
-                        "model": "gpt-5.6-terra",
+                        "model": "gpt-6-luna",
                         "risk_policy": "fixture-risk/1.0.0",
                         "rubric_hash": "1" * 64,
                         "case_id": "normal-research",
@@ -434,7 +434,7 @@ class RuntimeAblationTests(unittest.TestCase):
                         "portfolio_hash": "d" * 64,
                         "gate_context_hash": "e" * 64,
                         "version_lock_hash": "f" * 64,
-                        "model": "gpt-5.6-terra",
+                        "model": "gpt-6-luna",
                         "risk_policy": "fixture-risk/1.0.0",
                         "rubric_hash": "1" * 64,
                         "case_id": "normal-research",

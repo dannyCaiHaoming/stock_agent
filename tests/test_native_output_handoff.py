@@ -24,9 +24,9 @@ class NativeOutputHandoffTests(unittest.TestCase):
         self.agent = "runtime_company_analyst"
         self.binding = {"agent": self.agent, "run_id": "run", "invocation_id": "inv"}
         (self.root / "run_manifest.json").write_text(json.dumps({"source_mode": "live", "specialist_output_delivery": "native-final-json/1.0.0"}))
-        (self.root / "invocations" / f"{self.agent}.json").write_text(json.dumps(dict(self.binding, agent={"name": self.agent}, model="gpt-5.6-terra")))
+        (self.root / "invocations" / f"{self.agent}.json").write_text(json.dumps(dict(self.binding, agent={"name": self.agent}, model="gpt-6-luna")))
         self.report = dict(self.binding, evidence_refs=["ev-exact-id"], thesis="中文原文，不改写")
-        self.payload = {"agent_type": self.agent, "model": "gpt-5.6-terra", "last_assistant_message": json.dumps(self.report, ensure_ascii=False)}
+        self.payload = {"agent_type": self.agent, "model": "gpt-6-luna", "last_assistant_message": json.dumps(self.report, ensure_ascii=False)}
         self.env = {"STOCK_AGENT_RUN_DIR": str(self.root)}
 
     def test_legacy_capture_is_explicitly_retired(self):
@@ -92,20 +92,20 @@ class NativeGradeTests(unittest.TestCase):
             self.assertTrue(_native_manifest_read(wrapped, manifest))
 
     def setUp(self):
-        self.manifest = {"semantic_output_delivery": "native-draft/1.0.0", "eval_id": "eval",
+        self.manifest = {"grader_model": "gpt-6-luna", "schema_version": "runtime-eval-input/1.1.0", "semantic_output_delivery": "native-draft/1.0.0", "eval_id": "eval",
                          "source_hashes": {"grader_prompt": "a"*64, "rubric": "b"*64, "semantic_input": "c"*64}}
         self.draft = {"schema_version": "semantic-rubric-draft/1.0.0", "eval_id": "eval",
                       "dimensions": {name: {"status": "FAIL", "grade": 1, "evidence_refs": ["claim-1"], "rationale": "证据不足"} for name in SEMANTIC_DIMENSIONS}}
 
     def test_runtime_metadata_does_not_change_grades(self):
         before = copy.deepcopy(self.draft)
-        result = normalize_native_grade(self.draft, self.manifest, model="gpt-5.6-terra")
+        result = normalize_native_grade(self.draft, self.manifest, model="gpt-6-luna")
         self.assertEqual(before, self.draft)
         self.assertEqual(result["dimensions"], self.draft["dimensions"])
         self.assertEqual(validate_semantic_result(result, eval_id="eval", input_manifest=self.manifest), result)
 
     def test_runtime_eval_schema_rejects_non_string_reference(self):
-        result = normalize_native_grade(self.draft, self.manifest, model="gpt-5.6-terra")
+        result = normalize_native_grade(self.draft, self.manifest, model="gpt-6-luna")
         result["dimensions"]["no_trade_reasoning"]["evidence_refs"] = [42]
         result["output_hash"] = canonical_hash({
             key: value for key, value in result.items() if key != "output_hash"
@@ -114,19 +114,19 @@ class NativeGradeTests(unittest.TestCase):
             validate_semantic_result(result, eval_id="eval", input_manifest=self.manifest)
 
     def test_model_binding_shape_and_bad_grades_rejected(self):
-        cases = [(dict(self.draft, eval_id="other"), "gpt-5.6-terra"),
-                 (dict(self.draft, output_hash="bad"), "gpt-5.6-terra"),
-                 (self.draft, "other-model"), (dict(self.draft, dimensions={}), "gpt-5.6-terra")]
+        cases = [(dict(self.draft, eval_id="other"), "gpt-6-luna"),
+                 (dict(self.draft, output_hash="bad"), "gpt-6-luna"),
+                 (self.draft, "other-model"), (dict(self.draft, dimensions={}), "gpt-6-luna")]
         for value, model in cases:
             with self.subTest(model=model), self.assertRaises(ValueError):
                 normalize_native_grade(value, self.manifest, model=model)
 
     def test_legacy_invalid_hash_never_repaired(self):
-        result = normalize_native_grade(self.draft, self.manifest, model="gpt-5.6-terra")
+        result = normalize_native_grade(self.draft, self.manifest, model="gpt-6-luna")
         result["output_hash"] = "bad"
         legacy = dict(self.manifest)
         legacy.pop("semantic_output_delivery")
-        self.assertEqual(normalize_native_grade(result, legacy, model="gpt-5.6-terra"), result)
+        self.assertEqual(normalize_native_grade(result, legacy, model="gpt-6-luna"), result)
         with self.assertRaisesRegex(ValueError, "OUTPUT_HASH_INVALID"):
             validate_semantic_result(result, eval_id="eval", input_manifest=legacy)
 
@@ -169,27 +169,27 @@ class SpecialistDraftTests(NativeOutputHandoffTests):
         super().setUp()
         from product.runtime.invocation import SPECIALIST_DRAFT_DELIVERY
         (self.root / "run_manifest.json").write_text(json.dumps({"source_mode": "live", "specialist_output_delivery": SPECIALIST_DRAFT_DELIVERY}))
-        self.invocation = dict(self.binding, agent={"name": self.agent}, model="gpt-5.6-terra",
+        self.invocation = dict(self.binding, agent={"name": self.agent}, model="gpt-6-luna",
                                skill_execution=[{"skill_name": "valuation", "version": "1", "invocation_hash": "a"*64}])
         (self.root / "invocations" / f"{self.agent}.json").write_text(json.dumps(self.invocation))
 
     def test_historical_envelope_reader_preserves_exact_semantics(self):
         from product.runtime.invocation import envelope_specialist_draft
         original = copy.deepcopy(self.report)
-        saved = envelope_specialist_draft(self.report, self.invocation, model="gpt-5.6-terra")
+        saved = envelope_specialist_draft(self.report, self.invocation, model="gpt-6-luna")
         self.assertEqual(saved.pop("skill_execution"), self.invocation["skill_execution"])
         self.assertEqual(saved, original)
         self.assertEqual(self.report, original)
         # 历史 envelope 的读取不自动修复旧引用；原业务 validator 仍负责拒绝。
         self.report["evidence_refs"] = ["ev-exact-id|source", "unknown"]
-        self.assertEqual(envelope_specialist_draft(self.report, self.invocation, model="gpt-5.6-terra")["evidence_refs"],
+        self.assertEqual(envelope_specialist_draft(self.report, self.invocation, model="gpt-6-luna")["evidence_refs"],
                          self.report["evidence_refs"])
 
     def test_model_supplied_metadata_rejected(self):
         from product.runtime.invocation import envelope_specialist_draft
         for draft in [dict(self.report, skill_execution=[]), dict(self.report, agent="runtime_cio"), dict(self.report, invocation_id="other")]:
             with self.subTest(draft=draft), self.assertRaisesRegex(ValueError, "DRAFT_BINDING_INVALID"):
-                envelope_specialist_draft(draft, self.invocation, model="gpt-5.6-terra")
+                envelope_specialist_draft(draft, self.invocation, model="gpt-6-luna")
 
     def test_standalone_hook_from_external_cwd(self):
         import os

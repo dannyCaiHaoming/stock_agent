@@ -7,6 +7,7 @@ import os
 import runpy
 import shlex
 import subprocess
+import subprocess
 import sys
 import tempfile
 import tomllib
@@ -39,6 +40,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EntryPathTests(unittest.TestCase):
+    def test_missing_base_dependency_is_reported_before_dispatch(self):
+        # -S excludes site-packages without changing the actual project env.
+        result = subprocess.run(
+            [sys.executable, "-S", str(ROOT / "scripts/council-dev.py"), "--help"],
+            capture_output=True, text=True, timeout=15,
+        )
+        self.assertEqual(result.returncode, 2)
+        failure = json.loads(result.stdout)
+        self.assertEqual(failure["failure_code"], "DEVELOPMENT_DEPENDENCY_MISSING")
+        self.assertEqual(failure["dependency"], "jsonschema")
+        self.assertEqual(failure["llm_calls"], 0)
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="entry paths ")
         self.addCleanup(self.temporary.cleanup)
@@ -370,14 +383,17 @@ class RetiredSandboxEntryTests(unittest.TestCase):
 
 
 class ModelConfigurationTests(unittest.TestCase):
-    def test_agent_development_test_model_is_separate_from_candidate_and_eval(self):
+    def test_new_product_and_eval_defaults_are_luna(self):
         from product.runtime.model_routing import agent_development_test_model, select_product_runtime_model
         policy = load_model_routing(ROOT / "product")
         evaluation = tomllib.loads((ROOT / ".codex" / "agents" / "dev_eval.toml").read_text())
         self.assertEqual(agent_development_test_model(), "gpt-6-luna")
         self.assertEqual(select_product_runtime_model(ROOT / "product", requested_model="gpt-6-luna"), "gpt-6-luna")
         self.assertEqual(policy["runtime_repeated"], evaluation["model"])
-        self.assertNotEqual(agent_development_test_model(), evaluation["model"])
+        candidate = json.loads((ROOT / "product/version-manifest.json").read_text())
+        self.assertEqual(candidate["model"], "gpt-6-luna")
+        self.assertEqual(agent_development_test_model(), evaluation["model"])
+        self.assertEqual(select_product_runtime_model(ROOT / "product", requested_model=None), "gpt-6-luna")
 
     def test_runtime_eval_model_matches_product_policy(self):
         policy = load_model_routing(ROOT / "product")
@@ -411,7 +427,10 @@ class SessionPathTests(unittest.TestCase):
             for mode, profile in (("PRODUCT_COUNCIL", None), ("EVAL_ABLATION", "full-council")):
                 manifest = {"run_id": "path-check", "output_dir": str(run), "model": "gpt-5.6-terra", "run_mode": mode, "ablation_profile": profile}
                 (run / "run_manifest.json").write_text(json.dumps(manifest))
-                prompt = build_smoke_prompt(run, repository_root=repo, sessions_root=sessions)
+                # This unit checks shell quoting; dispatch rendering has its own
+                # prepared-run/transport tests and requires real invocations.
+                with patch("product.runtime.smoke_prompt._dispatch_messages", return_value=""):
+                    prompt = build_smoke_prompt(run, repository_root=repo, sessions_root=sessions)
                 command = next(part for part in prompt.split("`") if "cli execution-proof " in part)
                 argv = shlex.split(command)
                 self.assertEqual(argv[1], str(repo))
@@ -430,14 +449,14 @@ class SessionPathTests(unittest.TestCase):
             source_run.mkdir()
             (source_run / "run_manifest.json").write_text(json.dumps({"source_mode": "fixture"}))
             # 实际 eval-prepare 始终保存 run_dir；路径测试也显式绑定来源，不能省略后退回默认 rubric。
-            (eval_dir / "input-manifest.json").write_text(json.dumps({"eval_id": "path-eval", "run_dir": str(source_run), "source_hashes": dict.fromkeys(("grader_prompt", "rubric", "semantic_input", "semantic_output_schema"), "test-hash")}))
+            (eval_dir / "input-manifest.json").write_text(json.dumps({"eval_id": "path-eval", "run_dir": str(source_run), "semantic_output_delivery": "native-draft/1.0.0", "source_hashes": dict.fromkeys(("grader_prompt", "rubric", "semantic_input", "semantic_output_schema"), "test-hash")}))
             expected = build_eval_smoke_prompt(ROOT, eval_dir=eval_dir, sessions_root=sessions)
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 code = main(["eval-smoke-prompt", "--repo", str(ROOT), "--eval-dir", str(eval_dir), "--sessions-root", str(sessions)])
             self.assertEqual(code, 0)
             self.assertEqual(output.getvalue().strip(), expected.strip())
-            command = next(part for part in expected.split("`") if "cli eval-execution-proof " in part)
+            command = next(line for line in expected.splitlines() if "cli eval-execution-proof " in line)
             argv = shlex.split(command)
             self.assertEqual(argv[argv.index("--sessions-root") + 1], str(sessions))
             self.assertEqual(argv[argv.index("--semantic-result") + 1], str(eval_dir / "semantic-result.json"))

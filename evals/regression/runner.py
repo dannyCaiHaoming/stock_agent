@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import copy
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -11,15 +13,16 @@ from product.mcp.provenance import parse_timestamp
 from product.runtime.decision_contract import load_decision_contract, validate_decision_action
 from product.runtime.evidence_gate import run_evidence_gate
 from product.runtime.hashing import canonical_hash, file_hash
+from product.runtime.cio_handoff import build_cio_reference_map, cio_model_view
 from product.runtime.regression_invariants import (
     derive_runtime_invariant_facts,
     evaluate_expected_invariant,
     validate_invariant_schema_binding,
 )
 from product.runtime.replay import replay_run
+from product.runtime.versioning import load_version_manifest
 from product.runtime.run_package import finalize_cio, prepare_cio, prepare_run
 from product.runtime.runtime_eval import (
-    SEMANTIC_DIMENSIONS,
     finalize_eval_job,
     prepare_eval_job,
     verify_runtime_eval_job,
@@ -457,22 +460,34 @@ def _valid_cio_contract_output(run_dir: Path) -> dict[str, Any]:
 
     invocation = _read(run_dir / "invocations" / "runtime_cio.json")
     cio_input = _read(run_dir / "inputs" / "runtime_cio.json")
-    reports = cio_input["validated_reports"]
+    catalog = invocation["report_catalog"]
+    mapping = build_cio_reference_map(run_dir, invocation, catalog)
+    selections = cio_model_view({"report_ids": [item["report_id"] for item in catalog]}, mapping)["report_ids"]
+    request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
+        "name": "read_reports", "arguments": {
+            "run_id": invocation["run_id"], "agent": "runtime_cio",
+            "invocation_id": invocation["invocation_id"], "report_ids": selections,
+        },
+    }}
+    # 真实本地 transport 生产读取/引用事件；这里没有 Codex 或模型调用。
+    process = subprocess.run(
+        [sys.executable, "-B", "-m", "product.runtime.fixture_mcp", "--stateless",
+         "--default-run-dir", str(run_dir), "--event-log", str(run_dir / "events/mcp/events.jsonl")],
+        cwd=Path(__file__).resolve().parents[2], input=json.dumps(request) + "\n",
+        text=True, capture_output=True, timeout=30, check=True,
+    )
+    response = json.loads(process.stdout)
+    if "error" in response or response.get("result", {}).get("isError") is not False:
+        raise RegressionError(f"REGRESSION_REPORT_READ_FAILED:{response}")
     position = _read(run_dir / "audit" / "fixture_snapshot.json")["portfolio"]["positions"][0]
     portfolio = _read(run_dir / "audit" / "fixture_snapshot.json")["portfolio"]
     position_value = float(position["quantity"]) * float(position["price"])
     total_value = position_value + float(portfolio["cash"])
     current_weight = position_value / total_value
-    return {
-        "schema_version": "cio-decision-draft/2.1.0",
-        "run_id": invocation["run_id"],
-        "invocation_id": invocation["invocation_id"],
+    return cio_model_view({
+        "schema_version": "native-cio-draft/1.0.0",
+        "report_selections": [item["report_id"] for item in catalog],
         "status": "COMPLETE",
-        "agent": "runtime_cio",
-        "consumed_reports": [
-            {"agent": name, "output_hash": canonical_hash(report)}
-            for name, report in sorted(reports.items())
-        ],
         "action": "HOLD",
         "security_id": str(position["security_id"]),
         "current_weight": current_weight,
@@ -491,37 +506,7 @@ def _valid_cio_contract_output(run_dir: Path) -> dict[str, Any]:
         "no_trade_reason": None,
         "no_trade_explanation": None,
         "reevaluation_conditions": [],
-        "skill_execution": invocation["skill_execution"],
-        "advisory_only": True,
-    }
-
-
-def _not_applicable_semantic_result(eval_dir: Path) -> dict[str, Any]:
-    """Create an explicit N/A rubric for a zero-LLM contract-only Runtime run."""
-
-    manifest = _read(eval_dir / "input-manifest.json")
-    value: dict[str, Any] = {
-        "schema_version": "semantic-rubric-result/1.0.0",
-        "eval_id": manifest["eval_id"],
-        "grader": {
-            "agent": "dev_eval",
-            "model": "deterministic-contract-fixture/no-llm",
-            "prompt_hash": manifest["source_hashes"]["grader_prompt"],
-            "rubric_hash": manifest["source_hashes"]["rubric"],
-            "input_hash": manifest["source_hashes"]["semantic_input"],
-        },
-        "dimensions": {
-            name: {
-                "status": "NOT_APPLICABLE",
-                "grade": None,
-                "evidence_refs": [],
-                "rationale": "该零 LLM 夹具只验证 action 契约、Evidence 闭包与 Risk lineage。",
-            }
-            for name in SEMANTIC_DIMENSIONS
-        },
-    }
-    value["output_hash"] = canonical_hash(value)
-    return value
+    }, mapping)
 
 
 def _materialize_deterministic_case(
@@ -546,12 +531,13 @@ def _materialize_deterministic_case(
             case_dir=case_dir,
             deterministic=deterministic,
         )
+    model = load_version_manifest(repository_root / "product/version-manifest.json")["model"]
     prepared = prepare_run(
         repository_root,
         fixture_path=fixture_path,
         run_dir=run_dir,
         run_id=run_id,
-        model="gpt-5.6-terra",
+        model=model,
         research_question=f"Regression deterministic injection: {case['case_id']}",
         authenticity_required=False,
         trigger_reason="regression_deterministic_injection",
@@ -576,11 +562,11 @@ def _materialize_deterministic_case(
                 run_dir,
                 dangling=case.get("injection") == "dangling-evidence-reference",
             )
-        prepared = prepare_cio(repository_root, run_dir=run_dir, model="gpt-5.6-terra")
+        prepared = prepare_cio(repository_root, run_dir=run_dir, model=model)
         if prepared.get("next_state") == "ONE_SPECIALIST_FORMAT_REPAIR_REQUIRED":
             repaired_output = Path(str(prepared["repaired_output"]))
             _write(repaired_output, {})
-            prepared = prepare_cio(repository_root, run_dir=run_dir, model="gpt-5.6-terra")
+            prepared = prepare_cio(repository_root, run_dir=run_dir, model=model)
         if (
             case.get("injection") == "valid-action-contract"
             and prepared.get("next_state") == "CIO_SYNTHESIS_REQUIRED"
@@ -617,15 +603,11 @@ def _materialize_deterministic_case(
         eval_dir=eval_dir,
         eval_id=f"regression-eval-{suite_id}-{case['case_id']}",
         expected_terminal_states=(str(trace["terminal_state"]),),
+        contract_only=case.get("injection") == "valid-action-contract",
     )
-    semantic_result_path: Path | None = None
-    if case.get("injection") == "valid-action-contract":
-        semantic_result_path = eval_dir / "semantic-result.json"
-        _write(semantic_result_path, _not_applicable_semantic_result(eval_dir))
     evaluation = finalize_eval_job(
         repository_root,
         eval_dir=eval_dir,
-        semantic_result_path=semantic_result_path,
     )
     eval_path = eval_dir / "eval" / "result.json"
     injection_hashes = _regression_injection_hashes(run_dir)
@@ -952,6 +934,7 @@ def run_regression_suite(
     if output_dir.exists():
         raise RegressionError("REGRESSION_OUTPUT_EXISTS")
     regression = load_regression_set(repository_root)
+    expected_model = load_version_manifest(repository_root / "product/version-manifest.json")["model"]
     _reject_duplicate_runtime_run_ids(regression, run_index)
     output_dir.mkdir(parents=True)
     results: list[dict[str, Any]] = []
@@ -969,7 +952,7 @@ def run_regression_suite(
                     cache_path=Path(str(entry["cache_record"])),
                 )
             else:
-                if entry.get("model") != "gpt-5.6-terra":
+                if entry.get("model") != expected_model:
                     raise RegressionError(f"REGRESSION_MODEL_ROUTE_INVALID:{case['case_id']}")
                 run_dir = Path(str(entry["run_dir"])).resolve()
                 eval_path = Path(str(entry["eval_result"])).resolve()

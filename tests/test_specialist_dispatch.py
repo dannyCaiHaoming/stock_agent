@@ -30,7 +30,7 @@ class SpecialistDispatchTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.run = Path(self.temp.name) / "run"
         prepare_run(ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
-                    run_dir=self.run, run_id="dispatch-test", model="gpt-5.6-terra",
+                    run_dir=self.run, run_id="dispatch-test", model="gpt-6-luna",
                     research_question="合成派发接缝", authenticity_required=False)
         self.env = {
             "STOCK_AGENT_RUN_DIR": str(self.run),
@@ -72,7 +72,7 @@ class SpecialistDispatchTests(unittest.TestCase):
     def test_actual_launcher_hook_config_covers_native_names_and_aliases(self):
         command = build_nested_codex_command(
             codex_binary="codex", product_root=ROOT / "product", run_dir=self.run,
-            model="gpt-5.6-terra", sqlite_home=self.run / "sqlite", log_dir=self.run / "logs",
+            model="gpt-6-luna", sqlite_home=self.run / "sqlite", log_dir=self.run / "logs",
             final_message_path=self.run / "final.txt",
             hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
         )

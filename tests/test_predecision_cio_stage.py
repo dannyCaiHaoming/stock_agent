@@ -282,7 +282,7 @@ class PredecisionCioPreparationTests(unittest.TestCase):
             encoding="utf-8",
         )
         cli = self.root / "fake-cio-cli"
-        cli.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(script))} \"$@\"\n",
+        cli.write_text(f"#!/bin/sh\nif [ \"$1\" = --version ]; then printf 'codex-cli 0.160.0\\n'; exit 0; fi\nexec {shlex.quote(sys.executable)} {shlex.quote(str(script))} \"$@\"\n",
                        encoding="utf-8")
         cli.chmod(0o700)
         with patch.dict(os.environ, {"STOCK_AGENT_PRODUCT_HOST_LAUNCH": "1"}):

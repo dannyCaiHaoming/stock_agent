@@ -17,7 +17,7 @@ from product.runtime.execution_proof import (
     verify_specialist_execution_proof,
 )
 from product.runtime.codex_hook_recorder import minimize_hook_event
-from product.runtime.hashing import canonical_hash
+from product.runtime.hashing import canonical_hash, file_hash
 from tests.test_agents_instruction_proof import bind_instruction_fixture
 from product.runtime.invocation import (
     OUTPUT_SCHEMAS,
@@ -87,7 +87,7 @@ class NativeExecutionProofTests(unittest.TestCase):
                 agent_name=agent,
                 agent_input=self.inputs[agent],
                 task_prompt=self.prompts[agent],
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 evidence_ids=["ev-1"],
                 output_schema_path=self.schema_paths[agent],
             )
@@ -143,8 +143,8 @@ class NativeExecutionProofTests(unittest.TestCase):
         call_ids = {agent: f"call-{index}" for index, agent in enumerate(agents, 1)}
         child_ids = {agent: f"child-{index}" for index, agent in enumerate(agents, 1)}
         parent = [
-            {"timestamp": "2026-09-07T00:00:00Z", "type": "session_meta", "payload": {"id": parent_id, "cli_version": "0.153.4"}},
-            {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+            {"timestamp": "2026-09-07T00:00:00Z", "type": "session_meta", "payload": {"id": parent_id, "cli_version": "0.160.0"}},
+            {"type": "turn_context", "payload": {"model": "gpt-6-luna"}},
             message("user", f"$product:portfolio-council run_id={self.run_id}"),
         ]
         for index, agent in enumerate(agents):
@@ -251,12 +251,12 @@ class NativeExecutionProofTests(unittest.TestCase):
                         "parent_thread_id": parent_id,
                         "agent_role": agent,
                         "thread_source": "subagent",
-                        "cli_version": "0.153.4",
+                        "cli_version": "0.160.0",
                         "multi_agent_version": "v2",
                     },
                 },
                 message("developer", f"runtime envelope\n{instructions}\nend"),
-                {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+                {"type": "turn_context", "payload": {"model": "gpt-6-luna"}},
             ]
             if not protected_child_input:
                 records.insert(2, message("user", task))
@@ -542,7 +542,7 @@ class NativeExecutionProofTests(unittest.TestCase):
 
     def test_ephemeral_hook_proof_uses_public_events_and_distinct_children(self):
         with tempfile.TemporaryDirectory() as directory:
-            run_dir = Path(directory) / "run"
+            run_dir = (Path(directory) / "run").resolve()
             (run_dir / "invocations").mkdir(parents=True)
             (run_dir / "prompts").mkdir()
             (run_dir / "agents").mkdir()
@@ -555,13 +555,21 @@ class NativeExecutionProofTests(unittest.TestCase):
                         "output_dir": str(run_dir),
                         "run_mode": "PRODUCT_COUNCIL",
                         "ablation_profile": None,
-                        "model": "gpt-5.6-terra",
-                        "codex_runtime": "codex-cli/0.153.4",
+                        "model": "gpt-6-luna",
+                        "codex_runtime": "codex-cli/0.160.0",
                         "trigger_reason": "product_council",
                     }
                 ),
                 encoding="utf-8",
             )
+            # Host measurement is a real local --version subprocess, never a model.
+            from product.runtime.codex_runtime import capture_codex_runtime
+            version_binary = run_dir / "version-only-codex"
+            version_binary.write_text("#!/bin/sh\nprintf 'codex-cli 0.160.0\\n'\n")
+            version_binary.chmod(0o700)
+            capture_codex_runtime(str(version_binary), expected_runtime="codex-cli/0.160.0",
+                run_id=self.run_id, lock_path=run_dir / "run_manifest.json",
+                output_path=run_dir / "invocation/codex-runtime.json")
             reports, mcp_events = self._reports_and_events()
             for agent in AGENTS:
                 (run_dir / "invocations" / f"{agent}.json").write_text(
@@ -614,7 +622,7 @@ class NativeExecutionProofTests(unittest.TestCase):
                             "turn_id": "turn-1",
                             "agent_id": f"child-{index}",
                             "agent_type": agent,
-                            "model": "gpt-5.6-terra",
+                            "model": "gpt-6-luna",
                             "cwd": str(ROOT / "product"),
                             "permission_mode": "dontAsk",
                         }
@@ -629,7 +637,7 @@ class NativeExecutionProofTests(unittest.TestCase):
                             "turn_id": "turn-1",
                             "agent_id": f"child-{index}",
                             "agent_type": agent,
-                            "model": "gpt-5.6-terra",
+                            "model": "gpt-6-luna",
                             "cwd": str(ROOT / "product"),
                             "permission_mode": "dontAsk",
                             "agent_transcript_path": None,
@@ -655,6 +663,16 @@ class NativeExecutionProofTests(unittest.TestCase):
             )
             self.assertEqual(result["next_state"], "EXECUTION_PROOF_VERIFIED")
             self.assertEqual(proof["capture_mode"], "ephemeral_lifecycle_hooks")
+            self.assertEqual(proof["parent"]["codex_runtime"], "codex-cli/0.160.0")
+            self.assertEqual(proof["parent"]["codex_runtime_source"], "host_binary_measurement")
+            self.assertEqual(proof["codex_runtime_binding"]["sha256"], file_hash(run_dir / "invocation/codex-runtime.json"))
+            binding_path = run_dir / "invocation/codex-runtime.json"
+            original_binding = binding_path.read_bytes()
+            binding_path.unlink()
+            with self.assertRaisesRegex(ValueError, "CODEX_RUNTIME_BINDING_MISSING"):
+                build_ephemeral_run_specialist_execution_proof(ROOT, run_dir=run_dir,
+                    codex_events_path=codex_events, hook_events_path=hook_events, latency_ms=3210)
+            binding_path.write_bytes(original_binding)
             self.assertEqual(proof["telemetry"]["input_tokens"], 120)
             self.assertEqual(proof["telemetry"]["latency_ms"], 3210)
             self.assertEqual(

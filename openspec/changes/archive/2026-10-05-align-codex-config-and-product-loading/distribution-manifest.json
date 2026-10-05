@@ -1,0 +1,2163 @@
+{
+  "source_id": "config-alignment:fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+  "as_of": "2026-10-04T14:34:56.139236+00:00",
+  "retrieved_at": "2026-10-04T14:34:56.139714+00:00",
+  "approved_source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+  "approval_evidence": [
+    "openspec/changes/archive/2026-10-03-enable-single-stock-research-synthesis/proposal.md",
+    "openspec/changes/archive/2026-10-03-add-independent-tiger-trading-skills/tasks.md"
+  ],
+  "baseline_version": "0.3.0-config.5be7c1495ae5",
+  "baseline_hash": "52d2bb6e31f6838de9214a48fb01e5e21e59c8eb7877c335bb6cf7356c4b4d08",
+  "excluded": [
+    "all untracked product files",
+    "pre-existing dirty broker/intake/web changes",
+    "private data",
+    "development config",
+    "historical runtime locks"
+  ],
+  "files": [
+    {
+      "path": ".codex-plugin/plugin.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "13c673d1acc350de7257b19b294ee085b622f429b9614f3a98f3db51bc09adeb",
+      "change": "approved HEAD + scoped config alignment",
+      "prepared_sha256": "3e106a52c9a56d8e0f50af4edf62a466bb4f9503f3bff59db213f1a898f19413"
+    },
+    {
+      "path": ".codex/agents/runtime_cio.toml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "4fea35df67d05942e374fd4491289035b2fbc7cc3cc7f3897f4baa86eea808a2",
+      "change": "approved HEAD + scoped config alignment",
+      "prepared_sha256": "7c819a8642c91abc3fb2c330c8436ee38202c4f53b215a34f4d80956943e9554"
+    },
+    {
+      "path": ".codex/agents/runtime_company_analyst.toml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "179e4e66bbcd89145b751f0fe7348b0a222aed2ff0619387ab77219dc91b070f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "179e4e66bbcd89145b751f0fe7348b0a222aed2ff0619387ab77219dc91b070f"
+    },
+    {
+      "path": ".codex/agents/runtime_company_analyst_common_stock.toml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bd5fd35e8c224385694e0472034d1ba9c4c1e2d20e2383141ee396ae3d8ca72e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bd5fd35e8c224385694e0472034d1ba9c4c1e2d20e2383141ee396ae3d8ca72e"
+    },
+    {
+      "path": ".codex/agents/runtime_market_catalyst.toml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "70d2251922de82ab7fae9b0611828e0ca2d4f064f1bd08308ac2ceae016ef488",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "70d2251922de82ab7fae9b0611828e0ca2d4f064f1bd08308ac2ceae016ef488"
+    },
+    {
+      "path": ".codex/agents/runtime_skeptic.toml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "613916dc3d8a17634f3327395ae13dcff280f81620d5b421052f76901aa72742",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "613916dc3d8a17634f3327395ae13dcff280f81620d5b421052f76901aa72742"
+    },
+    {
+      "path": ".codex/config.toml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "3f1b605f88b903ccb6e4b1084b592bef3282d4cd717b397d8a2cf3dd35700a94",
+      "change": "approved HEAD + scoped config alignment",
+      "prepared_sha256": "7d2e486d3050ff85bbdfd37335a725df2d000edd6faa559e2567999457decd9e"
+    },
+    {
+      "path": ".mcp.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a1ce66ea0285c24a781be52983c125e9553992fe0a3eef18139df19568caea09",
+      "change": "approved HEAD + scoped config alignment",
+      "prepared_sha256": "a2239a074ce472f427e101be2c695c15a9f1b016aaa838d985643dda647a07da"
+    },
+    {
+      "path": "AGENTS.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "31c6c9e9e6defad8c55428ecfd0ebc21418abe8ea7d6cb20fb759006e741d35d",
+      "change": "approved HEAD + scoped config alignment",
+      "prepared_sha256": "294f46ca8ce78e2d88978ee1c9a60c3cbc4177cee33aa5cb170f85ac77edf6f1"
+    },
+    {
+      "path": "__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c3a469a1249435df8f3cd4f5f91613c92f7a2cf2bc1d9107fc7fdb1f169e6477",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c3a469a1249435df8f3cd4f5f91613c92f7a2cf2bc1d9107fc7fdb1f169e6477"
+    },
+    {
+      "path": "contracts/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ca451a09e77f4b1b8e3b93829a789cc926364b383f75a81b4b5bb03ad3a7e56a"
+    },
+    {
+      "path": "contracts/base.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b3811b911f11f5cf62c8e4d1bfb14c07ff17dfffe2e63869a455642490ab83d0"
+    },
+    {
+      "path": "contracts/council-decision-contract.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "32eff0ebbe5917209a2e063c53c0c532c0de3a63ff8610f34653db668a997dd2"
+    },
+    {
+      "path": "contracts/decision.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "cee6e95b73d3dd113c960da4c52191561fb67ec06f0c7331214e9f5e40a48a2a"
+    },
+    {
+      "path": "contracts/evidence.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f21788f9672ea7198a79f95a04013fbb30f6b642aece463f503a93f0fefbec3f"
+    },
+    {
+      "path": "contracts/learning.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "734d1d98e89baf93d283ffd4e375ead3220f3fdb1e51058a71f9fb285103b2a9"
+    },
+    {
+      "path": "contracts/portfolio.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "5147bfbfb6ed70db2dcd9ee99b43b7d3e637861fae1a592c4d35cec6bd5abd99"
+    },
+    {
+      "path": "contracts/research.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e6757f07ab970d7f4f93921ead5166c49f77b470c7ac4a530ce381c78a680418"
+    },
+    {
+      "path": "council/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "4a92bd98b9a126f5c9ef9d7656f6e85bebf6b5186f427ea0f680b0f1f1ae7e41",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "4a92bd98b9a126f5c9ef9d7656f6e85bebf6b5186f427ea0f680b0f1f1ae7e41"
+    },
+    {
+      "path": "council/common_stock_research.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a55e0317da1f6aed464300d9be6ba7f35c5a468e03af0cb9b7aba8cee2b9a37e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a55e0317da1f6aed464300d9be6ba7f35c5a468e03af0cb9b7aba8cee2b9a37e"
+    },
+    {
+      "path": "council/intake_planning.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "be50dc48824bb0afe62b43a2da821a3bee5e8fc92510b12f9d2f7d20bf5686d1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "be50dc48824bb0afe62b43a2da821a3bee5e8fc92510b12f9d2f7d20bf5686d1"
+    },
+    {
+      "path": "council/multidimensional_output.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "4cab9d5dbf2388a2c0ff2646a8f9f25d4e2902d301d954c8c713897caeb4495f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "4cab9d5dbf2388a2c0ff2646a8f9f25d4e2902d301d954c8c713897caeb4495f"
+    },
+    {
+      "path": "council/multidimensional_research.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2d9f50a0c3956d613ab82c2990aee2b0bf1017afcef897b7f089dcfa76c187f0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2d9f50a0c3956d613ab82c2990aee2b0bf1017afcef897b7f089dcfa76c187f0"
+    },
+    {
+      "path": "council/orchestrator.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "54c1f81f086080069f187fbeaad6ce2b11d48aa93a033b9c5549310929b103fb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "54c1f81f086080069f187fbeaad6ce2b11d48aa93a033b9c5549310929b103fb"
+    },
+    {
+      "path": "council/output.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c1ce60151eaf10be162992161eeb9c019dc77c2c17513787b31de44a5038d4ca",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c1ce60151eaf10be162992161eeb9c019dc77c2c17513787b31de44a5038d4ca"
+    },
+    {
+      "path": "council/research_output.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6bd68f96972cd68579d05d5f7234266c75d3f265d2de7a2e5ed779c527438449",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6bd68f96972cd68579d05d5f7234266c75d3f265d2de7a2e5ed779c527438449"
+    },
+    {
+      "path": "council/research_schedule.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "79be8d6d13af9407047da73860edb4226aab5145f3df43f79a2cc46958e2a59e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "79be8d6d13af9407047da73860edb4226aab5145f3df43f79a2cc46958e2a59e"
+    },
+    {
+      "path": "council/research_visuals.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "8e54e3e3d14ccea90e7ae3446e597b3cc136b4eee9b8388b1ea9937864fa3a3f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "8e54e3e3d14ccea90e7ae3446e597b3cc136b4eee9b8388b1ea9937864fa3a3f"
+    },
+    {
+      "path": "council/risk_adapter.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "8fe58d4982a81f77ab6cf3cecbe445c14c8c0a4c933b9f37d5727d43fa35ccc9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "8fe58d4982a81f77ab6cf3cecbe445c14c8c0a4c933b9f37d5727d43fa35ccc9"
+    },
+    {
+      "path": "council/technical_chart.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "da856b98de9812dae8a57db0d2a18dabff07e308d465c8e407c0a2c3229869ba",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "da856b98de9812dae8a57db0d2a18dabff07e308d465c8e407c0a2c3229869ba"
+    },
+    {
+      "path": "council/trace.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f3fc39b22d40a54552257b15186bdc3e486d007bf78b21606f93fc6e9c4cd7da",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f3fc39b22d40a54552257b15186bdc3e486d007bf78b21606f93fc6e9c4cd7da"
+    },
+    {
+      "path": "demo/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e12e0629af1d2756d8497f8e23c42bc3fa9edda16e55f63528043977c0825a6b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e12e0629af1d2756d8497f8e23c42bc3fa9edda16e55f63528043977c0825a6b"
+    },
+    {
+      "path": "demo/agents.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "75b3dc16fb3ccffea65bb15e7246b3dc4d6965ccb2e990c06bfb018a0dddf5ab",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "75b3dc16fb3ccffea65bb15e7246b3dc4d6965ccb2e990c06bfb018a0dddf5ab"
+    },
+    {
+      "path": "demo/cli.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "328cce21530384014f8404a4e9024b44a9c5e265ecbf2c5a8da11180cbf74d59",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "328cce21530384014f8404a4e9024b44a9c5e265ecbf2c5a8da11180cbf74d59"
+    },
+    {
+      "path": "demo/contracts.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "79ffb388cfb9344a514e8678cb78db53ac7bcad186e43f51dd6d7ec134f8c5f2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "79ffb388cfb9344a514e8678cb78db53ac7bcad186e43f51dd6d7ec134f8c5f2"
+    },
+    {
+      "path": "demo/ports.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "727f44984b210f7d16b4a486eb54e3215cd34a6bebabf01edeba4be4af3e2705",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "727f44984b210f7d16b4a486eb54e3215cd34a6bebabf01edeba4be4af3e2705"
+    },
+    {
+      "path": "demo/runner.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a886d7c2c21c6769a7c88c3ef5d29c9681e982d4536815d64002bf1d6a170a0e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a886d7c2c21c6769a7c88c3ef5d29c9681e982d4536815d64002bf1d6a170a0e"
+    },
+    {
+      "path": "demo/topology.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "3f18c2d1e9aa79abd7e4d71bdb1447e6dc60e2ec8272a9997761d3617a014627",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "3f18c2d1e9aa79abd7e4d71bdb1447e6dc60e2ec8272a9997761d3617a014627"
+    },
+    {
+      "path": "deterministic/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "22a2666497db5d1ca5ce0bb9f80a6c1eea2ff73883bfb59cd9c1b18b81435da1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "22a2666497db5d1ca5ce0bb9f80a6c1eea2ff73883bfb59cd9c1b18b81435da1"
+    },
+    {
+      "path": "deterministic/equity_valuation.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ab57ea54f3dce1b164d4cad66e11b8c6e5f9f7a4a1db43a15bd445cfc8ba7cc8",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ab57ea54f3dce1b164d4cad66e11b8c6e5f9f7a4a1db43a15bd445cfc8ba7cc8"
+    },
+    {
+      "path": "deterministic/market_analysis.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "91b0ad860b377f3eedaa9f1f25658b2d9c56276ce31ae39de9a67bb9a3b21482",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "91b0ad860b377f3eedaa9f1f25658b2d9c56276ce31ae39de9a67bb9a3b21482"
+    },
+    {
+      "path": "deterministic/metrics.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "de3e9e30740fbd6b6cb9e753e1a6960f22f612f8b5c97cb3b516c42fd68edaeb"
+    },
+    {
+      "path": "deterministic/policy.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7c799529aaab226f13ad2397d394d08490d48b91effe5f925e73bd2a8c04edb4"
+    },
+    {
+      "path": "deterministic/portfolio.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "685a6ebd21398eabfa326bf4e95dcf4e7330311a00965dcefb97b7eb83e9673f"
+    },
+    {
+      "path": "deterministic/risk.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ebb484e156c01175b897a68b2006c05aa10cf037c87e1ac3ef82134bc1e01de6"
+    },
+    {
+      "path": "deterministic/valuation.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d83a618182c9330ebf631f3d0039ebe5b3c03720a2984d81436265f7cc77067d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d83a618182c9330ebf631f3d0039ebe5b3c03720a2984d81436265f7cc77067d"
+    },
+    {
+      "path": "evidence_store/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d84258086981bc9abaa9b8a2d5227db85b1e54efcb607558e8ad5293fac66f34"
+    },
+    {
+      "path": "evidence_store/closure.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "5a393be72c7f8305cd74cd0e1b2b4637f726e8f149ade30d1e9041d82961da23"
+    },
+    {
+      "path": "evidence_store/quality.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9fcad6660851303f1730ef81acaf9a1db665f5dcce3e201cdce42a657fe85fa2"
+    },
+    {
+      "path": "evidence_store/store.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b055e1bc186f2fe84e10280f27e96eb5c11687a98a7de34fa2f9974c04459f33"
+    },
+    {
+      "path": "intake/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ae763bcc388cfff2b7bef6733a648c38f27ecd4063080a61f9e4c5fe3d1552a6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ae763bcc388cfff2b7bef6733a648c38f27ecd4063080a61f9e4c5fe3d1552a6"
+    },
+    {
+      "path": "intake/cli.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "056e24fab878e208fb2dff2f3e265b9c648b233dbc8771efecc2f40040b84228",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "056e24fab878e208fb2dff2f3e265b9c648b233dbc8771efecc2f40040b84228"
+    },
+    {
+      "path": "intake/service.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "505db3a8d847c6703fb1d3eb8e2843d10b95127872705fbc83f5e746ab626033",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "505db3a8d847c6703fb1d3eb8e2843d10b95127872705fbc83f5e746ab626033"
+    },
+    {
+      "path": "intake/v3.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d7cabe6921188eed2eededc8359912d54a3749de8ff8186e961706eaaa4f8413",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d7cabe6921188eed2eededc8359912d54a3749de8ff8186e961706eaaa4f8413"
+    },
+    {
+      "path": "mcp/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1743e4e2675b5d93586afd86ce096817f2cf868d31dbb8f5bb1ad42d4428bdc6"
+    },
+    {
+      "path": "mcp/contracts.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "8d5bfa54909b8b1af47e92b8ac6aefaa07f359f8c5a332dbde3f32acea151041"
+    },
+    {
+      "path": "mcp/live/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "93a54486d02d3f400373283411ccd89400c98368f96ab482cb1baa92711395bb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "93a54486d02d3f400373283411ccd89400c98368f96ab482cb1baa92711395bb"
+    },
+    {
+      "path": "mcp/live/attachments.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "cc22e17d014ba9a4da0b33877bf731c96a59a7aed017107357f374ba55332c75",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "cc22e17d014ba9a4da0b33877bf731c96a59a7aed017107357f374ba55332c75"
+    },
+    {
+      "path": "mcp/live/cache.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2ec2f79684c708f60d71c92f77027fb61116776adf2005979091f415e4f4b1df",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2ec2f79684c708f60d71c92f77027fb61116776adf2005979091f415e4f4b1df"
+    },
+    {
+      "path": "mcp/live/collection.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a8e5805e2173bdcbc349dadb394fb652222dde3219d18547620040e9b37d18fc",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a8e5805e2173bdcbc349dadb394fb652222dde3219d18547620040e9b37d18fc"
+    },
+    {
+      "path": "mcp/live/contracts.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6f03227c8c6f8115c61012c756b3044a59f5f96ae1b36f2fd403a9a7788bbf1c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6f03227c8c6f8115c61012c756b3044a59f5f96ae1b36f2fd403a9a7788bbf1c"
+    },
+    {
+      "path": "mcp/live/disclosure.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2362b69dc14db21b58ec561df2e79c8f16dff239889caffbde26146a3c057b85",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2362b69dc14db21b58ec561df2e79c8f16dff239889caffbde26146a3c057b85"
+    },
+    {
+      "path": "mcp/live/eastmoney-identity-policy.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0cb596889269e72297d6e3a145c38d866a28e5681a045fc9fbb3d1b89791ca8d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0cb596889269e72297d6e3a145c38d866a28e5681a045fc9fbb3d1b89791ca8d"
+    },
+    {
+      "path": "mcp/live/eastmoney_market.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a3fabfa0e51db14c666eed65f37ce5886a5bb6d293d681c1060f06df3998c3ce",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a3fabfa0e51db14c666eed65f37ce5886a5bb6d293d681c1060f06df3998c3ce"
+    },
+    {
+      "path": "mcp/live/eastmoney_transport.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f992447d43219d9e6b4a5587230e66637a34fed4af31b91e8297b8423bb34800",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f992447d43219d9e6b4a5587230e66637a34fed4af31b91e8297b8423bb34800"
+    },
+    {
+      "path": "mcp/live/event_context.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f2271d56bad3bf30e1e108ca5e5bd298b4ee2d0840c353eea370e734b533256c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f2271d56bad3bf30e1e108ca5e5bd298b4ee2d0840c353eea370e734b533256c"
+    },
+    {
+      "path": "mcp/live/filing_selection.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9bb22de3ced5c4e4e92ed58fb7ca5bfdbe3201f34e212aebb759704197226ee5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9bb22de3ced5c4e4e92ed58fb7ca5bfdbe3201f34e212aebb759704197226ee5"
+    },
+    {
+      "path": "mcp/live/financials.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d841fee0ee5cd6a0adf18fcb2553704204bbb817cd157504769d7f1a0b2d4bd6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d841fee0ee5cd6a0adf18fcb2553704204bbb817cd157504769d7f1a0b2d4bd6"
+    },
+    {
+      "path": "mcp/live/fundamental_supplement.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "10a5c58910b036f8d708caeb403936dbbda40d5455488a3bb496ae6d020a227b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "10a5c58910b036f8d708caeb403936dbbda40d5455488a3bb496ae6d020a227b"
+    },
+    {
+      "path": "mcp/live/identity.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "4006a032c3a842eb3cbb699ee662c0d2ca1508d22a2a91532b2f273da66945f1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "4006a032c3a842eb3cbb699ee662c0d2ca1508d22a2a91532b2f273da66945f1"
+    },
+    {
+      "path": "mcp/live/macro.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ad08e3a815b943a4d54775432829dbc25ce6173bba368576ff634b84d99321fb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ad08e3a815b943a4d54775432829dbc25ce6173bba368576ff634b84d99321fb"
+    },
+    {
+      "path": "mcp/live/market.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f0e5f537205f2bf45e2ad722c7c0a1d73f78fe5ad788c4f3fd0e215a4f0f3576",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f0e5f537205f2bf45e2ad722c7c0a1d73f78fe5ad788c4f3fd0e215a4f0f3576"
+    },
+    {
+      "path": "mcp/live/market_context.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "cc40c3b269905654ab285d0bf3f34aa5afb7a1cadab119f8711c6d841246a0b1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "cc40c3b269905654ab285d0bf3f34aa5afb7a1cadab119f8711c6d841246a0b1"
+    },
+    {
+      "path": "mcp/live/moomoo-opend-quote-manifest.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "971dd6af99452a1f5f5a498999c33b718eb36895052c5f983c15e32b6699b8c5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "971dd6af99452a1f5f5a498999c33b718eb36895052c5f983c15e32b6699b8c5"
+    },
+    {
+      "path": "mcp/live/moomoo_normalize.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ae2653be5839a4cc847e8d4997b185e8d1508e22dc343e734e84161f60968f7d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ae2653be5839a4cc847e8d4997b185e8d1508e22dc343e734e84161f60968f7d"
+    },
+    {
+      "path": "mcp/live/moomoo_opend.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2a55bdadab5951cebd3c256a801d2d1229bb8c80f510f55f21fbf5be20262b89",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2a55bdadab5951cebd3c256a801d2d1229bb8c80f510f55f21fbf5be20262b89"
+    },
+    {
+      "path": "mcp/live/moomoo_public_news.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e0a6541d23f4161ec67a901cd8d0a8e422b9105b3b8ef3eafa7a40bf21f9b2f5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e0a6541d23f4161ec67a901cd8d0a8e422b9105b3b8ef3eafa7a40bf21f9b2f5"
+    },
+    {
+      "path": "mcp/live/nasdaq.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "fd76023035561286f1d0b082d27ccbea7c89b7e20503b1b831d20ce53d0bb53d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "fd76023035561286f1d0b082d27ccbea7c89b7e20503b1b831d20ce53d0bb53d"
+    },
+    {
+      "path": "mcp/live/options.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "82b8b9e3291e9662fbb17ce3ed0a794d11ecd7296f1967bbcc0770e75cfd790d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "82b8b9e3291e9662fbb17ce3ed0a794d11ecd7296f1967bbcc0770e75cfd790d"
+    },
+    {
+      "path": "mcp/live/ownership.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b5f3158ac5c95b3f1c5d478f39e05c543d85eb084968cce4cba5d2cde7f5a821",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b5f3158ac5c95b3f1c5d478f39e05c543d85eb084968cce4cba5d2cde7f5a821"
+    },
+    {
+      "path": "mcp/live/peer_candidates.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7293b47ff985d9688fec90af8c0a0a5d388076e67c057f8e6b08196ea8b379f9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7293b47ff985d9688fec90af8c0a0a5d388076e67c057f8e6b08196ea8b379f9"
+    },
+    {
+      "path": "mcp/live/personal-research-approval.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ea10c888f417bb370a63377936646fff478539694a47f3cb3aa4182a88141c11",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ea10c888f417bb370a63377936646fff478539694a47f3cb3aa4182a88141c11"
+    },
+    {
+      "path": "mcp/live/public_research.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ef88a920f206474644d014037c8b3ae8f4186279610e54b741a9ff4e18961407",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ef88a920f206474644d014037c8b3ae8f4186279610e54b741a9ff4e18961407"
+    },
+    {
+      "path": "mcp/live/research-source-policy.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f216829992e798119a696acb5aff0a0927497c0dcef7d7ab3206ef94db254a1f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f216829992e798119a696acb5aff0a0927497c0dcef7d7ab3206ef94db254a1f"
+    },
+    {
+      "path": "mcp/live/research-supplement-source-plan.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "17f27b06518a80048cdb97a8fd6a9ee828507ef319c692cf1d235dd63e343bed",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "17f27b06518a80048cdb97a8fd6a9ee828507ef319c692cf1d235dd63e343bed"
+    },
+    {
+      "path": "mcp/live/research_supplement.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "dac62ccc5ef4b4966ff7df7af5fd4ee0658d1c1ba5cc21b0e32ea19244fc2f30",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "dac62ccc5ef4b4966ff7df7af5fd4ee0658d1c1ba5cc21b0e32ea19244fc2f30"
+    },
+    {
+      "path": "mcp/live/research_supplement_collection.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "994065b34e470e08f799b880845a08aa2f5208ff346aa465631a8dcd4b6599a3",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "994065b34e470e08f799b880845a08aa2f5208ff346aa465631a8dcd4b6599a3"
+    },
+    {
+      "path": "mcp/live/sec.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9ea5ac7e22c6c409da4043d1e9a3178ab2eedf206cf4fadcd06dc9466e72c0e9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9ea5ac7e22c6c409da4043d1e9a3178ab2eedf206cf4fadcd06dc9466e72c0e9"
+    },
+    {
+      "path": "mcp/live/sec_13f.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a4f10ca875e710cf327783167c026b856b9c70e2a9fa082def5ee623c82b9b5d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a4f10ca875e710cf327783167c026b856b9c70e2a9fa082def5ee623c82b9b5d"
+    },
+    {
+      "path": "mcp/live/sec_client.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "858458dfa5ba0d5647aa5891d76120ffcab660996f883e166d955aad07dc76b4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "858458dfa5ba0d5647aa5891d76120ffcab660996f883e166d955aad07dc76b4"
+    },
+    {
+      "path": "mcp/live/sec_segments.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "3748dfb1d6111d8708eb0fd66e5ca4ed2e0e44af800bb8010e55e4b0d22587d0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "3748dfb1d6111d8708eb0fd66e5ca4ed2e0e44af800bb8010e55e4b0d22587d0"
+    },
+    {
+      "path": "mcp/live/security_metadata.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6f2c4ee442e8d7992b4738087706292a6757e4301a9eb30841e4f889dee39cad",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6f2c4ee442e8d7992b4738087706292a6757e4301a9eb30841e4f889dee39cad"
+    },
+    {
+      "path": "mcp/live/source_routing.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2873a690dc9f6076e8896c2ee7cfc7f6c1aa3fc88b3a43ba7ad7e986fd53481c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2873a690dc9f6076e8896c2ee7cfc7f6c1aa3fc88b3a43ba7ad7e986fd53481c"
+    },
+    {
+      "path": "mcp/live/tls.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0d0c90ee8e2b793d71e557f6a777c90f47ee07f243fb97a56a30b3ad80464e04",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0d0c90ee8e2b793d71e557f6a777c90f47ee07f243fb97a56a30b3ad80464e04"
+    },
+    {
+      "path": "mcp/live/yahoo_research.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "66df31fa5877ea66e2936217890850eca76a6dcb2e13ed48eee2b3335edc31eb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "66df31fa5877ea66e2936217890850eca76a6dcb2e13ed48eee2b3335edc31eb"
+    },
+    {
+      "path": "mcp/live/yahoo_transport.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "994e49e30a9cc320933028f8576811eba645ef3eaa72cf295b6414409c41fb2c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "994e49e30a9cc320933028f8576811eba645ef3eaa72cf295b6414409c41fb2c"
+    },
+    {
+      "path": "mcp/provenance.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "dd3e4d166117e281eec10a64424d9c32f447df2e7a80a23fb4108dd46ec252cb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "dd3e4d166117e281eec10a64424d9c32f447df2e7a80a23fb4108dd46ec252cb"
+    },
+    {
+      "path": "mcp/reference_adapter.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0066029d4c02070f51cf259714de329363b899fa12a339b167be3dda0c0f52d6"
+    },
+    {
+      "path": "model-routing.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "abb5243c1894d5cfd4f6f391c2ae4e5dab2d4580c00fefb1354436b1c56ac8b5"
+    },
+    {
+      "path": "profiles/holding-research-inputs.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "136843e4f49d7a12c9d058bb00438bfd90e7b6f2eab678b81c8beaf6c095edf4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "136843e4f49d7a12c9d058bb00438bfd90e7b6f2eab678b81c8beaf6c095edf4"
+    },
+    {
+      "path": "profiles/live-us-equity.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d38d6124d4e2b14d2889e36af7ca700f9ac62ed96b21c5472adb5ac2bbd496bb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d38d6124d4e2b14d2889e36af7ca700f9ac62ed96b21c5472adb5ac2bbd496bb"
+    },
+    {
+      "path": "runtime-profile.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ead8a67d6bc246bfab16d0463a527d574226c20879ef835bd36e7d43bce76138",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ead8a67d6bc246bfab16d0463a527d574226c20879ef835bd36e7d43bce76138"
+    },
+    {
+      "path": "runtime/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ac9aa2f57b0dd879577a00161cab5e16c2ac1f39fb6d0916232b569ac5d13281"
+    },
+    {
+      "path": "runtime/architecture_guard.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2620052fc69637994c116c62882f8f7d27bbc6f8aa60fce96414402b413ed394"
+    },
+    {
+      "path": "runtime/artifact_matrix.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "946e4b1b8ac8dc44a52f48986a744467f31ef543e7bcdf695cf60a444bb0c15f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "946e4b1b8ac8dc44a52f48986a744467f31ef543e7bcdf695cf60a444bb0c15f"
+    },
+    {
+      "path": "runtime/calculation_handoff.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ab7d281300d81bd4cf25099fe9de67c30ab17ab3eaeb4760c1b7cfa882bccb35",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ab7d281300d81bd4cf25099fe9de67c30ab17ab3eaeb4760c1b7cfa882bccb35"
+    },
+    {
+      "path": "runtime/cio_handoff.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e098cd976edf09e18f68772f1b0db148d23d5bc58b94da2dd89786cce8ecd5e2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e098cd976edf09e18f68772f1b0db148d23d5bc58b94da2dd89786cce8ecd5e2"
+    },
+    {
+      "path": "runtime/cio_local_revision.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "26ad8d7449013212f44fe1e3dbd64e359a1f3e3debf57dd95b9ea465c014369b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "26ad8d7449013212f44fe1e3dbd64e359a1f3e3debf57dd95b9ea465c014369b"
+    },
+    {
+      "path": "runtime/cli.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "135d74151e88c566f4d4163e48183fce563687dccf2042dda49605af91ddb883",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "135d74151e88c566f4d4163e48183fce563687dccf2042dda49605af91ddb883"
+    },
+    {
+      "path": "runtime/codex_hook_recorder.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9a80aec9b3cc4c59311895cd81825810a28e676d3e2daa8be86b5d83eb7397b3",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9a80aec9b3cc4c59311895cd81825810a28e676d3e2daa8be86b5d83eb7397b3"
+    },
+    {
+      "path": "runtime/common_stock_data.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9745ddc9cd9fe5068c4af121f3ceab980c13d7a17bed888269a9c1ac0b10af32",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9745ddc9cd9fe5068c4af121f3ceab980c13d7a17bed888269a9c1ac0b10af32"
+    },
+    {
+      "path": "runtime/common_stock_eval.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "917dd6d9bfd66580032babf5403060f898b8c2ceb8d8f5d4b55e0b1beda3e04e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "917dd6d9bfd66580032babf5403060f898b8c2ceb8d8f5d4b55e0b1beda3e04e"
+    },
+    {
+      "path": "runtime/common_stock_stage.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "36e802f6e156d04e55f00bf8e5e4ca6b9b8e9e533df5d8411a5d92f301cef314",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "36e802f6e156d04e55f00bf8e5e4ca6b9b8e9e533df5d8411a5d92f301cef314"
+    },
+    {
+      "path": "runtime/company_valuation_report.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bf1eabf4ea5b2113f8b0268d1e0b4d1b292663d1009d799da6a31b0c6112d2bd",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bf1eabf4ea5b2113f8b0268d1e0b4d1b292663d1009d799da6a31b0c6112d2bd"
+    },
+    {
+      "path": "runtime/decision_contract.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "db0b40577bc2e2dcdd0aa089ef7f833b47a7f15867f7edf528e564909494ad3e"
+    },
+    {
+      "path": "runtime/disclosure_candidates.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "05a99416e79a4ba7e7a719774a29f901e38ccb143f715b7ed04d06fd3192434e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "05a99416e79a4ba7e7a719774a29f901e38ccb143f715b7ed04d06fd3192434e"
+    },
+    {
+      "path": "runtime/discovery.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "fc5bbe55b0f74927591bdaac9d5fe0ea0055ec7a6da1ac22c80c37b01718632e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "fc5bbe55b0f74927591bdaac9d5fe0ea0055ec7a6da1ac22c80c37b01718632e"
+    },
+    {
+      "path": "runtime/environment_preflight.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e4984e46fb3ec3685270d58ecc8d09b88d9ba753f0065ec3f83a92918268b3a4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e4984e46fb3ec3685270d58ecc8d09b88d9ba753f0065ec3f83a92918268b3a4"
+    },
+    {
+      "path": "runtime/equity_research_package.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a40dd28468e9a2a0f15697a15339b40ae10df6e6c501670c1d4ae0ed0aac868c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a40dd28468e9a2a0f15697a15339b40ae10df6e6c501670c1d4ae0ed0aac868c"
+    },
+    {
+      "path": "runtime/eval_execution_proof.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "967705c76cc840adde85d48221b2a5ef5f43ca2a924a501411895e05eddebb6e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "967705c76cc840adde85d48221b2a5ef5f43ca2a924a501411895e05eddebb6e"
+    },
+    {
+      "path": "runtime/eval_local_revision.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "4689674308cc80887fb8af2e33f9567ab3bd269ba7338a39cc6be99fc3ca3338",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "4689674308cc80887fb8af2e33f9567ab3bd269ba7338a39cc6be99fc3ca3338"
+    },
+    {
+      "path": "runtime/evidence_gate.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a9849f6becb383f167a66c537c4248b968ca46cbfce04cd6521894fc03459fde",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a9849f6becb383f167a66c537c4248b968ca46cbfce04cd6521894fc03459fde"
+    },
+    {
+      "path": "runtime/execution_proof.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f76f09659d721ee38ba70a8d4b6b77dc063ada3e97141183247074b4adbbcfdf",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f76f09659d721ee38ba70a8d4b6b77dc063ada3e97141183247074b4adbbcfdf"
+    },
+    {
+      "path": "runtime/execution_replay.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1d0dc9334a17baa9e33346d36d879893c1c08903415c1d480d91bcc88a1c970a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1d0dc9334a17baa9e33346d36d879893c1c08903415c1d480d91bcc88a1c970a"
+    },
+    {
+      "path": "runtime/fixture_mcp.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0f4bacd7902e55ef62d1e4e11f905ae7f9c2a97a2badb464b000cb7aec10eea1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0f4bacd7902e55ef62d1e4e11f905ae7f9c2a97a2badb464b000cb7aec10eea1"
+    },
+    {
+      "path": "runtime/format_repair.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "efa63618b8840b53264da20ba907ec18c3c53d530faf84905aff785119f4f40d"
+    },
+    {
+      "path": "runtime/hashing.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "58b108318363b1cbd6dde1af23c85f429e28543e45040e43669179a147b95387",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "58b108318363b1cbd6dde1af23c85f429e28543e45040e43669179a147b95387"
+    },
+    {
+      "path": "runtime/independent_skeptic_stage.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "65d8db0c3d88bd1266cd33b6ef2c032fbfb30f1b4967ac85a29595039501e301",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "65d8db0c3d88bd1266cd33b6ef2c032fbfb30f1b4967ac85a29595039501e301"
+    },
+    {
+      "path": "runtime/invocation.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "76f4532225bfd2eaccdaeae8a30e2cee2b67e3cd9c2dea12d654f4ef24173623",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "76f4532225bfd2eaccdaeae8a30e2cee2b67e3cd9c2dea12d654f4ef24173623"
+    },
+    {
+      "path": "runtime/launch_fixture_mcp.sh",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "884f6c9bdee6bc3436418b4acd76d9311e4ad78866ec4babfbbde9b0a0af4810",
+      "change": "approved HEAD + scoped config alignment",
+      "prepared_sha256": "c7892f16760635d9c40c7b9956f54de3e954df79f22d6f3982215f975cbb2478"
+    },
+    {
+      "path": "runtime/live_context.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7372a70cba2793ba13312d43e41247dc2de80a6cf289a2217a11dbd720520c4c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7372a70cba2793ba13312d43e41247dc2de80a6cf289a2217a11dbd720520c4c"
+    },
+    {
+      "path": "runtime/live_input.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bb5295557b202e8aa4f306a563548ab3065781b58ece6822e5e54d061e88fcdd",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bb5295557b202e8aa4f306a563548ab3065781b58ece6822e5e54d061e88fcdd"
+    },
+    {
+      "path": "runtime/live_mcp.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ea275a51a3512427cb87bcd96bcdf930c78add2bfc2f15b1fd34c294e0bbcc2f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ea275a51a3512427cb87bcd96bcdf930c78add2bfc2f15b1fd34c294e0bbcc2f"
+    },
+    {
+      "path": "runtime/live_report.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f73abf05330a1aed8112e5daf1df949441c40a2c76cb97ada4e03e2d7b205830",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f73abf05330a1aed8112e5daf1df949441c40a2c76cb97ada4e03e2d7b205830"
+    },
+    {
+      "path": "runtime/local_revision.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "061f7653224a4b1b85da329ccfde5b5bd07257fb1cb090eb7a67a938198d2fc1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "061f7653224a4b1b85da329ccfde5b5bd07257fb1cb090eb7a67a938198d2fc1"
+    },
+    {
+      "path": "runtime/model_routing.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2ffd57757625376ef0d903caac7809e2bd4e56a9d0cfde8d5355ca600b1eb896",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2ffd57757625376ef0d903caac7809e2bd4e56a9d0cfde8d5355ca600b1eb896"
+    },
+    {
+      "path": "runtime/monetary.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "68ff869aa154bb2711d3560bc855d43d5d64ccbfe3069e544424628f3fff3868",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "68ff869aa154bb2711d3560bc855d43d5d64ccbfe3069e544424628f3fff3868"
+    },
+    {
+      "path": "runtime/multidimensional_references.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d00fab712be54fdd6062f29b38f31dc736602fd946310a6eb7d1b17ccd32f509",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d00fab712be54fdd6062f29b38f31dc736602fd946310a6eb7d1b17ccd32f509"
+    },
+    {
+      "path": "runtime/multidimensional_stage.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e4c1e1babe4f2cbb96a4d244a52239929a3eb847467fae5e7492f959d144a745",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e4c1e1babe4f2cbb96a4d244a52239929a3eb847467fae5e7492f959d144a745"
+    },
+    {
+      "path": "runtime/native_eval.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "76c6dad529c4d3dedb390be57e1f8c732f57b6737686da1e04dca77c2857d7c2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "76c6dad529c4d3dedb390be57e1f8c732f57b6737686da1e04dca77c2857d7c2"
+    },
+    {
+      "path": "runtime/native_rerun.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "202b95aa8fb6d76203a879bbae9ac8d4a2308a67340f64e6a4d7b378977e70f3"
+    },
+    {
+      "path": "runtime/nested_codex.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "10d49b83071bca36f93ef85fd7d80b86a1ea30c62a0c25fbb8a6f35af101eace",
+      "change": "approved HEAD + scoped config alignment",
+      "prepared_sha256": "2c4fe28ad7575b89356f895ffcfc895fad2bd1930b43f7e6d55fe51a8a435120"
+    },
+    {
+      "path": "runtime/predecision_cio_stage.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b907fef66bcba420f24a1bd122a700cc45dc848c1fbf3318880158057aa77a97",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b907fef66bcba420f24a1bd122a700cc45dc848c1fbf3318880158057aa77a97"
+    },
+    {
+      "path": "runtime/reason_codes.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "eb03e4a97b00088e92ab9c142aea2d2eef161da66d785d6201b582ffdfe933af",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "eb03e4a97b00088e92ab9c142aea2d2eef161da66d785d6201b582ffdfe933af"
+    },
+    {
+      "path": "runtime/regression_invariants.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "36170c9f6e7313d2f0edf9f6dabff8c5bc32aaf26e43faa6bab23e3477955a35",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "36170c9f6e7313d2f0edf9f6dabff8c5bc32aaf26e43faa6bab23e3477955a35"
+    },
+    {
+      "path": "runtime/release_gate.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1b435cecd6bd584bdf6d75a2d2b4def1e59780b1a28000db550c4c4119b2a25b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1b435cecd6bd584bdf6d75a2d2b4def1e59780b1a28000db550c4c4119b2a25b"
+    },
+    {
+      "path": "runtime/replay.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "23fc10d9e84e7033cca84923b800dc23d51668742a058c3407882d765832c884",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "23fc10d9e84e7033cca84923b800dc23d51668742a058c3407882d765832c884"
+    },
+    {
+      "path": "runtime/replay_capsule.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "8a09fd7f3cfc62659cd476d4bd84aaffb2c6f4f7f26bc19023dba1f0719141a9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "8a09fd7f3cfc62659cd476d4bd84aaffb2c6f4f7f26bc19023dba1f0719141a9"
+    },
+    {
+      "path": "runtime/research_consumption_audit.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "58e6c27b9bb9b2e9d1a900a0e7e641cd39ea68bf7007b5d9d0cfb7efe16fd908",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "58e6c27b9bb9b2e9d1a900a0e7e641cd39ea68bf7007b5d9d0cfb7efe16fd908"
+    },
+    {
+      "path": "runtime/research_input.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "686ccedcd66ccb5e31eadcbaf4742710c8a69d0662ca8cf4ccf5fcd3316daa08",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "686ccedcd66ccb5e31eadcbaf4742710c8a69d0662ca8cf4ccf5fcd3316daa08"
+    },
+    {
+      "path": "runtime/research_input_topology.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c62230501109b3f1e36a03b1b78f2e933d6e503d205bcd4dc31c2745e2a204c4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c62230501109b3f1e36a03b1b78f2e933d6e503d205bcd4dc31c2745e2a204c4"
+    },
+    {
+      "path": "runtime/research_materials_stage.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "aab4be3722e8b2a0f333cddb8c0d3a7893224fbf2c2fc9b088c6058197dcffbc",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "aab4be3722e8b2a0f333cddb8c0d3a7893224fbf2c2fc9b088c6058197dcffbc"
+    },
+    {
+      "path": "runtime/research_memory.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b43aba120c2662c0a44eed2268608838033ddc5b86bdfd7cd1b88c75af9b1bb1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b43aba120c2662c0a44eed2268608838033ddc5b86bdfd7cd1b88c75af9b1bb1"
+    },
+    {
+      "path": "runtime/research_memory_repair.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "845a1b6aae358254c5261f3b24212b3bb4dcf537d30ac3633525c8faed697c2b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "845a1b6aae358254c5261f3b24212b3bb4dcf537d30ac3633525c8faed697c2b"
+    },
+    {
+      "path": "runtime/research_submission.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1a592070720e055ef5bda67ef79630f353d72d56543cab5a5253d64004a3982f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1a592070720e055ef5bda67ef79630f353d72d56543cab5a5253d64004a3982f"
+    },
+    {
+      "path": "runtime/research_supplement_mcp.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "34856da2d2f8d599b5aed139122cecf1c3d47869e8171bbad5d3c7d53b697d14",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "34856da2d2f8d599b5aed139122cecf1c3d47869e8171bbad5d3c7d53b697d14"
+    },
+    {
+      "path": "runtime/risk_runtime.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6f8274f43973bc3f2ce04d35d46380e550a5a816dc8e8a2b2d4ce11fffeee1c9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6f8274f43973bc3f2ce04d35d46380e550a5a816dc8e8a2b2d4ce11fffeee1c9"
+    },
+    {
+      "path": "runtime/run_package.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "83997de427770b9f62d7e026441015755327945b519210d9cb4fcd176f5cdb03",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "83997de427770b9f62d7e026441015755327945b519210d9cb4fcd176f5cdb03"
+    },
+    {
+      "path": "runtime/runtime_eval.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1fc8a6ddd98728e09cd83b02e2d793c6eaf2041ceccbd1582fc8f6eb0818c5f2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1fc8a6ddd98728e09cd83b02e2d793c6eaf2041ceccbd1582fc8f6eb0818c5f2"
+    },
+    {
+      "path": "runtime/runtime_profiles.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "13c91eef22c7e4e36f72d3953d6eb12b441010ead0aab08d9e065a90aa56e2d2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "13c91eef22c7e4e36f72d3953d6eb12b441010ead0aab08d9e065a90aa56e2d2"
+    },
+    {
+      "path": "runtime/schema_validation.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f620803af32392a8c901935601a626e44cf1d3fff27df47226d88406544d8415",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f620803af32392a8c901935601a626e44cf1d3fff27df47226d88406544d8415"
+    },
+    {
+      "path": "runtime/single_stock_input.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "8a54b4a7d334bf0d52a98bf68e301a826ee8d34763cbc99ef30238b5ab14303b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "8a54b4a7d334bf0d52a98bf68e301a826ee8d34763cbc99ef30238b5ab14303b"
+    },
+    {
+      "path": "runtime/smoke_prompt.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "dced7c14a4f76c5195d66147247e8ad884d620f46cd5dc82dd0a4449222e090e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "dced7c14a4f76c5195d66147247e8ad884d620f46cd5dc82dd0a4449222e090e"
+    },
+    {
+      "path": "runtime/terminal_contract.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "abc0a71361b85692e59bd538db3505ee30562c89cd6f7443313f9c591993fa75"
+    },
+    {
+      "path": "runtime/trace_validation.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "af5d89801662b263a4c88c83cb4b09e64217130a13a7243ff0d0b053c579597a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "af5d89801662b263a4c88c83cb4b09e64217130a13a7243ff0d0b053c579597a"
+    },
+    {
+      "path": "runtime/validation.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e5a7424f90f85179c5014d185376d3976b09c638738ac4011a29fbd0b66a252f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e5a7424f90f85179c5014d185376d3976b09c638738ac4011a29fbd0b66a252f"
+    },
+    {
+      "path": "runtime/versioning.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6ab314f95706793879a3ff97e8aea46ae7831b5da49c168ceb6b73a94159554d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6ab314f95706793879a3ff97e8aea46ae7831b5da49c168ceb6b73a94159554d"
+    },
+    {
+      "path": "schemas/demo/agent-request.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "168537263f3843f20313a7b9110b2396da7c32329081e18d2599adb13ed6d436",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "168537263f3843f20313a7b9110b2396da7c32329081e18d2599adb13ed6d436"
+    },
+    {
+      "path": "schemas/demo/agent-response.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0fa9ddbe088887805bd0b2fd7a40fed6fec2adbefae9d09f00cbb35bf3183300",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0fa9ddbe088887805bd0b2fd7a40fed6fec2adbefae9d09f00cbb35bf3183300"
+    },
+    {
+      "path": "schemas/demo/demo-decision-envelope.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bac861f066ee654e83797fb2c3e3fc7afb0de8eb93e414da25bc69b296da87aa",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bac861f066ee654e83797fb2c3e3fc7afb0de8eb93e414da25bc69b296da87aa"
+    },
+    {
+      "path": "schemas/demo/demo-input.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b258c9340c7f71365cb1a0d0c9ba6cbe9c5cc643d77e5bd36cb2791ab14c16a4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b258c9340c7f71365cb1a0d0c9ba6cbe9c5cc643d77e5bd36cb2791ab14c16a4"
+    },
+    {
+      "path": "schemas/demo/dispatch-record.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f1f444195aaf2b278ca54b09d9854f365ac788a354a905c4c738b825a16ca2ab",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f1f444195aaf2b278ca54b09d9854f365ac788a354a905c4c738b825a16ca2ab"
+    },
+    {
+      "path": "schemas/intake/council-request-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2a915e38d545c3408ee000cd23ee5b8c948b4a5c69a63835f5656bc1560ba6f5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2a915e38d545c3408ee000cd23ee5b8c948b4a5c69a63835f5656bc1560ba6f5"
+    },
+    {
+      "path": "schemas/intake/council-request-v3.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "29093b1b08b5b8a0bb1e391c23de1161e11e59bceeed9aa0d1d3848069a71110",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "29093b1b08b5b8a0bb1e391c23de1161e11e59bceeed9aa0d1d3848069a71110"
+    },
+    {
+      "path": "schemas/intake/council-request.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "78cf3fe3742c3c5307aab7e4616e1f2424a10063ede20b3cf543bb0feb04096e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "78cf3fe3742c3c5307aab7e4616e1f2424a10063ede20b3cf543bb0feb04096e"
+    },
+    {
+      "path": "schemas/intake/council-research-plan-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a1171228d781b21f6ee08f799959b271cc33c568af86530cbad0294d8ba0f1c0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a1171228d781b21f6ee08f799959b271cc33c568af86530cbad0294d8ba0f1c0"
+    },
+    {
+      "path": "schemas/intake/council-research-plan.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d3e2410c3c35c67b17a09e53017212116a9a66cc07dde7c55d15621d141673be",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d3e2410c3c35c67b17a09e53017212116a9a66cc07dde7c55d15621d141673be"
+    },
+    {
+      "path": "schemas/intake/portfolio-draft-v3.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "106c8776a8ed71bff3879c83041aaf2f94fd8e8358323b89c82b232835bacf06",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "106c8776a8ed71bff3879c83041aaf2f94fd8e8358323b89c82b232835bacf06"
+    },
+    {
+      "path": "schemas/intake/portfolio-draft.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "30cb9695c76fb289a4068ac67543830609b0d03f8f93250229d315499f1d6c34",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "30cb9695c76fb289a4068ac67543830609b0d03f8f93250229d315499f1d6c34"
+    },
+    {
+      "path": "schemas/intake/portfolio-handoff-v3.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "da03140ad6f5ea71ed05eec88c663a02555376cbe8d2d1d9ba4933c18481df7d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "da03140ad6f5ea71ed05eec88c663a02555376cbe8d2d1d9ba4933c18481df7d"
+    },
+    {
+      "path": "schemas/intake/portfolio-handoff.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "339f6b8961858e4ea42c10eb69234560e954c0e3a984d92e727a916fdb9135b5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "339f6b8961858e4ea42c10eb69234560e954c0e3a984d92e727a916fdb9135b5"
+    },
+    {
+      "path": "schemas/runtime/ablation-report.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d35659d521aca1dee2d8d5061f16013aaa325c933485985907dee77723e9eefe"
+    },
+    {
+      "path": "schemas/runtime/agent-research-report.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "fefb829f3741cd826c2edef48884c6343402db799455a80a237c973444de48d6"
+    },
+    {
+      "path": "schemas/runtime/cio-decision-draft.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d8947969dc15e3e9456c6acbcf6df81a72d1fe91e42d78a3ae2226819aa521e1"
+    },
+    {
+      "path": "schemas/runtime/company-background-snapshot.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0cfdce537c4eccfd369611e93946a25d40dc9f1752774a73aefb5bf4cb3026bd",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0cfdce537c4eccfd369611e93946a25d40dc9f1752774a73aefb5bf4cb3026bd"
+    },
+    {
+      "path": "schemas/runtime/company-fundamental-supplement.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ef7964c35ae9cdb67e029eb03c13b6a9872f1539fb8b8fd51ff53eb643d3a211",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ef7964c35ae9cdb67e029eb03c13b6a9872f1539fb8b8fd51ff53eb643d3a211"
+    },
+    {
+      "path": "schemas/runtime/counter-thesis-report-v2.1.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "84da792c60fa4f7bf597aa62a7c9b0226778e61c74f2cd72728b932167742229",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "84da792c60fa4f7bf597aa62a7c9b0226778e61c74f2cd72728b932167742229"
+    },
+    {
+      "path": "schemas/runtime/counter-thesis-report.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9c62c5df3bb0e44ae5d50c7b62a94392757a93bdd7e9d7f6c7c7516f2d79a453"
+    },
+    {
+      "path": "schemas/runtime/decision-trace.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "8afdba3fb09cf4c11a56421d9322c7c5a7700944b25d0c2e57d55bbe7e3fa434"
+    },
+    {
+      "path": "schemas/runtime/deterministic-test-execution.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "3c42984bd776f8980d058fca057acad090fc46d7efebbb39e1c106b9848e6ed6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "3c42984bd776f8980d058fca057acad090fc46d7efebbb39e1c106b9848e6ed6"
+    },
+    {
+      "path": "schemas/runtime/deterministic-test-report.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "5220d7de688f5b036efd2248b58bb0a0920052c6a096bf256c8ca458e282bf58",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "5220d7de688f5b036efd2248b58bb0a0920052c6a096bf256c8ca458e282bf58"
+    },
+    {
+      "path": "schemas/runtime/equity-research-report-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "83fdbf1a344a3da2c4612f7a81eff3e2eb358302bbb5ea10796b26f01f7f1438",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "83fdbf1a344a3da2c4612f7a81eff3e2eb358302bbb5ea10796b26f01f7f1438"
+    },
+    {
+      "path": "schemas/runtime/equity-research-report.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a38e87f5e589ccfcd39f5464abb833a7d220899a961faf8cf7ea1ea508744671",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a38e87f5e589ccfcd39f5464abb833a7d220899a961faf8cf7ea1ea508744671"
+    },
+    {
+      "path": "schemas/runtime/equity-valuation-history.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9a64ec0ee53a0da2f53a77d6f5c3ac13508b01f0f257abf42f503b0bac851d46",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9a64ec0ee53a0da2f53a77d6f5c3ac13508b01f0f257abf42f503b0bac851d46"
+    },
+    {
+      "path": "schemas/runtime/equity-valuation-snapshot.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b6dfdca7ce4f007896d4d44672cd6f3e4b0a028170143cc3cafea9a15cb250af",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b6dfdca7ce4f007896d4d44672cd6f3e4b0a028170143cc3cafea9a15cb250af"
+    },
+    {
+      "path": "schemas/runtime/execution-replay.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "78dec9eb234ae762ef99e44c5613efa4e797187a12d16f0786622b451eb955e5"
+    },
+    {
+      "path": "schemas/runtime/fixture.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bbf9d5e181d6d31b34fc2d35b76015cd80c1e0563da7ca6df2067c37c35c591f"
+    },
+    {
+      "path": "schemas/runtime/holding-research-bundle-v1.1.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9dc67e23a875382f21d15410d70d5b6f7ad0719983e8e9d5e2acedc166952836",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9dc67e23a875382f21d15410d70d5b6f7ad0719983e8e9d5e2acedc166952836"
+    },
+    {
+      "path": "schemas/runtime/holding-research-bundle-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1d982d0d78e41a28b893d57184079c28b9d191d07ceb6b0685624fbf1ffc1fee",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1d982d0d78e41a28b893d57184079c28b9d191d07ceb6b0685624fbf1ffc1fee"
+    },
+    {
+      "path": "schemas/runtime/holding-research-bundle-v3.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "5f41ea581e16022824e0c8241e483e087a99573e287cc52919223c55b5970b00",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "5f41ea581e16022824e0c8241e483e087a99573e287cc52919223c55b5970b00"
+    },
+    {
+      "path": "schemas/runtime/holding-research-bundle.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "3f2bc93c7b4c9ca305f972fb70ae9bbf49ec1e20cc0360525f1aa70f90a03da2",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "3f2bc93c7b4c9ca305f972fb70ae9bbf49ec1e20cc0360525f1aa70f90a03da2"
+    },
+    {
+      "path": "schemas/runtime/holding-research-input-topology.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1eff04ed1cd7f227192cdc62e25686e9543092b8f7bc4c97f92797efbcf87f6b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1eff04ed1cd7f227192cdc62e25686e9543092b8f7bc4c97f92797efbcf87f6b"
+    },
+    {
+      "path": "schemas/runtime/holding-research-request-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1cf630870e46886e083d4948cdcb0564b58a6b485a65db0c5abf642acdf43de0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1cf630870e46886e083d4948cdcb0564b58a6b485a65db0c5abf642acdf43de0"
+    },
+    {
+      "path": "schemas/runtime/holding-research-request.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b8679f8e535175e9ec9246f930a260a67c7f6f8b3f8d52c732c1dc8f190b7290",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b8679f8e535175e9ec9246f930a260a67c7f6f8b3f8d52c732c1dc8f190b7290"
+    },
+    {
+      "path": "schemas/runtime/invocation-manifest.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "eb394e3c27767df4fd84ef52b41cd22b0bc1bd65c7752ae38041aef5938300ae"
+    },
+    {
+      "path": "schemas/runtime/live-batch.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "256704d0548d110e6a66b7318b85c0be24d1d573d6be89c54ffd4fde6aff73e3",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "256704d0548d110e6a66b7318b85c0be24d1d573d6be89c54ffd4fde6aff73e3"
+    },
+    {
+      "path": "schemas/runtime/live-fact-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7ea2884c65dcd6796cbfeb208de7c7afdc0cd366a0919d18536103172bc37e48",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7ea2884c65dcd6796cbfeb208de7c7afdc0cd366a0919d18536103172bc37e48"
+    },
+    {
+      "path": "schemas/runtime/live-fact.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6dec62f8e270fc2193d60e8d61382df91bc5c662a36e5e849c36166295e1e93f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6dec62f8e270fc2193d60e8d61382df91bc5c662a36e5e849c36166295e1e93f"
+    },
+    {
+      "path": "schemas/runtime/live-portfolio-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "3ef5a32a91688a595ff03ddaaf7138f9f69b1454243aea63ad03ecec027cba98",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "3ef5a32a91688a595ff03ddaaf7138f9f69b1454243aea63ad03ecec027cba98"
+    },
+    {
+      "path": "schemas/runtime/live-portfolio.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "4ca1e49bd057144107c0fb6f1e544dec2f65133f13869af73a57d8052cde36e4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "4ca1e49bd057144107c0fb6f1e544dec2f65133f13869af73a57d8052cde36e4"
+    },
+    {
+      "path": "schemas/runtime/live-research-snapshot.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "fb6c315cd5f36f222a49164fd35b82c8e030d0606d9b839dc2cbc9ee73a843ca",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "fb6c315cd5f36f222a49164fd35b82c8e030d0606d9b839dc2cbc9ee73a843ca"
+    },
+    {
+      "path": "schemas/runtime/live-snapshot-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a06c0ab55313397fbc629311ebe3c6d86022cdef0b42dc202f93343001a01700",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a06c0ab55313397fbc629311ebe3c6d86022cdef0b42dc202f93343001a01700"
+    },
+    {
+      "path": "schemas/runtime/live-snapshot-v3.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "49996cd065db4af23b56553f6f5de28ac6c02b5a63d32b5adf1dc82adbe61365",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "49996cd065db4af23b56553f6f5de28ac6c02b5a63d32b5adf1dc82adbe61365"
+    },
+    {
+      "path": "schemas/runtime/live-snapshot-v4.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "625152e883e07022c44bdc47969cfbc2c150ae9610104fa039f369d4449479ff",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "625152e883e07022c44bdc47969cfbc2c150ae9610104fa039f369d4449479ff"
+    },
+    {
+      "path": "schemas/runtime/live-snapshot.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "33781e402ebb2c76ddc978d71df7f562aebc4ad7ab6c0da4556f0475e6aea10f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "33781e402ebb2c76ddc978d71df7f562aebc4ad7ab6c0da4556f0475e6aea10f"
+    },
+    {
+      "path": "schemas/runtime/live-source-access-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "207b5d671a3c84b7be6d8ad45a870540c4a26ea17e3fe47b4bb43a6dc1ce98fb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "207b5d671a3c84b7be6d8ad45a870540c4a26ea17e3fe47b4bb43a6dc1ce98fb"
+    },
+    {
+      "path": "schemas/runtime/live-source-access-v3.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "381511848877ffa4362411f8339f032fb18113931b0593dcc8ed896f7ca4f429",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "381511848877ffa4362411f8339f032fb18113931b0593dcc8ed896f7ca4f429"
+    },
+    {
+      "path": "schemas/runtime/live-source-access-v4.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a5fcecc2c492bb63b9a1b736af6f6f7a4d2c5486a9188949187d056257a39c15",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a5fcecc2c492bb63b9a1b736af6f6f7a4d2c5486a9188949187d056257a39c15"
+    },
+    {
+      "path": "schemas/runtime/live-source-access.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a1e22011bc575778bf8facfb5f3e4f79e3235744fc8bf71b0d8fe33b2e7c958d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a1e22011bc575778bf8facfb5f3e4f79e3235744fc8bf71b0d8fe33b2e7c958d"
+    },
+    {
+      "path": "schemas/runtime/live-source-selection.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6712f6668798ecb94dcf4415b5704d8bf82c894e0823d978b6a45112b8e2ad4a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6712f6668798ecb94dcf4415b5704d8bf82c894e0823d978b6a45112b8e2ad4a"
+    },
+    {
+      "path": "schemas/runtime/live-universe.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1cc0d242b70a42519f24247a2a611119fd09a793ab1c0f1296cae5abd3cc57b3",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1cc0d242b70a42519f24247a2a611119fd09a793ab1c0f1296cae5abd3cc57b3"
+    },
+    {
+      "path": "schemas/runtime/native-eval.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "27b3786371b4147960d38cd03546bedf7c02f7346d756236df3f4323919fbd0b"
+    },
+    {
+      "path": "schemas/runtime/peer-comparison.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "739b8d963afffd4bd682ec825966236635c945ff916e36b869dc9a10c8c7445f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "739b8d963afffd4bd682ec825966236635c945ff916e36b869dc9a10c8c7445f"
+    },
+    {
+      "path": "schemas/runtime/pre-decision-research-package-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ff95eb05db8abf0bb272e21180ad936d7f098c4fd5e5daad25a5b1d182a9ad1c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ff95eb05db8abf0bb272e21180ad936d7f098c4fd5e5daad25a5b1d182a9ad1c"
+    },
+    {
+      "path": "schemas/runtime/pre-decision-research-package.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f3c64d1186f06b32d97a6659117f6abae2397f507256f09c4b75ce607abf806c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f3c64d1186f06b32d97a6659117f6abae2397f507256f09c4b75ce607abf806c"
+    },
+    {
+      "path": "schemas/runtime/predecision-cio-request-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d46a7b3ad8da611e13b09a2dda10b75ee4e93991d169ef5b0936f900cba7d3a3",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d46a7b3ad8da611e13b09a2dda10b75ee4e93991d169ef5b0936f900cba7d3a3"
+    },
+    {
+      "path": "schemas/runtime/predecision-cio-request.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "5e17928b02b03be67689b4e889274faa4eda58e371922017bac41215683a5760",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "5e17928b02b03be67689b4e889274faa4eda58e371922017bac41215683a5760"
+    },
+    {
+      "path": "schemas/runtime/predecision-cio-synthesis-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "98cca6d2bd0579bec8d22fdb3dd44e824379d5c43b8499a8b71c3805c182a7dc",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "98cca6d2bd0579bec8d22fdb3dd44e824379d5c43b8499a8b71c3805c182a7dc"
+    },
+    {
+      "path": "schemas/runtime/predecision-cio-synthesis.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "32d1f9a745885ce6145702a4b396571e61260184e57b73f73521dd09c8cd9f75",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "32d1f9a745885ce6145702a4b396571e61260184e57b73f73521dd09c8cd9f75"
+    },
+    {
+      "path": "schemas/runtime/promotion-gate.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "5cb59eece7b18652424175fecab4824a513d54a4613c3b4d15a47d6184869d1e"
+    },
+    {
+      "path": "schemas/runtime/promotion-input.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "abcdffa384af1a9707d775f122366b8adf74bf99e611a7f29854abea577f12b7"
+    },
+    {
+      "path": "schemas/runtime/regression-case.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ea1153a7d6425e58a169e6872dfa64862a1bf6d3afd209358f1a51498be1502f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ea1153a7d6425e58a169e6872dfa64862a1bf6d3afd209358f1a51498be1502f"
+    },
+    {
+      "path": "schemas/runtime/regression-suite.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "38fb16c4071272ffe6c92fe408b05c462364b94346d5381399aeaf94571e72c7"
+    },
+    {
+      "path": "schemas/runtime/replay-capsule.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "fffd8a4853c28d37b182607c9143d08848b38ecc2ad55286994d6ffae29037d0"
+    },
+    {
+      "path": "schemas/runtime/research-calculation.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7fc5f1b7883d3db0e5988ab7f22c425342dd7464f1bfd6e81d5045f570ea9cbf",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7fc5f1b7883d3db0e5988ab7f22c425342dd7464f1bfd6e81d5045f570ea9cbf"
+    },
+    {
+      "path": "schemas/runtime/research-capture-batch.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7f64cfb049ad6283ca036977ab47b924efbb28373c4849efcb08e7688cb0c74b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7f64cfb049ad6283ca036977ab47b924efbb28373c4849efcb08e7688cb0c74b"
+    },
+    {
+      "path": "schemas/runtime/research-coverage-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "24c03dab46c7b61c7b9a7cf42f4d4131cbd258509e2a4d29649ae556715a444d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "24c03dab46c7b61c7b9a7cf42f4d4131cbd258509e2a4d29649ae556715a444d"
+    },
+    {
+      "path": "schemas/runtime/research-coverage.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ec74a3f96bad3c479637f3522b14ab4aca161b99c125bbf87443282141c15d37",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ec74a3f96bad3c479637f3522b14ab4aca161b99c125bbf87443282141c15d37"
+    },
+    {
+      "path": "schemas/runtime/research-dimension-report-v2.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9ed6e6e1baf18aa33d770ec7d8963eb764e17c6811bf24df4f3887b18c2896e6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9ed6e6e1baf18aa33d770ec7d8963eb764e17c6811bf24df4f3887b18c2896e6"
+    },
+    {
+      "path": "schemas/runtime/research-dimension-report-v3.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "26c93d76071f944e53b73fdd0f9b5f0671dd9567913c2d8e7a25cd886071eec7",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "26c93d76071f944e53b73fdd0f9b5f0671dd9567913c2d8e7a25cd886071eec7"
+    },
+    {
+      "path": "schemas/runtime/research-dimension-report.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c1381a41a5f809435ac156ba1950ab0d9947dca8ad0f97093e940e3ca3c41b03",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c1381a41a5f809435ac156ba1950ab0d9947dca8ad0f97093e940e3ca3c41b03"
+    },
+    {
+      "path": "schemas/runtime/research-source-capability.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "d2cae378ec8a2fa8c8ac4f0586b61a3edc4f7c98ba52f5fca333bfc643869363",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "d2cae378ec8a2fa8c8ac4f0586b61a3edc4f7c98ba52f5fca333bfc643869363"
+    },
+    {
+      "path": "schemas/runtime/research-visual-bundle.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0863cfc12cb2afe8fc39080c3c155e772f072fd587fb78bdcb9a419d37909083",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0863cfc12cb2afe8fc39080c3c155e772f072fd587fb78bdcb9a419d37909083"
+    },
+    {
+      "path": "schemas/runtime/run-error.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c45d9d8a334883930241eea1203a206eaa81b133ca7aeada5682611f97765fae"
+    },
+    {
+      "path": "schemas/runtime/runtime-eval-job.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7252fdd7f6acf2b2a29b3d0c5c2d6e36373c511265088e04d65256d363df236f"
+    },
+    {
+      "path": "schemas/runtime/semantic-calibration-result.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "65c7b85ad11de41c4c500eb31de98ca1e995a021238a9e8a3a6945bd134cbc77",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "65c7b85ad11de41c4c500eb31de98ca1e995a021238a9e8a3a6945bd134cbc77"
+    },
+    {
+      "path": "schemas/runtime/semantic-rubric-result.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c72feab25a26362d747f241d2be8fe4e6c0f73617674e7c743462846203971ca",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c72feab25a26362d747f241d2be8fe4e6c0f73617674e7c743462846203971ca"
+    },
+    {
+      "path": "schemas/runtime/single-stock-research-request.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1a90a5154f53fca2d80a08d85def78b925b7d8acf094262fb94e080c54c7575a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1a90a5154f53fca2d80a08d85def78b925b7d8acf094262fb94e080c54c7575a"
+    },
+    {
+      "path": "skills/catalyst-analysis/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bb469f7f2fb4156f3f9e28a0612c26204edc6bca8ba0736e6dea2a4bad308e0b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bb469f7f2fb4156f3f9e28a0612c26204edc6bca8ba0736e6dea2a4bad308e0b"
+    },
+    {
+      "path": "skills/company-research/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "fdf6c8e0cd7df283673496d4e9822ee005f88afdf3b7fc7978dff8612e7cc1e4",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "fdf6c8e0cd7df283673496d4e9822ee005f88afdf3b7fc7978dff8612e7cc1e4"
+    },
+    {
+      "path": "skills/counter-thesis/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "1e19207890dcc26d0ecaa82fda16294fcf238f5a0ab8a711aad680b94388cf5a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "1e19207890dcc26d0ecaa82fda16294fcf238f5a0ab8a711aad680b94388cf5a"
+    },
+    {
+      "path": "skills/evidence-grounding/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6a96be50b82c73da7383a94708275a9bb14b369d828ff4f0277a21df41443c63",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6a96be50b82c73da7383a94708275a9bb14b369d828ff4f0277a21df41443c63"
+    },
+    {
+      "path": "skills/industry-comparison/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2d1942fb5678d7d507cb098b6edbea55b60f65e6613ef29f7f850b45f99d3e8d",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2d1942fb5678d7d507cb098b6edbea55b60f65e6613ef29f7f850b45f99d3e8d"
+    },
+    {
+      "path": "skills/macro-market-analysis/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "3fe768dc8d147768a697a53f453572930a25be0e4a428aa227c4d922cfec4396",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "3fe768dc8d147768a697a53f453572930a25be0e4a428aa227c4d922cfec4396"
+    },
+    {
+      "path": "skills/options-market-structure/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "46d64d8531eda9050a74e223b0689f58536765b4eb8ad4bbebd9fae12164ae15",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "46d64d8531eda9050a74e223b0689f58536765b4eb8ad4bbebd9fae12164ae15"
+    },
+    {
+      "path": "skills/ownership-disclosure/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "febde6d53de8da25adfa056819c0024281d4bbee7355f6e6f2d6633e70d9acaa",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "febde6d53de8da25adfa056819c0024281d4bbee7355f6e6f2d6633e70d9acaa"
+    },
+    {
+      "path": "skills/portfolio-council/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "818520842307343b8162e23da5009deae8e7904cf8981bec49446ede0bd52ae1",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "818520842307343b8162e23da5009deae8e7904cf8981bec49446ede0bd52ae1"
+    },
+    {
+      "path": "skills/portfolio-council/agents/openai.yaml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f788c64a4048737282a8a9a2d83c3d45408d538ae5258c1c179bb5232a5c63f9"
+    },
+    {
+      "path": "skills/portfolio-council/references/live-us-equity.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9a9a195301840290c6d4c82ed0faa282ae95df4ec092c03f1ce5d70bde8ca5c9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9a9a195301840290c6d4c82ed0faa282ae95df4ec092c03f1ce5d70bde8ca5c9"
+    },
+    {
+      "path": "skills/portfolio-intake/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0ae14d24772c376fcfa8433baa260fc3e54c3ee2c3ddafad46b34a3a34179956",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0ae14d24772c376fcfa8433baa260fc3e54c3ee2c3ddafad46b34a3a34179956"
+    },
+    {
+      "path": "skills/portfolio-intake/references/contracts.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "21d4b4627b523361831d01e7586cd5580d0f8ef07f1e934bf5ae7e18fd0f8844",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "21d4b4627b523361831d01e7586cd5580d0f8ef07f1e934bf5ae7e18fd0f8844"
+    },
+    {
+      "path": "skills/research-report-analysis/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "e6a424217fc26c8df69f660f28055f172b5a1aef6e5b1189ad6ac9a6c073140c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "e6a424217fc26c8df69f660f28055f172b5a1aef6e5b1189ad6ac9a6c073140c"
+    },
+    {
+      "path": "skills/technical-structure/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "aab8c755cd51a67cd469c7454983d491691f36d6361a3c61f0bada6b29669e4b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "aab8c755cd51a67cd469c7454983d491691f36d6361a3c61f0bada6b29669e4b"
+    },
+    {
+      "path": "skills/tiger-trade-journal/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f552ab1d1dd7d6b59788d8bd40e8b67e7ed7114b6f789c4b537f69dd05abb479",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f552ab1d1dd7d6b59788d8bd40e8b67e7ed7114b6f789c4b537f69dd05abb479"
+    },
+    {
+      "path": "skills/tiger-trade-journal/agents/openai.yaml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "53cf1d7757aa9784704b9ed61b1df8b017e74798634b7a06f8b51de7d1b6c39c",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "53cf1d7757aa9784704b9ed61b1df8b017e74798634b7a06f8b51de7d1b6c39c"
+    },
+    {
+      "path": "skills/tiger-trade-journal/references/computer-use.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "be2b99ff89300b726b8f33ee440f9936ceb5eebde0ebb711ce5b32000acfcf6b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "be2b99ff89300b726b8f33ee440f9936ceb5eebde0ebb711ce5b32000acfcf6b"
+    },
+    {
+      "path": "skills/tiger-trade-journal/references/usage.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c4c4215a3b37aabe82ec004c3470edf1a5f07081bd19ccef6d88de3fcfdd253f",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c4c4215a3b37aabe82ec004c3470edf1a5f07081bd19ccef6d88de3fcfdd253f"
+    },
+    {
+      "path": "skills/tiger-trade-journal/scripts/journal.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "02c7661f2b8d0c063015728987960125a329f3de6ff6ecde6638fa4c49914f95",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "02c7661f2b8d0c063015728987960125a329f3de6ff6ecde6638fa4c49914f95"
+    },
+    {
+      "path": "skills/trading-reflection/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ec21610f2fb69be019cf1d2b27e449ddb778118e993bab48f615c11316d35d0e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ec21610f2fb69be019cf1d2b27e449ddb778118e993bab48f615c11316d35d0e"
+    },
+    {
+      "path": "skills/trading-reflection/agents/openai.yaml",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "97388839b9e1f4b7431999270da6ebe1b5491a544f1d24df8293cec424143968",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "97388839b9e1f4b7431999270da6ebe1b5491a544f1d24df8293cec424143968"
+    },
+    {
+      "path": "skills/trading-reflection/references/report-format.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a0747fac1f4bb7c0ac23ebcfee8f80058388975352adf94991851ee9ec76b2bf",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a0747fac1f4bb7c0ac23ebcfee8f80058388975352adf94991851ee9ec76b2bf"
+    },
+    {
+      "path": "skills/trading-reflection/scripts/journal.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "af089ef2bbeb9d4feb623088e070111d7e40951a9a6294d0f80dd305d4de9458",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "af089ef2bbeb9d4feb623088e070111d7e40951a9a6294d0f80dd305d4de9458"
+    },
+    {
+      "path": "skills/valuation/SKILL.md",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "25b0cb9b159b9292f9f615daf877be9c744314827254e57fae920097d3fe8f9e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "25b0cb9b159b9292f9f615daf877be9c744314827254e57fae920097d3fe8f9e"
+    },
+    {
+      "path": "trace/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "514fc8e03cf54a31df43e8d015b8c48d437cf5f84bb339e73a17a3e6ebfd5615",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "514fc8e03cf54a31df43e8d015b8c48d437cf5f84bb339e73a17a3e6ebfd5615"
+    },
+    {
+      "path": "trace/models.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "50c45b105dae4af28b991f642cd8c79fe86c88ede96148082fb37ffd8e8dd346",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "50c45b105dae4af28b991f642cd8c79fe86c88ede96148082fb37ffd8e8dd346"
+    },
+    {
+      "path": "trace/replay.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6bcfad4cb773b9907cf6b8a80e518dcfa19f8da5d22acdb74d9deeed662f5638",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6bcfad4cb773b9907cf6b8a80e518dcfa19f8da5d22acdb74d9deeed662f5638"
+    },
+    {
+      "path": "trace/store.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "0366ed0c65a26749c3f3edfa5208f6522ebe68255e570c330fba2f713598f3d5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "0366ed0c65a26749c3f3edfa5208f6522ebe68255e570c330fba2f713598f3d5"
+    },
+    {
+      "path": "trading_journal/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "b8580443596e0e436865f17cb802658abb522cbd82d9dc5d465435b6c0961409",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b8580443596e0e436865f17cb802658abb522cbd82d9dc5d465435b6c0961409"
+    },
+    {
+      "path": "trading_journal/analysis.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6f34d4c5ec04bafb9f332373da1e8c95932be5b89c074719fa69a66aef59e274",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6f34d4c5ec04bafb9f332373da1e8c95932be5b89c074719fa69a66aef59e274"
+    },
+    {
+      "path": "trading_journal/app.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "a9d74d50ce487f4d9dc82b950b8a236048e41d0996e60f6acd28fb722fe480a9",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "a9d74d50ce487f4d9dc82b950b8a236048e41d0996e60f6acd28fb722fe480a9"
+    },
+    {
+      "path": "trading_journal/app_ui.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "345f64b0ce6d4192ed47a609f7bc7fd85725e9916f2c3af4370435cc4fe4e191",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "345f64b0ce6d4192ed47a609f7bc7fd85725e9916f2c3af4370435cc4fe4e191"
+    },
+    {
+      "path": "trading_journal/charts.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "681b191c7068b0514d65c28a64c6894e456938ef875e85931fc9ab6fee64b6db",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "681b191c7068b0514d65c28a64c6894e456938ef875e85931fc9ab6fee64b6db"
+    },
+    {
+      "path": "trading_journal/cli.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "403948cbf68eac85762ff976eaf2bbdef49e487f36d59e680eb3a8e2d1077bce",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "403948cbf68eac85762ff976eaf2bbdef49e487f36d59e680eb3a8e2d1077bce"
+    },
+    {
+      "path": "trading_journal/common.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "8bae7554f17b3bdc03024a1a3f4d592caf195e60727ba1c131e63a42669be23a",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "8bae7554f17b3bdc03024a1a3f4d592caf195e60727ba1c131e63a42669be23a"
+    },
+    {
+      "path": "trading_journal/computer_use.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "59b34170c31dd2491ac1b46a03f20342dad5b7be92673c3b402b388d4fa0fce7",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "59b34170c31dd2491ac1b46a03f20342dad5b7be92673c3b402b388d4fa0fce7"
+    },
+    {
+      "path": "trading_journal/desktop.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "77c283d26b2bdda392842c805941da91bd44188b37388847fc36202f5704edbf",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "77c283d26b2bdda392842c805941da91bd44188b37388847fc36202f5704edbf"
+    },
+    {
+      "path": "trading_journal/ledger.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "465332735614ebb9fb45dc4909b3cfd8d9c695e031bee7417c6e888903a1fe99",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "465332735614ebb9fb45dc4909b3cfd8d9c695e031bee7417c6e888903a1fe99"
+    },
+    {
+      "path": "trading_journal/market.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "736333bc964990cecef3e64004320f1971c168441e543dd8419fd8a7dccb38b6",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "736333bc964990cecef3e64004320f1971c168441e543dd8419fd8a7dccb38b6"
+    },
+    {
+      "path": "trading_journal/native/TigerReadOnly.swift",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "c20eedbfd24de164a00ded5f6118cedd6bdec2833602c0c3b933a62a625ec975",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "c20eedbfd24de164a00ded5f6118cedd6bdec2833602c0c3b933a62a625ec975"
+    },
+    {
+      "path": "trading_journal/normalization.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "38fcdd2f22d295b3d9a86b2a5fa19e3eb5ec6321c5a4fee41c15503c0023a7d5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "38fcdd2f22d295b3d9a86b2a5fa19e3eb5ec6321c5a4fee41c15503c0023a7d5"
+    },
+    {
+      "path": "trading_journal/packaging.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "62ecad9e3838336954a3fa6d60e9e7abb5926be3eba98c26fff9b3e550c38e43",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "62ecad9e3838336954a3fa6d60e9e7abb5926be3eba98c26fff9b3e550c38e43"
+    },
+    {
+      "path": "trading_journal/presentation.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "6b46a324ec14b36fd2c75881353ddf7a28161283f9b897b4a5213600968b7a68",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "6b46a324ec14b36fd2c75881353ddf7a28161283f9b897b4a5213600968b7a68"
+    },
+    {
+      "path": "trading_journal/privacy.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "f9aa9c1baa5cec8df524697703e26c8fb51122c059656c0f0b6b6daa0bb1d26b",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "f9aa9c1baa5cec8df524697703e26c8fb51122c059656c0f0b6b6daa0bb1d26b"
+    },
+    {
+      "path": "trading_journal/reflection.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "ca96d1fac05415d825d2e2a9865f6acd5c70da66f121c78a3b20f7427d3f7478",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "ca96d1fac05415d825d2e2a9865f6acd5c70da66f121c78a3b20f7427d3f7478"
+    },
+    {
+      "path": "trading_journal/review.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7aaa34411ee4bde6e479b26aab385eaddac94a99d4d81c40d0352d53367f3e30",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7aaa34411ee4bde6e479b26aab385eaddac94a99d4d81c40d0352d53367f3e30"
+    },
+    {
+      "path": "trading_journal/statement.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "44b9b77081135d35b04730ada78b051e7c0d9c471b2d40b27159fb45da3f78e5",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "44b9b77081135d35b04730ada78b051e7c0d9c471b2d40b27159fb45da3f78e5"
+    },
+    {
+      "path": "trading_journal/updates.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bd5871b829e02dcd01ee5c3f2cffe3645fabe9e714189ad7d844deaee43b5389",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bd5871b829e02dcd01ee5c3f2cffe3645fabe9e714189ad7d844deaee43b5389"
+    },
+    {
+      "path": "trading_journal/viewer.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "9502b43a97893b5ee36e933a0e22abf9f539788f011db14810c94252eac270ab",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "9502b43a97893b5ee36e933a0e22abf9f539788f011db14810c94252eac270ab"
+    },
+    {
+      "path": "trading_journal/windows.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "688309e91aee651de9a69ff5c3bf1a67247d9c5d637edf927e7de81a2cd70ca0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "688309e91aee651de9a69ff5c3bf1a67247d9c5d637edf927e7de81a2cd70ca0"
+    },
+    {
+      "path": "version-manifest.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "45f740f6acf36f48bd90a90926cb86b644e6c937483d80fc9c37566ad3e6498e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "b89a091eb6f603dcec908bc850122075ca0ec8c510f134570393700b4b80ebf4"
+    },
+    {
+      "path": "version-manifest.schema.json",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "389021717da94e4d21f48c445477a246f8b1229ef281d11cb46dff48f7a46572",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "389021717da94e4d21f48c445477a246f8b1229ef281d11cb46dff48f7a46572"
+    },
+    {
+      "path": "web/__init__.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "53beecab57a021826d424490ae8fb4e756b49c3204c4baf0b628c47cf9675e70",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "53beecab57a021826d424490ae8fb4e756b49c3204c4baf0b628c47cf9675e70"
+    },
+    {
+      "path": "web/app.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "72cf9bf53d0ac081cde5fd7a78ccf68a5d249adf6778f7095fe6d79846954b1e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "72cf9bf53d0ac081cde5fd7a78ccf68a5d249adf6778f7095fe6d79846954b1e"
+    },
+    {
+      "path": "web/cli.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "7717e759a624d0df08a478011cb705aaf1ac97fe2e4660516ef706dd00ac1dd0",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "7717e759a624d0df08a478011cb705aaf1ac97fe2e4660516ef706dd00ac1dd0"
+    },
+    {
+      "path": "web/read_only.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "2d05bb9c1a91f1f758a9b91d32ed450c779124a6858774478befc9b19b5d8c1e",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "2d05bb9c1a91f1f758a9b91d32ed450c779124a6858774478befc9b19b5d8c1e"
+    },
+    {
+      "path": "web/rendering.py",
+      "source_commit": "fcb2cf1ddaeb9587b3642e1f0d54071959ec98d4",
+      "source_sha256": "bb6a88ef7fee8aa565f6c36bc12a8fbbc778c9bb805026abc8850d53e7c75adb",
+      "change": "retained approved HEAD",
+      "prepared_sha256": "bb6a88ef7fee8aa565f6c36bc12a8fbbc778c9bb805026abc8850d53e7c75adb"
+    }
+  ]
+}

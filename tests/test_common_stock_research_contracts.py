@@ -1459,7 +1459,7 @@ class CommonStockDispatchTests(unittest.TestCase):
             select_product_runtime_model(product_root, requested_model=agent_development_test_model()),
         )
         self.assertEqual(
-            "gpt-5.6-terra",
+            "gpt-6-luna",
             select_product_runtime_model(product_root, requested_model=None),
         )
         self.assertEqual(
@@ -1852,7 +1852,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             _, _, _, job = self.prepare_job(temp)
             self.assertEqual(
-                "common-stock-research-eval-job/1.1.0", job["schema_version"]
+                "common-stock-research-eval-job/1.2.0", job["schema_version"]
             )
             self.assertIn("report_markdown", job)
             self.assertIn("置信度含义", job["report_markdown"])
@@ -1883,7 +1883,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
                 )
 
     @staticmethod
-    def semantic_result(job, *, failing=(), model="gpt-test-evaluator"):
+    def semantic_result(job, *, failing=(), model="gpt-6-luna"):
         dimensions = {}
         for name in EVAL_DIMENSIONS:
             failed = name in set(failing)
@@ -1921,7 +1921,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
             raw = Path(temp) / "semantic.json"
             raw.write_text(json.dumps(self.semantic_draft(job)), encoding="utf-8")
             result = finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
-                                                    actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
+                                                    actual_model="gpt-6-luna", input_binding_hash=job["input_hash"])
             self.assertEqual("PASS", result["status"])
             self.assertTrue((eval_dir / "eval/result.json").is_file())
             self.assertIn("普通股研究 Eval", (eval_dir / "eval/report.md").read_text(encoding="utf-8"))
@@ -1938,7 +1938,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
             raw.write_text(json.dumps(result), encoding="utf-8")
             with self.assertRaisesRegex(CommonStockEvalError, "COMMON_STOCK_EVAL_RESULT_SCHEMA_INVALID"):
                 finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
-                                               actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
+                                               actual_model="gpt-6-luna", input_binding_hash=job["input_hash"])
             self.assertFalse((eval_dir / "eval/result.json").exists())
 
     def test_eval_revalidates_calculation_refs_from_actual_mcp_events(self):
@@ -1995,7 +1995,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
             raw.write_text(json.dumps(invalid), encoding="utf-8")
             with self.assertRaisesRegex(CommonStockEvalError, "AGGREGATE_INVALID"):
                 finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
-                                               actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
+                                               actual_model="gpt-6-luna", input_binding_hash=job["input_hash"])
 
     def test_report_with_action_or_dangling_evidence_never_reaches_semantic_eval(self):
         _, _, request = research_request()
@@ -2016,7 +2016,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
             result = self.semantic_draft(job, failing={"valuation_grounding"})
             raw.write_text(json.dumps(result), encoding="utf-8")
             finalized = finalize_common_stock_eval_job(eval_dir=eval_dir, semantic_result_path=raw,
-                                                       actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"])
+                                                       actual_model="gpt-6-luna", input_binding_hash=job["input_hash"])
             self.assertEqual("FAIL", finalized["status"])
             self.assertEqual("FAIL", finalized["dimensions"]["valuation_grounding"]["status"])
 
@@ -2036,7 +2036,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
                 ):
                     finalize_common_stock_eval_job(
                         eval_dir=eval_dir, semantic_result_path=raw,
-                        actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"]
+                        actual_model="gpt-6-luna", input_binding_hash=job["input_hash"]
                     )
 
     def test_eval_hook_injects_sealed_packet_and_persists_exact_dev_eval_result(self):
@@ -2050,13 +2050,13 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
                 "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
                 "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "dev_eval",
                 "STOCK_AGENT_COMMON_STOCK_EVAL": EVAL_RUNTIME_VERSION,
-                "STOCK_AGENT_COMMON_STOCK_EVAL_MODEL": "gpt-5.6-terra",
+                "STOCK_AGENT_COMMON_STOCK_EVAL_MODEL": "gpt-6-luna",
             }
             dispatch = {
                 "hook_event_name": "PreToolUse", "session_id": "eval-parent",
                 "turn_id": "eval-turn", "tool_name": "collaborationspawn_agent",
                 "tool_use_id": "eval-tool", "cwd": str(ROOT),
-                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
+                "model": "gpt-6-luna", "permission_mode": "workspace-write",
                 "tool_input": {
                     "agent_type": "dev_eval", "task_name": "grade_common_stock_report",
                     "fork_turns": "none",
@@ -2071,7 +2071,7 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
             start = {
                 "hook_event_name": "SubagentStart", "session_id": "eval-parent",
                 "turn_id": "eval-turn", "agent_id": "eval-child",
-                "agent_type": "dev_eval", "model": "gpt-5.6-terra",
+                "agent_type": "dev_eval", "model": "gpt-6-luna",
                 "cwd": str(ROOT), "permission_mode": "workspace-write",
             }
             start_record, response = handle_hook_event(start, environ=environment)
@@ -2083,11 +2083,11 @@ class CommonStockFocusedEvalTests(unittest.TestCase):
             self.assertEqual(canonical_hash(packet), start_record["context_binding"]["model_packet_hash"])
             self.assertEqual(
                 canonical_hash(build_common_stock_eval_packet(
-                    eval_dir, expected_model="gpt-5.6-terra"
+                    eval_dir, expected_model="gpt-6-luna"
                 )),
                 start_record["context_binding"]["packet_hash"],
             )
-            result = self.semantic_result(job, model="gpt-5.6-terra")
+            result = self.semantic_result(job, model="gpt-6-luna")
             message = json.dumps(self.semantic_draft(job), ensure_ascii=False, separators=(",", ":"))
             stop = {
                 **start, "hook_event_name": "SubagentStop",

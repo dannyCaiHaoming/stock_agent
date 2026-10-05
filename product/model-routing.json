@@ -1,7 +1,7 @@
 {
-  "schema_version": "model-routing-policy/1.0.0",
+  "schema_version": "model-routing-policy/1.1.0",
   "development_default": "gpt-5.6-sol",
-  "runtime_repeated": "gpt-5.6-terra",
+  "runtime_repeated": "gpt-6-luna",
   "architecture_dispute": "gpt-6-astra",
   "architecture_dispute_requires": [
     "dispute_id",

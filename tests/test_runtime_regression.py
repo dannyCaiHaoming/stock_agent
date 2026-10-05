@@ -33,6 +33,119 @@ CANDIDATE_HASH = canonical_hash(json.loads((ROOT / "product" / "version-manifest
 
 
 class RuntimeRegressionTests(unittest.TestCase):
+    def _contract_cio(self, root: Path, *, trigger="regression_deterministic_injection") -> Path:
+        from evals.regression.runner import _valid_specialist_contract_outputs
+        from product.runtime.run_package import prepare_cio
+        case = next(x for x in load_regression_set(ROOT)["cases"] if x["case_id"] == "valid-action-contract")
+        run = root / "run"
+        prepare_run(ROOT, fixture_path=ROOT / case["fixture"], run_dir=run,
+                    run_id="contract-handoff", model="gpt-6-luna", research_question="契约检查",
+                    authenticity_required=False, trigger_reason=trigger)
+        _valid_specialist_contract_outputs(run)
+        record = {"schema_version": "regression-injection/1.0.0", "case_id": case["case_id"],
+                  "injection": case["injection"], "llm_calls": 0,
+                  "deterministic_outcome_hash": execute_deterministic_case(ROOT, case)["outcome_hash"]}
+        (run / "audit/regression-injection.json").write_text(json.dumps(record))
+        self.assertEqual(prepare_cio(ROOT, run_dir=run, model="gpt-6-luna")["next_state"], "CIO_SYNTHESIS_REQUIRED")
+        (run / "cio").mkdir()
+        return run
+
+    def test_contract_handoff_rejects_report_drift_unread_unknown_and_wrong_identity(self):
+        from evals.regression.runner import _valid_cio_contract_output
+        from product.runtime.run_package import finalize_cio
+        for defect in ("drift", "unread", "unknown", "identity"):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                run = self._contract_cio(Path(directory).resolve())
+                if defect == "drift":
+                    path = run / "agents/runtime_company_analyst.json"
+                    path.write_text(path.read_text() + " ")
+                    with self.assertRaisesRegex(RegressionError, "CIO_REPORT_DRIFT"):
+                        _valid_cio_contract_output(run)
+                    continue
+                draft = _valid_cio_contract_output(run)
+                events_path = run / "events/mcp/events.jsonl"
+                events = [json.loads(line) for line in events_path.read_text().splitlines()]
+                if defect == "unknown":
+                    draft["report_selections"] = ["p.outside-current-run"]
+                elif defect == "unread":
+                    events = [event for event in events if event.get("tool") not in {"research_reports.read", "read_reports"}]
+                else:
+                    for event in events:
+                        if event.get("tool") == "research_reports.read":
+                            event["invocation_id"] = "other-invocation"
+                events_path.write_text("".join(json.dumps(event) + "\n" for event in events))
+                (run / "cio/runtime_cio.json").write_text(json.dumps(draft))
+                outcome = finalize_cio(ROOT, run_dir=run)
+                self.assertEqual(outcome["terminal_state"], "FAILED_VALIDATION")
+                self.assertEqual(json.loads((run / "run_error.json").read_text())["code"], "CIO_VALIDATION_FAILED")
+                self.assertFalse((run / "decision.json").exists())
+
+    def test_contract_only_scoring_is_explicit_and_reverified(self):
+        from evals.regression.runner import _materialize_deterministic_case
+        from product.runtime.runtime_eval import RuntimeEvalError, prepare_eval_job, finalize_eval_job, verify_runtime_eval_job, build_eval_smoke_prompt
+        from tests.test_runtime_eval_job import semantic_result
+        case = next(x for x in load_regression_set(ROOT)["cases"] if x["case_id"] == "valid-action-contract")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            _materialize_deterministic_case(ROOT, case=case, suite_id="contract-semantic", candidate_hash=CANDIDATE_HASH, case_dir=root / "case")
+            run = root / "case/run"
+            eval_dir = root / "case/runtime-eval"
+            # 当前 native 草稿交给实际 finalizer，技术身份只存在于正式产物。
+            native = json.loads((run / "cio/native-draft.json").read_text())
+            formal = json.loads((run / "cio/runtime_cio.json").read_text())
+            self.assertEqual(native["schema_version"], "native-cio-draft/1.0.0")
+            self.assertNotIn("consumed_reports", native)
+            self.assertEqual(len(formal["consumed_reports"]), 2)
+            result_path = eval_dir / "eval/result.json"
+            self.assertEqual(verify_runtime_eval_job(ROOT, eval_result_path=result_path)["status"], "PASS")
+            result = json.loads(result_path.read_text())
+            self.assertEqual(result["grader"]["model"], "none")
+            self.assertEqual(result["grader"]["agent"], "deterministic-not-applicable")
+            self.assertEqual({v["status"] for v in result["semantic_rubric"].values()}, {"NOT_APPLICABLE"})
+            ordinary = root / "ordinary-eval"
+            prepared = prepare_eval_job(ROOT, run_dir=run, eval_dir=ordinary, eval_id="ordinary")
+            self.assertTrue(prepared["semantic_required"])
+            with self.assertRaisesRegex(RuntimeEvalError, "SEMANTIC_RESULT_REQUIRED"):
+                finalize_eval_job(ROOT, eval_dir=ordinary)
+            contract = root / "contract-eval"
+            prepared = prepare_eval_job(ROOT, run_dir=run, eval_dir=contract, eval_id="contract", contract_only=True)
+            self.assertFalse(prepared["semantic_required"])
+            with self.assertRaisesRegex(RuntimeEvalError, "CONTRACT_ONLY_MODEL_EXECUTION_FORBIDDEN"):
+                build_eval_smoke_prompt(ROOT, eval_dir=contract)
+            grade_path = root / "fake-model-grade.json"
+            grade_path.write_text(json.dumps(semantic_result(contract)))
+            with self.assertRaisesRegex(RuntimeEvalError, "NOT_APPLICABLE_MODEL_RESULT_FORBIDDEN"):
+                finalize_eval_job(ROOT, eval_dir=contract, semantic_result_path=grade_path)
+            # 冻结作业不能篡改声明以伪装真实模型作业。
+            manifest_path = eval_dir / "input-manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            for key, value, error in (("authenticity_required", True, "CONTRACT_ONLY_NOT_AUTHORIZED"),
+                                      ("semantic_evaluation_mode", "unknown", "SEMANTIC_MODE_INVALID")):
+                bad = {**manifest, key: value}
+                manifest_path.write_text(json.dumps(bad))
+                with self.assertRaisesRegex(RuntimeEvalError, error):
+                    verify_runtime_eval_job(ROOT, eval_result_path=result_path)
+            manifest_path.write_text(json.dumps(manifest))
+            without_mode = dict(manifest)
+            without_mode.pop("semantic_evaluation_mode")
+            manifest_path.write_text(json.dumps(without_mode))
+            with self.assertRaisesRegex(RuntimeEvalError, "SEMANTIC_GRADER_LINEAGE_INVALID"):
+                verify_runtime_eval_job(ROOT, eval_result_path=result_path)
+            manifest_path.write_text(json.dumps(manifest))
+
+    def test_ordinary_run_cannot_request_contract_only_scoring(self):
+        from evals.regression.runner import _valid_cio_contract_output
+        from product.runtime.run_package import finalize_cio
+        from product.runtime.runtime_eval import RuntimeEvalError, prepare_eval_job
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            run = self._contract_cio(root, trigger="product_council")
+            (run / "cio/runtime_cio.json").write_text(json.dumps(_valid_cio_contract_output(run)))
+            self.assertEqual(finalize_cio(ROOT, run_dir=run)["next_state"], "COMPLETED")
+            with self.assertRaisesRegex(RuntimeEvalError, "CONTRACT_ONLY_NOT_AUTHORIZED"):
+                prepare_eval_job(ROOT, run_dir=run, eval_dir=root / "eval", eval_id="forged", contract_only=True)
+            self.assertFalse((root / "eval").exists())
+
     def test_risk_veto_requires_an_actual_rejected_risk_result(self):
         invariant = {"type": "EXPECT_RISK_VETO", "value": True, "hard": True}
         self.assertFalse(_check_invariant(invariant, {"action": "NO_TRADE", "risk_status": "APPROVED"}))
@@ -123,6 +236,17 @@ class RuntimeRegressionTests(unittest.TestCase):
                 self.assertTrue(fact["as_of"])
                 self.assertTrue(fact["retrieved_at"])
 
+    def test_new_deterministic_run_uses_current_luna_candidate(self):
+        from evals.regression.runner import _materialize_deterministic_case
+        case = next(x for x in load_regression_set(ROOT)["cases"] if x["case_id"] == "all-evidence-stale")
+        with tempfile.TemporaryDirectory() as directory:
+            case_dir = Path(directory).resolve() / "case"
+            _materialize_deterministic_case(ROOT, case=case, suite_id="luna-route",
+                candidate_hash=CANDIDATE_HASH, case_dir=case_dir)
+            manifest = json.loads((case_dir / "run/run_manifest.json").read_text())
+            self.assertEqual(manifest["model"], "gpt-6-luna")
+            self.assertFalse((case_dir / "run/invocation/codex-events.jsonl").exists())
+
     def test_all_deterministic_injections_execute_with_zero_llm_calls(self):
         regression = load_regression_set(ROOT)
         for case in regression["cases"]:
@@ -146,7 +270,7 @@ class RuntimeRegressionTests(unittest.TestCase):
         case = load_regression_set(ROOT)["cases"][0]
         values = {
             "candidate_hash": "a" * 64,
-            "model": "gpt-5.6-terra",
+            "model": "gpt-6-luna",
             "codex_runtime": "codex-cli/0.153.4",
             "runtime_profile_hash": "b" * 64,
             "gate_context_hash": "f" * 64,
@@ -392,7 +516,7 @@ class RuntimeRegressionTests(unittest.TestCase):
                     fixture_path=unrelated,
                     run_dir=run_dir,
                     run_id="regression-injection-path-escape",
-                    model="gpt-5.6-terra",
+                    model="gpt-6-luna",
                     research_question="验证回归注入路径边界。",
                     authenticity_required=False,
                     trigger_reason="regression_deterministic_injection",

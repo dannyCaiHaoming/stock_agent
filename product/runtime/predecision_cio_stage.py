@@ -1156,7 +1156,7 @@ def launch_predecision_cio_run(
     if os.environ.get("STOCK_AGENT_PRODUCT_HOST_LAUNCH") != "1":
         raise PredecisionCioStageError("CIO_HOST_LAUNCH_REQUIRED")
     from product.runtime.nested_codex import (
-        build_nested_codex_command, fixture_mcp_runtime_environment, integrity_snapshot,
+        build_verified_nested_codex_command, fixture_mcp_runtime_environment, integrity_snapshot,
     )
 
     repository_root = Path(repository_root).resolve()
@@ -1183,7 +1183,8 @@ def launch_predecision_cio_run(
     for path in (sqlite_home, log_dir, tmp_dir):
         path.mkdir(parents=True, exist_ok=False)
     final_path = tmp_dir / "final-message.json"
-    command = build_nested_codex_command(
+    command = build_verified_nested_codex_command(
+        runtime_binding_path=invocation_dir / "codex-runtime.json",
         codex_binary=codex_binary, product_root=repository_root / "product",
         run_dir=root, model=request["model"], sqlite_home=sqlite_home, log_dir=log_dir,
         final_message_path=final_path,

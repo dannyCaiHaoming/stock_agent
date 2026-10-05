@@ -5289,7 +5289,7 @@ def launch_multidimensional_stage(
     """从宿主入口启动一次多维 Codex 研究批次。"""
 
     from product.runtime.nested_codex import (
-        build_nested_codex_command,
+        build_verified_nested_codex_command,
         fixture_mcp_runtime_environment,
         integrity_snapshot,
     )
@@ -5441,7 +5441,8 @@ def launch_multidimensional_stage(
     schema_path = invocation_dir / "parent-output.schema.json"
     _write_object(schema_path, parent_schema)
     raw_final_path = tmp_dir / "final-message.json"
-    command = build_nested_codex_command(
+    command = build_verified_nested_codex_command(
+        runtime_binding_path=invocation_dir / "codex-runtime.json",
         codex_binary=codex_binary, product_root=product_root, run_dir=run_dir,
         model=manifest["parent_model"], sqlite_home=sqlite_home, log_dir=log_dir,
         final_message_path=raw_final_path,

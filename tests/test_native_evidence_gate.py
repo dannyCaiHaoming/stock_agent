@@ -454,7 +454,7 @@ class GateScopedFixtureToolTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="stateless-run",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证无状态 MCP。",
             )
             invocation = json.loads(
@@ -487,7 +487,7 @@ class GateScopedFixtureToolTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="stateless-error",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证 MCP 参数错误。",
             )
             invocation = json.loads(
@@ -535,7 +535,7 @@ class GateScopedFixtureToolTests(unittest.TestCase):
                 fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir,
                 run_id="stateless-missing-argument",
-                model="gpt-5.6-terra",
+                model="gpt-6-luna",
                 research_question="验证 MCP 缺参不关闭传输。",
             )
             invocation = json.loads(
@@ -586,7 +586,7 @@ class GateScopedFixtureToolTests(unittest.TestCase):
             prepare_run(
                 ROOT, fixture_path=FIXTURES / "normal-research.json",
                 run_dir=run_dir, run_id="schema-tool-conditional",
-                model="gpt-5.6-terra", research_question="工具契约前置验证。",
+                model="gpt-6-luna", research_question="工具契约前置验证。",
             )
             invocation = json.loads(
                 (run_dir / "invocations/runtime_company_analyst.json").read_text()

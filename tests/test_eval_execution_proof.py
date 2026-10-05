@@ -27,11 +27,12 @@ def rollouts(
     child_role: str = "dev_eval",
     plaintext_bindings: bool = True,
 ) -> tuple[Path, Path]:
+    eval_dir = eval_dir.resolve()
     manifest = json.loads((eval_dir / "input-manifest.json").read_text(encoding="utf-8"))
     parent_id = "eval-parent"
     parent = [
         {"timestamp": "2026-09-07T00:00:00Z", "type": "session_meta", "payload": {"id": parent_id, "cli_version": "0.153.4"}},
-        {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+        {"type": "turn_context", "payload": {"model": manifest.get("grader_model", "gpt-5.6-terra")}},
         message("user", f"$runtime-eval-grading eval_id={manifest['eval_id']} eval_dir={eval_dir}"),
         {"type": "response_item", "payload": {"type": "function_call", "namespace": "collaboration", "name": "spawn_agent", "call_id": "eval-call", "arguments": json.dumps({"agent_type": "dev_eval", "task_name": "semantic_grading", "fork_turns": "none", "message": "gAAAA" + "A" * 120})}},
         {"timestamp": "2026-09-07T00:00:03Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 100, "cached_input_tokens": 20, "output_tokens": 30}}}},
@@ -64,7 +65,7 @@ def rollouts(
         {"timestamp": "2026-09-07T00:00:00Z", "type": "session_meta", "payload": {"id": "eval-child", "parent_thread_id": parent_id, "agent_role": child_role, "cli_version": "0.153.4"}},
         message("developer", f"runtime\n{instructions}\nend"),
         message("user", child_user),
-        {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+        {"type": "turn_context", "payload": {"model": manifest.get("grader_model", "gpt-5.6-terra")}},
         *read_events,
         message("assistant", json.dumps(final, sort_keys=True)),
         {"timestamp": "2026-09-07T00:00:02Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 50, "cached_input_tokens": 10, "output_tokens": 40}}}},
@@ -87,7 +88,7 @@ class EvalExecutionProofTests(unittest.TestCase):
             manifest["authenticity_required"] = True
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             semantic = semantic_result(eval_dir)
-            semantic["grader"]["model"] = "gpt-5.6-terra"
+            semantic["grader"]["model"] = "gpt-6-luna"
             semantic.pop("output_hash")
             semantic["output_hash"] = canonical_hash(semantic)
             semantic_path = root / "semantic.json"
@@ -106,6 +107,24 @@ class EvalExecutionProofTests(unittest.TestCase):
             self.assertEqual(result["grader"]["execution_proof_hash"], proof["proof_hash"])
             self.assertGreater(result["grader"]["telemetry"]["input_tokens"], 0)
 
+    def test_new_eval_rejects_terra_events_without_publishing(self):
+        from product.runtime.eval_execution_proof import collect_native_eval_output
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run, evaluation = root / "run", root / "eval"
+            complete_run(run, "luna-model-lock")
+            prepare_eval_job(ROOT, run_dir=run, eval_dir=evaluation, eval_id="luna-lock")
+            manifest = json.loads((evaluation / "input-manifest.json").read_text())
+            self.assertEqual(manifest["grader_model"], "gpt-6-luna")
+            result = semantic_result(evaluation)
+            parent, child = rollouts(root, evaluation, result)
+            child.write_text(child.read_text().replace('"model": "gpt-6-luna"', '"model": "gpt-5.6-terra"'))
+            with self.assertRaisesRegex(EvalExecutionProofError, "MODEL_ROUTE_INVALID"):
+                collect_native_eval_output(ROOT, eval_dir=evaluation,
+                    semantic_result_path=evaluation / "semantic-result.json", parent_rollout=parent, child_rollout=child)
+            self.assertFalse((evaluation / "semantic-result.json").exists())
+            self.assertFalse((evaluation / "semantic-attempt-1.json").exists())
+
     def test_wrong_child_agent_identity_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -113,7 +132,7 @@ class EvalExecutionProofTests(unittest.TestCase):
             complete_run(run_dir, "eval-proof-wrong-agent")
             prepare_eval_job(ROOT, run_dir=run_dir, eval_dir=eval_dir, eval_id="eval-proof-wrong")
             semantic = semantic_result(eval_dir)
-            semantic["grader"]["model"] = "gpt-5.6-terra"
+            semantic["grader"]["model"] = "gpt-6-luna"
             semantic.pop("output_hash")
             semantic["output_hash"] = canonical_hash(semantic)
             semantic_path = root / "semantic.json"
@@ -135,7 +154,7 @@ class EvalExecutionProofTests(unittest.TestCase):
             complete_run(run_dir, "eval-proof-protected")
             prepare_eval_job(ROOT, run_dir=run_dir, eval_dir=eval_dir, eval_id="eval-proof-protected")
             semantic = semantic_result(eval_dir)
-            semantic["grader"]["model"] = "gpt-5.6-terra"
+            semantic["grader"]["model"] = "gpt-6-luna"
             semantic.pop("output_hash")
             semantic["output_hash"] = canonical_hash(semantic)
             semantic_path = root / "semantic.json"

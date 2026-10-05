@@ -32,7 +32,7 @@ class SpecialistStartContextTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.run = Path(self.temp.name) / "run"
         prepare_run(ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
-                    run_dir=self.run, run_id="start-context-test", model="gpt-5.6-terra",
+                    run_dir=self.run, run_id="start-context-test", model="gpt-6-luna",
                     research_question="合成启动上下文接缝", authenticity_required=False)
         manifest = read_json(self.run / "run_manifest.json")
         manifest["specialist_context_delivery"] = START_CONTEXT_VERSION
@@ -53,7 +53,7 @@ class SpecialistStartContextTests(unittest.TestCase):
     def payload(self, agent=ANALYST):
         return {"hook_event_name": "SubagentStart", "session_id": "parent-test", "turn_id": "turn-test",
                 "agent_id": "child-" + agent, "agent_type": agent,
-                "model": "gpt-5.6-terra", "cwd": str(ROOT / "product")}
+                "model": "gpt-6-luna", "cwd": str(ROOT / "product")}
 
     def start(self, agent=ANALYST):
         return handle_hook_event(self.payload(agent), environ=self.env)
@@ -175,7 +175,7 @@ class SpecialistStartContextTests(unittest.TestCase):
 
     def test_launcher_disables_truncation_only_for_bounded_start_handler(self):
         command = build_nested_codex_command(codex_binary="codex", product_root=ROOT / "product",
-            run_dir=self.run, model="gpt-5.6-terra", sqlite_home=self.run / "sqlite",
+            run_dir=self.run, model="gpt-6-luna", sqlite_home=self.run / "sqlite",
             log_dir=self.run / "logs", final_message_path=self.run / "final.txt",
             hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py")
         start = tomllib.loads(next(x for x in command if x.startswith("hooks.SubagentStart=")))
