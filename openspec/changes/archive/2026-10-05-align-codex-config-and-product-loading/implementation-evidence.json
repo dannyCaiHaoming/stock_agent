@@ -1,6 +1,6 @@
 {
   "change": "align-codex-config-and-product-loading",
-  "status": "HUMAN_APPROVED_SPECS_SYNCED_GIT_PUBLICATION_PENDING",
+  "status": "CHANGE_COMPLETE_ARCHIVED_PUBLISHED",
   "model_invocations": 3,
   "real_ledger_writes": 0,
   "files": [
@@ -1361,8 +1361,6 @@
       "5.4 人工完成批准后的归档、主规格同步与限定提交推送"
     ]
   },
-  "current_remaining_change_tasks": [
-    "5.4 限定提交与推送、发布回执"
-  ],
+  "current_remaining_change_tasks": [],
   "closeout_record": "closeout-record.json"
 }

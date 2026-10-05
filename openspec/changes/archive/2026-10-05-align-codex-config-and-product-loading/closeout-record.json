@@ -5,7 +5,7 @@
   "human_approval": "好，批准同步且归档",
   "change": "align-codex-config-and-product-loading",
   "archive_path": "openspec/changes/archive/2026-10-05-align-codex-config-and-product-loading",
-  "status": "SPECS_SYNCED_ARCHIVE_AND_SCOPED_PUBLICATION_AUTHORIZED",
+  "status": "CHANGE_COMPLETE_ARCHIVED_PUBLISHED",
   "spec_sync": [
     {
       "capability": "codex-development-environment",
@@ -81,10 +81,16 @@
     "其他活跃 Change 与无关 dirty 修改"
   ],
   "git_publication": {
-    "status": "PENDING",
+    "source_id": "origin-main-publication:53afa40efeda57487d20b55ff709ddcb0da17717",
+    "as_of": "2026-10-05T01:28:37.901082Z",
+    "retrieved_at": "2026-10-05T01:28:37.901082Z",
+    "status": "VERIFIED_PUSHED",
     "remote": "https://github.com/dannyCaiHaoming/stock_agent.git",
     "branch": "main",
-    "method": "scoped commit and non-force push"
+    "implementation_archive_commit": "53afa40efeda57487d20b55ff709ddcb0da17717",
+    "observed_remote_main": "53afa40efeda57487d20b55ff709ddcb0da17717",
+    "method": "scoped commit and non-force push",
+    "receipt_note": "本回执记录实现/归档提交的已确认推送；回执文件随后单独提交，避免在提交内预写未执行的推送结果。"
   },
   "git_copy_limit": "实施证据中的 workspace hash 记录完整共享文件；Git 副本只包含本次批准 hunk，3个共享文件的 Git hash 另列。插件 hash 与私有 Smoke 的完整内容在本机审计目录保存，Git 中仅发布清单和脱敏摘要，不能从本次提交重算私有完整目录。",
   "publication_review": {
