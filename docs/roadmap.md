@@ -323,4 +323,4 @@
 - G6 Skills：完成 6 份（`stock-research`、`research-standards`、`company-fundamentals`、`valuation`、`technical-structure`、`investment-decision`）。
 - G7 测试：`tests/test_stock_data_tools.py` 9 项离线测试通过。
 - G8 文档：完成。
-- G9 实跑验收：进行中。
+- G9 实跑验收（Codex，gpt-6-luna，2026-10-12）：MSFT、ALB、JPM 均完成并保存决策记录（单股 2–6 分钟，12–25 次工具调用）。实跑中发现并修复：虚报计算来源、只读沙箱下跳过保存、PE 当前值回退到旧值、季度现金流 YTD 未差分。观察到同一股票两次运行结论不同（MSFT 首跑 BUY、修复后重跑 NO_TRADE），决策稳定性列入第 4 阶段评估。Claude Code 三个样本待用户在交互会话中运行（项目 MCP 需批准一次）。
