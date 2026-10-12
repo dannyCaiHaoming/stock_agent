@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "security_id",
+    "window",
+    "routing_policy",
+    "attempts",
+    "selected_provider",
+    "price_basis",
+    "evidence_ids",
+    "raw_hashes",
+    "selection_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "live-source-selection/1.0.0"
+    },
+    "security_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "type": "string",
+          "minLength": 1
+        },
+        "end": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "routing_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "hash"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "[a-f0-9]{64}"
+        }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "enum": [
+              "yahoo",
+              "eastmoney"
+            ]
+          },
+          "client_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "adapter_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "started_at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "completed_at": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "failure_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "client_version",
+          "adapter_version",
+          "started_at",
+          "completed_at",
+          "status",
+          "failure_code"
+        ]
+      }
+    },
+    "selected_provider": {
+      "enum": [
+        null,
+        "yahoo",
+        "eastmoney"
+      ]
+    },
+    "price_basis": {
+      "const": "provider_close"
+    },
+    "evidence_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "raw_hashes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "[a-f0-9]{64}"
+      }
+    },
+    "selection_hash": {
+      "type": "string",
+      "pattern": "[a-f0-9]{64}"
+    }
+  }
+}
