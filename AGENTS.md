@@ -6,9 +6,11 @@
 
 ## 目录
 
-- `product/skills/`：研究方法 Skills（公司、估值、反证、催化剂、行业、宏观、期权、所有权、研报、技术结构、持仓录入、交易日志与反思）。
+- `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`technical-structure`、`investment-decision`），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。
+- `product/skills-pending/`：待后续阶段重写的旧 Skills（宏观、行业、期权、所有权、研报、反证、持仓录入、交易日志与反思），不暴露给宿主。
+- `product/mcp/server.py`：stock-data MCP server（`.mcp.json`、`.codex/config.toml` 的 `stock_data`），工具在 `data_tools.py`、`calc_tools.py`、`decision_log.py`；私人数据目录 `STOCK_AGENT_DATA_DIR`（默认 `~/StockAgentData`）。
 - `product/deterministic/`：估值、市场/技术统计、组合指标与硬风险约束。
-- `product/mcp/live/`、`product/mcp/provenance.py`：SEC、NASDAQ、Yahoo、Moomoo OpenD、Eastmoney、宏观、期权等只读数据源接入；目前没有 MCP server 对外暴露。
+- `product/mcp/live/`、`product/mcp/provenance.py`：SEC、NASDAQ、Yahoo、Moomoo OpenD、Eastmoney、宏观、期权等只读数据源接入代码，供 MCP 工具复用。
 - `product/intake/`：持仓截图/手工输入 → PortfolioDraft/Handoff v3。
 - `product/broker/tiger/`、`product/web/trades.py`：Tiger 只读账户快照与私人券商账本。
 - `product/trading_journal/`：个人交易日志、K 线标记与交易反思。
@@ -19,7 +21,8 @@
 
 ## 规则
 
-- 2026-10-12 瘦身后，旧编排、CLI、Hook、版本锁、Replay/Eval 与任务授权 MCP 已删除，部分模块和测试会因引用已删代码而无法运行，属预期结果。完整旧版本见 git tag `pre-slim-20261012`。
+- 开发路线与进度见 [docs/roadmap.md](docs/roadmap.md)。
+- 2026-10-12 瘦身后，旧编排、CLI、Hook、版本锁、Replay/Eval 与任务授权 MCP 已删除，部分旧模块和测试会因引用已删代码而无法运行，属预期结果，不以修复旧测试为目标。完整旧版本见 git tag `pre-slim-20261012`。
 - 能交给 Claude Code 原生能力完成的，不再自建 Python 控制层（Agent loop、状态机、调度、Hook 事件、审批流、版本锁、晋升门槛）。
 - 不把主观投资判断编码成确定性评分或规则引擎；LLM 负责研究、解释与判断，Python 只负责数据与数学。
 - 承载事实的数据保留 `source_id`、`as_of`、`retrieved_at`。

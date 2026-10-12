@@ -6,19 +6,21 @@
 
 长期产品方向见 [PRODUCT.md](PRODUCT.md)，开发规则见 [AGENTS.md](AGENTS.md)。
 
-## 当前状态（2026-10-12 瘦身后）
+## 使用
 
-本仓库刚删除了一套自建的控制系统，包括 Codex 启动器、Stage 状态机、Hook 事件、版本锁、Release Gate、Replay/Eval 与任务授权 MCP，只保留了业务能力。目前：
+在本仓库目录打开 Claude Code 或 Codex，说“研究 MSFT”即可。首次在 Claude Code 中使用时需批准项目 MCP server `stock-data`。
 
-- 没有可用的 MCP server，也没有 Claude Code subagent 配置；
-- 部分保留模块（`mcp/live/collection.py`、`web/trades.py` 等）和部分测试会因引用已删代码而无法运行；
-- 完整旧版本见 git tag `pre-slim-20261012`。
+- 入口 Skill：`stock-research`；数据与计算：stock-data MCP（免费来源 SEC EDGAR、Yahoo）。
+- 报告与决策记录保存在 `~/StockAgentData`（可用 `STOCK_AGENT_DATA_DIR` 修改），不进入仓库。
+- 开发路线与进度：[docs/roadmap.md](docs/roadmap.md)。旧版本完整内容见 git tag `pre-slim-20261012`。
 
 ## 目录
 
 | 路径 | 内容 |
 |---|---|
-| `product/skills/` | 14 份研究方法 Skill |
+| `product/skills/` | 当前启用的研究 Skills（入口 `stock-research`） |
+| `product/skills-pending/` | 待重写的旧 Skills |
+| `product/mcp/server.py` 等 | stock-data MCP：数据、计算、决策记录工具 |
 | `product/deterministic/` | 估值、TTM、市场/技术统计、组合指标、硬风险约束 |
 | `product/mcp/live/` | SEC（companyfacts、13F、segments、Forms 3/4/5）、NASDAQ、Yahoo、Moomoo OpenD、Eastmoney、宏观（BLS/Treasury/Fed）、期权、OpenAlex 数据接入 |
 | `product/intake/` | 持仓截图/手工输入 → PortfolioHandoff v3（`python3 -m product.intake.cli`） |

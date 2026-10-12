@@ -1,18 +1,31 @@
 ---
 name: technical-structure
-description: 使用冻结的日线 OHLCV、公司行动、基准和确定性计算，解释持仓股票的趋势、相对强弱、波动、回撤、量价关系及推翻条件；不生成交易动作。
-metadata:
-  version: "1.1.1"
+description: 用日线价格、成交量与基准（默认 SPY）解释个股的趋势、相对强弱、波动、回撤与量价关系，作为基本面判断的时机与风险补充。分析价格走势或入场时机时使用。
 ---
 
-# 技术结构研究
+# 技术结构
 
-只消费 PIT Gate 允许的资料和确定性计算产物。先确认证券、基准、窗口、交易日、时区、复权口径及未完成交易日处理，再解释结果。运行层已从完整日线序列生成并锁定 `technical-calculation.json` 时，Agent 直接使用输入中的精简统计和 artifact 引用；完整原始 Evidence lineage 由该产物保存，不要求逐条查询或抄写数千条日线事实正文，也不得对空 `evidence_ids` 发起查询。这不免除研究所需计算的完整血缘ID读取：血缘页是ID列表而非事实正文，须沿实际 `next_evidence_offset` 显式读至末页，不能把产物已保存完整血缘当作Agent已完整消费。若 `prepared_analysis.calculation=null`，则不得形成没有计算依据的技术 Claim；输出 `status=INSUFFICIENT_EVIDENCE`、`sufficiency=INSUFFICIENT`、`claims=[]`，并在 `data_gaps` 说明缺少的证券或基准序列及影响。
+先遵守 `research-standards`。技术面是**时机与风险的补充证据**，不是独立的买卖信号来源。
 
-有有效 calculation 时必须回答：当前窗口的趋势结构是什么；相对广泛市场基准表现如何；波动、回撤与成交量是否支持该解释；什么后续可观察信号会推翻它。没有 calculation 时逐项说明因何无法研究，不用无引用的否定性 Claim 填满问题。20、60、约 252 个交易日按资料可用性使用，不能在历史不足时制造长期结论。
+## 方法
 
-收益、相对收益、波动、回撤、均量和成交量比等数字必须引用确定性计算。拆股、分红、重组、停牌、缺失交易日或来源口径变化必须先限定连续性。不得由均线、突破或阈值直接生成 BUY/HOLD/REDUCE。
+1. 调用 `technical_stats(ticker)`：得到 20/60/252 个交易日的报酬、相对 SPY 报酬、年化波动、最大回撤、量比、区间高低点，以及 50/200 日均线。工具会自动排除未完成的当日交易时段。
+2. 需要看形态或关键价位时，再用 `get_price_history` 取原始日线或周线。拆股、分红、停牌会影响连续性，要先说明。
+3. 回答四个问题：
+   - 当前各窗口的趋势结构是什么（上升 / 震荡 / 下降，长短窗口是否一致）？
+   - 相对大盘是强还是弱？必要时加一个行业 ETF 作为基准（例如 XLK、XLE、XLF）。
+   - 波动、回撤、成交量是否支持这个解读？
+   - 什么可观察的价格行为会推翻这个解读？
+4. 历史不足 252 日时，不下长期结论。
 
-输出 `ResearchDimensionReport`，`capability=TECHNICAL_STRUCTURE`，逐条保留适用的 Evidence、计算、假设、限制和 observation conditions。仅当 `prepared_analysis.chart` 存在时引用同源量价/相对表现图；若 calculation 有效但 chart 失败，保留有真实 `calculation_refs` 的 Claims，仅记录图表缺口，不把缺图当作缺少全部技术资料。由预计算产物支撑的主张通过 `calculation_refs` 连接 `artifact_id`；对应 calculation 的 `artifact_ref` 必须指向获准产物，不能杜撰原始行情或工具失败。
+## 规则
 
-以上描述正式产物的引用关系，不要求新协议草稿复制计算或血缘。任务启用 calculation_selection_contract 时只选择已交付的预计算短引用及关联主张，数值、原始 ID、输入血缘和路径由运行层装配；旧完整草稿仍遵循其冻结 Schema。不同模式都不自行生成计算 ID 或省略限制。
+- 所有数字引用工具输出，不心算。
+- 不因为均线交叉、突破或某个阈值，直接得出 BUY/SELL。
+- 技术面与基本面冲突时（例如基本面向好但价格持续走弱），如实呈现，交给 `investment-decision` 处理。
+
+## 输出
+
+- 趋势判断与相对强弱（附数字）；
+- 波动与回撤环境；
+- 推翻条件（具体价位或相对表现条件）。
