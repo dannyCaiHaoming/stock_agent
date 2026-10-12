@@ -1,7 +1,6 @@
-"""Portfolio Council product runtime.
+"""Stock Agent business tools: data sources, deterministic calculations, intake.
 
-The package exposes deterministic research support and advisory-only orchestration.
-It intentionally contains no broker or order execution integration.
+Advisory-only. Broker access is read-only; no order or account-write capability.
 """
 
 __version__ = "0.1.0"
