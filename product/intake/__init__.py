@@ -1,10 +1,5 @@
-"""Portfolio Intake v3 defaults plus explicit historical v2 validators."""
+"""Portfolio Intake v3."""
 
-from .service import (
-    build_risk_input as build_risk_input_v2,
-    validate_draft as validate_draft_v2,
-    validate_handoff as validate_handoff_v2,
-)
 from .v3 import (
     IntakeV3ValidationError as IntakeValidationError,
     apply_corrections,
@@ -24,11 +19,8 @@ __all__ = [
     "build_handoff",
     "build_manual_draft",
     "build_tiger_draft",
-    "build_risk_input_v2",
     "render_draft_summary",
     "render_tiger_coverage",
     "validate_draft",
-    "validate_draft_v2",
     "validate_handoff",
-    "validate_handoff_v2",
 ]

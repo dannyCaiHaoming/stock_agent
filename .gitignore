@@ -27,11 +27,6 @@ product/tiger.md
 /product/.private/
 /.codex-local/
 
-# product就地Claude发现：本机路径和派生正文；权威来源保留在agents/skills/hosts。
-/product/CLAUDE.md
-/product/.claude/
-/product/.mcp.json
-
 # Editor-local state
 .idea/
 .vscode/

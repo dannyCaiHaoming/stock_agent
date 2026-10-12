@@ -1,5 +1,1 @@
-"""本机只读研究资料浏览端。"""
-
-from .read_only import ArtifactCatalog, BrowserDataError, ReadOnlyResearchMemory
-
-__all__ = ["ArtifactCatalog", "BrowserDataError", "ReadOnlyResearchMemory"]
+"""Tiger 只读账本浏览页（研究浏览器已在瘦身中删除）。"""
