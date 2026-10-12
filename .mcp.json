@@ -2,7 +2,10 @@
   "mcpServers": {
     "stock-data": {
       "command": ".venv/bin/python",
-      "args": ["-m", "product.mcp.server"]
+      "args": ["-m", "product.mcp.server"],
+      "env": {
+        "SEC_USER_AGENT": "stock-agent dannycaihaoming@gmail.com"
+      }
     }
   }
 }

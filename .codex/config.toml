@@ -26,3 +26,5 @@ network_access = true
 command = ".venv/bin/python"
 args = ["-m", "product.mcp.server"]
 startup_timeout_sec = 30
+tool_timeout_sec = 180
+env = { SEC_USER_AGENT = "stock-agent dannycaihaoming@gmail.com" }
