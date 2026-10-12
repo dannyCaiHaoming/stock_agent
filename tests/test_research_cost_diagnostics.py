@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-import shutil
 
 from product.runtime.execution_proof import (
     ExecutionProofError, _public_codex_telemetry, _rollout_telemetry,
@@ -13,7 +12,6 @@ from product.runtime.execution_proof import (
 )
 from product.runtime.hashing import canonical_hash
 from product.runtime.research_consumption_audit import build_research_consumption_audit
-from product.runtime.codex_hook_recorder import handle_hook_event
 from tests import test_multidimensional_stage as fixture
 
 
@@ -26,32 +24,47 @@ def records(*usages):
 
 
 class ResearchCostDiagnosticsTests(unittest.TestCase):
-    def test_main_cio_and_separate_skeptic_delivery_logs_are_observed_as_distinct_contexts(self):
+    def test_historical_main_and_skeptic_deliveries_remain_distinct_contexts(self):
         from product.runtime.research_consumption_audit import _cost_diagnostics
-        from tests.test_cio_local_revision import CioLocalRevisionTests
-        from tests.test_skeptic_semantic_handoff import SkepticSemanticHandoffTests
-        helper = CioLocalRevisionTests()
-        self.addCleanup(helper.doCleanups)
-        root, _, _, _, _, _ = helper.launch(helper.fixture)
-        observed = _cost_diagnostics(root, {"by_invocation": [], "by_tool": []})["initial_contexts"]
-        main = next(item for item in observed if item["execution_context"] == "MAIN_THREAD")
-        self.assertEqual(main["agent"], "runtime_cio")
-        self.assertEqual(main["event_path"], "invocation/cio-stop-events.jsonl")
-        self.assertIsNone(main["child_session_id"])
         with tempfile.TemporaryDirectory() as directory:
-            root, _, _, _, _ = SkepticSemanticHandoffTests().prepare(directory)
-            # 上游测试基线包含未签名历史桩，不能把它包装成可信当前成本事件。
-            with self.assertRaisesRegex(ValueError, "DELIVERY_HASH_MISMATCH"):
-                _cost_diagnostics(root, {"by_invocation": [], "by_tool": []})
-            mirrored = Path(directory) / "observed-cost-events"
-            path = mirrored / "invocation/skeptic/subagent-events.jsonl"
-            path.parent.mkdir(parents=True)
-            shutil.copyfile(root / "invocation/skeptic/subagent-events.jsonl", path)
-            observed = _cost_diagnostics(mirrored, {"by_invocation": [], "by_tool": []})["initial_contexts"]
-            separate = next(item for item in observed if item["event_path"] == "invocation/skeptic/subagent-events.jsonl")
+            root = Path(directory)
+            # 显式历史向量，只测试读取/统计，不认证宿主加载、首轮输入或作者执行。
+            for relative, event in (
+                ("invocation/cio-stop-events.jsonl", {
+                    "hook_event_name": "SessionStart", "execution_context": "MAIN_THREAD",
+                    "context_binding": {"invocation_id": "cio"},
+                    "delivery_diagnostics": {"model_context_bytes": 100},
+                }),
+                ("invocation/skeptic/subagent-events.jsonl", {
+                    "hook_event_name": "SubagentStart", "agent_type": "runtime_skeptic",
+                    "child_session_id": "historical-skeptic",
+                    "context_binding": {"status": "DELIVERED", "invocation_id": "skeptic"},
+                    "delivery_diagnostics": {"model_context_bytes": 50},
+                }),
+            ):
+                event["event_hash"] = canonical_hash(event)
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(event) + "\n")
+            queries = {"by_invocation": [], "by_tool": []}
+            before = {str(path): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+            diagnostics = _cost_diagnostics(root, queries)
+            observed = diagnostics["initial_contexts"]
+            main = next(item for item in observed if item["execution_context"] == "MAIN_THREAD")
+            self.assertEqual(main["agent"], "runtime_cio")
+            self.assertEqual(main["event_path"], "invocation/cio-stop-events.jsonl")
+            self.assertIsNone(main["child_session_id"])
+            separate = next(item for item in observed if item["execution_context"] == "SUBAGENT")
             self.assertEqual(separate["agent"], "runtime_skeptic")
-            self.assertEqual(separate["execution_context"], "SUBAGENT")
+            self.assertEqual(separate["event_path"], "invocation/skeptic/subagent-events.jsonl")
             self.assertEqual(separate["measurement_status"], "OBSERVED")
+            self.assertIsNone(diagnostics["total_cost"])
+            self.assertIsNone(diagnostics["token_usage"])
+            self.assertEqual(before, {str(path): path.read_bytes() for path in root.rglob("*") if path.is_file()})
+            del event["event_hash"]
+            path.write_text(json.dumps(event) + "\n")
+            with self.assertRaisesRegex(ValueError, "DELIVERY_HASH_MISMATCH"):
+                _cost_diagnostics(root, queries)
 
     def test_parent_public_turn_usage_is_observed_without_inventing_child_or_cost(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -194,31 +207,44 @@ class ResearchCostDiagnosticsTests(unittest.TestCase):
             self.assertEqual(cost["byte_accounting"], "CANONICAL_AND_MODEL_TRANSPORT_ARE_NOT_ADDITIVE")
             self.assertEqual(cost["byte_accounting"], "CANONICAL_AND_MODEL_TRANSPORT_ARE_NOT_ADDITIVE")
 
-    def test_actual_hook_delivery_bytes_and_hash_bound_to_same_frozen_packet(self):
+    def test_serialized_bytes_and_historical_delivery_hash_are_not_model_cost(self):
+        from product.runtime.multidimensional_stage import (
+            build_multidimensional_dispatch_packet, serialize_multidimensional_model_context,
+        )
         with tempfile.TemporaryDirectory() as directory:
             helper = fixture.MultidimensionalStageTests()
             run, _ = helper.prepare(Path(directory), count=1)
             index = json.loads((run / "research/dispatch-index.json").read_text())
             task = next(item for item in index["tasks"] if item["capability"] == "TECHNICAL_STRUCTURE")
-            environment = helper.targeted_environment(run, task)
-            handle_hook_event(helper.dispatch_payload(task, parent="cost-parent"), environ=environment)
-            event, response = handle_hook_event(helper.start_payload(
-                task, parent="cost-parent", child="cost-child",
-            ), environ=environment)
-            context = response["hookSpecificOutput"]["additionalContext"].encode("utf-8")
-            diag = event["delivery_diagnostics"]
-            self.assertEqual(diag["model_context_bytes"], len(context))
-            self.assertEqual(diag["byte_delta"], len(context) - diag["full_packet_bytes"])
-            self.assertEqual(diag["comparison_status"], "SAME_FROZEN_PACKET")
-            self.assertEqual(diag["token_count_status"], "NOT_OBSERVED")
+            packet = build_multidimensional_dispatch_packet(fixture.ROOT, run, task["task_name"])
+            original = canonical_hash(packet)
+            context = serialize_multidimensional_model_context(packet).encode("utf-8")
+            full_bytes = len(json.dumps(packet, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+            diag = {"model_context_bytes": len(context), "full_packet_bytes": full_bytes,
+                    "byte_delta": len(context) - full_bytes, "comparison_status": "SAME_FROZEN_PACKET",
+                    "token_count_status": "NOT_OBSERVED"}
+            self.assertEqual(canonical_hash(packet), original)
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
+            # 统计消费者的显式历史输入；不是当前实际交付或token基准。
+            event = {"hook_event_name": "SubagentStart", "agent_type": task["agent"],
+                     "child_session_id": "historical-byte-fixture",
+                     "context_binding": {"status": "DELIVERED", "invocation_id": task["invocation_id"]},
+                     "delivery_diagnostics": diag}
+            event["event_hash"] = canonical_hash(event)
+            path = run / "invocation/subagent-events.jsonl"
+            path.parent.mkdir(exist_ok=True)
+            path.write_text(json.dumps(event) + "\n")
+            before = path.read_bytes()
             audit = build_research_consumption_audit(run)
-            observed = audit["cost_diagnostics"]["initial_contexts"][0]
+            cost = audit["cost_diagnostics"]
+            observed = cost["initial_contexts"][0]
             self.assertEqual(observed["event_hash"], event["event_hash"])
             self.assertEqual(observed["diagnostics"], diag)
-            path = run / "invocation/subagent-events.jsonl"
-            rows = [json.loads(line) for line in path.read_text().splitlines()]
-            rows[-1]["delivery_diagnostics"]["model_context_bytes"] += 1
-            path.write_text("\n".join(json.dumps(item) for item in rows))
+            self.assertIsNone(cost["token_usage"])
+            self.assertIsNone(cost["total_cost"])
+            self.assertEqual(path.read_bytes(), before)
+            event["delivery_diagnostics"]["model_context_bytes"] += 1
+            path.write_text(json.dumps(event) + "\n")
             with self.assertRaisesRegex(ValueError, "DELIVERY_HASH_MISMATCH"):
                 build_research_consumption_audit(run)
 

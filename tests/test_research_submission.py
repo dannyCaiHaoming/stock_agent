@@ -13,9 +13,7 @@ from unittest.mock import patch
 from tests import test_multidimensional_stage as fixtures
 from tests import test_multidimensional_references as references
 from product.runtime.fixture_mcp import StatelessFixtureTools, serve_stdio
-from product.runtime.codex_hook_recorder import (
-    handle_hook_event, _research_report_monetary_findings,
-)
+from product.runtime.monetary import research_report_monetary_findings as _research_report_monetary_findings
 from product.runtime.multidimensional_stage import (
     build_multidimensional_dispatch_packet, finalize_multidimensional_task_evidence,
     serialize_multidimensional_initial_context, serialize_multidimensional_model_context,
@@ -90,302 +88,10 @@ class SourceEvidenceReviewTests(unittest.TestCase):
             self.assertLessEqual(len(json.dumps(bounded, ensure_ascii=False).encode("utf-8")), 12 * 1024)
 
 
-class ResearchMonetaryLineageTests(unittest.TestCase):
-    def setUp(self):
-        self.source_id = "ev-licensed-1"
-        self.short_id = "e.short.1"
-        self.task = {
-            "capability": "RESEARCH_REPORT", "submission_version": VERSION,
-            "allowed_evidence_ids": [self.source_id],
-        }
-        self.source = {
-            "evidence_id": self.source_id, "source_type": "SECONDARY_VENDOR",
-            "value": {"content_tier": "LICENSED_API_CONTENT", "content": "14亿美元、20亿美元、50亿美元"},
-        }
-        self.packet = {
-            "reference_map": {"evidence": {self.short_id: self.source_id}, "claims": {}},
-            "dependency_reports": [],
-        }
-        self.claim = {
-            "claim_id": "rr_claim_1", "statement": "1.4 billion USD、2.0 billion USD、5 billion USD",
-            "evidence_refs": [self.short_id], "research_claim_refs": [],
-        }
-
-    def findings(self, *, claim=None, source=None, packet=None, task=None, selections=None):
-        gate = {"allowed_evidence": [source or self.source]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        return _research_report_monetary_findings(
-            {"claims": [claim or self.claim]}, task=task or self.task, gate=gate,
-            reference_packet=packet or self.packet, selected_upstream=selections or [],
-        )
-
-    def test_exact_chinese_to_english_rewrite_needs_source_bound_receipt(self):
-        findings = self.findings()
-        self.assertEqual([item["amount_index"] for item in findings], [0, 1, 2])
-        self.assertTrue(all(item["path"] == "claims[0].statement" for item in findings))
-        self.assertEqual({item["identifier"] for item in self.findings(
-            claim={**self.claim, "evidence_refs": [self.source_id]},
-        )}, {self.short_id})
-        self.assertNotIn("14亿美元", json.dumps(findings, ensure_ascii=False))
-        self.assertEqual(findings[0]["source_value"], "14")
-        self.assertEqual(findings[0]["reported_value"], "1.4")
-        self.assertEqual(findings[0]["amount_index_basis"], "FINAL_ASSEMBLED_STATEMENT")
-        selection = {
-            "claim_id": "rr_claim_1", "calculation": {"input_evidence_refs": [self.source_id]},
-            "verified_output": {
-                "operation": "monetary_scale", "evidence_ids": [self.source_id],
-                "conversions": [
-                    {"source_scale": "亿", "target_scale": "billion",
-                     "source_value": value, "converted_value": converted}
-                    for value, converted in (("14", "1.4"), ("20", "2.0"), ("50", "5"))
-                ],
-            },
-        }
-        self.assertEqual(self.findings(selections=[selection]), [])
-
-    def test_index_and_values_include_relation_text_after_corrected_core(self):
-        claim = {**self.claim, "statement": "主段落保留14亿美元；关系解释仍写1.4 billion USD。"}
-        original = copy.deepcopy(claim)
-        findings = self.findings(claim=claim)
-        self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["reported_value"], "1.4")
-        self.assertEqual(findings[0]["source_value"], "14")
-        self.assertEqual(findings[0]["amount_index"], 0)
-        self.assertEqual(claim, original)
-
-    def test_bare_dollar_billion_uses_same_guard_without_guessing_other_currencies(self):
-        claim = {**self.claim, "statement": "$1.4 billion、$2.0 billion、$5 billion"}
-        self.assertEqual([x["amount_index"] for x in self.findings(claim=claim)], [0, 1, 2])
-        for prefix in ("HK", "HK ", "C", "CA ", "AUD ", "SGD ", "港币 ", "人民币 ", "€", "₹", "₩ ",
-                       "X", "X ", "MXN ", "BRL ", "ZAR ", "XYZ: ", "XYZ："):
-            with self.subTest(prefix=prefix):
-                self.assertEqual(self.findings(claim={**claim, "statement": prefix + "$1.4 billion"}), [])
-        for prefix in ("revenue ", "USD ", "US", "USD: "):
-            with self.subTest(usd_prefix=prefix):
-                self.assertEqual(len(self.findings(claim={**claim, "statement": prefix + "$1.4 billion"})), 1)
-        self.assertEqual(self.findings(claim=claim, source={
-            **self.source, "value": {"content_tier": "LICENSED_API_CONTENT", "content": claim["statement"]},
-        }), [])
-        selection = {"claim_id": self.claim["claim_id"],
-                     "calculation": {"input_evidence_refs": [self.source_id]},
-                     "verified_output": {"operation": "monetary_scale", "evidence_ids": [self.source_id],
-                         "conversions": [{"source_scale": "亿", "target_scale": "billion",
-                                          "source_value": "14", "converted_value": "1.4"}]}}
-        self.assertEqual(self.findings(claim={**claim, "statement": "$1.4 billion"}, selections=[selection]), [])
-        wrong_source = dict(selection)
-        wrong_source["calculation"] = {"input_evidence_refs": ["ev-other"]}
-        self.assertEqual(len(self.findings(selections=[wrong_source])), 3)
-
-    def test_repeated_gap_context_is_exact_and_requires_located_monetary_error(self):
-        from product.runtime.codex_hook_recorder import _monetary_repetition_context
-        claim = {**self.claim, "statement": "$1.4 billion and $2 billion"}
-        findings = self.findings(claim=claim)
-        # Only the located 1.4 error opens repeats, not another amount in the same claim.
-        findings = findings[:1]
-        draft = {"claims": [claim], "data_gaps": [
-            {"description": "Still need to verify USD 1.40 billion.", "impact": "$2 billion"},
-            {"description": "$2 billion"}, {"description": "MXN $1.4 billion"},
-            {"description": "14亿美元"}, {"description": "$1.5 billion"},
-            {"description": "￥ $1.4 billion"}, {"description": "XYZ: $1.4 billion"},
-            {"description": "No number", "impact": "$1.4 billion"},
-        ]}
-        original = json.dumps(draft, ensure_ascii=False, sort_keys=True)
-        expected = [{"path": "data_gaps[0].description",
-                     "status": "REPEATED_EXPLICIT_AMOUNT_AUTHOR_RECHECK"}]
-        self.assertEqual(_monetary_repetition_context(draft, findings), expected)
-        native = json.loads(original)
-        native["claims"][0].pop("statement")
-        native["claims"][0].update(core_statement="$1.4 billion", research_relation_clauses=[
-            {"relation_statement": "and $2 billion"}])
-        self.assertEqual(_monetary_repetition_context(native, findings), expected)
-        for wrong in ([], [{**findings[0], "code": "OTHER"}],
-                      [{**findings[0], "path": "claims[99].statement"}],
-                      [{**findings[0], "amount_index": -1}]):
-            self.assertEqual(_monetary_repetition_context(draft, wrong), [])
-        self.assertEqual(json.dumps(draft, ensure_ascii=False, sort_keys=True), original)
-
-    def test_original_amount_or_upstream_original_english_is_not_rewrite(self):
-        original = {**self.claim, "statement": "原文给出14亿美元、20亿美元、50亿美元"}
-        self.assertEqual(self.findings(claim=original), [])
-        source = {**self.source, "value": {**self.source["value"],
-            "content": "14亿美元及1.4 billion USD、20亿美元及2.0 billion USD、50亿美元及5 billion USD"}}
-        self.assertEqual(self.findings(source=source), [])
-        packet = {**self.packet, "reference_map": {
-            "evidence": {self.short_id: self.source_id},
-            "claims": {"c.short.1": {"report_id": "upstream", "claim_id": "upstream_claim"}},
-        }, "dependency_reports": [{"report_id": "upstream", "claims": [{
-            "claim_id": "upstream_claim", "statement": self.claim["statement"],
-        }]}]}
-        claim = {**self.claim, "research_claim_refs": ["c.short.1"]}
-        self.assertEqual(self.findings(claim=claim, packet=packet), [])
-
-    def test_local_claim_id_takes_priority_over_same_named_upstream(self):
-        packet = {**self.packet, "dependency_reports": [{
-            "report_id": "upstream", "claims": [{
-                "claim_id": "same_name", "statement": "1.4 billion USD",
-            }],
-        }]}
-        gate = {"allowed_evidence": [self.source]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        draft = {"claims": [{**self.claim, "statement": "1.4 billion USD",
-                             "research_claim_refs": ["same_name"]}, {
-                                 "claim_id": "same_name", "statement": "本地说明。",
-                             }]}
-        findings = _research_report_monetary_findings(
-            draft, task=self.task, gate=gate, reference_packet=packet,
-            selected_upstream=[],
-        )
-        self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["path"], "claims[0].statement")
-
-    def test_guard_does_not_expand_to_ambiguous_or_other_protocols(self):
-        other = {**self.source, "evidence_id": "ev-other", "value": {
-            "content_tier": "LICENSED_API_CONTENT", "content": "另一来源亦写14亿美元"}}
-        gate = {"allowed_evidence": [self.source, other]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        packet = {**self.packet, "reference_map": {"evidence": {
-            self.short_id: self.source_id, "e.other": "ev-other"}, "claims": {}}}
-        task = {**self.task, "allowed_evidence_ids": [self.source_id, "ev-other"]}
-        self.assertEqual([x["amount_index"] for x in _research_report_monetary_findings(
-            {"claims": [{**self.claim, "evidence_refs": [self.short_id, "e.other"]}]},
-            task=task, gate=gate, reference_packet=packet, selected_upstream=[],
-        )], [1, 2])
-        self.assertEqual(_research_report_monetary_findings(
-            {"claims": [{**self.claim, "statement": "1.4 billion USD",
-                         "evidence_refs": [self.short_id, "e.other"]}]},
-            task=task, gate=gate, reference_packet=packet, selected_upstream=[],
-        ), [])
-        self.assertEqual(self.findings(claim={**self.claim,
-            "statement": "9 billion USD"}), [])
-        self.assertEqual(self.findings(claim={**self.claim,
-            "statement": "1.4 billion EUR"}), [])
-        repeated = {**self.source, "value": {**self.source["value"],
-            "content": "指标A为14亿美元，指标B同为14亿美元"}}
-        self.assertEqual(len(self.findings(source=repeated, claim={**self.claim,
-            "statement": "1.4 billion USD"})), 1)
-        self.assertEqual(self.findings(task={**self.task,
-            "submission_version": LEGACY_VERSION}), [])
-        self.assertEqual(self.findings(task={**self.task,
-            "capability": "FUNDAMENTAL_EVENT"}), [])
-        gate = {"allowed_evidence": [self.source], "bundle_hash": "wrong"}
-        with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_MONETARY_GATE_INVALID"):
-            _research_report_monetary_findings(
-                {"claims": [self.claim]}, task=self.task, gate=gate,
-                reference_packet=self.packet, selected_upstream=[],
-            )
-
-    def test_three_cited_sources_one_repeated_management_guidance_is_located(self):
-        licensed = {**self.source, "value": {**self.source["value"],
-            "content": "管理层2028财年指引上调至180亿美元。2028财年指引为180亿美元。"}}
-        others = [
-            {**self.source, "evidence_id": "ev-other-1", "value": {
-                "content_tier": "LICENSED_API_CONTENT", "content": "另有经营分析。"}},
-            {**self.source, "evidence_id": "ev-other-2", "value": {
-                "content_tier": "PUBLIC_FILING", "content": "近期营收事实。"}},
-        ]
-        gate = {"allowed_evidence": [licensed, *others]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        task = {**self.task, "allowed_evidence_ids": [self.source_id, "ev-other-1", "ev-other-2"]}
-        packet = {**self.packet, "reference_map": {"evidence": {
-            self.short_id: self.source_id, "e.other.1": "ev-other-1", "e.other.2": "ev-other-2",
-        }, "claims": {}}}
-        claim = {**self.claim, "statement": "作者预测2028财年收入为18.0 billion USD",
-                 "evidence_refs": ["e.other.1", self.short_id, "e.other.2"]}
-        findings = _research_report_monetary_findings(
-            {"claims": [claim]}, task=task, gate=gate,
-            reference_packet=packet, selected_upstream=[],
-        )
-        self.assertEqual([(item["path"], item["identifier"]) for item in findings],
-                         [("claims[0].statement", self.short_id)])
-        self.assertNotIn("管理层", json.dumps(findings, ensure_ascii=False))
-        self.assertEqual(_research_report_monetary_findings(
-            {"claims": [{**claim, "statement": "管理层指引为180亿美元"}]},
-            task=task, gate=gate, reference_packet=packet, selected_upstream=[],
-        ), [])
-
-    def test_dollar_prefixed_yi_is_located_without_guessing_other_currency(self):
-        licensed = {**self.source, "value": {**self.source["value"],
-            "content": "截至期末持有$26亿现金及$45亿总债务；现金$26亿。"}}
-        other = {**self.source, "evidence_id": "ev-other", "value": {
-            "content_tier": "PUBLIC_FILING", "content": "另有并购事实。"}}
-        gate = {"allowed_evidence": [licensed, other]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        task = {**self.task, "allowed_evidence_ids": [self.source_id, "ev-other"]}
-        packet = {**self.packet, "reference_map": {"evidence": {
-            self.short_id: self.source_id, "e.other": "ev-other",
-        }, "claims": {}}}
-        claim = {**self.claim, "statement": "现金2.6 billion USD、债务4.5 billion USD",
-                 "evidence_refs": [self.short_id, "e.other"]}
-        findings = _research_report_monetary_findings(
-            {"claims": [claim]}, task=task, gate=gate,
-            reference_packet=packet, selected_upstream=[],
-        )
-        self.assertEqual([item["amount_index"] for item in findings], [0, 1])
-        self.assertEqual({item["source_unit"] for item in findings}, {"$亿"})
-        self.assertEqual({item["identifier"] for item in findings}, {self.short_id})
-        english_context = {**licensed, "value": {**licensed["value"],
-            "content": "cash $26亿; debt $45亿."}}
-        gate = {"allowed_evidence": [english_context, other]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        self.assertEqual(len(_research_report_monetary_findings(
-            {"claims": [claim]}, task=task, gate=gate,
-            reference_packet=packet, selected_upstream=[],
-        )), 2)
-        gate = {"allowed_evidence": [licensed, other]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        self.assertEqual(_research_report_monetary_findings(
-            {"claims": [{**claim, "statement": "现金$26亿、债务$45亿"}]},
-            task=task, gate=gate, reference_packet=packet, selected_upstream=[],
-        ), [])
-        for content in (
-            "截至期末持有HK$26亿现金及C$45亿总债务。",
-            "截至期末持有HK $26亿现金及港币$45亿总债务。",
-            "截至期末持有€$26亿现金及人民币 $45亿总债务。",
-            "截至期末持有A$26亿现金及S$45亿总债务。",
-            "截至期末持有₹$26亿现金及₩ $45亿总债务。",
-        ):
-            with self.subTest(content=content):
-                other_currency = {**licensed, "value": {**licensed["value"],
-                    "content": content}}
-                gate = {"allowed_evidence": [other_currency, other]}
-                gate["bundle_hash"] = canonical_hash(gate)
-                self.assertEqual(_research_report_monetary_findings(
-                    {"claims": [claim]}, task=task, gate=gate,
-                    reference_packet=packet, selected_upstream=[],
-                ), [])
-        source_english = {**other, "value": {**other["value"],
-            "content": "2.6 billion USD in cash."}}
-        gate = {"allowed_evidence": [licensed, source_english]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        self.assertEqual([item["amount_index"] for item in _research_report_monetary_findings(
-            {"claims": [claim]}, task=task, gate=gate,
-            reference_packet=packet, selected_upstream=[],
-        )], [1])
-        selection = {"claim_id": "rr_claim_1",
-                     "calculation": {"input_evidence_refs": [self.source_id]},
-                     "verified_output": {"operation": "monetary_scale",
-                         "evidence_ids": [self.source_id], "conversions": [
-                             {"source_scale": "亿", "target_scale": "billion",
-                              "source_value": original, "converted_value": target}
-                             for original, target in (("26", "2.6"), ("45", "4.5"))]}}
-        gate = {"allowed_evidence": [licensed, other]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        self.assertEqual(_research_report_monetary_findings(
-            {"claims": [claim]}, task=task, gate=gate,
-            reference_packet=packet, selected_upstream=[selection],
-        ), [])
-        competitor = {**other, "value": {"content_tier": "LICENSED_API_CONTENT",
-            "content": "另一个来源也写$26亿现金。"}}
-        gate = {"allowed_evidence": [licensed, competitor]}
-        gate["bundle_hash"] = canonical_hash(gate)
-        self.assertEqual([item["amount_index"] for item in _research_report_monetary_findings(
-            {"claims": [claim]}, task=task, gate=gate,
-            reference_packet=packet, selected_upstream=[],
-        )], [1])
 
 
 class ResearchSubmissionTests(unittest.TestCase):
-    """v3–v5 用测试专用历史包构造器验证读取；当前 v6 用真实 MCP。
+    """v3–v5 用测试专用历史包构造器验证读取；v6 用真实MCP和纯业务读取。
 
     历史构造/辅助检查正例不计作新提交或模型执行证明。
     """
@@ -537,7 +243,7 @@ class ResearchSubmissionTests(unittest.TestCase):
             def capture_preview(*args, **kwargs):
                 preview_selections.extend(kwargs["selected_upstream"])
                 return []
-            with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings",
+            with patch("product.runtime.monetary.research_report_monetary_findings",
                        side_effect=capture_preview):
                 receipt = self.submit(StatelessFixtureTools(default_run_dir=run), task, draft)
             self.assertEqual([item["verified_output"] for item in preview_selections],
@@ -674,7 +380,7 @@ class ResearchSubmissionTests(unittest.TestCase):
                 "reported_unit": "billion USD",
             } for index in range(40)]
             tools = StatelessFixtureTools(default_run_dir=run)
-            with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings",
+            with patch("product.runtime.monetary.research_report_monetary_findings",
                        return_value=findings):
                 result = self.submit(tools, task, draft)
             self.assertEqual(result["monetary_review"]["status"], "LOCATED")
@@ -837,14 +543,14 @@ class ResearchSubmissionTests(unittest.TestCase):
                 self.submit(tools, task, draft)
 
     def test_only_target_context_receives_token_and_packet_is_private(self):
-        from product.runtime.multidimensional_stage import build_multidimensional_stage_prompt
+        from product.runtime.multidimensional_stage import build_multidimensional_dispatch_message
         with tempfile.TemporaryDirectory() as directory:
             _, run, target = self.prepare(Path(directory), version=BOUNDED_REVISION_VERSION)
             token = self.token(run, target)
             index = json.loads((run / "research/dispatch-index.json").read_text())
             self.assertNotIn(token, json.dumps(index))
-            self.assertNotIn(token, build_multidimensional_stage_prompt(fixtures.ROOT, run))
             for task in index["tasks"]:
+                self.assertNotIn(token, build_multidimensional_dispatch_message(fixtures.ROOT, run, task['task_name']))
                 packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
                 serializers = [serialize_multidimensional_model_context]
                 if task["capability"] in {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT"}:
@@ -973,19 +679,17 @@ class ResearchSubmissionTests(unittest.TestCase):
             f, run, _ = self.prepare(Path(directory))
             index = json.loads((run / "research/dispatch-index.json").read_text())
             task = next(t for t in index["tasks"] if t["capability"] == "INDUSTRY_COMPARISON")
-            env = f.targeted_environment(run, task)
-            handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-            handle_hook_event(f.start_payload(task, parent="dependency-parent", child="industry"), environ=env)
             draft = f.dimension_draft(task)
             original = json.dumps(draft, sort_keys=True)
             with self.assertRaisesRegex(ValueError, "NOT_ENABLED"):
                 StatelessFixtureTools(default_run_dir=run).research_report_submit(
                     invocation_id=task["invocation_id"], draft=draft)
-            record, _ = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="industry"), environ=env)
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
+            report, _, _ = f.read_dimension_draft(run, task, draft)
+            self.assertEqual(report["summary"], draft["summary"])
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
             self.assertEqual(json.dumps(draft, sort_keys=True), original)
 
-    def test_launcher_enables_submission_only_explicitly(self):
+    def test_retired_launcher_cannot_enable_research_submission(self):
         from product.runtime.nested_codex import build_nested_codex_command
         root = Path('/tmp/research-submission-command-test')
         args = dict(codex_binary="codex", product_root=fixtures.ROOT / "product", run_dir=root,
@@ -993,12 +697,14 @@ class ResearchSubmissionTests(unittest.TestCase):
                     final_message_path=root / "final.json", hook_recorder_path=fixtures.ROOT / "product/runtime/codex_hook_recorder.py",
                     fixture_mcp_run_dir=root)
         for enabled in (False, True):
-            command = build_nested_codex_command(**args, research_submission_enabled=enabled)
-            config = next(x for x in command if x.startswith("mcp_servers.fixture_runtime="))
-            self.assertEqual("research_report_submit" in config, enabled)
+            with self.subTest(enabled=enabled), patch("subprocess.run") as launch, patch.object(Path, "mkdir") as mkdir:
+                with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                    build_nested_codex_command(**args, research_submission_enabled=enabled)
+                launch.assert_not_called()
+                mkdir.assert_not_called()
 
-    def test_bad_receipts_symlink_and_untrusted_stop_do_not_save(self):
-        for defect in ("missing", "mixed", "boolean", "symlink", "untrusted", "old_full_draft"):
+    def test_bad_historical_receipts_and_symlink_cannot_produce_report(self):
+        for defect in ("missing", "mixed", "boolean", "symlink", "old_full_draft"):
             with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
                 f, run, task, env, draft = self.submit_and_start(Path(directory))
                 tool = StatelessFixtureTools(default_run_dir=run)
@@ -1009,11 +715,10 @@ class ResearchSubmissionTests(unittest.TestCase):
                     path.rename(target); path.symlink_to(target)
                 message = {"missing": '{"submission":2}', "mixed": '{"submission":1,"summary":"extra"}',
                            "boolean": '{"submission":true}', "old_full_draft": json.dumps(draft)}.get(defect, receipt["final_message"])
-                payload = f.stop_payload(task, {}, parent="dependency-parent", child="wrong" if defect == "untrusted" else "r")
-                payload["last_assistant_message"] = message
-                record, _ = handle_hook_event(payload, environ=env)
-                self.assertEqual(record["output_capture"]["status"], "FAILED", record)
-                self.assertNotEqual(record["output_capture"]["repair_state"], "REPAIR_REQUESTED")
+                with self.assertRaisesRegex(ValueError, "RESEARCH_SUBMISSION_(RECEIPT|PATH)"):
+                    read_historical_report_fixture(run, task, message)
+                self.assertFalse(path.with_name("accepted.json").exists())
+                self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
     def prepare(self, root, enabled=True, *, version=VERSION, task_bound_tools=False):
         prepare = fixtures.prepare_multidimensional_stage_run
@@ -1024,16 +729,28 @@ class ResearchSubmissionTests(unittest.TestCase):
                 return references.ReferenceBoundaryTests().prepare_with_document(root)
 
     def submit_and_start(self, root, *, version=VERSION, task_bound_tools=False):
+        # 保留旧夹具调用签名；不再启动或模拟普通研究Hook。
         f, run, task = self.prepare(root, version=version, task_bound_tools=task_bound_tools)
         env = f.targeted_environment(run, task)
-        # 退役协议只构造历史读取向量，不为它制造当前执行事件。
-        if version == BOUNDED_REVISION_VERSION:
-            handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-            handle_hook_event(f.start_payload(task, parent="dependency-parent", child="r"), environ=env)
         draft = f.formal_dimension_draft(task)
         for key in ("run_id", "invocation_id", "agent"):
             draft.pop(key)
         return f, run, task, env, draft
+
+    def read_bounded_submission(self, run, task, receipt):
+        """真实MCP回执的纯业务读取；合成任务身份不代表宿主作者认证。"""
+        from product.runtime.research_submission import _packet
+        from product.runtime.multidimensional_stage import _read_multidimensional_report_artifact
+        packet = _packet(run, task["invocation_id"])
+        self.assertEqual(packet["task"]["submission_version"], BOUNDED_REVISION_VERSION)
+        record = {"identity_binding": {"status": "BOUND"}, "trusted_task_binding": packet["identity"]}
+        resolved = resolve(run, {"last_assistant_message": receipt["final_message"]}, record, 1)
+        invocation = json.loads((run / task["invocation_path"]).read_text())
+        report, evidence, selected = _read_multidimensional_report_artifact(
+            json.loads(resolved["last_assistant_message"]), record, task=task,
+            invocation=invocation, reference_packet=packet, run_dir=run,
+        )
+        return report, evidence, selected, record
 
     def test_v5_short_receipt_selects_exact_second_draft_without_hash_copy(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -1150,21 +867,21 @@ class ResearchSubmissionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "LIMIT_EXHAUSTED"):
                 self.submit(StatelessFixtureTools(default_run_dir=run), task, draft)
 
-    def test_v5_valid_bearer_and_receipt_do_not_replace_trusted_stop_identity(self):
+    def test_v5_receipt_read_does_not_invent_missing_identity_or_execution(self):
         with tempfile.TemporaryDirectory() as directory:
             f, run, task, env, draft = self.submit_and_start(
                 Path(directory), version=SHORT_RECEIPT_VERSION,
             )
             receipt = self.submit(StatelessFixtureTools(default_run_dir=run), task, draft)
-            payload = f.stop_payload(task, {}, parent="dependency-parent", child="not-the-started-child")
-            payload["last_assistant_message"] = receipt["final_message"]
-            record, _ = handle_hook_event(payload, environ=env)
-            self.assertNotEqual((record.get("output_capture") or {}).get("status"), "SAVED")
-            self.assertFalse((run / "research/submissions" / canonical_hash({
-                "invocation_id": task["invocation_id"],
-            })[:24] / "accepted.json").exists())
+            payload = {"last_assistant_message": receipt["final_message"]}
+            original = copy.deepcopy(payload)
+            for binding in ({}, {"identity_binding": {"status": "CONFLICT"}}):
+                self.assertEqual(resolve(run, payload, binding, 1), original)
+                self.assertNotIn("submission_binding", binding)
+            self.assertFalse((_directory(run, task["invocation_id"], create=False) / "accepted.json").exists())
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
-    def test_v4_formal_context_and_exact_agent_prose_survive_stop(self):
+    def test_v4_formal_context_and_exact_prose_survive_historical_read(self):
         with tempfile.TemporaryDirectory() as directory:
             f, run, task, env, draft = self.submit_and_start(Path(directory), version=FORMAL_VERSION)
             self.assertEqual(task["submission_version"], FORMAL_VERSION)
@@ -1351,7 +1068,7 @@ class ResearchSubmissionTests(unittest.TestCase):
                 _assemble_v4_draft({**draft, "claims": [{**claim,
                     "research_relation_clauses": claim["research_relation_clauses"] * 2}]}, packet)
 
-    def test_stdio_tool_delivery_and_stop_serializes_without_content_change(self):
+    def test_stdio_submission_and_business_read_serialize_without_content_change(self):
         with tempfile.TemporaryDirectory() as directory:
             f, run, task, env, draft = self.submit_and_start(Path(directory), version=BOUNDED_REVISION_VERSION)
             draft = self.native_draft(draft)
@@ -1382,11 +1099,8 @@ class ResearchSubmissionTests(unittest.TestCase):
             receipt = responses[1]["result"]["structuredContent"]
             self.assertEqual(receipt["status"], "DRAFT_STORED_NOT_VALIDATED")
             self.assertEqual(len(list((run / "research/reports").glob('*/dimension-report.json'))), 1)
-            payload = f.stop_payload(task, {}, parent="dependency-parent", child="r")
-            payload["last_assistant_message"] = receipt["final_message"]
-            record, _ = handle_hook_event(payload, environ=env)
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-            report = json.loads((run / record["output_capture"]["path"]).read_text())
+            report, _, _, binding = self.read_bounded_submission(run, task, receipt)
+            self.assertEqual(binding["submission_binding"]["content_hash"], receipt["content_hash"])
             for key, value in draft.items():
                 if key in {"claims", "document_selections", "calculation_selections"}:
                     continue
@@ -1394,8 +1108,10 @@ class ResearchSubmissionTests(unittest.TestCase):
             self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["core_statement"])
             self.assertEqual(report["claims"][0]["evidence_refs"], ["ev-issuer-body"])
             self.assertEqual(report["run_id"], task["run_id"])
-            self.assertEqual((run / record["output_capture"]["raw_path"]).read_text(),
-                             receipt["final_message"] + "\n")
+            stored = json.loads((_directory(run, task["invocation_id"], create=False) / "1.json").read_text())
+            self.assertEqual(stored["draft"], draft)
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
+            self.assertFalse((_directory(run, task["invocation_id"], create=False) / "accepted.json").exists())
             self.assertNotIn(self.token(run, task), stdout.getvalue())
             self.assertNotIn(self.token(run, task), (run / "events/mcp/events.jsonl").read_text())
 
@@ -1439,14 +1155,14 @@ class ResearchSubmissionTests(unittest.TestCase):
             first = self.submit(tools, task, draft)
             payload = f.stop_payload(task, {}, parent="dependency-parent", child="r")
             payload["last_assistant_message"] = first["final_message"]
-            with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings",
+            with patch("product.runtime.monetary.research_report_monetary_findings",
                        return_value=[finding]):
                 with self.assertRaisesRegex(ValueError, "MULTIDIMENSIONAL_OUTPUT_ARTIFACT_REF_INVALID"):
                     read_historical_report_fixture(run, task, first["final_message"])
             draft["artifact_refs"] = task["allowed_artifact_refs"][:1]
             second = self.submit(tools, task, draft)
             payload["last_assistant_message"] = second["final_message"]
-            with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings",
+            with patch("product.runtime.monetary.research_report_monetary_findings",
                        return_value=[finding]):
                 with self.assertRaisesRegex(ValueError, finding["code"]):
                     read_historical_report_fixture(run, task, second["final_message"], attempt=2)

@@ -1,4 +1,4 @@
-"""计算选择的真实装配、诊断与模型视图；不模拟研究质量。"""
+"""计算选择的真实装配、结构诊断与模型视图；不模拟宿主执行或研究质量。"""
 import copy
 import json
 import tempfile
@@ -8,8 +8,8 @@ from pathlib import Path
 
 from product.runtime.calculation_handoff import (
     assemble_calculation_selections, build_calculation_catalog, model_calculation_catalog,
+    semantic_selection_draft_schema,
 )
-from product.runtime.codex_hook_recorder import handle_hook_event, _multidimensional_draft_diagnostics
 from product.runtime.fixture_mcp import StatelessFixtureTools, _write_event
 from product.runtime.hashing import canonical_hash
 from product.runtime.multidimensional_stage import (
@@ -17,6 +17,8 @@ from product.runtime.multidimensional_stage import (
     prepare_multidimensional_stage_run, build_multidimensional_dispatch_packet,
     serialize_multidimensional_initial_context, serialize_multidimensional_model_context,
 )
+from product.runtime.schema_validation import schema_issue_locations, validate_schema_instance
+from product.tools.revision import _apply, located_paths
 from tests import test_multidimensional_stage as fixtures
 from tests import test_calculation_handoff as calculations
 from tests.test_common_stock_research_contracts import gate_for, stock_handoff
@@ -70,56 +72,33 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                     rows = view["calculation_selection_contract"]["prepared_results"]
                     self.assertEqual(next(x for x in rows if x["calculation_ref"] == vol)["value"],
                                      catalog[vol]["calculation"]["value"])
-                env = self.helper.targeted_environment(run, task)
-                handle_hook_event(self.helper.dispatch_payload(task, parent="alias-parent") | {"model": "gpt-6-luna"}, environ=env)
-                _, context = handle_hook_event(self.helper.start_payload(task, parent="alias-parent", child="alias-child") | {"model": "gpt-6-luna"}, environ=env)
-                self.assertIn(vol, context["hookSpecificOutput"]["additionalContext"])
-                stopped, _ = handle_hook_event(self.helper.stop_payload(task, draft, parent="alias-parent", child="alias-child") | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
-                saved = json.loads((run / stopped["output_capture"]["path"]).read_text())
+                saved, _, _ = self.helper.read_dimension_draft(run, task, draft)
                 self.assertEqual(saved["calculations"], assembled["calculations"])
                 self.assertEqual(packet, original)
+                self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
-    def test_real_hook_first_structural_feedback_also_locates_empty_claim_only(self):
-        for scenario in ("save", "format_only", "outside"):
-            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as directory:
-                run, task, packet = self.prepared(Path(directory))
-                ref = next(iter(build_calculation_catalog(run, packet)))
-                draft = calculations.CalculationHandoffTests().draft(task, ref)
-                template = draft["claims"][0]
-                draft["claims"].append({**copy.deepcopy(template), "claim_id": "zero_relation"})
-                draft["calculation_selections"][0]["calculation_ref"] = "k.scope.scope.invalid"
-                original = copy.deepcopy(draft)
-                env = self.helper.targeted_environment(run, task)
-                parent, child = "mixed-parent", "mixed-child"
-                handle_hook_event(self.helper.dispatch_payload(task, parent=parent) | {"model": "gpt-6-luna"}, environ=env)
-                handle_hook_event(self.helper.start_payload(task, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env)
-                first, response = handle_hook_event(self.helper.stop_payload(task, draft, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first)
-                repair = json.loads(response["reason"])
-                self.assertEqual(repair["allowed_paths"], ["/calculation_selections/0", "/claims/1"])
-                self.assertEqual([f["path"] for f in repair["validation_details"]["findings"]
-                                  if f["code"] == "DIMENSION_REPORT_CLAIM_UNGROUNDED"], ["claims[1]"])
-                raw = run / first["output_capture"]["raw_path"]
-                before = raw.read_bytes()
-                changes = [{"op": "replace", "path": "/calculation_selections/0/calculation_ref", "value": ref}]
-                if scenario != "format_only":
-                    changes.append({"op": "replace", "path": "/claims/1/research_claim_refs", "value": ["comparison"]})
-                if scenario == "outside":
-                    changes.append({"op": "replace", "path": "/claims/0/statement", "value": "不允许编辑"})
-                second, _ = handle_hook_event(self.helper.stop_payload(task, {
-                    "base_draft_ref": repair["base_draft_ref"], "changes": changes,
-                }, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(second["output_capture"]["status"], "SAVED" if scenario == "save" else "FAILED", second)
-                if scenario == "format_only":
-                    self.assertEqual(second["output_capture"]["failure_code"], "DIMENSION_REPORT_CLAIM_UNGROUNDED")
-                    self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
-                if scenario == "outside":
-                    self.assertTrue(second["output_capture"]["failure_code"].startswith("LOCAL_REVISION_OUT_OF_SCOPE"))
-                self.assertEqual(raw.read_bytes(), before)
-                self.assertEqual(draft, original)
+    def test_structural_correction_does_not_ground_an_empty_claim(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run, task, packet = self.prepared(Path(directory))
+            ref = next(iter(build_calculation_catalog(run, packet)))
+            draft = calculations.CalculationHandoffTests().draft(task, ref)
+            draft["claims"].append({**copy.deepcopy(draft["claims"][0]), "claim_id": "zero_relation"})
+            draft["calculation_selections"][0]["calculation_ref"] = "k.scope.scope.invalid"
+            original = copy.deepcopy(draft)
+            with self.assertRaisesRegex(ValueError, "SCHEMA_"):
+                self.helper.read_dimension_draft(run, task, draft)
+            corrected = copy.deepcopy(draft)
+            corrected["calculation_selections"][0]["calculation_ref"] = ref
+            with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_CLAIM_UNGROUNDED"):
+                self.helper.read_dimension_draft(run, task, corrected)
+            corrected["claims"][1]["research_claim_refs"] = ["comparison"]
+            report, _, _ = self.helper.read_dimension_draft(run, task, corrected)
+            self.assertEqual(report["claims"][1]["research_claim_refs"], ["comparison"])
+            self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["statement"])
+            self.assertEqual(draft, original)
+            self.assertFalse((run / "research/reports").exists())
 
-    def test_malformed_claim_id_does_not_break_original_schema_repair_feedback(self):
+    def test_malformed_claim_id_has_bounded_schema_locations_without_mutation(self):
         for bad_id in ([], {}):
             with self.subTest(bad_id=bad_id), tempfile.TemporaryDirectory() as directory:
                 run, task, packet = self.prepared(Path(directory))
@@ -127,24 +106,20 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                 draft = calculations.CalculationHandoffTests().draft(task, ref)
                 draft["claims"][0]["claim_id"] = bad_id
                 draft["calculation_selections"][0]["calculation_ref"] = "k.scope.scope.invalid"
-                env = self.helper.targeted_environment(run, task)
-                parent, child = "bad-type-parent", "bad-type-child"
-                handle_hook_event(self.helper.dispatch_payload(task, parent=parent) | {"model": "gpt-6-luna"}, environ=env)
-                handle_hook_event(self.helper.start_payload(task, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env)
-                first, response = handle_hook_event(self.helper.stop_payload(task, draft, parent=parent, child=child)
-                                                    | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first)
-                repair = json.loads(response["reason"])
-                self.assertEqual(repair["allowed_paths"], ["/calculation_selections/0", "/claims/0"])
-                second, _ = handle_hook_event(self.helper.stop_payload(task, {
-                    "base_draft_ref": repair["base_draft_ref"], "changes": [
-                        {"op": "replace", "path": "/claims/0/claim_id", "value": "comparison"},
-                        {"op": "replace", "path": "/calculation_selections/0/calculation_ref", "value": ref},
-                    ],
-                }, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(second["output_capture"]["status"], "SAVED", second)
+                original = copy.deepcopy(draft)
+                schema = semantic_selection_draft_schema(packet)
+                findings = schema_issue_locations(draft, schema)
+                self.assertIn("/claims/0/claim_id", [f["path"] for f in findings])
+                self.assertEqual(located_paths(findings), ["/calculation_selections/0", "/claims/0"])
+                with self.assertRaisesRegex(ValueError, "SCHEMA_"):
+                    validate_schema_instance(draft, schema)
+                corrected = copy.deepcopy(draft)
+                corrected["claims"][0]["claim_id"] = "comparison"
+                corrected["calculation_selections"][0]["calculation_ref"] = ref
+                self.helper.read_dimension_draft(run, task, corrected)
+                self.assertEqual(draft, original)
 
-    def test_new_questions_and_market_summary_check_reach_views_hook_and_hash_only_new_profile(self):
+    def test_new_questions_and_market_summary_check_reach_views_and_hash_only_new_profile(self):
         from tests.test_research_submission import ResearchSubmissionTests
         from product.runtime.research_submission import BOUNDED_REVISION_VERSION
         baseline = copy.deepcopy(MINIMUM_QUESTIONS)
@@ -152,14 +127,11 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
             for capability in ("FUNDAMENTAL_EVENT", "RESEARCH_REPORT", "MARKET_STATE"):
                 with self.subTest(enabled=enabled, capability=capability), tempfile.TemporaryDirectory() as directory:
                     if capability == "RESEARCH_REPORT":
-                        helper, run, task = ResearchSubmissionTests().prepare(
+                        _, run, task = ResearchSubmissionTests().prepare(
                             Path(directory), version=BOUNDED_REVISION_VERSION, task_bound_tools=enabled)
                         packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
-                        parent = "dependency-parent"
                     else:
-                        helper = self.helper
                         run, task, packet = self.prepared(Path(directory), enabled=enabled, capability=capability)
-                        parent = "question-parent"
                     original = copy.deepcopy(packet)
                     for serialize in (serialize_multidimensional_initial_context, serialize_multidimensional_model_context):
                         view = json.loads(serialize(packet))
@@ -176,17 +148,11 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                     invocation = json.loads((run / task["invocation_path"]).read_text())
                     self.assertEqual(invocation["prompt_hash"], canonical_hash({
                         "instruction": packet["instruction"], "questions": packet["minimum_questions"]}))
-                    env = helper.targeted_environment(run, task)
-                    handle_hook_event(helper.dispatch_payload(task, parent=parent), environ=env)
-                    _, context = handle_hook_event(helper.start_payload(task, parent=parent, child="question-child"), environ=env)
-                    actual = context["hookSpecificOutput"]["additionalContext"]
-                    marker = {"FUNDAMENTAL_EVENT": "累计期间的净利润", "RESEARCH_REPORT": "core_statement及每条",
-                              "MARKET_STATE": "定稿summary前回读"}[capability]
-                    self.assertEqual(marker in actual, enabled)
                     self.assertEqual(packet, original)
                     self.assertEqual(MINIMUM_QUESTIONS, baseline)
 
-    def test_real_hook_invalid_selection_can_be_deleted_without_opening_other_choices(self):
+    def test_explicit_selection_patch_preserves_scope_and_revalidates_duplicate_and_null(self):
+        # 纯补丁算法向量；显式作用域不代表宿主/服务端已经授予修订权限。
         for scenario in ("save", "duplicate", "null", "outside"):
             with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as directory:
                 run, task, packet = self.prepared(Path(directory))
@@ -200,17 +166,7 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                     {"calculation_ref": refs[2], "claim_ids": ["untouched"]},
                 ]
                 original = copy.deepcopy(draft)
-                env = self.helper.targeted_environment(run, task)
-                parent, child = "object-parent", "object-child"
-                handle_hook_event(self.helper.dispatch_payload(task, parent=parent) | {"model": "gpt-6-luna"}, environ=env)
-                handle_hook_event(self.helper.start_payload(task, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env)
-                first, response = handle_hook_event(self.helper.stop_payload(task, draft, parent=parent, child=child)
-                                                    | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first)
-                repair = json.loads(response["reason"])
-                self.assertEqual(repair["allowed_paths"], ["/calculation_selections/0", "/calculation_selections/1"])
-                raw = run / first["output_capture"]["raw_path"]
-                raw_bytes = raw.read_bytes()
+                allowed = ["/calculation_selections/0", "/calculation_selections/1"]
                 changes = [{"op": "remove", "path": "/calculation_selections/0"},
                            {"op": "replace", "path": "/calculation_selections/1/calculation_ref", "value": refs[1]}]
                 if scenario == "duplicate":
@@ -220,25 +176,22 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                     changes[0] = {"op": "replace", "path": "/calculation_selections/0", "value": None}
                 elif scenario == "outside":
                     changes.append({"op": "replace", "path": "/calculation_selections/2/calculation_ref", "value": refs[1]})
-                patch = {"base_draft_ref": repair["base_draft_ref"], "changes": changes}
-                second, _ = handle_hook_event(self.helper.stop_payload(task, patch, parent=parent, child=child)
-                                              | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(second["output_capture"]["status"], "SAVED" if scenario == "save" else "FAILED", second)
-                self.assertEqual(raw.read_bytes(), raw_bytes)
-                self.assertEqual(draft, original)
-                if scenario == "save":
-                    report = json.loads((run / second["output_capture"]["path"]).read_text())
-                    self.assertEqual(len(report["calculations"]), 3)
-                    self.assertEqual(report["claims"][1]["statement"], original["claims"][1]["statement"])
-                    self.assertEqual(len(report["claims"][0]["calculation_refs"]), 2)
+                if scenario == "outside":
+                    with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_OUT_OF_SCOPE"):
+                        _apply(draft, changes, allowed)
                 else:
-                    self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
-                    if scenario == "duplicate":
-                        self.assertEqual(second["output_capture"]["failure_code"], "MULTIDIMENSIONAL_CALCULATION_SELECTION_DUPLICATE")
-                    elif scenario == "null":
-                        self.assertTrue(second["output_capture"]["failure_code"].startswith("SCHEMA_TYPE_INVALID"))
+                    corrected = _apply(draft, changes, allowed)
+                    if scenario == "save":
+                        report, _, _ = self.helper.read_dimension_draft(run, task, corrected)
+                        self.assertEqual(len(report["calculations"]), 3)
+                        self.assertEqual(report["claims"][1]["statement"], original["claims"][1]["statement"])
+                        self.assertEqual(len(report["claims"][0]["calculation_refs"]), 2)
                     else:
-                        self.assertTrue(second["output_capture"]["failure_code"].startswith("LOCAL_REVISION_OUT_OF_SCOPE"))
+                        failure = "SELECTION_DUPLICATE" if scenario == "duplicate" else "SCHEMA_TYPE_INVALID"
+                        with self.assertRaisesRegex(ValueError, failure):
+                            self.helper.read_dimension_draft(run, task, corrected)
+                self.assertEqual(draft, original)
+                self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
     def prepared(self, root, *, enabled=True, capability="TECHNICAL_STRUCTURE", long_history=False):
         handoff, gate = self.helper.mrvl_daily_inputs(include_spy=True)
@@ -273,7 +226,7 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
         task = next(t for t in index["tasks"] if t["capability"] == capability)
         return run, task, build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
 
-    def test_real_hook_locates_only_unselected_claim_and_keeps_one_revision(self):
+    def test_unselected_claim_requires_explicit_grounding_and_keeps_artifact_unchanged(self):
         for fix in (True, False):
             with self.subTest(fix=fix), tempfile.TemporaryDirectory() as directory:
                 run, task, packet = self.prepared(Path(directory))
@@ -287,37 +240,20 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                 snapshot = canonical_hash(draft)
                 artifact = run / packet["prepared_analysis"]["calculation_ref"]
                 frozen = artifact.read_bytes()
-                env = self.helper.targeted_environment(run, task)
-                parent, child = "selection-parent", "selection-child"
-                handle_hook_event(self.helper.dispatch_payload(task, parent=parent) | {"model": "gpt-6-luna"}, environ=env)
-                handle_hook_event(self.helper.start_payload(task, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env)
-                first, response = handle_hook_event(
-                    self.helper.stop_payload(task, draft, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env,
-                )
-                self.assertEqual(first["output_capture"]["failure_code"], "DIMENSION_REPORT_CLAIM_UNGROUNDED")
-                repair = json.loads(response["reason"])
-                self.assertEqual(repair["allowed_paths"], ["/claims/3"])
-                self.assertEqual(repair["validation_details"]["ungrounded_claims"], [
-                    {"path": "claims[3]", "claim_id": "claim_3"},
-                ])
-                self.assertEqual([x["path"] for x in repair["validation_details"]["findings"]], ["claims[3]"])
-                self.assertIn("不能只在statement里", repair["instruction"])
-                path = "/claims/3/research_claim_refs" if fix else "/claims/3/statement"
-                change = {"base_draft_ref": repair["base_draft_ref"], "changes": [
-                    {"op": "replace", "path": path, "value": ["claim_0"] if fix else "只改正文仍无依据。"},
-                ]}
-                second, _ = handle_hook_event(
-                    self.helper.stop_payload(task, change, parent=parent, child=child) | {"model": "gpt-6-luna"}, environ=env,
-                )
-                self.assertEqual(second["output_capture"]["status"], "SAVED" if fix else "FAILED")
+                with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_CLAIM_UNGROUNDED"):
+                    self.helper.read_dimension_draft(run, task, draft)
+                corrected = copy.deepcopy(draft)
                 if fix:
-                    report = json.loads((run / second["output_capture"]["path"]).read_text())
+                    corrected["claims"][3]["research_claim_refs"] = ["claim_0"]
+                    report, _, _ = self.helper.read_dimension_draft(run, task, corrected)
                     self.assertEqual(report["claims"][3]["research_claim_refs"], ["claim_0"])
                     for i in range(3):
                         self.assertEqual(len(report["claims"][i]["calculation_refs"]), 1)
                         self.assertEqual(report["claims"][i]["statement"], draft["claims"][i]["statement"])
                 else:
-                    self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
+                    corrected["claims"][3]["statement"] = "只改正文仍无依据。"
+                    with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_CLAIM_UNGROUNDED"):
+                        self.helper.read_dimension_draft(run, task, corrected)
                 self.assertEqual(canonical_hash(draft), snapshot)
                 self.assertEqual(artifact.read_bytes(), frozen)
 
@@ -325,14 +261,8 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run, task, packet = self.prepared(Path(directory))
             draft = calculations.CalculationHandoffTests().draft(task, "k." + "0" * 12 + "." + "0" * 24)
-            diagnostics = _multidimensional_draft_diagnostics(
-                self.helper.stop_payload(task, draft, parent="parent", child="child"),
-                self.helper.targeted_environment(run, task), failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED",
-                trusted_record={"identity_binding": {"status": "BOUND"},
-                                "trusted_task_binding": {"invocation_id": task["invocation_id"]}},
-            )
-            self.assertEqual(diagnostics["status"], "UNAVAILABLE")
-            self.assertEqual(diagnostics["findings"], [])
+            with self.assertRaisesRegex(ValueError, "SELECTION_UNKNOWN"):
+                self.helper.read_dimension_draft(run, task, draft)
             self.assertFalse((run / "research/reports").exists())
 
     def test_author_selected_return_windows_assemble_exactly_without_inferred_support(self):
@@ -355,7 +285,7 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
             self.assertEqual(len(result["claims"][0]["calculation_refs"]), len(methods))
             self.assertEqual(result["claims"][0]["statement"], claim["statement"])
             self.assertEqual(draft, before)
-            # No prose scanner: unselected results are NOT silently added.
+            # 不扫描正文补选择；未选结果不自动加入。
             draft["calculation_selections"] = draft["calculation_selections"][:-3]
             partial = assemble_calculation_selections(run, packet, draft)
             self.assertEqual(len(partial["calculations"]), 6)
@@ -383,17 +313,10 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                 invocation = json.loads((run / task["invocation_path"]).read_text())
                 self.assertEqual(invocation["prompt_hash"], canonical_hash({
                     "instruction": packet["instruction"], "questions": packet["minimum_questions"]}))
-                env = self.helper.targeted_environment(run, task)
-                handle_hook_event(self.helper.dispatch_payload(task, parent="guide-parent") | {"model": "gpt-6-luna"}, environ=env)
-                _, context = handle_hook_event(self.helper.start_payload(task, parent="guide-parent", child="guide-child")
-                                                | {"model": "gpt-6-luna"}, environ=env)
-                actual = context["hookSpecificOutput"]["additionalContext"]
-                self.assertEqual("查询同身份OpenD合约报价及风险补源" in actual, enabled)
-                self.assertEqual("contract_multiplier/contract_size" in actual, enabled)
                 self.assertEqual(MINIMUM_QUESTIONS, baseline)
 
     def test_selected_contract_supplement_is_queryable_and_time_binding_does_not_erase_risk(self):
-        # Synthetic contract facts: proves actual transport/Hook, not research quality.
+        # 合成事实经真实查询和业务装配，不生成Hook或宿主作者证明。
         for query_quote in (True, False):
             with self.subTest(query_quote=query_quote), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -426,13 +349,6 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                 packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
                 refs = {v: k for k, v in packet["reference_map"]["evidence"].items()}
                 quote_ref, risk_ref, yahoo_ref = refs[quote["evidence_id"]], refs[risk["evidence_id"]], refs[yahoo["evidence_id"]]
-                env = self.helper.targeted_environment(run, task)
-                parent, child = "supplement-parent", "supplement-child"
-                handle_hook_event(self.helper.dispatch_payload(task, parent=parent) | {"model": "gpt-6-luna"}, environ=env)
-                started, context = handle_hook_event(self.helper.start_payload(task, parent=parent, child=child)
-                                                     | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(started["context_binding"]["status"], "DELIVERED")
-                self.assertIn("查询同身份OpenD合约报价及风险补源", context["hookSpecificOutput"]["additionalContext"])
                 tool = StatelessFixtureTools(default_run_dir=run)
                 result = tool.query(**tool.bind_task_tool_arguments("query", {"task_name": task["task_name"],
                                     "evidence_ids": [yahoo_ref, quote_ref, risk_ref] if query_quote else [yahoo_ref, risk_ref]}))
@@ -451,17 +367,16 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                 draft["source_literal_selections"] = [{"claim_id": "contract", "placeholder": "{{sf.quote}}",
                                                        "evidence_ref": quote_ref, "field": "as_of"}]
                 before = copy.deepcopy(draft)
-                stopped, _ = handle_hook_event(self.helper.stop_payload(task, draft, parent=parent, child=child)
-                                               | {"model": "gpt-6-luna"}, environ=env)
-                self.assertEqual(draft, before)
                 if query_quote:
-                    self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
-                    report = json.loads((run / stopped["output_capture"]["path"]).read_text())
+                    report, _, _ = self.helper.read_dimension_draft(run, task, draft)
                     self.assertIn("as_of=2026-09-10T19:30:00Z", report["claims"][0]["statement"])
                     self.assertIn("风险vintage未知，不是字段不存在", report["claims"][0]["statement"])
                     self.assertEqual(report["claims"][0]["evidence_refs"], [yahoo["evidence_id"], quote["evidence_id"], risk["evidence_id"]])
                 else:
-                    self.assertEqual(stopped["output_capture"]["failure_code"], "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+                    with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                        self.helper.read_dimension_draft(run, task, draft)
+                self.assertEqual(draft, before)
+                self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
     def test_dynamic_calculation_direct_fact_inputs_keep_original_joint_authorization(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -471,15 +386,14 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
             draft = helper.draft(task, result["calculation_ref"])
             draft["claims"].append({**copy.deepcopy(draft["claims"][0]), "claim_id": "missing"})
             self.assertFalse(task["allowed_calculation_evidence_ids"])
-            diagnostics = _multidimensional_draft_diagnostics(
-                self.helper.stop_payload(task, draft, parent="parent", child="child"),
-                self.helper.targeted_environment(run, task), failure_code="DIMENSION_REPORT_CLAIM_UNGROUNDED",
-                trusted_record={"identity_binding": {"status": "BOUND"},
-                                "trusted_task_binding": {"invocation_id": task["invocation_id"]}},
-            )
-            self.assertEqual(diagnostics["findings"], [{
-                "code": "DIMENSION_REPORT_CLAIM_UNGROUNDED", "path": "claims[1]", "identifier": "missing",
-            }])
+            original = copy.deepcopy(draft)
+            with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_CLAIM_UNGROUNDED"):
+                self.helper.read_dimension_draft(run, task, draft)
+            draft["claims"][1]["research_claim_refs"] = ["comparison"]
+            report, _, _ = self.helper.read_dimension_draft(run, task, draft)
+            self.assertEqual(report["claims"][0]["calculation_refs"], [result["calculation_id"]])
+            self.assertEqual(original["claims"][1]["research_claim_refs"], [])
+            self.assertFalse((run / "research/reports").exists())
 
     def test_both_model_views_pair_results_without_mutating_artifacts_or_old_profile(self):
         for enabled in (True, False):
@@ -516,10 +430,3 @@ class ResearchSelectionDiagnosticsTests(unittest.TestCase):
                                          enabled and capability == "MARKET_STATE")
                         self.assertEqual(packet, original)
                         self.assertEqual((run / packet["prepared_analysis"]["calculation_ref"]).read_bytes(), raw)
-                    env = self.helper.targeted_environment(run, task)
-                    handle_hook_event(self.helper.dispatch_payload(task, parent="metric-parent") | {"model": "gpt-6-luna"}, environ=env)
-                    _, context = handle_hook_event(self.helper.start_payload(task, parent="metric-parent", child="metric-child")
-                                                    | {"model": "gpt-6-luna"}, environ=env)
-                    actual = context["hookSpecificOutput"]["additionalContext"]
-                    self.assertEqual("收益、年化波动率和回撤" in actual,
-                                     enabled and capability == "MARKET_STATE")

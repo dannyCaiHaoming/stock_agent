@@ -1,0 +1,57 @@
+{
+  "source_id": "claude-companynative-native-dispatch-result:20261008",
+  "as_of": "2026-10-08T03:20:40.726Z",
+  "retrieved_at": "2026-10-08T03:29:33.901831+00:00",
+  "status": "STOPPED_NATIVE_CHILD_ZERO_TOOLS",
+  "native_observation": {
+    "session_id": "local_fc3e06b1-3702-4e13-9ddc-6ecfbffdd200",
+    "directory_and_root_load": "由该会话实际宿主目录变更消息确认companynative副本和D2.3根指引。",
+    "skill_source": "当前desktop-companynative-product-workspace/.claude/skills/company-native",
+    "call_id": "call_6f82a745a16a415491358bfe36519d0c",
+    "call_at": "2026-10-08T03:20:40.692Z",
+    "tool": "Skill",
+    "argument_keys": ["args", "skill"],
+    "skill": "company-native",
+    "company_agent_call_or_isolation_model_arguments": false,
+    "result_at": "2026-10-08T03:20:40.726Z",
+    "is_error": true,
+    "error": "Agent 'runtime_company_analyst' would be spawned with zero tools — refusing. Its tools list resolved to nothing: unrecognized [mcp__company__research_context, mcp__company__research_catalog, mcp__company__research_query, mcp__company__research_calculate, mcp__company__research_calculations, mcp__company__research_submit, mcp__company__research_read_submission, mcp__company__research_read_reports, mcp__company__research_read_documents, mcp__company__research_search, mcp__company__research_fetch]. Fix the agent's tools frontmatter or pass a different subagent_type.",
+    "failure_boundary": "宿主原生Skill绑定的专业角色工具解析；作者创建前，未进入业务MCP。",
+    "raw_evidence": "指定产品会话官方本地导出，只读提取技术字段；原始zip含私人任务授权，不提交或交付。"
+  },
+  "task_records": {
+    "task_ref": "t.fc80a741e9208c4130055072",
+    "tools_json": 0,
+    "calculations_json": 0,
+    "submissions_json": 0,
+    "reports_or_receipts": 0,
+    "candidate_files_unchanged_since_031948_baseline": 304,
+    "baseline_scope": "目录切换后、正式研究前；不是目录切换前或OS只读证明。"
+  },
+  "name_diagnosis": {
+    "captured_parent_inventory_as_of": "2026-10-07T15:39:45.124Z",
+    "captured_company_names": 12,
+    "role_names_exactly_match_captured_names_except_prepare_task": true,
+    "fixture": "tests/fixtures/native-hosts/claude-code-2.1.289-company-tools.json",
+    "fixture_sha256": "b130b3ee16371b82eb3581dfd6cdad3dbe55d1da7b68cdf54cc1d902b79dbc2b",
+    "limit": "历史父目录说明名称有效，不证明本轮子Agent工具池或继承。尚无宿主内部代码/Provider wire证据，不武断归责。",
+    "host_directory_access_attempt": "request_directory返回could not be resolved；未取得访问，不读取或修改宿主程序。"
+  },
+  "repair_candidate": {
+    "design": "D2.4",
+    "task": "3.11",
+    "change": "仅Company项目角色添加mcpServers字符串company，显式复用已有父连接。",
+    "unchanged": ["11项精确tools", "五Skill", "model: inherit", "共享正文", "company-native入口", "其他角色和宿主"],
+    "new_server_inline_transport_generic_tools_wildcard_hook_executor": false,
+    "official_reference": "https://code.claude.com/docs/en/sub-agents",
+    "deterministic_check": "claude-company-mcp-reference-check.json：27项通过，9.940秒；645项源码/焦点测试字节不变。strict通过。",
+    "actual_execution": "NOT_RUN_AT_THIS_OBSERVATION"
+  },
+  "counting": "原窗口主线程1＋失败派发1，保守2/3；不是Provider usage。已停止，不复用余量。",
+  "business_verdict": "NOT_RUN",
+  "host_verdict": "SKILL_DISCOVERY_AND_CORRECT_CALL_OBSERVED_CHILD_DISPATCH_FAILED",
+  "content_verdict": "NO_REPORT",
+  "source_network_account_calls": 0,
+  "change_progress_after_configuration_check": "22/29，原七项6.x/7.x/8.1保持未完成。",
+  "archive_commit_push": "NOT_RUN"
+}

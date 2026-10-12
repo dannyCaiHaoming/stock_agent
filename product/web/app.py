@@ -10,6 +10,7 @@ from typing import Any, Mapping
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from product.web.read_only import ArtifactCatalog, BrowserDataError, ReadOnlyResearchMemory
+from product.web.trades import ReadOnlyTradeLedger
 from product.web import rendering
 
 
@@ -44,10 +45,16 @@ def _host_name(value: str) -> str:
 
 
 class ResearchBrowser:
-    def __init__(self, memory: ReadOnlyResearchMemory | None, artifacts: ArtifactCatalog, *, memory_error: str | None = None):
+    def __init__(
+        self, memory: ReadOnlyResearchMemory | None, artifacts: ArtifactCatalog, *,
+        memory_error: str | None = None, trades: ReadOnlyTradeLedger | None = None,
+        trades_error: str | None = None,
+    ):
         self.memory = memory
         self.artifacts = artifacts
         self.memory_error = memory_error
+        self.trades = trades
+        self.trades_error = trades_error
 
     @staticmethod
     def _html(value: str, status: int = 200, headers: Mapping[str, str] | None = None) -> WebResponse:
@@ -92,6 +99,7 @@ class ResearchBrowser:
                     "status": "READY" if self.memory is not None else "PARTIAL",
                     "memory": self.memory.diagnostic() if self.memory else {"status": "UNAVAILABLE", "code": self.memory_error},
                     "artifacts": self.artifacts.diagnostic(),
+                    "trades": self.trades.diagnostic() if self.trades else {"status": "UNCONFIGURED" if not self.trades_error else "UNAVAILABLE", "code": self.trades_error},
                 })
             if path == "/":
                 return self._html(rendering.overview(
@@ -104,6 +112,14 @@ class ResearchBrowser:
                 return self._html(rendering.macro_page(self.artifacts.macro(_first(query, "version") or None)))
             if path == "/market":
                 return self._html(rendering.market_page(self.artifacts.market(_first(query, "version") or None)))
+            if path == "/reports":
+                return self._html(rendering.native_reports_page(self.artifacts.native_reports()))
+            if path == "/trades":
+                if self.trades is None:
+                    if self.trades_error:
+                        raise BrowserDataError(self.trades_error)
+                    return self._html(rendering.trades_page({"status": "UNCONFIGURED"}))
+                return self._html(rendering.trades_page(self.trades.page(query={key: _first(query, key) for key in query})))
             if path == "/companies":
                 if self.memory is None:
                     raise BrowserDataError(self.memory_error or "BROWSER_MEMORY_UNAVAILABLE")

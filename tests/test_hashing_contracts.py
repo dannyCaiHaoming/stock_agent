@@ -82,11 +82,11 @@ class HashContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "MULTIDIMENSIONAL_REFERENCE_MAP_INVALID"):
             validate_reference_map(original)
 
-    def test_actual_hook_record_uses_shared_envelope_not_whole_record_digest(self) -> None:
+    def test_retained_eval_dispatch_record_uses_shared_envelope_not_whole_digest(self) -> None:
         from product.runtime.codex_hook_recorder import _dispatch_record
         payload = {"session_id": "parent", "turn_id": "turn", "tool_name": "spawn_agent",
                    "tool_use_id": "spawn-one", "cwd": "/tmp/frozen-hash-seam",
-                   "tool_input": {"agent_type": "runtime_company_analyst"}}
+                   "tool_input": {"agent_type": "dev_eval"}}
         record = _dispatch_record(payload, decision="ALLOW")
         verify_legacy_envelope_hash(record, hash_field="event_hash", location="dispatch.jsonl")
         self.assertEqual(record["event_hash"], canonical_hash({k: v for k, v in record.items() if k != "event_hash"}))
@@ -97,7 +97,7 @@ class HashContractTests(unittest.TestCase):
     def test_standalone_hook_loads_shared_hash_contract(self) -> None:
         root = Path(__file__).resolve().parents[1]
         result = subprocess.run(
-            [sys.executable, str(root / "product/runtime/codex_hook_recorder.py")],
+            [sys.executable, "-B", str(root / "product/runtime/codex_hook_recorder.py")],
             input="[]", text=True, capture_output=True, cwd=root / "product",
             check=False,
         )

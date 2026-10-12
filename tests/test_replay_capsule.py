@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from product.runtime.execution_replay import ExecutionReplayError, finalize_execution_replay, prepare_execution_replay
@@ -13,6 +14,7 @@ from product.runtime.hashing import canonical_hash
 from product.runtime.replay import replay_run
 from product.runtime.replay_capsule import (
     MAX_OBJECT_BYTES,
+    FIXTURE_MCP_PATH,
     ReplayCapsuleError,
     materialize_replay_capsule,
     validate_materialized_snapshot,
@@ -56,6 +58,74 @@ def reseal(manifest_path: Path, manifest: dict) -> None:
 
 
 class ReplayCapsuleTests(unittest.TestCase):
+    def test_new_capsule_never_reads_local_claude_discovery(self):
+        """仅确定性装配夹具；不运行Artifact/Execution Replay或模型。"""
+        read_bytes, read_text = Path.read_bytes, Path.read_text
+
+        def checked(method):
+            def read(path, *args, **kwargs):
+                resolved = path.resolve()
+                if (resolved in {ROOT / 'product/.mcp.json', ROOT / 'product/CLAUDE.md'}
+                        or resolved.is_relative_to(ROOT / 'product/.claude')):
+                    raise AssertionError('Local discovery must not enter a capsule')
+                return method(path, *args, **kwargs)
+            return read
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            Path, 'read_bytes', checked(read_bytes)
+        ), patch.object(Path, 'read_text', checked(read_text)):
+            run = Path(directory) / 'source'
+            complete_run(run, 'capsule-local-exclusion')
+            capsule = validate_replay_capsule(run / 'replay_capsule')
+            paths = {item['logical_path'] for item in capsule['objects']}
+            self.assertIn(FIXTURE_MCP_PATH, paths)
+            self.assertNotIn('product/.mcp.json', paths)
+            self.assertNotIn('product/CLAUDE.md', paths)
+            self.assertFalse(any(path.startswith('product/.claude/') for path in paths))
+
+    def test_legacy_capsule_mcp_path_remains_read_only_and_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory) / 'source'
+            complete_run(run, 'capsule-legacy-mcp')
+            legacy = Path(directory) / 'legacy'
+            shutil.copytree(run / 'replay_capsule', legacy)
+            manifest = read_json(legacy / 'manifest.json')
+            record = next(item for item in manifest['objects'] if item['logical_path'] == FIXTURE_MCP_PATH)
+            record['logical_path'] = 'product/.mcp.json'
+            reseal(legacy / 'manifest.json', manifest)
+            before = {p: p.read_bytes() for p in legacy.rglob('*') if p.is_file()}
+            validate_replay_capsule(legacy)
+            self.assertEqual(before, {p: p.read_bytes() for p in before})
+            # 两种配置均缺失仍拒绝，旧格式兼容不取消必需对象。
+            manifest['objects'].remove(record)
+            reseal(legacy / 'manifest.json', manifest)
+            with self.assertRaisesRegex(ReplayCapsuleError, 'CAPSULE_REQUIRED_OBJECT_MISSING'):
+                validate_replay_capsule(legacy)
+
+    def test_configuration_hashes_keep_old_lock_and_ignore_local_file_with_template(self):
+        from product.runtime.execution_replay import _configuration_hashes
+        files = {name: 'a' * 64 for name in (
+            'product/.codex/agents/runtime_company_analyst.toml',
+            'product/skills/portfolio-council/SKILL.md', 'product/schemas/test.json',
+            'product/deterministic/policy.py', 'product/runtime/fixture_mcp.py',
+            'product/.mcp.json',
+        )}
+        version = {'mcp_adapters': {'fixture': '1.0.0'}, 'risk_policy': '1.0.0'}
+        manifest = {'integrity_before': {'files': files}, 'discovery': {'version_manifest': version}}
+        original = json.loads(json.dumps(manifest))
+        old = _configuration_hashes(manifest, fixture={}, gate={})
+        self.assertEqual(old['mcp_adapters'], canonical_hash({
+            'versions': version['mcp_adapters'], 'files': {
+                name: files[name] for name in ('product/.mcp.json', 'product/runtime/fixture_mcp.py')
+            },
+        }))
+        self.assertEqual(manifest, original)
+        files[FIXTURE_MCP_PATH] = 'b' * 64
+        new = _configuration_hashes(manifest, fixture={}, gate={})
+        files['product/.mcp.json'] = 'local-drift-must-not-affect-new-lock'
+        self.assertEqual(new, _configuration_hashes(manifest, fixture={}, gate={}))
+        self.assertNotEqual(old['mcp_adapters'], new['mcp_adapters'])
+
     def test_capsule_closes_every_object_and_materializes_allowlisted_paths(self):
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory) / "source"

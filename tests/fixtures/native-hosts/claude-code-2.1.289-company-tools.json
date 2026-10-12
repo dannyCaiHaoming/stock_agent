@@ -1,0 +1,21 @@
+{
+  "source_id": "claude-desktop-prompt-snapshot:069f753a-468a-487d-b8c8-eb53e9cef129",
+  "as_of": "2026-10-07T15:39:45.124Z",
+  "retrieved_at": "2026-10-08T03:29:33.901831+00:00",
+  "company_tools": [
+    "mcp__company__research_calculate",
+    "mcp__company__research_calculations",
+    "mcp__company__research_catalog",
+    "mcp__company__research_context",
+    "mcp__company__research_fetch",
+    "mcp__company__research_prepare_task",
+    "mcp__company__research_query",
+    "mcp__company__research_read_documents",
+    "mcp__company__research_read_reports",
+    "mcp__company__research_read_submission",
+    "mcp__company__research_search",
+    "mcp__company__research_submit"
+  ],
+  "names_canonical_sha256": "392d8a5595ce686a830beedcaa9796434f1594dd465ea206b6ed8ce5bbd2414a",
+  "scope": "真实历史父工具目录，不证明2026-10-08子Agent工具池或mcpServers字段已生效。无Schema描述、任务参数、凭据或会话正文。"
+}

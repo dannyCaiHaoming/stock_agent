@@ -8,7 +8,7 @@ from typing import Any, Mapping, Sequence
 
 from product.runtime.hashing import canonical_hash
 from product.runtime.validation import collect_evidence_refs
-from product.runtime.multidimensional_references import CLAIM_REFERENCE_PREFIX, parse_scoped_claim_reference
+from product.tools.references import CLAIM_REFERENCE_PREFIX, parse_scoped_claim_reference
 
 
 def project_research_status(

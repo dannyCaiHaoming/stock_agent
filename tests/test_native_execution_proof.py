@@ -16,7 +16,6 @@ from product.runtime.execution_proof import (
     _verify_isolated_resource_load,
     verify_specialist_execution_proof,
 )
-from product.runtime.codex_hook_recorder import minimize_hook_event
 from product.runtime.hashing import canonical_hash, file_hash
 from tests.test_agents_instruction_proof import bind_instruction_fixture
 from product.runtime.invocation import (
@@ -540,7 +539,8 @@ class NativeExecutionProofTests(unittest.TestCase):
             self.assertEqual(saved["proof_hash"], result["proof_hash"])
             self.assertNotIn(self.prompts[AGENTS[0]], output.read_text(encoding="utf-8"))
 
-    def test_ephemeral_hook_proof_uses_public_events_and_distinct_children(self):
+    def test_historical_hook_proof_reader_checks_public_events_and_distinct_children(self):
+        """明示历史向量只验证旧proof消费者，不证明本次宿主或作者执行。"""
         with tempfile.TemporaryDirectory() as directory:
             run_dir = (Path(directory) / "run").resolve()
             (run_dir / "invocations").mkdir(parents=True)
@@ -613,39 +613,29 @@ class NativeExecutionProofTests(unittest.TestCase):
             )
             bind_instruction_fixture(ROOT, run_dir)
             hook_records = []
-            for index, agent in enumerate(AGENTS, 1):
-                hook_records.append(
-                    minimize_hook_event(
-                        {
-                            "hook_event_name": "SubagentStart",
-                            "session_id": "parent-session",
-                            "turn_id": "turn-1",
-                            "agent_id": f"child-{index}",
-                            "agent_type": agent,
-                            "model": "gpt-6-luna",
-                            "cwd": str(ROOT / "product"),
-                            "permission_mode": "dontAsk",
-                        }
-                    )
-                )
-            for index, agent in enumerate(AGENTS, 1):
-                hook_records.append(
-                    minimize_hook_event(
-                        {
-                            "hook_event_name": "SubagentStop",
-                            "session_id": "parent-session",
-                            "turn_id": "turn-1",
-                            "agent_id": f"child-{index}",
-                            "agent_type": agent,
-                            "model": "gpt-6-luna",
-                            "cwd": str(ROOT / "product"),
-                            "permission_mode": "dontAsk",
-                            "agent_transcript_path": None,
-                            "stop_hook_active": False,
-                            "last_assistant_message": json.dumps(reports[agent]),
-                        }
-                    )
-                )
+            for event_name in ("SubagentStart", "SubagentStop"):
+                for index, agent in enumerate(AGENTS, 1):
+                    event = {
+                        "schema_version": "codex-subagent-hook-event/1.0.0",
+                        "hook_event_name": event_name,
+                        "parent_session_id": "parent-session",
+                        "turn_id": "turn-1",
+                        "child_session_id": f"child-{index}",
+                        "agent_type": agent,
+                        "model": "gpt-6-luna",
+                        "cwd": str(ROOT / "product"),
+                        "permission_mode": "dontAsk",
+                        "observed_at": "2026-09-11T12:00:00Z",
+                        "raw_prompt_or_reasoning_retained": False,
+                    }
+                    if event_name == "SubagentStop":
+                        event.update(
+                            final_structured_output_hash=canonical_hash(reports[agent]),
+                            output_binding={key: reports[agent][key]
+                                            for key in ("run_id", "invocation_id", "agent")},
+                        )
+                    event["event_hash"] = canonical_hash(event)
+                    hook_records.append(event)
             hook_events = run_dir / "invocation" / "subagent-events.jsonl"
             write_jsonl(hook_events, hook_records)
 

@@ -18,11 +18,9 @@ from product.runtime.research_materials_stage import (
     ResearchMaterialsStageError,
     STAGE_VERSION,
     _output_schema,
-    _parent_output_schema,
     _verify_merged_peer_gate_time,
     build_research_materials_dispatch_packet,
     build_research_materials_dispatch_message,
-    build_research_materials_stage_prompt,
     finalize_research_materials_stage,
     launch_research_materials_stage,
     materialize_selected_peers,
@@ -122,7 +120,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
         ):
             run = self.prepare(Path(temp), count=1)
-            self.execute_with_hooks(run)
+            self.write_historical_fixture(run)
             self.mark_material_process_success(run)
             require_complete_research_materials_stage(run)
             manifest_path = run / "research/material-preparation-manifest.json"
@@ -140,7 +138,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
         ):
             run = self.prepare(Path(temp), count=1)
-            self.execute_with_hooks(run)
+            self.write_historical_fixture(run)
             self.mark_material_process_success(run)
             manifest_path = run / "research/material-preparation-manifest.json"
             manifest = json.loads(manifest_path.read_text())
@@ -181,21 +179,18 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             frozen = json.loads((run / "evidence/gate.json").read_text())
             self.assertEqual(frozen["allowed_evidence"], gate["allowed_evidence"])
 
-    def test_material_context_utf8_limit_rejects_before_model_start(self):
+    def test_historical_material_context_utf8_limit_and_retired_model_start(self):
         with tempfile.TemporaryDirectory() as temp:
             run = self.prepare(Path(temp), count=1)
-            original = build_research_materials_dispatch_packet
-
-            def oversized(*args, **kwargs):
-                return {**original(*args, **kwargs), "instruction": "研" * 100000}
-
-            with patch("product.runtime.research_materials_stage.build_research_materials_dispatch_packet",
-                       side_effect=oversized), patch(
-                           "product.runtime.research_materials_stage.subprocess.run") as process:
-                with self.assertRaisesRegex(ResearchMaterialsStageError, "START_CONTEXT_TOO_LARGE"):
+            task_name = json.loads((run/'research/dispatch-index.json').read_text())['tasks'][0]['task_name']
+            packet = build_research_materials_dispatch_packet(ROOT, run, task_name)
+            with self.assertRaisesRegex(ResearchMaterialsStageError, 'START_CONTEXT_TOO_LARGE'):
+                serialize_research_materials_dispatch_context({**packet, 'instruction': '研'*100000})
+            with patch('subprocess.run') as process:
+                with self.assertRaisesRegex(ResearchMaterialsStageError, 'NATIVE_HOST_EXECUTION_REQUIRED'):
                     launch_research_materials_stage(ROOT, run_dir=run)
                 process.assert_not_called()
-                self.assertFalse((run / "invocation").exists())
+            self.assertFalse((run/'invocation').exists())
 
     def test_company_material_catalog_bounds_history_without_changing_gate(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -228,127 +223,19 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             frozen = json.loads((run / "evidence/gate.json").read_text())
             self.assertEqual(frozen["allowed_evidence"], gate["allowed_evidence"])
 
-    def test_material_prompt_uses_bare_task_names_and_long_wait(self):
+    def test_retired_material_hook_cannot_dispatch_or_write_state(self):
         with tempfile.TemporaryDirectory() as temp:
             run = self.prepare(Path(temp), count=1, target_concurrency=2)
-            prompt = build_research_materials_stage_prompt(ROOT, run)
-            self.assertIn("task_name 是映射中的裸名", prompt)
-            self.assertIn("wait_agent(timeout_ms=600000)", prompt)
-            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
-            invocation = run / "invocation"
-            invocation.mkdir()
-            environment = {
-                "STOCK_AGENT_RUN_DIR": str(run),
-                "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
-                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
-                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
-                "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": STAGE_VERSION,
-            }
-            denied, _ = handle_hook_event({
-                "hook_event_name": "PreToolUse", "session_id": "materials-parent",
-                "turn_id": "turn-1", "tool_name": "spawn_agent",
-                "tool_use_id": "tool-1", "cwd": str(ROOT / "product"),
-                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-                "tool_input": {
-                    "agent_type": task["agent"],
-                    "task_name": f"/root/{task['task_name']}",
-                    "fork_turns": "none",
-                    "message": build_research_materials_dispatch_message(
-                        ROOT, run, task["task_name"]
-                    ),
-                },
-            }, environ=environment)
-            self.assertEqual(denied["decision"], "DENY_DISPATCH_CONTRACT")
-            self.assertEqual(denied["dispatch_binding"]["failure_code"], "DISPATCH_SOURCE_INVALID")
-
-    def test_host_command_loads_frozen_material_specialists_without_desktop_config(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run = self.prepare(Path(temp), count=1)
-            with patch(
-                "product.runtime.research_materials_stage.subprocess.run",
-                return_value=subprocess.CompletedProcess([], 1, "", "test stop"),
-            ) as launched:
-                result, code = launch_research_materials_stage(ROOT, run_dir=run)
-            command = launched.call_args.args[0]
-            self.assertEqual(command[command.index("exec") + 1], "--ignore-user-config")
-            self.assertIn("--strict-config", command)
-            for agent_name in ("runtime_company_analyst", "runtime_market_catalyst"):
-                self.assertTrue(any(
-                    value.startswith(f"agents.{agent_name}=")
-                    and str(ROOT / "product/.codex/agents" / f"{agent_name}.toml") in value
-                    for value in command
-                ))
-            self.assertIn("agents.max_threads=3", command)
-            self.assertEqual(result["failure_code"], "RESEARCH_MATERIALS_CODEX_FAILED")
-            self.assertEqual(code, 7)
-
-    def test_two_material_dispatches_can_finish_before_later_tasks_start(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run = self.prepare(Path(temp), count=1, target_concurrency=2)
-            invocation = run / "invocation"
-            invocation.mkdir()
-            environment = {
-                "STOCK_AGENT_RUN_DIR": str(run),
-                "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
-                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
-                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
-                "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": STAGE_VERSION,
-            }
-            tasks = json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
-            for ordinal, task in enumerate(tasks[:2], 1):
-                parent = "materials-parent"
-                turn = f"turn-{ordinal}"
-                dispatch, _ = handle_hook_event({
-                    "hook_event_name": "PreToolUse", "session_id": parent,
-                    "turn_id": turn, "tool_name": "spawn_agent",
-                    "tool_use_id": f"tool-{ordinal}", "cwd": str(ROOT / "product"),
-                    "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-                    "tool_input": {
-                        "agent_type": task["agent"], "task_name": task["task_name"],
-                        "fork_turns": "none",
-                        "message": build_research_materials_dispatch_message(
-                            ROOT, run, task["task_name"]
-                        ),
-                    },
-                }, environ=environment)
-                self.assertEqual(dispatch["decision"], "ALLOW")
-                start = {
-                    "hook_event_name": "SubagentStart", "session_id": parent,
-                    "turn_id": turn, "agent_id": f"child-{ordinal}",
-                    "agent_type": task["agent"], "model": "gpt-5.6-terra",
-                    "cwd": str(ROOT / "product"), "permission_mode": "read-only",
-                }
-                handle_hook_event(start, environ=environment)
-            first = tasks[0]
-            stop_payload = {
-                "hook_event_name": "SubagentStop", "session_id": "materials-parent",
-                "turn_id": "turn-1", "agent_id": "child-1",
-                "agent_type": first["agent"], "model": "gpt-5.6-terra",
-                "cwd": str(ROOT / "product"), "permission_mode": "read-only",
-                "last_assistant_message": "{}", "stop_hook_active": False,
-            }
-            repairing, _ = handle_hook_event(stop_payload, environ=environment)
-            self.assertEqual(repairing["hook_event_name"], "SubagentStopBlocked")
-            self.assertEqual(repairing["output_capture"]["repair_state"], "REPAIR_REQUESTED")
-            stopped, _ = handle_hook_event(stop_payload, environ=environment)
-            self.assertEqual(stopped["hook_event_name"], "SubagentStop")
-            self.assertNotEqual(stopped.get("hook_decision"), "BLOCK")
-            self.assertEqual(stopped["output_capture"]["repair_state"], "EXHAUSTED")
-            third = tasks[2]
-            resumed, _ = handle_hook_event({
-                "hook_event_name": "PreToolUse", "session_id": "materials-parent",
-                "turn_id": "turn-3", "tool_name": "spawn_agent",
-                "tool_use_id": "tool-3", "cwd": str(ROOT / "product"),
-                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-                "tool_input": {
-                    "agent_type": third["agent"], "task_name": third["task_name"],
-                    "fork_turns": "none",
-                    "message": build_research_materials_dispatch_message(
-                        ROOT, run, third["task_name"]
-                    ),
-                },
-            }, environ=environment)
-            self.assertEqual(resumed["decision"], "ALLOW")
+            before = {path: path.read_bytes() for path in run.rglob("*") if path.is_file()}
+            for event in ("PreToolUse", "SubagentStart", "SubagentStop", "Stop"):
+                with self.subTest(event=event), self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                    handle_hook_event({"hook_event_name": event, "last_assistant_message": "{}"}, environ={
+                        "STOCK_AGENT_RUN_DIR": str(run),
+                        "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": STAGE_VERSION,
+                    })
+            self.assertFalse((run / "invocation").exists())
+            self.assertFalse((run / "research/material-results").exists())
+            self.assertEqual({path: path.read_bytes() for path in run.rglob("*") if path.is_file()}, before)
 
     def test_launcher_bound_fixture_mcp_exposes_research_tools_without_run_dir(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -372,12 +259,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             self.assertIn("run_id", schema["required"])
             self.assertIn("invocation_id", schema["required"])
 
-    def test_parent_and_child_structured_output_properties_have_types(self) -> None:
-        assert_explicit_property_types(self, _parent_output_schema("run", 6))
-        self.assertEqual(
-            ["stage", "run_id", "dispatched", "completed"],
-            _parent_output_schema("run", 6)["required"],
-        )
+    def test_material_structured_output_properties_have_types(self) -> None:
         assert_explicit_property_types(self, _output_schema(
             run_id="run", invocation_id="inv", agent="runtime_company_analyst",
             kind="RESEARCH_REPORT_DISCOVERY",
@@ -432,22 +314,15 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             run_id="materials-run", model="gpt-5.6-terra",
             target_concurrency=target_concurrency,
         )
-        return run
+        return run.resolve()
 
-    def execute_with_hooks(self, run: Path, *, transform=None) -> dict:
-        invocation = run / "invocation"
-        invocation.mkdir(exist_ok=True)
-        manifest = json.loads((run / "run_manifest.json").read_text())
-        actual_model = manifest["model"]
-        environment = {
-            "STOCK_AGENT_RUN_DIR": str(run),
-            "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
-            "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
-            "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
-            "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": manifest["schema_version"],
-        }
+    def write_historical_fixture(self, run: Path, *, transform=None) -> dict:
+        """真实本地工具产物加显式历史归集向量；不是当前宿主执行证明。"""
+        from tests.test_material_semantic_handoff import MaterialSemanticHandoffTests
+        helper = MaterialSemanticHandoffTests()
         index = json.loads((run / "research/dispatch-index.json").read_text())
         tools = StatelessFixtureTools(default_run_dir=run)
+
         def call(name, arguments):
             request = {"id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
             stdout = io.StringIO()
@@ -456,44 +331,18 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             response = json.loads(stdout.getvalue())
             self.assertNotIn("error", response)
             return response["result"]["structuredContent"]
-        started = []
-        for ordinal, task in enumerate(index["tasks"], 1):
-            parent, child, turn = "materials-parent", f"child-{ordinal}", f"turn-{ordinal}"
-            pre = {
-                "hook_event_name": "PreToolUse", "session_id": parent, "turn_id": turn,
-                "tool_name": "spawn_agent", "tool_use_id": f"tool-{ordinal}",
-                "cwd": str(ROOT / "product"), "model": actual_model,
-                "permission_mode": "workspace-write",
-                "tool_input": {
-                    "agent_type": task["agent"], "task_name": task["task_name"],
-                    "fork_turns": "none",
-                    "message": build_research_materials_dispatch_message(ROOT, run, task["task_name"]),
-                },
-            }
-            dispatch_record, _ = handle_hook_event(pre, environ=environment)
-            self.assertEqual(dispatch_record["decision"], "ALLOW")
-            start = {
-                "hook_event_name": "SubagentStart", "session_id": parent, "turn_id": turn,
-                "agent_id": child, "agent_type": task["agent"], "model": actual_model,
-                "cwd": str(ROOT / "product"), "permission_mode": "read-only",
-            }
-            start_record, start_response = handle_hook_event(start, environ=environment)
-            packet = json.loads(start_response["hookSpecificOutput"]["additionalContext"])
-            self.assertEqual(start_record["context_binding"]["task_name"], task["task_name"])
-            started.append((task, packet, start))
-        for task, packet, start in started:
-            identity = {
-                "run_id": task["run_id"], "invocation_id": task["invocation_id"],
-                "agent": task["agent"], "security_id": task["security_id"],
-            }
+
+        events = []
+        for task in index["tasks"]:
+            packet = build_research_materials_dispatch_packet(ROOT, run, task["task_name"])
+            identity = {key: task[key] for key in ("run_id", "invocation_id", "agent", "security_id")}
             if task["preparation_kind"] in DISCOVERY_KINDS:
                 subject = task["security"]["display_symbol"] or task["security"]["display_name"]
                 query = f"{subject} public research"
-                search = call("research_search", {**identity, "decision_cutoff": task["decision_cutoff"], "query": query})
-                fetched = call("research_fetch", {**identity, "candidate_id": "research-lead-1"})
+                call("research_search", {**identity, "decision_cutoff": task["decision_cutoff"], "query": query})
+                call("research_fetch", {**identity, "candidate_id": "research-lead-1"})
                 output = {
-                    "status": "READY",
-                    "summary": "已取得一份正文。",
+                    "status": "READY", "summary": "已取得一份正文。",
                     "query_intents": [{"query": query, "purpose": "核对公司问题"}],
                     "selections": [{"candidate_id": "research-lead-1", "document_id": "research-document-1", "rationale": "正文相关。"}],
                     "gaps": [],
@@ -508,26 +357,21 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 }
             if transform is not None:
                 output = transform(task, output)
-            stop = {
-                **start, "hook_event_name": "SubagentStop",
-                "last_assistant_message": json.dumps(output, ensure_ascii=False),
-                "stop_hook_active": False,
-            }
-            stop_record, stop_response = handle_hook_event(stop, environ=environment)
-            if stop_record["hook_event_name"] == "SubagentStopBlocked":
-                # 负例仍由同一合成作者提交一次非法局部修订，额度耗尽后才收尾。
-                repair = json.loads(stop_response["reason"])
-                self.assertEqual(repair["allowed_paths"], ["/selections/0"])
-                stop_record, _ = handle_hook_event({
-                    **stop,
-                    "last_assistant_message": json.dumps({
-                        "base_draft_ref": repair["base_draft_ref"],
-                        "changes": [{"op": "replace", "path": "/selections/0", "value": output["selections"][0]}],
-                    }),
-                }, environ=environment)
-                self.assertEqual(stop_record["output_capture"]["repair_state"], "EXHAUSTED")
-            if transform is None:
-                self.assertEqual(stop_record["output_capture"]["status"], "SAVED", stop_record)
+            try:
+                _, binding = helper.save_material_fixture(run, task, output)
+            except ResearchMaterialsStageError as exc:
+                if transform is None:
+                    raise
+                capture = {"status": "FAILED", "failure_code": str(exc), "rejected_output_hash": canonical_hash(output)}
+            else:
+                capture = {"status": "SAVED", "task_id": task["task_id"], **binding}
+            events.append({"hook_event_name": "SubagentStop", "output_binding": {"invocation_id": task["invocation_id"]},
+                           "output_capture": capture})
+        invocation = run / "invocation"
+        invocation.mkdir(exist_ok=True)
+        (invocation / "subagent-events.jsonl").write_text("\n".join(json.dumps(event) for event in events) + "\n")
+        (invocation / "subagent-dispatches.jsonl").write_text("\n".join(
+            json.dumps({"task_name": task["task_name"], "decision": "ALLOW"}) for task in index["tasks"]) + "\n")
         return finalize_research_materials_stage(ROOT, run)
 
     def test_preparation_permissions_are_separate_by_task_kind(self):
@@ -720,12 +564,12 @@ class ResearchMaterialsStageTests(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "SELECTED_DOCUMENT_REF_MISSING"):
                 validate_material_preparation_output(value, task=task, run_dir=run)
 
-    def test_hook_dispatch_capture_and_finalizer_form_complete_material_manifest(self):
+    def test_historical_finalizer_forms_complete_material_manifest(self):
         with tempfile.TemporaryDirectory() as temp, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", FakeOpenAlexClient
         ):
             run = self.prepare(Path(temp), count=1)
-            result = self.execute_with_hooks(run)
+            result = self.write_historical_fixture(run)
             self.assertEqual(result["status"], "PASSED")
             manifest = json.loads((run / "research/material-preparation-manifest.json").read_text())
             self.assertEqual(len(manifest["outputs"]), 4)
@@ -746,7 +590,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 if task["preparation_kind"] == "RESEARCH_REPORT_DISCOVERY":
                     draft["selections"][0]["document_id"] = "unknown-document"
                 return draft
-            result = self.execute_with_hooks(run, transform=reject_one)
+            result = self.write_historical_fixture(run, transform=reject_one)
             self.assertEqual(result["status"], "PASSED")
             self.assertTrue(result["coverage_complete"])
             self.assertEqual(len(result["failed"]), 1)
@@ -777,7 +621,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         ):
             root = Path(temp)
             run = self.prepare(root, count=1, single_stock=single_stock)
-            self.execute_with_hooks(run)
+            self.write_historical_fixture(run)
             if single_stock:
                 self.mark_material_process_success(run)
 
@@ -975,7 +819,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         ):
             root = Path(temp)
             run = self.prepare(root, count=1)
-            self.execute_with_hooks(run)
+            self.write_historical_fixture(run)
             access_path = root / "access.json"
             access_path.write_text(json.dumps([{
                 "operator_approval": {"record": {"scope": {"max_positions": 1}}}
@@ -1070,7 +914,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
                 key: value for key, value in gate.items() if key != "bundle_hash"
             })
             gate_path.write_text(json.dumps(gate), encoding="utf-8")
-            self.execute_with_hooks(run)
+            self.write_historical_fixture(run)
             access_path = root / "access.json"
             access_path.write_text(json.dumps([{
                 "operator_approval": {"record": {"scope": {"max_positions": 1}}}
@@ -1099,7 +943,7 @@ class ResearchMaterialsStageTests(unittest.TestCase):
         ):
             root = Path(temp)
             materials = self.prepare(root, count=1)
-            self.execute_with_hooks(materials)
+            self.write_historical_fixture(materials)
             formal = root / "formal"
             prepare_multidimensional_stage_run(
                 ROOT,

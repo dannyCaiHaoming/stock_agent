@@ -1,0 +1,58 @@
+{
+  "source_id": "native-query-pagination-focused-check:20261008",
+  "as_of": "2026-10-08T07:02:13.381810+00:00",
+  "retrieved_at": "2026-10-08T07:02:13.381810+00:00",
+  "scope": "OpenSpec 2.6 / D3.4：原生query完整事实字节分页；确定性业务检查，不是原生作者、宿主Smoke或内容裁定。",
+  "root_cause_evidence": "opencode-sec-amount-native-result.json",
+  "implementation": {
+    "product/tools/research.py": "query可选offset/limit；未指定分页且小请求能装下时原响应不变，否则按选中顺序返回预算内最长完整事实前缀及total/offset/next_offset。实际UTF-8 JSON页信封计入65536字节，不截断或跳过事实；全部选择先按原边界授权。input_hash绑定原参数，query收据只从实际返回的可信事实提取ID，result_hash绑定本页事实。context声明页和字节限制。",
+    "product/mcp/research.py": "research_query仅新增可选有界offset/limit，并说明同一ID列表显式翻页、末页null、整组先验、实际读取和单事实超限拒绝；精确任务凭据及其他工具权限不变。",
+    "tests/test_native_query_pagination.py": "13个测试方法及多个负例子场景；32项大事实、真实准备/路由stdio/分页/提交拒绝及全读后的合法保存精确回读，不模拟模型、宿主生命周期或投资判断。"
+  },
+  "command": [
+    ".venv/bin/python", "-B", "-m", "unittest",
+    "tests.test_native_query_pagination", "tests.test_native_sec_calculations",
+    "tests.test_native_research_tools", "tests.test_native_evidence_gate",
+    "tests.test_native_research_submission", "tests.test_native_research_connection",
+    "tests.test_native_research_reading", "tests.test_native_research_materials",
+    "tests.test_native_full_scope", "tests.test_native_fixture_council",
+    "tests.test_native_operator_preparation", "tests.test_native_package_export",
+    "tests.test_native_host_templates", "tests.test_calculation_handoff", "tests.test_valuation"
+  ],
+  "result": {
+    "exit": 0,
+    "tests": 174,
+    "seconds": 55.506,
+    "output": "Ran 174 tests in 55.506s\nOK",
+    "initial_focused_check": "新增13项先行通过（2.786秒），已包含在最终174项中；不累加测试数量。"
+  },
+  "verified_boundaries": [
+    "合成32项大事实默认返回最长完整前缀；后续由测试显式带原ID列表/next_offset调用，所有页无遗漏、重复或改序，原事实和值/来源/期间不改。",
+    "UTF-8字节与字符数分开：含emoji的完整页恰为65536字节可返回，多1字节拒绝；显式页信封额外字段计入预算。单事实超限不截断/跳过，不生成成功收据。",
+    "小请求未传分页参数时保持原四字段响应；显式offset或limit即返回分页元数据，末页next_offset为null。",
+    "每页先验全部请求ID：未知、排除及跨证券ID在未返回后页仍拒绝；错误/另一任务能力、PIT、Gate/输入/任务漂移及资源漂移均在成功记录前拒绝。",
+    "非法offset/limit（含bool、null、越界及非整数）、重复/过多/空ID及额外MCP参数不写成功记录。",
+    "input_hash保留模型实际提供参数，含原完整ID列表；output_hash绑定实际响应、result_hash绑定本页事实；查询收据的evidence_ids只含实际返回事实。",
+    "真实路由stdio拒绝错token；只读首个页后引用后页事实的草稿被拒为NATIVE_RESEARCH_EVIDENCE_NOT_QUERIED，失败query不覆盖原稿或占第二稿名额。",
+    "真实准备/stdio显式读完全部页后，原提交边界保存合法合成报告，精确回执读回原主张和引用；业务VALIDATED、宿主UNVERIFIED、内容NOT_REVIEWED分别保留。",
+    "旧EvidenceTools.query仍按原范围全量响应；原Gate、SEC计算、两稿/修订、连接路由、完整业务接缝、导出和三宿主模板受影响回归通过。"
+  ],
+  "source_hashes_before_and_after_tests": {
+    "product/tools/research.py": "730575037f759cb917245f032642fad31b09521258eb451a4c3d74794dc2738e",
+    "product/mcp/research.py": "d8bc3dcb89c8f36e63e3f401d1b8a46e3696a3a15e8c54cac27dd091e25a6d20",
+    "tests/test_native_query_pagination.py": "4843973960626bf5e22e848b569198d789a3aa55b6f6102a02cf15a471169c1f",
+    "product/tools/evidence.py": "2fbe1d1ed02de6e87b047343a5dff0f968af4dd4293ea65e7797648d75be2b73",
+    "tests/test_native_sec_calculations.py": "aeeedf05a3b7e9bc1ba82de46db1ed61d55e663f696152c9335a93afff0df792"
+  },
+  "source_bytes_unchanged_during_tests": true,
+  "protection_scope": "当前宿主授权确定性测试，PYTHONDONTWRITEBYTECODE=1/-B；新测试业务写入仅位于/private/tmp的私有临时目录。五项源码/测试hash前后观察不是OS强制只读证明，没有启动项目沙箱。",
+  "model_source_network_account_calls": 0,
+  "existing_installation_and_task_changed": false,
+  "installation_status": "NOT_INSTALLED：本次仅开发源码及合成导出检查；不就地修改既有三份冻结候选或重签旧任务。新源码与原候选的字节差异不回签成已安装。",
+  "native_reexecution": "NOT_RUN：所有原生窗口已停止；不使用余量、不重开或续期，不回签原作者首错继续、原计算未执行或0报告结果。",
+  "browser_preview": "NOT_APPLICABLE：stdio MCP及查询/提交契约不由浏览器预览执行。",
+  "runtime_eval_execution_replay_regression_calibration_ablation_promotion": "NOT_RUN：上列仅受影响确定性单元/接缝回归，不是专项Regression入口。",
+  "full_host_content_or_change_pass": false,
+  "remaining_tasks": ["6.1", "6.2", "6.3", "6.4", "7.1", "7.2", "8.1"],
+  "remaining_constraints": "完整Macro正文仍缺，Claude zero tools尚无成功证据；完整三宿主、独立Skeptic首轮、主线程CIO、三原报告内容及最终人工完成/归档发布条件不变。"
+}

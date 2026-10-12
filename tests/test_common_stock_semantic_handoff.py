@@ -1,4 +1,4 @@
-"""普通股语义草稿的实际交付、机械装配和正式产物接缝。"""
+"""普通股语义草稿的真实 MCP、业务装配与落盘；不模拟宿主执行。"""
 from __future__ import annotations
 
 import copy
@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from product.council.common_stock_research import envelope_equity_research_draft
+from product.council.research_output import persist_equity_research_report, render_equity_research_markdown
 from product.runtime import common_stock_stage as stage
 from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.fixture_mcp import serve_stdio
@@ -55,16 +57,10 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
         else:
             run, _ = helper.prepare_stage(directory, count=1)
         task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
-        env = helper.hook_environment(run)
-        parent, child, turn = "semantic-parent", "semantic-child", "semantic-turn"
-        record, _ = handle_hook_event(helper.dispatch_payload(run, task, parent=parent), environ=env)
-        self.assertEqual(record["decision"], "ALLOW")
-        start = helper.event("SubagentStart", parent=parent, child=child, turn=turn)
-        record, response = handle_hook_event(start, environ=env)
-        self.assertEqual(record["context_binding"]["task_name"], task["task_name"])
-        packet = json.loads(response["hookSpecificOutput"]["additionalContext"])
+        packet = self.frozen_packet(run, task)
+        view = json.loads(stage.serialize_common_stock_dispatch_context(packet))
         request = json.loads((run / task["request_path"]).read_text())
-        return run, task, request, packet, env, start
+        return run, task, request, view
 
     def call(self, run, request, tool, *, expect_failure=False, **extra):
         args = {key: request[key] for key in ("run_id", "invocation_id")}
@@ -86,60 +82,80 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
     def frozen_packet(self, run, task):
         return stage.build_common_stock_dispatch_packet(fixtures.ROOT, run, task["task_name"])
 
-    def stop(self, env, start, draft):
-        record, _ = handle_hook_event({**start, "hook_event_name": "SubagentStop",
-            "last_assistant_message": json.dumps(draft, ensure_ascii=False)}, environ=env)
-        return record
+    def read_report(self, run, task, draft):
+        # 只验证合成任务的业务绑定，不签发作者身份、Skill 执行或接受证明。
+        stage.validate_common_stock_stage_run_package(fixtures.ROOT, run)
+        packet = self.frozen_packet(run, task)
+        request = json.loads((run / task["request_path"]).read_text())
+        assembled = stage.assemble_common_stock_semantic_draft(
+            fixtures.ROOT, draft, request=request, packet=packet)
+        invocation = json.loads((run / task["invocation_path"]).read_text())
+        calculations = stage._calculation_ids_for_invocation(run, task["invocation_id"])
+        report = envelope_equity_research_draft(
+            assembled, request=request, skill_execution=invocation["skill_execution"],
+            report_id="synthetic-business-report", calculation_artifact_ids=calculations)
+        if task.get("equity_research_package_path"):
+            stage.validate_delivered_research_references(
+                report, run_dir=run, invocation_id=task["invocation_id"])
+        gate = json.loads((run / "evidence/gate.json").read_text())
+        evidence = [item for item in gate["allowed_evidence"] if item["evidence_id"] in request["allowed_evidence_ids"]]
+        render_equity_research_markdown(
+            report, request=request, evidence=evidence, calculation_artifact_ids=calculations)
+        return report, request, evidence, calculations
 
-    def test_actual_start_and_stop_keep_research_and_derive_exact_calculation_refs(self):
+    def save_report(self, run, task, draft):
+        report, request, evidence, calculations = self.read_report(run, task, draft)
+        output = persist_equity_research_report(
+            run / "research/reports", report=report, request=request,
+            evidence=evidence, calculation_artifact_ids=calculations)
+        return report, output
+
+    def assert_no_execution(self, run):
+        self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
+        self.assertFalse((run / "invocation/subagent-dispatches.jsonl").exists())
+
+    def test_business_assembly_preserves_research_and_exact_calculation_refs(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, request, packet, env, start = self.prepare(directory)
+            run, task, request, packet = self.prepare(directory)
             self.assertEqual(packet["output_schema"]["$id"], stage.SEMANTIC_OUTPUT_VERSION)
             for key in ("run_id", "invocation_id", "agent", "artifact_refs", "bindings", "skill_execution"):
                 self.assertNotIn(key, packet["output_schema"]["properties"])
             frozen = self.frozen_packet(run, task)
             evidence = self.call(run, request, "query", evidence_ids=packet["allowed_evidence_ids"])
             self.assertEqual({item["evidence_id"] for item in evidence["evidence"]}, set(packet["allowed_evidence_ids"]))
-            calculation = self.call(run, request, "calculate", evidence_ids=list(reversed(packet["allowed_evidence_ids"])),
-                                    operation="ratio")
+            calculation = self.call(run, request, "calculate", evidence_ids=list(reversed(packet["allowed_evidence_ids"])), operation="ratio")
             self.assertEqual(calculation["value"], "5")
             draft = self.draft(request, frozen)
             draft["claims"][0]["evidence_refs"] = list(reversed(packet["allowed_evidence_ids"]))
-            draft["calculation_selections"] = [{"calculation_ref": calculation["calculation_ref"],
-                                                 "claim_ids": [draft["claims"][0]["claim_id"]]}]
+            draft["calculation_selections"] = [{"calculation_ref": calculation["calculation_ref"], "claim_ids": [draft["claims"][0]["claim_id"]]}]
             before = copy.deepcopy(draft)
-            record = self.stop(env, start, draft)
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-            self.assertEqual(record["output_capture"]["reference_map_hash"], frozen["reference_map"]["map_hash"])
-            self.assertEqual(record["output_capture"]["semantic_output_hash"], canonical_hash(before))
+            report, output = self.save_report(run, task, draft)
             events = [json.loads(line) for line in (run / "events/mcp/events.jsonl").read_text().splitlines()]
-            actual_calculation = next(item for item in events if item.get("tool") == "fixture_math.calculate")
-            self.assertEqual(actual_calculation["evidence_ids"],
-                             [frozen["reference_map"]["evidence"][ref] for ref in reversed(packet["allowed_evidence_ids"])])
-            report = json.loads((run / record["output_capture"]["path"]).read_text())
+            actual = next(item for item in events if item.get("tool") == "fixture_math.calculate")
+            self.assertEqual(actual["evidence_ids"], [frozen["reference_map"]["evidence"][ref] for ref in reversed(packet["allowed_evidence_ids"])])
             assembled = stage.assemble_common_stock_semantic_draft(fixtures.ROOT, before, request=request, packet=frozen)
             for key, value in assembled.items():
                 self.assertEqual(report[key], value)
-            self.assertEqual(report["artifact_refs"], [actual_calculation["calculation_id"]])
+            self.assertEqual(report["artifact_refs"], [actual["calculation_id"]])
             self.assertEqual(report["run_id"], request["run_id"])
             self.assertEqual(report["bindings"]["holding_research_request_hash"], request["request_hash"])
-            result = stage.finalize_common_stock_stage_run(fixtures.ROOT, run)
-            self.assertEqual(result["status"], "PASSED")
-            self.assertTrue((run / record["output_capture"]["markdown_path"]).is_file())
+            self.assertEqual(json.loads(Path(output["json"]).read_text()), report)
+            self.assertTrue(Path(output["markdown"]).is_file())
             self.assertEqual(draft, before)
+            self.assert_no_execution(run)
 
     def test_technical_echo_and_conflicting_identity_fail_without_formal_report(self):
         for extra in ({"artifact_refs": []}, {"run_id": "foreign"}, {"invocation_id": "foreign"},
                       {"agent": "runtime_independent_skeptic"}, {"run_id": "native-stage-run"}):
             with self.subTest(extra=extra), tempfile.TemporaryDirectory() as directory:
-                run, task, request, _, env, start = self.prepare(directory)
-                record = self.stop(env, start, {**self.draft(request, self.frozen_packet(run, task)), **extra})
-                self.assertEqual(record["output_capture"]["status"], "FAILED", record)
+                run, task, request, _ = self.prepare(directory)
+                with self.assertRaisesRegex(ValueError, "SCHEMA_EXTRA_PROPERTY"):
+                    self.read_report(run, task, {**self.draft(request, self.frozen_packet(run, task)), **extra})
                 self.assertFalse((run / "research/reports").exists())
 
     def test_calculation_selection_schema_and_results_do_not_require_mechanical_fields(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, request, view, _, _ = self.prepare(directory)
+            run, task, request, view = self.prepare(directory)
             schema = view["output_schema"]
             self.assertIn("calculation_selections", schema["required"])
             self.assertNotIn("calculation_refs", schema["$defs"]["claim"]["properties"])
@@ -151,18 +167,19 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
             self.assertTrue(result["calculation_ref"].startswith("k."))
             for technical in ("calculation_id", "receipt_hash", "artifact_ref"):
                 self.assertNotIn(technical, result)
-            ledger = run / task["calculation_ledger_ref"]
-            receipt = json.loads(ledger.read_text())
+            receipt = json.loads((run / task["calculation_ledger_ref"]).read_text())
             self.assertEqual(result["value"], receipt["output"]["value"])
             self.assertEqual(request["invocation_id"], receipt["invocation_id"])
 
     def test_choice_cannot_replace_value_claim_identity_or_accept_failed_calculation(self):
-        for kind in ("unknown", "unknown-claim", "duplicate", "copied-value", "mixed", "cross-type"):
+        failures = {"unknown": "COMMON_STOCK_CALCULATION_SELECTION_UNKNOWN", "unknown-claim": "COMMON_STOCK_CALCULATION_SELECTION_CLAIM_UNKNOWN",
+                    "duplicate": "COMMON_STOCK_CALCULATION_SELECTION_DUPLICATE", "copied-value": "SCHEMA_EXTRA_PROPERTY",
+                    "mixed": "SCHEMA_EXTRA_PROPERTY", "cross-type": "SCHEMA_PATTERN_INVALID"}
+        for kind in failures:
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
-                run, task, request, view, env, start = self.prepare(directory)
+                run, task, request, view = self.prepare(directory)
                 result = self.call(run, request, "calculate", operation="ratio", evidence_ids=view["allowed_evidence_ids"])
-                packet = self.frozen_packet(run, task)
-                draft = self.draft(request, packet)
+                draft = self.draft(request, self.frozen_packet(run, task))
                 choice = {"calculation_ref": result["calculation_ref"], "claim_ids": [draft["claims"][0]["claim_id"]]}
                 draft["calculation_selections"] = [choice]
                 if kind == "unknown":
@@ -178,22 +195,21 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
                 else:
                     choice["calculation_ref"] = view["allowed_evidence_ids"][0]
                 before = copy.deepcopy(draft)
-                record = self.stop(env, start, draft)
-                self.assertEqual(record["output_capture"]["status"], "FAILED", record)
+                with self.assertRaisesRegex(ValueError, failures[kind]):
+                    self.read_report(run, task, draft)
                 self.assertFalse((run / "research/reports").exists())
                 self.assertEqual(draft, before)
         with tempfile.TemporaryDirectory() as directory:
-            run, task, request, view, _, _ = self.prepare(directory)
+            run, task, request, view = self.prepare(directory)
             self.call(run, request, "calculate", operation="ratio", evidence_ids=[view["allowed_evidence_ids"][0]], expect_failure=True)
             self.assertEqual((run / task["calculation_ledger_ref"]).read_bytes(), b"")
 
     def test_calculation_selection_revalidates_event_input_order_and_receipt_integrity(self):
         for kind in ("order", "value", "event-hash"):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
-                run, task, request, view, env, start = self.prepare(directory)
+                run, task, request, view = self.prepare(directory)
                 result = self.call(run, request, "calculate", operation="ratio", evidence_ids=view["allowed_evidence_ids"])
-                packet = self.frozen_packet(run, task)
-                draft = self.draft(request, packet)
+                draft = self.draft(request, self.frozen_packet(run, task))
                 draft["calculation_selections"] = [{"calculation_ref": result["calculation_ref"], "claim_ids": [draft["claims"][0]["claim_id"]]}]
                 if kind == "event-hash":
                     path = run / "events/mcp/events.jsonl"
@@ -209,73 +225,65 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
                         receipt["output"]["value"] = "999"
                     receipt["receipt_hash"] = canonical_hash({k: v for k, v in receipt.items() if k != "receipt_hash"})
                     path.write_text(json.dumps(receipt) + "\n")
-                record = self.stop(env, start, draft)
-                self.assertEqual(record["output_capture"]["status"], "FAILED", record)
-                self.assertIn("CALCULATION_EVENT_INVALID", record["output_capture"]["failure_code"])
+                with self.assertRaisesRegex(ValueError, "CALCULATION_EVENT_INVALID"):
+                    self.read_report(run, task, draft)
                 self.assertFalse((run / "research/reports").exists())
 
     def test_calculation_aliases_do_not_cross_tasks_or_runs(self):
         with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
-            run, task, request, view, _, _ = self.prepare(first)
-            other, other_task, other_request, other_view, other_env, other_start = self.prepare(second)
+            run, task, request, view = self.prepare(first)
+            other, other_task, other_request, other_view = self.prepare(second)
             result = self.call(run, request, "calculate", operation="ratio", evidence_ids=view["allowed_evidence_ids"])
             self.call(other, other_request, "calculate", operation="ratio", evidence_ids=other_view["allowed_evidence_ids"])
             draft = self.draft(other_request, self.frozen_packet(other, other_task))
             draft["calculation_selections"] = [{"calculation_ref": result["calculation_ref"], "claim_ids": [draft["claims"][0]["claim_id"]]}]
-            record = self.stop(other_env, other_start, draft)
-            self.assertIn("COMMON_STOCK_CALCULATION_SELECTION_UNKNOWN", record["output_capture"]["failure_code"])
+            with self.assertRaisesRegex(ValueError, "COMMON_STOCK_CALCULATION_SELECTION_UNKNOWN"):
+                self.read_report(other, other_task, draft)
             self.assertFalse((other / "research/reports").exists())
 
     def test_frozen_attachment_calculation_requires_actual_read_and_keeps_original_value(self):
         from product.runtime.calculation_handoff import build_common_stock_calculation_catalog
         for read in (False, True):
             with self.subTest(actual_attachment_read=read), tempfile.TemporaryDirectory() as directory:
-                run, task, request, view, env, start = self.prepare(directory, attachment=True)
+                run, task, request, view = self.prepare(directory, attachment=True)
                 packet = self.frozen_packet(run, task)
                 source = run / task["equity_research_package_path"]
                 original_bytes = source.read_bytes()
                 original = json.loads(original_bytes)
                 frozen_item = original["artifacts"][0]["artifact"]["groups"]["financial_ratios"]["items"][0]
-                catalog = build_common_stock_calculation_catalog(run, packet)
-                ref, entry = next(iter(catalog.items()))
+                ref, entry = next(iter(build_common_stock_calculation_catalog(run, packet).items()))
                 self.assertEqual(entry["kind"], "ATTACHMENT")
                 self.assertEqual(entry["calculation_id"], frozen_item["calculation_ref"])
                 self.call(run, request, "query", evidence_ids=view["allowed_evidence_ids"])
                 if read:
-                    delivered = self.call(run, request, "equity_research_attachments.query",
-                        security_id=request["security"]["security_id"],
-                        decision_cutoff=original["decision_cutoff"], kinds=["fundamental_supplement"])
+                    delivered = self.call(run, request, "equity_research_attachments.query", security_id=request["security"]["security_id"],
+                                          decision_cutoff=original["decision_cutoff"], kinds=["fundamental_supplement"])
                     delivered_item = delivered["artifacts"]["fundamental_supplement"]["groups"]["financial_ratios"]["items"][0]
                     self.assertEqual(delivered_item["calculation_ref"], ref)
                     for key in ("value", "unit", "period", "definition", "formula", "source_id", "as_of", "retrieved_at", "published_at"):
                         self.assertEqual(delivered_item[key], frozen_item[key], key)
-                    self.assertEqual(delivered["canonical_result_hash"], canonical_hash({
-                        "fundamental_supplement": original["artifacts"][0]["artifact"]}))
+                    self.assertEqual(delivered["canonical_result_hash"], canonical_hash({"fundamental_supplement": original["artifacts"][0]["artifact"]}))
                     self.assertEqual(delivered["result_hash"], canonical_hash(delivered["artifacts"]))
                 draft = self.draft(request, packet)
                 draft["claims"][0]["statement"] = "合成冻结比值为 0.2，只用于验证传递，不证明公司估值便宜。"
                 draft["calculation_selections"] = [{"calculation_ref": ref, "claim_ids": [draft["claims"][0]["claim_id"]]}]
-                record = self.stop(env, start, draft)
-                self.assertEqual(source.read_bytes(), original_bytes)
                 if not read:
-                    self.assertEqual(record["output_capture"]["status"], "FAILED", record)
-                    # 原正式 Schema 在交付检查之前就拒绝未交付的计算；不修改校验顺序迎合测试。
-                    self.assertIn("EQUITY_RESEARCH_CALCULATION_REFERENCE_DANGLING", record["output_capture"]["failure_code"])
+                    with self.assertRaisesRegex(ValueError, "EQUITY_RESEARCH_CALCULATION_REFERENCE_DANGLING"):
+                        self.read_report(run, task, draft)
                     self.assertFalse((run / "research/reports").exists())
-                    continue
-                self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-                report = json.loads((run / record["output_capture"]["path"]).read_text())
-                self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["statement"])
-                self.assertEqual(report["claims"][0]["calculation_refs"], [frozen_item["calculation_ref"]])
-                self.assertEqual(report["artifact_refs"], [frozen_item["calculation_ref"]])
-                self.assertEqual(stage.finalize_common_stock_stage_run(fixtures.ROOT, run)["status"], "PASSED")
-                self.assertIn(draft["claims"][0]["statement"], (run / record["output_capture"]["markdown_path"]).read_text())
+                else:
+                    report, output = self.save_report(run, task, draft)
+                    self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["statement"])
+                    self.assertEqual(report["claims"][0]["calculation_refs"], [frozen_item["calculation_ref"]])
+                    self.assertEqual(report["artifact_refs"], [frozen_item["calculation_ref"]])
+                    self.assertIn(draft["claims"][0]["statement"], Path(output["markdown"]).read_text())
                 self.assertEqual(source.read_bytes(), original_bytes)
+                self.assert_no_execution(run)
 
     def test_calculation_projection_only_changes_identity_fields_and_aliases_are_stable(self):
         from product.runtime.calculation_handoff import common_stock_calculation_view, build_common_stock_calculation_catalog
         with tempfile.TemporaryDirectory() as directory:
-            run, task, request, view, _, _ = self.prepare(directory)
+            run, task, request, view = self.prepare(directory)
             first = self.call(run, request, "calculate", operation="ratio", evidence_ids=view["allowed_evidence_ids"])
             packet = self.frozen_packet(run, task)
             before = build_common_stock_calculation_catalog(run, packet)[first["calculation_ref"]]
@@ -285,8 +293,7 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
             self.assertNotEqual(first["calculation_ref"], second["calculation_ref"])
             self.assertNotEqual(first["value"], second["value"])
             identifier = before["calculation_id"]
-            source = {"calculation_ref": identifier, "calculation_refs": [identifier],
-                      "value": {"calculation_id": identifier, "unit": "ratio"},
+            source = {"calculation_ref": identifier, "calculation_refs": [identifier], "value": {"calculation_id": identifier, "unit": "ratio"},
                       "metadata": {"calculation_ref": identifier}, "statement": identifier + " 不应改写正文"}
             delivered = common_stock_calculation_view(source, catalog)
             self.assertEqual(delivered["calculation_ref"], first["calculation_ref"])
@@ -297,15 +304,13 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
     def test_calculation_protocol_and_ledger_cannot_drift_after_resigning_wrappers(self):
         for defect in ("version", "downgrade", "ledger-path"):
             with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
-                run, task, request, _, env, start = self.prepare(directory)
+                run, task, request, _ = self.prepare(directory)
                 draft = self.draft(request, self.frozen_packet(run, task))
-                index_path = run / "research/dispatch-index.json"
-                index = json.loads(index_path.read_text())
+                index_path, manifest_path = run / "research/dispatch-index.json", run / "run_manifest.json"
+                index, manifest = json.loads(index_path.read_text()), json.loads(manifest_path.read_text())
                 changed = index["tasks"][0]
                 invocation_path = run / task["invocation_path"]
                 invocation = json.loads(invocation_path.read_text())
-                manifest_path = run / "run_manifest.json"
-                manifest = json.loads(manifest_path.read_text())
                 if defect == "ledger-path":
                     changed["calculation_ledger_ref"] = "research/calculations/other-task/tool-results.jsonl"
                     invocation["calculation_ledger_ref"] = changed["calculation_ledger_ref"]
@@ -322,44 +327,38 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
                 manifest["manifest_hash"] = canonical_hash({k: v for k, v in manifest.items() if k != "manifest_hash"})
                 manifest_path.write_text(json.dumps(manifest))
                 with self.assertRaises(stage.CommonStockStageError):
-                    stage._validate_common_stock_stage_run_package(fixtures.ROOT, run)
-                record = self.stop(env, start, draft)
-                self.assertEqual(record["output_capture"]["status"], "FAILED", record)
+                    self.read_report(run, task, draft)
                 self.assertFalse((run / "research/reports").exists())
 
     def test_body_structure_precedes_damaged_calculation_events(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, request, _, env, start = self.prepare(directory)
+            run, task, request, _ = self.prepare(directory)
+            draft = self.draft(request, self.frozen_packet(run, task))
             events = run / "events/mcp/events.jsonl"
             events.parent.mkdir(parents=True)
             events.write_text("damaged event\n")
-            draft = self.draft(request, self.frozen_packet(run, task))
             draft.pop("research_summary")
-            record = self.stop(env, start, draft)
-            self.assertIn("SCHEMA_REQUIRED_MISSING", record["output_capture"]["failure_code"])
-            self.assertNotIn("MCP_EVENT_INVALID", record["output_capture"]["failure_code"])
+            with self.assertRaisesRegex(ValueError, "SCHEMA_REQUIRED_MISSING"):
+                self.read_report(run, task, draft)
 
     def test_unknown_evidence_and_unexecuted_calculation_do_not_gain_validity_from_assembly(self):
         for field, ref in (("evidence_refs", "ev-unknown"), ("calculation_refs", "never-executed")):
             with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
-                run, task, request, _, env, start = self.prepare(directory)
+                run, task, request, _ = self.prepare(directory)
                 draft = self.draft(request, self.frozen_packet(run, task))
                 if field == "calculation_refs":
-                    draft["calculation_selections"] = [{"calculation_ref": "k." + "0" * 12 + "." + "0" * 24,
-                                                         "claim_ids": [draft["claims"][0]["claim_id"]]}]
+                    draft["calculation_selections"] = [{"calculation_ref": "k." + "0" * 12 + "." + "0" * 24, "claim_ids": [draft["claims"][0]["claim_id"]]}]
                 else:
                     draft["claims"][0][field] = [ref]
                 before = copy.deepcopy(draft)
-                record = self.stop(env, start, draft)
-                self.assertEqual(record["output_capture"]["status"], "FAILED", record)
-                if field == "calculation_refs":
-                    self.assertIn("COMMON_STOCK_CALCULATION_SELECTION_UNKNOWN", record["output_capture"]["failure_code"])
+                with self.assertRaisesRegex(ValueError, "COMMON_STOCK_CALCULATION_SELECTION_UNKNOWN" if field == "calculation_refs" else "SCHEMA_ENUM_INVALID"):
+                    self.read_report(run, task, draft)
                 self.assertFalse((run / "research/reports").exists())
                 self.assertEqual(draft, before)
 
     def test_task_protocol_drift_rejected_even_after_resigning_index(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, _, request, _, env, start = self.prepare(directory)
+            run, task, request, _ = self.prepare(directory)
             path = run / "research/dispatch-index.json"
             index = json.loads(path.read_text())
             index["tasks"][0].pop("semantic_output_version")
@@ -371,14 +370,12 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
             manifest["manifest_hash"] = canonical_hash({key: value for key, value in manifest.items() if key != "manifest_hash"})
             manifest_path.write_text(json.dumps(manifest))
             with self.assertRaises(stage.CommonStockStageError):
-                stage._validate_common_stock_stage_run_package(fixtures.ROOT, run)
-            record = self.stop(env, start, self.draft(request))
-            self.assertEqual(record["output_capture"]["status"], "FAILED", record)
+                self.read_report(run, task, self.draft(request))
             self.assertFalse((run / "research/reports").exists())
 
     def test_history_business_draft_and_formal_reader_stay_byte_equivalent(self):
         with tempfile.TemporaryDirectory() as directory:
-            _, _, request, _, _, _ = self.prepare(directory)
+            _, _, request, _ = self.prepare(directory)
             historical = fixtures.valid_report(request)
             original = json.dumps(historical, ensure_ascii=False, sort_keys=True)
             fixtures.validate_equity_research_report(historical, request=request)
@@ -388,19 +385,17 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
 
     def test_model_catalog_schema_and_query_share_exact_map_without_technical_map_echo(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, request, context, _, _ = self.prepare(directory)
+            run, task, request, context = self.prepare(directory)
             packet = self.frozen_packet(run, task)
             mapping = packet["reference_map"]
             self.assertNotIn("reference_map", context)
             self.assertEqual(context["allowed_evidence_ids"], list(mapping["evidence"]))
             self.assertEqual(context["output_schema"]["$defs"]["evidence_id"]["enum"], list(mapping["evidence"]))
-            self.assertEqual(context["context_budget"]["actual_bytes"],
-                             len(stage.serialize_common_stock_dispatch_context(packet).encode()))
+            self.assertEqual(context["context_budget"]["actual_bytes"], len(stage.serialize_common_stock_dispatch_context(packet).encode()))
             facts = {item["evidence_id"]: item for item in json.loads((run / "evidence/gate.json").read_text())["allowed_evidence"]}
             result = self.call(run, request, "query", evidence_ids=context["allowed_evidence_ids"])
             for fact in result["evidence"]:
-                self.assertEqual({**fact, "evidence_id": mapping["evidence"][fact["evidence_id"]]},
-                                 facts[mapping["evidence"][fact["evidence_id"]]])
+                self.assertEqual({**fact, "evidence_id": mapping["evidence"][fact["evidence_id"]]}, facts[mapping["evidence"][fact["evidence_id"]]])
             events = [json.loads(line) for line in (run / "events/mcp/events.jsonl").read_text().splitlines()]
             self.assertEqual(events[0]["evidence_ids"], [mapping["evidence"][ref] for ref in context["allowed_evidence_ids"]])
             self.assertEqual(events[1]["reference_map_hash"], mapping["map_hash"])
@@ -409,19 +404,17 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
     def test_short_output_rejects_wrong_type_task_run_raw_and_decorated_reference(self):
         for defect in ("type", "task", "run", "raw", "source", "time", "unknown"):
             with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
-                run, task, request, context, env, start = self.prepare(directory)
+                run, task, request, context = self.prepare(directory)
                 packet = self.frozen_packet(run, task)
                 short = context["allowed_evidence_ids"][0]
-                ref = {"type": short.replace("e.", "d.", 1), "task": "e.foreign-task.1",
-                       "run": "e.foreign-run.1", "raw": request["allowed_evidence_ids"][0],
-                       "source": short + "|source=synthetic-sec", "time": short + "|as_of=2026-06-30",
-                       "unknown": "e.unknown.999"}[defect]
+                ref = {"type": short.replace("e.", "d.", 1), "task": "e.foreign-task.1", "run": "e.foreign-run.1",
+                       "raw": request["allowed_evidence_ids"][0], "source": short + "|source=synthetic-sec",
+                       "time": short + "|as_of=2026-06-30", "unknown": "e.unknown.999"}[defect]
                 draft = self.draft(request, packet)
                 draft["claims"][0]["evidence_refs"] = [ref]
                 before = copy.deepcopy(draft)
-                result = self.stop(env, start, draft)
-                self.assertEqual(result["output_capture"]["status"], "FAILED", result)
-                self.assertIn("SCHEMA_ENUM_INVALID", result["output_capture"]["failure_code"])
+                with self.assertRaisesRegex(ValueError, "SCHEMA_ENUM_INVALID"):
+                    self.read_report(run, task, draft)
                 self.assertFalse((run / "research/reports").exists())
                 self.assertEqual(before, draft)
 
@@ -434,19 +427,17 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "REFERENCE_UNKNOWN"):
                 translate_references({"evidence_refs": list(left["reference_map"]["evidence"])}, right["reference_map"])
             with tempfile.TemporaryDirectory() as another:
-                second, _, _, _, _, _ = self.prepare(another)
-                other_packet = self.frozen_packet(second, json.loads((second / "research/dispatch-index.json").read_text())["tasks"][0])
-                self.assertFalse(set(left["reference_map"]["evidence"]) & set(other_packet["reference_map"]["evidence"]))
+                second, _, _, _ = self.prepare(another)
+                other = self.frozen_packet(second, json.loads((second / "research/dispatch-index.json").read_text())["tasks"][0])
+                self.assertFalse(set(left["reference_map"]["evidence"]) & set(other["reference_map"]["evidence"]))
 
     def test_resigned_mapping_cannot_substitute_frozen_evidence_or_protocol(self):
         for defect in ("map", "downgrade", "unknown"):
             with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
-                run, task, request, _, _, _ = self.prepare(directory)
+                run, task, request, _ = self.prepare(directory)
                 packet = self.frozen_packet(run, task)
-                index_path = run / "research/dispatch-index.json"
-                index = json.loads(index_path.read_text())
-                manifest_path = run / "run_manifest.json"
-                manifest = json.loads(manifest_path.read_text())
+                index_path, manifest_path = run / "research/dispatch-index.json", run / "run_manifest.json"
+                index, manifest = json.loads(index_path.read_text()), json.loads(manifest_path.read_text())
                 if defect == "map":
                     base = {k: v for k, v in packet.items() if k not in {"reference_map", "context_budget"}}
                     base["allowed_evidence_ids"] = ["ev-forged"]
@@ -467,9 +458,7 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
                 manifest_path.write_text(json.dumps(manifest))
                 with self.assertRaises(stage.CommonStockStageError):
                     self.frozen_packet(run, index["tasks"][0])
-                # 工具也走同一构造器；重新签摘要不能使实际调用获得成功结果。
-                error = self.call(run, request, "query", expect_failure=True,
-                                  evidence_ids=request["allowed_evidence_ids"])
+                error = self.call(run, request, "query", expect_failure=True, evidence_ids=request["allowed_evidence_ids"])
                 self.assertRegex(error["message"], "COMMON_STOCK_(DISPATCH_PACKET_BINDING_INVALID|REFERENCE_PROTOCOL_INVALID)")
                 if (run / "events/mcp/events.jsonl").exists():
                     events = [json.loads(line) for line in (run / "events/mcp/events.jsonl").read_text().splitlines()]
@@ -477,7 +466,7 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
 
     def test_translation_preserves_prose_nested_values_metadata_order_and_history(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, _, _, _, _ = self.prepare(directory)
+            run, task, _, _ = self.prepare(directory)
             packet = self.frozen_packet(run, task)
             mapping = packet["reference_map"]
             originals = list(reversed(packet["allowed_evidence_ids"]))
@@ -486,13 +475,11 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
                      "metadata": {"evidence_ids": originals, "period_start": "2026-01-01"}}
             before = copy.deepcopy(value)
             model = translate_references(value, mapping, to_model=True)
-            self.assertEqual(model["statement"], value["statement"])
-            self.assertEqual(model["value"], value["value"])
-            self.assertEqual(model["metadata"], value["metadata"])
+            for field in ("statement", "value", "metadata"):
+                self.assertEqual(model[field], value[field])
             self.assertEqual(translate_references(model, mapping), before)
             self.assertEqual(value, before)
-            historical = {"identity": packet["identity"], "evidence_catalog": packet["evidence_catalog"],
-                          "output_schema": packet["output_schema"], "value": value}
+            historical = {"identity": packet["identity"], "evidence_catalog": packet["evidence_catalog"], "output_schema": packet["output_schema"], "value": value}
             original_bytes = json.dumps(historical, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
             self.assertEqual(stage.serialize_common_stock_dispatch_context(historical), original_bytes)
 
@@ -506,7 +493,7 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             helper = fixtures.CommonStockNativeStageTests()
             run, _ = helper.prepare_stage(directory, count=1)
-            # 构造测试用旧运输格式副本；不回写真实历史包，不伪造历史执行证据。
+            # 显式旧运输格式读取向量；不回写真实历史，不伪造执行证明。
             index_path, manifest_path = run / "research/dispatch-index.json", run / "run_manifest.json"
             index, manifest = json.loads(index_path.read_text()), json.loads(manifest_path.read_text())
             task = index["tasks"][0]
@@ -525,9 +512,7 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
             old_fingerprint = stage._research_input_fingerprint_for_holding(
                 fixtures.ROOT, request=json.loads((run / task["request_path"]).read_text()),
                 gate=json.loads((run / "evidence/gate.json").read_text()), attachment=None,
-                model=invocation["model"], agent=manifest["agent_binding"], skills=manifest["skill_bindings"],
-                calculation_selection_version=None,
-            )
+                model=invocation["model"], agent=manifest["agent_binding"], skills=manifest["skill_bindings"], calculation_selection_version=None)
             task["research_input_fingerprint"] = old_fingerprint
             from product.runtime.research_memory import report_reuse_key
             task["reuse_key"] = report_reuse_key(task["security_id"], old_fingerprint)
@@ -542,24 +527,15 @@ class CommonStockSemanticHandoffTests(unittest.TestCase):
             manifest["dispatch_index_hash"] = index["index_hash"]
             manifest["manifest_hash"] = canonical_hash({k: v for k, v in manifest.items() if k != "manifest_hash"})
             manifest_path.write_text(json.dumps(manifest))
-            originals = {path: path.read_bytes() for path in (invocation_path, run / task["packet_path"], index_path, manifest_path)}
+            originals = {path: path.read_bytes() for path in run.rglob("*") if path.is_file()}
             self.assertEqual(self.frozen_packet(run, task), packet)
-            stage._validate_common_stock_stage_run_package(fixtures.ROOT, run)
-            with patch.object(stage.subprocess, "Popen") as process:
-                retired_stage = "LEGACY_CALCULATION_EXECUTION_RETIRED" if short_evidence else "LEGACY_REFERENCE_EXECUTION_RETIRED"
-                with self.assertRaisesRegex(stage.CommonStockStageError, retired_stage):
-                    stage.launch_common_stock_stage(fixtures.ROOT, run_dir=run)
-                process.assert_not_called()
-            env = helper.hook_environment(run)
-            dispatch, _ = handle_hook_event(helper.dispatch_payload(run, task, parent="old-parent"), environ=env)
-            self.assertEqual(dispatch["decision"], "ALLOW", dispatch)
-            start = helper.event("SubagentStart", parent="old-parent", child="old-child", turn="old-turn")
-            _, context = handle_hook_event(start, environ=env)
-            self.assertNotIn("reference_map", json.loads(context["hookSpecificOutput"]["additionalContext"]))
-            request = json.loads((run / task["request_path"]).read_text())
-            result = self.stop(env, start, self.draft(request, packet if short_evidence else None))
-            self.assertEqual(result["output_capture"]["status"], "FAILED", result)
-            retired_stage = "LEGACY_CALCULATION_WRITE_RETIRED" if short_evidence else "LEGACY_REFERENCE_WRITE_RETIRED"
-            self.assertIn(retired_stage, result["output_capture"]["failure_code"])
+            stage.validate_common_stock_stage_run_package(fixtures.ROOT, run)
+            context = json.loads(stage.serialize_common_stock_dispatch_context(packet))
+            self.assertNotIn("reference_map", context)
+            with patch('subprocess.Popen') as process, self.assertRaisesRegex(stage.CommonStockStageError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                stage.launch_common_stock_stage(fixtures.ROOT, run_dir=run)
+            process.assert_not_called()
+            with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                handle_hook_event({"hook_event_name": "SubagentStop", "last_assistant_message": "{}"}, environ=helper.hook_environment(run))
             self.assertFalse((run / "research/reports").exists())
-            self.assertEqual({path: path.read_bytes() for path in originals}, originals)
+            self.assertEqual({path: path.read_bytes() for path in run.rglob("*") if path.is_file()}, originals)

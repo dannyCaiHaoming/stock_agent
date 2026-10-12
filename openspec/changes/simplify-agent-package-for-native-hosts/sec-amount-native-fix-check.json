@@ -1,0 +1,51 @@
+{
+  "source_id": "native-sec-amount-focused-check:20261008:final",
+  "as_of": "2026-10-08T04:33:27.795426+00:00",
+  "retrieved_at": "2026-10-08T04:34:05.750059+00:00",
+  "scope": "OpenSpec 2.5 / D3.3：原生SEC结构化金额到既有确定性计算接缝，不是宿主Smoke或内容裁定。",
+  "root_cause_evidence": "opencode-company-prebound-result.json",
+  "implementation": {
+    "product/tools/evidence.py": "默认关闭的structured_sec_amounts；已知SEC格式、有限amount与期间验证；同证券/accession/taxonomy/unit/context_type/起止期间ratio及USD monetary_scale；保留numeric_inputs来源三字段/value.amount/原事实hash，不修改Gate或自动选择。",
+    "product/tools/research.py": "只在原生ResearchTools内部启用；既有授权、资源/PIT/允许集、成功保存与catalog/提交选择不变。",
+    "product/mcp/research.py": "声明已实现SEC范围、结构化percent_change未实现及短引用读取入口；原参数/运算枚举不扩展，不接受自填数字。",
+    "tests/test_native_sec_calculations.py": "9个测试方法及多个负例子场景；合成同型SEC事实，真实prepare/MCP/保存/catalog/提交/精确读取；不模拟模型或研究判断。"
+  },
+  "command": [
+    ".venv/bin/python", "-B", "-m", "unittest",
+    "tests.test_native_sec_calculations", "tests.test_native_research_tools",
+    "tests.test_native_evidence_gate", "tests.test_native_research_submission",
+    "tests.test_native_research_connection", "tests.test_calculation_handoff",
+    "tests.test_valuation", "tests.test_native_fixture_council",
+    "tests.test_native_package_export", "tests.test_native_host_templates"
+  ],
+  "result": {
+    "exit": 0,
+    "tests": 136,
+    "seconds": 37.727,
+    "output": "Ran 136 tests in 37.727s\nOK",
+    "first_batch": "76项通过；后补instant/mixed-scalar正负例，按最终字节重验136项。批次重叠，不累加覆盖数。"
+  },
+  "verified_boundaries": [
+    "同期间duration及instant ratio保留原事实、原选择顺序、来源三字段和金额/期间血缘。",
+    "USD金额从one换算数量级，税前/税后未知仍UNSPECIFIED；中文/英文目标尺度复用原数学模块。",
+    "已保存计算经实际catalog产生短引用、提交选择及精确readback消费；host_execution仍UNVERIFIED、content_verdict仍NOT_REVIEWED。",
+    "任意对象/未知来源格式、混合标量与对象、非有限或非数值amount、未来/非法期间、不同accession/taxonomy/unit/期间框架、零分母写成功记录前拒绝。",
+    "非USD结构化金额以及就业人数等非金额资料继续拒绝；结构化percent_change明确未实现。",
+    "错误token、跨证券、资源漂移、未来事实及Skeptic无计算权限仍拒绝；路由stdio错token后原合法任务恢复，成功计算及工具记录各仅1。",
+    "旧EvidenceTools默认不支持结构化金额；既有标量/机构/正文金额、旧计算交接、fixture及宿主配置/导出回归通过。"
+  ],
+  "protected_files_before_and_after": {
+    "product/tools/evidence.py": "2fbe1d1ed02de6e87b047343a5dff0f968af4dd4293ea65e7797648d75be2b73",
+    "product/tools/research.py": "c35982ee613ee7fea964caa60c990ceba4b6bf18cc1a36389089b686524ae8b2",
+    "product/mcp/research.py": "110cb962e93b970d9beda444f5a8ab25396902b530b755d780baf7ec64fd0633",
+    "tests/test_native_sec_calculations.py": "aeeedf05a3b7e9bc1ba82de46db1ed61d55e663f696152c9335a93afff0df792"
+  },
+  "source_bytes_unchanged_during_tests": true,
+  "protection_scope": "4项聚焦文件hash前后观察及获准临时目录，不是OS强制源码只读证明；没有启动项目沙箱。",
+  "model_source_network_account_calls": 0,
+  "existing_installation_and_task_changed": false,
+  "native_reexecution": "NOT_RUN：OpenCode原窗口停止且已到硬截止，不重派/续期，不回签原候选、原计算错误或未完成提交。",
+  "browser_preview": "NOT_APPLICABLE：修改为stdio MCP及纯计算接缝，浏览器不能证明此路径。",
+  "runtime_eval_execution_replay_regression_calibration_ablation_promotion": "NOT_RUN",
+  "full_host_content_or_change_pass": false
+}

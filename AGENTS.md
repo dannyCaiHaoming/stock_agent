@@ -7,9 +7,9 @@
 - 开发任务不充当 CIO；产品任务按各入口的输入与授权条件应用 [product/AGENTS.md](product/AGENTS.md)。持仓或非持仓单股研究经 `portfolio-council` 指定阶段执行，只有明确的综合/决策阶段赋予主线程 CIO 职责；Intake、交易记录和复盘可独立调用，不自动启动 Council。产品任务不执行开发归档、Git 提交或推送。
 - 行为变更使用 OpenSpec：先 propose/update，再显式 apply。
 - 已获 apply 授权后持续推进范围内实现、普通错误修复和聚焦检查，阶段汇报后继续；只有真实阻断或人工完成批准才暂停相应工作，不突破权限、范围或模型预算。
-- 开发自检在当前 Codex 环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。
+- 开发自检在当前宿主环境执行授权的确定性测试或 `scripts/council-dev.py self-check`，不自动启动产品、模型、网络探针或项目沙箱。
 - 使用显式 `python3 scripts/council-dev.py demo run ...` 运行零 LLM 合成装配演示；它不属于真实产品 Smoke，不证明 Skill 推理、Codex Subagent、主线程 CIO 或候选晋升。
-- 真实 Smoke 与 Execution Replay 仅从宿主 Terminal 使用 [宿主 launcher](scripts/run-product-smoke.sh)；重放使用 `--prepared-run`，准备及收尾见运行手册。底层 `python3 -m product.runtime.cli` 仅为内部实现及确定性工具入口，不另造编排后端、不绕过宿主入口直接启动模型。
+- 真实 Smoke 在所选 Codex、Claude Code 或 OpenCode 的当前原生产品会话中，按明确样本、模型、调用预算与停止点授权执行；静态模板不等于实际支持。显式旧 Execution Replay 才从宿主 Terminal 使用 [冻结维护入口](scripts/run-product-smoke.sh) 的 `--prepared-run`；准备及收尾见运行手册。底层 `python3 -m product.runtime.cli` 仅为确定性及显式历史维护入口，旧正常模型启动明确退役，不另造编排后端或直接启动模型。
 - 独立 Reviewer 按需使用；其他已批准 Change 的明确复核要求保留。独立复核默认读取差异、规格与已有证据；缺证据只提出具体宿主补跑需求，不自行启动产品或额外沙箱。旧 review/probe/preflight 启动入口已退役。
 - 外部引入的 OpenSpec 及其他 Skill 保持只读，不修改；项目规则维护在自有内容中。
 - 实施、验收或归档时读取 [开发流程](docs/development/workflow.md)；配置、路径、权限或启动排障时读取 [开发环境](docs/development/environment.md)；实际运行/重放/Eval 时读取 [运行手册](reviews/runtime/runtime-replay-eval-runbook.md) 的对应章节。无关专项文档不必全部加载。
@@ -32,7 +32,7 @@
 - Agent 按研究、解释和判断职责设置，不按数据源或存储机制拆分。缓存、增量计划、checkpoint、事务和机械版本选择属于确定性 Tool/Python；Research Memory 是共享支撑能力，沿用现有调度入口，不新增持久化 Agent 或第二套编排器。
 - Agent 可在对应 Capability 授权后经受限工具检索历史；数据库写入与 checkpoint 推进由确定性层负责。历史报告保留为当时的判断，不自动升级为事实 Evidence，也不绕过 Skeptic 独立首轮的信息隔离。
 - 禁止将主观投资判断编码为确定性评分或大型条件规则引擎。
-- 禁止增加券商接入、订单路由、账户修改或其他真实交易能力。
+- 仅允许经用户明确批准、由确定性本地进程隔离并对接口硬白名单限制的只读券商账户数据接入；凭据、完整账户号和券商 Client 不得进入 Runtime Agent、网页或普通研究工具。永久禁止订单创建/预览/路由/修改/取消、交易解锁、换汇、转账、账户修改及其他真实交易或账户写入能力。
 - 开发 Agent 只能为已授权的实现任务编辑本仓库，不继承产品运行时 CIO 权限。
 - 保留用户已有修改；产品运行时指令集中在 `product/`，学习优化输出只能是提案，不得自动修改生产文件或版本指针。
 

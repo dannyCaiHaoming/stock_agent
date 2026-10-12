@@ -1,0 +1,96 @@
+{
+  "source_id": "codex-native-role-transport-check:20261007",
+  "as_of": "2026-10-07T09:32:25.222996+00:00",
+  "retrieved_at": "2026-10-07T09:32:25.222996+00:00",
+  "fresh_session": {
+    "thread_id": "01a115af-52e3-7680-bc3e-7e0a7975d641",
+    "result": "STOPPED_NATIVE_ROLE_UNAVAILABLE",
+    "company_tools_visible": true,
+    "company_role_visible": false,
+    "research_subagents_created": 0,
+    "reports_submitted": 0
+  },
+  "parser_observation": {
+    "entry": "codex mcp list --json",
+    "isolated_config_home": true,
+    "before_exit_code": 1,
+    "before_error": "invalid transport in mcp_servers.company",
+    "after_exit_code": 0,
+    "models_or_servers_launched": false,
+    "interpretation": "Partial role MCP entries are invalid standalone native configurations. Contribution to runtime role omission remains unproven until actual role discovery succeeds."
+  },
+  "after_roles": [
+    {
+      "role": "runtime_company_analyst",
+      "native_parser_exit_code": 0,
+      "enabled_servers": [
+        "company"
+      ]
+    },
+    {
+      "role": "runtime_market_catalyst",
+      "native_parser_exit_code": 0,
+      "enabled_servers": [
+        "market"
+      ]
+    },
+    {
+      "role": "runtime_skeptic",
+      "native_parser_exit_code": 0,
+      "enabled_servers": [
+        "skeptic"
+      ]
+    }
+  ],
+  "changed_product_files": [
+    {
+      "path": "product/hosts/codex/agents/runtime_company_analyst.toml",
+      "before_sha256": "fdc03cc40b35f54fc311fc338353c1a38a0089920a76506a2965fc76cd34819f",
+      "after_sha256": "9f88a8ea6b6d34502707eccaf6b866fb870f994cbef26161f2c236ce52696677"
+    },
+    {
+      "path": "product/hosts/codex/agents/runtime_market_catalyst.toml",
+      "before_sha256": "4f8539cc166b6a2abf54078f345e780881eb931f3550fe51920df016db596928",
+      "after_sha256": "8024a7f938d8583d5c9a530ad2155c981230fa7942c101849c9bace3ea42e991"
+    },
+    {
+      "path": "product/hosts/codex/agents/runtime_skeptic.toml",
+      "before_sha256": "c5c6fa81c50ee3f019bd952c9479887cbcf2688b3bba18877505a175ca9f43af",
+      "after_sha256": "9072771395ed702916cee98e35df23494bd0cbe8c5c1b665e1d0c0d56886756e"
+    }
+  ],
+  "changed_test": {
+    "path": "tests/test_native_host_templates.py",
+    "sha256": "85bc67632bdcced5100ee1845ba09f7ec15b9a1ae01ed68d1ef07d9852fe7cd3"
+  },
+  "focused_tests": {
+    "command": ".venv/bin/python -B -m unittest tests.test_native_host_templates tests.test_native_package_export",
+    "tests_run": 16,
+    "exit_code": 0,
+    "duration_seconds": 4.423,
+    "result": "OK"
+  },
+  "original_public_files_checked": 22,
+  "original_public_drift": [],
+  "source_changes_since_prior_797_file_snapshot": [
+    "product/hosts/codex/agents/runtime_market_catalyst.toml",
+    "product/hosts/codex/agents/runtime_skeptic.toml",
+    "product/hosts/codex/agents/runtime_company_analyst.toml",
+    "tests/test_native_host_templates.py"
+  ],
+  "budget": {
+    "charged_total": 4,
+    "task_cap": 15,
+    "remaining": 11,
+    "hard_deadline": "2026-10-07T09:40:24Z",
+    "research_subagents_created": 0,
+    "reports_submitted": 0
+  },
+  "source_network_calls": 0,
+  "account_calls": 0,
+  "host_role_loading": "UNVERIFIED",
+  "independent_context": "UNVERIFIED",
+  "content_verdict": "NOT_REVIEWED",
+  "change_completed": false,
+  "release_binding": "Prior v4 review patch and old exports retain their original hashes; they do not include this role-template/test increment. Local acceptance role configuration fixed with private backups; existing read-only installs untouched."
+}

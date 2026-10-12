@@ -7,7 +7,7 @@ metadata:
 
 # 技术结构研究
 
-只消费 PIT Gate 允许的资料和确定性计算产物。先确认证券、基准、窗口、交易日、时区、复权口径及未完成交易日处理，再解释结果。运行层已从完整日线序列生成并锁定 `technical-calculation.json` 时，Agent 直接使用输入中的精简统计和 artifact 引用；完整原始 Evidence lineage 由该产物保存，不要求把数千条日线 Evidence 重复注入模型上下文，也不得对空 `evidence_ids` 发起查询。若 `prepared_analysis.calculation=null`，则不得形成没有计算依据的技术 Claim；输出 `status=INSUFFICIENT_EVIDENCE`、`sufficiency=INSUFFICIENT`、`claims=[]`，并在 `data_gaps` 说明缺少的证券或基准序列及影响。
+只消费 PIT Gate 允许的资料和确定性计算产物。先确认证券、基准、窗口、交易日、时区、复权口径及未完成交易日处理，再解释结果。运行层已从完整日线序列生成并锁定 `technical-calculation.json` 时，Agent 直接使用输入中的精简统计和 artifact 引用；完整原始 Evidence lineage 由该产物保存，不要求逐条查询或抄写数千条日线事实正文，也不得对空 `evidence_ids` 发起查询。这不免除研究所需计算的完整血缘ID读取：血缘页是ID列表而非事实正文，须沿实际 `next_evidence_offset` 显式读至末页，不能把产物已保存完整血缘当作Agent已完整消费。若 `prepared_analysis.calculation=null`，则不得形成没有计算依据的技术 Claim；输出 `status=INSUFFICIENT_EVIDENCE`、`sufficiency=INSUFFICIENT`、`claims=[]`，并在 `data_gaps` 说明缺少的证券或基准序列及影响。
 
 有有效 calculation 时必须回答：当前窗口的趋势结构是什么；相对广泛市场基准表现如何；波动、回撤与成交量是否支持该解释；什么后续可观察信号会推翻它。没有 calculation 时逐项说明因何无法研究，不用无引用的否定性 Claim 填满问题。20、60、约 252 个交易日按资料可用性使用，不能在历史不足时制造长期结论。
 

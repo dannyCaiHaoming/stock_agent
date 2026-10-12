@@ -11,19 +11,19 @@ class GovernanceTests(unittest.TestCase):
     def test_root_instructions_separate_checks_host_execution_and_review(self):
         text = (ROOT / "AGENTS.md").read_text()
         for expected in (
-            "开发自检在当前 Codex 环境", "scripts/council-dev.py self-check",
+            "开发自检在当前宿主环境", "scripts/council-dev.py self-check",
             "不自动启动产品、模型、网络探针或项目沙箱",
-            "真实 Smoke 与 Execution Replay 仅从宿主 Terminal",
+            "真实 Smoke 在所选 Codex、Claude Code 或 OpenCode",
             "scripts/run-product-smoke.sh", "--prepared-run",
             "独立复核默认读取差异、规格与已有证据",
-            "不绕过宿主入口直接启动模型", "旧 review/probe/preflight 启动入口已退役",
+            "旧正常模型启动明确退役", "旧 review/probe/preflight 启动入口已退役",
         ):
             self.assertIn(expected, text)
         self.assertNotIn("运行工具入口为", text)
         environment = (ROOT / "docs/development/environment.md").read_text()
         self.assertIn("全进程源码强制只读为 **UNVERIFIED**", environment)
         self.assertIn("environment-preflight、permission-probe 和 --preflight-report", environment)
-        self.assertIn("历史产物仅供读取", environment)
+        self.assertIn("旧preflight执行入口继续退役", environment)
 
     def test_project_config_accepts_user_selected_native_settings(self):
         config = tomllib.loads((ROOT / ".codex/config.toml").read_text())
@@ -34,11 +34,13 @@ class GovernanceTests(unittest.TestCase):
         self.assertIsInstance(config["sandbox_workspace_write"]["network_access"], bool)
         self.assertIs(type(config["agents"]["max_threads"]), int)
         self.assertGreater(config["agents"]["max_threads"], 0)
+        # 用户可保留额外宿主注册；这里只验证开发角色，不授予产品运行权限。
+        development = {name for name in config["agents"] if name.startswith("dev_")}
         self.assertEqual(
-            set(config["agents"]) - {"max_threads"},
+            development,
             {"dev_architect", "dev_contracts", "dev_eval", "dev_reviewer"},
         )
-        for name in set(config["agents"]) - {"max_threads"}:
+        for name in development:
             registration = config["agents"][name]
             self.assertEqual(registration["config_file"], f"agents/{name}.toml")
             agent = tomllib.loads(
@@ -50,7 +52,9 @@ class GovernanceTests(unittest.TestCase):
     def test_development_control_plane_has_no_runtime_authority(self):
         text = (ROOT / "AGENTS.md").read_text()
         self.assertIn("不继承产品运行时 CIO 权限", text)
-        self.assertIn("禁止增加券商接入", text)
+        self.assertIn("只读券商账户数据接入", text)
+        self.assertIn("永久禁止订单创建/预览/路由/修改/取消", text)
+        self.assertIn("凭据、完整账户号和券商 Client 不得进入 Runtime Agent", text)
 
     def test_runtime_plane_is_advisory_and_read_only(self):
         text = (ROOT / "product" / "AGENTS.md").read_text()
@@ -104,7 +108,7 @@ class GovernanceTests(unittest.TestCase):
         config = tomllib.loads((ROOT / ".codex" / "config.toml").read_text(encoding="utf-8"))
         self.assertEqual(
             {"dev_architect", "dev_contracts", "dev_eval", "dev_reviewer"},
-            set(config["agents"]) - {"max_threads"},
+            {name for name in config["agents"] if name.startswith("dev_")},
         )
         self.assertEqual("agents/dev_eval.toml", config["agents"]["dev_eval"]["config_file"])
 

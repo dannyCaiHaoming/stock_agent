@@ -1,4 +1,4 @@
-"""实际语义 Hook 产物到既有只读消费者；无模型或网络。"""
+"""合成业务产物与显式历史包到既有只读消费者；无模型或网络。"""
 from __future__ import annotations
 
 import json
@@ -8,8 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from product.runtime.codex_hook_recorder import handle_hook_event
-from product.runtime.hashing import file_hash, legacy_envelope_hash
+from product.runtime.hashing import canonical_hash, file_hash, legacy_envelope_hash
 from product.runtime.multidimensional_stage import (
     build_multidimensional_dispatch_packet, finalize_multidimensional_stage_run,
     check_multidimensional_bundle_consumable,
@@ -25,7 +24,7 @@ from tests.test_local_research_browser import dimension_report
 
 
 class ResearchHandoffConsumerTests(unittest.TestCase):
-    def test_all_native_dimension_reports_reach_original_bundle_and_consumer(self):
+    def test_historical_dimension_reports_reach_original_bundle_and_consumer(self):
         with tempfile.TemporaryDirectory() as directory:
             run, _, dependent, source_path, _ = self.prepare_reports(Path(directory))
             f = stage_fixtures.MultidimensionalStageTests()
@@ -33,15 +32,17 @@ class ResearchHandoffConsumerTests(unittest.TestCase):
             for task in index["tasks"]:
                 if task["capability"] in {"FUNDAMENTAL_EVENT", "RESEARCH_REPORT"}:
                     continue
-                env = f.targeted_environment(run, task)
-                parent, child = "bundle-parent:" + task["task_id"], "bundle-child:" + task["task_id"]
-                allowed, _ = handle_hook_event(f.dispatch_payload(task, parent=parent), environ=env)
-                self.assertEqual(allowed["decision"], "ALLOW", allowed)
-                started, _ = handle_hook_event(f.start_payload(task, parent=parent, child=child), environ=env)
-                self.assertEqual(started["context_binding"]["status"], "DELIVERED", started)
-                saved, _ = handle_hook_event(f.stop_payload(task, f.dimension_draft(task),
-                                                           parent=parent, child=child), environ=env)
-                self.assertEqual(saved["output_capture"]["status"], "SAVED", saved)
+                f.save_dimension_fixture(run, task, f.dimension_draft(task))
+            # 只为历史归集读取构造事件向量，不声称当前宿主执行或派发。
+            invocation = run / "invocation"
+            invocation.mkdir(exist_ok=True)
+            events = [{"hook_event_name": "SubagentStop", "output_capture": {
+                "status": "SAVED", "task_id": task["task_id"],
+                "path": "research/reports/" + canonical_hash({"task_id": task["task_id"]})[:16] + "/dimension-report.json",
+            }} for task in index["tasks"]]
+            (invocation / "subagent-events.jsonl").write_text("\n".join(json.dumps(event) for event in events) + "\n")
+            (invocation / "subagent-dispatches.jsonl").write_text("\n".join(
+                json.dumps({"task_name": task["task_name"], "decision": "ALLOW"}) for task in index["tasks"]) + "\n")
             before_reports = {str(path.relative_to(run)): path.read_bytes()
                               for path in (run / "research/reports").rglob("*") if path.is_file()}
             result = finalize_multidimensional_stage_run(stage_fixtures.ROOT, run)
@@ -111,7 +112,7 @@ class ResearchHandoffConsumerTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 check_multidimensional_bundle_consumable(stage_fixtures.ROOT, run, persist=False)
 
-    def test_native_stock_hook_to_finalizer_memory_and_readonly_report(self):
+    def test_stock_business_report_to_memory_and_readonly_consumer(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             memory_root = base / "memory"
@@ -122,7 +123,7 @@ class ResearchHandoffConsumerTests(unittest.TestCase):
 
             helper = stock_semantic.CommonStockSemanticHandoffTests()
             with patch.object(stock_fixtures, "prepare_common_stock_stage_run", side_effect=with_memory):
-                run, task, request, context, env, start = helper.prepare(directory)
+                run, task, request, context = helper.prepare(directory)
             packet = helper.frozen_packet(run, task)
             helper.call(run, request, "query", evidence_ids=context["allowed_evidence_ids"])
             calculation = helper.call(run, request, "calculate", operation="ratio",
@@ -130,11 +131,11 @@ class ResearchHandoffConsumerTests(unittest.TestCase):
             draft = helper.draft(request, packet)
             draft["calculation_selections"] = [{"calculation_ref": calculation["calculation_ref"],
                                                  "claim_ids": [draft["claims"][0]["claim_id"]]}]
-            record = helper.stop(env, start, draft)
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-            report_path = run / record["output_capture"]["path"]
-            report = json.loads(report_path.read_text())
-            self.assertEqual(common_stock_stage.finalize_common_stock_stage_run(stock_fixtures.ROOT, run)["status"], "PASSED")
+            report, output = helper.save_report(run, task, draft)
+            report_path = Path(output["json"])
+            common_stock_stage.persist_common_stock_report_package(
+                stock_fixtures.ROOT, run, security_id=task["security_id"])
+            helper.assert_no_execution(run)
             memory = ResearchMemory(memory_root)
             stored = memory.reusable_report(task["security_id"], task["reuse_key"])
             self.assertIsNotNone(stored)
@@ -180,18 +181,12 @@ class ResearchHandoffConsumerTests(unittest.TestCase):
             "kind": "INTERPRETATION", "evidence_refs": [], "research_claim_refs": [ref],
             "document_refs": [], "assumption_ids": [],
         }]
-        env = f.targeted_environment(run, task)
-        handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-        handle_hook_event(f.start_payload(task, parent="dependency-parent", child="reader-child"), environ=env)
-        record, _ = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="reader-child"), environ=env)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-        target_path = run / record["output_capture"]["path"]
-        target = json.loads(target_path.read_text())
+        target, output = f.save_dimension_fixture(run, task, draft)
         source_path = next(path for path in (run / "research/reports").glob("*/dimension-report.json")
                            if json.loads(path.read_text())["capability"] == "FUNDAMENTAL_EVENT")
-        return run, task, target, source_path, record
+        return run, task, target, source_path, output
 
-    def test_actual_hook_reports_reach_browser_without_loss_or_rewrite(self):
+    def test_business_reports_reach_browser_without_loss_or_rewrite(self):
         with tempfile.TemporaryDirectory() as directory:
             run, task, report, _, record = self.prepare_reports(Path(directory))
             before = {str(path.relative_to(run)): file_hash(path) for path in run.rglob('*') if path.is_file()}
@@ -204,7 +199,7 @@ class ResearchHandoffConsumerTests(unittest.TestCase):
             selected = next(item for item in items if item["capability"] == "RESEARCH_REPORT")
             self.assertEqual(selected["status"], "AVAILABLE")
             self.assertEqual(selected["reports"][0]["value"], report)
-            markdown = (run / record["output_capture"]["markdown_path"]).read_text()
+            markdown = Path(record["markdown"]).read_text()
             self.assertIn(report["claims"][0]["statement"], markdown)
             self.assertEqual(before, {str(path.relative_to(run)): file_hash(path)
                                       for path in run.rglob('*') if path.is_file()})

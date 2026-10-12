@@ -9,6 +9,7 @@ from typing import Sequence
 
 from product.web.app import ResearchBrowser, build_server
 from product.web.read_only import ArtifactCatalog, BrowserDataError, ReadOnlyResearchMemory
+from product.web.trades import ReadOnlyTradeLedger
 
 
 def parser() -> argparse.ArgumentParser:
@@ -16,6 +17,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--memory-root", type=Path, required=True, help="现有 Research Memory 根目录（不会创建或迁移）")
     value.add_argument("--run-dir", type=Path, action="append", default=[], help="显式冻结运行目录，可重复")
     value.add_argument("--run-root", type=Path, action="append", default=[], help="只发现直属 manifest 子目录的运行根目录，可重复")
+    value.add_argument("--trade-ledger", type=Path, help="可选仓库外私人交易账本根目录（只读，不会扫描默认路径）")
     value.add_argument("--port", type=int, default=8765, help="本机端口，默认 8765")
     value.add_argument("--check", action="store_true", help="只执行配置与只读诊断")
     return value
@@ -32,13 +34,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     except BrowserDataError as exc:
         memory_error = str(exc)
     artifacts = ArtifactCatalog(run_dirs=args.run_dir, run_roots=args.run_root)
-    application = ResearchBrowser(memory, artifacts, memory_error=memory_error)
+    trades = None
+    trades_error = None
+    if args.trade_ledger is not None:
+        try:
+            trades = ReadOnlyTradeLedger(args.trade_ledger, repository_root=Path(__file__).resolve().parents[2])
+        except BrowserDataError as exc:
+            trades_error = str(exc)
+    application = ResearchBrowser(
+        memory, artifacts, memory_error=memory_error,
+        trades=trades, trades_error=trades_error,
+    )
     if args.check:
         print(json.dumps({
             "status": "READY" if memory else "PARTIAL",
             "listen_host": "127.0.0.1",
             "memory": memory.diagnostic() if memory else {"status": "UNAVAILABLE", "code": memory_error},
             "artifacts": artifacts.diagnostic(),
+            "trades": trades.diagnostic() if trades else {"status": "UNCONFIGURED" if args.trade_ledger is None else "UNAVAILABLE", "code": trades_error},
         }, ensure_ascii=False, indent=2, sort_keys=True))
         return 0 if memory else 2
     server = build_server(application, port=args.port)

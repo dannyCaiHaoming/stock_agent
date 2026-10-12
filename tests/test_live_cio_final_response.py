@@ -1,14 +1,13 @@
-"""CIO 原生最终响应接缝；模型返回为合成数据，不替代真实 Smoke。"""
+"""CIO Schema与明示历史响应消费者；不模拟模型执行或正常响应writer。"""
 from copy import deepcopy
 import json
 from pathlib import Path
-import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from product.runtime.invocation import build_live_cio_decoding_schema, build_live_cio_output_schema
-from product.runtime.nested_codex import _persist_cio_final_response, launch_nested_codex
+from product.runtime.nested_codex import launch_nested_codex
 from product.runtime.run_package import prepare_cio, finalize_cio
 from product.runtime.schema_validation import validate_schema_instance
 from product.runtime.smoke_prompt import build_smoke_prompt
@@ -18,10 +17,12 @@ from tests.test_native_run_package import cio_output, read_json
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def final_events(text):
-    return [{"type": "thread.started", "thread_id": "synthetic-parent"},
-            {"type": "item.completed", "item": {"type": "agent_message", "text": text}},
-            {"type": "turn.completed", "usage": {"input_tokens": 1, "output_tokens": 1}}]
+def write_historical_cio_response_fixture(run, text):
+    """仅写历史reader输入；不验证、改写作者内容或生成执行事件。"""
+    path = run / 'cio/runtime_cio.json'
+    path.parent.mkdir(exist_ok=True)
+    with path.open('x', encoding='utf-8') as stream:
+        stream.write(text)
 
 
 class LiveCioFinalResponseTests(unittest.TestCase):
@@ -72,15 +73,6 @@ class LiveCioFinalResponseTests(unittest.TestCase):
                 with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, "SCHEMA_ENUM_INVALID"):
                     validate_schema_instance([invalid, "other"], field)
 
-    def test_final_response_is_saved_byte_for_byte_without_overwrite(self):
-        with tempfile.TemporaryDirectory() as directory:
-            run = Path(directory)
-            text = '{"thesis": "中文原文", "evidence_refs": ["typo|source"]}\n'
-            _persist_cio_final_response(run, text, final_events(text))
-            self.assertEqual((run / "cio/runtime_cio.json").read_text(), text)
-            with self.assertRaises(FileExistsError):
-                _persist_cio_final_response(run, text, final_events(text))
-
     def test_large_gate_uses_the_same_exact_set_without_truncating_ids(self):
         ids = [f"ev-sec-{index:064x}" for index in range(300)]
         schema = build_live_cio_decoding_schema(ROOT, run_id="synthetic", allowed_evidence_ids=ids)
@@ -91,16 +83,6 @@ class LiveCioFinalResponseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SCHEMA_PATTERN_INVALID"):
             validate_schema_instance(ids[-1] + "d", item)
 
-    def test_missing_malformed_or_unbound_final_response_is_not_saved(self):
-        for text, events in (("{}", []), ("{}", final_events("different")),
-                             ("not json", final_events("not json")), ("[]", final_events("[]")),
-                             ('{"action":"HOLD","action":"EXIT"}',
-                              final_events('{"action":"HOLD","action":"EXIT"}'))):
-            with self.subTest(text=text, events=events), tempfile.TemporaryDirectory() as directory:
-                with self.assertRaises(ValueError):
-                    _persist_cio_final_response(Path(directory), text, events)
-                self.assertFalse((Path(directory) / "cio/runtime_cio.json").exists())
-
     def test_canonical_validation_still_rejects_illegal_no_trade_and_reference(self):
         for mutation in ({"maximum_notional": 0}, {"target_weight_range": [0, 0]},
                          {"evidence_refs": ["price|source"]}):
@@ -108,7 +90,7 @@ class LiveCioFinalResponseTests(unittest.TestCase):
                 run, draft = self.prepared(directory)
                 draft.update(mutation)
                 text = json.dumps(draft)
-                _persist_cio_final_response(run, text, final_events(text))
+                write_historical_cio_response_fixture(run, text)
                 finalize_cio(ROOT, run_dir=run)
                 trace = read_json(run / "decision_trace.json")
                 self.assertEqual(trace["terminal_state"], "FAILED_VALIDATION")
@@ -134,7 +116,7 @@ class LiveCioFinalResponseTests(unittest.TestCase):
             schema = build_live_cio_decoding_schema(ROOT, run_id=read_json(run / "run_manifest.json")["run_id"],
                                                    allowed_evidence_ids=REFS)
             validate_schema_instance(draft, schema)
-            _persist_cio_final_response(run, text, final_events(text))
+            write_historical_cio_response_fixture(run, text)
             result = finalize_cio(ROOT, run_dir=run)
             self.assertEqual(result["next_state"], "SAFE_NO_TRADE")
             self.assertEqual((run / "cio/runtime_cio.json").read_text(), text)
@@ -147,16 +129,13 @@ class LiveCioFinalResponseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             run, _ = self.prepared(directory)
 
-            def fake_process(command, **kwargs):
-                kwargs["stdout"].write('{"type":"turn.completed"}\n')
-                return subprocess.CompletedProcess(command, 0)
-
-            with patch("product.runtime.nested_codex.subprocess.run", side_effect=fake_process), patch(
-                "product.runtime.nested_codex.build_ephemeral_run_specialist_execution_proof"
-            ) as proof, patch("product.runtime.nested_codex.finalize_cio") as risk:
-                with self.assertRaisesRegex(ValueError, "LIVE_COUNCIL_ENTRY_RETIRED"):
+            with patch('subprocess.run') as process, patch('subprocess.Popen') as spawn, patch(
+                'product.runtime.run_package.finalize_cio'
+            ) as risk:
+                with self.assertRaisesRegex(ValueError, 'NATIVE_HOST_EXECUTION_REQUIRED'):
                     launch_nested_codex(ROOT, run_dir=run)
-            proof.assert_not_called()
+            process.assert_not_called()
+            spawn.assert_not_called()
             risk.assert_not_called()
             self.assertFalse((run / "invocation").exists())
 

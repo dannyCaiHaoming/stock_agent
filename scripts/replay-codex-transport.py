@@ -16,7 +16,8 @@ def read(path):
     return json.loads(path.read_text(encoding='utf-8'))
 
 
-def verified_command(args, run, binary):
+def validate_replay_binding(run):
+    """在加载冻结Python/宿主之前核对同一既有Replay绑定。"""
     manifest = read(run / 'run_manifest.json')
     binding = read(run / 'execution-replay.json')
     source = Path(read(run / 'host-replay-source.json')['source_run_dir']).resolve()
@@ -36,6 +37,11 @@ def verified_command(args, run, binary):
     )
     if capsule['manifest_hash'] != binding['source_capsule_hash']:
         raise ValueError('REPLAY_TRANSPORT_CAPSULE_MISMATCH')
+    return workspace, capsule
+
+
+def verified_command(args, run, binary):
+    workspace, capsule = validate_replay_binding(run)
     if (args.count('exec') != 1 or args.count('-C') != 1
             or Path(args[args.index('-C') + 1]).resolve() != workspace / 'product'
             or args.count('--sandbox') != 1

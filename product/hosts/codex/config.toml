@@ -1,0 +1,59 @@
+# 本文件是产品工作区原生模板，不是开发仓库/用户级配置。
+sandbox_mode = "read-only"
+
+[features]
+shell_tool = false
+
+[agents]
+max_threads = 3
+
+[agents.runtime_company_analyst]
+description = "逐证券公司与基本面研究；仅任务业务工具。"
+config_file = "agents/runtime_company_analyst.toml"
+
+[agents.runtime_market_catalyst]
+description = "按明确能力执行市场多维研究；仅任务业务工具。"
+config_file = "agents/runtime_market_catalyst.toml"
+
+[agents.runtime_skeptic]
+description = "不继承正向内容的独立首轮反证；仅任务业务工具。"
+config_file = "agents/runtime_skeptic.toml"
+
+[tools]
+web_search = false
+view_image = false
+
+[apps._default]
+enabled = false
+
+[mcp_servers.company]
+enabled = false
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_COMPANY"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_COMPANY_CONNECTION", "STOCK_AGENT_COMPANY_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_calculate", "research_calculations", "research_submit", "research_read_submission", "research_read_reports", "research_read_documents", "research_search", "research_fetch"]
+
+[mcp_servers.market]
+enabled = false
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_MARKET"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_MARKET_CONNECTION", "STOCK_AGENT_MARKET_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_calculate", "research_calculations", "research_submit", "research_read_submission", "research_read_reports", "research_read_documents", "research_search", "research_fetch"]
+
+[mcp_servers.skeptic]
+enabled = false
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_SKEPTIC"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_SKEPTIC_CONNECTION", "STOCK_AGENT_SKEPTIC_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_submit", "research_read_submission"]
+
+[mcp_servers.cio]
+enabled = false
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_CIO"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_CIO_CONNECTION", "STOCK_AGENT_CIO_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_submit", "research_read_submission", "research_read_reports"]

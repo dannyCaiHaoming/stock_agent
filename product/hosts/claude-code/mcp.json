@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "company": {
+      "command": "{{PYTHON}}",
+      "args": ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_COMPANY"],
+      "env": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_COMPANY_CONNECTION": "${STOCK_AGENT_COMPANY_CONNECTION}", "STOCK_AGENT_COMPANY_TOKEN": "${STOCK_AGENT_COMPANY_TOKEN}"}
+    },
+    "market": {
+      "command": "{{PYTHON}}",
+      "args": ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_MARKET"],
+      "env": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_MARKET_CONNECTION": "${STOCK_AGENT_MARKET_CONNECTION}", "STOCK_AGENT_MARKET_TOKEN": "${STOCK_AGENT_MARKET_TOKEN}"}
+    },
+    "skeptic": {
+      "command": "{{PYTHON}}",
+      "args": ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_SKEPTIC"],
+      "env": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_SKEPTIC_CONNECTION": "${STOCK_AGENT_SKEPTIC_CONNECTION}", "STOCK_AGENT_SKEPTIC_TOKEN": "${STOCK_AGENT_SKEPTIC_TOKEN}"}
+    },
+    "cio": {
+      "command": "{{PYTHON}}",
+      "args": ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_CIO"],
+      "env": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_CIO_CONNECTION": "${STOCK_AGENT_CIO_CONNECTION}", "STOCK_AGENT_CIO_TOKEN": "${STOCK_AGENT_CIO_TOKEN}"}
+    }
+  }
+}

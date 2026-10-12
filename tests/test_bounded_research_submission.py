@@ -1,4 +1,4 @@
-"""研报 MCP 首稿/局部修订：实际 stdio、Hook 与正式报告；零模型。"""
+"""研报 MCP 首稿/局部修订：实际 stdio、精确回执与纯业务读取；零模型。"""
 from __future__ import annotations
 
 import copy
@@ -10,13 +10,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
-from product.runtime.codex_hook_recorder import (
-    handle_hook_event, _multidimensional_draft_diagnostics, _research_report_monetary_findings,
-)
 from product.runtime.fixture_mcp import serve_stdio
 from product.runtime.hashing import legacy_envelope_hash
 from product.runtime import research_submission as submission
-from product.runtime.multidimensional_stage import build_multidimensional_dispatch_packet, serialize_multidimensional_model_context, finalize_multidimensional_task_evidence
+from product.runtime.monetary import research_report_monetary_findings, monetary_repetition_context
+from product.runtime.multidimensional_stage import build_multidimensional_dispatch_packet, serialize_multidimensional_model_context
 from tests import test_research_submission as fixtures
 
 
@@ -25,7 +23,7 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         helper = fixtures.ResearchSubmissionTests()
-        self.fixture, self.run, self.task, self.env, self.draft = helper.submit_and_start(
+        self.fixture, self.run, self.task, _, self.draft = helper.submit_and_start(
             Path(self.temp.name), version=submission.BOUNDED_REVISION_VERSION)
         self.packet = build_multidimensional_dispatch_packet(fixtures.fixtures.ROOT, self.run, self.task["task_name"])
         self.token = helper.token(self.run, self.task)
@@ -44,10 +42,13 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         response = json.loads(output.getvalue())
         return response.get("result", {}).get("structuredContent"), response
 
-    def stop(self, receipt, **overrides):
-        payload = self.fixture.stop_payload(self.task, {}, parent="dependency-parent", child="r")
-        payload["last_assistant_message"] = receipt["final_message"]
-        return handle_hook_event({**payload, **overrides}, environ=self.env)
+    def read_submission(self, receipt):
+        # 合成任务只验证真实MCP回执的业务绑定，不认证宿主、作者或执行。
+        return fixtures.ResearchSubmissionTests().read_bounded_submission(self.run, self.task, receipt)
+
+    def assert_no_execution_or_acceptance(self):
+        self.assertFalse((self.run / "invocation/subagent-events.jsonl").exists())
+        self.assertFalse((self.directory / "accepted.json").exists())
 
     def incomplete(self):
         draft = copy.deepcopy(self.draft)
@@ -58,18 +59,17 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         return {"base_draft_ref": repair["base_draft_ref"], "changes": changes or [{
             "op": "add", "path": "/data_gaps/0/impact", "value": self.draft["data_gaps"][0]["impact"]}]}
 
-    def test_valid_first_submission_reaches_original_formal_report(self):
+    def test_valid_first_submission_preserves_original_research_without_execution_claim(self):
         result, response = self.call(self.draft)
         self.assertIsNotNone(result, response)
         self.assertEqual(result["status"], "DRAFT_STORED_NOT_VALIDATED")
-        record, _ = self.stop(result)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-        report = json.loads((self.run / record["output_capture"]["path"]).read_text())
+        report, _, _, _ = self.read_submission(result)
         for key in ("claims", "data_gaps", "limitations", "summary"):
             self.assertEqual(report[key], self.draft[key])
         self.assertEqual(report["run_id"], self.task["run_id"])
+        self.assert_no_execution_or_acceptance()
 
-    def test_selected_document_short_alias_diagnostic_matches_real_stop(self):
+    def test_selected_document_alias_requires_exact_selection_at_business_boundary(self):
         short, full = next(iter(self.packet["reference_map"]["documents"].items()))
         draft = copy.deepcopy(self.draft)
         draft["document_selections"] = [short]
@@ -85,38 +85,38 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         assembled, _ = submission._assemble_draft(draft, self.packet, root=self.run)
         self.assertEqual(assembled["documents"][0]["document_id"], full)
         self.assertEqual(assembled["claims"][0]["document_refs"], [short])
-        original = copy.deepcopy(assembled)
-        trusted = {"identity_binding": {"status": "BOUND"},
-                   "trusted_task_binding": {"invocation_id": self.task["invocation_id"]}}
-        for variant, expected in (("selected", False), ("unselected", True), ("unknown", True)):
-            candidate = copy.deepcopy(assembled)
-            if variant == "unselected":
-                candidate["documents"] = []
-            elif variant == "unknown":
-                candidate["claims"][0]["document_refs"] = ["d.unknown.1"]
-            diagnostic = _multidimensional_draft_diagnostics(
-                {"last_assistant_message": json.dumps(candidate)}, self.env,
-                failure_code="DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED",
-                trusted_record=trusted)
-            self.assertNotEqual(diagnostic["status"], "UNAVAILABLE", diagnostic)
-            self.assertEqual(any(f["code"] == "DIMENSION_REPORT_INTERNAL_REFERENCE_DANGLING"
-                                 for f in diagnostic["findings"]), expected, diagnostic)
-        self.assertEqual(assembled, original)
+        original = copy.deepcopy(draft)
         receipt, response = self.call(draft)
         self.assertIsNotNone(receipt, response)
-        record, _ = self.stop(receipt)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-        report = json.loads((self.run / record["output_capture"]["path"]).read_text())
+        report, _, _, _ = self.read_submission(receipt)
         self.assertEqual(report["claims"][0]["document_refs"], [full])
+        from product.council.multidimensional_research import (
+            finalize_research_dimension_report, validate_research_dimension_report,
+        )
+        from product.runtime.multidimensional_references import translate_references
+        unselected = copy.deepcopy(report)
+        unselected["documents"] = []
+        unselected = finalize_research_dimension_report(unselected)
+        with self.assertRaisesRegex(ValueError, "INTERNAL_REFERENCE_DANGLING"):
+            validate_research_dimension_report(
+                unselected, expected_bindings=report["bindings"],
+                allowed_security_ids=self.task["security_ids"],
+                allowed_evidence_ids=self.task["allowed_evidence_ids"],
+                allowed_documents=self.task["allowed_documents"],
+            )
+        with self.assertRaisesRegex(ValueError, "REFERENCE_UNKNOWN"):
+            translate_references({"document_refs": ["d.unknown.1"]}, self.packet["reference_map"])
+        self.assertEqual(draft, original)
+        self.assert_no_execution_or_acceptance()
 
-    def test_relation_amount_requires_author_correction_in_original_two_slots(self):
-        self.verify_relation_amount_repair(fix_relation=True)
+    def test_relation_amount_requires_explicit_author_correction(self):
+        self.verify_relation_amount(fix_relation=True)
 
-    def test_core_only_second_submission_still_fails_and_exhausts_original_slots(self):
-        self.verify_relation_amount_repair(fix_relation=False)
+    def test_correcting_only_core_does_not_hide_relation_amount_failure(self):
+        self.verify_relation_amount(fix_relation=False)
 
-    def verify_relation_amount_repair(self, *, fix_relation):
-        # 合成许可来源由真实金额护栏处理；stdio、装配、修订及Stop仍走真实路径。
+    def verify_relation_amount(self, *, fix_relation):
+        # 合成许可来源只用于真实金额算法；不签发Stop修订权限或作者证明。
         evidence_ref = next(short for short, full in self.packet["reference_map"]["evidence"].items()
                             if full == "ev-issuer-body")
         upstream_ref = next(iter(self.packet["reference_map"]["claims"]))
@@ -129,53 +129,31 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
             "kind": "INTERPRETATION", "evidence_refs": [evidence_ref],
             "research_claim_refs": [upstream_ref], "document_refs": [], "assumption_ids": [],
         }]
+        gate = json.loads((self.run / "evidence/gate.json").read_text())
+        source = next(f for f in gate["allowed_evidence"] if f["evidence_id"] == "ev-issuer-body")
+        source["value"] = {"content_tier": "LICENSED_API_CONTENT", "content": "供应商预测120/180亿美元。"}
+        gate["bundle_hash"] = legacy_envelope_hash(gate, hash_field="bundle_hash")
 
-        def licensed_fixture_guard(*args, **kwargs):
-            gate = copy.deepcopy(kwargs["gate"])
-            source = next(f for f in gate["allowed_evidence"] if f["evidence_id"] == "ev-issuer-body")
-            source["value"] = {"content_tier": "LICENSED_API_CONTENT", "content": "供应商预测120/180亿美元。"}
-            gate["bundle_hash"] = legacy_envelope_hash(gate, hash_field="bundle_hash")
-            return _research_report_monetary_findings(*args, **{**kwargs, "gate": gate})
+        def findings_for(candidate):
+            assembled, selected = submission._assemble_draft(candidate, self.packet, root=self.run)
+            return research_report_monetary_findings(
+                assembled, task=self.task, gate=gate, reference_packet=self.packet, selected_upstream=selected)
 
-        with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings",
-                   side_effect=licensed_fixture_guard):
-            first, response = self.call(draft)
-            self.assertIsNotNone(first, response)
-            original = (self.directory / "1.json").read_bytes()
-            record, blocked = self.stop(first)
-            self.assertEqual(blocked["decision"], "block", record)
-            repair = record["repair_request"]
-            self.assertEqual(repair["allowed_paths"], ["/claims/0"])
-            feedback = json.loads(blocked["reason"])
-            self.assertIn("最终拼接", json.dumps(feedback, ensure_ascii=False))
-            self.assertTrue(all(f["amount_index_basis"] == "FINAL_ASSEMBLED_STATEMENT"
-                                for f in feedback["validation_details"]["findings"]
-                                if f["code"] == "DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED"))
-            corrected = copy.deepcopy(draft["claims"][0])
-            corrected["core_statement"] = "供应商预测为120/180亿美元，不是已实现经营事实。"
-            core_only = copy.deepcopy(draft)
-            core_only["claims"][0] = corrected
-            assembled, selected = submission._assemble_draft(core_only, self.packet, root=self.run)
-            findings = licensed_fixture_guard(assembled, task=self.task,
-                gate=json.loads((self.run / "evidence/gate.json").read_text()),
-                reference_packet=self.packet, selected_upstream=selected)
-            self.assertEqual([(f["reported_value"], f["amount_index"]) for f in findings], [("18", 0)])
-            if fix_relation:
-                corrected["research_relation_clauses"][0]["relation_statement"] = "上游历史事实不能证明120/180亿美元预测。"
-            second, response = self.call({"base_draft_ref": repair["base_draft_ref"], "changes": [
-                {"op": "replace", "path": "/claims/0", "value": corrected}]})
-            self.assertIsNotNone(second, response)
-            self.assertEqual(second["validation_result"]["status"], "PASSED", second)
-            saved, _ = self.stop(second)
-            self.assertEqual(saved["output_capture"]["status"], "SAVED" if fix_relation else "FAILED", saved)
-            if not fix_relation:
-                self.assertEqual(saved["output_capture"]["failure_code"],
-                                 "DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED")
-                self.assertEqual(saved["output_capture"]["repair_state"], "EXHAUSTED")
-            self.assertEqual((self.directory / "1.json").read_bytes(), original)
-            third, rejected = self.call(draft)
-            self.assertIsNone(third)
-            self.assertIn("LIMIT_EXHAUSTED", json.dumps(rejected))
+        original = copy.deepcopy(draft)
+        first_findings = findings_for(draft)
+        self.assertTrue(first_findings)
+        self.assertTrue(all(f["amount_index_basis"] == "FINAL_ASSEMBLED_STATEMENT" for f in first_findings))
+        corrected = copy.deepcopy(draft)
+        corrected["claims"][0]["core_statement"] = "供应商预测为120/180亿美元，不是已实现经营事实。"
+        self.assertEqual([(f["reported_value"], f["amount_index"]) for f in findings_for(corrected)], [("18", 0)])
+        if fix_relation:
+            corrected["claims"][0]["research_relation_clauses"][0]["relation_statement"] = "上游历史事实不能证明120/180亿美元预测。"
+            self.assertEqual(findings_for(corrected), [])
+        else:
+            self.assertTrue(findings_for(corrected))
+        self.assertEqual(draft, original)
+        self.assertFalse(self.directory.exists())
+        self.assert_no_execution_or_acceptance()
 
     def test_missing_relationship_list_repair_uses_delivered_operation_schema(self):
         from jsonschema import Draft202012Validator
@@ -207,9 +185,10 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         Draft202012Validator(repair["revision_format_guide"]).validate(revised)
         second, _ = self.call(revised)
         self.assertEqual(second["validation_result"]["status"], "PASSED")
-        record, _ = self.stop(second)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
+        report, _, _, _ = self.read_submission(second)
+        self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["core_statement"] + " " + relations[0]["relation_statement"])
         self.assertEqual((self.directory / "1.json").read_bytes(), original)
+        self.assert_no_execution_or_acceptance()
 
     def test_real_missing_op_shape_still_consumes_second_slot_and_is_rejected(self):
         from jsonschema import Draft202012Validator, ValidationError
@@ -284,7 +263,7 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "EVENT_RUN_MISMATCH"):
             _events(self.run)
 
-    def test_nonempty_relation_keeps_authored_qualifiers_through_stop_and_finalizer(self):
+    def test_nonempty_relation_keeps_authored_qualifiers_through_business_read(self):
         ref, target = next(iter(self.packet["reference_map"]["claims"].items()))
         core = "来源观点需要独立核验；不等于公司盈利增长已被证实。"
         relation = "上游只给历史经营事实与资料限制，不能验证该观点。"
@@ -299,14 +278,11 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         self.assertIsNotNone(first, response)
         self.assertEqual(first["validation_result"]["status"], "PASSED", first)
         self.assertEqual(first["citation_review"]["pair_count"], 1)
-        record, _ = self.stop(first)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-        report = json.loads((self.run / record["output_capture"]["path"]).read_text())
+        report, _, _, _ = self.read_submission(first)
         self.assertEqual(report["claims"][0]["statement"], core + " " + relation)
         self.assertEqual(report["claims"][0]["research_claim_refs"], [target["canonical_ref"]])
         self.assertEqual(json.loads((self.directory / "1.json").read_text())["draft"], draft)
-        result = finalize_multidimensional_task_evidence(fixtures.fixtures.ROOT, self.run, self.task["task_name"])
-        self.assertEqual(result["status"], "PASSED", result)
+        self.assert_no_execution_or_acceptance()
 
     def test_schema_invalid_first_consumes_slot_and_local_patch_revalidates(self):
         original = self.incomplete()
@@ -318,8 +294,9 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         self.assertIsNotNone(second, response)
         self.assertEqual(second["submission"], 2)
         self.assertEqual(second["validation_result"]["status"], "PASSED")
-        record, _ = self.stop(second)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
+        report, _, _, _ = self.read_submission(second)
+        self.assertEqual(report["data_gaps"], self.draft["data_gaps"])
+        self.assert_no_execution_or_acceptance()
         self.assertEqual((self.directory / "1.json").read_bytes(), before)
         self.assertEqual(json.loads(before)["draft"], original)
         stored = json.loads((self.directory / "2.json").read_text())
@@ -349,8 +326,9 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
             self.assertEqual(result["validation_result"]["failure_code"], "CALCULATION_EVENT_INVALID")
             self.assertGreater(catalog.call_count, 0)
             self.assertFalse(result.get("repair"))
-        record, _ = self.stop(result)
-        self.assertEqual(record["output_capture"]["status"], "FAILED", record)
+        with self.assertRaisesRegex(ValueError, "CALCULATION_EVENT_INVALID"):
+            self.read_submission(result)
+        self.assert_no_execution_or_acceptance()
 
     def test_wrong_credential_has_no_target_state_or_quota_effect(self):
         result, response = self.call(self.draft, token="not-authorized")
@@ -366,10 +344,9 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         second, _ = self.call(self.patch_for(first["repair"], changes))
         self.assertEqual(second["status"], "DRAFT_REJECTED")
         self.assertIn("LOCAL_REVISION_OUT_OF_SCOPE", second["validation_result"]["failure_code"])
-        record, response = self.stop(second)
-        self.assertEqual(record["output_capture"]["status"], "FAILED")
-        self.assertEqual(record["output_capture"]["repair_state"], "EXHAUSTED")
-        self.assertEqual(response, {})
+        with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_OUT_OF_SCOPE"):
+            self.read_submission(second)
+        self.assert_no_execution_or_acceptance()
         self.assertEqual(json.loads((self.directory / "2.json").read_text())["authored_submission"]["changes"], changes)
         result, response = self.call(self.patch_for(first["repair"]))
         self.assertIsNone(result)
@@ -389,39 +366,38 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
 
     def test_exact_rejected_receipt_is_not_latest_valid_draft(self):
         first, _ = self.call(self.incomplete())
-        self.call(self.patch_for(first["repair"]))
-        record, response = self.stop(first)
-        self.assertEqual(record["output_capture"]["status"], "FAILED")
-        self.assertIn("SCHEMA_REQUIRED_MISSING", record["output_capture"]["failure_code"])
+        second, _ = self.call(self.patch_for(first["repair"]))
+        record = {"identity_binding": {"status": "BOUND"}, "trusted_task_binding": self.packet["identity"]}
+        with self.assertRaisesRegex(ValueError, "SCHEMA_REQUIRED_MISSING"):
+            submission.resolve(self.run, {"last_assistant_message": first["final_message"]}, record, 1)
         self.assertEqual(record["submission_binding"]["submission"], 1)
-        self.assertFalse(list((self.run / "research/reports").glob("*/dimension-report.json"))[1:])
+        self.assertEqual(record["submission_binding"]["content_hash"], first["content_hash"])
+        self.read_submission(second)
+        self.assert_no_execution_or_acceptance()
 
-    def test_trusted_stop_creates_bound_repair_for_later_business_validation(self):
-        from product.runtime.local_revision import REVISION_FORMAT_GUIDE
-        from jsonschema import Draft202012Validator
+    def test_later_business_failure_does_not_invent_stop_repair_authority(self):
         draft = {**self.draft, "status": "SOURCE_LIMITED"}
         first, _ = self.call(draft)
+        original = (self.directory / "1.json").read_bytes()
         self.assertEqual(first["validation_result"]["status"], "PASSED", first)
-        record, response = self.stop(first)
-        self.assertEqual(record["output_capture"]["repair_state"], "REPAIR_REQUESTED", record)
-        repair = json.loads(response["reason"])
-        self.assertEqual(repair["repair_contract"], "research-local-revision/1.0.0")
-        self.assertEqual(repair["revision_format_guide"], REVISION_FORMAT_GUIDE)
-        self.assertNotIn("binding_hash", repair)
-        correction = self.patch_for(repair, [{
-            "op": "replace", "path": "/evaluation_status", "value": "SOURCE_LIMITED"}])
-        Draft202012Validator(repair["revision_format_guide"]).validate(correction)
-        second, response = self.call(correction)
-        self.assertIsNotNone(second, response)
-        record, _ = self.stop(second)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
+        with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_SOURCE_LIMITED_STATE_INVALID"):
+            self.read_submission(first)
+        self.assertNotIn("repair", first)
+        self.assertFalse((self.directory / "1.repair.json").exists())
+        second, response = self.call({"base_draft_ref": "b.invented", "changes": [{
+            "op": "replace", "path": "/evaluation_status", "value": "SOURCE_LIMITED"}]})
+        self.assertIsNone(second)
+        self.assertIn("REVISION_NOT_AUTHORIZED", json.dumps(response))
+        self.assertFalse((self.directory / "2.json").exists())
+        self.assertEqual((self.directory / "1.json").read_bytes(), original)
+        self.assert_no_execution_or_acceptance()
 
-    def test_missing_actual_submission_event_is_not_an_execution_proof(self):
+    def test_missing_actual_submission_event_is_not_a_submission_proof(self):
         first, _ = self.call(self.draft)
         (self.run / "events/mcp/events.jsonl").unlink()
-        record, _ = self.stop(first)
-        self.assertEqual(record["output_capture"]["failure_code"], "RESEARCH_SUBMISSION_EVENT_MISSING")
-        self.assertEqual(record["output_capture"]["repair_state"], "NOT_ALLOWED")
+        with self.assertRaisesRegex(ValueError, "RESEARCH_SUBMISSION_EVENT_MISSING"):
+            self.read_submission(first)
+        self.assert_no_execution_or_acceptance()
 
     def test_unknown_document_can_only_be_replaced_by_authors_explicit_choice(self):
         draft = {**self.draft, "document_selections": ["d.not-in-this-task"]}
@@ -432,13 +408,10 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         second, response = self.call(self.patch_for(first["repair"], [{
             "op": "replace", "path": "/document_selections/0", "value": allowed}]))
         self.assertIsNotNone(second, response)
-        record, _ = self.stop(second)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-        report = json.loads((self.run / record["output_capture"]["path"]).read_text())
+        report, _, _, _ = self.read_submission(second)
         self.assertEqual(report["documents"], [self.task["allowed_documents"][0]])
         self.assertEqual(report["summary"], self.draft["summary"])
-        result = finalize_multidimensional_task_evidence(fixtures.fixtures.ROOT, self.run, self.task["task_name"])
-        self.assertEqual(result["status"], "PASSED", result)
+        self.assert_no_execution_or_acceptance()
 
     def test_revision_deleting_claim_is_still_checked_for_dangling_conditions(self):
         ref = next(iter(self.packet["reference_map"]["claims"]))
@@ -455,10 +428,9 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         self.assertIsNotNone(first, response)
         self.assertEqual(first["repair"]["allowed_paths"], ["/claims/0"])
         second, _ = self.call(self.patch_for(first["repair"], [{"op": "remove", "path": "/claims/0"}]))
-        record, _ = self.stop(second)
-        self.assertEqual(record["output_capture"]["status"], "FAILED", record)
-        self.assertEqual(record["output_capture"]["failure_code"], "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING")
-        self.assertEqual(record["output_capture"]["repair_state"], "EXHAUSTED")
+        with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING"):
+            self.read_submission(second)
+        self.assert_no_execution_or_acceptance()
 
     def test_full_replacement_consumes_second_authorized_slot_without_rewriting_base(self):
         first, _ = self.call(self.incomplete())
@@ -467,9 +439,9 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         self.assertEqual(result["status"], "DRAFT_REJECTED")
         self.assertEqual(result["validation_result"]["failure_code"], "RESEARCH_SUBMISSION_BASE_REFERENCE_INVALID")
         self.assertEqual((self.directory / "1.json").read_bytes(), base_bytes)
-        record, response = self.stop(result)
-        self.assertEqual(record["output_capture"]["repair_state"], "EXHAUSTED")
-        self.assertEqual(response, {})
+        with self.assertRaisesRegex(ValueError, "RESEARCH_SUBMISSION_BASE_REFERENCE_INVALID"):
+            self.read_submission(result)
+        self.assert_no_execution_or_acceptance()
         third, response = self.call(self.patch_for(first["repair"]))
         self.assertIsNone(third)
         self.assertIn("LIMIT_EXHAUSTED", json.dumps(response))
@@ -484,13 +456,16 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         self.assertIsNone(third)
         self.assertIn("LIMIT_EXHAUSTED", json.dumps(response))
 
-    def test_valid_bearer_is_not_wrong_child_stop_authentication(self):
+    def test_valid_bearer_and_receipt_do_not_invent_missing_identity(self):
         first, _ = self.call(self.draft)
-        record, _ = self.stop(first, agent_id="wrong-child")
-        self.assertNotEqual(record.get("output_capture", {}).get("status"), "SAVED")
-        self.assertFalse((self.directory / "accepted.json").exists())
-        record, _ = self.stop(first)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
+        payload = {"last_assistant_message": first["final_message"]}
+        for record in ({}, {"identity_binding": {"status": "CONFLICT"}}):
+            with self.subTest(record=record):
+                self.assertEqual(submission.resolve(self.run, payload, record, 1), payload)
+                self.assertNotIn("submission_binding", record)
+        self.assert_no_execution_or_acceptance()
+        self.read_submission(first)
+        self.assert_no_execution_or_acceptance()
 
     def test_re_signed_stored_draft_is_rejected_by_actual_event(self):
         first, _ = self.call(self.draft)
@@ -499,10 +474,9 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         stored["draft"]["summary"] = "重新签名但并非实际提交的结论。"
         stored["content_hash"] = legacy_envelope_hash(stored, hash_field="content_hash")
         path.write_text(json.dumps(stored))
-        record, response = self.stop(first)
-        self.assertIn("EVENT_BINDING_INVALID", record["output_capture"]["failure_code"])
-        self.assertEqual(record["output_capture"]["repair_state"], "NOT_ALLOWED")
-        self.assertEqual(response, {})
+        with self.assertRaisesRegex(ValueError, "RESEARCH_SUBMISSION_EVENT_BINDING_INVALID"):
+            self.read_submission(first)
+        self.assert_no_execution_or_acceptance()
 
     def test_too_many_structure_errors_are_saved_not_unlimited_rejected_calls(self):
         draft = {**self.draft, "data_gaps": [{} for _ in range(40)]}
@@ -525,10 +499,9 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         first, _ = self.call(self.draft)
         path = self.run / "events/mcp/events.jsonl"
         path.write_text(path.read_text() + "null\n")
-        record, response = self.stop(first)
-        self.assertEqual(record["output_capture"]["failure_code"], "RESEARCH_SUBMISSION_EVENT_INVALID")
-        self.assertEqual(record["output_capture"]["repair_state"], "NOT_ALLOWED")
-        self.assertEqual(response, {})
+        with self.assertRaisesRegex(ValueError, "RESEARCH_SUBMISSION_EVENT_INVALID"):
+            self.read_submission(first)
+        self.assert_no_execution_or_acceptance()
 
     def test_parallel_corrections_share_one_remaining_slot(self):
         first, _ = self.call(self.incomplete())
@@ -550,15 +523,14 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
         moved = Path(self.temp.name) / "moved-events"
         directory.rename(moved)
         directory.symlink_to(moved, target_is_directory=True)
-        record, response = self.stop(first)
-        self.assertEqual(record["output_capture"]["failure_code"], "RESEARCH_SUBMISSION_EVENT_PATH_INVALID")
-        self.assertEqual(record["output_capture"]["repair_state"], "NOT_ALLOWED")
-        self.assertEqual(response, {})
+        with self.assertRaisesRegex(ValueError, "RESEARCH_SUBMISSION_EVENT_PATH_INVALID"):
+            self.read_submission(first)
+        self.assert_no_execution_or_acceptance()
 
     def test_bounded_monetary_preview_reuses_existing_calculation_diagnostics(self):
         findings = [{"code": "DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED",
                      "path": "claims[0].statement", "identifier": "e.original"}]
-        with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings", return_value=findings):
+        with patch("product.runtime.monetary.research_report_monetary_findings", return_value=findings):
             result, _ = self.call(self.draft)
         self.assertEqual(result["monetary_review"]["status"], "LOCATED")
         self.assertEqual(result["monetary_review"]["findings"], findings)
@@ -584,51 +556,43 @@ class BoundedResearchSubmissionTests(unittest.TestCase):
                    "amount_index_basis": "FINAL_ASSEMBLED_STATEMENT"}
         return draft, finding
 
-    def test_trusted_stop_opens_only_exact_repeated_description_and_keeps_two_submissions(self):
-        from product.runtime.local_revision import _apply
+    def test_repeated_amount_context_locates_only_exact_description_without_authority(self):
+        from product.runtime.local_revision import _apply, located_paths
         draft, finding = self.monetary_repeat_draft()
-        with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings", return_value=[finding]):
-            first, _ = self.call(draft)
-            original = (self.directory / "1.json").read_bytes()
-            record, response = self.stop(first)
-        self.assertEqual(response["decision"], "block", record)
-        repair = record["repair_request"]
-        self.assertEqual(repair["allowed_paths"], ["/claims/0", "/data_gaps/0/description"])
-        self.assertEqual(json.loads(response["reason"])["repeated_amount_context"], [{"path": "data_gaps[0].description",
+        original = copy.deepcopy(draft)
+        context = monetary_repetition_context(draft, [finding])
+        self.assertEqual(context, [{"path": "data_gaps[0].description",
                           "status": "REPEATED_EXPLICIT_AMOUNT_AUTHOR_RECHECK"}])
+        allowed = located_paths([finding, *context])
+        self.assertEqual(allowed, ["/claims/0", "/data_gaps/0/description"])
         for path in ("/data_gaps/0", "/data_gaps/0/impact", "/data_gaps/1/description", "/summary"):
             with self.subTest(path=path), self.assertRaisesRegex(ValueError, "OUT_OF_SCOPE"):
-                _apply(draft, [{"op": "replace", "path": path, "value": "outside"}], repair["allowed_paths"])
-        authored = {"base_draft_ref": repair["base_draft_ref"], "changes": [
+                _apply(draft, [{"op": "replace", "path": path, "value": "outside"}], allowed)
+        corrected = _apply(draft, [
             {"op": "replace", "path": "/claims/0/core_statement", "value": "管理层原指引为120亿美元，待核验。"},
             {"op": "replace", "path": "/data_gaps/0/description", "value": "待交叉核验原文120亿美元指引。"},
-        ]}
-        second, response = self.call(authored)
-        self.assertIsNotNone(second, response)
-        self.assertEqual(second["validation_result"]["status"], "PASSED")
-        record, _ = self.stop(second)
-        self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-        report = json.loads((self.run / record["output_capture"]["path"]).read_text())
-        self.assertEqual(report["data_gaps"][0]["description"], authored["changes"][1]["value"])
-        self.assertEqual(report["data_gaps"][1], draft["data_gaps"][1])
-        self.assertEqual((self.directory / "1.json").read_bytes(), original)
-        third, response = self.call(authored)
-        self.assertIsNone(third)
-        self.assertIn("LIMIT_EXHAUSTED", json.dumps(response))
+        ], allowed)
+        self.assertEqual(corrected["data_gaps"][0]["description"], "待交叉核验原文120亿美元指引。")
+        self.assertEqual(corrected["data_gaps"][1], draft["data_gaps"][1])
+        self.assertEqual(draft, original)
+        self.assertFalse(self.directory.exists())
+        self.assert_no_execution_or_acceptance()
 
-    def test_repeated_description_does_not_open_other_gap_fields_in_real_second_submission(self):
+    def test_monetary_preview_does_not_expand_real_second_submission_scope(self):
         draft, finding = self.monetary_repeat_draft()
-        with patch("product.runtime.codex_hook_recorder._research_report_monetary_findings", return_value=[finding]):
+        with patch("product.runtime.monetary.research_report_monetary_findings", return_value=[finding]):
             first, _ = self.call(draft)
-            record, _ = self.stop(first)
-        repair = record["repair_request"]
-        second, response = self.call({"base_draft_ref": repair["base_draft_ref"], "changes": [
-            {"op": "replace", "path": "/data_gaps/0/impact", "value": "outside"}]})
-        self.assertIsNotNone(second, response)
-        self.assertEqual(second["validation_result"]["failure_code"], "LOCAL_REVISION_OUT_OF_SCOPE:/data_gaps/0/impact")
-        final, _ = self.stop(second)
-        self.assertEqual(final["output_capture"]["status"], "FAILED", final)
-        self.assertEqual(final["output_capture"]["repair_state"], "EXHAUSTED")
+        self.assertEqual(first["monetary_review"]["findings"], [finding])
+        self.assertNotIn("repair", first)
+        self.assertFalse((self.directory / "1.repair.json").exists())
+        authored = {"base_draft_ref": "b.invented", "changes": [{
+            "op": "replace", "path": "/data_gaps/0/impact", "value": "outside"}]}
+        second, response = self.call(authored)
+        self.assertIsNone(second)
+        self.assertIn("REVISION_NOT_AUTHORIZED", json.dumps(response))
+        self.assertFalse((self.directory / "2.json").exists())
+        self.assertEqual(json.loads((self.directory / "1.json").read_text())["draft"], draft)
+        self.assert_no_execution_or_acceptance()
 
     def test_start_context_and_tool_parameter_contract_select_same_protocol(self):
         context = json.loads(serialize_multidimensional_model_context(self.packet))

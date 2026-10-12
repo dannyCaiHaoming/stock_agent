@@ -7,12 +7,10 @@ import os
 import runpy
 import shlex
 import subprocess
-import subprocess
 import sys
 import tempfile
 import tomllib
 import unittest
-import urllib.error
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,17 +18,7 @@ from product.runtime.cli import main
 from product.runtime.runtime_eval import build_eval_smoke_prompt
 from product.runtime.smoke_prompt import build_smoke_prompt, sessions_root_argument
 from product.runtime.model_routing import load_model_routing, select_model
-from product.runtime.environment_preflight import (
-    build_restricted_command,
-    command_network_probe,
-    network_access_probe,
-    permission_probe,
-    permission_profile_override,
-    permission_profile_overrides,
-    resolve_run_paths,
-    run_permission_probe_with_child,
-    run_environment_preflight,
-)
+from product.runtime.environment_preflight import run_permission_probe_with_child, run_environment_preflight
 from product.runtime.nested_codex import (
     run_nested_codex_connectivity_probe,
 )
@@ -40,17 +28,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EntryPathTests(unittest.TestCase):
-    def test_missing_base_dependency_is_reported_before_dispatch(self):
-        # -S excludes site-packages without changing the actual project env.
+    def test_cli_help_does_not_load_base_business_dependencies(self):
+        # -S excludes site-packages; pure help no longer loads jsonschema or dispatches.
         result = subprocess.run(
             [sys.executable, "-S", str(ROOT / "scripts/council-dev.py"), "--help"],
             capture_output=True, text=True, timeout=15,
         )
-        self.assertEqual(result.returncode, 2)
-        failure = json.loads(result.stdout)
-        self.assertEqual(failure["failure_code"], "DEVELOPMENT_DEPENDENCY_MISSING")
-        self.assertEqual(failure["dependency"], "jsonschema")
-        self.assertEqual(failure["llm_calls"], 0)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("usage:", result.stdout)
+        self.assertNotIn("DEVELOPMENT_DEPENDENCY_MISSING", result.stdout)
 
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="entry paths ")
@@ -69,13 +55,10 @@ class EntryPathTests(unittest.TestCase):
 
     def test_cwd_does_not_change_product_root_or_argument_boundaries(self):
         for cwd in (ROOT, ROOT / "product", self.base):
-            command, repo = self.forward(["nested-codex-smoke", "--repo", os.path.relpath(ROOT, cwd), "--run-dir", os.path.relpath(self.run, cwd)], calling_cwd=cwd)
+            command, repo = self.forward(["artifact-replay", "--repo", os.path.relpath(ROOT, cwd), "--run-dir", os.path.relpath(self.run, cwd), "--output", "result with spaces.json"], calling_cwd=cwd)
             self.assertEqual(repo, ROOT)
             self.assertEqual(command[command.index("--run-dir") + 1], str(self.run))
             self.assertEqual(command[command.index("--repo") + 1], str(ROOT))
-        paths = resolve_run_paths(ROOT, run_dir=self.run)
-        self.assertEqual(paths["child_cwd"], str(ROOT / "product"))
-        self.assertEqual(paths["state_dir"], str(self.run / ".codex-runtime"))
 
     def test_default_repo_and_equals_syntax_preserve_cli(self):
         command, repo = self.forward(["artifact-replay", f"--run-dir={self.run}", "--output=report with spaces.json"], calling_cwd=self.base)
@@ -89,207 +72,6 @@ class EntryPathTests(unittest.TestCase):
         self.assertEqual(command[3], "regression")
         self.assertNotIn("nested-codex-smoke", command)
         self.assertEqual(command[command.index("--run-index") + 1], str(self.base / "index.json"))
-
-    def test_replay_explicit_root_conflict_fails_before_execution(self):
-        self.manifest.update(run_mode="EXECUTION_REPLAY", execution_replay={"workspace": str(self.base / "frozen")})
-        self.save_manifest()
-        with self.assertRaisesRegex(ValueError, "REPLAY_REPOSITORY_CONFLICT"):
-            self.forward(["nested-codex-smoke", "--repo", str(ROOT), "--run-dir", str(self.run)], calling_cwd=self.base)
-        with self.assertRaisesRegex(ValueError, "REPLAY_REPOSITORY_CONFLICT"):
-            resolve_run_paths(ROOT, run_dir=self.run)
-
-    def test_three_new_execution_sources_use_the_same_cli_launcher(self):
-        for mode, trigger in (("PRODUCT_COUNCIL", "product_council"), ("PRODUCT_COUNCIL", "regression:normal"), ("EXECUTION_REPLAY", "execution_replay")):
-            self.manifest.update(run_mode=mode, trigger_reason=trigger)
-            if mode == "EXECUTION_REPLAY":
-                self.manifest["execution_replay"] = {"workspace": str(ROOT)}
-            self.save_manifest()
-            command, repo = self.forward(["nested-codex-smoke", "--run-dir", str(self.run)], calling_cwd=self.base)
-            with patch("product.runtime.cli.launch_nested_codex", return_value=({"status": "TEST_ONLY"}, 7)) as launcher, contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(main(command[3:]), 7)
-                launcher.assert_called_once_with(
-                    repo,
-                    run_dir=self.run,
-                    codex_binary=str(ROOT / "scripts/replay-codex-transport.py") if mode == "EXECUTION_REPLAY" else "codex",
-                    timeout_seconds=1800,
-                    preflight_report=None,
-                )
-
-    def test_duplicate_invocation_state_and_identity_conflicts_fail(self):
-        for name, code in (("invocation", "INVOCATION_DIRECTORY_ALREADY_EXISTS"), (".codex-runtime", "RUN_STATE_ALREADY_EXISTS")):
-            path = self.run / name
-            path.mkdir()
-            with self.assertRaisesRegex(ValueError, code):
-                resolve_run_paths(ROOT, run_dir=self.run)
-            path.rmdir()
-        (self.run / "decision_trace.json").write_text(json.dumps({"run_id": "different"}))
-        with self.assertRaisesRegex(ValueError, "RUN_IDENTITY_CONFLICT"):
-            resolve_run_paths(ROOT, run_dir=self.run)
-
-    def test_symlink_inside_run_is_rejected(self):
-        (self.run / "escaped").symlink_to(ROOT, target_is_directory=True)
-        with self.assertRaisesRegex(ValueError, "RUN_DIRECTORY_SYMLINK_ESCAPE"):
-            resolve_run_paths(ROOT, run_dir=self.run)
-
-    def test_source_root_cannot_be_run_output(self):
-        with self.assertRaisesRegex(ValueError, "RUN_DIRECTORY_OVERLAPS_SOURCE"):
-            resolve_run_paths(ROOT, run_dir=ROOT / "product")
-
-    def test_authorized_output_root_and_ancestor_symlink_fail_closed(self):
-        (self.base / "other").mkdir()
-        with self.assertRaisesRegex(ValueError, "RUN_DIRECTORY_OUTSIDE_AUTHORIZED_OUTPUT_ROOT"):
-            resolve_run_paths(ROOT, run_dir=self.run, authorized_output_root=self.base / "other")
-        link = self.base / "linked-run"
-        link.symlink_to(self.run, target_is_directory=True)
-        with self.assertRaisesRegex(ValueError, "PATH_ANCESTOR_SYMLINK_FORBIDDEN"):
-            resolve_run_paths(ROOT, run_dir=link)
-
-
-class PermissionContractTests(unittest.TestCase):
-    def test_profile_is_path_scoped_and_does_not_open_codex_home(self):
-        with tempfile.TemporaryDirectory() as directory, patch.dict(
-            os.environ, {"CODEX_HOME": str(Path(directory) / "user codex")}
-        ):
-            base = Path(directory).resolve()
-            codex_home = Path(directory) / "user codex"
-            repo, run, output, tmpdir = (
-                base / "repo",
-                base / "run",
-                base / "evidence",
-                base / "tmp",
-            )
-            for path in (repo, run, output, tmpdir):
-                path.mkdir()
-            profile = permission_profile_override(
-                repository_root=repo,
-                run_dir=run,
-                output_dir=output,
-                tmpdir=tmpdir,
-            )
-            self.assertIn('\":root\"=\"deny\"', profile)
-            self.assertIn(f'{json.dumps(str(repo))}=\"read\"', profile)
-            self.assertIn(f'{json.dumps(str(run))}=\"write\"', profile)
-            self.assertIn(f'{json.dumps(str(Path(sys.base_prefix).resolve()))}=\"read\"', profile)
-            self.assertIn(f'{json.dumps(str(Path("/tmp").resolve()))}=\"deny\"', profile)
-            self.assertIn("auth.json", profile)
-            self.assertIn("config.toml", profile)
-            self.assertIn("/rules", profile)
-            self.assertIn("/skills", profile)
-            self.assertIn("/plugins", profile)
-            self.assertIn(f'{json.dumps(str(codex_home.resolve() / "tmp"))}=\"write\"', profile)
-            self.assertIn(f'{json.dumps(str(codex_home.resolve() / "installation_id"))}=\"write\"', profile)
-            self.assertNotIn(f'{json.dumps(str(codex_home.resolve()))}=\"write\"', profile)
-            self.assertNotIn(f'{json.dumps(str(codex_home.resolve() / "sessions"))}=\"write\"', profile)
-            self.assertNotIn(f'{json.dumps(str(codex_home.resolve() / "logs"))}=\"write\"', profile)
-            self.assertNotIn(f'{json.dumps(str(codex_home.resolve() / "auth.json"))}=\"write\"', profile)
-            self.assertNotIn(f'{json.dumps(str(codex_home.resolve() / "config.toml"))}=\"write\"', profile)
-            self.assertNotIn(f'{json.dumps(str(codex_home.resolve()))}=\"read\"', profile)
-            self.assertNotIn('sandbox_mode', profile)
-            self.assertNotIn('danger-full-access', profile)
-            overrides = permission_profile_overrides(
-                repository_root=repo,
-                run_dir=run,
-                output_dir=output,
-                tmpdir=tmpdir,
-            )
-            self.assertEqual(overrides[0], profile)
-            self.assertIn("features.network_proxy=true", overrides)
-            self.assertIn("permissions.council_review.network.enabled=true", overrides)
-            self.assertIn(
-                'permissions.council_review.network.domains={"chatgpt.com"="allow"}',
-                overrides,
-            )
-            self.assertFalse(any('"*"="allow"' in item for item in overrides))
-            command = build_restricted_command(
-                ["python3", "-V"],
-                repository_root=repo,
-                run_dir=run,
-                output_dir=output,
-                tmpdir=tmpdir,
-            )
-            self.assertEqual(command[0:2], ["codex", "sandbox"])
-            self.assertEqual(command[command.index("--permission-profile") + 1], "council_review")
-            self.assertIn("features.network_proxy=true", command)
-            self.assertIn(
-                'permissions.council_review.network.domains={"chatgpt.com"="allow"}',
-                command,
-            )
-
-    def test_network_probe_rejects_proxy_allowlist_block(self):
-        error = urllib.error.HTTPError(
-            "https://chatgpt.com/backend-api/codex/responses",
-            403,
-            "forbidden",
-            {"x-proxy-error": "blocked-by-allowlist"},
-            None,
-        )
-        with patch(
-            "product.runtime.environment_preflight.urllib.request.urlopen",
-            side_effect=error,
-        ):
-            result = network_access_probe()
-        self.assertEqual(result["status"], "BLOCKED")
-        self.assertEqual(result["failure_code"], "NETWORK_PROXY_ALLOWLIST_BLOCKED")
-        self.assertFalse(result["credentials_sent"])
-        self.assertFalse(result["response_body_read"])
-
-    def test_network_probe_accepts_reachable_http_error(self):
-        error = urllib.error.HTTPError(
-            "https://chatgpt.com/backend-api/codex/responses",
-            405,
-            "method not allowed",
-            {},
-            None,
-        )
-        with patch(
-            "product.runtime.environment_preflight.urllib.request.urlopen",
-            side_effect=error,
-        ):
-            result = network_access_probe()
-        self.assertEqual(result["status"], "REACHABLE")
-        self.assertIsNone(result["failure_code"])
-
-    def test_network_probe_classifies_connect_403(self):
-        error = urllib.error.URLError(
-            OSError("Tunnel connection failed: 403 Forbidden")
-        )
-        with patch(
-            "product.runtime.environment_preflight.urllib.request.urlopen",
-            side_effect=error,
-        ):
-            result = network_access_probe()
-        self.assertEqual(result["status"], "BLOCKED")
-        self.assertEqual(result["failure_code"], "NETWORK_PROXY_CONNECT_REJECTED")
-        self.assertEqual(result["error_classification"], "HTTP_CONNECT_403")
-
-    def test_probe_never_writes_source_or_outside_canary(self):
-        with tempfile.TemporaryDirectory() as directory:
-            base = Path(directory)
-            output, tmpdir = base / "output", base / "tmp"
-            output.mkdir()
-            tmpdir.mkdir()
-            source, outside = base / "source", base / "outside"
-            source.write_text("source", encoding="utf-8")
-            outside.write_text("outside", encoding="utf-8")
-            real_open = os.open
-
-            def restricted_open(path, flags):
-                if Path(path) in {source, outside}:
-                    raise PermissionError("denied")
-                return real_open(path, flags)
-
-            with patch("product.runtime.environment_preflight.os.open", side_effect=restricted_open):
-                result = permission_probe(
-                    source_canary=source,
-                    output_dir=output,
-                    tmpdir=tmpdir,
-                    outside_canary=outside,
-                )
-            self.assertEqual(result["status"], "PASS")
-            self.assertEqual(source.read_text(encoding="utf-8"), "source")
-            self.assertEqual(outside.read_text(encoding="utf-8"), "outside")
-            self.assertEqual(result["source_bytes_written"], 0)
-            self.assertEqual(result["outside_bytes_written"], 0)
 
 
 class RetiredSandboxEntryTests(unittest.TestCase):

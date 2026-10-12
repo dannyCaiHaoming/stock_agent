@@ -46,7 +46,7 @@
 
 ## Agent Package Milestone 0
 
-零 LLM 装配 Demo 只通过显式 `python3 scripts/council-dev.py demo ...` 启动，用于观察 Agent Request/Response、Dispatch、PIT、只读 Tool Port、Risk 和最终报告的数据流。默认 `self-check` 不启动该 Demo；真实产品 Smoke 仍只能使用宿主 launcher。
+零 LLM 装配 Demo 只通过显式 `python3 scripts/council-dev.py demo ...` 启动，用于观察 Agent Request/Response、Dispatch、PIT、只读 Tool Port、Risk 和最终报告的数据流。默认 `self-check` 不启动该 Demo；真实产品 Smoke 在用户所选的当前原生宿主产品会话另获授权，不由项目启动模型。宿主脚本只保留显式冻结 Replay 维护与已批准的 Tiger 严格只读入口。
 
 Demo 验收只运行受影响的确定性测试和一次全链路合成演示。Runtime Eval、Execution Replay、Regression、Calibration、Ablation 与 Promotion 的源码和显式入口继续保留，但普通实现、Demo、差异复核或归档准备不得自动调用。Demo PASS 只证明装配和契约，不证明真实 LLM、Skill 推理、Subagent、主线程 CIO、live 研究或候选晋升。
 

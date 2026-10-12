@@ -12,10 +12,9 @@ from unittest.mock import patch
 
 from product.runtime.evidence_gate import bind_frozen_gate_to_run, validate_frozen_gate_binding
 from product.runtime.hashing import file_hash, legacy_envelope_hash
-from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.multidimensional_stage import (
     _target_task_closure, _verified_retry_dependencies,
-    build_multidimensional_task_prompt, prepare_multidimensional_stage_run, launch_multidimensional_stage,
+    prepare_multidimensional_stage_run, launch_multidimensional_stage,
 )
 from product.runtime.research_materials_stage import prepare_research_materials_stage
 from tests import test_multidimensional_stage as fixtures
@@ -90,8 +89,8 @@ class ResearchDebugEntryTests(unittest.TestCase):
                     stage='INDEPENDENT_COUNTER_THESIS_RESEARCH', reuse_frozen_gate=True)
             self.assertFalse((root / 'run').exists())
 
-    def test_frozen_source_or_execution_view_tampering_is_rejected_before_launch(self):
-        for defect in ('source_bytes', 'view', 'binding', 'code_drift'):
+    def test_frozen_source_or_execution_view_tampering_is_rejected_read_only(self):
+        for defect in ('source_bytes', 'view', 'binding'):
             with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 handoff, source, _ = self.inputs(root)
@@ -104,20 +103,21 @@ class ResearchDebugEntryTests(unittest.TestCase):
                 else:
                     path = run / ('evidence/gate.json' if defect == 'view' else 'run_manifest.json')
                     value = json.loads(path.read_text())
-                    if defect == 'code_drift':
-                        value['research_execution_fingerprint']['product/runtime/fixture_mcp.py'] = '0' * 64
-                        value['manifest_hash'] = legacy_envelope_hash(value, hash_field='manifest_hash')
-                    elif defect == 'view':
+                    if defect == 'view':
                         value['decision_cutoff'] = '2025-01-01T00:00:00Z'
                     else:
                         value['gate_input_binding']['source_run_id'] = 'forged'
                     path.write_text(json.dumps(value))
                 task = json.loads((run / 'research/dispatch-index.json').read_text())['tasks'][0]
-                with patch('product.runtime.multidimensional_stage.subprocess.run') as model:
-                    code = 'INITIAL_INPUT_NOT_READY' if defect == 'code_drift' else 'FROZEN_GATE_BINDING_INVALID'
-                    with self.assertRaisesRegex(ValueError, code):
+                before = {p: file_hash(p) for p in run.rglob('*') if p.is_file()}
+                with self.assertRaisesRegex(ValueError, 'FROZEN_GATE_BINDING_INVALID'):
+                    validate_frozen_gate_binding(run, json.loads((run / 'run_manifest.json').read_text()),
+                                                 json.loads((run / 'evidence/gate.json').read_text()))
+                with patch('subprocess.run') as model:
+                    with self.assertRaisesRegex(ValueError, 'NATIVE_HOST_EXECUTION_REQUIRED'):
                         launch_multidimensional_stage(ROOT, run_dir=run, task_name=task['task_name'], initial_task=True)
                     model.assert_not_called()
+                self.assertEqual(before, {p: file_hash(p) for p in before})
                 self.assertFalse((run / 'invocation').exists())
 
     def test_materials_prepare_shares_explicit_source_binding_without_launch(self):
@@ -144,45 +144,9 @@ class ResearchDebugEntryTests(unittest.TestCase):
                 task = next(t for t in index['tasks'] if t['capability'] == capability)
                 closure = _target_task_closure(index, task['task_name'])
                 self.assertEqual([t['capability'] for t in closure], expected)
-                prompt = build_multidimensional_task_prompt(ROOT, run, task['task_name'])
-                for foreign in (t for t in index['tasks'] if t not in closure):
-                    self.assertNotIn('"' + foreign['task_name'] + '"', prompt)
+                self.assertEqual({t['task_id'] for t in closure},
+                                 {t['task_id'] for t in index['tasks'] if t['capability'] in expected})
 
-    def test_options_host_launcher_dispatches_only_one_task_and_never_claims_eight_dimensions(self):
-        with tempfile.TemporaryDirectory() as directory:
-            helper = fixtures.MultidimensionalStageTests()
-            run, _ = helper.prepare(Path(directory), count=1)
-            index = json.loads((run / 'research/dispatch-index.json').read_text())
-            target = next(t for t in index['tasks'] if t['capability'] == 'OPTIONS_FLOW')
-            launched = []
-
-            def simulated(command, *, input, cwd, env, **kwargs):
-                self.assertEqual(json.loads(env['STOCK_AGENT_RESEARCH_TASK_NAMES']), [target['task_name']])
-                parent, child = 'options-parent', 'options-child'
-                allowed, _ = handle_hook_event(helper.dispatch_payload(target, parent=parent), environ=env)
-                self.assertEqual(allowed['decision'], 'ALLOW')
-                launched.append(target['task_name'])
-                started, _ = handle_hook_event(helper.start_payload(target, parent=parent, child=child), environ=env)
-                self.assertEqual(started['context_binding']['status'], 'DELIVERED')
-                stopped, _ = handle_hook_event(helper.stop_payload(target, helper.dimension_draft(target),
-                    parent=parent, child=child), environ=env)
-                self.assertEqual(stopped['output_capture']['status'], 'SAVED')
-                (Path(env['TMPDIR']) / 'final-message.json').write_text(json.dumps({
-                    'stage': 'MULTI_DIMENSIONAL_HOLDING_RESEARCH', 'run_id': index['run_id'],
-                    'dispatched': 1, 'completed': 1,
-                }))
-                return subprocess.CompletedProcess([], 0, '', '')
-
-            with patch('product.runtime.multidimensional_stage.subprocess.run', side_effect=simulated):
-                result, code = launch_multidimensional_stage(ROOT, run_dir=run,
-                    task_name=target['task_name'], initial_task=True)
-            self.assertEqual(code, 0, result)
-            self.assertEqual(launched, [target['task_name']])
-            self.assertFalse(result['complete_holding_research_bundle'])
-            proof = json.loads((run / 'research/task-execution-proof.json').read_text())
-            self.assertEqual(proof['task_names'], [target['task_name']])
-            self.assertEqual(len(proof['report_inventory']), 1)
-            self.assertFalse((run / 'research/holding-research-bundle.json').exists())
 
     def test_unknown_missing_cyclic_or_ambiguous_dependency_is_rejected(self):
         index = {'tasks': [
@@ -206,7 +170,9 @@ class ResearchDebugEntryTests(unittest.TestCase):
     def test_retry_dependency_configuration_drift_or_missing_lock_is_not_reusable(self):
         for defect in ('shared_code', 'missing', 'skill', 'agent', 'model', 'allowed_ids', 'cutoff'):
             with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
-                _, run, target = references.ReferenceBoundaryTests().prepare_with_document(Path(directory))
+                history = references.ReferenceBoundaryTests()
+                _, run, target = history.prepare_with_document(Path(directory))
+                history.write_historical_dependency_fixture(run, target)
                 self.assertEqual(len(_verified_retry_dependencies(run, target['task_name'])), 1)
                 manifest_path = run / 'run_manifest.json'
                 manifest = json.loads(manifest_path.read_text())

@@ -1,0 +1,908 @@
+{
+  "account_calls": 0,
+  "actual_native_host_execution": "NOT_RUN",
+  "archive_commit_push": "NOT_PERFORMED",
+  "as_of": "2026-10-06T15:39:14.911008+00:00",
+  "full_smoke_readiness": "NOT_READY_NATIVE_MATERIAL_PROVENANCE_AND_HISTORICAL_MACRO_LIMIT",
+  "hosts": [
+    {
+      "account_calls": 0,
+      "as_of": "2026-10-06T15:35:57.612068+00:00",
+      "full_smoke_readiness": "NOT_READY_NATIVE_MATERIAL_REPORTS_MISSING",
+      "host": "claude-code",
+      "host_config_changes": 0,
+      "host_permission_isolation": "UNVERIFIED",
+      "model_calls": 0,
+      "native_host_load": "UNVERIFIED",
+      "original_bytes_unchanged": true,
+      "preparation_tasks": [
+        {
+          "capability": "RESEARCH_REPORT_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_company_analyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "aebc887ddb5fe68f9f32dd5aecdaff635e0905b1e223e21f767455dfce693d60",
+          "task_ref": "t.6154fcd1a3b8abeaceb4c9e9"
+        },
+        {
+          "capability": "MACRO_RESEARCH_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "da3615388068c4d9c976925688fc54aa260d56d9c1de14ac0c4a2a804704eaef",
+          "task_ref": "t.9c5429d110455cb1b8d2da38"
+        },
+        {
+          "capability": "MARKET_RESEARCH_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "6c7f8a783a2dbf356d9d8322f0d32de611c5787472a6ae73579f897433fe3d48",
+          "task_ref": "t.ab21c9a113701c3f82f466a7"
+        },
+        {
+          "capability": "PEER_SELECTION",
+          "peer_candidate_count": 12,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "f4d6769d44fe9d5e972dba8c69387893b930e8b715debbd285ac91a6c2ad88b5",
+          "task_ref": "t.ed7ddd1ef5c4ba684b25c00f"
+        }
+      ],
+      "private_directories_0700_files_0600": true,
+      "private_grants_published": false,
+      "probe_receipts_are_not_research_author_consumption": true,
+      "protected_original_hashes": {
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/peer-candidate-pool.json": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/source-bundle.json": "8ff78b23954eaf34a310c4683ed78f89f47b4c95184f665d9dac9fa5c86d7250",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/source-snapshots/0001-US-COMMON_STOCK-MRVL-02c0626ff5/snapshot/snapshot.json": "279a1652b90f8d10969d4e93ad61f8476cd2ab58eefc4e1563829e11d008b3e4",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/evidence/gate.json": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/preparation-result.json": "b6641139d35ccef58abb2719c6a9587a45ded1ca9e1b58baa226766fe7a3804d",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-1.json": "90a7cfabcd2b01d02d40383bea871fe13f341325a31a063d2af32277e95abfce",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-2.json": "8217f6b14de15553f6833b02ba8229edf37c5df23aade199be5f6b1e5c2635c9",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-3.json": "6aa8e256d724517e1f803b39af1473cc285e7412e6853869c69748d9bf18001a",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/fetch-c8954f631dd982d6.json": "e883c0533ce13e32fa54019fd260bc86898c468f02e7a57346c0e2c013c70047",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/preparation-result.json": "b58f4f2030f69bd831725271a2ca0ee26f7297f8d2f46ea1a7c6d3cd19303687",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-1.json": "1aec36286728dcc5dafbc75ad2071265e207054990dd52926a49e87ddc560479",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-2.json": "2950f8c8053b83bbb2621d431a291658d2099d3619faac36809f05141dbe0e3f",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-3.json": "4d34f908740fe98d00cd53b9038bc4d982da23856ca9559227a6962ad48ce0fc",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/preparation-result.json": "f2067ec16b6435f51d2c9c35ca2f012dc5917547d4824b94f8806834ac608c18",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-1.json": "62dba626af3499776be638476781aeb85e976d7ba1097dfcee1070a5c6a0ee70",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-2.json": "1cd1a7a00788e32f8002aa5815757466278967d9f165f3d66c687e4141640244",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-3.json": "d12486400372da3b6591b42b6f02f9f7757149eb4c0d02683767530a6aa66767",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/6ad8a8dfbc4848a4/preparation-result.json": "a38b580948b65b52d681b12414c7e26662ee2ff0ddf1c4ba85c965e275da3e3b",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/import-manifest.json": "85a29b98501b20a177213a47495e516f14f619af37515650801ff7f6aea12b5f",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/material-preparation-manifest.json": "452845f31a790c1e9d8d00da9e4294b87cfb67cfc351a59c016698f869dd63fc",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/peer-materialization/final-view.json": "3ce4918bbfa0189cad7d7a67ae731b4a4315cfc873ee61da1fce93ddb0ca8782",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/peer-materialization/peer-materialization-manifest.json": "23f397f0480f6969dc40c16b196d64f8d66fac5c22a710d0a6dd0bd1339f2c25",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/run_manifest.json": "04b2272c7d887fe9a74719b74592375073781ec8e6b8858bfcf62b06e0adf4fb"
+      },
+      "report_submissions": 0,
+      "retrieved_at": "2026-10-06T15:36:16.296083+00:00",
+      "sample_gate_sha256": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+      "sample_pool_sha256": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+      "sample_request_hash": "d15e4587be1b1d0196ddbf9acaad6ff6ef6aa79dfef5dede3dcc2c5bbe655082",
+      "separate_probe_tasks": 3,
+      "skeptic_native_context_isolation": "UNVERIFIED",
+      "source_aggregate_sha256": "dd37b0d4c4793c9b9a6974bae99b7923c9b561726fad1ae1455f1f6b48d5765a",
+      "source_bytes_unchanged": true,
+      "source_files_count": 301,
+      "source_id": "native-zero-model-preparation:claude-code:20261006",
+      "source_network_calls": 0,
+      "status": "DETERMINISTIC_PREPARATION_PASS_NATIVE_HOST_UNVERIFIED",
+      "stdio_checks": [
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_company_analyst",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "wrong_task_credential_rejects",
+              "error_code": "NATIVE_RESEARCH_ACCESS_INVALID",
+              "passed": true
+            },
+            {
+              "check": "query_recovers_after_reject",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_calculate",
+            "research_calculations",
+            "research_submit",
+            "research_read_submission",
+            "research_read_documents",
+            "research_read_reports",
+            "research_search",
+            "research_fetch",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_market_catalyst",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "technical_catalog_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "technical_raw_query_rejects",
+              "error_code": "INVOCATION_EVIDENCE_NOT_AUTHORIZED",
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_calculate",
+            "research_calculations",
+            "research_submit",
+            "research_read_submission",
+            "research_read_documents",
+            "research_read_reports",
+            "research_search",
+            "research_fetch",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_skeptic",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "wrong_task_credential_rejects",
+              "error_code": "NATIVE_RESEARCH_ACCESS_INVALID",
+              "passed": true
+            },
+            {
+              "check": "query_recovers_after_reject",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_submit",
+            "research_read_submission",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_cio",
+          "tool_checks": [
+            {
+              "check": "missing_dependencies_rejects",
+              "error_code": "NATIVE_RESEARCH_PREPARATION_REJECTED",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_submit",
+            "research_read_submission",
+            "research_read_reports",
+            "research_prepare_task"
+          ]
+        }
+      ]
+    },
+    {
+      "account_calls": 0,
+      "as_of": "2026-10-06T15:36:33.922681+00:00",
+      "full_smoke_readiness": "NOT_READY_NATIVE_MATERIAL_REPORTS_MISSING",
+      "host": "codex",
+      "host_config_changes": 0,
+      "host_permission_isolation": "UNVERIFIED",
+      "model_calls": 0,
+      "native_host_load": "UNVERIFIED",
+      "original_bytes_unchanged": true,
+      "preparation_tasks": [
+        {
+          "capability": "RESEARCH_REPORT_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_company_analyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "a5dd4c286888ff6023d1d25bb1f58d79e6a28c51e9b4ca3f317af4f5cc47e96e",
+          "task_ref": "t.d16e4d3b10997563b04c1b39"
+        },
+        {
+          "capability": "MACRO_RESEARCH_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "32a1e599815fb6a2b76d46054869e3daf6a824085d76c227a4c71d0db45b9d95",
+          "task_ref": "t.1e99e69b44960752bef3548a"
+        },
+        {
+          "capability": "MARKET_RESEARCH_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "16938199c90007d4b3c05f95cfb3d8609d42f4f3dacc45225407778ddf78b461",
+          "task_ref": "t.2e06dc3e2a460f8b0051cf33"
+        },
+        {
+          "capability": "PEER_SELECTION",
+          "peer_candidate_count": 12,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "cae37b482f6696bb297acb1c02019685acb80ed20e6f59aac765b523ea6623fb",
+          "task_ref": "t.3eb8c771665c2165f822887c"
+        }
+      ],
+      "private_directories_0700_files_0600": true,
+      "private_grants_published": false,
+      "probe_receipts_are_not_research_author_consumption": true,
+      "protected_original_hashes": {
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/peer-candidate-pool.json": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/source-bundle.json": "8ff78b23954eaf34a310c4683ed78f89f47b4c95184f665d9dac9fa5c86d7250",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/source-snapshots/0001-US-COMMON_STOCK-MRVL-02c0626ff5/snapshot/snapshot.json": "279a1652b90f8d10969d4e93ad61f8476cd2ab58eefc4e1563829e11d008b3e4",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/evidence/gate.json": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/preparation-result.json": "b6641139d35ccef58abb2719c6a9587a45ded1ca9e1b58baa226766fe7a3804d",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-1.json": "90a7cfabcd2b01d02d40383bea871fe13f341325a31a063d2af32277e95abfce",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-2.json": "8217f6b14de15553f6833b02ba8229edf37c5df23aade199be5f6b1e5c2635c9",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-3.json": "6aa8e256d724517e1f803b39af1473cc285e7412e6853869c69748d9bf18001a",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/fetch-c8954f631dd982d6.json": "e883c0533ce13e32fa54019fd260bc86898c468f02e7a57346c0e2c013c70047",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/preparation-result.json": "b58f4f2030f69bd831725271a2ca0ee26f7297f8d2f46ea1a7c6d3cd19303687",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-1.json": "1aec36286728dcc5dafbc75ad2071265e207054990dd52926a49e87ddc560479",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-2.json": "2950f8c8053b83bbb2621d431a291658d2099d3619faac36809f05141dbe0e3f",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-3.json": "4d34f908740fe98d00cd53b9038bc4d982da23856ca9559227a6962ad48ce0fc",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/preparation-result.json": "f2067ec16b6435f51d2c9c35ca2f012dc5917547d4824b94f8806834ac608c18",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-1.json": "62dba626af3499776be638476781aeb85e976d7ba1097dfcee1070a5c6a0ee70",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-2.json": "1cd1a7a00788e32f8002aa5815757466278967d9f165f3d66c687e4141640244",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-3.json": "d12486400372da3b6591b42b6f02f9f7757149eb4c0d02683767530a6aa66767",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/6ad8a8dfbc4848a4/preparation-result.json": "a38b580948b65b52d681b12414c7e26662ee2ff0ddf1c4ba85c965e275da3e3b",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/import-manifest.json": "85a29b98501b20a177213a47495e516f14f619af37515650801ff7f6aea12b5f",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/material-preparation-manifest.json": "452845f31a790c1e9d8d00da9e4294b87cfb67cfc351a59c016698f869dd63fc",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/peer-materialization/final-view.json": "3ce4918bbfa0189cad7d7a67ae731b4a4315cfc873ee61da1fce93ddb0ca8782",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/peer-materialization/peer-materialization-manifest.json": "23f397f0480f6969dc40c16b196d64f8d66fac5c22a710d0a6dd0bd1339f2c25",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/run_manifest.json": "04b2272c7d887fe9a74719b74592375073781ec8e6b8858bfcf62b06e0adf4fb"
+      },
+      "report_submissions": 0,
+      "retrieved_at": "2026-10-06T15:36:52.813275+00:00",
+      "sample_gate_sha256": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+      "sample_pool_sha256": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+      "sample_request_hash": "d15e4587be1b1d0196ddbf9acaad6ff6ef6aa79dfef5dede3dcc2c5bbe655082",
+      "separate_probe_tasks": 3,
+      "skeptic_native_context_isolation": "UNVERIFIED",
+      "source_aggregate_sha256": "8ccb30670328cff4e1f74dc6c148e640389bbb378f54a23f59ed87231d26cc9e",
+      "source_bytes_unchanged": true,
+      "source_files_count": 301,
+      "source_id": "native-zero-model-preparation:codex:20261006",
+      "source_network_calls": 0,
+      "status": "DETERMINISTIC_PREPARATION_PASS_NATIVE_HOST_UNVERIFIED",
+      "stdio_checks": [
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_company_analyst",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "wrong_task_credential_rejects",
+              "error_code": "NATIVE_RESEARCH_ACCESS_INVALID",
+              "passed": true
+            },
+            {
+              "check": "query_recovers_after_reject",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_calculate",
+            "research_calculations",
+            "research_submit",
+            "research_read_submission",
+            "research_read_documents",
+            "research_read_reports",
+            "research_search",
+            "research_fetch",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_market_catalyst",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "technical_catalog_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "technical_raw_query_rejects",
+              "error_code": "INVOCATION_EVIDENCE_NOT_AUTHORIZED",
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_calculate",
+            "research_calculations",
+            "research_submit",
+            "research_read_submission",
+            "research_read_documents",
+            "research_read_reports",
+            "research_search",
+            "research_fetch",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_skeptic",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "wrong_task_credential_rejects",
+              "error_code": "NATIVE_RESEARCH_ACCESS_INVALID",
+              "passed": true
+            },
+            {
+              "check": "query_recovers_after_reject",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_submit",
+            "research_read_submission",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_cio",
+          "tool_checks": [
+            {
+              "check": "missing_dependencies_rejects",
+              "error_code": "NATIVE_RESEARCH_PREPARATION_REJECTED",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_submit",
+            "research_read_submission",
+            "research_read_reports",
+            "research_prepare_task"
+          ]
+        }
+      ]
+    },
+    {
+      "account_calls": 0,
+      "as_of": "2026-10-06T15:36:33.922725+00:00",
+      "full_smoke_readiness": "NOT_READY_NATIVE_MATERIAL_REPORTS_MISSING",
+      "host": "opencode",
+      "host_config_changes": 0,
+      "host_permission_isolation": "UNVERIFIED",
+      "model_calls": 0,
+      "native_host_load": "UNVERIFIED",
+      "original_bytes_unchanged": true,
+      "preparation_tasks": [
+        {
+          "capability": "RESEARCH_REPORT_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_company_analyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "fa4a9b071d0699b5a937c185f0e819bedfec66d79ec7bf55f1395e4f545deda1",
+          "task_ref": "t.0b6aeea3a6bc1997c72d7135"
+        },
+        {
+          "capability": "MACRO_RESEARCH_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "4dfeab08bef926aaaa7d0a0cfb5dda62bcfde47e881bea0c1092925674fd21c9",
+          "task_ref": "t.4d4024e2f2669bc49d1ce1a4"
+        },
+        {
+          "capability": "MARKET_RESEARCH_DISCOVERY",
+          "peer_candidate_count": 0,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "32ff9f9a1f5e9476564ed5ba0c3e229edb7e158c6e18050f06c7753738570b1f",
+          "task_ref": "t.74bf07f4cc3c022369686fbc"
+        },
+        {
+          "capability": "PEER_SELECTION",
+          "peer_candidate_count": 12,
+          "permissions": [
+            "query",
+            "submit",
+            "read_submission"
+          ],
+          "role": "runtime_market_catalyst",
+          "status": "TASK_PREPARED_NOT_RESEARCHED",
+          "task_hash": "9e7b02ea484076ef9dcd05c3688c202b2a27430345d9172489dae4455d454dba",
+          "task_ref": "t.f60aa81d002af0694f8542c0"
+        }
+      ],
+      "private_directories_0700_files_0600": true,
+      "private_grants_published": false,
+      "probe_receipts_are_not_research_author_consumption": true,
+      "protected_original_hashes": {
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/peer-candidate-pool.json": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/source-bundle.json": "8ff78b23954eaf34a310c4683ed78f89f47b4c95184f665d9dac9fa5c86d7250",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/data-v2/source-snapshots/0001-US-COMMON_STOCK-MRVL-02c0626ff5/snapshot/snapshot.json": "279a1652b90f8d10969d4e93ad61f8476cd2ab58eefc4e1563829e11d008b3e4",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/evidence/gate.json": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/preparation-result.json": "b6641139d35ccef58abb2719c6a9587a45ded1ca9e1b58baa226766fe7a3804d",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-1.json": "90a7cfabcd2b01d02d40383bea871fe13f341325a31a063d2af32277e95abfce",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-2.json": "8217f6b14de15553f6833b02ba8229edf37c5df23aade199be5f6b1e5c2635c9",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/00ce1f54cb7d5784/search-3.json": "6aa8e256d724517e1f803b39af1473cc285e7412e6853869c69748d9bf18001a",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/fetch-c8954f631dd982d6.json": "e883c0533ce13e32fa54019fd260bc86898c468f02e7a57346c0e2c013c70047",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/preparation-result.json": "b58f4f2030f69bd831725271a2ca0ee26f7297f8d2f46ea1a7c6d3cd19303687",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-1.json": "1aec36286728dcc5dafbc75ad2071265e207054990dd52926a49e87ddc560479",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-2.json": "2950f8c8053b83bbb2621d431a291658d2099d3619faac36809f05141dbe0e3f",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/25b0fc07e028bfad/search-3.json": "4d34f908740fe98d00cd53b9038bc4d982da23856ca9559227a6962ad48ce0fc",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/preparation-result.json": "f2067ec16b6435f51d2c9c35ca2f012dc5917547d4824b94f8806834ac608c18",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-1.json": "62dba626af3499776be638476781aeb85e976d7ba1097dfcee1070a5c6a0ee70",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-2.json": "1cd1a7a00788e32f8002aa5815757466278967d9f165f3d66c687e4141640244",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/2623051c16f93e98/search-3.json": "d12486400372da3b6591b42b6f02f9f7757149eb4c0d02683767530a6aa66767",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/6ad8a8dfbc4848a4/preparation-result.json": "a38b580948b65b52d681b12414c7e26662ee2ff0ddf1c4ba85c965e275da3e3b",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/eight-dimension-v4-acceptance.8iWZu9/run/research/imported-materials/import-manifest.json": "85a29b98501b20a177213a47495e516f14f619af37515650801ff7f6aea12b5f",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/material-preparation-manifest.json": "452845f31a790c1e9d8d00da9e4294b87cfb67cfc351a59c016698f869dd63fc",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/peer-materialization/final-view.json": "3ce4918bbfa0189cad7d7a67ae731b4a4315cfc873ee61da1fce93ddb0ca8782",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/research/peer-materialization/peer-materialization-manifest.json": "23f397f0480f6969dc40c16b196d64f8d66fac5c22a710d0a6dd0bd1339f2c25",
+        "/Users/caihaoming/Library/Application Support/StockAgent/acceptance-runs/eight-dimension-rebuild-20260928/host-v2/materials-run/run_manifest.json": "04b2272c7d887fe9a74719b74592375073781ec8e6b8858bfcf62b06e0adf4fb"
+      },
+      "report_submissions": 0,
+      "retrieved_at": "2026-10-06T15:36:52.865266+00:00",
+      "sample_gate_sha256": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+      "sample_pool_sha256": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+      "sample_request_hash": "d15e4587be1b1d0196ddbf9acaad6ff6ef6aa79dfef5dede3dcc2c5bbe655082",
+      "separate_probe_tasks": 3,
+      "skeptic_native_context_isolation": "UNVERIFIED",
+      "source_aggregate_sha256": "c863e145a564ef26ada01d9329a4c80885668421c8a714e9a46a29016c6d7549",
+      "source_bytes_unchanged": true,
+      "source_files_count": 297,
+      "source_id": "native-zero-model-preparation:opencode:20261006",
+      "source_network_calls": 0,
+      "status": "DETERMINISTIC_PREPARATION_PASS_NATIVE_HOST_UNVERIFIED",
+      "stdio_checks": [
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_company_analyst",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "wrong_task_credential_rejects",
+              "error_code": "NATIVE_RESEARCH_ACCESS_INVALID",
+              "passed": true
+            },
+            {
+              "check": "query_recovers_after_reject",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_calculate",
+            "research_calculations",
+            "research_submit",
+            "research_read_submission",
+            "research_read_documents",
+            "research_read_reports",
+            "research_search",
+            "research_fetch",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_market_catalyst",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "technical_catalog_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "technical_raw_query_rejects",
+              "error_code": "INVOCATION_EVIDENCE_NOT_AUTHORIZED",
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_calculate",
+            "research_calculations",
+            "research_submit",
+            "research_read_submission",
+            "research_read_documents",
+            "research_read_reports",
+            "research_search",
+            "research_fetch",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_skeptic",
+          "tool_checks": [
+            {
+              "check": "context_accepts",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "wrong_task_credential_rejects",
+              "error_code": "NATIVE_RESEARCH_ACCESS_INVALID",
+              "passed": true
+            },
+            {
+              "check": "query_recovers_after_reject",
+              "error_code": null,
+              "passed": true
+            },
+            {
+              "check": "network_search_rejects",
+              "error_code": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "document_read_rejects",
+              "error_code": "NATIVE_RESEARCH_DOCUMENT_READ_FORBIDDEN",
+              "passed": true
+            },
+            {
+              "check": "positive_report_read_rejects",
+              "error_code": "NATIVE_RESEARCH_REPORT_READ_FORBIDDEN",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_submit",
+            "research_read_submission",
+            "research_prepare_task"
+          ]
+        },
+        {
+          "actual_exported_command_used": true,
+          "native_host_loaded": false,
+          "process_exit": 0,
+          "role": "runtime_cio",
+          "tool_checks": [
+            {
+              "check": "missing_dependencies_rejects",
+              "error_code": "NATIVE_RESEARCH_PREPARATION_REJECTED",
+              "passed": true
+            }
+          ],
+          "tool_names": [
+            "research_context",
+            "research_catalog",
+            "research_query",
+            "research_submit",
+            "research_read_submission",
+            "research_read_reports",
+            "research_prepare_task"
+          ]
+        }
+      ]
+    }
+  ],
+  "model_calls": 0,
+  "native_agent_or_skill_loading": "UNVERIFIED",
+  "native_permission_and_first_pass_isolation": "UNVERIFIED",
+  "new_report_submissions": 0,
+  "retrieved_at": "2026-10-06T15:39:14.911008+00:00",
+  "sample": {
+    "account_or_handoff_copied": false,
+    "as_of": "2026-10-06T15:35:57.612068+00:00",
+    "decision_cutoff": "2026-09-28T12:35:32.208143Z",
+    "gate_original_sha256": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+    "historical_native_reports_imported": false,
+    "historical_preparation_limits": [
+      {
+        "preparation_kind": "RESEARCH_REPORT_DISCOVERY",
+        "security_id": "US:COMMON_STOCK:MRVL",
+        "selected_body_count": 0,
+        "selected_document_count": 0,
+        "status": "SOURCE_LIMITED"
+      },
+      {
+        "preparation_kind": "PEER_SELECTION",
+        "security_id": "US:COMMON_STOCK:MRVL",
+        "selected_body_count": 0,
+        "selected_document_count": 0,
+        "status": "READY"
+      },
+      {
+        "preparation_kind": "MACRO_RESEARCH_DISCOVERY",
+        "security_id": "US:MACRO",
+        "selected_body_count": 0,
+        "selected_document_count": 0,
+        "status": "BLOCKED_CONFIGURATION"
+      },
+      {
+        "preparation_kind": "MARKET_RESEARCH_DISCOVERY",
+        "security_id": "US:MARKET",
+        "selected_body_count": 0,
+        "selected_document_count": 0,
+        "status": "SOURCE_LIMITED"
+      }
+    ],
+    "identity_original_sha256": "279a1652b90f8d10969d4e93ad61f8476cd2ab58eefc4e1563829e11d008b3e4",
+    "model_calls": 0,
+    "new_explicit_nonholding_request": true,
+    "old_reports_or_host_events_copied": false,
+    "peer_pool_original_sha256": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+    "retrieved_at": "2026-10-06T15:35:57.612068+00:00",
+    "sample_files": {
+      "gate.json": "35f8f89c7bc1405e9b8a7f3e6ed23e49272fdbed85669ad785ca72ea390cd0ba",
+      "peer-candidate-pool.json": "83ec77135833de75b82e236ee7fc5e4de69c0bee6242e50a8b5a2fcd5f1b15e6",
+      "request.json": "b9c0966ad48e332212a2e36921a24f2c1e168eb19f16b04a45165501a3ddc2a9"
+    },
+    "source_id": "native-public-mrvl-sample:20261006",
+    "source_network_calls": 0
+  },
+  "source_id": "native-zero-model-preparation:20261006",
+  "source_network_calls": 0,
+  "status": "ZERO_MODEL_PREPARATION_COMPLETE_ACTUAL_ACCEPTANCE_PENDING",
+  "user_choice": "先继续零模型准备"
+}

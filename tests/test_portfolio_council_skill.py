@@ -1,13 +1,9 @@
 import json
 import os
 import subprocess
-import tempfile
+import sys
 import unittest
 from pathlib import Path
-
-from product.runtime.run_package import prepare_run
-from product.runtime.smoke_prompt import build_smoke_prompt
-from product.runtime.nested_codex import fixture_mcp_runtime_environment
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,122 +21,37 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
     def test_skill_encodes_bounded_council_protocol(self):
         text = (ROOT / "product" / "skills" / "portfolio-council" / "SKILL.md").read_text()
         for invariant in (
-            "默认不得调用所有 runtime Agent",
-            "source_id",
-            "隔离上下文",
-            "最多修订一次",
-            "禁止覆盖 `REJECTED`",
-            "advisory_only: true",
-            "禁止创建、路由、修改或取消订单",
-            "canonical decision contract",
-            "failed_stage",
-            "check-run",
+            "默认不自动进入CIO",
+            "source_id/as_of/retrieved_at",
+            "原生独立上下文",
+            "最多一次原作者修订",
+            "原硬Risk否决不可覆盖",
+            "advisory_only=true",
+            "禁止订单创建/预览/路由/修改/取消",
+            "业务VALIDATED",
+            "首稿REVISE_REQUIRED",
+            "历史产物只读",
+            "SINGLE_STOCK_RESEARCH",
+            "normalize_single_stock_intent",
+            "resolve_single_stock_identity",
+            "collect_single_stock_research_data",
+            "collect_single_stock_snapshot",
+            "freeze_latest_research_request",
+            "research_prepare_single_stock",
+            "research_authorize_single_stock",
+            "anthropic/requiresUserInteraction",
+            "company_authorization",
+            "AUTHORIZATION_REQUIRED",
+            "authorization_action",
+            "expected_request_hash/expected_gate_hash",
+            "research_prepare_task",
+            "preparation_token",
+            "prepare bind",
+            "task_ref",
+            "task_token",
         ):
             self.assertIn(invariant, text)
 
-    def test_smoke_prompt_requires_artifact_based_release_gate(self):
-        with tempfile.TemporaryDirectory() as directory:
-            run_dir = Path(directory) / "smoke"
-            prepare_run(
-                ROOT,
-                fixture_path=ROOT
-                / "evals"
-                / "fixtures"
-                / "codex-native"
-                / "normal-research.json",
-                run_dir=run_dir,
-                run_id="smoke-prompt-gate",
-                model="gpt-6-luna",
-                research_question="验证 Smoke Release Gate。",
-            )
-            prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
-            self.assertIn("product.runtime.cli check-run", prompt)
-            self.assertIn("不得仅依据 `codex exec`", prompt)
-            self.assertIn("canonical decision contract", prompt)
-            self.assertIn("禁止传 `operands`、`expression` 或 `divide`", prompt)
-            self.assertIn("同一个 assistant 工具调用批次中并行发出", prompt)
-            self.assertIn("禁止先等待第一条工具调用返回", prompt)
-            self.assertIn("两个 `SubagentStart` 都早于任一 `SubagentStop`", prompt)
-            self.assertIn("先完成 Analyst、再启动 Skeptic", prompt)
-
-    def test_smoke_prompt_respects_pre_agent_safe_termination(self):
-        with tempfile.TemporaryDirectory() as directory:
-            run_dir = Path(directory) / "stale"
-            result = prepare_run(
-                ROOT,
-                fixture_path=ROOT
-                / "evals"
-                / "fixtures"
-                / "codex-native"
-                / "future-or-stale.json",
-                run_dir=run_dir,
-                run_id="smoke-prompt-stale",
-                model="gpt-6-luna",
-                research_question="验证时点不足安全终止。",
-            )
-            self.assertEqual("SAFE_NO_TRADE", result["next_state"])
-            prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
-            self.assertIn("PRE_AGENT_SAFE_TERMINATION", prompt)
-            self.assertIn("禁止启动子 Agent", prompt)
-            self.assertIn("product.runtime.cli eval", prompt)
-            self.assertIn("product.runtime.cli check-run", prompt)
-            self.assertNotIn("spawn_agent", prompt)
-            self.assertNotIn("prepare-cio", prompt)
-
-    def test_ablation_smoke_prompt_uses_declared_topology_and_is_not_publishable(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for profile, expected in (
-                ("cio-only", []),
-                ("analyst-cio", ["runtime_company_analyst"]),
-                ("full-council", ["runtime_company_analyst", "runtime_skeptic"]),
-            ):
-                run_dir = root / profile
-                prepare_run(
-                    ROOT,
-                    fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "normal-research.json",
-                    run_dir=run_dir,
-                    run_id=f"smoke-{profile}",
-                    model="gpt-6-luna",
-                    research_question="评估拓扑。",
-                    authenticity_required=True,
-                    run_mode="EVAL_ABLATION",
-                    ablation_profile=profile,
-                    trigger_reason=f"ablation:{profile}",
-                )
-                prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
-                self.assertIn("EVAL_ABLATION", prompt)
-                self.assertIn("不可作为产品建议发布", prompt)
-                self.assertIn(f"cd {ROOT}", prompt)
-                for agent in expected:
-                    self.assertIn(agent, prompt)
-                if not expected:
-                    self.assertIn("不启动 Specialist", prompt)
-                else:
-                    self.assertIn("禁止子 Agent 调用 file_change", prompt)
-                    self.assertIn("mcp__fixture_runtime__query", prompt)
-
-    def test_ablation_pre_agent_safe_termination_never_dispatches_or_uses_product_gate(self):
-        with tempfile.TemporaryDirectory() as directory:
-            run_dir = Path(directory) / "stale-ablation"
-            result = prepare_run(
-                ROOT,
-                fixture_path=ROOT / "evals" / "fixtures" / "codex-native" / "future-or-stale.json",
-                run_dir=run_dir,
-                run_id="smoke-stale-ablation",
-                model="gpt-6-luna",
-                research_question="评估无可用 Evidence 的实验拓扑。",
-                authenticity_required=True,
-                run_mode="EVAL_ABLATION",
-                ablation_profile="full-council",
-                trigger_reason="ablation:mandatory-no-trade",
-            )
-            self.assertEqual(result["next_state"], "SAFE_NO_TRADE")
-            prompt = build_smoke_prompt(run_dir, repository_root=ROOT)
-            self.assertIn("PRE_AGENT_SAFE_TERMINATION", prompt)
-            self.assertIn("禁止启动子 Agent", prompt)
-            self.assertIn("不得运行产品 `check-run`", prompt)
-            self.assertNotIn("spawn_agent", prompt)
 
     def test_plugin_manifest_is_safe_and_complete(self):
         path = ROOT / "product" / ".codex-plugin" / "plugin.json"
@@ -154,31 +65,33 @@ class PortfolioCouncilSkillTests(unittest.TestCase):
         self.assertIsInstance(manifest["interface"]["defaultPrompt"], list)
         self.assertLessEqual(len(manifest["interface"]["defaultPrompt"]), 3)
 
-    def test_plugin_mcp_starts_from_plugin_root_without_product_directory_name(self):
-        config = json.loads((ROOT / "product" / ".mcp.json").read_text())
-        server = config["mcpServers"]["fixture_runtime"]
-        self.assertEqual(server["cwd"], ".")
-        self.assertEqual(server["command"], "/bin/sh")
-        self.assertEqual(
-            server["args"], ["runtime/launch_fixture_mcp.sh", "--stateless"]
-        )
-        self.assertNotIn("cd ..", " ".join(server["args"]))
+    def test_product_default_has_no_legacy_research_connection(self):
+        # 本机派生文件不是发布源；存在时也不得默认启用旧fixture/live服务。
+        path = ROOT / "product/.mcp.json"
+        if path.exists():
+            self.assertFalse({"fixture_runtime", "live_runtime"} & set(json.loads(path.read_text())["mcpServers"]))
 
+    def test_explicit_fixture_transport_starts_from_product_root_without_launcher(self):
         request = json.dumps(
             {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
         ) + "\n"
-        env = dict(os.environ)
-        env["PYTHONDONTWRITEBYTECODE"] = "1"
-        env.update(fixture_mcp_runtime_environment())
+        env = {
+            key: value for key, value in os.environ.items()
+            if not key.startswith("STOCK_AGENT_")
+        }
+        env.update(
+            PYTHONDONTWRITEBYTECODE="1",
+            STOCK_AGENT_FIXTURE_MCP_PYTHON=sys.executable,
+            STOCK_AGENT_FIXTURE_MCP_PYTHONPATH=os.pathsep.join(
+                dict.fromkeys([str(ROOT), str(ROOT / "product"), *(
+                    value for value in sys.path if Path(value).is_absolute()
+                )])
+            ),
+        )
         result = subprocess.run(
-            [server["command"], *server["args"]],
-            cwd=ROOT / "product",
-            input=request,
-            text=True,
-            capture_output=True,
-            env=env,
-            check=False,
-            timeout=10,
+            ["/bin/sh", "runtime/launch_fixture_mcp.sh", "--stateless"],
+            cwd=ROOT / "product", input=request, text=True,
+            capture_output=True, env=env, check=False, timeout=10,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         response = json.loads(result.stdout)

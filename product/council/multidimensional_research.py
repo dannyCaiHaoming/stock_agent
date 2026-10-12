@@ -27,16 +27,7 @@ HOLDING_RESEARCH_BUNDLE_VERSION = "holding-research-bundle/2.0.0"
 SINGLE_STOCK_BUNDLE_VERSION = "holding-research-bundle/3.0.0"
 LEGACY_HOLDING_RESEARCH_BUNDLE_VERSION = "holding-research-bundle/1.1.0"
 
-RESEARCH_CAPABILITIES = (
-    "TECHNICAL_STRUCTURE",
-    "FUNDAMENTAL_EVENT",
-    "RESEARCH_REPORT",
-    "INDUSTRY_COMPARISON",
-    "MACRO_CONTEXT",
-    "MARKET_STATE",
-    "OWNERSHIP_DISCLOSURE",
-    "OPTIONS_FLOW",
-)
+from product.tools.research_scope import RESEARCH_CAPABILITIES
 BUNDLE_CAPABILITIES = ("COMPANY_RESEARCH", *RESEARCH_CAPABILITIES)
 LEGACY_RESEARCH_CAPABILITIES = (
     "TECHNICAL_STRUCTURE",
@@ -182,145 +173,15 @@ def validate_research_dimension_report(
     }:
         raise MultiDimensionalResearchError("DIMENSION_REPORT_AGENT_CAPABILITY_MISMATCH")
 
-    claims = value.get("claims")
-    assumptions = value.get("assumptions")
-    calculations = value.get("calculations")
-    conditions = value.get("observation_conditions")
-    gaps = value.get("data_gaps")
-    documents = value.get("documents")
-    relationships = value.get("research_relationships")
-    if any(not isinstance(items, list) for items in (
-        claims, assumptions, calculations, documents, relationships, conditions, gaps
-    )):
-        raise MultiDimensionalResearchError("DIMENSION_REPORT_COLLECTION_INVALID")
-    collections = (
-        (claims, "claim_id", "claims"),
-        (assumptions, "assumption_id", "assumptions"),
-        (calculations, "calculation_id", "calculations"),
-        (documents, "document_id", "documents"),
-        (relationships, "relationship_id", "research_relationships"),
-        (conditions, "condition_id", "observation_conditions"),
-        (gaps, "gap_id", "data_gaps"),
-    )
-    indexes: dict[str, set[str]] = {}
-    for items, id_key, field in collections:
-        if any(not isinstance(item, Mapping) for item in items):
-            raise MultiDimensionalResearchError(f"DIMENSION_REPORT_ITEM_INVALID:{field}")
-        indexes[field] = set(_canonical_ids([item.get(id_key) for item in items], field))
-
-    claim_ids = indexes["claims"]
-    assumption_ids = indexes["assumptions"]
-    calculation_ids = indexes["calculations"]
-    document_ids = indexes["documents"]
-    if allowed_documents is not None:
-        expected_documents = {
-            str(item.get("document_id")): dict(item) for item in allowed_documents
-        }
-        if len(expected_documents) != len(allowed_documents):
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_ALLOWED_DOCUMENTS_INVALID")
-        if set(document_ids) - set(expected_documents):
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_DOCUMENT_NOT_ALLOWED")
-        for document in documents:
-            if dict(document) != expected_documents[document["document_id"]]:
-                raise MultiDimensionalResearchError("DIMENSION_REPORT_DOCUMENT_METADATA_DRIFT")
-    external_claim_ids = set(known_research_claim_ids)
-    artifact_refs = set(value.get("artifact_refs", []))
-    extra_evidence_refs: set[str] = set()
-    for claim in claims:
-        if not isinstance(claim.get("question"), str) or not claim["question"].strip():
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_CLAIM_QUESTION_INVALID")
-        if not isinstance(claim.get("statement"), str) or not claim["statement"].strip():
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_CLAIM_STATEMENT_INVALID")
-        if claim.get("kind") not in {"FACT", "INTERPRETATION", "COMPARISON"}:
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_CLAIM_KIND_INVALID")
-        evidence_refs = set(_canonical_ids(claim.get("evidence_refs"), "claim.evidence_refs"))
-        research_refs = set(
-            _canonical_ids(claim.get("research_claim_refs"), "claim.research_claim_refs")
-        )
-        claim_assumptions = set(
-            _canonical_ids(claim.get("assumption_ids"), "claim.assumption_ids")
-        )
-        claim_calculations = set(
-            _canonical_ids(claim.get("calculation_refs"), "claim.calculation_refs")
-        )
-        claim_documents = set(
-            _canonical_ids(claim.get("document_refs"), "claim.document_refs")
-        )
-        if research_refs - (claim_ids | external_claim_ids):
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_RESEARCH_CLAIM_DANGLING")
-        if (
-            claim_assumptions - assumption_ids
-            or claim_calculations - calculation_ids
-            or claim_documents - document_ids
-        ):
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_INTERNAL_REFERENCE_DANGLING")
-        if (
-            not evidence_refs and not research_refs and not claim_documents
-            and not claim_assumptions and not claim_calculations
-        ):
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_CLAIM_UNGROUNDED")
-    for document in documents:
-        for field in ("duplicate_of", "revision_of"):
-            reference = document.get(field)
-            if reference is not None and reference not in document_ids:
-                raise MultiDimensionalResearchError(
-                    f"DIMENSION_REPORT_DOCUMENT_REFERENCE_DANGLING:{field}"
-                )
-    for relationship in relationships:
-        if relationship.get("document_id") not in document_ids:
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_RELATIONSHIP_DOCUMENT_DANGLING")
-        target_refs = set(_canonical_ids(
-            relationship.get("target_claim_refs"), "research_relationship.target_claim_refs"
-        ))
-        result_refs = set(_canonical_ids(
-            relationship.get("resulting_claim_refs"), "research_relationship.resulting_claim_refs"
-        ))
-        if target_refs - (claim_ids | external_claim_ids):
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_RELATIONSHIP_TARGET_DANGLING")
-        if result_refs - claim_ids:
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_RELATIONSHIP_RESULT_DANGLING")
-        if relationship.get("effect") != "NO_NEW_INFORMATION" and not result_refs:
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_RELATIONSHIP_RESULT_REQUIRED")
-    document_capabilities = {"RESEARCH_REPORT", "MACRO_CONTEXT", "MARKET_STATE"}
-    if capability not in document_capabilities and (documents or relationships):
-        raise MultiDimensionalResearchError("DIMENSION_REPORT_DOCUMENTS_CAPABILITY_MISMATCH")
-    if (
-        status == "COMPLETE"
-        and (capability == "RESEARCH_REPORT" or documents)
-        and capability in document_capabilities
-        and not any(item.get("verification_status") == "BODY_VERIFIED" for item in documents)
-    ):
-        raise MultiDimensionalResearchError("DIMENSION_REPORT_VERIFIED_DOCUMENT_REQUIRED")
-    for calculation in calculations:
-        input_refs = set(
-            _canonical_ids(
-                calculation.get("input_evidence_refs"), "calculation.input_evidence_refs"
-            )
-        )
-        extra_evidence_refs.update(input_refs)
-        if calculation.get("artifact_ref") not in artifact_refs:
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_CALCULATION_ARTIFACT_DANGLING")
-    for condition in conditions:
-        if set(_canonical_ids(condition.get("claim_refs"), "condition.claim_refs")) - claim_ids:
-            raise MultiDimensionalResearchError("DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING")
-    for gap in gaps:
-        for field in ("reason_code", "description", "impact"):
-            if not isinstance(gap.get(field), str) or not gap[field].strip():
-                raise MultiDimensionalResearchError(
-                    f"DIMENSION_REPORT_GAP_FIELD_INVALID:{field}"
-                )
-
+    from product.tools.research_content import validate_dimension_content, ResearchContentError
     try:
-        refs = validate_evidence_closure(value, allowed_evidence_ids=allowed_evidence_ids)
-    except ArtifactValidationError as exc:
+        refs = validate_dimension_content(value, capability=capability,
+            allowed_evidence_ids=allowed_evidence_ids,
+            allowed_calculation_evidence_ids=allowed_calculation_evidence_ids,
+            known_research_claim_ids=known_research_claim_ids, allowed_documents=allowed_documents)
+    except ResearchContentError as exc:
         raise MultiDimensionalResearchError(str(exc)) from exc
-    unknown_calculation_inputs = extra_evidence_refs - (
-        set(allowed_evidence_ids) | set(allowed_calculation_evidence_ids)
-    )
-    if unknown_calculation_inputs:
-        raise MultiDimensionalResearchError(
-            "EVIDENCE_CLOSURE_FAILED:" + ",".join(sorted(unknown_calculation_inputs))
-        )
+    extra_evidence_refs = set()
     try:
         verify_legacy_envelope_hash(value, hash_field="report_hash",
                                    location=f"research-dimension-report:{value.get('report_id')}")
@@ -427,7 +288,7 @@ def validate_holding_research_bundle(
         if report_id is None and not gap_reason:
             raise MultiDimensionalResearchError("HOLDING_RESEARCH_BUNDLE_GAP_REASON_REQUIRED")
 
-    from product.runtime.multidimensional_references import known_claim_references
+    from product.tools.references import known_claim_references
     known_claim_ids = set(known_claim_references([
         {**report, "report_hash": report.get("report_hash", canonical_hash(report))}
         for report in (*dimension_reports, *equity_reports)
@@ -500,7 +361,7 @@ def derive_unresolved_research_questions(
 ) -> list[dict[str, Any]]:
     """从报告已经写明的观察/失效条件归集待反证问题，不创造新判断。"""
 
-    from product.runtime.multidimensional_references import scoped_claim_reference
+    from product.tools.references import scoped_claim_reference
 
     result: list[dict[str, Any]] = []
     seen: set[str] = set()

@@ -1,24 +1,18 @@
-"""宏观选择按同一来源行装配；不模拟模型语义验收。"""
-
+"""宏观历史选择的纯业务校验；不模拟Hook、作者或实际模型执行。"""
 import copy
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from product.runtime.codex_hook_recorder import (
-    _bind_source_literal_selections, _source_literal_marker_findings, handle_hook_event,
-)
 from product.runtime.fixture_mcp import StatelessFixtureTools, _write_event
 from product.runtime.hashing import canonical_hash
 from product.runtime.multidimensional_stage import (
-    MINIMUM_QUESTIONS,
+    MINIMUM_QUESTIONS, _bind_source_literal_selections,
     build_multidimensional_dispatch_packet, prepare_multidimensional_stage_run,
     serialize_multidimensional_initial_context, serialize_multidimensional_model_context,
 )
 from tests.test_common_stock_research_contracts import gate_for, stock_handoff
-from tests import test_multidimensional_stage as fixtures
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,196 +36,86 @@ def observation(identifier="new", *, old=False):
 
 
 class MacroObservationBindingTests(unittest.TestCase):
-    def test_illegal_marker_locations_are_found_without_selectors_or_source_text(self):
-        draft = {"summary": "private {{sf.revenue}} text", "claims": [
-            {"claim_id": "c", "statement": "legal {{sf.revenue}}", "question": "{{sf.bad}}"}],
-            "data_gaps": [{"description": "{{sf.gap}}"}],
-            "source_literal_selections": [{"claim_id": "c", "placeholder": "{{sf.revenue}}"}]}
-        original = copy.deepcopy(draft)
-        findings = _source_literal_marker_findings(draft)
-        self.assertEqual([f["path"] for f in findings], ["/summary", "/claims/0/question", "/data_gaps/0/description"])
-        self.assertTrue(all(f["reason"] == "MARKER_OUTSIDE_STATEMENT" for f in findings))
-        self.assertNotIn("private", json.dumps(findings))
-        self.assertEqual(draft, original)
-        self.assertEqual(_source_literal_marker_findings({"summary": "{{sf.s}}"})[0]["path"], "/summary")
-        self.assertEqual(len(_source_literal_marker_findings({"gaps": ["{{sf.x}}"] * 100})), 16)
+    def test_marker_scope_count_shape_and_task_binding_fail_without_mutation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            base = self.pure_fixture(run)
+            for scenario in ("summary", "question", "gap", "missing", "duplicate", "undeclared",
+                             "wrong_claim", "wrong_field", "null", "too_many", "wrong_agent",
+                             "wrong_task", "wrong_event_hash", "no_permission"):
+                gate, task, event, mapping, draft = copy.deepcopy(base)
+                marker = "{{sf.retail}}"
+                if scenario == "summary": draft["summary"] = marker
+                elif scenario == "question": draft["claims"][0]["question"] = marker
+                elif scenario == "gap": draft["data_gaps"] = [{"description": marker}]
+                elif scenario == "missing": draft["claims"][0]["statement"] = "未放入占位"
+                elif scenario == "duplicate": draft["claims"][0]["statement"] += marker
+                elif scenario == "undeclared": draft["claims"][0]["statement"] += "{{sf.other}}"
+                elif scenario == "wrong_claim": draft["source_literal_selections"][0]["claim_id"] = "unknown"
+                elif scenario == "wrong_field": draft["source_literal_selections"][0]["field"] = "as_of"
+                elif scenario == "null": draft["source_literal_selections"][0] = None
+                elif scenario == "too_many": draft["source_literal_selections"] *= 17
+                elif scenario == "wrong_agent": event["agent"] = "runtime_company_analyst"
+                elif scenario == "wrong_task": event["invocation_id"] = "other-invocation"
+                elif scenario == "no_permission": task["allowed_evidence_ids"] = []
+                else: event["event_hash"] = "forged"
+                original = copy.deepcopy(draft)
+                with self.subTest(scenario=scenario), self.assertRaisesRegex(
+                    ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"
+                ):
+                    self.bind(run, gate, task, event, mapping, draft)
+                self.assertEqual(draft, original)
+                self.assertFalse((run / "research").exists())
 
-    def test_real_hook_locates_illegal_summary_and_requires_remove_not_null(self):
-        helper = fixtures.MultidimensionalStageTests()
-        for capability in ("MACRO_CONTEXT", "FUNDAMENTAL_EVENT"):
-            for scenario in ("save", "delete", "null", "outside"):
-                with self.subTest(capability=capability, scenario=scenario), tempfile.TemporaryDirectory() as temp:
-                    root = Path(temp)
-                    handoff, gate = stock_handoff(1), gate_for(stock_handoff(1))
-                    if capability == "MACRO_CONTEXT":
-                        fact, field = observation(), "moomoo_macro_observation"
-                        gate["allowed_evidence"].append(fact)
-                        for key in ("input_evidence_ids", "allowed_evidence_ids"):
-                            gate[key] = sorted([*gate[key], fact["evidence_id"]])
-                    else:
-                        fact = next(f for f in gate["allowed_evidence"] if f["evidence_id"] == "ev-aapl-revenue")
-                        fact.update(source_type="sec", unit="USD", value="100")
-                        field = "sec_usd_value"
-                    gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
-                    for name, value in (("handoff", handoff), ("gate", gate)):
-                        (root / (name + ".json")).write_text(json.dumps(value))
-                    run = root / "run"
-                    prepare_multidimensional_stage_run(ROOT, handoff_path=root / "handoff.json", gate_path=root / "gate.json",
-                                                      run_dir=run, run_id="outside-marker", model="gpt-5.6-terra", task_bound_tools=True)
-                    task = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
-                                if t["capability"] == capability)
-                    packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
-                    short = next(k for k, v in packet["reference_map"]["evidence"].items() if v == fact["evidence_id"])
-                    env = helper.targeted_environment(run, task)
-                    parent, child = "outside-parent", "outside-child"
-                    handle_hook_event(helper.dispatch_payload(task, parent=parent), environ=env)
-                    handle_hook_event(helper.start_payload(task, parent=parent, child=child), environ=env)
-                    tool = StatelessFixtureTools(default_run_dir=run)
-                    tool.query(**tool.bind_task_tool_arguments("query", {"task_name": task["task_name"], "evidence_ids": [short]}))
-                    _write_event(run / "events/mcp/events.jsonl", tool.events[-1])
-                    draft = helper.dimension_draft(task)
-                    draft["summary"] = "摘要不合法使用{{sf.first}}。"
-                    draft["claims"] = [{"claim_id": "source", "question": "来源事实？", "kind": "FACT",
-                                        "statement": "{{sf.first}}；{{sf.second}}；{{sf.third}}", "evidence_refs": [short],
-                                        "research_claim_refs": [], "document_refs": [], "assumption_ids": []}]
-                    draft["source_literal_selections"] = [{"claim_id": "source", "placeholder": "{{sf." + name + "}}",
-                                                           "evidence_ref": short, "field": field} for name in ("first", "second", "third")]
-                    original = copy.deepcopy(draft)
-                    first, response = handle_hook_event(helper.stop_payload(task, draft, parent=parent, child=child), environ=env)
-                    self.assertEqual(first["output_capture"]["failure_code"], "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
-                    repair = json.loads(response["reason"])
-                    self.assertEqual(repair["validation_details"]["findings"], [{
-                        "code": "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID", "path": "/summary",
-                        "reason": "MARKER_OUTSIDE_STATEMENT", "observed_count": 1}])
-                    self.assertIn("/summary", repair["allowed_paths"])
-                    self.assertNotIn("/data_gaps", repair["allowed_paths"])
-                    self.assertIn("不能replace成null", repair["instruction"])
-                    raw = run / first["output_capture"]["raw_path"]
-                    raw_bytes = raw.read_bytes()
-                    changes = [{"op": "replace", "path": "/summary", "value": "作者重述摘要，具体原值见来源主张。"}]
-                    if scenario in {"delete", "null"}:
-                        changes.append({"op": "replace", "path": "/claims/0/statement", "value": "{{sf.first}}"})
-                        for i in (1, 2):
-                            changes.append({"op": "remove", "path": f"/source_literal_selections/{i}"} if scenario == "delete" else
-                                           {"op": "replace", "path": f"/source_literal_selections/{i}", "value": None})
-                    if scenario == "outside":
-                        changes.append({"op": "replace", "path": "/data_gaps", "value": []})
-                    patch = {"base_draft_ref": repair["base_draft_ref"], "changes": changes}
-                    second, _ = handle_hook_event(helper.stop_payload(task, patch, parent=parent, child=child), environ=env)
-                    self.assertEqual(second["output_capture"]["status"], "SAVED" if scenario in {"save", "delete"} else "FAILED", second)
-                    self.assertEqual(raw.read_bytes(), raw_bytes)
-                    self.assertEqual(draft, original)
-                    if scenario in {"save", "delete"}:
-                        report = json.loads((run / second["output_capture"]["path"]).read_text())
-                        self.assertEqual(report["summary"], changes[0]["value"])
-                        self.assertNotIn("{{sf.", report["claims"][0]["statement"])
-                        self.assertNotIn("source_literal_selections", report)
-                    else:
-                        self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
-                        prefix = "SCHEMA_TYPE_INVALID" if scenario == "null" else "LOCAL_REVISION_OUT_OF_SCOPE"
-                        self.assertTrue(second["output_capture"]["failure_code"].startswith(prefix))
-
-    def test_marker_diagnostics_are_bounded_ast_only_and_do_not_claim_source_validity(self):
-        draft = {"claims": [{"claim_id": "activity", "statement": "{{sf.duplicate}}{{sf.duplicate}}"}],
-                 "source_literal_selections": [
-                     {"claim_id": "activity", "placeholder": marker, "evidence_ref": "unread",
-                      "field": "moomoo_macro_observation"}
-                     for marker in ("{{sf.jobs}}", "{{sf.retail}}", "{{sf.unemployment}}", "{{sf.duplicate}}")
-                 ]}
-        original = copy.deepcopy(draft)
-        findings = _source_literal_marker_findings(draft)
-        self.assertEqual([f["observed_count"] for f in findings], [0, 0, 0, 2])
-        self.assertEqual([f["path"] for f in findings], [f"source_literal_selections[{i}]" for i in range(4)])
-        self.assertTrue(all(f["related_claim_path"] == "claims[0].statement" for f in findings))
-        self.assertNotIn("unread", json.dumps(findings))
-        self.assertEqual(draft, original)
-        draft["source_literal_selections"][0]["claim_id"] = "unknown"
-        self.assertEqual(_source_literal_marker_findings(draft)[0]["reason"], "TARGET_CLAIM_MISSING")
-        draft["source_literal_selections"][0]["placeholder"] = "malformed secret text"
-        self.assertNotIn("secret", json.dumps(_source_literal_marker_findings(draft)))
-        draft["source_literal_selections"] *= 5
-        self.assertEqual(_source_literal_marker_findings(draft), [])
-
-    def test_all_missing_markers_reported_and_original_single_revision_enforced(self):
-        helper = fixtures.MultidimensionalStageTests()
-        for scenario in ("save", "partial", "source_invalid", "out_of_scope", "mixed_source_and_marker"):
-            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as temp:
+    def test_profile_delivery_and_real_query_feed_pure_binding_without_hook(self):
+        baseline = copy.deepcopy(MINIMUM_QUESTIONS)
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp)
                 handoff = stock_handoff(1)
                 gate = gate_for(handoff)
                 fact = observation()
                 gate["allowed_evidence"].append(fact)
-                if scenario == "mixed_source_and_marker":
-                    gate["allowed_evidence"].append(observation("old", old=True))
                 for key in ("input_evidence_ids", "allowed_evidence_ids"):
-                    gate[key].append(fact["evidence_id"])
-                    if scenario == "mixed_source_and_marker":
-                        gate[key].append("old")
-                    gate[key].sort()
+                    gate[key] = sorted([*gate[key], fact["evidence_id"]])
                 gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
                 for name, value in (("handoff", handoff), ("gate", gate)):
                     (root / (name + ".json")).write_text(json.dumps(value))
                 run = root / "run"
-                prepare_multidimensional_stage_run(ROOT, handoff_path=root / "handoff.json", gate_path=root / "gate.json",
-                                                  run_dir=run, run_id="macro-counts", model="gpt-5.6-terra",
-                                                  task_bound_tools=True)
+                prepare_multidimensional_stage_run(
+                    ROOT, handoff_path=root / "handoff.json", gate_path=root / "gate.json",
+                    run_dir=run, run_id="macro-bound", model="gpt-5.6-terra", task_bound_tools=enabled,
+                )
                 task = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
                             if t["capability"] == "MACRO_CONTEXT")
                 packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
-                short = next(k for k, v in packet["reference_map"]["evidence"].items() if v == fact["evidence_id"])
-                env = helper.targeted_environment(run, task)
-                parent, child = "marker-parent", "marker-child"
-                handle_hook_event(helper.dispatch_payload(task, parent=parent), environ=env)
-                handle_hook_event(helper.start_payload(task, parent=parent, child=child), environ=env)
-                tool = StatelessFixtureTools(default_run_dir=run)
-                tool.query(**tool.bind_task_tool_arguments("query", {"task_name": task["task_name"], "evidence_ids": [short]}))
-                _write_event(run / "events/mcp/events.jsonl", tool.events[-1])
-                draft = helper.dimension_draft(task)
-                template = {"claim_id": "activity", "question": "经济活动事实？", "kind": "FACT",
-                            "statement": "作者尚未放入声明的占位。", "evidence_refs": [short],
-                            "research_claim_refs": [], "document_refs": [], "assumption_ids": []}
-                draft["claims"] = [template, {**copy.deepcopy(template), "claim_id": "untouched"}]
-                markers = ["{{sf.jobs}}", "{{sf.retail}}", "{{sf.unemployment}}"]
-                draft["source_literal_selections"] = [
-                    {"claim_id": "activity", "placeholder": marker, "evidence_ref": short,
-                     "field": "moomoo_macro_observation"} for marker in markers]
-                if scenario == "mixed_source_and_marker":
-                    draft["claims"][0]["statement"] = markers[0]
-                    old_ref = next(k for k, v in packet["reference_map"]["evidence"].items() if v == "old")
-                    draft["claims"][0]["evidence_refs"].append(old_ref)
-                    draft["source_literal_selections"][0]["evidence_ref"] = old_ref  # Allowed but never queried.
-                first, response = handle_hook_event(helper.stop_payload(task, draft, parent=parent, child=child), environ=env)
-                self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first)
-                repair = json.loads(response["reason"])
-                self.assertEqual([f["observed_count"] for f in repair["validation_details"]["findings"]],
-                                 [0, 0] if scenario == "mixed_source_and_marker" else [0, 0, 0])
-                self.assertIn("/source_literal_selections/0", repair["allowed_paths"])
-                self.assertNotIn("/claims/1", repair["allowed_paths"])
-                self.assertEqual(repair["validation_details"]["source_validation"], "NOT_PROVEN_BY_MARKER_DIAGNOSTIC")
-                raw_path = run / first["output_capture"]["raw_path"]
-                raw_bytes = raw_path.read_bytes()
-                chosen = markers if scenario != "partial" else [markers[0], markers[2]]
-                changes = [{"op": "replace", "path": "/claims/0/statement", "value": "；".join(chosen)}]
-                if scenario == "mixed_source_and_marker":
-                    changes.extend([
-                        {"op": "replace", "path": "/source_literal_selections/0/evidence_ref", "value": short},
-                        {"op": "replace", "path": "/claims/0/evidence_refs", "value": [short]},
-                    ])
-                if scenario == "source_invalid":
-                    changes.append({"op": "replace", "path": "/source_literal_selections/1/field", "value": "as_of"})
-                if scenario == "out_of_scope":
-                    changes.append({"op": "replace", "path": "/claims/1/statement", "value": "禁止改写"})
-                patch = {"base_draft_ref": repair["base_draft_ref"], "changes": changes}
-                second, _ = handle_hook_event(helper.stop_payload(task, patch, parent=parent, child=child), environ=env)
-                success = scenario in {"save", "mixed_source_and_marker"}
-                self.assertEqual(second["output_capture"]["status"], "SAVED" if success else "FAILED", second)
-                self.assertEqual(raw_path.read_bytes(), raw_bytes)
-                if success:
-                    report = json.loads((run / second["output_capture"]["path"]).read_text())
-                    self.assertEqual(report["claims"][1]["statement"], draft["claims"][1]["statement"])
-                    self.assertEqual(report["claims"][0]["statement"].count("actual(原值)="), 3)
-                else:
-                    self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED", second)
+                self.assertEqual("source_literal_selection" in task, enabled)
+                for body in (serialize_multidimensional_initial_context(packet), serialize_multidimensional_model_context(packet)):
+                    self.assertEqual("moomoo_macro_observation" in body, enabled)
+                    questions = json.loads(body)["minimum_questions"]
+                    self.assertEqual("代表观测" in questions[0], enabled)
+                    self.assertEqual("同一claim引用" in questions[0], enabled)
+                    self.assertEqual(questions, packet["minimum_questions"])
+                    if not enabled:
+                        self.assertEqual(questions, baseline["MACRO_CONTEXT"])
+                invocation = json.loads((run / task["invocation_path"]).read_text())
+                self.assertEqual(invocation["prompt_hash"], canonical_hash({
+                    "instruction": packet["instruction"], "questions": packet["minimum_questions"],
+                }))
+                if enabled:
+                    field = packet["output_schema"]["properties"]["source_literal_selections"]["items"]["properties"]["field"]
+                    self.assertEqual(field["enum"], ["moomoo_macro_observation"])
+                    short = next(k for k, v in packet["reference_map"]["evidence"].items() if v == fact["evidence_id"])
+                    tool = StatelessFixtureTools(default_run_dir=run)
+                    tool.query(**tool.bind_task_tool_arguments("query", {"task_name": task["task_name"], "evidence_ids": [short]}))
+                    _write_event(run / "events/mcp/events.jsonl", tool.events[-1])
+                    draft = {"claims": [{"claim_id": "activity", "statement": "供应商观测{{sf.retail}}。", "evidence_refs": [short]}],
+                             "source_literal_selections": [{"claim_id": "activity", "placeholder": "{{sf.retail}}",
+                                                            "evidence_ref": short, "field": "moomoo_macro_observation"}]}
+                    result = _bind_source_literal_selections(draft, task=task, run_dir=run, reference_map=packet["reference_map"])
+                    self.assertIn("actual(原值)=0.012400000000000001", result["claims"][0]["statement"])
+                    self.assertNotIn("source_literal_selections", result)
+                self.assertEqual(MINIMUM_QUESTIONS, baseline)
 
     def pure_fixture(self, run):
         (run / "evidence").mkdir()
@@ -325,91 +209,3 @@ class MacroObservationBindingTests(unittest.TestCase):
             gate, task, event, mapping, draft = copy.deepcopy(args)
             gate["allowed_evidence"][0]["value"]["actual"] = None
             self.assertIn("actual(原值)=null（原缺失）", self.bind(run, gate, task, event, mapping, draft)["claims"][0]["statement"])
-
-    def test_new_profile_delivery_real_query_and_hook_save_old_profile_isolated(self):
-        helper = fixtures.MultidimensionalStageTests()
-        baseline = copy.deepcopy(MINIMUM_QUESTIONS)
-        for enabled, scenario in ((False, "save"), (True, "save"), (True, "repair"), (True, "bad_repair")):
-            with self.subTest(enabled=enabled, scenario=scenario), tempfile.TemporaryDirectory() as temp:
-                root = Path(temp)
-                handoff = stock_handoff(1)
-                gate = gate_for(handoff)
-                fact = observation()
-                gate["allowed_evidence"].append(fact)
-                for key in ("input_evidence_ids", "allowed_evidence_ids"):
-                    gate[key].append(fact["evidence_id"])
-                    gate[key].sort()
-                gate["bundle_hash"] = canonical_hash({k: v for k, v in gate.items() if k != "bundle_hash"})
-                handoff_path, gate_path = root / "handoff.json", root / "gate.json"
-                handoff_path.write_text(json.dumps(handoff))
-                gate_path.write_text(json.dumps(gate))
-                run = root / "run"
-                prepare_multidimensional_stage_run(ROOT, handoff_path=handoff_path, gate_path=gate_path,
-                                                  run_dir=run, run_id="macro-bound", model="gpt-5.6-terra",
-                                                  task_bound_tools=enabled)
-                task = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
-                            if t["capability"] == "MACRO_CONTEXT")
-                packet = build_multidimensional_dispatch_packet(ROOT, run, task["task_name"])
-                self.assertEqual("source_literal_selection" in task, enabled)
-                for body in (serialize_multidimensional_initial_context(packet), serialize_multidimensional_model_context(packet)):
-                    self.assertEqual("moomoo_macro_observation" in body, enabled)
-                    questions = json.loads(body)["minimum_questions"]
-                    self.assertEqual("代表观测" in questions[0], enabled)
-                    self.assertEqual("同一claim引用" in questions[0], enabled)
-                    self.assertEqual(questions, packet["minimum_questions"])
-                    if not enabled:
-                        self.assertEqual(questions, baseline["MACRO_CONTEXT"])
-                invocation = json.loads((run / task["invocation_path"]).read_text())
-                self.assertEqual(invocation["prompt_hash"], canonical_hash({
-                    "instruction": packet["instruction"], "questions": packet["minimum_questions"]}))
-                env = helper.targeted_environment(run, task)
-                handle_hook_event(helper.dispatch_payload(task, parent="macro-parent"), environ=env)
-                start, ctx = handle_hook_event(helper.start_payload(task, parent="macro-parent", child="macro-child"), environ=env)
-                self.assertEqual(start["context_binding"]["status"], "DELIVERED")
-                actual = ctx["hookSpecificOutput"]["additionalContext"]
-                self.assertEqual("代表观测" in actual, enabled)
-                self.assertEqual(MINIMUM_QUESTIONS, baseline)
-                if not enabled:
-                    continue
-                field_schema = packet["output_schema"]["properties"]["source_literal_selections"]["items"]["properties"]["field"]
-                self.assertEqual(field_schema["enum"], ["moomoo_macro_observation"])
-                short = next(k for k, v in packet["reference_map"]["evidence"].items() if v == fact["evidence_id"])
-                self.assertIn("moomoo_macro_observation", ctx["hookSpecificOutput"]["additionalContext"])
-                tool = StatelessFixtureTools(default_run_dir=run)
-                arguments = tool.bind_task_tool_arguments("query", {"task_name": task["task_name"], "evidence_ids": [short]})
-                tool.query(**arguments)
-                _write_event(run / "events/mcp/events.jsonl", tool.events[-1])
-                draft = helper.dimension_draft(task)
-                draft["claims"] = [{"claim_id": "activity", "question": "经济活动事实？", "kind": "FACT",
-                                    "statement": "供应商观测{{sf.retail}}。", "evidence_refs": [short],
-                                    "research_claim_refs": [], "document_refs": [], "assumption_ids": []}]
-                draft["source_literal_selections"] = [{"claim_id": "activity", "placeholder": "{{sf.retail}}",
-                                                       "evidence_ref": short, "field": "moomoo_macro_observation"}]
-                if scenario != "save":
-                    chosen = draft.pop("source_literal_selections")
-                    first, response = handle_hook_event(helper.stop_payload(task, draft, parent="macro-parent", child="macro-child"), environ=env)
-                    self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first)
-                    repair = json.loads(response["reason"])
-                    self.assertEqual(repair["allowed_paths"], ["/source_literal_selections"])
-                    original_path = run / first["output_capture"]["raw_path"]
-                    original_bytes = original_path.read_bytes()
-                    if scenario == "bad_repair":
-                        chosen[0]["field"] = "as_of"
-                    draft = {"base_draft_ref": repair["base_draft_ref"], "changes": [
-                        {"op": "add", "path": "/source_literal_selections", "value": chosen},
-                    ]}
-                stop, _ = handle_hook_event(helper.stop_payload(task, draft, parent="macro-parent", child="macro-child"), environ=env)
-                if scenario != "save":
-                    self.assertEqual(original_path.read_bytes(), original_bytes)
-                if scenario == "bad_repair":
-                    self.assertEqual(stop["output_capture"]["status"], "FAILED", stop)
-                    self.assertEqual(stop["output_capture"]["repair_state"], "EXHAUSTED", stop)
-                    continue
-                self.assertEqual(stop["output_capture"]["status"], "SAVED", stop["output_capture"])
-                report = json.loads((run / stop["output_capture"]["path"]).read_text())
-                self.assertIn("actual(原值)=0.012400000000000001", report["claims"][0]["statement"])
-                self.assertNotIn("source_literal_selections", report)
-
-
-if __name__ == "__main__":
-    unittest.main()

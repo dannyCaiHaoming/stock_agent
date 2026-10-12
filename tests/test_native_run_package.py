@@ -400,8 +400,8 @@ class NativeRunPackageTests(unittest.TestCase):
                 model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
-            from tests.test_council_semantic_handoff import start_council_specialists
-            start_council_specialists(run_dir)
+            from tests.test_council_semantic_handoff import write_historical_council_starts_fixture
+            write_historical_council_starts_fixture(run_dir)
             specialist_outputs(run_dir)
             prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             write_json(run_dir / "cio" / "runtime_cio.json", cio_output(run_dir))
@@ -428,8 +428,8 @@ class NativeRunPackageTests(unittest.TestCase):
                 model="gpt-6-luna",
                 research_question="研究 fixture。",
             )
-            from tests.test_council_semantic_handoff import start_council_specialists
-            start_council_specialists(run_dir)
+            from tests.test_council_semantic_handoff import write_historical_council_starts_fixture
+            write_historical_council_starts_fixture(run_dir)
             specialist_outputs(run_dir)
             prepare_cio(ROOT, run_dir=run_dir, model="gpt-6-luna")
             exit_code = runtime_cli_main(

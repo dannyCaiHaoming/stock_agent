@@ -142,6 +142,7 @@ KNOWN_RUN_MARKERS = ("run_manifest.json", "source-bundle.json", "data-preparatio
 KNOWN_DIRECT_ARTIFACTS = (
     "official-macro-snapshot.json", "benchmark-snapshot.json",
     "market-context-snapshot.json", "market-state-calculation.json",
+    "native-research-archive.json",
 )
 PRIVATE_KEYS = {
     "request", "user_request", "original_request", "private_request",
@@ -1331,12 +1332,16 @@ class ArtifactCatalog:
             "equity-research-attachments/1.0.0": "equity_attachment",
             "research-provider-coverage/1.0.0": "provider_coverage",
             "common-stock-research-evidence-gate/1.0.0": "evidence_gate",
+            "native-research-archive/1.0.0": "native_research_archive",
         }
         return supported.get(schema, "unsupported"), schema in supported
 
     @staticmethod
     def _validate(value: Mapping[str, Any], kind: str, *, known_research_claim_ids: Sequence[str] = ()) -> None:
-        if kind == "dimension_report":
+        if kind == "native_research_archive":
+            from product.tools.report_history import validate_archive
+            validate_archive(value)
+        elif kind == "dimension_report":
             validate_research_dimension_report(
                 value,
                 expected_bindings=value.get("bindings", {}),
@@ -1526,6 +1531,9 @@ class ArtifactCatalog:
                     if supported and kind != "dimension_report":
                         self._validate(value, kind)
                     identity = self._identity(value, digest)
+                    if kind == "native_research_archive":
+                        # Do not project the private input/task/Gate into a browser.
+                        value = deepcopy(value["report"])
                     item = {
                         "kind": kind, "schema_version": str(value.get("schema_version", "UNKNOWN")),
                         "identity": identity[1], "content_hash": digest, "supported": supported,
@@ -2275,6 +2283,11 @@ class ArtifactCatalog:
             for item in reports
         ]
         return projection
+
+    def native_reports(self, security_id: str | None = None) -> list[dict[str, Any]]:
+        """读取已验证的原生归档报告，不转换为旧执行证明或暴露原输入。"""
+        return [deepcopy(item["value"]) for item in self.by_kind("native_research_archive")
+                if security_id is None or item["value"].get("security", {}).get("security_id") == security_id]
 
     def company_reports(
         self, security_id: str, decision_cutoff: str | None, run_id: str | None,

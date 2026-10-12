@@ -6,20 +6,7 @@
 
 Memory 必须位于源码仓库之外的稳定本地目录。显式 `--memory-root` 优先于环境变量 `RESEARCH_MEMORY_ROOT`。自动 live 采集在任何 Provider 请求之前验证该目录；缺少配置、目录位于仓库内、符号链接或权限不足都会失败。预先冻结的 fixture/prebuilt 数据仍可在不配置 Memory 时运行，但不会获得跨运行资料或报告复用。
 
-```sh
-export RESEARCH_MEMORY_ROOT=/absolute/external/path/stock-agent-research-memory
-scripts/run-product-smoke.sh ...
-```
-
-需要只验证真实数据准备、Gate 与 Company 运行包而不启动模型时，使用现有宿主 launcher 的模型前停止选项：
-
-```sh
-scripts/run-product-smoke.sh --stage common-stock-research --prepare-only \
-  --handoff /absolute/path/to/confirmed-handoff.json \
-  /absolute/path/to/new-output-directory
-```
-
-该模式仍要求 `LIVE_SOURCE_ACCESS_FILE`、合规 `SEC_USER_AGENT` 和稳定 `RESEARCH_MEMORY_ROOT`，结果只能标记为 `PREPARED`；它不代表 Company Agent 已运行或研究已完成。
+正常研究在当前原生宿主经portfolio-council进入；Memory配置和数据/来源预算另获授权，不运行旧normal/stage/resume launcher。确定性采集仍可使用`council-dev.py collect-common-stock-data`等既有数据命令，必须提供已确认输入、外置来源准入配置、合规SEC_USER_AGENT、外置缓存和稳定Memory；它可能访问真实来源，但模型调用数为零，不能当作Smoke或研究完成。旧`--prepare-only`模型launcher模式已退役，不能为数据验证恢复它。
 
 默认原始响应缓存位于 `$RESEARCH_MEMORY_ROOT/raw-cache`。数据库为 `research-memory.sqlite3`，大对象位于 `objects/`，数据集进程锁位于 `locks/`。不要把这些目录提交到 Git，也不要将它们放入单次运行输出目录。
 
@@ -43,11 +30,15 @@ scripts/run-product-smoke.sh --stage common-stock-research --prepare-only \
 
 ## 报告保存与复用
 
+新原生报告由`archive_report`按精确回执验证并保存完整输入/Gate/任务与同源中文到既有Memory内容对象，不写入旧严格报告索引或升级为事实。`reuse_archive`只读取明确指定对象/hash，严格比较完整冻结输入、Gate、任务授权范围/依赖及实际业务资源；保留原cutoff和研究状态，业务复用VALIDATED、宿主/作者UNVERIFIED、内容NOT_REVIEWED分列。需要严格执行身份证明的旧用途仍须原证据，不用原生UNKNOWN通关。
+
+以下`research_input_fingerprint`、checked_at及旧报告索引只描述冻结旧版读取/明确维护契约；它们不要求当前原生会话生成Codex事件。
+
 finalizer 仅在报告 JSON/Markdown、Evidence Closure、计算引用和附件绑定全部验证后保存报告包。报告包包含原请求、选中 Evidence、引用计算、冻结附件、校验记录及闭合 manifest；数据库只保存索引，私人问题不会进入公共事实表。
 
 复用要求当前 `research_input_fingerprint` 完全等价，覆盖证券资料、冲突/缺口、附件与图形、用户问题/Thesis/持有期限、模型、Agent、全部 Skill、输出 Schema 和语义策略版本。同一 `decision_cutoff` 可作为完全相同冻结输入的原样重放；cutoff 变化时还必须由本次 live 数据包证明所有纳入政策的数据集均已成功检查、没有待修缺口，并绑定本次不可变 Research View。任一来源刷新失败、结果缺失或绑定无法证明都会拒绝复用并创建新 Invocation。引用会同时显示本次 `checked_at` 与原始 `original_report_cutoff`；“今天检查仍可复用”不等于“模型今天重新研究”。对象缺失/损坏或使用 `--force-rerun` 时也会创建新 Invocation。
 
-全部目标复用时，launcher 直接执行确定性 finalizer，父模型和 Company Agent 调用数均为零。混合运行的 dispatch-index 只包含真正需要 `RUN` 的证券。
+全部目标可严格复用时，确定性工具验证并归集原引用，当前主线程不派发新模型，不要求父进程或Stop收尾。混合场景仅原生委派真正需要新研究的目标；缺目标或无合法成果不能按空集合宣布全复用完成。旧dispatch-index仅解释历史包。
 
 指定报告保存失败后，可在原报告文件仍完整时执行确定性补存：
 

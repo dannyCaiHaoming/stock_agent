@@ -1,0 +1,117 @@
+{
+  "source_id": "opencode-company-prebound-native-result:20261008",
+  "as_of": "2026-10-08T04:21:54.891202+00:00",
+  "retrieved_at": "2026-10-08T04:21:54.891308+00:00",
+  "status": "STOPPED_CALCULATION_INPUT_INCOMPATIBLE_NO_REPORT",
+  "window": "opencode-company-prebound-window.json",
+  "task_ref": "t.b538b3153fd7add2728cd583",
+  "task_hash": "c6f623c00609f0f13d68154a18ce9654803dcd375a787304ce5cce61be94b3f1",
+  "security_id": "US:COMMON_STOCK:MRVL",
+  "cutoff": "2026-09-28T12:35:32.208143Z",
+  "native_observation": {
+    "host": "OpenCode",
+    "version": "1.18.34",
+    "main_session": "ses_ee649e8ceffexSeg0SlbxpOnr9",
+    "company_session": "ses_ee6496bc9ffe9Dmh5RMyi4Fu2z",
+    "company_parent_matches_main": true,
+    "main_role": "runtime_cio",
+    "company_role": "runtime_company_analyst",
+    "main_and_company_provider_model": "aliyun-bailian/glm-5.2",
+    "model_observation_scope": "原生stream日志及指定会话assistant元数据；不是Provider wire或计费证明。主角色名不授予本轮CIO综合职责。",
+    "file_parts": 2,
+    "main_skill_calls_completed": ["portfolio-council"],
+    "company_skill_calls_completed": ["evidence-grounding", "company-research", "valuation", "catalyst-analysis"],
+    "research_report_analysis_skill": "NOT_CALLED",
+    "prepare_task_calls": 0,
+    "company_authors": 1,
+    "other_role_dispatches": 0,
+    "independent_skeptic_or_cio_synthesis": "NOT_RUN",
+    "all_completed_or_error_business_calls_use_exact_grant": true,
+    "tool_counts": {
+      "context_completed": 2,
+      "catalog_completed": 2,
+      "query_completed": 8,
+      "query_error": 1,
+      "calculate_completed": 0,
+      "calculate_error": 6,
+      "submit_pending": 1,
+      "submit_completed": 0,
+      "read_submission": 0
+    }
+  },
+  "errors": {
+    "query": {
+      "code": "NATIVE_RESEARCH_RESPONSE_TOO_LARGE",
+      "at": "2026-10-08T04:13:59.457Z",
+      "evidence_ids_requested": 44,
+      "following_smaller_queries_completed": 8
+    },
+    "ratio": {
+      "code": "INVALID_NUMERIC_EVIDENCE",
+      "count": 4,
+      "first_at": "2026-10-08T04:17:33.120Z",
+      "cause": "作者精确选中的SEC财务事实value是amount/unit/accession/period等结构化对象；既有EvidenceTools.calculate直接Decimal(str(value))，不能读取value.amount。",
+      "supported_fix_scope": "仅修复已知SEC格式到既有确定性计算的接缝，不让模型填数字或自动选证据。"
+    },
+    "monetary_scale": {
+      "code": "MONETARY_MENTION_NOT_FOUND",
+      "count": 2,
+      "structured_usd_amount": "同一SEC对象接缝，旧实现仅匹配正文金额正则。",
+      "employment_count": "作者误选unit=thousands_persons的就业人数；不是金额，拒绝正确，不通过扩大金额解析兜底。"
+    },
+    "stop_behavior": "作者在首个查询/计算错误后仍有业务工具调用，并尝试生成提交；不能宣称失败即停已由宿主强制执行。开发方在确定计算全部失败后关闭本地Terminal，未等pending提交完成，未重派作者。"
+  },
+  "business_observation": {
+    "actual_query_receipts": 8,
+    "successful_calculation_files": 0,
+    "submission_files": 0,
+    "reports": 0,
+    "draft_ref_or_report_id": null,
+    "pending_is_not_saved": true,
+    "task_directory": "opencode/grants/zero-preparation-20261006/company/tasks/t.b538b3153fd7add2728cd583",
+    "diagnostic_path_correction": "初次将任务拼为connection/task_ref，空目录清单不适用；随后按实际tasks/task_ref/task.json定位，核对8个tools记录、0 calculations、0 submissions。"
+  },
+  "budget_and_stop": {
+    "aggregate_window_start": "2026-10-08T03:52:58.710038+00:00",
+    "aggregate_hard_deadline": "2026-10-08T04:22:58.710038+00:00",
+    "slice_limit": 3,
+    "observed_slice_native_tasks": 2,
+    "previous_conservative_attempts": 6,
+    "aggregate_conservative_attempts": 8,
+    "aggregate_limit": 15,
+    "count_scope": "指定主会话1＋唯一Company作者1；显式title，本轮可观察日志未见额外title/其他角色模型任务。原生任务数不等于工具轮次、API请求或Provider计费usage。首轮4/3偏差继续保留，不被总账覆盖。",
+    "local_terminal_closed_before_stop_observation": true,
+    "stop_observed_by": "2026-10-08T04:21:54.891202+00:00",
+    "native_task_raw_states_preserved": {"main_task": "running", "company_submit": "pending", "company_last_finish": null},
+    "remote_provider_cancellation": "UNVERIFIED",
+    "reassign_retry_or_deadline_extension": false
+  },
+  "preservation": {
+    "baseline": "private/prebound-profile/preresearch-baseline.json",
+    "baseline_as_of": "2026-10-08T04:11:33.062393+00:00",
+    "candidate_files": 299,
+    "candidate_equal_baseline": true,
+    "previous_connection_files": 23,
+    "previous_connection_file_hashes_equal": true,
+    "protection_scope": "目录mode及字节前后观察；不是OS强制只读证明。新增8个查询收据属于本轮获准产物。"
+  },
+  "private_evidence": {
+    "main_export_bytes": 37139,
+    "main_export_sha256": "7b1d4babe386648567e03df5ea25bfd1066a34597a2b5b9b67f9a278d7eb2eb6",
+    "company_export_bytes": 449813,
+    "company_export_sha256": "a6dce5f1b61dc60fdd242dd5b54c17be556ba4d6aacf3ed127a2648395091b87",
+    "handling": "只导出两个明确会话到获准private/prebound-profile新0600文件；不扫描私人数据库、不发布原参数、授权或reasoning。",
+    "export_read_failure": "首次text=True stdout管道在UTF-8位置65534-65535解码失败，未得到完整JSON；保留此失败。",
+    "export_read_recovery": "同一原生export直接stdout写新0600普通文件，严格UTF-8及JSON解析通过；没有errors=replace、模型重跑或研究作者替换，不据此断言宿主内部截断根因。"
+  },
+  "verdicts": {
+    "business": "QUERIES_RECORDED_NO_VALID_REPORT",
+    "host": "COMPANY_CREATED_AND_TOOLS_USED_STOPPED_WITH_UNFINISHED_NATIVE_STATES",
+    "content": "NO_REPORT_NOT_REVIEWED",
+    "full_opencode_acceptance": "INCOMPLETE",
+    "change": "INCOMPLETE"
+  },
+  "source_network_account_or_later_stage_calls": 0,
+  "network_scope": "只指研究来源/账户；本轮原生模型Provider请求实际发生，不宣称所有网络为0。",
+  "post_stop_development": "SEC结构化金额接缝在仓库内另作OpenSpec 2.5/D3.3修复与合成确定性检查；本候选/任务/原失败不改，不回签原生运行或重新开启窗口。"
+}

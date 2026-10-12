@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trade-history-analysis/1.0.0",
+  "title": "TradeHistoryAnalysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "analysis_id", "account_ref", "source_id", "as_of",
+    "retrieved_at", "content_hash", "ledger_hash", "formula_version",
+    "window_start", "window_end", "coverage_status", "included_count",
+    "excluded_count", "unknown_count", "metrics", "episodes", "by_security",
+    "by_month", "charts", "limitations", "advisory_only", "tax_report",
+    "broker_statement", "backtest"
+  ],
+  "properties": {
+    "schema_version": {"const": "trade-history-analysis/1.0.0"},
+    "analysis_id": {"type": "string", "minLength": 1},
+    "account_ref": {"type": "string", "minLength": 1},
+    "source_id": {"type": "string", "minLength": 1},
+    "as_of": {"type": "string", "minLength": 1},
+    "retrieved_at": {"type": "string", "minLength": 1},
+    "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ledger_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "formula_version": {"const": "trade-history-formula/1.0.0"},
+    "window_start": {"type": "string", "minLength": 1},
+    "window_end": {"type": "string", "minLength": 1},
+    "coverage_status": {"enum": ["PARTIAL", "API_COMPLETE_WITHIN_DECLARED_WINDOW"]},
+    "included_count": {"type": "integer", "minimum": 0},
+    "excluded_count": {"type": "integer", "minimum": 0},
+    "unknown_count": {"type": "integer", "minimum": 0},
+    "metrics": {"type": "array", "items": {"$ref": "#/$defs/metric"}},
+    "episodes": {"type": "array", "items": {"$ref": "#/$defs/episode"}},
+    "by_security": {"type": "array", "items": {"type": "object"}},
+    "by_month": {"type": "array", "items": {"type": "object"}},
+    "charts": {"type": "array", "items": {"$ref": "#/$defs/chart"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "advisory_only": {"const": true},
+    "tax_report": {"const": false},
+    "broker_statement": {"const": false},
+    "backtest": {"const": false}
+  },
+  "$defs": {
+    "metric": {
+      "type": "object", "additionalProperties": false,
+      "required": ["metric_id", "value", "unit", "status", "reason"],
+      "properties": {
+        "metric_id": {"type": "string", "minLength": 1},
+        "value": {"type": ["number", "integer", "null"]},
+        "unit": {"type": "string", "minLength": 1},
+        "status": {"enum": ["AVAILABLE", "UNAVAILABLE", "LIMITED"]},
+        "reason": {"type": ["string", "null"]}
+      }
+    },
+    "episode": {
+      "type": "object", "additionalProperties": false,
+      "required": ["episode_id", "instrument_key", "display_symbol", "opened_at", "closed_at", "quantity", "gross_pnl", "fees", "net_pnl", "holding_seconds", "status", "source_refs"],
+      "properties": {
+        "episode_id": {"type": "string", "minLength": 1},
+        "instrument_key": {"type": "string", "minLength": 1},
+        "display_symbol": {"type": "string", "minLength": 1},
+        "opened_at": {"type": "string", "minLength": 1},
+        "closed_at": {"type": ["string", "null"]},
+        "quantity": {"type": "number"},
+        "gross_pnl": {"type": ["number", "null"]},
+        "fees": {"type": ["number", "null"]},
+        "net_pnl": {"type": ["number", "null"]},
+        "holding_seconds": {"type": ["number", "null"], "minimum": 0},
+        "status": {"enum": ["CLOSED", "OPEN", "UNMATCHED"]},
+        "source_refs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "chart": {
+      "type": "object", "additionalProperties": false,
+      "required": ["chart_id", "title", "kind", "unit", "status", "window_start", "window_end", "formula_version", "points", "limitations"],
+      "properties": {
+        "chart_id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["LINE", "BAR", "HEATMAP", "SCATTER", "TIMELINE"]},
+        "unit": {"type": "string", "minLength": 1},
+        "status": {"enum": ["AVAILABLE", "LIMITED", "UNAVAILABLE"]},
+        "window_start": {"type": "string", "minLength": 1},
+        "window_end": {"type": "string", "minLength": 1},
+        "formula_version": {"const": "trade-history-formula/1.0.0"},
+        "points": {"type": "array", "items": {"type": "object"}},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

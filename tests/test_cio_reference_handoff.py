@@ -165,8 +165,8 @@ class CioReferenceHandoffTests(unittest.TestCase):
         self.assertIsNone(predecision_cio_reference_map(fixtures.REPO, root))
         self.assertIn('"report_id": "company:US:COMMON_STOCK:MRVL"', build_predecision_cio_prompt(fixtures.REPO, root))
         with patch.dict("os.environ", {"STOCK_AGENT_PRODUCT_HOST_LAUNCH": "1"}), patch(
-            "product.runtime.predecision_cio_stage.subprocess.run") as process:
-            with self.assertRaisesRegex(ValueError, "CIO_LEGACY_REFERENCE_EXECUTION_RETIRED"):
+            "subprocess.run") as process:
+            with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
                 launch_predecision_cio_run(fixtures.REPO, run_dir=root)
             process.assert_not_called()
         self.assertEqual(before, {str(path.relative_to(root)): file_hash(path) for path in root.rglob("*") if path.is_file()})

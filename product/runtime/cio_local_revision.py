@@ -1,20 +1,18 @@
-"""CIO 主线程 Stop 接缝：复用局部修订，保持原装配/风控与研究权限。
+"""旧 CIO 局部修订记录的只读重验；不再接收 SessionStart/Stop 或保存首稿。
 
-这里不启动模型、不发布决策；主会话由真实 SessionStart 绑定，首稿和
-唯一修订由 Stop 保存。宿主结束后必须重读底层记录，不信任 SAVED 摘要。
+保留原始记录、精确配置锁、基础稿、修订范围和完整业务校验。历史摘要
+不等于当前原生宿主、作者执行或内容证明；冻结 Replay 使用自己的源码。
 """
 
 from __future__ import annotations
 
-import fcntl
 import json
-import os
 from pathlib import Path
 from typing import Any, Mapping
 
-from .hashing import canonical_hash, file_hash, legacy_envelope_hash, verify_legacy_envelope_hash
-from .local_revision import bind, resolve, verify_binding, _path
-from .schema_validation import schema_issue_locations, validate_schema_instance
+from .hashing import canonical_hash, file_hash, verify_legacy_envelope_hash
+from .local_revision import resolve, _path
+from .schema_validation import validate_schema_instance
 
 VERSION = "cio-local-revision/1.0.1"
 LOG = "invocation/cio-stop-events.jsonl"
@@ -166,111 +164,6 @@ def _contract(repository: Path, root: Path) -> tuple[dict, dict, set, Any]:
             "invocation_hash": canonical_hash(invocation)}
     reserved = set(reserved) | {"model", "input_hash", "output_hash", "prompt_hash", "rubric_hash"}
     return schema, task, reserved, validate
-
-
-def _draft_message(root: Path, payload: Mapping[str, Any]) -> str:
-    if (root / "predecision-cio-request.json").is_file():
-        message = payload.get("last_assistant_message")
-    else:
-        message = _path(root, "cio/runtime_cio.json").read_text(encoding="utf-8")
-    if not isinstance(message, str) or not message.strip():
-        raise ValueError("CIO_LOCAL_REVISION_DRAFT_MISSING")
-    return message
-
-
-def _submission(root: Path, record: dict, message: str, attempt: int) -> dict:
-    name = canonical_hash({"session_id": record["session_id"], "task": record["trusted_task_binding"]})
-    relative = f"invocation/cio-drafts/{name}-{attempt}.json"
-    path = _path(root, relative)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as stream:
-        stream.write(message + ("" if message.endswith("\n") else "\n"))
-        stream.flush()
-        os.fsync(stream.fileno())
-    return {"raw_path": relative, "raw_output_hash": canonical_hash({"assistant_message": message})}
-
-
-def handle(payload: Mapping[str, Any], environment: Mapping[str, str]) -> tuple[dict, dict]:
-    root = Path(environment["STOCK_AGENT_RUN_DIR"]).resolve()
-    repository = Path(__file__).resolve().parents[2]
-    event = payload.get("hook_event_name")
-    if event not in {"SessionStart", "Stop"}:
-        raise ValueError("CIO_LOCAL_REVISION_EVENT_INVALID")
-    _, launch = _launch(root, payload)  # 授权、路径、实际模型先于任何额度和原稿写入。
-    path = _path(root, LOG)
-    with _path(root, LOG + ".lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        previous = _records(root)
-        starts = [item for item in previous if item["hook_event_name"] == "SessionStart"]
-        record = {"version": VERSION, "execution_context": "MAIN_THREAD", "hook_event_name": event,
-                  "session_id": payload["session_id"], "launch_binding": launch}
-        response = {}
-        if event == "SessionStart":
-            if starts and any(item["session_id"] != payload["session_id"] or item["launch_binding"] != launch for item in starts):
-                raise ValueError("CIO_LOCAL_REVISION_SESSION_DRIFT")
-            if starts:
-                return starts[0], {}
-            if payload.get("source") != "startup":
-                raise ValueError("CIO_LOCAL_REVISION_START_MISSING")
-            record["delivery_diagnostics"] = _delivery(root)
-        else:
-            if (len(starts) != 1 or starts[0]["session_id"] != payload["session_id"]
-                    or starts[0]["launch_binding"] != launch):
-                raise ValueError("CIO_LOCAL_REVISION_SESSION_UNBOUND")
-            schema, task, reserved, validate = _contract(repository, root)
-            delivery = _delivery(root)
-            _verify_delivery_start(root, starts[0]["delivery_diagnostics"], delivery)
-            record["delivery_diagnostics"] = delivery
-            record.update(trusted_task_binding=task, identity_binding={"status": "BOUND"})
-            message = _draft_message(root, payload)
-            author = {**payload, "last_assistant_message": message}
-            stops = [item for item in previous if item["hook_event_name"] == "Stop"]
-            attempt = len(stops) + 1
-            record.update(attempt=attempt, final_response_hash=canonical_hash({"assistant_message": payload.get("last_assistant_message")}))
-            if attempt > 2 or (stops and stops[0].get("status") != "REPAIR_REQUESTED"):
-                raise ValueError("CIO_LOCAL_REVISION_NOT_AUTHORIZED")
-            if stops and stops[0]["trusted_task_binding"] != task:
-                raise ValueError("CIO_LOCAL_REVISION_CONFIGURATION_DRIFT")
-            if stops and stops[0].get("delivery_diagnostics") != delivery:
-                raise ValueError("CIO_LOCAL_REVISION_DELIVERY_DRIFT")
-            if stops and verify_binding(root, author, record, stops[0]) is None:
-                raise ValueError("CIO_LOCAL_REVISION_NOT_AUTHORIZED")
-            raw = _submission(root, record, message, attempt)
-            record["output_capture"] = raw
-            try:
-                candidate = resolve(root, author, record, stops[0]) if stops else author
-                draft = json.loads(candidate["last_assistant_message"])
-                if not isinstance(draft, dict) or reserved.intersection(draft):
-                    raise ValueError("CIO_LOCAL_REVISION_TECHNICAL_FIELDS_FORBIDDEN")
-                # 保存原始对象，禁止重复键通过不同解析器偷换含义。
-                _read(_path(root, raw["raw_path"]))
-                validate_schema_instance(draft, schema)
-                validate(draft)
-                record.update(status="SAVED", candidate_hash=canonical_hash(draft))
-            except (OSError, ValueError, KeyError, TypeError) as exc:
-                record.update(status="FAILED", failure_code=str(exc))
-                findings = (schema_issue_locations(json.loads(message), schema)
-                            if attempt == 1 and str(exc).startswith("SCHEMA_") else [])
-                if findings and not reserved.intersection(json.loads(message)):
-                    repair = {"validation_error": str(exc)}
-                    binding = bind(root, author, record, raw, repair, findings)
-                    if binding:
-                        record.update(status="REPAIR_REQUESTED", repair_request={**repair, **binding})
-                        response = {"decision": "block", "reason": json.dumps({
-                            "allowed_paths": binding["allowed_paths"],
-                            "instruction": "唯一一次原 CIO 局部修订。只改 allowed_paths 定位的字段，其他字段保持原稿不变；"
-                                           "沿当前入口返回/保存完整语义对象，程序会按原稿比较差异并完整再验。"
-                                           "不要重新派发研究、填写身份/hash、猜引用或扩大事实/权限；第二次失败终止。",
-                        }, ensure_ascii=False)}
-                if not response:
-                    response = {"continue": False, "stopReason": "CIO 草稿校验失败；保留失败，不再增加尝试。"}
-        record["event_hash"] = legacy_envelope_hash(record, hash_field="event_hash")
-        with path.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(record, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        return record, response
 
 
 def verify(root: Path, *, payload: Mapping[str, Any], candidate: Mapping[str, Any]) -> dict:

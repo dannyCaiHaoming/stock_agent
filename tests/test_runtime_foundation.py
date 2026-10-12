@@ -7,7 +7,8 @@ import unittest
 from pathlib import Path
 
 from product.runtime import discover_product_resources, load_version_manifest
-from product.runtime.versioning import derive_profile_agent_versions, validate_version_manifest
+from product.runtime.discovery import RESOURCE_PATHS
+from product.runtime.versioning import CURRENT_SCHEMA_FILES, derive_profile_agent_versions, validate_version_manifest
 from product.runtime.hashing import canonical_hash, file_hash
 from evals.regression.runner import load_regression_set
 
@@ -68,6 +69,52 @@ class VersionManifestTests(unittest.TestCase):
 
 
 class ProductDiscoveryTests(unittest.TestCase):
+    def copy_locked_resources(self, root):
+        manifest = load_version_manifest(ROOT / "product/version-manifest.json")
+        names = {*RESOURCE_PATHS.values(), *CURRENT_SCHEMA_FILES.values(), "version-manifest.json",
+                 *(f"skills/{name}/SKILL.md" for name in manifest["skills"])}
+        for relative in names:
+            target = root / "product" / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes((ROOT / "product" / relative).read_bytes())
+
+    def test_local_mcp_is_not_a_locked_resource_or_a_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            self.copy_locked_resources(root)
+            expected = discover_product_resources(root)
+            self.assertEqual(expected.plugin_mcp.relative_path, "hosts/codex/fixture-mcp.json")
+            self.assertEqual(expected.plugin_mcp.sha256, expected.version_manifest["resource_hashes"]["plugin_mcp"])
+            local = root / "product/.mcp.json"
+            for raw in (b'{"mcpServers":{}}', b"NOT_A_RESOURCE_OR_VALID_JSON"):
+                local.write_bytes(raw)
+                self.assertEqual(discover_product_resources(root), expected)
+                self.assertEqual(local.read_bytes(), raw)
+            template = root / "product/hosts/codex/fixture-mcp.json"
+            original = template.read_bytes()
+            template.write_bytes(original + b"\n")
+            with self.assertRaisesRegex(ValueError, "product resource hash mismatch: plugin_mcp"):
+                discover_product_resources(root)
+            self.assertEqual(template.read_bytes(), original + b"\n")
+            template.unlink()
+            local.write_bytes(original)
+            with self.assertRaisesRegex(FileNotFoundError, "hosts/codex/fixture-mcp.json"):
+                discover_product_resources(root)
+            self.assertEqual(local.read_bytes(), original)
+
+    def test_locked_mcp_template_cannot_escape_product_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            self.copy_locked_resources(root)
+            template = root / "product/hosts/codex/fixture-mcp.json"
+            outside = root / "outside.json"
+            outside.write_bytes(template.read_bytes())
+            template.unlink()
+            template.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "resource escapes product root"):
+                discover_product_resources(root)
+            self.assertTrue(template.is_symlink())
+
     def test_discovery_resolves_only_repository_product_resources(self):
         result = discover_product_resources(ROOT)
         product_root = (ROOT / "product").resolve()
@@ -104,7 +151,7 @@ class ProductDiscoveryTests(unittest.TestCase):
             product.mkdir()
             for relative in (
                 ".codex-plugin/plugin.json",
-                ".mcp.json",
+                "hosts/codex/fixture-mcp.json",
                 ".codex/config.toml",
                 "runtime-profile.json",
                 "contracts/council-decision-contract.json",
@@ -130,7 +177,7 @@ class ProductDiscoveryTests(unittest.TestCase):
             product = copied / "product"
             product.mkdir(parents=True)
             for relative in (
-                ".codex-plugin/plugin.json", ".mcp.json", ".codex/config.toml",
+                ".codex-plugin/plugin.json", "hosts/codex/fixture-mcp.json", ".codex/config.toml",
                 "runtime-profile.json", "contracts/council-decision-contract.json",
                 "schemas/runtime/cio-decision-draft.schema.json",
                 "skills/portfolio-council/SKILL.md", ".codex/agents/runtime_cio.toml",

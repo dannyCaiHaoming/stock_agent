@@ -1,0 +1,108 @@
+{
+  "source_id": "native-package-claude-mapped-native-result:20261008",
+  "as_of": "2026-10-08T13:39:09.679Z",
+  "retrieved_at": "2026-10-08T13:44:52.613211+00:00",
+  "status": "BLOCKED_DESKTOP_MESSAGE_NOT_STARTED_WINDOW_CLOSED",
+  "window": {
+    "start_at": "2026-10-08T13:32:02.833977+00:00",
+    "original_deadline": "2026-10-08T14:02:02.833977+00:00",
+    "closed_at": "2026-10-08T13:44:52.613211+00:00",
+    "closed_reason": "First admission message did not start within 20s; official export still has no new CLI user/assistant or queued input. No retry.",
+    "old_windows_resumed": false,
+    "extension_or_redispatch": false,
+    "max_native_tasks": 5
+  },
+  "authorization_sha256": "5b1e96c4f5957048c5defe61370ef6748225725d115e4a39864043e517c10825",
+  "preparation_evidence": "claude-mapped-readiness.json",
+  "delivery": {
+    "tool": "SendMessage",
+    "message_id": "bd4a814a-b71d-4b0d-ac89-ae3da0ddbe7d",
+    "result": "undelivered: no sign of starting within 20s; may still be picked up later",
+    "app_transcript_contains_message": true,
+    "official_cli_transcript_new_user_or_assistant_messages": 0,
+    "official_cli_transcript_new_assistant_messages": 0,
+    "last_cli_assistant_timestamp": "2026-10-08T12:02:08.546Z",
+    "new_tool_names": [],
+    "directory_change_execution": "NOT_OBSERVED",
+    "last_cwd": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/minimal-repair-current-20261008/claude-code/product-workspace"
+  },
+  "host_observation": {
+    "session_id": "local_fc3e06b1-3702-4e13-9ddc-6ecfbffdd200",
+    "desktop_model": "claude-opus-5",
+    "effort": "high",
+    "permission_mode": "bypassPermissions",
+    "cli_binary_pin": {
+      "version": "2.1.293",
+      "wrapper": "0.3.293-rc.20261007.t063642.sha3abc54a",
+      "currentAsOfMs": 1791460889073
+    },
+    "state": {
+      "capturedAt": "2026-10-08T13:39:09.679Z",
+      "sidebarShownState": "idle",
+      "isRunning": false,
+      "hasPendingPermission": false,
+      "hasBackgroundWork": false,
+      "inputStreamHasPending": false,
+      "hasPendingCycle": false,
+      "cliProvablyIdle": true,
+      "toolMayBeRunning": false
+    },
+    "fresh_main_model": "NOT_OBSERVED",
+    "specialist_models": "NOT_OBSERVED",
+    "host_execution": "UNVERIFIED",
+    "provider_wire_verified": false,
+    "cc_switch_configuration_read": false
+  },
+  "stop_observation": {
+    "development_authorization_window": "CLOSED_NO_FURTHER_DISPATCH",
+    "stop_session_request": "DENIED_BY_AUTO_MODE_CLASSIFIER",
+    "last_target_observation": "IDLE_NO_BACKGROUND_NO_PENDING_INPUT",
+    "interrupt_delivered": false,
+    "provider_cancel": "UNVERIFIED",
+    "no_permission_retry_or_workaround": true
+  },
+  "business": {
+    "new_professional_authors_observed": 0,
+    "new_business_tool_calls_observed": 0,
+    "new_reports": 0,
+    "cio_task_prepared": false,
+    "risk": "NOT_RUN",
+    "business_validation": "NOT_RUN"
+  },
+  "content_verdict": "NOT_REVIEWED_NO_NEW_REPORTS",
+  "protection": {
+    "source_test_files": 38,
+    "old_files": 1832,
+    "new_package_source_files": 582,
+    "unchanged": true,
+    "hashes_are_not_os_enforced_read_only": true
+  },
+  "official_export": {
+    "zip_sha256": "b0eae908d6cdf12280a88657849dd065a173119b63df6d81d9db726a29d1bdc7",
+    "size_bytes": 1118860,
+    "private_only": true,
+    "raw_transcript_published": false
+  },
+  "completion": {
+    "complete": 24,
+    "total": 29,
+    "remaining": 5,
+    "unchecked": [
+      "6.1",
+      "6.3",
+      "7.1",
+      "7.2",
+      "8.1"
+    ],
+    "codex_opencode": "BACKLOG_INCOMPLETE_NOT_RUN",
+    "final_human_approval": false,
+    "archive_commit_push": false
+  },
+  "minimal_next_action": "Restore direct input handling in the existing Claude desktop product session; this closed window cannot be resumed. A new explicit bounded window is required before any later native attempt. Do not add a project runtime or switch to CLI/SDK.",
+  "limitations": [
+    "No new mapped-model execution was observed; old gpt-6.1-sol messages only explain historical mapping, not this window PASS.",
+    "Visible transcript message counts are not provider API request, token or cost counters.",
+    "App echo does not prove CLI delivery; idle does not prove provider cancellation.",
+    "Stop tool was denied; no claim that an interrupt was delivered or pending content removed."
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "source_id": "claude-bounded-acceptance-precheck:20261007",
+  "as_of": "2026-10-07T07:14:03.839612+00:00",
+  "retrieved_at": "2026-10-07T07:14:03.839612+00:00",
+  "user_reply": "同意",
+  "authorization_interpretation": "按此前具体提出的Claude Code单宿主15任务/30分钟方案执行；不扩展至其他宿主、来源网络、账户、安装覆盖或最终完成发布。",
+  "authorized_host": "Claude Code",
+  "maximum_native_model_tasks": 15,
+  "maximum_minutes": 30,
+  "failed_and_reassigned_tasks_count_against_limit": true,
+  "automatic_retry": false,
+  "model_choice": "Use actual native session model; not yet observed because stopped before model execution",
+  "codex_model_budget": 0,
+  "opencode_model_budget": 0,
+  "source_network_authorized": false,
+  "account_access_authorized": false,
+  "installed_original_export_verification": "PASS",
+  "installed_original_export_manifest_sha256": "572bc40ea1fa4ac1d22020c312ec0c25182c7bd419b7896364e96d7c22202130",
+  "installed_copies_updated": false,
+  "current_source_vs_installed_difference_count": 12,
+  "original_public_artifacts_checked": 22,
+  "original_public_hashes_unchanged": true,
+  "preparation_permissions_actual_checks": [
+    {
+      "capability": "RESEARCH_REPORT_DISCOVERY",
+      "search_permission": false,
+      "actual_rejection": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN"
+    },
+    {
+      "capability": "MACRO_RESEARCH_DISCOVERY",
+      "search_permission": false,
+      "actual_rejection": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN"
+    },
+    {
+      "capability": "MARKET_RESEARCH_DISCOVERY",
+      "search_permission": false,
+      "actual_rejection": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN"
+    }
+  ],
+  "preparation_files_unchanged": true,
+  "historical_materials_read_only": [
+    {
+      "preparation_kind": "RESEARCH_REPORT_DISCOVERY",
+      "status": "SOURCE_LIMITED",
+      "selection_count": 0,
+      "file_sha256": "f2067ec16b6435f51d2c9c35ca2f012dc5917547d4824b94f8806834ac608c18"
+    },
+    {
+      "preparation_kind": "PEER_SELECTION",
+      "status": "READY",
+      "selection_count": 2,
+      "file_sha256": "a38b580948b65b52d681b12414c7e26662ee2ff0ddf1c4ba85c965e275da3e3b"
+    },
+    {
+      "preparation_kind": "MACRO_RESEARCH_DISCOVERY",
+      "status": "BLOCKED_CONFIGURATION",
+      "selection_count": 0,
+      "file_sha256": "b58f4f2030f69bd831725271a2ca0ee26f7297f8d2f46ea1a7c6d3cd19303687"
+    },
+    {
+      "preparation_kind": "MARKET_RESEARCH_DISCOVERY",
+      "status": "SOURCE_LIMITED",
+      "selection_count": 0,
+      "file_sha256": "b6641139d35ccef58abb2719c6a9587a45ded1ca9e1b58baa226766fe7a3804d"
+    }
+  ],
+  "status": "STOPPED_BEFORE_MODEL_CORE_MATERIAL_DEPENDENCIES_NOT_READY",
+  "first_blocker": "MANDATORY_SEARCH_PROOF_REQUIRES_SOURCE_AUTHORIZATION",
+  "additional_blockers": [
+    "Historical Macro preparation remains BLOCKED_CONFIGURATION",
+    "No native preparation submission lineage",
+    "Current implementation candidate not yet installed"
+  ],
+  "business_gate_basis": [
+    "product/tools/materials.py: validate_selection requires actual search records for discovery submissions",
+    "product/tools/research_connection.py: blocked material inputs reject dependent formal task"
+  ],
+  "native_session_created": false,
+  "native_permission_or_isolation_verified": false,
+  "native_model_tasks_consumed": 0,
+  "native_model_task_allowance_remaining": 15,
+  "native_reports_created": 0,
+  "source_network_calls": 0,
+  "account_calls": 0,
+  "precheck_elapsed_seconds": 2.455,
+  "tasks_complete": 17,
+  "tasks_total": 24,
+  "archive_commit_push": "NOT_PERFORMED",
+  "resumption_requires": "Source preparation authorization and legal cutoff/provenance readiness; no automatic retry; then align the installed candidate and native permission gates."
+}

@@ -1,0 +1,56 @@
+{
+  "source_id": "native-zero-model-archive-closeout:20261007",
+  "as_of": "2026-10-07T07:07:16.726334+00:00",
+  "retrieved_at": "2026-10-07T07:07:16.726334+00:00",
+  "status": "ZERO_MODEL_INCREMENT_VERIFIED_CHANGE_INCOMPLETE",
+  "tasks_complete": 17,
+  "tasks_total": 24,
+  "focused_tests": 43,
+  "focused_tests_current_code_bound": true,
+  "openspec_strict": "PASS",
+  "document_links": "PASS",
+  "git_diff_check": "PASS",
+  "candidate_index_whitespace_check": "PASS",
+  "candidate_patch_sha256": "9a886e5ddcb8eb71d55c5a1ecd1b14f82c20861d13abcb9e7815a29ecf6f9b14",
+  "candidate_patch_applies_to_head": "PASS",
+  "approved_source_snapshot_files_unchanged": 270,
+  "installed_original_exports": [
+    {
+      "host": "claude-code",
+      "original_export_verification": "PASS",
+      "original_exported_files": 300
+    },
+    {
+      "host": "codex",
+      "original_export_verification": "PASS",
+      "original_exported_files": 300
+    },
+    {
+      "host": "opencode",
+      "original_export_verification": "PASS",
+      "original_exported_files": 296
+    }
+  ],
+  "installed_copies_updated": false,
+  "installed_source_current_difference_count": 12,
+  "current_feature_in_original_installed_copies": false,
+  "credential_values_checked": 33,
+  "credential_matches": 0,
+  "potential_secret_pattern_matches": 0,
+  "limited_secret_scan_not_independent_audit": true,
+  "git_branch": "main",
+  "real_index_empty": true,
+  "model_calls": 0,
+  "source_network_calls": 0,
+  "account_calls": 0,
+  "native_host_execution": "NOT_RUN",
+  "content_review": "NOT_RUN",
+  "special_evaluations": "NOT_RUN",
+  "archive_commit_push": "NOT_PERFORMED",
+  "remaining": [
+    "三宿主实际加载、权限及独立首轮隔离",
+    "MRVL真实资料准备核心依赖",
+    "实际研究/内容核对",
+    "最终完成批准及归档发布"
+  ]
+}

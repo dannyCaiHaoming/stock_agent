@@ -1,0 +1,74 @@
+name = "runtime_market_catalyst"
+description = "按任务能力执行市场多维研究。"
+sandbox_mode = "read-only"
+developer_instructions = """
+{{ROLE_BODY}}
+"""
+
+[features]
+shell_tool = false
+
+[tools]
+web_search = false
+view_image = false
+
+[apps._default]
+enabled = false
+
+[mcp_servers.company]
+enabled = false
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_COMPANY"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_COMPANY_CONNECTION", "STOCK_AGENT_COMPANY_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_calculate", "research_calculations", "research_submit", "research_read_submission", "research_read_reports", "research_read_documents", "research_search", "research_fetch"]
+
+[mcp_servers.market]
+enabled = true
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_MARKET"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_MARKET_CONNECTION", "STOCK_AGENT_MARKET_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_calculate", "research_calculations", "research_submit", "research_read_submission", "research_read_reports", "research_read_documents", "research_search", "research_fetch"]
+disabled_tools = ["research_prepare_task"]
+
+[mcp_servers.skeptic]
+enabled = false
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_SKEPTIC"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_SKEPTIC_CONNECTION", "STOCK_AGENT_SKEPTIC_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_submit", "research_read_submission"]
+
+[mcp_servers.cio]
+enabled = false
+command = "{{PYTHON}}"
+args = ["-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_CIO"]
+cwd = "{{REPOSITORY_ROOT}}"
+env_vars = ["STOCK_AGENT_CIO_CONNECTION", "STOCK_AGENT_CIO_TOKEN"]
+enabled_tools = ["research_prepare_task", "research_context", "research_catalog", "research_query", "research_submit", "research_read_submission", "research_read_reports"]
+
+[[skills.config]]
+path = ".agents/skills/evidence-grounding"
+enabled = true
+[[skills.config]]
+path = ".agents/skills/catalyst-analysis"
+enabled = true
+[[skills.config]]
+path = ".agents/skills/technical-structure"
+enabled = true
+[[skills.config]]
+path = ".agents/skills/industry-comparison"
+enabled = true
+[[skills.config]]
+path = ".agents/skills/macro-market-analysis"
+enabled = true
+[[skills.config]]
+path = ".agents/skills/ownership-disclosure"
+enabled = true
+[[skills.config]]
+path = ".agents/skills/options-market-structure"
+enabled = true
+[[skills.config]]
+path = ".agents/skills/research-report-analysis"
+enabled = true

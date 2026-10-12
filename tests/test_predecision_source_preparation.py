@@ -28,51 +28,10 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
         gp.write_text(json.dumps(gate))
         return hp, gp
 
-    def test_child_coordination_cannot_deadlock_on_parent_session_identity(self):
-        from product.runtime.codex_hook_recorder import handle_hook_event
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            events, dispatch = root / "events.jsonl", root / "dispatch.jsonl"
-            start = {"hook_event_name": "SubagentStart", "parent_session_id": "parent",
-                "turn_id": "child-turn", "child_session_id": "child",
-                "agent_type": "runtime_skeptic", "context_binding": {
-                    "status": "DELIVERED", "task_name": "independent_skeptic_1"}}
-            start["event_hash"] = legacy_envelope_hash(start, hash_field="event_hash")
-            events.write_text(json.dumps(start) + "\n")
-            env = {"STOCK_AGENT_RUN_DIR": str(root),
-                "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(events),
-                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(dispatch),
-                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_skeptic",
-                "STOCK_AGENT_INDEPENDENT_SKEPTIC_STAGE": "independent-skeptic-runtime/1.0.0"}
-            payload = {"hook_event_name": "PreToolUse", "session_id": "parent",
-                "turn_id": "child-turn", "cwd": str(ROOT / "product"),
-                "tool_use_id": "tool", "tool_name": "collaborationwait_agent",
-                "tool_input": {"timeout_ms": 600000}}
-            with patch("product.runtime.codex_hook_recorder._allowed_dispatch_tasks", return_value={"independent_skeptic_1"}), \
-                    patch("product.runtime.codex_hook_recorder._terminal_research_tasks", return_value=set()):
-                for tool in ("wait_agent", "list_agents", "follow_up_task", "send_message", "send_input", "interrupt_agent"):
-                    record, response = handle_hook_event(dict(payload, tool_name="collaboration" + tool), environ=env)
-                    self.assertEqual("DENY_RESEARCH_CHILD_COORDINATION", record["decision"])
-                    self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
-                parent = dict(payload, turn_id="parent-turn")
-                record, _ = handle_hook_event(parent, environ=env)
-                self.assertEqual("IGNORE_NON_AGENT_TOOL", record["decision"])
-                record, _ = handle_hook_event(dict(parent, tool_input={"timeout_ms": 10000}), environ=env)
-                self.assertEqual("DENY_SHORT_RESEARCH_WAIT", record["decision"])
-                record, _ = handle_hook_event(dict(parent, tool_name="collaborationlist_agents"), environ=env)
-                self.assertEqual("DENY_ACTIVE_RESEARCH_CONTROL", record["decision"])
-                for tool in ("collaborationsend_message", "multi_agent_v1__send_input"):
-                    record, _ = handle_hook_event(dict(parent, tool_name=tool), environ=env)
-                    self.assertEqual("DENY_ACTIVE_RESEARCH_CONTROL", record["decision"])
-                start["event_hash"] = "0" * 64
-                events.write_text(json.dumps(start) + "\n")
-                record, _ = handle_hook_event(dict(payload, tool_input={"timeout_ms": 10000}), environ=env)
-                self.assertEqual("DENY_SHORT_RESEARCH_WAIT", record["decision"])
-
-    def test_mcp_selected_skeptic_attempt_is_explicitly_configured_and_validated(self):
-        import tomllib
-        from product.runtime.nested_codex import build_nested_codex_command
-        from product.runtime.independent_skeptic_stage import DISPATCH_VERSION
+    def test_skeptic_attempt_reader_validates_explicit_path_hash_and_run_scope(self):
+        from product.runtime.independent_skeptic_stage import (
+            DISPATCH_VERSION, read_dispatch_index, resolve_skeptic_tool_scope,
+        )
         with tempfile.TemporaryDirectory() as tmp:
             run = Path(tmp)
             relative = "research/skeptic/attempts/2/dispatch-index.json"
@@ -81,23 +40,17 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
             path = run / relative
             path.parent.mkdir(parents=True)
             path.write_text(json.dumps(index))
-            arguments = dict(codex_binary="codex", product_root=ROOT / "product", run_dir=run,
-                model="gpt-6-luna", sqlite_home=run / "sqlite", log_dir=run / "logs",
-                final_message_path=run / "final.json", hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
-                fixture_mcp_run_dir=run)
-            command = build_nested_codex_command(**arguments, fixture_mcp_skeptic_dispatch_index=relative)
-            override = next(v for v in command if v.startswith("mcp_servers.fixture_runtime="))
-            config = tomllib.loads(override)
-            environment = config["mcp_servers"]["fixture_runtime"]["env"]
-            self.assertEqual(relative, environment["STOCK_AGENT_SKEPTIC_DISPATCH_INDEX"])
-            default = build_nested_codex_command(**arguments)
-            self.assertNotIn("STOCK_AGENT_SKEPTIC_DISPATCH_INDEX", next(v for v in default if v.startswith("mcp_servers.fixture_runtime=")))
+            original = path.read_bytes()
+            self.assertEqual(read_dispatch_index(run, relative), index)
             with self.assertRaisesRegex(ValueError, "COUNTER_DISPATCH_INDEX_PATH_INVALID"):
-                build_nested_codex_command(**arguments, fixture_mcp_skeptic_dispatch_index="../outside.json")
+                read_dispatch_index(run, "../outside.json")
+            with self.assertRaisesRegex(ValueError, "COUNTER_DISPATCH_INDEX_INVALID"):
+                resolve_skeptic_tool_scope(run, run_id="foreign", invocation_id="any", gate={}, index_ref=relative)
+            self.assertEqual(path.read_bytes(), original)
             index["run_id"] = "tampered"
             path.write_text(json.dumps(index))
             with self.assertRaisesRegex(ValueError, "COUNTER_DISPATCH_INDEX_INVALID"):
-                build_nested_codex_command(**arguments, fixture_mcp_skeptic_dispatch_index=relative)
+                read_dispatch_index(run, relative)
 
     def test_skeptic_task_keeps_target_scope_and_source_report_distinction(self):
         from product.runtime.independent_skeptic_stage import _skeptic_task_prompt
@@ -108,14 +61,15 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
         self.assertIn(json.dumps({"assumption_id": "A1", "statement": "待检验的条件性假设"},
                                  ensure_ascii=False, separators=(",", ":")), prompt)
         self.assertIn("challenges.assumption_ids", prompt)
-        self.assertIn("agent_input.allowed_evidence_ids", prompt)
+        self.assertIn('顶层 allowed_evidence_ids', prompt)
+        self.assertNotIn('清单在 agent_input.allowed_evidence_ids', prompt)
         self.assertIn("Morningstar", prompt)
         self.assertIn("Company Analyst", prompt)
         # 核对协议边界，不以整段中文文案逐字充当研究质量测试。
 
     def test_frozen_company_uses_new_identity_without_rewriting_source(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             hp, gp = self.inputs(root)
             before = gp.read_bytes()
             run = root / "company"
@@ -138,7 +92,7 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
 
     def test_explicit_counter_core_matches_existing_admission_registry(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             hp, gp = self.inputs(root)
             run = root / "core"
             result = prepare_multidimensional_stage_run(ROOT, handoff_path=hp, gate_path=gp,
@@ -154,7 +108,7 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
 
     def test_preparation_keeps_original_identity_and_hash_under_verified_gate_binding(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             hp, gp = self.inputs(root)
             handoff, gate = json.loads(hp.read_text()), json.loads(gp.read_text())
             prep = {"run_id": gate["run_id"], "handoff_id": handoff["handoff_id"],
@@ -180,7 +134,7 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
 
     def test_core_scope_cannot_change_default_multidimensional_stage(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             hp, gp = self.inputs(root)
             run = root / "invalid"
             with self.assertRaisesRegex(MultidimensionalStageError, "COUNTER_CORE_SCOPE_STAGE_INVALID"):
@@ -191,7 +145,7 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
 
     def test_core_capture_paths_follow_verified_source_package_not_execution_gate(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             hp, gp = self.inputs(root)
             company = root / "company"
             prepare_common_stock_stage_run(ROOT, handoff_path=hp, gate_path=gp,
@@ -247,7 +201,7 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
                 path.unlink()
                 path.write_bytes(original)
 
-    def test_host_core_materials_combinations_reject_before_any_launch(self):
+    def test_old_host_core_materials_arguments_reject_before_any_launch(self):
         import subprocess
         for extra in (["--peer-candidates", "missing-pool.json"], ["--require-materials"]):
             result = subprocess.run(["bash", str(ROOT / "scripts/run-product-smoke.sh"),
@@ -255,27 +209,12 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
                 "--handoff", "missing-handoff.json", *extra, "/not-created"],
                 capture_output=True, text=True)
             self.assertEqual(2, result.returncode)
-            self.assertIn("COUNTER_CORE_MATERIALS_FORBIDDEN", result.stderr)
-        # 自动采集可能产生 peerpool；核心路径既不回填也不启动材料批次。
-        # 执行合成赋值/条件块，不调用采集、探针或产品。
-        script = (ROOT / "scripts/run-product-smoke.sh").read_text()
-        start = script.index('    if [ "$core_forward_only" != "1" ] && [ -f "$bundle/data/peer-candidate-pool.json" ]')
-        block = script[start:script.index("\n    fi", start) + len("\n    fi")]
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "data").mkdir()
-            (root / "data/peer-candidate-pool.json").write_text("{}")
-            for core in ("0", "1"):
-                result = subprocess.run(["bash", "-c", block + '\nprintf "%s" "$stock_peer_candidates"'],
-                    env={"bundle": str(root), "core_forward_only": core, "stock_peer_candidates": ""},
-                    capture_output=True, text=True, check=True)
-                self.assertEqual(str(root / "data/peer-candidate-pool.json") if core == "0" else "", result.stdout)
-        self.assertIn('if [ "$core_forward_only" != "1" ] && [ -n "$stock_peer_candidates" ]; then\n      python3', script)
+            self.assertIn('NATIVE_HOST_EXECUTION_REQUIRED', result.stderr)
 
     def test_column_catalog_retains_all_ids_periods_and_original_values(self):
         from product.runtime.multidimensional_references import translate_references
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             hp, gp = self.inputs(root)
             run = root / "company"
             prepare_common_stock_stage_run(ROOT, handoff_path=hp, gate_path=gp,
@@ -294,7 +233,7 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
         from product.runtime.independent_skeptic_stage import build_first_pass_input
         from product.runtime.invocation import create_invocation_manifest, verify_invocation_manifest, build_specialist_output_schema
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             hp, gp = self.inputs(root)
             run = root / "core"
             prepare_multidimensional_stage_run(ROOT, handoff_path=hp, gate_path=gp,
@@ -329,7 +268,9 @@ class PredecisionSourcePreparationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "PRODUCT_RUNTIME_MODEL_UNSUPPORTED"):
                 verify_invocation_manifest(ROOT, invocation, agent_input=agent_input)
             fixture_input = dict(agent_input, source_mode="fixture")
+            candidate_model = json.loads(candidate_before)['model']
+            different_model = 'gpt-5.6-terra' if candidate_model != 'gpt-5.6-terra' else 'gpt-6-luna'
             with self.assertRaisesRegex(ValueError, "model differs from candidate manifest"):
                 create_invocation_manifest(ROOT, run_id="historical-source",
                     agent_name="runtime_skeptic", agent_input=fixture_input, task_prompt="fixture",
-                    model="gpt-6-luna", evidence_ids=allowed, output_schema_path=target)
+                    model=different_model, evidence_ids=allowed, output_schema_path=target)

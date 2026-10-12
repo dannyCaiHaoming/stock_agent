@@ -47,7 +47,8 @@ class CodexRuntimeTests(unittest.TestCase):
                         codex_binary=str(binary), product_root=ROOT / 'product', run_dir=root,
                         model='gpt-6-luna', sqlite_home=root / 'sqlite', log_dir=root / 'logs',
                         final_message_path=root / 'final.txt',
-                        hook_recorder_path=ROOT / 'product/runtime/codex_hook_recorder.py')
+                        hook_recorder_path=ROOT / 'product/runtime/codex_hook_recorder.py',
+                        hook_agent_matcher='^dev_eval$')
                 record = json.loads((root / 'invocation/codex-runtime.json').read_text())
                 self.assertEqual(record['status'], 'REJECTED')
                 self.assertFalse((root / 'model-started').exists())
@@ -93,7 +94,8 @@ class CodexRuntimeTests(unittest.TestCase):
                 runtime_binding_path=root / 'invocation/binding.json', codex_binary=str(binary),
                 product_root=product, run_dir=root, model='gpt-6-luna', sqlite_home=root / 'sqlite',
                 log_dir=root / 'logs', final_message_path=root / 'final.txt',
-                hook_recorder_path=ROOT / 'product/runtime/codex_hook_recorder.py')
+                hook_recorder_path=ROOT / 'product/runtime/codex_hook_recorder.py',
+                        hook_agent_matcher='^dev_eval$')
             record = json.loads((root / 'invocation/binding.json').read_text())
             self.assertEqual(record['lock_path'], str((product / 'version-manifest.json').resolve()))
             self.assertEqual(command[0], str(binary.resolve()))

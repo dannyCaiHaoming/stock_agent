@@ -1,0 +1,84 @@
+{
+  "source_id": "query-pagination-three-host-readiness:20261008",
+  "as_of": "2026-10-08T07:13:46.857649+00:00",
+  "retrieved_at": "2026-10-08T07:13:46.857649+00:00",
+  "status": "CANDIDATES_WRITTEN_STDIO_CHECKED_NOT_NATIVE_ACTIVATED",
+  "scope": "沿已批准外置安装范围，只为6.1准备三宿主独立分页修复候选及Company任务；不修改旧安装或续期开启模型窗口，不代表完整6.1完成。",
+  "external_root": "query-pagination-current-20261008",
+  "source": {
+    "approved_files": 272,
+    "baseline": "sec-amount-current-20261008/source-reviewed及其精确批准清单；除下列两项外逐项复用原hash，不从dirty目录自动选源。",
+    "baseline_manifest_sha256": "03c6b881cbdfa8ab5bc6590ce311dba66d0bb721fd2cd712e1f5f05052e078d1",
+    "source_manifest_sha256": "f3331fc9728c43831d995ca03f28c6ad30e9abdc6eb284db636d77b6718774aa",
+    "only_overlays": {
+      "product/tools/research.py": "730575037f759cb917245f032642fad31b09521258eb451a4c3d74794dc2738e",
+      "product/mcp/research.py": "d8bc3dcb89c8f36e63e3f401d1b8a46e3696a3a15e8c54cac27dd091e25a6d20"
+    },
+    "focused_evidence": "query-pagination-native-fix-check.json；复用最终174项及相同源码hash，不为装配重复全批。",
+    "parallel_dirty_private_state_or_test_sources_included": false
+  },
+  "sample": {
+    "security_id": "US:COMMON_STOCK:MRVL",
+    "cutoff": "2026-09-28T12:35:32.208143Z",
+    "gate_hash": "ea49de7fc2d73f459bdbfef3d261046d8710dcdd07e45649f39926adedc572f6",
+    "input_gate_request": "只读复用原Company连接中已验证的公开冻结文件，旧文件和时点不改，不沿用旧任务能力。"
+  },
+  "candidates": {
+    "codex": {
+      "path": "query-pagination-current-20261008/codex/product-workspace",
+      "exported_files": 302,
+      "including_manifest": 303,
+      "manifest_sha256": "5c674338951a4f68d5c4795704e66e8ac13e8810923d2aea59d5776092dc3376",
+      "task_ref": "t.f82405637b00729e55eae515",
+      "task_hash": "28f8ab11dd44bb6d2f7b54d84e652a4f88f4cd3006bfc27eebc664ea253be3e0"
+    },
+    "claude-code": {
+      "path": "query-pagination-current-20261008/claude-code/product-workspace",
+      "exported_files": 303,
+      "including_manifest": 304,
+      "manifest_sha256": "0163f83ea4ccbc10ed35eb95f1e4eaf1a59251ddcc690541de5cb0cab2d55098",
+      "task_ref": "t.7d66d0c4b217705076a711ae",
+      "task_hash": "e065dd2fecab9d5f5895ac40abda454c49a226b52712952a63de995c533cb2eb"
+    },
+    "opencode": {
+      "path": "query-pagination-current-20261008/opencode/product-workspace",
+      "exported_files": 298,
+      "including_manifest": 299,
+      "manifest_sha256": "14cf60ff0f7083735d305b549d3c90d72170072a11ec9b039aaf34cc8a7e993a",
+      "task_ref": "t.2155b3e696b4f81540eb0c1f",
+      "task_hash": "2cc581bac21c41591cd0d700e8b578d76fa0a85a899d0eec169d3b9279584ed7"
+    }
+  },
+  "readiness_each_candidate": {
+    "actual_candidate_prepare_cli": true,
+    "independent_company_connection_and_task": true,
+    "agent_grant_bytes": 514,
+    "grant_and_connection_file_modes": "0600；私有目录0700",
+    "stdio_initialize_and_tools_list": true,
+    "stdio_tool_count": 12,
+    "query_offset_limit_schema_and_utf8_description": true,
+    "legal_context_matches_task_hash_and_internal_id": true,
+    "context_query_limits": {"max_ids": 64, "max_bytes": 65536},
+    "wrong_task_token_rejected": true,
+    "formal_source_search_rejected_before_source_call": true,
+    "research_query_calculate_submit_or_reports": 0,
+    "native_activation": "NOT_RUN",
+    "activation_limit": "Claude新项目只绑定新Company私有文件；Codex/OpenCode保留原默认disabled模板，不创建原生运行profile、不启动会话、不更换用户模型。"
+  },
+  "preservation": {
+    "old_sec_candidate_root_files_unchanged": 1244,
+    "scope": "sec-amount-current-20261008下原source-reviewed、三份候选、私有连接/原生窗口材料及其他已有文件的完整前后hash集合；不公开私有内容。",
+    "old_three_candidate_export_integrity": true,
+    "old_tasks_re_signed_or_capabilities_reused": false,
+    "private_tokens_or_raw_transcripts_published": false,
+    "limit": "文件hash观察不是OS强制只读，也不证明原生父/子工具池和Skeptic隔离。"
+  },
+  "product_model_research_source_network_and_account_calls": 0,
+  "new_native_window_or_deadline_extension": false,
+  "claude_zero_tools_repaired": "UNVERIFIED；候选stdio成功不证明原生作者工具池可用。",
+  "full_macro_body": "BLOCKED_CONFIGURATION；原BODY_VERIFIED正文0保留，不新增凭据、Provider或来源调用。",
+  "native_research_and_content_verdict": "NOT_RUN_NOT_REVIEWED",
+  "progress": "24/31；2.6已完成，本次只补6.1准备，不新增已完成项。",
+  "remaining_tasks": ["6.1", "6.2", "6.3", "6.4", "7.1", "7.2", "8.1"],
+  "archive_stage_commit_push_or_production_pointer_changed": false
+}

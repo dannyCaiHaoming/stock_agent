@@ -1,4 +1,4 @@
-"""冻结 CIO 输入的只读与执行分离；实际 Hook/归集，零模型。"""
+"""冻结CIO输入的只读与执行分离；真实业务与显式历史归集，零模型。"""
 from __future__ import annotations
 
 import json
@@ -36,15 +36,15 @@ def snapshot(root):
 
 class CioArtifactReadingTests(unittest.TestCase):
     def prepare(self, root):
-        # 正向报告使用既有合成 fixture；反证报告由真正的当前语义 Hook
-        # 和 stdio MCP 产生。所有事件仍是确定性测试，不冒称模型执行。
+        # 合成正向fixture、真实反证保存/stdio及显式旧事件只验证历史归集，非作者/宿主证明。
         helper = semantic.SkepticSemanticHandoffTests()
         with patch.object(forward_fixtures, "stock_handoff", side_effect=mrvl_handoff):
-            source, task, env, start, _ = helper.prepare(str(root))
+            source, task, _ = helper.prepare(str(root))
         response = helper.query(source, task, task["allowed_evidence_ids"])
         self.assertNotIn("error", response, response)
-        saved, _ = helper.stop(env, start, helper.draft(task, run=source))
-        self.assertEqual(saved["output_capture"]["status"], "SAVED", saved)
+        saved = helper.capture(source, task, helper.draft(task, run=source))
+        self.assertEqual(saved["status"], "SAVED", saved)
+        helper.write_historical_execution_fixture(source, task, saved)
         self.assertEqual(skeptic.finalize_skeptic_phase(ROOT, source)["status"], "PASSED")
         target = root / "cio"
         cio.prepare_predecision_cio_run(ROOT, source_run_dir=source, run_dir=target,

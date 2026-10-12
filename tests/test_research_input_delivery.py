@@ -14,7 +14,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.hashing import canonical_hash, file_hash
 from product.runtime.multidimensional_references import translate_references
 from product.runtime import common_stock_stage as stocks
@@ -94,7 +93,7 @@ class ResearchInputDeliveryTests(unittest.TestCase):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory, patch(
                 "tests.test_research_materials_stage.gate_for", rich_gate):
                 helper = material_helpers.MaterialSemanticHandoffTests()
-                root, task, view, _, _ = helper.prepare(Path(directory), kind)
+                root, task, view = helper.prepare(Path(directory), kind)
                 full = materials.build_research_materials_dispatch_packet(REPO, root, task["task_name"])
                 before = copy.deepcopy(full)
                 removed = {"task_hash", "agent", "run_id", "invocation_id", "task_id", "task_name"}
@@ -110,7 +109,7 @@ class ResearchInputDeliveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             "tests.test_common_stock_semantic_handoff.fixtures.gate_for", rich_gate):
             helper = stock_helpers.CommonStockSemanticHandoffTests()
-            root, task, request, view, _, _ = helper.prepare(directory)
+            root, task, request, view = helper.prepare(directory)
             full = helper.frozen_packet(root, task)
             original = copy.deepcopy(full)
             result = helper.call(root, request, "query", evidence_ids=view["allowed_evidence_ids"])
@@ -141,21 +140,8 @@ class ResearchInputDeliveryTests(unittest.TestCase):
             for task in index["tasks"]:
                 capabilities.add(task["capability"])
                 with self.subTest(capability=task["capability"]):
-                    environment = helper.targeted_environment(root, task)
-                    parent = "dependency-parent"
-                    # 基本面已经由依赖 fixture 实际保存，其原始 Start 仍可重建相同视图。
-                    if task["capability"] == "FUNDAMENTAL_EVENT":
-                        full = dimensions.build_multidimensional_dispatch_packet(REPO, root, task["task_name"])
-                        view = json.loads(dimensions.serialize_multidimensional_model_context(full))
-                    else:
-                        self.assertEqual(handle_hook_event(helper.dispatch_payload(task, parent=parent),
-                                                          environ=environment)[0]["decision"], "ALLOW")
-                        event, response = handle_hook_event(helper.start_payload(task, parent=parent, child=task["task_name"] + ":child"),
-                                                            environ=environment)
-                        self.assertEqual(event["context_binding"]["status"], "DELIVERED", event)
-                        full = dimensions.build_multidimensional_dispatch_packet(REPO, root, task["task_name"])
-                        view = json.loads(response["hookSpecificOutput"]["additionalContext"])
-                        self.assertEqual(event["delivery_diagnostics"]["model_context_bytes"], len(encoded(view)))
+                    full = dimensions.build_multidimensional_dispatch_packet(REPO, root, task["task_name"])
+                    view = json.loads(dimensions.serialize_multidimensional_model_context(full))
                     mapping = full["reference_map"]
                     catalog = view["evidence_catalog"]
                     restored = translate_references(view, mapping)
@@ -184,10 +170,8 @@ class ResearchInputDeliveryTests(unittest.TestCase):
                         with self.assertRaises(ValueError):
                             tools.query(**args, evidence_ids=[aliases[0] + "|source=other"])
                     if task["capability"] != "FUNDAMENTAL_EVENT":
-                        stopped, _ = handle_hook_event(helper.stop_payload(
-                            task, helper.dimension_draft(task), parent=parent, child=task["task_name"] + ":child"),
-                            environ=environment)
-                        self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
+                        helper.save_dimension_fixture(root, task, helper.dimension_draft(task))
+                    self.assertFalse((root / "invocation/subagent-events.jsonl").exists())
                     self.retain("dimension-" + task["capability"].lower(), root, full, view,
                                 tool_output=result, tool_events=tools.events)
             self.assertEqual(capabilities, set(dimensions.EIGHT_DIMENSION_INPUTS))
@@ -195,33 +179,34 @@ class ResearchInputDeliveryTests(unittest.TestCase):
     def test_skeptic_and_fixture_specialists_keep_facts_and_independent_inputs(self):
         with tempfile.TemporaryDirectory() as directory:
             helper = skeptic_helpers.SkepticSemanticHandoffTests()
-            root, task, _, _, view = helper.prepare(directory)
+            root, task, view = helper.prepare(directory)
             full = skeptic.build_skeptic_dispatch_packet(REPO, root, task["task_name"])
             result = helper.query(root, task, view["allowed_evidence_ids"])["result"]["structuredContent"]
             self.assert_facts(root, task["allowed_evidence_ids"], result, full["reference_map"])
             self.assertNotIn("forward_reports", view["agent_input"])
             self.retain("independent-skeptic", root, full, view, tool_output=result)
-        helper = eval_helpers.CouncilEvalLocalRevisionTests()
-        helper.setUp()
-        self.addCleanup(helper.doCleanups)
-        root, _, _ = helper.specialist()
-        for agent in ("runtime_company_analyst", "runtime_skeptic"):
-            full = json.loads(build_specialist_dispatch_message(REPO, root, agent))
-            view = json.loads(build_specialist_start_context(REPO, root, agent)[0])
-            self.assertEqual(view["frozen_input"]["agent_input"], full["agent_input"])
-            self.assertNotIn("validated_reports", full["agent_input"])
-            self.assertNotIn("invocation", view["frozen_input"])
-            self.retain("fixture-" + agent, root, full, view)
+        from product.runtime.run_package import prepare_run
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "fixture"
+            prepared = prepare_run(REPO, fixture_path=REPO / "evals/fixtures/codex-native/normal-research.json",
+                run_dir=root, run_id="delivery-fixture", model="gpt-6-luna",
+                research_question="合成输入无损交付", authenticity_required=False)
+            self.assertTrue((root / "run_manifest.json").is_file(), prepared)
+            for agent in ("runtime_company_analyst", "runtime_skeptic"):
+                full = json.loads(build_specialist_dispatch_message(REPO, root, agent))
+                view = json.loads(build_specialist_start_context(REPO, root, agent)[0])
+                self.assertEqual(view["frozen_input"]["agent_input"], full["agent_input"])
+                self.assertNotIn("validated_reports", full["agent_input"])
+                self.assertNotIn("invocation", view["frozen_input"])
+                self.retain("fixture-" + agent, root, full, view)
+            self.assertFalse((root / "invocation").exists())
 
     def test_cio_and_eval_views_retain_complete_semantic_inputs(self):
         cio = cio_helpers.CioLocalRevisionTests()
         self.addCleanup(cio.doCleanups)
         for prepare in (cio.fixture, cio.predecision):
-            root, draft, stop, complete, _, _ = cio.launch(prepare)
-            stopped, response = stop(draft)
-            self.assertNotEqual(response.get("decision"), "block", stopped)
-            proof = complete(draft)
-            self.assertIsNone(proof["delivery_diagnostics"]["total_cost"])
+            root, _, _, _ = prepare()
+            self.assertFalse((root / "invocation/cio-stop-events.jsonl").exists())
             if prepare == cio.fixture:
                 full = json.loads((root / "inputs/runtime_cio.json").read_text())
                 view = json.loads((root / "inputs/runtime_cio.model.json").read_text())

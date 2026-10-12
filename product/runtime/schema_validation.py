@@ -301,7 +301,7 @@ def validate_schema_instance(
 
 def schema_issue_locations(value: Any, schema: Mapping[str, Any] | bool) -> list[dict[str, str]]:
     """共享离线校验器给出有界字段位置；不从自然语言报错猜修订范围。"""
-    from product.runtime.local_revision import pointer
+    from product.tools.revision import pointer
 
     validate_schema_definition(schema)
     _reject_nonfinite(value, path="$")

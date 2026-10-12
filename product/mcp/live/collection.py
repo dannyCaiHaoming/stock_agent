@@ -13,7 +13,7 @@ from product.mcp.live.sec import ADAPTER_VERSION
 from product.mcp.live.sec_client import SecClient, CLIENT_VERSION
 from product.mcp.live.security_metadata import parse_chart_identity, bind_disclosure_security, METADATA_VERSION
 from product.mcp.provenance import iso_utc, parse_timestamp
-from product.runtime.live_input import freeze_snapshot, load_live_portfolio
+from product.tools.snapshot import freeze_snapshot, load_live_portfolio
 
 COLLECTION_VERSION = "live-collection/3.0.6"
 FINANCIAL_TAGS = {"Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet",
@@ -636,7 +636,7 @@ def _collect_target_snapshot(targets, *, portfolio=None, research_intent=None,
             input_name, input_value = "portfolio.json", portfolio
         else:
             from product.runtime.single_stock_input import build_single_stock_request
-            from product.runtime.live_input import freeze_research_snapshot
+            from product.tools.snapshot import freeze_research_snapshot
             request = build_single_stock_request(research_intent, sec_mapping=mapping,
                 security_metadata=metadata, resolved_cutoff=cutoff)
             snapshot = freeze_research_snapshot(request=request, **common)

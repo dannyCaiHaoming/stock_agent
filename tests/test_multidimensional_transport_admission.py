@@ -1,4 +1,4 @@
-"""正向/反证前置共用当前交付协议；真实 Hook 接缝，零 LLM。"""
+"""正向/反证前置的真实业务与stdio交付协议；不模拟正常Hook或模型。"""
 from __future__ import annotations
 
 import copy
@@ -45,7 +45,7 @@ class MultidimensionalTransportAdmissionTests(unittest.TestCase):
                            "description": "合成资料缺口。", "impact": "不形成研究主张。"}],
         }
 
-    def test_both_stage_producers_deliver_native_guides_and_all_eight_hook_consumers(self):
+    def test_both_stage_producers_deliver_native_guides_and_all_eight_business_consumers(self):
         for counter in (False, True):
             with self.subTest(counter=counter), tempfile.TemporaryDirectory() as directory:
                 run, index = self.prepare(Path(directory), counter=counter)
@@ -72,12 +72,6 @@ class MultidimensionalTransportAdmissionTests(unittest.TestCase):
                             self.assertNotIn(key, guide["properties"])
                         self.assertNotIn("calculation_refs", guide["$defs"]["claim"]["properties"])
                         self.assertEqual(context["calculation_selection_contract"]["version"], VERSION)
-                    env = self.helper.targeted_environment(run, task)
-                    parent, child = "counter-parent" if counter else "forward-parent", "child:" + task["task_id"]
-                    dispatched, _ = handle_hook_event(self.helper.dispatch_payload(task, parent=parent), environ=env)
-                    self.assertEqual(dispatched["decision"], "ALLOW", dispatched)
-                    started, _ = handle_hook_event(self.helper.start_payload(task, parent=parent, child=child), environ=env)
-                    self.assertEqual(started["context_binding"]["status"], "DELIVERED", started)
                     draft = self.native_gap(task)
                     if task["capability"] == "FUNDAMENTAL_EVENT":
                         draft["claims"] = [{"claim_id": "fixture-baseline", "question": "冻结资料的范围是什么？",
@@ -85,18 +79,18 @@ class MultidimensionalTransportAdmissionTests(unittest.TestCase):
                             "evidence_refs": [next(iter(packet["reference_map"]["evidence"]))],
                             "research_claim_refs": [], "document_refs": [], "assumption_ids": []}]
                     original = copy.deepcopy(draft)
-                    stopped, _ = handle_hook_event(self.helper.stop_payload(task, draft, parent=parent, child=child), environ=env)
-                    self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
-                    report = json.loads((run / stopped["output_capture"]["path"]).read_text())
+                    report, output = self.helper.save_dimension_fixture(run, task, draft)
+                    self.assertEqual(json.loads(Path(output["json"]).read_text()), report)
                     self.assertEqual(report["summary"], draft["summary"])
                     self.assertEqual(report["data_gaps"], draft["data_gaps"])
                     self.assertEqual(report["calculations"], [])
                     self.assertEqual(report["report_hash"], legacy_envelope_hash(report, hash_field="report_hash"))
                     self.assertEqual(draft, original)
-                    inventory.append(stopped["output_capture"]["path"])
+                    inventory.append(output["json"])
                     completed.add(task["task_id"])
                     pending.remove(task)
                 self.assertEqual(len(set(inventory)), 8)
+                self.assertFalse((run / 'invocation').exists())
 
     def test_missing_or_drifting_transport_is_rejected_before_process_and_launch_state(self):
         for counter in (False, True):
@@ -127,8 +121,11 @@ class MultidimensionalTransportAdmissionTests(unittest.TestCase):
                     manifest["manifest_hash"] = legacy_envelope_hash(manifest, hash_field="manifest_hash")
                     manifest_path.write_text(json.dumps(manifest))
                     before = {str(p.relative_to(run)): file_hash(p) for p in run.rglob("*") if p.is_file()}
-                    with patch.object(stage.subprocess, "run") as process, self.assertRaisesRegex(
-                        ValueError, "LEGACY_SELECTION_TRANSPORT_EXECUTION_RETIRED",
+                    invocation = json.loads((run / task['invocation_path']).read_text())
+                    with self.assertRaisesRegex(ValueError, 'MULTIDIMENSIONAL_LEGACY_SELECTION_TRANSPORT_EXECUTION_RETIRED'):
+                        require_current_selection_transport(packet, invocation, indexed_task=task)
+                    with patch('subprocess.run') as process, self.assertRaisesRegex(
+                        ValueError, 'NATIVE_HOST_EXECUTION_REQUIRED',
                     ):
                         stage.launch_multidimensional_stage(
                             fixtures.ROOT, run_dir=run, task_name=task["task_name"], initial_task=not counter,
@@ -170,60 +167,38 @@ class MultidimensionalTransportAdmissionTests(unittest.TestCase):
             calculation = helper.successful_ratio(run, task, packet)
             draft = helper.draft(task, calculation["calculation_ref"], calculation["evidence_ids"])
             original = copy.deepcopy(draft)
-            env = self.helper.targeted_environment(run, task)
-            handle_hook_event(self.helper.dispatch_payload(task, parent="counter-calc"), environ=env)
-            handle_hook_event(self.helper.start_payload(task, parent="counter-calc", child="counter-child"), environ=env)
-            stopped, _ = handle_hook_event(self.helper.stop_payload(
-                task, draft, parent="counter-calc", child="counter-child"), environ=env)
-            self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
-            report = json.loads((run / stopped["output_capture"]["path"]).read_text())
+            report, _ = self.helper.save_dimension_fixture(run, task, draft)
+            self.assertFalse((run / 'invocation').exists())
             receipt = json.loads((run / task["calculation_ledger_ref"]).read_text())
             self.assertEqual(report["calculations"], [receipt_calculation(receipt, task["calculation_ledger_ref"])])
             self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["statement"])
             self.assertEqual(draft, original)
 
-    def test_direct_hook_cannot_write_a_retired_transport_even_without_launcher(self):
+    def test_direct_normal_hooks_cannot_write_with_valid_or_retired_transport(self):
         for counter in (False, True):
-            with self.subTest(counter=counter), tempfile.TemporaryDirectory() as directory:
-                run, index = self.prepare(Path(directory), counter=counter)
-                task = next(t for t in index["tasks"] if t["capability"] == "OPTIONS_FLOW")
-                env = self.helper.targeted_environment(run, task)
-                dispatched, _ = handle_hook_event(self.helper.dispatch_payload(task, parent="retired"), environ=env)
-                self.assertEqual(dispatched["decision"], "ALLOW", dispatched)
-                started, _ = handle_hook_event(self.helper.start_payload(task, parent="retired", child="old-child"), environ=env)
-                self.assertEqual(started["context_binding"]["status"], "DELIVERED", started)
-                path = run / task["packet_path"]
-                packet = json.loads(path.read_text())
-                packet["task"].pop("calculation_selection_version")
-                task.pop("calculation_selection_version")
-                path.write_text(json.dumps(packet))
-                task["packet_hash"] = canonical_hash(packet)
-                index["index_hash"] = legacy_envelope_hash(index, hash_field="index_hash")
-                (run / "research/dispatch-index.json").write_text(json.dumps(index))
-                stopped, _ = handle_hook_event(self.helper.stop_payload(
-                    task, self.helper.dimension_draft(task), parent="retired", child="old-child"), environ=env)
-                self.assertEqual(stopped["output_capture"]["status"], "FAILED", stopped)
-                self.assertEqual(stopped["output_capture"]["failure_code"],
-                                 "MULTIDIMENSIONAL_LEGACY_SELECTION_TRANSPORT_EXECUTION_RETIRED")
-                self.assertFalse(list((run / "research/reports").glob("*/dimension-report.json")))
-
-    def test_retired_transport_cannot_be_delivered_at_subagent_start(self):
-        with tempfile.TemporaryDirectory() as directory:
-            run, index = self.prepare(Path(directory), counter=True)
-            task = next(t for t in index["tasks"] if t["capability"] == "OPTIONS_FLOW")
-            env = self.helper.targeted_environment(run, task)
-            dispatched, _ = handle_hook_event(self.helper.dispatch_payload(task, parent="before-start"), environ=env)
-            self.assertEqual(dispatched["decision"], "ALLOW", dispatched)
-            path = run / task["invocation_path"]
-            invocation = json.loads(path.read_text())
-            invocation.pop("calculation_selection_version")
-            invocation["manifest_hash"] = legacy_envelope_hash(invocation, hash_field="manifest_hash")
-            path.write_text(json.dumps(invocation))
-            started, _ = handle_hook_event(self.helper.start_payload(
-                task, parent="before-start", child="no-delivery"), environ=env)
-            self.assertEqual(started["context_binding"]["status"], "FAILED", started)
-            self.assertEqual(started["context_binding"]["failure_code"],
-                             "MULTIDIMENSIONAL_LEGACY_SELECTION_TRANSPORT_EXECUTION_RETIRED")
+            for retired in (False, True):
+                with self.subTest(counter=counter, retired=retired), tempfile.TemporaryDirectory() as directory:
+                    run, index = self.prepare(Path(directory), counter=counter)
+                    task = next(t for t in index['tasks'] if t['capability'] == 'OPTIONS_FLOW')
+                    path = run / task['invocation_path']
+                    if retired:
+                        invocation = json.loads(path.read_text())
+                        invocation.pop('calculation_selection_version')
+                        invocation['manifest_hash'] = legacy_envelope_hash(invocation, hash_field='manifest_hash')
+                        path.write_text(json.dumps(invocation))
+                    env = {'STOCK_AGENT_RUN_DIR': str(run),
+                           'STOCK_AGENT_MULTIDIMENSIONAL_STAGE': stage.STAGE_VERSION}
+                    before = {str(p.relative_to(run)): file_hash(p) for p in run.rglob('*') if p.is_file()}
+                    events = [self.helper.dispatch_payload(task, parent='retired'),
+                              self.helper.start_payload(task, parent='retired', child='old-child'),
+                              self.helper.stop_payload(task, self.native_gap(task), parent='retired', child='old-child')]
+                    for event in events:
+                        with self.assertRaisesRegex(ValueError, 'NATIVE_HOST_EXECUTION_REQUIRED'):
+                            handle_hook_event(event, environ=env)
+                    self.assertFalse((run / 'invocation').exists())
+                    self.assertFalse(list((run / 'research/reports').glob('*/dimension-report.json')))
+                    self.assertEqual(before, {str(p.relative_to(run)): file_hash(p)
+                                              for p in run.rglob('*') if p.is_file()})
 
 
 if __name__ == "__main__":

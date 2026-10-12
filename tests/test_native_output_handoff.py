@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from product.runtime.codex_hook_recorder import _capture_specialist_report
+from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.eval_execution_proof import (
     _native_manifest_read,
     normalize_native_grade,
@@ -30,16 +30,16 @@ class NativeOutputHandoffTests(unittest.TestCase):
         self.env = {"STOCK_AGENT_RUN_DIR": str(self.root)}
 
     def test_legacy_capture_is_explicitly_retired(self):
-        with self.assertRaisesRegex(ValueError, "SPECIALIST_LEGACY_OUTPUT_WRITE_RETIRED"):
-            _capture_specialist_report(self.payload, {}, self.env)
+        with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+            handle_hook_event(self.payload, environ=self.env)
         self.assertFalse((self.root / "agents").exists())
 
     def test_no_reference_repair(self):
         self.report["evidence_refs"] = ["ev-exact-id|source", "unknown"]
         self.payload["last_assistant_message"] = json.dumps(self.report)
         before = copy.deepcopy(self.report)
-        with self.assertRaisesRegex(ValueError, "SPECIALIST_LEGACY_OUTPUT_WRITE_RETIRED"):
-            _capture_specialist_report(self.payload, {}, self.env)
+        with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+            handle_hook_event(self.payload, environ=self.env)
         self.assertEqual(before, self.report)
         self.assertFalse((self.root / "agents").exists())
 
@@ -49,8 +49,8 @@ class NativeOutputHandoffTests(unittest.TestCase):
         path.write_text(json.dumps(self.report))
         before = path.read_bytes()
         self.payload["last_assistant_message"] = json.dumps(dict(self.report, thesis="different"))
-        with self.assertRaisesRegex(ValueError, "SPECIALIST_LEGACY_OUTPUT_WRITE_RETIRED"):
-            _capture_specialist_report(self.payload, {}, self.env)
+        with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+            handle_hook_event(self.payload, environ=self.env)
         self.assertEqual(path.read_bytes(), before)
 
     def test_invalid_json_identity_model_and_path(self):
@@ -58,10 +58,10 @@ class NativeOutputHandoffTests(unittest.TestCase):
                         dict(self.payload, last_assistant_message=json.dumps(dict(self.report, run_id="other"))),
                         dict(self.payload, model="wrong")]:
             with self.subTest(payload=payload), self.assertRaises(ValueError):
-                _capture_specialist_report(payload, {}, self.env)
+                handle_hook_event(payload, environ=self.env)
         (self.root / "agents").symlink_to(self.root / "invocations", target_is_directory=True)
-        with self.assertRaisesRegex(ValueError, "SPECIALIST_LEGACY_OUTPUT_WRITE_RETIRED"):
-            _capture_specialist_report(self.payload, {}, self.env)
+        with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+            handle_hook_event(self.payload, environ=self.env)
 
 
 class NativeGradeTests(unittest.TestCase):
@@ -205,8 +205,8 @@ class SpecialistDraftTests(NativeOutputHandoffTests):
                        agent_id="child", cwd=str(self.root))
         result = subprocess.run([sys.executable, "-B", str(Path(__file__).resolve().parents[1] / "product/runtime/codex_hook_recorder.py")],
                                 input=json.dumps(payload), text=True, capture_output=True, env=env, cwd=self.root)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        event = json.loads(log.read_text().splitlines()[-1])
-        self.assertEqual(event["output_capture"]["status"], "FAILED")
-        self.assertEqual(event["output_capture"]["failure_code"], "SPECIALIST_LEGACY_OUTPUT_WRITE_RETIRED")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("NATIVE_HOST_EXECUTION_REQUIRED", result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertFalse(log.exists())
         self.assertFalse((self.root / "agents").exists())

@@ -1,10 +1,10 @@
 # 产品运行面
 
-本产品提供投资研究、组合输入整理、交易记录与复盘。各入口按对应 Skill 的输入和授权条件执行；`portfolio-intake`、`tiger-trade-journal` 和 `trading-reflection` 可独立调用，不自动启动 Council 或产品研究 MCP。用户提供有效组合输入，或经来源核实的 `SINGLE_STOCK_RESEARCH` 非持仓普通股请求，并调用 `portfolio-council` Skill 的明确综合/决策阶段后，当前 Codex 主线程才可担任 CIO。
+本产品提供投资研究、组合输入整理、交易记录与复盘。各入口按对应 Skill 的输入和授权条件执行；`portfolio-intake`、`tiger-trade-journal` 和 `trading-reflection` 可独立调用，不自动启动 Council 或产品研究 MCP。用户提供有效组合输入，或经来源核实的 `SINGLE_STOCK_RESEARCH` 非持仓普通股请求，并调用 `portfolio-council` Skill 的明确综合/决策阶段后，当前所选宿主主线程才可担任 CIO。正常研究不由项目启动另一个宿主模型进程；共享方法、原生角色与受限业务工具分别按实际加载和授权使用。
 
 单股研究不需要账户、持仓数量、成本、现金或 Mandate，也不表示用户持有、空仓或清仓。复用同一 Company、多维、独立 Skeptic 与显式 CIO 链路；latest 的资料发现、正文和同行物化保留原准备记录，取证后由确定性层冻结共同 cutoff，再启动正式研究。单股综合仅为 `RESEARCH_SYNTHESIS`，账户适配未评估、Risk=`NOT_RUN`，不输出买卖、加减仓、数量或金额。过去日期缺少合格原版冻结资料时模型前拒绝，不冒充历史回测。
 
-用户仅提供截图或手工持仓时，先使用单一 `portfolio-intake` Skill 生成并确认中立 `PortfolioHandoff v3`。账户状态与研究任务分离；后续研究必须使用独立 `CouncilRequest` 绑定同一个 Handoff。Intake 阶段不担任 CIO、不研究证券，也不自动启动 `portfolio-council`；普通股、ETF 和上市期权均完整保留且不设置数量上限或焦点子集。输入接受不代表已有对应研究或 Risk 能力，缺少 `etf-research`、`options-research` 或多资产 Risk Policy 时必须由 Council 显式停止。
+用户通过截图、手工持仓或经过批准的严格只读券商快照提供组合时，先使用单一 `portfolio-intake` Skill 生成并确认中立 `PortfolioHandoff v3`。券商来源只能是确定性本地同步已经提交的脱敏快照；Intake、Runtime Agent 和网页不得持有券商 Client、凭据或任意网络调用能力。账户状态与研究任务分离；后续研究必须使用独立 `CouncilRequest` 绑定同一个 Handoff。Intake 阶段不担任 CIO、不研究证券，也不自动启动 `portfolio-council`；普通股、ETF 和上市期权均完整保留且不设置数量上限或焦点子集。输入接受不代表已有对应研究或 Risk 能力，缺少 `etf-research`、`options-research` 或多资产 Risk Policy 时必须由 Council 显式停止。
 
 当用户明确要求“分析已确认持仓中的普通股”时，`portfolio-council` 可进入 `COMMON_STOCK_RESEARCH` 阶段：主线程只调度同一个 `runtime_company_analyst` 的逐证券独立调用，默认有界并发为三；系统准备并冻结公司资料，用户无需另做 Evidence。该阶段保留全部资产覆盖状态，只输出普通股 `EquityResearchReport`，不启动 Skeptic、CIO、Risk，也不发布完整组合动作。ETF、期权和失败项不得从覆盖清单中删除。
 
@@ -37,7 +37,7 @@
 ## 禁止事项
 
 - 禁止创建、路由、修改或取消订单。
-- 禁止索取凭据或修改券商及其他金融账户。
+- 禁止预览订单、交易解锁、换汇、转账、索取凭据或修改券商及其他金融账户；只读券商数据只能由明确授权的隔离同步入口取得。
 - 禁止在运行时任务中编辑产品 Skill、Agent 配置、Schema、Risk Policy、测试或生产版本指针。
 - 禁止编造缺失数据，也不得在来源冲突时静默选择一方。
 - 每份最终计划必须声明 `advisory_only: true`。

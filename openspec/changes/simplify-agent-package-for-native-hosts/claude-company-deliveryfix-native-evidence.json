@@ -1,0 +1,94 @@
+{
+  "source_id": "claude-desktop-company-deliveryfix-attempt:20261008",
+  "as_of": "2026-10-08T00:33:33.695792+00:00",
+  "retrieved_at": "2026-10-08T00:33:33.695792+00:00",
+  "status": "CONTEXT_SUCCEEDED_DISPATCH_FAILED_NO_REPORT",
+  "authorization": {
+    "scope": "MRVL Company only; frozen Gate; no new sources or later research stages",
+    "started_at": "2026-10-08T00:23:23.917061Z",
+    "hard_deadline": "2026-10-08T00:38:23.917061Z",
+    "max_native_tasks": 3,
+    "automatic_retry": false,
+    "window_extended": false,
+    "requested_model": "current native host model; specialist inherit"
+  },
+  "identity": {
+    "session_id": "local_fc3e06b1-3702-4e13-9ddc-6ecfbffdd200",
+    "workspace_name": "desktop-deliveryfix-product-workspace",
+    "task_ref": "t.f1cb9300748705dc10c33090",
+    "task_hash": "dac94c96d0f79f360b46ec830b3e156dfd15e0301a8c34b4ce3b06b623f8d334",
+    "role": "runtime_company_analyst",
+    "capability": "COMPANY_RESEARCH",
+    "security_id": "US:COMMON_STOCK:MRVL",
+    "decision_cutoff": "2026-09-28T12:35:32.208143Z",
+    "version_evidence": "native-delivery-fix-evidence.json:new_preparation",
+    "private_grant_bytes": 514
+  },
+  "native_observation": {
+    "directory_settings_mcp_skills_switch": "OBSERVED_HOST_DIRECTORY_CHANGE_MESSAGE",
+    "context_call": "OBSERVED_IN_SESSION_TOOL_CALL_LIST",
+    "context_result_reported_by_product_thread": {
+      "success": true,
+      "allowed_evidence_total": 1398,
+      "page_count": 32,
+      "next_evidence_offset": 32,
+      "complete_output_schema": true,
+      "role_security_cutoff_match": true,
+      "response_limit_error": false
+    },
+    "parent_portfolio_council_load": "OBSERVED_SKILL_INVOCATION_AND_INSTALLED_SKILL_CONTENT",
+    "dispatch_attempt": "OBSERVED_AGENT_CALL_IN_SESSION_TOOL_CALL_LIST",
+    "dispatch_failure_reported_by_product_thread": {
+      "subagent_type": "runtime_company_analyst",
+      "isolation": "worktree",
+      "model": "opus",
+      "error": "Cannot create agent worktree: not in a git repository and no WorktreeCreate hooks are configured.",
+      "specialist_created": false,
+      "attribution": "Parent dispatch parameters contradicted the approved no-worktree/model-inherit instruction; not a Company MCP failure.",
+      "full_tool_arguments": "NOT_EXPORTED",
+      "optional_parameter_support": {
+        "source": "Product thread reported its currently displayed Agent signature; no test invocation performed.",
+        "isolation_displayed_values": ["worktree", "remote"],
+        "local_non_worktree_value": "NOT_DISPLAYED",
+        "isolation_omission_accepted": "UNKNOWN",
+        "model_description_allows_omission": true,
+        "model_type_marks_optional": false,
+        "model_omission_accepted": "NOT_VERIFIED"
+      }
+    },
+    "main_tasks_reported": 1,
+    "failed_dispatch_attempts_reported": 1,
+    "conservative_task_attempt_count": 2,
+    "provider_model_execution_identity": "UNVERIFIED",
+    "provider_usage_or_cost": "NOT_MEASURED",
+    "specialist_five_skill_preload": "NOT_EXECUTED",
+    "specialist_tool_permissions": "NOT_EXERCISED",
+    "specialist_authorship": "NOT_EXECUTED"
+  },
+  "exact_task_artifacts": {
+    "observed_at": "2026-10-08T00:30:58.190658+00:00",
+    "observation_method": "Read-only enumeration of JSON filenames in the exact authorized task directory; no credentials or research bodies printed.",
+    "exact_task_directory_exists": true,
+    "tool_receipts": 0,
+    "calculation_files": 0,
+    "submission_files": 0,
+    "draft_ref": null,
+    "report_id": null,
+    "business_report_verdict": "NOT_RUN",
+    "content_verdict": "NOT_REVIEWED"
+  },
+  "followup": {
+    "request_kind": "Existing parent thread may report already-visible dispatch signature and failed parameter names only; no tools, new research, retry, worktree, settings changes or deadline extension authorized.",
+    "message_id": "b38885e0-da6e-4b6b-bab3-102f492e5048",
+    "result": "PRODUCT_THREAD_REPORTED_EXISTING_SIGNATURE_WITHOUT_TOOL_CALLS; no local non-worktree value displayed, omission acceptance unknown; no dispatch retry or window extension."
+  },
+  "development_actions": {
+    "source_or_installed_config_edits": false,
+    "task_resigned": false,
+    "new_tests": "NOT_RUN_NO_CODE_CHANGE",
+    "specialized_eval_replay_regression_calibration_ablation_promotion": "NOT_RUN",
+    "git_stage_commit_push": "NOT_RUN",
+    "change_progress": "19/26; Company slice does not complete task 6.3"
+  },
+  "privacy": "No task tokens, connection credentials, prompts or raw private transcripts included."
+}

@@ -28,7 +28,7 @@ class CioHandoffTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        self.run = Path(directory.name) / "council"
+        self.run = Path(directory.name).resolve() / "council"
         prepare_run(REPO, fixture_path=REPO / "evals/fixtures/codex-native/normal-research.json",
                     run_dir=self.run, run_id="cio-native-test", model="gpt-6-luna",
                     research_question="公司研究交接", authenticity_required=False)
@@ -243,8 +243,8 @@ class CioHandoffTests(unittest.TestCase):
         self.tools.read_reports(run_id=source["run_id"], agent="runtime_cio", invocation_id=invocation["invocation_id"],
                                 report_ids=["runtime_company_analyst", "runtime_skeptic"])
         self.assertEqual(before, {str(path.relative_to(self.run)): path.read_bytes() for path in self.run.rglob("*") if path.is_file()})
-        with patch("product.runtime.nested_codex.subprocess.run") as process:
-            with self.assertRaisesRegex(ValueError, "CIO_LEGACY_REFERENCE_EXECUTION_RETIRED"):
+        with patch("subprocess.run") as process:
+            with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
                 launch_nested_codex(REPO, run_dir=self.run)
             process.assert_not_called()
         self.failure("CIO_LEGACY_REFERENCE_WRITE_RETIRED")

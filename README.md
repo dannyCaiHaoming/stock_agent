@@ -1,6 +1,6 @@
 # Stock Agent
 
-Stock Agent 是一个运行在 Codex 上、面向真实持仓研究的 **LLM-native 多 Agent 投研与组合决策系统**。
+Stock Agent 是一套共享研究方法与业务工具、由用户所选 Codex、Claude Code 或 OpenCode 当前原生会话执行的 **LLM-native 多 Agent 投研与组合决策系统**。三个宿主分别验收实际加载、权限与独立上下文；薄模板存在不代表支持已通过。
 
 它的目标不是把传统后端接上几个 Prompt，也不是用 Python 规则替代投资判断，而是让专业 Agent 在可追溯证据和明确职责边界内完成研究、反证与综合，再由确定性程序负责数据处理、契约校验和硬风险否决。
 
@@ -96,7 +96,7 @@ flowchart TB
 | 组件 | 职责 | 边界 |
 | --- | --- | --- |
 | `portfolio-intake` Skill | 从截图或手工文字提取普通股、ETF、上市期权、现金和账户信息，生成经用户确认的 `PortfolioHandoff v3` | 不研究证券，不输出买卖动作，不自动启动委员会 |
-| Codex 主线程 / `portfolio-council` | 根据明确阶段组织资料准备、专业研究和结果归集；进入决策阶段时担任 CIO | 不另建 Python LLM 编排后端，不绕过阶段契约 |
+| 当前原生宿主主线程 / `portfolio-council` | 根据明确阶段组织资料准备、原生专业委派和结果归集；明确综合阶段时担任 CIO | Python不启动另一宿主模型进程、不派发/等待Agent，不绕过阶段契约 |
 | `runtime_company_analyst` | 逐公司研究商业质量、财务、估值、催化剂、风险和 Thesis | 不独立决定完整组合动作 |
 | `runtime_market_catalyst` | 处理技术结构、同行、宏观、事件、期权、所有权和研报等多维资料 | 当前多维研究阶段停止于研究包，不自动进入 CIO |
 | `runtime_skeptic` | 独立寻找反证、证据冲突和 Thesis 失效条件 | 独立首轮不得预先读取 Analyst 结论 |
@@ -243,7 +243,10 @@ stock_agent/
 │   └── changes/               # 活跃与归档 Change
 ├── product/
 │   ├── AGENTS.md              # 产品运行规则
-│   ├── .codex/agents/         # runtime_* 专业 Agent 定义
+│   ├── agents/                # 四职责共享正文，CIO为主线程
+│   ├── hosts/                 # 三宿主薄原生模板与安装边界
+│   ├── tools/                 # 受限业务准备/查询/提交/读取
+│   ├── .codex/agents/         # 旧冻结资源来源，非统一宿主后端
 │   ├── skills/                # 产品 Skills
 │   ├── mcp/                   # 只读数据与计算工具
 │   ├── runtime/               # 调度接缝、验证、Trace、Replay、Eval
@@ -263,7 +266,7 @@ stock_agent/
 
 ### 面向用户：从持仓开始
 
-在 Codex 中提供持仓截图或手工持仓并调用 `portfolio-intake`。确认生成的 `PortfolioHandoff v3` 后，再根据需要调用 `portfolio-council` 的指定阶段，例如普通股研究或多维持仓研究。
+正常使用从当前仓库 `product/` 打开 Claude Code 原生产品会话，薄发现与连接准备见 [产品使用说明](product/hosts/INSTALL.md)；无需先导出另一份源码，私有任务和产物外置。提供持仓截图或手工持仓并调用 `portfolio-intake`，确认 `PortfolioHandoff v3` 后，再按授权调用 `portfolio-council` 的指定阶段。也可使用来源核实的非持仓单股输入，不伪造账户。Codex/OpenCode保留遗留模板、尚未验收；配置准备不表示实际加载或研究通过。
 
 Intake 不会自动启动研究，研究阶段也不会未经授权自动推进到 CIO 决策。
 
@@ -272,7 +275,7 @@ Intake 不会自动启动研究，研究阶段也不会未经授权自动推进�
 环境要求：
 
 - Python 3.11+
-- 可用的 Codex 桌面端或 CLI
+- 当前可用的开发宿主；确定性检查不要求另一个 Codex CLI，产品实际能力按宿主单独核验
 - 仅在真实数据任务中安装可选 live 依赖
 
 ```bash
@@ -330,6 +333,7 @@ python3 scripts/research-browser.py \
 
 - `--memory-root` 必须指向已经存在的 Research Memory；缺库不会自动创建或迁移。
 - `--run-dir` 精确读取一个冻结运行目录，可重复指定。
+- 原生报告在指定目录保存为 `native-research-archive.json` 后，可通过“研究归档”（`/reports`）读取；页面只展示校验通过的报告，不展示归档中的私人输入或把业务校验当作宿主执行、内容质量通过。
 - `--run-root` 只发现根目录下直属且包含已知 manifest 的运行目录，可重复指定，不递归扫描其他位置。
 - 页面中的“重新扫描已配置目录”只重读本地文件，不会刷新外部数据。
 - `AVAILABLE` 表示保存产物存在且版本绑定闭合；`BINDING_FAILED` 表示候选产物与当前 security/run/cutoff/Evidence 不匹配；`NOT_GENERATED` 只表示没有可展示的保存产物，不代表现实中不存在相关事件或观点。
@@ -338,13 +342,15 @@ python3 scripts/research-browser.py \
 
 ### 真实产品运行
 
-真实 Smoke 和 Execution Replay 通过宿主 Terminal 的统一 launcher 运行：
+真实原生Smoke在用户所选宿主的当前产品会话使用portfolio-council，另获样本、阶段、实际模型、调用/时间预算及安装授权。业务验证、宿主观察与内容裁定分列，未验证的宿主不标PASS。
+
+Shell入口仅保留明确授权的冻结Execution Replay与Tiger严格只读操作，可查看帮助：
 
 ```bash
 bash scripts/run-product-smoke.sh --help
 ```
 
-该入口负责真实 Codex 子进程、运行目录和宿主网络环境的接缝。详细命令、准备步骤和产物要求见 [运行与重放手册](reviews/runtime/runtime-replay-eval-runbook.md)。不要把内部 `python3 -m product.runtime.cli` 当作另一套产品编排入口。
+旧normal/stage/resume/launch模型入口已退役，拒绝发生在取数、代理探测、目录写入或模型前；不恢复五父串联。旧Replay使用`--prepared-run`，先验证封闭快照再加载冻结旧版本，准备及产物要求见 [运行与重放手册](reviews/runtime/runtime-replay-eval-runbook.md)。底层 `python3 -m product.runtime.cli` 只提供确定性与明确历史维护操作，不是另一套产品编排入口。
 
 ## 文档导航
 

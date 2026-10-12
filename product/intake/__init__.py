@@ -15,6 +15,7 @@ from .v3 import (
     validate_draft,
     validate_handoff,
 )
+from .tiger import build_tiger_draft, render_tiger_coverage
 
 __all__ = [
     "IntakeValidationError",
@@ -22,8 +23,10 @@ __all__ = [
     "build_draft",
     "build_handoff",
     "build_manual_draft",
+    "build_tiger_draft",
     "build_risk_input_v2",
     "render_draft_summary",
+    "render_tiger_coverage",
     "validate_draft",
     "validate_draft_v2",
     "validate_handoff",

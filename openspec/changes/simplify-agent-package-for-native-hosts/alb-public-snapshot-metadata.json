@@ -1,0 +1,46 @@
+{
+  "source_id": "alb-public-snapshot-object-metadata",
+  "as_of": "2026-10-06T11:08:53.498460+00:00",
+  "retrieved_at": "2026-10-06T11:08:53.498460+00:00",
+  "model_calls": 0,
+  "source_network_calls": 0,
+  "original_writes": 0,
+  "checkpoints": [
+    {
+      "security_id": "US:COMMON_STOCK:ALB",
+      "provider": "market",
+      "dataset": "current_snapshot",
+      "state_field_names": [
+        "last_plan_hash",
+        "last_status"
+      ]
+    },
+    {
+      "security_id": "US:COMMON_STOCK:ALB",
+      "provider": "sec",
+      "dataset": "sec_companyfacts",
+      "state_field_names": [
+        "last_plan_hash",
+        "last_status"
+      ]
+    },
+    {
+      "security_id": "US:COMMON_STOCK:ALB",
+      "provider": "sec",
+      "dataset": "sec_documents",
+      "state_field_names": [
+        "last_plan_hash",
+        "last_status"
+      ]
+    },
+    {
+      "security_id": "US:COMMON_STOCK:ALB",
+      "provider": "yahoo",
+      "dataset": "yahoo_daily",
+      "state_field_names": [
+        "last_plan_hash",
+        "last_status"
+      ]
+    }
+  ]
+}

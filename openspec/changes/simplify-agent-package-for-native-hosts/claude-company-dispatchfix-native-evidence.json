@@ -1,0 +1,123 @@
+{
+  "source_id": "claude-desktop-company-dispatchfix-window:20261008",
+  "as_of": "2026-10-08T01:41:24.642925+00:00",
+  "retrieved_at": "2026-10-08T01:41:24.642925+00:00",
+  "status": "STOPPED_REPEATED_EXPLICIT_WORKTREE_PARAMETER",
+  "authorization": {
+    "user_request": "授权新窗口，用新副本实跑Company，继续推进",
+    "window_start": "2026-10-08T01:34:40.643875+00:00",
+    "hard_deadline": "2026-10-08T01:49:40.643875+00:00",
+    "native_task_limit": 3,
+    "time_limit_minutes": 15,
+    "task_plan": "same native main thread plus Company author plus at most one permitted original-author revision; failures count",
+    "source_network": false,
+    "account_or_trading": false,
+    "later_stages": false,
+    "automatic_redispatch_or_extension": false,
+    "stop_point": "Company report"
+  },
+  "candidate": {
+    "relative_workspace": "claude-code-current-20261007/desktop-dispatchfix-product-workspace",
+    "source_files": 271,
+    "exported_files": 301,
+    "source_manifest_sha256": "bcee581547cd447cd20fb60a43160897df3252c2b844d0862fb35e0ff6d2108d",
+    "export_manifest_sha256": "660dc380f7fc2dd659dfb1e95c2e545e7c382f912c35037fdef3d72795643ba7",
+    "root_claude_sha256": "703484a68af16dff3f595bf3078acfd033abd83a7a28d6872fd5b0f9ce91b391",
+    "exact_export_integrity_observed": true,
+    "root_guide_actual_host_load_observed": true,
+    "specialist_execution_not_inferred_from_root_load": true
+  },
+  "task": {
+    "task_ref": "t.4596c02cf3ff6e0711a9c8f2",
+    "task_hash": "acf5e6468bb7d931c5acca5bacaf288200634ab6eafcdbfe075187d7e9d86807",
+    "role": "runtime_company_analyst",
+    "capability": "COMPANY_RESEARCH",
+    "security_id": "US:COMMON_STOCK:MRVL",
+    "decision_cutoff": "2026-09-28T12:35:32.208143Z",
+    "agent_grant_bytes": 514,
+    "private_file_mode": "0600",
+    "credential_in_this_evidence": false
+  },
+  "host_observations": {
+    "host": "Claude desktop Code tab",
+    "main_model_from_session_metadata": "claude-opus-5",
+    "main_effort_from_session_metadata": "high",
+    "provider_usage": "NOT_MEASURED",
+    "directory_switch_message_id": "d5ebfbe6-82e5-438f-836c-473d8c3b16f1",
+    "research_handoff_message_id": "314b1f4b-02f8-43d4-bedb-34a75904e7a6",
+    "directory_switch_turn_finished_before_research_handoff": true,
+    "actual_host_message": "cwd, project settings, MCP and Skills changed to the dispatchfix product workspace; root CLAUDE.md includes the new main-thread guidance",
+    "research_handoff_delivery": "delivered and turn started; not proof of specialist execution",
+    "idle_notification_subscription": false,
+    "main_thread_portfolio_council_skill_load_observed": true,
+    "native_agent_tool_call_seen_in_session_events": true,
+    "reported_dispatch_parameters": {
+      "source": "Native main-thread stop report; compact list_events shows the Agent call, not its full argument payload",
+      "subagent_type": "runtime_company_analyst",
+      "isolation": "worktree",
+      "model": "opus",
+      "isolation_and_model_omitted": false
+    },
+    "error_reported": "Cannot create agent worktree: not in a git repository and no WorktreeCreate hooks are configured.",
+    "specialist_created": false,
+    "actual_omitted_parameter_acceptance": "NOT_EXERCISED",
+    "actual_tool_schema_required_set": "UNKNOWN",
+    "specialist_model_skills_and_tool_permissions": "NOT_EXECUTED",
+    "business_receipt": "NONE",
+    "content_verdict": "NOT_REVIEWED_NO_REPORT",
+    "conservative_native_task_attempts": 2,
+    "task_count_basis": "Same main-thread task 1 plus failed Agent dispatch 1; not Provider usage or model-turn measurement",
+    "automatic_redispatch": false,
+    "stop_report_session_last_activity_at": "2026-10-08T01:37:27.215Z",
+    "session_observed_idle": true,
+    "callback": {
+      "status": "SEND_ATTEMPT_SEEN_DELIVERY_FAILED_REPORTED",
+      "reported_reason": "Host automatic cross-session messages reached the limit of 10; user message in the product session required to reset",
+      "evidence_limit": "Compact session events show a SendMessage attempt and the main-thread failure report, not the underlying callback tool-result payload",
+      "bypass_attempted_by_development_session": false,
+      "result_retrieved_via": "Read-only authorized session events; no callback retry or new model message"
+    }
+  },
+  "integrity_baseline": {
+    "source_id": "claude-company-dispatchfix-native-baseline:20261008",
+    "as_of": "2026-10-08T01:37:45.781310+00:00",
+    "retrieved_at": "2026-10-08T01:37:45.781310+00:00",
+    "candidate_files_including_export_manifest": 302,
+    "previous_task_files": 4,
+    "private_baseline_created": true,
+    "observation_limit": "Created at 01:37:45; later session metadata shows the main thread had already stopped at 01:37:27. This is not a pre-run baseline. Candidate content was checked against the original export manifest; previous-task hash comparison covers only the post-stop observation interval. The private snapshot's original while-running note is superseded by this correction. Hashes are not permission enforcement or author/model proof",
+    "developer_command_error": "First zero-model integrity command omitted the required result argument to verify_export and raised TypeError before writing a baseline",
+    "developer_error_resolved": "Read the existing signature and supplied the exact hash-verified export manifest; integrity check and private baseline creation then succeeded; no product code change or model retry"
+  },
+  "artifact_observation": {
+    "source_id": "claude-company-dispatchfix-native-artifact-observation:20261008",
+    "as_of": "2026-10-08T01:41:24.642925+00:00",
+    "retrieved_at": "2026-10-08T01:41:24.642925+00:00",
+    "exact_task_directory_exists": true,
+    "tool_calculation_submission_json_records": [0, 0, 0],
+    "reports_and_receipts": 0,
+    "candidate_files_unchanged_including_manifest": 302,
+    "previous_task_files_unchanged": 4,
+    "export_integrity": "PASS",
+    "permission_enforcement_inferred_from_hash": false,
+    "observation_model_calls": 0
+  },
+  "assessment": {
+    "guide_delivery": "ACTUAL_HOST_LOAD_OBSERVED",
+    "behavioral_recurrence_prevented": false,
+    "first_divergence": "Native main thread to Agent, before specialist creation",
+    "confirmed_failure_path": "Explicit worktree selection on a non-Git product workspace",
+    "not_proven": ["Agent tool rejects omitted isolation/model", "Tool schema forces those fields", "Company role or MCP failure", "Missing guide is the sole cause"],
+    "next_unresolved_boundary": "Correct native invocation or actual required-field schema evidence; another identical prompt/export/retry is not a demonstrated repair",
+    "window_stopped_on_failure_not_automatically_reused": true,
+    "source_network_and_account_calls_reported": [0, 0],
+    "running_source_or_configuration_edited": false
+  },
+  "change_completion": {
+    "progress": "20/27",
+    "original_seven_tasks_retained": ["6.1", "6.2", "6.3", "6.4", "7.1", "7.2", "8.1"],
+    "company_slice_not_full_claude_acceptance": true,
+    "specialized_eval_replay_regression_calibration_ablation_promotion": "NOT_RUN",
+    "archive_commit_push": "NOT_RUN"
+  }
+}

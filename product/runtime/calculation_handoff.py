@@ -14,16 +14,7 @@ from product.runtime.schema_validation import validate_schema_instance
 
 VERSION = "research-calculation-selections/1.0.0"
 PREPARED_REFERENCE_VERSION = "prepared-result-reference/1.0.0"
-SELECTION_SCHEMA = {
-    "type": "array", "uniqueItems": True,
-    "items": {"type": "object", "additionalProperties": False,
-              "required": ["calculation_ref", "claim_ids"],
-              "properties": {
-                  "calculation_ref": {"type": "string", "pattern": r"^k\.[0-9a-f]{12}\.[0-9a-f]{24}$"},
-                  "claim_ids": {"type": "array", "minItems": 1, "uniqueItems": True,
-                                "items": {"type": "string", "minLength": 1}},
-              }},
-}
+from product.tools.calculation_choices import SELECTION_SCHEMA
 
 
 def prepared_reference_enabled(packet: Mapping[str, Any]) -> bool:
@@ -148,6 +139,34 @@ def receipt_calculation(receipt: Mapping[str, Any], artifact_ref: str) -> dict[s
     return {"calculation_id": receipt["calculation_id"], "method": operation,
             "value": value, "unit": unit, "input_evidence_refs": copy.deepcopy(receipt["evidence_ids"]),
             "artifact_ref": artifact_ref}
+
+
+def validate_tool_calculations(value, *, task, invocation, run_dir):
+    """Match report calculations to this invocation's actual successful MCP results."""
+    ledger_ref = task.get("calculation_ledger_ref")
+    if ledger_ref is None:
+        return
+    calculations = value.get("calculations", [])
+    if not isinstance(calculations, list) or any(not isinstance(item, dict) for item in calculations):
+        raise ValueError("MULTIDIMENSIONAL_CALCULATION_DRAFT_INVALID")
+    receipts = load_tool_receipts(Path(run_dir), task, invocation, selected_ids={
+        item.get("calculation_id") for item in calculations if item.get("artifact_ref") == ledger_ref
+    })
+    for calculation in calculations:
+        if calculation.get("artifact_ref") != ledger_ref:
+            continue
+        receipt = receipts.get(calculation.get("calculation_id"))
+        if receipt is None:
+            raise ValueError("MULTIDIMENSIONAL_CALCULATION_RECORD_UNKNOWN")
+        if calculation.get("input_evidence_refs") != receipt.get("evidence_ids"):
+            raise ValueError("MULTIDIMENSIONAL_CALCULATION_INPUT_MISMATCH")
+        # Historical compound projections retain their original readable format;
+        # scalar results always match the actual value/method/unit, not just IDs.
+        if (task.get("calculation_selection_version") == VERSION
+                and receipt["operation"] in {"ratio", "percent_change"}):
+            expected = receipt_calculation(receipt, ledger_ref)
+            if any(calculation.get(key) != expected[key] for key in ("method", "value", "unit")):
+                raise ValueError("MULTIDIMENSIONAL_CALCULATION_RESULT_MISMATCH")
 
 
 def calculation_reference(mapping: Mapping[str, Any], version_hash: str) -> str:
@@ -527,3 +546,29 @@ def assemble_calculation_selections(root: Path, packet: Mapping[str, Any], draft
                 raise ValueError("MULTIDIMENSIONAL_CALCULATION_SELECTION_CLAIM_UNKNOWN:" + claim_id)
             by_id[claim_id]["calculation_refs"].append(calculation["calculation_id"])
     return result
+
+
+def _validate_multidimensional_calculation_structure(value, *, packet):
+    """Check calculation shape before consulting its tool receipts or lineage."""
+
+    from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
+
+    output_schema = packet.get("output_schema")
+    if (
+        not isinstance(output_schema, Mapping)
+        or packet.get("output_schema_hash") != canonical_hash(output_schema)
+    ):
+        raise ValueError("MULTIDIMENSIONAL_OUTPUT_SCHEMA_INVALID")
+    definitions = output_schema.get("$defs")
+    calculation_schema = definitions.get("calculation") if isinstance(definitions, Mapping) else None
+    if not isinstance(calculation_schema, Mapping):
+        raise ValueError("MULTIDIMENSIONAL_OUTPUT_SCHEMA_INVALID")
+    calculations = value.get("calculations")
+    if not isinstance(calculations, list):
+        raise ValueError("DIMENSION_REPORT_SCHEMA_INVALID:SCHEMA_TYPE_INVALID:$.calculations")
+    schema = {"$defs": definitions, **calculation_schema}
+    for index, calculation in enumerate(calculations):
+        try:
+            validate_schema_instance(calculation, schema, path=f"$.calculations[{index}]")
+        except SchemaValidationError as exc:
+            raise ValueError(f"DIMENSION_REPORT_SCHEMA_INVALID:{exc}") from exc

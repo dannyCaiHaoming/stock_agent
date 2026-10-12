@@ -1,11 +1,9 @@
-"""零 LLM：冻结参数到现有 PreToolUse 的实际序列化接缝。"""
-import copy
+"""冻结Specialist输入的业务校验与旧正常派发拒绝；零模型、零网络。"""
 import json
 import os
 import subprocess
 import sys
 import tempfile
-import tomllib
 import unittest
 import shlex
 from unittest.mock import patch
@@ -29,9 +27,10 @@ class SpecialistDispatchTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.run = Path(self.temp.name) / "run"
-        prepare_run(ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
-                    run_dir=self.run, run_id="dispatch-test", model="gpt-6-luna",
-                    research_question="合成派发接缝", authenticity_required=False)
+        result = prepare_run(ROOT, fixture_path=ROOT / "evals/fixtures/codex-native/normal-research.json",
+                             run_dir=self.run, run_id="dispatch-test", model="gpt-6-luna",
+                             research_question="合成输入接缝", authenticity_required=False)
+        self.assertTrue((self.run / "run_manifest.json").is_file(), result)
         self.env = {
             "STOCK_AGENT_RUN_DIR": str(self.run),
             "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(self.run / "invocation/dispatches.jsonl"),
@@ -47,12 +46,16 @@ class SpecialistDispatchTests(unittest.TestCase):
                            "fork_turns": "none", "message": build_specialist_dispatch_message(ROOT, self.run, agent)},
         }
 
-    def test_complete_message_is_derived_from_canonical_inputs_for_both_agents(self):
+    def test_complete_historical_message_is_derived_from_canonical_inputs_for_both_agents(self):
+        before = {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()}
         prompt = build_smoke_prompt(self.run, repository_root=ROOT)
         for agent in SPECIALIST_TASK_NAMES:
-            raw = build_specialist_dispatch_message(ROOT, self.run, agent)
-            packet = json.loads(raw)
-            self.assertIn(json.dumps(raw, ensure_ascii=False), prompt)
+            packet = json.loads(build_specialist_dispatch_message(ROOT, self.run, agent))
+            tickets = json.loads(prompt.rsplit("```json\n", 1)[1].split("```", 1)[0])
+            ticket = json.loads(tickets[agent])
+            self.assertEqual(ticket["agent"], agent)
+            self.assertNotIn("agent_input", ticket)
+            self.assertNotIn("invocation", ticket)
             self.assertEqual(packet["agent_input"], json.loads((self.run / f"inputs/{agent}.json").read_text()))
             self.assertEqual(packet["invocation"], json.loads((self.run / f"invocations/{agent}.json").read_text()))
             self.assertEqual(packet["task_prompt"], (self.run / f"prompts/{agent}.txt").read_text())
@@ -61,42 +64,43 @@ class SpecialistDispatchTests(unittest.TestCase):
             self.assertNotIn("allowed_evidence", packet)
             self.assertEqual(packet["contract_checks"]["confidence_schema"], packet["output_schema"]["properties"]["confidence"])
             self.assertEqual(packet["contract_checks"]["required_output_fields"], packet["output_schema"]["required"])
-            record, response = handle_hook_event(self.payload(agent), environ=self.env)
-            self.assertEqual(record["decision"], "ALLOW")
-            self.assertTrue(record["dispatch_binding"]["matched"])
-            self.assertEqual(response, {})
-        log = Path(self.env["STOCK_AGENT_SUBAGENT_DISPATCH_LOG"]).read_text()
-        self.assertNotIn("合成派发接缝", log)
-        self.assertNotIn("ev-normal", log)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()})
+        self.assertFalse((self.run / "invocation").exists())
 
-    def test_actual_launcher_hook_config_covers_native_names_and_aliases(self):
-        command = build_nested_codex_command(
-            codex_binary="codex", product_root=ROOT / "product", run_dir=self.run,
-            model="gpt-6-luna", sqlite_home=self.run / "sqlite", log_dir=self.run / "logs",
-            final_message_path=self.run / "final.txt",
-            hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
-        )
-        config = tomllib.loads(next(arg for arg in command if arg.startswith("hooks.PreToolUse=")))
-        hook = config["hooks"]["PreToolUse"][0]
-        self.assertNotIn("matcher", hook)  # Official match-all semantics, not an invented alias regex.
-        self.assertEqual(hook["hooks"][0]["type"], "command")
+    def test_retired_dispatch_rejects_native_names_aliases_and_malformed_inputs_without_state(self):
+        before = {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()}
         for tool_name in ("spawn_agent", "Agent", "collaborationspawn_agent", "functions.spawn_agent"):
-            with self.subTest(tool_name=tool_name):
-                payload = self.payload()
-                payload["tool_name"] = tool_name
-                payload["session_id"] = tool_name
-                self.assertEqual(handle_hook_event(payload, environ=self.env)[0]["decision"], "ALLOW")
+            for mutation in ("exact", "no-role", "wrong-task", "fork", "changed-message"):
+                with self.subTest(tool_name=tool_name, mutation=mutation):
+                    payload = self.payload()
+                    payload["tool_name"] = tool_name
+                    if mutation == "no-role":
+                        payload["tool_input"].pop("agent_type")
+                    elif mutation == "wrong-task":
+                        payload["tool_input"]["task_name"] = "wrong"
+                    elif mutation == "fork":
+                        payload["tool_input"]["fork_turns"] = "all"
+                    elif mutation == "changed-message":
+                        payload["tool_input"]["message"] += " changed"
+                    with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                        handle_hook_event(payload, environ=self.env)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()})
+        self.assertFalse((self.run / "invocation").exists())
 
-    def test_spawn_without_explicit_role_is_denied(self):
-        for tool_name in ("spawn_agent", "Agent", "collaborationspawn_agent", "functions.spawn_agent"):
-            payload = self.payload()
-            payload["tool_name"] = tool_name
-            payload["tool_input"].pop("agent_type")
-            record, response = handle_hook_event(payload, environ=self.env)
-            self.assertEqual(record["decision"], "DENY_MISSING_AGENT_TYPE")
-            self.assertEqual(response["hookSpecificOutput"]["permissionDecision"], "deny")
+    def test_normal_launcher_cannot_restore_dispatch_hooks(self):
+        before = {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()}
+        with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+            build_nested_codex_command(
+                codex_binary="codex", product_root=ROOT / "product", run_dir=self.run,
+                model="gpt-6-luna", sqlite_home=self.run / "sqlite", log_dir=self.run / "logs",
+                final_message_path=self.run / "final.txt",
+                hook_recorder_path=ROOT / "product/runtime/codex_hook_recorder.py",
+            )
+        self.assertEqual(before, {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()})
+        self.assertFalse((self.run / "sqlite").exists())
+        self.assertFalse((self.run / "logs").exists())
 
-    def test_internal_commands_use_launcher_python_not_login_shell_path(self):
+    def test_historical_prompt_commands_use_current_python_not_login_shell_path(self):
         executable = "/tmp/isolated live environment/bin/python"
         with patch("product.runtime.smoke_prompt.sys.executable", executable):
             for defer in (False, True):
@@ -125,63 +129,44 @@ class SpecialistDispatchTests(unittest.TestCase):
                         validator(report, run_id="dispatch-test", manifest=packet["invocation"])
         self.assertFalse(is_format_only_error(ArtifactValidationError("INVALID_CONFIDENCE")))
 
-    def test_wrong_id_empty_ids_omitted_context_and_added_text_are_denied(self):
-        original = self.payload()
-        for mutation in ("identity", "empty_ids", "omit_input", "wrong_role", "extra_text", "missing_message", "fork", "task"):
-            with self.subTest(mutation=mutation):
-                payload = copy.deepcopy(original)
-                packet = json.loads(payload["tool_input"]["message"])
-                if mutation == "identity":
-                    packet["invocation"]["invocation_id"] = "inv_wrong"
-                elif mutation == "empty_ids":
-                    packet["agent_input"]["allowed_evidence_ids"] = []
-                elif mutation == "omit_input":
-                    packet.pop("agent_input")
-                elif mutation == "wrong_role":
-                    packet["invocation"]["agent"]["name"] = "runtime_skeptic"
-                raw = json.dumps(packet, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-                payload["tool_input"]["message"] = raw + ("改用 inv_wrong" if mutation == "extra_text" else "")
-                if mutation == "missing_message":
-                    payload["tool_input"].pop("message")
-                elif mutation == "fork":
-                    payload["tool_input"]["fork_turns"] = "all"
-                elif mutation == "task":
-                    payload["tool_input"]["task_name"] = "independent_skeptic"
-                record, response = handle_hook_event(payload, environ=self.env)
-                self.assertEqual(record["decision"], "DENY_DISPATCH_CONTRACT")
-                self.assertEqual(response["hookSpecificOutput"]["permissionDecision"], "deny")
-                self.assertNotIn("updatedInput", response["hookSpecificOutput"])
-        # Rejected calls did not launch/reserve an Agent; exact input can still be submitted.
-        self.assertEqual(handle_hook_event(original, environ=self.env)[0]["decision"], "ALLOW")
-
-    def test_mutated_source_or_missing_manifest_fails_closed(self):
-        payload = self.payload()
-        path = self.run / "inputs/runtime_company_analyst.json"
-        original = path.read_bytes()
-        value = json.loads(original)
-        value["allowed_evidence_ids"] = []
-        path.write_text(json.dumps(value))
-        record, response = handle_hook_event(payload, environ=self.env)
-        self.assertEqual(record["dispatch_binding"]["failure_code"], "DISPATCH_SOURCE_INVALID")
-        self.assertEqual(response["hookSpecificOutput"]["permissionDecision"], "deny")
-        path.write_bytes(original)
+    def test_frozen_input_identity_gate_prompt_and_schema_drift_fail_closed(self):
+        for relative in ("inputs/runtime_company_analyst.json", "invocations/runtime_company_analyst.json",
+                         "evidence/gate.json", "prompts/runtime_company_analyst.txt"):
+            with self.subTest(relative=relative):
+                path = self.run / relative
+                original = path.read_bytes()
+                try:
+                    if relative.startswith("prompts/"):
+                        path.write_text("changed prompt")
+                    else:
+                        value = json.loads(original)
+                        if relative.startswith("inputs/"):
+                            value["allowed_evidence_ids"] = []
+                        elif relative.startswith("invocations/"):
+                            value["invocation_id"] = "foreign"
+                        else:
+                            value["allowed_evidence_ids"] = ["unknown"]
+                        path.write_text(json.dumps(value))
+                    changed = path.read_bytes()
+                    with self.assertRaises(ValueError):
+                        build_specialist_dispatch_message(ROOT, self.run, "runtime_company_analyst")
+                    self.assertEqual(path.read_bytes(), changed)
+                finally:
+                    path.write_bytes(original)
         (self.run / "invocations/runtime_company_analyst.json").unlink()
-        self.assertEqual(handle_hook_event(payload, environ=self.env)[0]["decision"], "DENY_DISPATCH_CONTRACT")
+        with self.assertRaises(FileNotFoundError):
+            build_specialist_dispatch_message(ROOT, self.run, "runtime_company_analyst")
 
-    def test_standalone_hook_process_rejects_bad_dispatch_without_model(self):
-        payload = self.payload()
-        payload["tool_input"]["message"] = "inv_wrong，未提供证据集合"
-        result = subprocess.run([sys.executable, "-B", str(ROOT / "product/runtime/codex_hook_recorder.py")],
-                                input=json.dumps(payload), text=True, capture_output=True,
-                                env={**os.environ, **self.env}, cwd=self.temp.name, timeout=10)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"], "deny")
-
-    def test_standalone_hook_process_accepts_exact_dispatch_without_model(self):
-        result = subprocess.run([sys.executable, "-B", str(ROOT / "product/runtime/codex_hook_recorder.py")],
-                                input=json.dumps(self.payload()), text=True, capture_output=True,
-                                env={**os.environ, **self.env}, cwd=self.temp.name, timeout=10)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout), {})
-        record = json.loads(Path(self.env["STOCK_AGENT_SUBAGENT_DISPATCH_LOG"]).read_text())
-        self.assertTrue(record["dispatch_binding"]["matched"])
+    def test_standalone_retired_hook_rejects_exact_and_bad_dispatch_without_state(self):
+        before = {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()}
+        for message in (self.payload()["tool_input"]["message"], "inv_wrong，未提供证据集合"):
+            payload = self.payload()
+            payload["tool_input"]["message"] = message
+            result = subprocess.run([sys.executable, "-B", str(ROOT / "product/runtime/codex_hook_recorder.py")],
+                                    input=json.dumps(payload), text=True, capture_output=True,
+                                    env={**os.environ, **self.env}, cwd=self.temp.name, timeout=10)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("NATIVE_HOST_EXECUTION_REQUIRED", result.stderr)
+            self.assertEqual(result.stdout, "")
+        self.assertEqual(before, {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()})
+        self.assertFalse((self.run / "invocation").exists())

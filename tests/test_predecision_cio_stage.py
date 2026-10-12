@@ -250,7 +250,7 @@ class PredecisionCioPreparationTests(unittest.TestCase):
         schema = _output_schema(REPO, request, json.loads((self.target / "report-catalog.json").read_text())["reports"], run_dir=self.target)
         self.assertEqual(schema["properties"]["target_security_id"]["const"], "US:COMMON_STOCK:ALB")
 
-    def test_single_stock_source_review_order_reaches_real_launcher_stdin(self) -> None:
+    def test_historical_single_stock_source_review_order_and_retired_launcher(self) -> None:
         self._prepare_alb()
         manifest, request = validate_predecision_cio_run(REPO, self.target)
         self.assertEqual(request["input_kind"], "SINGLE_STOCK_RESEARCH")
@@ -268,59 +268,11 @@ class PredecisionCioPreparationTests(unittest.TestCase):
         self.assertIn("即使最终不采用有疑点的上游主张", prompt)
         self.assertIn("若窗口方向不同", prompt)
         self.assertIn("不新增输出字段、工具、研究任务或语义修订次数", prompt)
-        source_before = {str(p.relative_to(self.source)): file_hash(p)
-                         for p in self.source.rglob("*") if p.is_file()}
-        # This CLI only captures local stdin/argv and exits; no Codex or model.
-        script = self.root / "capture-cio.py"
-        script.write_text(
-            "import json, os, sys\nfrom pathlib import Path\n"
-            "root = Path(os.environ['STOCK_AGENT_RUN_DIR'])\n"
-            "(root / 'captured-prompt.bin').write_bytes(sys.stdin.buffer.read())\n"
-            "(root / 'captured-cli.json').write_text(json.dumps({"
-            "'argv': sys.argv[1:], 'cwd': os.getcwd(), 'python': sys.executable}))\n"
-            "print('local fake cli')\nprint('expected exit', file=sys.stderr)\nsys.exit(9)\n",
-            encoding="utf-8",
-        )
-        cli = self.root / "fake-cio-cli"
-        cli.write_text(f"#!/bin/sh\nif [ \"$1\" = --version ]; then printf 'codex-cli 0.160.0\\n'; exit 0; fi\nexec {shlex.quote(sys.executable)} {shlex.quote(str(script))} \"$@\"\n",
-                       encoding="utf-8")
-        cli.chmod(0o700)
-        with patch.dict(os.environ, {"STOCK_AGENT_PRODUCT_HOST_LAUNCH": "1"}):
-            result, host_code = launch_predecision_cio_run(
-                REPO, run_dir=self.target, codex_binary=str(cli), timeout_seconds=20,
-            )
-        self.assertEqual(host_code, 7)
-        self.assertEqual(result["failure_code"], "CIO_CODEX_PROCESS_FAILED")
-        saved = self.target / "invocation/prompt.txt"
-        self.assertEqual(saved.read_bytes(), prompt.encode("utf-8"))
-        self.assertEqual((self.target / "captured-prompt.bin").read_bytes(), saved.read_bytes())
-        environment = json.loads((self.target / "invocation/environment-manifest.json").read_text())
-        capture = json.loads((self.target / "captured-cli.json").read_text())
-        self.assertEqual(environment["prompt_hash"], file_hash(saved))
-        self.assertEqual(capture["argv"], environment["command"][1:])
-        self.assertEqual(capture["cwd"], str(REPO / "product"))
-        self.assertEqual(Path(capture["python"]).resolve(), Path(sys.executable).resolve())
-        command = environment["command"]
-        self.assertEqual(command[command.index("--model") + 1], request["model"])
-        self.assertEqual(command[command.index("-C") + 1], str(self.target.resolve()))
-        self.assertIn("--ignore-user-config", command)
-        schema_path = self.target / "invocation/cio-output.schema.json"
-        self.assertEqual(environment["output_schema_hash"], file_hash(schema_path))
-        self.assertEqual(json.loads(schema_path.read_text()), _decoding_schema(
-            _native_output_schema(REPO, request, manifest["report_catalog"], run_dir=self.target),
-            shared_evidence=True,
-        ))
-        process = json.loads((self.target / "invocation/process-result.json").read_text())
-        self.assertEqual(process["process_exit_code"], 9)
-        self.assertFalse(process["timed_out"])
-        self.assertTrue(process["source_integrity_unchanged"])
-        self.assertTrue(process["local_process_group"]["cleanup_complete"])
-        self.assertEqual(check_predecision_cio_trace(REPO, self.target)["failure_code"],
-                         "CIO_CODEX_PROCESS_FAILED")
-        self.assertEqual(source_before, {str(p.relative_to(self.source)): file_hash(p)
-                                        for p in self.source.rglob("*") if p.is_file()})
-        for ref in ("report.md", "cio-research-synthesis.json", "risk.json", "decision.json"):
-            self.assertFalse((self.target / ref).exists())
+        with patch("product.runtime.predecision_cio_stage._run_cio_process") as process:
+            with self.assertRaisesRegex(PredecisionCioStageError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                launch_predecision_cio_run(REPO, run_dir=self.target)
+            process.assert_not_called()
+        self.assertFalse((self.target/"invocation").exists())
 
     def test_portfolio_source_review_keeps_original_method(self) -> None:
         self._prepare()
@@ -329,16 +281,12 @@ class PredecisionCioPreparationTests(unittest.TestCase):
         self.assertIn("上游报告保存及结构验证不代表每条内容正确。核对缺口理由与实际来源", prompt)
         self.assertIn("目标证券对基准的相对表现及相反窗口", prompt)
 
-    def test_single_stock_report_delivery_generated_mcp_and_binding(self) -> None:
-        import os
-        import subprocess
-        import tomllib
+    def test_single_stock_report_delivery_actual_stdio_and_binding(self) -> None:
         from copy import deepcopy
         from product.runtime.cio_handoff import (
             REPORT_DELIVERY_VERSION, expand_cio_report_view, read_cio_reports, verify_cio_report_reads,
         )
         from product.runtime.hashing import canonical_json
-        from product.runtime.nested_codex import build_nested_codex_command
         self._prepare_alb({"claims": [], "calculations": [
             {"calculation_id": f"calc-{i}", "input_evidence_refs": ["ev-1"] * 1000,
              "value": i, "unit": "USD", "method": "synthetic calculation"} for i in range(20)]})
@@ -350,12 +298,6 @@ class PredecisionCioPreparationTests(unittest.TestCase):
         mapping = predecision_cio_reference_map(REPO, self.target)
         ids = list(mapping["reports"])
         identity = {"run_id": "cio-1", "agent": "runtime_cio", "invocation_id": "cio:cio-1"}
-        command = build_nested_codex_command(codex_binary="codex", product_root=REPO / "product",
-            run_dir=self.target, model="gpt-6-luna", sqlite_home=self.target / "test-sqlite",
-            log_dir=self.target / "test-log", final_message_path=self.target / "test-final",
-            hook_recorder_path=REPO / "product/runtime/codex_hook_recorder.py", fixture_mcp_run_dir=self.target,
-            enable_cio_local_revision=True, hook_agent_matcher="^runtime_cio$", skip_git_repo_check=True)
-        transport = tomllib.loads(next(arg for arg in command if arg.startswith("mcp_servers.fixture_runtime=")))["mcp_servers"]["fixture_runtime"]
         requests = [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "read_reports", "arguments": {**identity, "report_ids": ids}}},
             {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "query", "arguments": {**identity, "evidence_ids": [next(k for k, v in mapping["evidence"].items() if v == "ev-1")]}}}]
@@ -366,14 +308,13 @@ class PredecisionCioPreparationTests(unittest.TestCase):
             {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {
                 "name": "query", "arguments": {**identity, "evidence_ids": [evidence_ref]}}},
         ])
-        completed = subprocess.run([transport["command"], *transport["args"]], cwd=transport["cwd"],
-            env={**os.environ, **transport["env"], "PYTHONDONTWRITEBYTECODE": "1"},
+        completed = subprocess.run([sys.executable, '-B', '-m', 'product.runtime.fixture_mcp', '--stateless'], cwd=REPO,
+            env={**os.environ, 'STOCK_AGENT_FIXTURE_MCP_RUN_DIR': str(self.target), 'PYTHONDONTWRITEBYTECODE': '1'},
             input="\n".join(json.dumps(r) for r in requests) + "\n", text=True, capture_output=True, timeout=20)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         responses = {r["id"]: r for r in map(json.loads, completed.stdout.splitlines())}
         advertised = {tool["name"]: tool for tool in responses[1]["result"]["tools"]}
-        self.assertEqual(set(advertised) & set(transport["enabled_tools"]), {"query", "read_reports"})
-        self.assertEqual(transport["enabled_tools"], ["query", "read_reports"])
+        self.assertTrue({'query', 'read_reports'} <= advertised.keys())
         self.assertNotIn("result", responses[4])
         self.assertIn("TOOL_NOT_AUTHORIZED:fixture_math.calculate", responses[4]["error"]["message"])
         self.assertFalse(responses[5]["result"]["isError"], responses[5])
@@ -855,330 +796,8 @@ class PredecisionCioPreparationTests(unittest.TestCase):
         with self.assertRaisesRegex(PredecisionCioStageError, "CIO_RESEARCH_TRACE_INVALID"):
             check_predecision_cio_trace(REPO, self.target)
 
-    def test_launcher_preserves_failure_and_records_group_cleanup(self) -> None:
-        cases = (
-            (124, True, True, "CIO_STAGE_TIMEOUT"),
-            (9, False, True, "CIO_CODEX_PROCESS_FAILED"),
-            (1, False, True, "CIO_CODEX_PROCESS_FAILED"),
-            (0, False, False, "CIO_LOCAL_PROCESS_CLEANUP_INCOMPLETE"),
-            (130, False, True, "CIO_STAGE_INTERRUPTED"),
-        )
-        for code, timed_out, cleanup, failure in cases:
-            with self.subTest(failure=failure):
-                self.target = self.root / f"{failure}-{code}"
-                self._prepare()
-                execution = {
-                    "stdout": "fake-cli-stdout\n", "stderr": "fake-cli-stderr\n",
-                    "process_exit_code": code, "timed_out": timed_out, "interrupted": code == 130,
-                    "local_process_group": {"pid": 12345, "term_sent": timed_out,
-                                            "kill_sent": False, "cleanup_complete": cleanup},
-                    "remote_cancellation_status": "UNKNOWN" if timed_out or code == 130 else "NOT_APPLICABLE",
-                }
-                if code == 1:
-                    execution.update(stdout="�", stderr="�", stdout_bytes=b"\xff",
-                                     stderr_bytes=b"\xfe", execution_error="UnicodeDecodeError")
-                with patch.dict(os.environ, {"STOCK_AGENT_PRODUCT_HOST_LAUNCH": "1"}), patch(
-                    "product.runtime.predecision_cio_stage._run_cio_process", return_value=execution,
-                ) as runner:
-                    result, host_code = launch_predecision_cio_run(REPO, run_dir=self.target)
-                self.assertEqual(host_code, 7)
-                self.assertEqual(result["failure_code"], failure)
-                self.assertEqual(runner.call_args.kwargs["timeout_seconds"], 2400)
-                process = json.loads((self.target / "invocation/process-result.json").read_text())
-                self.assertEqual(process["local_process_group"], execution["local_process_group"])
-                self.assertEqual(process["remote_cancellation_status"], execution["remote_cancellation_status"])
-                self.assertEqual(process["process_exit_code"], code)
-                self.assertEqual(process["timed_out"], timed_out)
-                self.assertEqual((self.target / "invocation/codex-events.jsonl").read_bytes(),
-                                 execution.get("stdout_bytes", execution["stdout"].encode("utf-8")))
-                self.assertEqual((self.target / "invocation/codex-stderr.log").read_bytes(),
-                                 execution.get("stderr_bytes", execution["stderr"].encode("utf-8")))
-                self.assertEqual(process["execution_error"], execution.get("execution_error"))
-                self.assertEqual(check_predecision_cio_trace(REPO, self.target)["failure_code"], failure)
-                for ref in ("report.md", "cio-research-synthesis.json", "risk.json", "decision.json"):
-                    self.assertFalse((self.target / ref).exists())
 
 
-class CioLocalProcessGroupTests(unittest.TestCase):
-    def _run(self, script: str, root: Path, *, timeout: float = 3.0) -> dict:
-        return _run_cio_process(
-            [sys.executable, "-c", script], prompt="test-input", cwd=root,
-            environment={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-            timeout_seconds=timeout, termination_grace_seconds=0.5,
-        )
-
-    def test_normal_and_nonzero_preserve_output_and_exit(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            for code in (0, 9):
-                with self.subTest(code=code):
-                    result = self._run(
-                        f"import sys; print(sys.stdin.read()); print('stderr',file=sys.stderr); sys.exit({code})",
-                        Path(tmp),
-                    )
-                    self.assertEqual(result["stdout"], "test-input\n")
-                    self.assertEqual(result["stderr"], "stderr\n")
-                    self.assertEqual(result["process_exit_code"], code)
-                    self.assertFalse(result["timed_out"])
-                    self.assertTrue(result["local_process_group"]["cleanup_complete"])
-                    self.assertFalse(result["local_process_group"]["term_sent"])
-                    self.assertEqual(result["remote_cancellation_status"], "NOT_APPLICABLE")
-
-    def test_invalid_utf8_keeps_raw_bytes_and_cleans_descendants(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            for close_pipes in (True, False):
-                with self.subTest(close_pipes=close_pipes):
-                    identity = root / f"invalid-child-{close_pipes}.json"
-                    child = (
-                        "import os,signal,time,json; from pathlib import Path; "
-                        "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
-                        + ("os.close(1); os.close(2); " if close_pipes else "")
-                        + f"Path({str(identity)!r}).write_text(json.dumps({{'pid':os.getpid(),'pgid':os.getpgrp()}})); time.sleep(60)"
-                    )
-                    parent = (
-                        "import subprocess,sys,time,os; from pathlib import Path; "
-                        f"subprocess.Popen([sys.executable,'-c',{child!r}]); p=Path({str(identity)!r}); "
-                        "exec('while not p.exists(): time.sleep(0.01)'); os.write(1,b'\\xff'); os.write(2,b'\\xfe')"
-                    )
-                    try:
-                        result = self._run(parent, root, timeout=0.7)
-                        self.assertEqual(result["process_exit_code"], 1 if close_pipes else 124)
-                        self.assertEqual(result["timed_out"], not close_pipes)
-                        self.assertEqual(result["execution_error"], "UnicodeDecodeError")
-                        self.assertEqual(result["stdout_bytes"], b"\xff")
-                        self.assertEqual(result["stderr_bytes"], b"\xfe")
-                        self.assertTrue(result["local_process_group"]["cleanup_complete"])
-                        self.assertTrue(result["local_process_group"]["kill_sent"])
-                        with self.assertRaises(ProcessLookupError):
-                            os.killpg(json.loads(identity.read_text())["pgid"], 0)
-                    finally:
-                        if identity.exists():
-                            try:
-                                os.killpg(json.loads(identity.read_text())["pgid"], signal.SIGKILL)
-                            except ProcessLookupError:
-                                pass
-
-    def test_actual_sigint_during_execution_and_cleanup_is_collected(self) -> None:
-        sentinel = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"],
-                                    start_new_session=True)
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
-                for phase in ("execution", "cleanup", "timeout_cleanup"):
-                    with self.subTest(phase=phase):
-                        identity = root / f"{phase}-child.json"
-                        cleanup_marker = root / f"{phase}-cleanup.txt"
-                        child = (
-                            "import os,signal,time,json; from pathlib import Path; "
-                            f"signal.signal(signal.SIGTERM,lambda *_: Path({str(cleanup_marker)!r}).write_text('TERM')); "
-                            "os.close(1); os.close(2); "
-                            f"Path({str(identity)!r}).write_text(json.dumps({{'pid':os.getpid(),'pgid':os.getpgrp()}})); "
-                            "time.sleep(60)"
-                        )
-                        parent = (
-                            "import subprocess,sys,time; from pathlib import Path; "
-                            f"subprocess.Popen([sys.executable,'-c',{child!r}]); "
-                            f"p=Path({str(identity)!r}); "
-                            "exec('while not p.exists(): time.sleep(0.01)'); print('parent-ready',flush=True); "
-                            + ("time.sleep(60)" if phase != "cleanup" else "")
-                        )
-                        wrapper = (
-                            "import os,sys,signal,json; from pathlib import Path; "
-                            "from product.runtime.predecision_cio_stage import _run_cio_process; "
-                            "handler=signal.getsignal(signal.SIGINT); "
-                            f"result=_run_cio_process([sys.executable,'-c',{parent!r}],prompt='',cwd=Path({str(root)!r}),"
-                            f"environment=dict(os.environ),timeout_seconds={0.7 if phase == 'timeout_cleanup' else 10},termination_grace_seconds=0.8); "
-                            "result.pop('stdout_bytes'); result.pop('stderr_bytes'); "
-                            "result['handler_restored']=signal.getsignal(signal.SIGINT)==handler; print(json.dumps(result))"
-                        )
-                        worker = subprocess.Popen(
-                            [sys.executable, "-c", wrapper], cwd=REPO,
-                            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                            start_new_session=True,
-                        )
-                        binding = None
-                        try:
-                            marker = identity if phase == "execution" else cleanup_marker
-                            deadline = time.monotonic() + 5
-                            while not marker.exists() and worker.poll() is None and time.monotonic() < deadline:
-                                time.sleep(0.01)
-                            self.assertTrue(marker.exists(), phase)
-                            binding = json.loads(identity.read_text())
-                            os.kill(worker.pid, signal.SIGINT)
-                            stdout, stderr = worker.communicate(timeout=8)
-                            self.assertEqual(worker.returncode, 0, stderr)
-                            result = json.loads(stdout)
-                            self.assertEqual(result["process_exit_code"], 124 if phase == "timeout_cleanup" else 130)
-                            self.assertEqual(result["timed_out"], phase == "timeout_cleanup")
-                            self.assertTrue(result["interrupted"])
-                            self.assertTrue(result["handler_restored"])
-                            self.assertTrue(result["local_process_group"]["cleanup_complete"])
-                            self.assertEqual(result["remote_cancellation_status"], "UNKNOWN")
-                            with self.assertRaises(ProcessLookupError):
-                                os.killpg(binding["pgid"], 0)
-                            self.assertIsNone(sentinel.poll())
-                        finally:
-                            if worker.poll() is None:
-                                worker.kill()
-                            worker.communicate(timeout=3)
-                            if binding is None and identity.exists():
-                                binding = json.loads(identity.read_text())
-                            if binding is not None:
-                                try:
-                                    os.killpg(binding["pgid"], signal.SIGKILL)
-                                except ProcessLookupError:
-                                    pass
-        finally:
-            sentinel.terminate()
-            sentinel.wait(timeout=3)
-
-    def test_communicate_oserror_still_cleans_group(self) -> None:
-        original = subprocess.Popen.communicate
-        calls = 0
-
-        def fail_once(process, *args, **kwargs):
-            nonlocal calls
-            calls += 1
-            if calls == 1:
-                raise OSError("synthetic pipe error")
-            return original(process, *args, **kwargs)
-
-        with tempfile.TemporaryDirectory() as tmp, patch.object(subprocess.Popen, "communicate", fail_once):
-            result = self._run("import time; time.sleep(60)", Path(tmp))
-            self.assertEqual(result["process_exit_code"], 1)
-            self.assertEqual(result["execution_error"], "OSError")
-            self.assertTrue(result["local_process_group"]["cleanup_complete"])
-            self.assertEqual(result["remote_cancellation_status"], "UNKNOWN")
-
-    def test_signal_permission_denied_returns_incomplete_without_retrying_signals(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp, patch(
-            "product.runtime.predecision_cio_stage.os.killpg", side_effect=PermissionError("denied"),
-        ) as signal_group:
-            started = time.monotonic()
-            result = self._run("print('finished')", Path(tmp))
-            self.assertLess(time.monotonic() - started, 5)
-            self.assertEqual(result["process_exit_code"], 0)
-            self.assertTrue(result["local_process_group"]["signal_permission_denied"])
-            self.assertFalse(result["local_process_group"]["cleanup_complete"])
-            self.assertFalse(result["local_process_group"]["term_sent"])
-            self.assertFalse(result["local_process_group"]["kill_sent"])
-            self.assertEqual(result["remote_cancellation_status"], "UNKNOWN")
-            self.assertTrue(all(call.args[1] == 0 for call in signal_group.call_args_list))
-
-    def test_exited_parent_does_not_leave_closed_pipe_descendant(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            identity = root / "closed-child.json"
-            child = (
-                "import os,signal,time; from pathlib import Path; "
-                "signal.signal(signal.SIGTERM,signal.SIG_IGN); os.close(1); os.close(2); "
-                f"Path({str(identity)!r}).write_text(str(os.getpid())); time.sleep(60)"
-            )
-            parent = (
-                "import subprocess,sys,time; from pathlib import Path; "
-                f"subprocess.Popen([sys.executable,'-c',{child!r}]); "
-                f"p=Path({str(identity)!r}); "
-                "exec('while not p.exists(): time.sleep(0.01)'); print('parent-exited',flush=True)"
-            )
-            try:
-                result = self._run(parent, root)
-                self.assertEqual(result["process_exit_code"], 0)
-                self.assertFalse(result["timed_out"])
-                self.assertTrue(result["local_process_group"]["term_sent"])
-                self.assertTrue(result["local_process_group"]["kill_sent"])
-                self.assertTrue(result["local_process_group"]["cleanup_complete"])
-                self.assertEqual(result["stdout"], "parent-exited\n")
-                self.assertEqual(result["remote_cancellation_status"], "UNKNOWN")
-                with self.assertRaises(ProcessLookupError):
-                    os.kill(int(identity.read_text()), 0)
-            finally:
-                if identity.exists():
-                    try:
-                        os.kill(int(identity.read_text()), signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-
-    def test_escaped_pipe_holder_is_not_killed_and_cleanup_fails_bounded(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            identity = root / "escaped-child.json"
-            child = (
-                "import os,time; from pathlib import Path; "
-                f"Path({str(identity)!r}).write_text(str(os.getpid())); time.sleep(60)"
-            )
-            parent = (
-                "import subprocess,sys,time; "
-                f"subprocess.Popen([sys.executable,'-c',{child!r}],start_new_session=True); "
-                "print('before-timeout',flush=True); time.sleep(60)"
-            )
-            started = time.monotonic()
-            try:
-                result = self._run(parent, root, timeout=0.7)
-                child_pid = int(identity.read_text())
-                self.assertLess(time.monotonic() - started, 5)
-                self.assertEqual(result["process_exit_code"], 124)
-                self.assertTrue(result["timed_out"])
-                self.assertFalse(result["local_process_group"]["cleanup_complete"])
-                self.assertIn("before-timeout", result["stdout"])
-                self.assertEqual(result["remote_cancellation_status"], "UNKNOWN")
-                os.kill(child_pid, 0)
-                self.assertNotEqual(os.getpgid(child_pid), result["local_process_group"]["pid"])
-            finally:
-                if identity.exists():
-                    try:
-                        os.kill(int(identity.read_text()), signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-
-    def test_timeout_cleans_inherited_and_closed_pipe_descendants_only(self) -> None:
-        sentinel = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"],
-                                    start_new_session=True)
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
-                for close_pipes in (False, True):
-                    with self.subTest(close_pipes=close_pipes):
-                        identity = root / f"child-{close_pipes}.json"
-                        child = (
-                            "import os,signal,time,json; from pathlib import Path; "
-                            "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
-                            f"Path({str(identity)!r}).write_text(json.dumps({{'pid':os.getpid(),'pgid':os.getpgrp()}})); "
-                            + ("os.close(1); os.close(2); " if close_pipes else "")
-                            + "time.sleep(60)"
-                        )
-                        parent = (
-                            "import subprocess,sys,time; "
-                            f"subprocess.Popen([sys.executable,'-c',{child!r}]); "
-                            "print('parent-started',flush=True); time.sleep(60)"
-                        )
-                        child_pid = None
-                        try:
-                            result = self._run(parent, root, timeout=0.7)
-                            binding = json.loads(identity.read_text())
-                            child_pid = binding["pid"]
-                            self.assertEqual(binding["pgid"], result["local_process_group"]["pid"])
-                            self.assertEqual(result["process_exit_code"], 124)
-                            self.assertTrue(result["timed_out"])
-                            self.assertTrue(result["local_process_group"]["term_sent"])
-                            self.assertTrue(result["local_process_group"]["kill_sent"])
-                            self.assertTrue(result["local_process_group"]["cleanup_complete"])
-                            self.assertIn("parent-started", result["stdout"])
-                            self.assertEqual(result["remote_cancellation_status"], "UNKNOWN")
-                            with self.assertRaises(ProcessLookupError):
-                                os.kill(child_pid, 0)
-                            self.assertIsNone(sentinel.poll())
-                        finally:
-                            if child_pid is None and identity.exists():
-                                child_pid = json.loads(identity.read_text())["pid"]
-                            if child_pid is not None:
-                                try:
-                                    os.kill(child_pid, signal.SIGKILL)
-                                except ProcessLookupError:
-                                    pass
-        finally:
-            sentinel.terminate()
-            sentinel.wait(timeout=3)
 
 
 if __name__ == "__main__":

@@ -2,19 +2,21 @@
 
 ## 入口和路径
 
+Claude Code正常使用当前仓库的 `product/` 原生产品项目，显式薄发现/连接准备见 [产品使用说明](../../product/hosts/INSTALL.md)，不要求外置源码副本。根目录用于开发；私有任务、连接和产物外置。共享 [portfolio-council](../../product/skills/portfolio-council/SKILL.md)、[角色正文](../../product/agents/README.md)和[薄宿主模板](../../product/hosts/README.md)保持单一来源；Codex/OpenCode遗留未验收。Python只提供授权、资料/计算、提交/读取与持久化，不启动另一模型或改用户设置。实际加载/权限/模型与配置准备分别验证；以下CLI版本、run-scoped Hook和旧锁仅用于明确历史维护。
+
 在仓库根用 `python3 -m venv .venv` 创建项目环境，并用 `source .venv/bin/activate` 选择它，然后执行 `python -m pip install -e .` 安装已有基础依赖。新 Terminal 运行确定性检查或宿主脚本前须重新选择该环境；从仓库外可使用 `source <仓库路径>/.venv/bin/activate`。宿主脚本的 `python3` 沿用这个 PATH，MCP 的解释器与依赖目录由宿主绑定，不依赖子 Agent 的偶然 PATH。可选 live/券商依赖仅在对应授权任务需要时安装。
 
-排障时记录实际 Python 路径/版本、依赖状态以及 Codex CLI 路径/版本。桌面内置与终端 CLI 可以不同；不自动升级或改写历史运行锁。当前后续候选要求 `codex-cli/0.160.0`。宿主启动会解析所选二进制并执行零模型 `--version` 核验，在本次 invocation 保存路径、文件 hash、实际版本和锁来源；不匹配会在模型调用前拒绝。纯命令渲染不执行核验，实际各阶段 launcher 使用同一核验包装。完整 fixture 优先消费冻结 run 锁；其他尚无 CLI 运行字段的阶段明确消费所选产品 manifest，不宣称它们已有冻结 CLI 锁。
+排障先记录所用Python路径/版本和依赖状态。只有明确历史维护需要时，才按冻结锁核对所选Codex CLI路径/实际版本与二进制hash；桌面内置与终端CLI可以不同，不自动升级或重签旧锁。测量记录绑定对应invocation，纯命令渲染不代表已测量。当前正常研究不使用这些CLI探针或旧Stage launcher。
 
-在桌面内置 CLI 与终端默认版本不同时，可在宿主调用的 PATH 中显式选择已核验的 0.160.0 目录，然后运行既有宿主脚本；不写入机器路径到版本化配置。新的 ephemeral 完整 Council 证明消费宿主测量记录，子 Agent 的 CLI 归属是同一宿主进程运行时，不能从声明推断为观测。原运行及其版本差异记录保持不变。缺少依赖属于环境未就绪，不把未完成的检查报告为产品断言失败或通过。
+历史运行的CLI归属、版本差异和隔离记录保持原样；配置声明不冒充观测，也不推定当前原生宿主通过。缺依赖是环境未就绪，不报告成产品断言通过或失败。
 
-产品插件在普通开发会话中只提供 Skills 发现，`fixture_runtime` 与 `live_runtime` 默认禁用。研究 MCP 仅由现有宿主 launcher 按具体运行显式启用并绑定产品根、解释器、run 和阶段工具权限；独立 Intake、交易记录和复盘不自动启动研究 MCP。配置/工具清单可读不代表实际加载，须分别记录。
+产品插件在普通开发会话中只提供 Skills 发现，研究权限默认不可用。原生研究 MCP 仅在具体产品请求、角色及冻结输入/Gate授权成立后启用；当前主线程通过准备能力发放精确task_ref/task_token，专业角色没有准备凭据，业务调用逐次验证。独立 Intake、交易记录和复盘不自动启动研究 MCP。当前 `.claude/`、用户配置与其他插件不被导出或安装操作覆盖；配置/工具清单可读不代表实际加载。
 
-现有底层入口为 `python3 -m product.runtime.cli`（模块调用从仓库根），`nested-codex-smoke` 是宿主脚本消费的统一 LLM launcher，不是开发自检的直接模型入口。真实运行使用下文宿主方式，不复制旧管道命令或创建第二套 Python LLM 编排。旧 preflight 执行入口已退役，历史产物仅供读取。
+现有底层入口 `python3 -m product.runtime.cli` 仅用于确定性数据/报告和明确历史维护。`nested-codex-smoke`及普通股/多维/资料/反证/CIO旧launch命令在读取运行、写入或模型调用前拒绝，指向当前原生会话。显式冻结Execution Replay经宿主脚本进入`execute-frozen-replay`，先重验来源与密封快照，再加载冻结版本自己的旧入口；不恢复当前代码的正常launcher。旧preflight执行入口继续退役。
 
-路径无关转发入口为 `python3 <仓库路径>/scripts/council-dev.py <既有子命令> ...`。它复用底层 CLI 参数；普通命令省略 `--repo` 时从脚本位置定位，其他相对路径按调用时目录解析。`prepare-execution-replay` 仍由原实现物化密封快照，之后 `nested-codex-smoke --run-dir ...` 自动选择该运行 manifest 的冻结 workspace，最后调用原 `finalize-execution-replay`。Regression 仍显式消费 run-index，缺案例不会自动启动模型；已获授权的新案例先经 prepare 和同一 nested-codex-smoke 执行。
+路径无关转发入口为 `python3 <仓库路径>/scripts/council-dev.py <既有确定性子命令> ...`。普通命令省略 `--repo` 时从脚本位置定位，相对路径按调用目录解析。`prepare-execution-replay`仍物化密封快照并保存外置来源绑定；`check-frozen-replay`仅校验，`execute-frozen-replay`仅接受已准备的EXECUTION_REPLAY及其仓库外封闭workspace，并交给冻结旧版本执行。准备及finalizer不修改原运行或锁。Regression显式消费run-index，缺案例不自动启动模型；普通原生研究不继承这些维护授权。
 
-开发自检在当前 Codex 环境进行。`council-dev.py self-check check-run --run-dir ...` 或 `self-check trace-check ...` 仅转发确定性检查；其他命令拒绝。确定性单元测试直接按授权范围运行，不调用项目沙箱或完整 Council。
+开发自检在当前所选宿主环境进行。`council-dev.py self-check check-run --run-dir ...` 或 `self-check trace-check ...` 仅转发确定性检查；其他命令拒绝。确定性单元测试直接按授权范围运行，不调用项目沙箱或完整 Council。
 
 | 名称 | 来源与约束 |
 |---|---|
@@ -26,21 +28,23 @@
 
 相对参数在入口按原调用 cwd 解析一次，随后传规范路径。活跃源码/模板禁止个人绝对路径；实际环境 manifest 中的绝对路径是审计事实，应保留。内容寻址并密封的 Replay Capsule 物化是合法重放，不等同于临时复制源码绕过加载。
 
-兼容旧式会话证明时，`smoke-prompt` 与 `eval-smoke-prompt` 支持显式 `--sessions-root`；省略时仅解析 `CODEX_HOME/sessions`，未设置 CODEX_HOME 则解析用户主目录下的 `.codex/sessions`。模板生成不扫描或读取会话。统一 launcher 的正常运行仍使用 run-scoped 事件，不转回全局会话查找；需要读取旧会话时仅使用明确授权的目录。
+显式旧会话兼容中的`smoke-prompt`与`eval-smoke-prompt`支持`--sessions-root`；省略时仅解析`CODEX_HOME/sessions`，未设置CODEX_HOME则解析用户主目录下的`.codex/sessions`。模板生成不扫描或读取会话；需要读取旧会话时仅使用明确授权目录。冻结旧launcher的run-scoped事件仅解释其原执行契约，不表示当前正常入口仍可启动。
 
 ## 权限与保证边界
 
 - 开发只修改授权源码；保留当前 Codex 原生权限，不自动提权或修改系统配置。
 - 独立 Reviewer 默认读取代码差异、规格和已有运行包。补跑只报告具体缺口，由用户授权宿主入口执行；不把独立性实现为新建沙箱。
-- 全进程源码强制只读为 **UNVERIFIED**。`COMMON_STOCK_RESEARCH` launcher 的窄范围保证是：模型工作区改为运行目录下的一次性隔离源码副本，当前开发工作区做前后 protected-runtime hash；隔离副本写入会被记录并在进程结束后丢弃。Hook/MCP 读取当前运行时模块仍受原生沙箱约束，这不是操作系统级不可变证明，也不推广为其他阶段的全进程只读保证。
+- 全进程源码强制只读为 **UNVERIFIED**。产品专属工具白名单、输入隔离和源码写入限制必须实际生效；配置存在或事后hash不能代替权限证明。旧普通股launcher的一次性源码副本/进程保护仅解释冻结旧产物，当前正常研究不创建该副本，也不继承其保证。
 - 历史隔离与 preflight 产物保留供审计，不授权当前启动；旧启动函数明确拒绝，不再根据外部沙箱声明关闭原生沙箱。原生权限、Hook、run-scoped 状态、Evidence/PIT/Risk 和 fail-closed 校验不变。
 - 不重新排查代理、不修改 Shadowrocket 或域名、不关闭 network_proxy、不开放整个 CODEX_HOME、不复制认证或会话。
 - 旧 --review、review-run/review-probe/nested-codex-probe、environment-preflight、permission-probe 和 --preflight-report 在薄入口及底层入口明确非零拒绝，不回退、不读取运行包、不创建产物或调用模型；直接旧启动 API 同样拒绝。
 - preflight 不再执行；本机 doctor 仅按既有授权用途使用，不作为日常源码检查、证据读取的必需前置。缺少预备 run 或权限探针不是普通开发的阻断条件。
 
-## 宿主代理与手动 Product Smoke
+## 宿主代理与显式冻结维护
 
-获得对应场景、模型调用预算与执行授权后，从已选择项目环境的宿主 Terminal 运行 `bash <仓库路径>/scripts/run-product-smoke.sh`。
+正常原生Smoke不运行本节脚本、不追加代理探针或启动另一宿主。以下仅适用于另获执行授权、版本/来源锁满足要求的旧Execution Replay；一次维护授权不扩展为新研究权限。
+
+获得对应冻结Replay场景、模型调用预算与执行授权后，从已选择项目环境的宿主Terminal运行 `bash <仓库路径>/scripts/run-product-smoke.sh --prepared-run <新重放run目录> <新的外置调用证据目录>`。旧normal/stage/resume模式全部在代理或模型调用前拒绝。
 脚本每次调用 `detect-host-proxy.sh`，保存只读系统查询的原始输出与退出码，
 优先使用 `scutil --proxy` 的生效 HTTP/HTTPS 设置；禁用服务中的旧端口和进程名称不作为代理依据。
 HTTP/HTTPS 地址分别传递大小写代理环境变量；仅 SOCKS 时使用 `socks5h`，先由现有
@@ -48,10 +52,7 @@ HTTP/HTTPS 地址分别传递大小写代理环境变量；仅 SOCKS 时使用 `
 已连接 VPN/隧道路由且没有显式代理时不新增代理变量；UNKNOWN 停止并保留证据。
 
 默认产物位于新的系统临时目录，代理地址只保存在本地产物中，不写入业务配置或提交 Git。
-脚本复用 `prepare → nested-codex-smoke → check-run`，保留已有 Codex 原生沙箱、Hook、
-run-scoped 状态及严格完成判定；不启动额外外层沙箱，不修改代理/域名/源码权限配置。
-这是一条用户授权的宿主产品启动方式，不是独立只读复核权限证明；不得将它冒充
-全进程源码保护证据。TUN 网络下不再要求外层嵌套成功。
+脚本不重新prepare，仅校验来源和封闭workspace后转发冻结旧版本的nested-codex-smoke及check-run；冻结版本按原契约保留原生沙箱、Hook、run-scoped状态和完成判定。当前源码不保留正常模型执行体，不创建额外项目沙箱、不修改代理/域名/权限。本维护入口不是独立只读复核权限或全进程源码保护证明；它也不恢复已退役的日常研究串联。
 脚本聚焦测试与已授权的宿主只读检测不自动授权模型或完整 Gate；实际执行与验收状态记录在对应 Change 证据中。
 
 Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完新运行后，仅在宿主 Terminal 使用：
@@ -66,13 +67,13 @@ Execution Replay 的准备与 finalizer 仍复用既有确定性 CLI。准备完
 既有失败 run 不复用、不补写；使用原 source_run 和新的目录/run_id 重新 prepare。
 只有对应重放的真实执行与 finalizer 证据齐全时才能声明该次 Replay 通过；文档中的入口说明不是实际验收证明。
 
-普通股专项运行在启动模型前还会验证实际 Hook 紧凑 JSON 不超过 256 KiB。超限、附件绑定不完整或运行包重建漂移都在创建 Codex 进程前失败。模型运行采用独立本地进程组；超时后有界发送 TERM/KILL 并记录清理结果，远端取消状态无法核实时保持 `UNKNOWN`。这些行为不授予自动模型重试或额外模型预算。
+旧普通股运行包仍可验证原紧凑上下文、附件、重建绑定及进程结果；256 KiB、进程组TERM/KILL与远端取消UNKNOWN是冻结旧执行契约，不是当前正常研究的进程实现。当前业务校验和显式维护均不授予自动模型重试或额外预算。
 
 普通股自动采集、增量 checkpoint、报告严格复用、确定性补存及备份恢复见 [Company Research Memory 运行说明](company-research-memory.md)。全复用运行会直接确定性收尾，不启动父模型；`checked_at` 不能解释为报告已由模型重新研究到该时间。
 
 ## 模型与消耗
 
-保留 Sol 常规开发、Astra 复杂分析的分工与成本控制；新产品运行（完整 fixture、普通股、多维、独立反证、CIO、重复 Runtime）及新 `dev_eval` 语义评分/Calibration 默认统一为 `gpt-6-luna`。用户明确选择主开发会话模型时尊重其选择，不额外要求产品 `dispute_id` 或批准凭证，也不要求根开发默认模型等于产品 `development_default`。开发子 Agent 继续按职责和已有配置选模；Reviewer 使用其实际生效配置，不承诺跟随主会话自动切换，未观测到实际模型时标未确认。
+保留用户手动选择开发主会话及既有开发分工，不额外切换模型。正常原生研究使用所选宿主实际生效的用户选择或合法默认，公共方法和业务工具不强制gpt型号；actual model未知保持UNVERIFIED，配置值不替代执行观察。另获授权的旧冻结执行维护与独立dev_eval语义评分/Calibration仍按原`gpt-6-luna`默认及各自冻结锁；历史Terra等不改写，评分不跟随原生研究模型自动切换。Reviewer使用实际生效配置，未知时不承诺跟随主会话。
 
 当前产品路由权威来源为 [model-routing.json](../../product/model-routing.json)，政策版本为 1.1.0。新评分准备由确定性层冻结 `grader_model`，实际模型、可信结果装配、局部修订与完成校验必须一致，错误模型拒绝。旧候选、历史包和密封 Replay 保留原模型与 hash；没有新模型字段的历史 Runtime Eval 沿用原 Terra 读取契约，历史证明仍按其原冻结资源核验，不重标为 Luna，也不因当前配置改变改写历史。显式受支持模型请求如实记录；已批准历史包可显式消费其原模型，不静默回退。产品 `architecture_dispute` 仍需原争议 ID 和人工批准，该条件不反向约束手动开发选模。新默认和配置一致不等于实际模型可用、评分质量或候选晋升通过。
 

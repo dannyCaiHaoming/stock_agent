@@ -2894,206 +2894,28 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 key: value for key, value in manifest.items() if key != "manifest_hash"
             })
             manifest_path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(CommonStockStageError, 'COMMON_STOCK_STAGE_MANIFEST_BINDING_INVALID'):
+                _validate_common_stock_stage_run_package(ROOT, run)
             with patch("product.runtime.common_stock_stage._run_bounded_process_group") as process:
-                with self.assertRaisesRegex(CommonStockStageError, "MANIFEST_BINDING_INVALID"):
+                with self.assertRaisesRegex(CommonStockStageError, "NATIVE_HOST_EXECUTION_REQUIRED"):
                     launch_common_stock_stage(ROOT, run_dir=run)
                 process.assert_not_called()
 
-    def test_launcher_installs_parent_stop_barrier_and_documents_wait_semantics(self):
+    def test_historical_company_packet_keeps_period_guidance_but_launcher_is_retired(self):
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare_stage(temp, count=1)
-            with patch("product.runtime.common_stock_stage._run_bounded_process_group") as process:
-                process.return_value = {
-                    "stdout": "", "stderr": "expected test failure",
-                    "process_exit_code": 1, "timed_out": False,
-                    "local_process_group": {
-                        "pid": 123, "term_sent": False, "kill_sent": False,
-                        "cleanup_complete": True,
-                    },
-                    "remote_cancellation_status": "NOT_APPLICABLE",
-                }
-                result, code = launch_common_stock_stage(ROOT, run_dir=run)
-            self.assertEqual("FAILED", result["status"])
-            self.assertEqual(7, code)
-            command = process.call_args.args[0]
-            environment = process.call_args.kwargs["environment"]
-            self.assertEqual(1, command.count("--ignore-user-config"))
-            self.assertTrue(any(item.startswith("hooks.Stop=") for item in command))
-            profile_overrides = [
-                item for item in command
-                if item.startswith("agents.runtime_company_analyst={")
-            ]
-            self.assertEqual(1, len(profile_overrides))
-            self.assertNotIn("runtime_common_stock_analyst", " ".join(command))
-            self.assertEqual(
-                str((run / "invocation/parent-stop-events.jsonl").resolve()),
-                environment["STOCK_AGENT_PARENT_STOP_LOG"],
-            )
-            manifest = json.loads(
-                (run / "invocation/environment-manifest.json").read_text(encoding="utf-8")
-            )
-            selected_profile = Path(manifest["selected_company_agent_profile"])
-            self.assertFalse(selected_profile.exists())  # 隔离源码在调用结束后按原契约销毁。
-            self.assertIn(str(selected_profile), profile_overrides[0])
-            self.assertEqual(
-                hashlib.sha256((ROOT / "product/.codex/agents/runtime_company_analyst.toml").read_bytes()).hexdigest(),
-                manifest["selected_company_agent_profile_hash"],
-            )
-            self.assertEqual(
-                json.loads((run / "run_manifest.json").read_text(encoding="utf-8"))["agent_binding"]["content_hash"],
-                manifest["selected_company_agent_profile_hash"],
-            )
-            self.assertEqual(
-                str((run / "invocation/parent-stop-events.jsonl").resolve()),
-                manifest["parent_stop_log"],
-            )
-            prompt = (run / "invocation/prompt.txt").read_text(encoding="utf-8")
-            self.assertIn("`wait_agent` 必须显式使用 `timeout_ms=600000`", prompt)
-            self.assertIn("空 `receiver_thread_ids`", prompt)
             packet = build_common_stock_dispatch_packet(ROOT, run, "company_research_1")
             self.assertIn("`YYYY-MM-DD` ASCII", packet["instruction"])
             self.assertIn("不得以“上述两期/两个季度”代替期间", packet["instruction"])
-            self.assertIn("不得以固定 wait 次数", prompt)
-            self.assertIn("不得发送 follow-up 或反复 list", prompt)
+            with patch("product.runtime.common_stock_stage._run_bounded_process_group") as process:
+                with self.assertRaisesRegex(CommonStockStageError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                    launch_common_stock_stage(ROOT, run_dir=run)
+                process.assert_not_called()
+            self.assertFalse((run/"invocation").exists())
 
-    def test_launcher_timeout_and_nonzero_paths_finalize_all_state_views(self):
-        outcomes = (
-            ({
-                "stdout": "", "stderr": "timeout", "process_exit_code": 124,
-                "timed_out": True,
-                "local_process_group": {
-                    "pid": 123, "term_sent": True, "kill_sent": True,
-                    "cleanup_complete": True,
-                },
-                "remote_cancellation_status": "UNKNOWN",
-            }, "TIMEOUT", "COMMON_STOCK_STAGE_TIMEOUT"),
-            ({
-                "stdout": "", "stderr": "failed", "process_exit_code": 9,
-                "timed_out": False,
-                "local_process_group": {
-                    "pid": 124, "term_sent": False, "kill_sent": False,
-                    "cleanup_complete": True,
-                },
-                "remote_cancellation_status": "NOT_APPLICABLE",
-            }, "FAILED", "COMMON_STOCK_CODEX_PROCESS_FAILED"),
-        )
-        for outcome, execution_status, failure_code in outcomes:
-            with self.subTest(execution_status=execution_status), tempfile.TemporaryDirectory() as temp:
-                run, _ = self.prepare_stage(temp, count=1)
-                with patch(
-                    "product.runtime.common_stock_stage._run_bounded_process_group",
-                    return_value=outcome,
-                ):
-                    result, code = launch_common_stock_stage(ROOT, run_dir=run)
-                self.assertEqual(7, code)
-                self.assertEqual("FAILED", result["status"])
-                coverage = json.loads((run / "research/coverage.json").read_text())
-                stage = json.loads((run / "research/stage.json").read_text())
-                process = json.loads((run / "invocation/process-result.json").read_text())
-                item = coverage["items"][0]
-                self.assertEqual(execution_status, item["execution_status"])
-                self.assertEqual("FAILED", item["research_status"])
-                self.assertEqual("FAILED", item["coverage_status"])
-                self.assertEqual(failure_code, item["failure_code"])
-                self.assertEqual("FAILED", coverage["stage_status"])
-                self.assertEqual(coverage, stage["coverage"])
-                self.assertEqual("FAILED", process["process_status"])
-                self.assertEqual("FAILED", process["stage_status"])
-                self.assertEqual(failure_code, process["failure_code"])
 
-    def test_launcher_missing_final_or_stop_does_not_leave_queued(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run, _ = self.prepare_stage(temp, count=1)
 
-            def successful_process_without_stop(command, **_kwargs):
-                final_path = Path(command[command.index("--output-last-message") + 1])
-                final_path.write_text(json.dumps({
-                    "stage": "COMMON_STOCK_RESEARCH",
-                    "run_id": "native-stage-run", "dispatched": 1,
-                }), encoding="utf-8")
-                return {
-                    "stdout": "", "stderr": "", "process_exit_code": 0,
-                    "timed_out": False,
-                    "local_process_group": {
-                        "pid": 125, "term_sent": False, "kill_sent": False,
-                        "cleanup_complete": True,
-                    },
-                    "remote_cancellation_status": "NOT_APPLICABLE",
-                }
 
-            with patch(
-                "product.runtime.common_stock_stage._run_bounded_process_group",
-                side_effect=successful_process_without_stop,
-            ):
-                result, code = launch_common_stock_stage(ROOT, run_dir=run)
-            self.assertEqual(7, code)
-            self.assertEqual("COMMON_STOCK_DISPATCH_PROOF_INCOMPLETE", result["failure_code"])
-            coverage = json.loads((run / "research/coverage.json").read_text())
-            self.assertEqual("FAILED", coverage["items"][0]["execution_status"])
-
-    def test_bounded_process_group_terminates_hanging_child_tree(self):
-        with tempfile.TemporaryDirectory() as temp:
-            result = _run_bounded_process_group(
-                [
-                    sys.executable, "-c",
-                    (
-                        "import subprocess,sys,time;"
-                        "p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(60)']);"
-                        "print(p.pid,flush=True);time.sleep(60)"
-                    ),
-                ],
-                prompt="", cwd=Path(temp), environment=os.environ,
-                timeout_seconds=0.1, termination_grace_seconds=0.2,
-            )
-            self.assertTrue(result["timed_out"])
-            self.assertTrue(result["local_process_group"]["term_sent"])
-            self.assertTrue(result["local_process_group"]["cleanup_complete"])
-            child_pid = int(result["stdout"].strip().splitlines()[0])
-            child_gone = False
-            for _ in range(20):
-                try:
-                    os.kill(child_pid, 0)
-                except ProcessLookupError:
-                    child_gone = True
-                    break
-                time.sleep(0.05)
-            self.assertTrue(child_gone)
-
-    def test_model_source_write_isolated_and_discarded_without_touching_workspace(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run, _ = self.prepare_stage(temp, count=1)
-            active_before = (ROOT / "product/runtime/common_stock_stage.py").read_bytes()
-
-            def mutate_isolated_source(_command, **kwargs):
-                sentinel = Path(kwargs["cwd"]) / "runtime/common_stock_stage.py"
-                sentinel.write_text(
-                    sentinel.read_text(encoding="utf-8") + "\n# model-write-sentinel\n",
-                    encoding="utf-8",
-                )
-                return {
-                    "stdout": "", "stderr": "failed after sentinel",
-                    "process_exit_code": 1, "timed_out": False,
-                    "local_process_group": {
-                        "pid": 126, "term_sent": False, "kill_sent": False,
-                        "cleanup_complete": True,
-                    },
-                    "remote_cancellation_status": "NOT_APPLICABLE",
-                }
-
-            with patch(
-                "product.runtime.common_stock_stage._run_bounded_process_group",
-                side_effect=mutate_isolated_source,
-            ):
-                _result, code = launch_common_stock_stage(ROOT, run_dir=run)
-            self.assertEqual(7, code)
-            process = json.loads((run / "invocation/process-result.json").read_text())
-            self.assertTrue(process["source_integrity_unchanged"])
-            self.assertFalse(process["isolated_source_integrity_unchanged"])
-            self.assertTrue(process["isolated_source_discarded"])
-            self.assertEqual(
-                active_before,
-                (ROOT / "product/runtime/common_stock_stage.py").read_bytes(),
-            )
 
     def test_launch_rejects_consistently_resigned_stage_and_invocation_drift(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -3185,23 +3007,8 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertEqual("NOT_RESEARCHED", not_selected["coverage_status"])
 
     @staticmethod
-    def dispatch_payload(run, task, *, parent="parent-session", number=0):
-        return {
-            "hook_event_name": "PreToolUse", "session_id": parent,
-            "turn_id": "parent-turn", "tool_name": "collaborationspawn_agent",
-            "tool_use_id": f"tool-{number}", "cwd": str(ROOT / "product"),
-            "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-            "tool_input": {
-                "agent_type": "runtime_company_analyst", "task_name": task["task_name"],
-                "fork_turns": "none",
-                "message": build_common_stock_dispatch_message(ROOT, run, task["task_name"]),
-            },
-        }
-
-    @staticmethod
     def hook_environment(run):
         invocation = run / "invocation"
-        invocation.mkdir(exist_ok=True)
         return {
             "STOCK_AGENT_RUN_DIR": str(run),
             "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
@@ -3210,18 +3017,6 @@ class CommonStockNativeStageTests(unittest.TestCase):
             "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst",
             "STOCK_AGENT_COMMON_STOCK_STAGE": STAGE_VERSION,
         }
-
-    @staticmethod
-    def event(event_name, *, parent, child, turn, message=None):
-        value = {
-            "hook_event_name": event_name, "session_id": parent, "turn_id": turn,
-            "agent_id": child, "agent_type": "runtime_company_analyst",
-            "model": "gpt-5.6-terra", "cwd": str(ROOT / "product"),
-            "permission_mode": "workspace-write", "stop_hook_active": False,
-        }
-        if message is not None:
-            value["last_assistant_message"] = message
-        return value
 
     def test_stage_package_supports_two_independent_same_agent_dispatches_and_mcp(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -3391,288 +3186,114 @@ class CommonStockNativeStageTests(unittest.TestCase):
             self.assertNotIn("winner", packet["evidence_conflicts"][0])
             self.assertIn("禁止静默选", packet["instruction"])
 
-    def test_hook_does_not_trust_parent_message_and_rejects_oversized_payload(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run, _ = self.prepare_stage(temp)
-            env = self.hook_environment(run)
-            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
-            payload = self.dispatch_payload(run, task)
-            payload["tool_input"]["message"] = "父线程的自然语言只负责触发；研究上下文由 Hook 提供。"
-            accepted, _ = handle_hook_event(payload, environ=env)
-            self.assertEqual("ALLOW", accepted["decision"])
-            self.assertFalse(accepted["dispatch_binding"]["parent_message_authoritative"])
-            self.assertEqual(task["packet_hash"], accepted["dispatch_binding"]["packet_hash"])
 
-        with tempfile.TemporaryDirectory() as temp:
-            run, _ = self.prepare_stage(temp)
-            env = self.hook_environment(run)
-            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
-            payload = self.dispatch_payload(run, task)
-            payload["tool_input"]["message"] = "x" * 4097
-            rejected, response = handle_hook_event(payload, environ=env)
-            self.assertEqual("DENY_DISPATCH_CONTRACT", rejected["decision"])
-            self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
 
-    def test_hook_enforces_three_slots_then_allows_refill_after_bound_stop(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run, _ = self.prepare_stage(temp, count=4)
-            env = self.hook_environment(run)
-            tasks = json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
-            parent = "parent-session"
-            for number, task in enumerate(tasks[:3]):
-                record, _ = handle_hook_event(
-                    self.dispatch_payload(run, task, parent=parent, number=number), environ=env
-                )
-                self.assertEqual("ALLOW", record["decision"])
-            denied, response = handle_hook_event(
-                self.dispatch_payload(run, tasks[3], parent=parent, number=3), environ=env
-            )
-            self.assertEqual("DENY_CONCURRENCY_LIMIT", denied["decision"])
-            self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
 
-            first = tasks[0]
-            request = json.loads((run / first["request_path"]).read_text())
-            native = CommonStockDispatchTests.semantic_draft(valid_report(request), packet=build_common_stock_dispatch_packet(ROOT, run, first["task_name"]))
-            handle_hook_event(
-                self.event("SubagentStart", parent=parent, child="child-0", turn="turn-0"),
-                environ=env,
-            )
-            stopped, _ = handle_hook_event(
-                self.event(
-                    "SubagentStop", parent=parent, child="child-0", turn="turn-0",
-                    message=json.dumps(native, ensure_ascii=False),
-                ),
-                environ=env,
-            )
-            self.assertEqual("SubagentStop", stopped["hook_event_name"])
-            allowed, _ = handle_hook_event(
-                self.dispatch_payload(run, tasks[3], parent=parent, number=4), environ=env
-            )
-            self.assertEqual("ALLOW", allowed["decision"])
 
-    def test_hook_requires_wait_while_research_task_is_active(self):
+
+
+    def save_company_business_fixture(self, run, task, report=None):
+        """真实语义装配、业务校验和JSON/Markdown保存；不写执行事件。"""
+        from product.runtime.common_stock_stage import assemble_common_stock_semantic_draft
+        request = json.loads((run / task['request_path']).read_text())
+        authored = valid_report(request) if report is None else report
+        packet = build_common_stock_dispatch_packet(ROOT, run, task['task_name'])
+        native = CommonStockDispatchTests.semantic_draft(authored, packet=packet)
+        original = copy.deepcopy(native)
+        draft = assemble_common_stock_semantic_draft(ROOT, native, request=request, packet=packet)
+        report = envelope_equity_research_draft(draft, request=request,
+            skill_execution=valid_report(request)['skill_execution'], report_id=authored['report_id'],
+            calculation_artifact_ids=authored.get('artifact_refs', []))
+        gate = json.loads((run / 'evidence/gate.json').read_text())
+        output = persist_equity_research_report(run / 'research/reports', report=report, request=request,
+            evidence=[fact for fact in gate['allowed_evidence'] if fact['evidence_id'] in request['allowed_evidence_ids']],
+            calculation_artifact_ids=authored.get('artifact_refs', []))
+        self.assertEqual(native, original)
+        return report, output
+
+    def write_historical_company_fixture(self, run, task, report=None):
+        """只供旧归集/Memory消费者读取的明示Start/Stop；不是本次宿主执行。"""
+        directory = run / 'invocation'
+        directory.mkdir(exist_ok=True)
+        child = 'historical:' + task['task_name']
+        dispatch = {'task_name': task['task_name'], 'decision': 'ALLOW'}
+        events = [
+            {'hook_event_name': 'SubagentStart', 'child_session_id': child,
+             'parent_session_id': 'historical-fixture', 'agent_type': 'runtime_company_analyst',
+             'observed_at': '2026-09-11T12:00:00Z'},
+            {'hook_event_name': 'SubagentStop', 'child_session_id': child,
+             'parent_session_id': 'historical-fixture', 'agent_type': 'runtime_company_analyst',
+             'observed_at': '2026-09-11T12:01:00Z',
+             'output_binding': {'invocation_id': task['invocation_id']},
+             'output_capture': {'status': 'FAILED' if report is None else 'SAVED',
+                                'output_hash': None if report is None else canonical_hash(report)}},
+        ]
+        for name, rows in (('subagent-dispatches.jsonl', [dispatch]), ('subagent-events.jsonl', events)):
+            with (directory / name).open('a') as stream:
+                for row in rows:
+                    stream.write(json.dumps({**row, 'event_hash': canonical_hash(row)}) + '\n')
+
+    def test_invalid_native_report_is_rejected_before_business_save(self):
+        from product.runtime.common_stock_stage import assemble_common_stock_semantic_draft
         with tempfile.TemporaryDirectory() as temp:
             run, _ = self.prepare_stage(temp, count=1)
-            env = self.hook_environment(run)
-            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
-            parent = "parent-session"
-            record, _ = handle_hook_event(
-                self.dispatch_payload(run, task, parent=parent), environ=env,
-            )
-            self.assertEqual("ALLOW", record["decision"])
-
-            for number, tool_name in enumerate((
-                "collaborationlist_agents",
-                "collaborationfollowup_task",
-                "collaborationinterrupt_agent",
-            )):
-                blocked, response = handle_hook_event({
-                    "hook_event_name": "PreToolUse", "session_id": parent,
-                    "turn_id": "parent-turn", "tool_name": tool_name,
-                    "tool_use_id": f"control-{number}", "cwd": str(ROOT / "product"),
-                    "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-                    "tool_input": {"target": "company_research_1"},
-                }, environ=env)
-                self.assertEqual("DENY_ACTIVE_RESEARCH_CONTROL", blocked["decision"])
-                self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
-
-            allowed, response = handle_hook_event({
-                "hook_event_name": "PreToolUse", "session_id": parent,
-                "turn_id": "parent-turn", "tool_name": "collaborationwait_agent",
-                "tool_use_id": "wait-1", "cwd": str(ROOT / "product"),
-                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-                "tool_input": {"timeout_ms": 300000},
-            }, environ=env)
-            self.assertEqual("IGNORE_NON_AGENT_TOOL", allowed["decision"])
-            self.assertEqual({}, response)
-
-            blocked, response = handle_hook_event({
-                "hook_event_name": "PreToolUse", "session_id": parent,
-                "turn_id": "parent-turn", "tool_name": "collaborationwait_agent",
-                "tool_use_id": "wait-short", "cwd": str(ROOT / "product"),
-                "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-                "tool_input": {},
-            }, environ=env)
-            self.assertEqual("DENY_SHORT_RESEARCH_WAIT", blocked["decision"])
-            self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
-
-    def test_invalid_native_report_is_retained_only_as_rejected_output(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run, _ = self.prepare_stage(temp, count=1)
-            env = self.hook_environment(run)
-            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
-            parent = "parent-session"
-            allowed, _ = handle_hook_event(
-                self.dispatch_payload(run, task, parent=parent), environ=env
-            )
-            self.assertEqual("ALLOW", allowed["decision"])
-            handle_hook_event(
-                self.event("SubagentStart", parent=parent, child="child-invalid", turn="turn-invalid"),
-                environ=env,
-            )
-            request = json.loads((run / task["request_path"]).read_text())
+            task = json.loads((run / 'research/dispatch-index.json').read_text())['tasks'][0]
+            request = json.loads((run / task['request_path']).read_text())
             full = valid_report(request)
-            full["claims"][0]["evidence_refs"] = []
-            full["claims"][0]["assumption_ids"] = []
-            full["claims"][0]["calculation_refs"] = []
-            native = CommonStockDispatchTests.semantic_draft(full, packet=build_common_stock_dispatch_packet(ROOT, run, task["task_name"]))
-            stopped, _ = handle_hook_event(
-                self.event(
-                    "SubagentStop", parent=parent, child="child-invalid", turn="turn-invalid",
-                    message=json.dumps(native, ensure_ascii=False),
-                ),
-                environ=env,
-            )
-            self.assertEqual("FAILED", stopped["output_capture"]["status"])
-            rejected = run / stopped["output_capture"]["rejected_path"]
-            self.assertTrue(rejected.is_file())
-            self.assertFalse((run / "research/reports").exists())
+            full['claims'][0].update(evidence_refs=[], assumption_ids=[], calculation_refs=[])
+            packet = build_common_stock_dispatch_packet(ROOT, run, task['task_name'])
+            native = CommonStockDispatchTests.semantic_draft(full, packet=packet)
+            original = copy.deepcopy(native)
+            with self.assertRaises(ValueError):
+                self.save_company_business_fixture(run, task, full)
+            wrong = CommonStockDispatchTests.semantic_draft(valid_report(request), packet=packet)
+            wrong['invocation_id'] = 'wrong-invocation'
+            with self.assertRaises(ValueError):
+                assemble_common_stock_semantic_draft(ROOT, wrong, request=request, packet=packet)
+            self.assertEqual(native, original)
+            self.assertFalse((run / 'research/reports').exists())
+            self.assertFalse((run / 'invocation').exists())
+            self.write_historical_company_fixture(run, task)
             result = finalize_common_stock_stage_run(ROOT, run)
-            self.assertEqual("FAILED", result["status"])
-            self.assertEqual(0, result["completed"])
-            proof = json.loads((run / "research/execution-proof.json").read_text())
-            self.assertFalse(proof["all_reports_valid"])
-            coverage = json.loads((run / "research/coverage.json").read_text())
-            self.assertEqual("REPORT_MISSING", coverage["items"][0]["failure_code"])
+            self.assertEqual('FAILED', result['status'])
+            self.assertEqual(0, result['completed'])
+            proof = json.loads((run / 'research/execution-proof.json').read_text())
+            self.assertFalse(proof['all_reports_valid'])
+            coverage = json.loads((run / 'research/coverage.json').read_text())
+            self.assertEqual('REPORT_MISSING', coverage['items'][0]['failure_code'])
 
-    def test_parent_stop_requires_same_session_and_frozen_invocation_terminal(self):
-        with tempfile.TemporaryDirectory() as temp:
-            run, _ = self.prepare_stage(temp, count=1)
-            env = self.hook_environment(run)
-            task = json.loads((run / "research/dispatch-index.json").read_text())["tasks"][0]
-            parent = "parent-session"
-            allowed, _ = handle_hook_event(
-                self.dispatch_payload(run, task, parent=parent), environ=env
-            )
-            self.assertEqual("ALLOW", allowed["decision"])
 
-            parent_stop = {
-                "hook_event_name": "Stop",
-                "session_id": parent,
-                "turn_id": "parent-turn",
-                "cwd": str(ROOT / "product"),
-                "stop_hook_active": False,
-                "last_assistant_message": json.dumps({"dispatched": 1}),
-            }
-            record, response = handle_hook_event(parent_stop, environ=env)
-            self.assertEqual("BLOCK", record["decision"])
-            self.assertEqual([task["task_name"]], record["missing_task_names"])
-            self.assertEqual("block", response["decision"])
 
-            child = "child-one"
-            handle_hook_event(
-                self.event("SubagentStart", parent=parent, child=child, turn="child-turn"),
-                environ=env,
-            )
-            record, response = handle_hook_event(parent_stop, environ=env)
-            self.assertEqual("BLOCK", record["decision"])
-            self.assertEqual("block", response["decision"])
-
-            request = json.loads((run / task["request_path"]).read_text())
-            native = CommonStockDispatchTests.semantic_draft(valid_report(request), packet=build_common_stock_dispatch_packet(ROOT, run, task["task_name"]))
-            wrong = dict(native)
-            wrong["invocation_id"] = "wrong-invocation"
-            handle_hook_event(
-                self.event(
-                    "SubagentStop", parent="other-parent", child=child, turn="other-turn",
-                    message=json.dumps(native, ensure_ascii=False),
-                ),
-                environ=env,
-            )
-            record, _ = handle_hook_event(parent_stop, environ=env)
-            self.assertEqual("BLOCK", record["decision"])
-
-            stopped, _ = handle_hook_event(
-                self.event(
-                    "SubagentStop", parent=parent, child=child, turn="child-turn",
-                    message=json.dumps(wrong, ensure_ascii=False),
-                ),
-                environ=env,
-            )
-            self.assertEqual("FAILED", stopped["output_capture"]["status"])
-            self.assertIn(
-                "RESEARCH_OUTPUT_IDENTITY_CONFLICT",
-                stopped["output_capture"]["failure_code"],
-            )
-            record, response = handle_hook_event(parent_stop, environ=env)
-            self.assertEqual("ALLOW", record["decision"])
-            self.assertEqual([task["task_name"]], record["completed_task_names"])
-            self.assertEqual({}, response)
-
-            audit_text = (run / "invocation/parent-stop-events.jsonl").read_text(
-                encoding="utf-8"
-            )
-            audit = json.loads(audit_text.splitlines()[-1])
-            self.assertNotIn("last_assistant_message", audit)
-            self.assertNotIn("prompt", audit)
-            self.assertNotIn("transcript", audit_text)
-
-    def test_hook_allows_distinct_tasks_denies_duplicate_and_finalizes_bound_reports(self):
+    def test_distinct_business_reports_feed_historical_coverage_and_eval_consumers(self):
         with tempfile.TemporaryDirectory() as temp:
             run, handoff = self.prepare_stage(temp)
-            env = self.hook_environment(run)
-            index = json.loads((run / "research/dispatch-index.json").read_text())
-            parent = "parent-session"
-            for number, task in enumerate(index["tasks"]):
-                message = build_common_stock_dispatch_message(ROOT, run, task["task_name"])
-                payload = {
-                    "hook_event_name": "PreToolUse", "session_id": parent,
-                    "turn_id": "parent-turn", "tool_name": "collaborationspawn_agent",
-                    "tool_use_id": f"tool-{number}", "cwd": str(ROOT / "product"),
-                    "model": "gpt-5.6-terra", "permission_mode": "workspace-write",
-                    "tool_input": {"agent_type": "runtime_company_analyst", "task_name": task["task_name"],
-                                   "fork_turns": "none", "message": message},
-                }
-                record, response = handle_hook_event(payload, environ=env)
-                self.assertEqual("ALLOW", record["decision"])
-                self.assertEqual({}, response)
-            duplicate = copy.deepcopy(payload)
-            duplicate["tool_use_id"] = "tool-duplicate"
-            record, response = handle_hook_event(duplicate, environ=env)
-            self.assertEqual("DENY_DUPLICATE_AGENT", record["decision"])
-            self.assertEqual("deny", response["hookSpecificOutput"]["permissionDecision"])
-
-            children = []
-            for number, task in enumerate(index["tasks"]):
-                child, turn = f"child-{number}", f"child-turn-{number}"
-                children.append((child, turn, task))
-                start, response = handle_hook_event(
-                    self.event("SubagentStart", parent=parent, child=child, turn=turn),
-                    environ=env,
-                )
-                context = json.loads(response["hookSpecificOutput"]["additionalContext"])
-                raw_context = response["hookSpecificOutput"]["additionalContext"]
-                self.assertEqual(task["task_name"], start["context_binding"]["task_name"])
-                self.assertEqual(task["packet_hash"], start["context_binding"]["packet_hash"])
-                self.assertEqual(task["invocation_id"], context["identity"]["invocation_id"])
-                self.assertEqual(
-                    context["context_budget"]["actual_bytes"],
-                    len(raw_context.encode("utf-8")),
-                )
-            mcp_path = run / "events/mcp/events.jsonl"
-            mcp_path.parent.mkdir(parents=True)
-            from product.runtime.fixture_mcp import StatelessFixtureTools
-            first_request = json.loads((run / children[0][2]["request_path"]).read_text())
+            index = json.loads((run / 'research/dispatch-index.json').read_text())
+            first = index['tasks'][0]
+            packet = build_common_stock_dispatch_packet(ROOT, run, first['task_name'])
+            request = json.loads((run / first['request_path']).read_text())
             tools = StatelessFixtureTools(default_run_dir=run)
-            tools.calculate(run_id=first_request["run_id"], invocation_id=first_request["invocation_id"],
-                agent="runtime_company_analyst", calculation_id="calc-valuation-one", operation="ratio",
-                evidence_ids=first_request["allowed_evidence_ids"])
-            mcp_path.write_text(json.dumps(tools.events[-1]) + "\n", encoding="utf-8")
-            for position, (child, turn, task) in enumerate(children):
-                request = json.loads((run / task["request_path"]).read_text())
+            short_ids = list(packet['reference_map']['evidence'])
+            tools.calculate(run_id=request['run_id'], invocation_id=request['invocation_id'],
+                agent='runtime_company_analyst', calculation_id='calc-valuation-one', operation='ratio',
+                evidence_ids=short_ids)
+            mcp_path = run / 'events/mcp/events.jsonl'
+            mcp_path.parent.mkdir(parents=True)
+            mcp_path.write_text(json.dumps(tools.events[-1]) + '\n', encoding='utf-8')
+            reports = []
+            for position, task in enumerate(index['tasks']):
+                request = json.loads((run / task['request_path']).read_text())
                 full = valid_report(request)
                 if position == 0:
-                    full["claims"][0]["calculation_refs"] = ["calc-valuation-one"]
-                    full["artifact_refs"] = ["calc-valuation-one"]
+                    full['claims'][0]['calculation_refs'] = ['calc-valuation-one']
+                    full['artifact_refs'] = ['calc-valuation-one']
                 if position == 1:
-                    full["status"] = "LOW_CONFIDENCE"
-                native = CommonStockDispatchTests.semantic_draft(full, packet=build_common_stock_dispatch_packet(ROOT, run, task["task_name"]))
-                record, _ = handle_hook_event(
-                    self.event("SubagentStop", parent=parent, child=child, turn=turn,
-                               message=json.dumps(native, ensure_ascii=False)),
-                    environ=env,
-                )
-                self.assertEqual("SAVED", record["output_capture"]["status"])
+                    full['status'] = 'LOW_CONFIDENCE'
+                report, output = self.save_company_business_fixture(run, task, full)
+                self.assertEqual(json.loads(Path(output['json']).read_text()), report)
+                reports.append((task, report))
+            self.assertFalse((run / 'invocation').exists())
+            for task, report in reports:
+                self.write_historical_company_fixture(run, task, report)
             result = finalize_common_stock_stage_run(ROOT, run)
             self.assertEqual("PASSED", result["status"])
             self.assertEqual(2, result["completed"])
@@ -3701,7 +3322,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
             semantic_path.write_text(json.dumps(CommonStockFocusedEvalTests.semantic_draft(job)), encoding="utf-8")
             finalize_common_stock_eval_job(
                 eval_dir=eval_dir, semantic_result_path=semantic_path,
-                actual_model="gpt-test-evaluator", input_binding_hash=job["input_hash"]
+                actual_model=job["grader_model"], input_binding_hash=job["input_hash"]
             )
             updated = json.loads((run / "research/coverage.json").read_text())
             evaluated = next(
@@ -3996,30 +3617,9 @@ class CommonStockNativeStageTests(unittest.TestCase):
             task = json.loads(
                 (first / "research/dispatch-index.json").read_text()
             )["tasks"][0]
-            env = self.hook_environment(first)
-            parent = "persistent-parent"
-            allowed, _ = handle_hook_event(
-                self.dispatch_payload(first, task, parent=parent), environ=env,
-            )
-            self.assertEqual("ALLOW", allowed["decision"])
-            handle_hook_event(
-                self.event(
-                    "SubagentStart", parent=parent,
-                    child="persistent-child", turn="persistent-turn",
-                ),
-                environ=env,
-            )
-            request = json.loads((first / task["request_path"]).read_text())
-            native = CommonStockDispatchTests.semantic_draft(valid_report(request), packet=build_common_stock_dispatch_packet(ROOT, first, task["task_name"]))
-            stopped, _ = handle_hook_event(
-                self.event(
-                    "SubagentStop", parent=parent,
-                    child="persistent-child", turn="persistent-turn",
-                    message=json.dumps(native, ensure_ascii=False),
-                ),
-                environ=env,
-            )
-            self.assertEqual("SAVED", stopped["output_capture"]["status"])
+            report, _ = self.save_company_business_fixture(first, task)
+            self.assertFalse((first / 'invocation').exists())
+            self.write_historical_company_fixture(first, task, report)
             with patch(
                 "product.runtime.common_stock_stage._persist_validated_report_package",
                 side_effect=OSError("synthetic memory write failure"),
@@ -4063,9 +3663,8 @@ class CommonStockNativeStageTests(unittest.TestCase):
             with patch(
                 "product.runtime.common_stock_stage._run_bounded_process_group"
             ) as process:
-                result, code = launch_common_stock_stage(ROOT, run_dir=second)
+                result = finalize_common_stock_stage_run(ROOT, second)
             process.assert_not_called()
-            self.assertEqual(0, code)
             self.assertEqual("PASSED", result["status"])
             coverage = json.loads(
                 (second / "research/coverage.json").read_text()
@@ -4075,10 +3674,7 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 gate_for(handoff, "persistent-first")["decision_cutoff"],
                 coverage["items"][0]["original_report_cutoff"],
             )
-            process_result = json.loads(
-                (second / "invocation/process-result.json").read_text()
-            )
-            self.assertFalse(process_result["model_started"])
+            self.assertFalse((second / "invocation/process-result.json").exists())
 
             changed_cutoff = prepare(
                 "persistent-new-cutoff", root / "new-cutoff-run",
@@ -4157,21 +3753,8 @@ class CommonStockNativeStageTests(unittest.TestCase):
                 (mixed_run / "research/dispatch-index.json").read_text()
             )["tasks"][0]
             self.assertEqual("company_research_2", mixed_task["task_name"])
-            failed_process = {
-                "stdout": "", "stderr": "synthetic failure",
-                "process_exit_code": 9, "timed_out": False,
-                "local_process_group": {
-                    "pid": 999, "term_sent": False, "kill_sent": False,
-                    "cleanup_complete": True,
-                },
-                "remote_cancellation_status": "NOT_APPLICABLE",
-            }
-            with patch(
-                "product.runtime.common_stock_stage._run_bounded_process_group",
-                return_value=failed_process,
-            ):
-                result, code = launch_common_stock_stage(ROOT, run_dir=mixed_run)
-            self.assertEqual(7, code)
+            from product.runtime.common_stock_stage import _finalize_failed_common_stock_stage
+            result = _finalize_failed_common_stock_stage(mixed_run, failure_code="COMMON_STOCK_CODEX_PROCESS_FAILED", timed_out=False)
             self.assertEqual("PARTIAL_RESEARCH", result["stage_status"])
             mixed_coverage = json.loads(
                 (mixed_run / "research/coverage.json").read_text()

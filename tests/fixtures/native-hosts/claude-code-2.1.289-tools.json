@@ -1,0 +1,50 @@
+{
+  "source_id": "claude-desktop-prompt-snapshot:069f753a-468a-487d-b8c8-eb53e9cef129",
+  "as_of": "2026-10-07T15:39:45.124Z",
+  "retrieved_at": "2026-10-08T02:30:10.566040+00:00",
+  "cli_version": "2.1.289",
+  "snapshot_timestamps": ["2026-10-07T15:33:16.571Z", "2026-10-07T15:39:45.124Z"],
+  "evidence_scope": "Two equal native prompt_snapshot input_schemas from the specified product-session export; not Provider wire schemas or proof of native execution. No user prompt, task credential, transcript or complete metadata is included.",
+  "echo_wire_tool_inputs": false,
+  "schema_canonical_sha256": {
+    "Agent": "cf237650aa6daa00423d828b8f93bf4787f6bb7ba338286cc68bc711aed36723",
+    "Skill": "3f335f6d6bd8375071f441aaf822bf292a87b30ab7e1fb265eaefb24ec1bdb0f"
+  },
+  "input_schemas": {
+    "Agent": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "description": {"description": "A short (3-5 word) description of the task", "type": "string"},
+        "prompt": {"description": "The task for the agent to perform", "type": "string"},
+        "subagent_type": {"description": "The type of specialized agent to use for this task", "type": "string"},
+        "model": {
+          "description": "Optional model override for this agent. Takes precedence over the agent definition's model frontmatter and the configured default subagent model. If omitted, uses the agent definition's model, else the default (inherits from the parent unless a default subagent model is configured). Ignored for subagent_type: \"fork\" — forks always inherit the parent model.",
+          "type": "string",
+          "enum": ["sonnet", "opus", "haiku", "fable"]
+        },
+        "run_in_background": {
+          "description": "Agents run in the background by default; you will be notified when one completes. Set to false only when your very next action depends on this agent's result and nothing else could usefully happen while it runs — otherwise leave it in the background so the user can hand you other work.",
+          "type": "boolean"
+        },
+        "isolation": {
+          "description": "Isolation mode. \"worktree\" creates a temporary git worktree so the agent works on an isolated copy of the repo. \"remote\" launches the agent in a remote cloud environment (always runs in background; availability is gated).",
+          "type": "string",
+          "enum": ["worktree", "remote"]
+        }
+      },
+      "required": ["description", "prompt"],
+      "additionalProperties": false
+    },
+    "Skill": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "skill": {"description": "The name of a skill from the available-skills list. Do not guess names.", "type": "string"},
+        "args": {"description": "Optional arguments for the skill", "type": "string"}
+      },
+      "required": ["skill"],
+      "additionalProperties": false
+    }
+  }
+}

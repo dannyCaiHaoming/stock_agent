@@ -1,3 +1,4 @@
+"""反证业务、真实stdio及明示历史归集；不模拟正常Hook或作者执行。"""
 from __future__ import annotations
 
 import copy
@@ -6,7 +7,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -16,14 +16,13 @@ from product.runtime.fixture_mcp import (
     StatelessFixtureTools,
     ToolAccessError,
 )
-from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.multidimensional_stage import prepare_multidimensional_stage_run
 from product.runtime.common_stock_stage import prepare_common_stock_stage_run
 from product.council.research_output import persist_equity_research_report
 from tests.test_common_stock_research_contracts import (
     gate_for, stock_handoff, valid_report,
 )
-from tests.test_multidimensional_stage import MultidimensionalStageTests
+from tests import test_multidimensional_stage as dimension_fixtures
 
 from product.runtime.independent_skeptic_stage import (
     DISPATCH_VERSION,
@@ -108,7 +107,7 @@ def prepare_complete_forward(root, *, count=1, single_stock=False):
         stage="INDEPENDENT_COUNTER_THESIS_RESEARCH",
         company_research_run_path=company,
     )
-    MultidimensionalStageTests().complete_with_explicit_gaps(base)
+    dimension_fixtures.MultidimensionalStageTests().complete_with_explicit_gaps(base)
     run = base
     return run
 
@@ -144,38 +143,19 @@ class IndependentSkepticContractTests(unittest.TestCase):
         fields = read_skeptic_evidence_catalog(packet, {'allowed_evidence': facts}, semantic_field_prefix='sec_')
         self.assertEqual(fields['rows'][0]['count'], 2)
 
-    def test_single_stock_grounding_failure_allows_only_one_local_author_revision(self):
-        from tests.test_task_bound_research_tools import TaskBoundResearchToolsTests
+    def test_single_stock_grounding_rejects_then_explicit_scoped_patch_revalidates(self):
+        from tests.test_skeptic_semantic_handoff import SkepticSemanticHandoffTests
         from product.runtime.local_revision import _apply
-        from product.runtime.independent_skeptic_stage import read_skeptic_task_state
+        helper = SkepticSemanticHandoffTests()
         with tempfile.TemporaryDirectory() as temp:
             run = prepare_complete_forward(Path(temp), single_stock=True)
             prepare_skeptic_phase(ROOT, run)
             task = read_dispatch_index(run)['tasks'][0]
-            env = {'STOCK_AGENT_RUN_DIR': str(run),
-                'STOCK_AGENT_SUBAGENT_EVENT_LOG': str(run / 'invocation/skeptic/subagent-events.jsonl'),
-                'STOCK_AGENT_SUBAGENT_DISPATCH_LOG': str(run / 'invocation/skeptic/subagent-dispatches.jsonl'),
-                'STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS': 'runtime_skeptic',
-                'STOCK_AGENT_INDEPENDENT_SKEPTIC_STAGE': 'independent-skeptic-runtime/1.0.0',
-                'STOCK_AGENT_RESEARCH_TASK_NAME': task['task_name']}
-            dispatch = {'hook_event_name': 'PreToolUse', 'session_id': 'grounding-parent', 'turn_id': 'turn',
-                'tool_name': 'spawn_agent', 'tool_use_id': 'grounding-spawn', 'cwd': str(ROOT / 'product'),
-                'model': 'gpt-5.6-terra', 'permission_mode': 'workspace-write',
-                'tool_input': {'agent_type': 'runtime_skeptic', 'task_name': task['task_name'],
-                    'fork_turns': 'none', 'message': '读取冻结首轮上下文。'}}
-            self.assertEqual(handle_hook_event(dispatch, environ=env)[0]['decision'], 'ALLOW')
-            start = {'hook_event_name': 'SubagentStart', 'session_id': 'grounding-parent', 'turn_id': 'turn',
-                'agent_id': 'grounding-child', 'agent_type': 'runtime_skeptic', 'model': 'gpt-5.6-terra',
-                'cwd': str(ROOT / 'product'), 'permission_mode': 'read-only'}
-            _, response = handle_hook_event(start, environ=env)
-            state = read_skeptic_task_state(run, index_ref='research/skeptic/dispatch-index.json')
-            self.assertFalse(state['all_tasks_terminal'])
-            self.assertEqual(state['tasks'][0]['execution_status'], 'RUNNING')
-            view = json.loads(response['hookSpecificOutput']['additionalContext'])
+            packet = build_skeptic_dispatch_packet(ROOT, run, task['task_name'])
+            from product.runtime.independent_skeptic_stage import serialize_skeptic_dispatch_context
+            view = json.loads(serialize_skeptic_dispatch_context(packet))
             refs = view['allowed_evidence_ids'][:1]
-            query = TaskBoundResearchToolsTests().call(run, 'query', {
-                **view['tool_context']['required_identity_arguments'], 'evidence_ids': refs})
-            self.assertNotIn('error', query, query)
+            self.assertNotIn('error', helper.query(run, task, refs))
             bad = {'status': 'INSUFFICIENT_EVIDENCE', 'mode': 'INDEPENDENT_FIRST_PASS', 'scope': task['security_id'],
                 'assumptions': [], 'challenges': [
                     {'challenge_id': 'grounded', 'statement': '单期收入不能证明持续性。', 'evidence_refs': refs,
@@ -185,56 +165,46 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 'evidence_refs': refs, 'counter_evidence_refs': [], 'uncertainties': ['合成接缝'],
                 'data_gaps': ['尚未核验估值'], 'invalidation_conditions': ['后续披露消除疑问'],
                 'confidence': .3, 'confidence_rationale': '仅验证局部纠正，不是经济判断。'}
-            stop = {**start, 'hook_event_name': 'SubagentStop', 'stop_hook_active': False}
-            first, feedback = handle_hook_event({**stop, 'last_assistant_message': json.dumps(bad)}, environ=env)
-            self.assertEqual(first['output_capture']['repair_state'], 'REPAIR_REQUESTED', first)
-            repair = json.loads(feedback['reason'])
-            self.assertFalse(read_skeptic_task_state(run, index_ref='research/skeptic/dispatch-index.json')['all_tasks_terminal'])
-            self.assertEqual(set(repair['allowed_paths']), {'/challenges/1', '/data_gaps'})
+            original = copy.deepcopy(bad)
+            gate_hash = file_hash(run / 'evidence/gate.json')
+            with self.assertRaisesRegex(ValueError, 'SCHEMA_ANY_OF_INVALID'):
+                helper.capture(run, task, bad)
+            self.assertFalse((run / task['report_ref']).exists())
+            # 明示业务补丁范围，不模拟已退役Hook的修订许可或作者身份。
+            paths = ['/challenges/1', '/data_gaps']
             for field in ('status', 'mode', 'confidence', 'assumptions', 'scope', 'challenges/0'):
-                with self.assertRaises(ValueError):
-                    _apply(bad, [{'op': 'replace', 'path': '/' + field, 'value': None}], repair['allowed_paths'])
-            raw = run / first['output_capture']['raw_path']
-            raw_bytes, gate_hash = raw.read_bytes(), file_hash(run / 'evidence/gate.json')
-            revised, response = handle_hook_event({**stop, 'last_assistant_message': json.dumps({
-                'base_draft_ref': repair['base_draft_ref'], 'changes': [
-                    {'op': 'remove', 'path': '/challenges/1'},
-                    {'op': 'replace', 'path': '/data_gaps', 'value': ['未查询估值不能视为数据源没有估值。']}]
-            })}, environ=env)
-            self.assertEqual(revised['output_capture']['status'], 'SAVED', revised)
-            self.assertEqual(response, {})
-            self.assertEqual(raw.read_bytes(), raw_bytes)
+                with self.assertRaisesRegex(ValueError, 'LOCAL_REVISION_OUT_OF_SCOPE'):
+                    _apply(bad, [{'op': 'replace', 'path': '/' + field, 'value': None}], paths)
+            revised = _apply(bad, [
+                {'op': 'remove', 'path': '/challenges/1'},
+                {'op': 'replace', 'path': '/data_gaps', 'value': ['未查询估值不能视为数据源没有估值。']}], paths)
+            capture = helper.capture(run, task, revised)
+            self.assertEqual(capture['status'], 'SAVED')
+            self.assertEqual(bad, original)
             self.assertEqual(file_hash(run / 'evidence/gate.json'), gate_hash)
-            state = read_skeptic_task_state(run, index_ref='research/skeptic/dispatch-index.json')
-            self.assertTrue(state['all_tasks_terminal'])
-            self.assertEqual(state['tasks'][0]['research_status'], 'INSUFFICIENT_EVIDENCE')
-            self.assertEqual(state['content_acceptance'], 'NOT_EVALUATED')
-            self.assertNotIn('challenges', json.dumps(state))
+            self.assertFalse((run / 'invocation/skeptic').exists())
+            helper.write_historical_execution_fixture(run, task, capture)
             report_path = run / task['report_ref']
             report_bytes = report_path.read_bytes()
             altered = json.loads(report_bytes)
             altered['status'] = 'COMPLETE'
             report_path.write_text(json.dumps(altered))
-            with self.assertRaisesRegex(IndependentSkepticStageError, 'REPORT_DRIFT'):
-                read_skeptic_task_state(run, index_ref='research/skeptic/dispatch-index.json')
+            failed = finalize_skeptic_phase(ROOT, run)
+            self.assertEqual(failed['status'], 'PARTIAL')
             report_path.write_bytes(report_bytes)
-            log_path = run / 'invocation/skeptic/subagent-events.jsonl'
-            log_bytes = log_path.read_bytes()
-            forged = [json.loads(line) for line in log_bytes.decode().splitlines()]
-            forged[-1]['trusted_task_binding']['invocation_id'] = 'other-attempt'
-            forged[-1]['event_hash'] = legacy_envelope_hash(forged[-1], hash_field='event_hash')
-            log_path.write_text('\n'.join(json.dumps(row) for row in forged) + '\n')
-            with self.assertRaisesRegex(IndependentSkepticStageError, 'BINDING_INVALID'):
-                read_skeptic_task_state(run, index_ref='research/skeptic/dispatch-index.json')
-            log_path.write_bytes(log_bytes)
-            self.assertEqual(finalize_skeptic_phase(ROOT, run)['status'], 'PARTIAL')
-            third, _ = handle_hook_event({**stop, 'last_assistant_message': json.dumps(bad)}, environ=env)
-            self.assertEqual(third['output_capture']['failure_code'], 'LOCAL_REVISION_LIMIT_EXHAUSTED')
+            self.assertEqual(report_path.read_bytes(), report_bytes)
+            protected = {p: file_hash(p) for p in run.rglob('*') if p.is_file()}
+            with self.assertRaises(FileExistsError):
+                finalize_skeptic_phase(ROOT, run)
+            self.assertEqual(protected, {p: file_hash(p) for p in protected})
 
-    def test_skeptic_32_field_structure_errors_allow_one_author_patch_through_real_hooks(self):
-        from tests.test_task_bound_research_tools import TaskBoundResearchToolsTests
+    def test_skeptic_32_field_structure_errors_accept_explicit_scoped_patch(self):
+        from tests.test_skeptic_semantic_handoff import SkepticSemanticHandoffTests
         from tests.test_single_stock_input import SingleStockCompanyTests
+        from product.runtime.local_revision import _apply, located_paths
         from product.runtime.schema_validation import schema_issue_locations
+        from product.runtime.independent_skeptic_stage import serialize_skeptic_dispatch_context
+        helper = SkepticSemanticHandoffTests()
         values = SingleStockCompanyTests().prepare_values()
         gate = values[2]
         second_fact = {**gate['allowed_evidence'][0], 'evidence_id': 'ev-alb-revenue-second', 'value': '90'}
@@ -246,28 +216,10 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 run = prepare_complete_forward(Path(temp), single_stock=True)
             prepare_skeptic_phase(ROOT, run)
             task = read_dispatch_index(run)['tasks'][0]
-            env = {'STOCK_AGENT_RUN_DIR': str(run),
-                'STOCK_AGENT_SUBAGENT_EVENT_LOG': str(run / 'invocation/skeptic/subagent-events.jsonl'),
-                'STOCK_AGENT_SUBAGENT_DISPATCH_LOG': str(run / 'invocation/skeptic/subagent-dispatches.jsonl'),
-                'STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS': 'runtime_skeptic',
-                'STOCK_AGENT_INDEPENDENT_SKEPTIC_STAGE': 'independent-skeptic-runtime/1.0.0',
-                'STOCK_AGENT_RESEARCH_TASK_NAME': task['task_name']}
-            dispatch = {'hook_event_name': 'PreToolUse', 'session_id': 'repair-parent', 'turn_id': 'turn',
-                'tool_name': 'spawn_agent', 'tool_use_id': 'repair-spawn', 'cwd': str(ROOT / 'product'),
-                'model': 'gpt-5.6-terra', 'permission_mode': 'workspace-write',
-                'tool_input': {'agent_type': 'runtime_skeptic', 'task_name': task['task_name'],
-                    'fork_turns': 'none', 'message': '读取冻结首轮上下文。'}}
-            self.assertEqual(handle_hook_event(dispatch, environ=env)[0]['decision'], 'ALLOW')
-            start = {'hook_event_name': 'SubagentStart', 'session_id': 'repair-parent', 'turn_id': 'turn',
-                'agent_id': 'repair-child', 'agent_type': 'runtime_skeptic', 'model': 'gpt-5.6-terra',
-                'cwd': str(ROOT / 'product'), 'permission_mode': 'read-only'}
-            delivered, response = handle_hook_event(start, environ=env)
-            self.assertEqual(delivered['context_binding']['status'], 'DELIVERED')
-            view = json.loads(response['hookSpecificOutput']['additionalContext'])
+            packet = build_skeptic_dispatch_packet(ROOT, run, task['task_name'])
+            view = json.loads(serialize_skeptic_dispatch_context(packet))
             refs = view['allowed_evidence_ids'][:2]
-            query = TaskBoundResearchToolsTests().call(run, 'query', {
-                **view['tool_context']['required_identity_arguments'], 'evidence_ids': refs})
-            self.assertNotIn('error', query, query)
+            self.assertNotIn('error', helper.query(run, task, refs))
             good = {'status': 'LOW_CONFIDENCE', 'mode': 'INDEPENDENT_FIRST_PASS', 'scope': task['security_id'],
                 'assumptions': [{'assumption_id': f'A{i}', 'statement': '合成的待核验假设。'} for i in range(3)],
                 'challenges': [{'challenge_id': f'C{i}', 'statement': '单期资料不足以验证持续性。',
@@ -302,23 +254,21 @@ class IndependentSkepticContractTests(unittest.TestCase):
             self.assertEqual(len(changes), 32)
             findings = schema_issue_locations(bad, view['output_schema'])
             self.assertEqual(len({item['path'] for item in findings}), 32)
-            stop = {**start, 'hook_event_name': 'SubagentStop', 'stop_hook_active': False}
-            first, feedback = handle_hook_event({**stop, 'last_assistant_message': json.dumps(bad)}, environ=env)
-            self.assertEqual(first['output_capture']['repair_state'], 'REPAIR_REQUESTED', first)
-            repair = json.loads(feedback['reason'])
-            self.assertNotIn('original_draft', repair)
-            original_path = run / first['output_capture']['raw_path']
-            original_bytes = original_path.read_bytes()
+            original = copy.deepcopy(bad)
             gate_hash = file_hash(run / 'evidence/gate.json')
-            revised, response = handle_hook_event({**stop, 'last_assistant_message': json.dumps({
-                'base_draft_ref': repair['base_draft_ref'], 'changes': changes})}, environ=env)
-            self.assertEqual(revised['output_capture']['status'], 'SAVED', revised)
-            self.assertEqual(response, {})
-            self.assertEqual(original_path.read_bytes(), original_bytes)
+            with self.assertRaisesRegex(ValueError, 'SCHEMA_'):
+                helper.capture(run, task, bad)
+            self.assertFalse((run / task['report_ref']).exists())
+            paths = located_paths(findings, exact_fields=True)
+            revised = _apply(bad, changes, paths)
+            self.assertEqual(revised, good)
+            capture = helper.capture(run, task, revised)
+            self.assertEqual(capture['status'], 'SAVED', capture)
+            self.assertEqual(bad, original)
             self.assertEqual(file_hash(run / 'evidence/gate.json'), gate_hash)
+            self.assertFalse((run / 'invocation/skeptic').exists())
+            helper.write_historical_execution_fixture(run, task, capture)
             self.assertEqual(finalize_skeptic_phase(ROOT, run)['status'], 'PASSED')
-            third, _ = handle_hook_event({**stop, 'last_assistant_message': json.dumps(good)}, environ=env)
-            self.assertEqual(third['output_capture']['failure_code'], 'LOCAL_REVISION_LIMIT_EXHAUSTED')
 
     def test_alb_forward_actual_gate_enters_independent_first_pass_without_holding(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -347,24 +297,8 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 'invalidation_conditions': ['后续资料验证持续性'], 'confidence': 0.3,
                 'confidence_rationale': '仅验证交付，不验证投资质量。',
                 'skill_execution': invocation['skill_execution'], 'artifact_refs': []}
-            environment = {'STOCK_AGENT_RUN_DIR': str(run),
-                'STOCK_AGENT_SUBAGENT_EVENT_LOG': str(run / 'invocation/skeptic/subagent-events.jsonl'),
-                'STOCK_AGENT_SUBAGENT_DISPATCH_LOG': str(run / 'invocation/skeptic/subagent-dispatches.jsonl'),
-                'STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS': 'runtime_skeptic',
-                'STOCK_AGENT_INDEPENDENT_SKEPTIC_STAGE': 'independent-skeptic-runtime/1.0.0',
-                'STOCK_AGENT_RESEARCH_TASK_NAME': task['task_name']}
-            dispatched, _ = handle_hook_event({'hook_event_name': 'PreToolUse', 'session_id': 'synthetic-parent',
-                'turn_id': 'synthetic-turn', 'tool_name': 'spawn_agent', 'tool_use_id': 'synthetic-spawn',
-                'cwd': str(ROOT / 'product'), 'model': 'gpt-5.6-terra', 'permission_mode': 'workspace-write',
-                'tool_input': {'agent_type': 'runtime_skeptic', 'task_name': task['task_name'],
-                    'fork_turns': 'none', 'message': '启动冻结的独立反证研究，等待 Hook 输入。'}}, environ=environment)
-            self.assertEqual(dispatched['decision'], 'ALLOW')
-            start = {'hook_event_name': 'SubagentStart', 'session_id': 'synthetic-parent', 'turn_id': 'synthetic-turn',
-                'agent_id': 'synthetic-skeptic', 'agent_type': 'runtime_skeptic', 'model': 'gpt-5.6-terra',
-                'cwd': str(ROOT / 'product'), 'permission_mode': 'read-only'}
-            delivered, response = handle_hook_event(start, environ=environment)
-            self.assertEqual(delivered['context_binding']['status'], 'DELIVERED')
-            wire = response['hookSpecificOutput']['additionalContext']
+            from product.runtime.independent_skeptic_stage import serialize_skeptic_dispatch_context
+            wire = serialize_skeptic_dispatch_context(packet)
             view = json.loads(wire)
             self.assertEqual(list(view)[:3], ['tool_context', 'identity', 'task_prompt'])
             self.assertLess(wire.index('required_identity_arguments'), wire.index('allowed_evidence_ids'))
@@ -391,41 +325,32 @@ class IndependentSkepticContractTests(unittest.TestCase):
             self.assertIn('纯资料缺口或无法形成反证写入 data_gaps/uncertainties', view['task_prompt'])
             self.assertIn('尚未查询也不等于来源没有该数据', view['task_prompt'])
             self.assertNotIn('及 agent_input.allowed_evidence_ids', view['task_prompt'])
-            # Use only the actual Hook-delivered identity and reference, not
-            # test-side invocation knowledge, through the real stdio server.
+            # 真实序列化交付的身份和短引用进入stdio；不启动宿主或研究模型。
             from tests.test_task_bound_research_tools import TaskBoundResearchToolsTests
             caller = TaskBoundResearchToolsTests()
             catalog_arguments = {**view['tool_context']['required_identity_arguments'], 'view': 'records', 'limit': 1}
-            from product.runtime.nested_codex import build_nested_codex_command
-            command = build_nested_codex_command(codex_binary='codex', product_root=ROOT / 'product',
-                run_dir=run, model='gpt-5.6-terra', sqlite_home=run / 'test-sqlite', log_dir=run / 'test-log',
-                final_message_path=run / 'test-final', hook_recorder_path=ROOT / 'product/runtime/codex_hook_recorder.py',
-                fixture_mcp_run_dir=run, fixture_mcp_skeptic_dispatch_index='research/skeptic/dispatch-index.json')
-            transport = tomllib.loads(next(item for item in command if item.startswith('mcp_servers.fixture_runtime=')))['mcp_servers']['fixture_runtime']
-            self.assertIn('evidence_catalog', transport['enabled_tools'])
-            self.assertIn('research_task_state', transport['enabled_tools'])
             requests = [{'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'},
                 {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {'name': 'evidence_catalog', 'arguments': catalog_arguments}},
                 {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'query', 'arguments': {
                     **view['tool_context']['required_identity_arguments'], 'evidence_ids': view['allowed_evidence_ids'][:1]}}},
                 {'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {'name': 'research_task_state', 'arguments': {}}}]
-            # Execute only the exact generated MCP transport; never start codex or a model.
-            completed = subprocess.run([transport['command'], *transport['args']], cwd=transport['cwd'],
-                env={**os.environ, **transport['env'], 'PYTHONDONTWRITEBYTECODE': '1'},
+            # 仅运行保留的确定性MCP进程，不借旧launcher生成研究配置。
+            import sys
+            completed = subprocess.run([sys.executable, '-B', '-m', 'product.runtime.fixture_mcp', '--stateless'], cwd=ROOT,
+                env={**os.environ, 'STOCK_AGENT_FIXTURE_MCP_RUN_DIR': str(run),
+                     'STOCK_AGENT_SKEPTIC_DISPATCH_INDEX': 'research/skeptic/dispatch-index.json',
+                     'PYTHONDONTWRITEBYTECODE': '1'},
                 input='\n'.join(json.dumps(request) for request in requests) + '\n', text=True,
                 capture_output=True, timeout=15)
             self.assertEqual(completed.returncode, 0, completed.stderr)
             responses = {r['id']: r for r in map(json.loads, completed.stdout.splitlines())}
             advertised = {tool['name'] for tool in responses[1]['result']['tools']}
-            self.assertIn('evidence_catalog', advertised & set(transport['enabled_tools']))
+            self.assertIn('evidence_catalog', advertised)
+            self.assertNotIn('research_task_state', advertised)
             self.assertFalse(responses[2].get('result', {}).get('isError', False), responses[2])
             self.assertNotIn('error', responses[2])
             self.assertNotIn('error', responses[3])
-            self.assertNotIn('error', responses[4])
-            state = responses[4]['result']['structuredContent']
-            self.assertEqual(state['schema_version'], 'independent-skeptic-task-state/1.0.0')
-            self.assertEqual(state['expected'], 1)  # Never return the already completed 8 forward tasks.
-            self.assertFalse(state['all_tasks_terminal'])
+            self.assertIn('UNKNOWN_TOOL:research_task_state', responses[4]['error']['message'])
             catalog = caller.call(run, 'evidence_catalog', catalog_arguments)
             self.assertNotIn('error', catalog, catalog)
             metadata = catalog['result']['structuredContent']
@@ -462,9 +387,12 @@ class IndependentSkepticContractTests(unittest.TestCase):
             for override in ({'invocation_id': 'wrong'}, {'run_id': 'wrong'},
                              {'agent': 'runtime_company_analyst'}, {'evidence_ids': ['e.foreign']}):
                 self.assertIn('error', caller.call(run, 'query', {**arguments, **override}))
-            stopped, _ = handle_hook_event({**start, 'hook_event_name': 'SubagentStop', 'stop_hook_active': False,
-                'last_assistant_message': json.dumps(semantic_draft(report, run=run, task=task))}, environ=environment)
-            self.assertEqual(stopped['output_capture']['status'], 'SAVED', stopped)
+            from tests.test_skeptic_semantic_handoff import SkepticSemanticHandoffTests
+            capture = capture_skeptic_report(ROOT, run, task_name=task['task_name'],
+                raw_message=json.dumps(semantic_draft(report, run=run, task=task)), model='gpt-5.6-terra')
+            self.assertEqual(capture['status'], 'SAVED', capture)
+            self.assertFalse((run / 'invocation/skeptic').exists())
+            SkepticSemanticHandoffTests().write_historical_execution_fixture(run, task, capture)
             result = finalize_skeptic_phase(ROOT, run)
             self.assertEqual(result['status'], 'PASSED')
             package = json.loads((run / 'research/skeptic/pre-decision-research-package.json').read_text())
@@ -476,9 +404,12 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 run_id='synthetic-alb-cio', target_security_id='US:COMMON_STOCK:ALB', model='gpt-6-luna')
             self.assertEqual(cio['actual_level'], 'RESEARCH_SYNTHESIS')
 
-    def test_alb_skeptic_resume_keeps_no_query_failure_and_uses_current_hook_identity(self):
+    def test_alb_skeptic_resume_keeps_no_query_failure_and_uses_current_business_identity(self):
         from tests.test_task_bound_research_tools import TaskBoundResearchToolsTests
+        from tests.test_skeptic_semantic_handoff import SkepticSemanticHandoffTests
+        from product.runtime.independent_skeptic_stage import serialize_skeptic_dispatch_context
         caller = TaskBoundResearchToolsTests()
+        history = SkepticSemanticHandoffTests()
         with tempfile.TemporaryDirectory() as temp:
             run = prepare_complete_forward(Path(temp), single_stock=True)
             prepare_skeptic_phase(ROOT, run)
@@ -488,33 +419,12 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 'challenges': [], 'assumptions': [], 'evidence_refs': [], 'counter_evidence_refs': [],
                 'uncertainties': ['合成缺口'], 'data_gaps': ['没有查询'], 'invalidation_conditions': [],
                 'confidence': 0, 'confidence_rationale': '合成接缝，不代表研究。'}
-            def hook_attempt(task, index_ref, parent, draft=None):
-                event_root = run / ('invocation/skeptic' if task['attempt'] == 1 else 'invocation/skeptic/attempt-2')
-                env = {'STOCK_AGENT_RUN_DIR': str(run),
-                    'STOCK_AGENT_SUBAGENT_EVENT_LOG': str(event_root / 'subagent-events.jsonl'),
-                    'STOCK_AGENT_SUBAGENT_DISPATCH_LOG': str(event_root / 'subagent-dispatches.jsonl'),
-                    'STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS': 'runtime_skeptic',
-                    'STOCK_AGENT_INDEPENDENT_SKEPTIC_STAGE': 'independent-skeptic-runtime/1.0.0',
-                    'STOCK_AGENT_SKEPTIC_DISPATCH_INDEX': index_ref,
-                    'STOCK_AGENT_RESEARCH_TASK_NAME': task['task_name']}
-                dispatch = {'hook_event_name': 'PreToolUse', 'session_id': parent, 'turn_id': 'turn',
-                    'tool_name': 'spawn_agent', 'tool_use_id': parent, 'cwd': str(ROOT / 'product'),
-                    'model': 'gpt-5.6-terra', 'permission_mode': 'workspace-write',
-                    'tool_input': {'agent_type': 'runtime_skeptic', 'task_name': task['task_name'],
-                        'fork_turns': 'none', 'message': '读取冻结首轮上下文。'}}
-                self.assertEqual(handle_hook_event(dispatch, environ=env)[0]['decision'], 'ALLOW')
-                start = {'hook_event_name': 'SubagentStart', 'session_id': parent, 'turn_id': 'turn',
-                    'agent_id': parent + '-child', 'agent_type': 'runtime_skeptic', 'model': 'gpt-5.6-terra',
-                    'cwd': str(ROOT / 'product'), 'permission_mode': 'read-only'}
-                _, response = handle_hook_event(start, environ=env)
-                view = json.loads(response['hookSpecificOutput']['additionalContext'])
-                if draft is not None:
-                    capture, _ = handle_hook_event({**start, 'hook_event_name': 'SubagentStop',
-                        'last_assistant_message': json.dumps(draft), 'stop_hook_active': False}, environ=env)
-                    self.assertEqual(capture['output_capture']['status'], 'SAVED', capture)
-                return env, start, view
             old_ref = 'research/skeptic/dispatch-index.json'
-            _, _, old_view = hook_attempt(old, old_ref, 'first', report)
+            old_view = json.loads(serialize_skeptic_dispatch_context(
+                build_skeptic_dispatch_packet(ROOT, run, old['task_name'], index_ref=old_ref)))
+            captured = capture_skeptic_report(ROOT, run, task_name=old['task_name'],
+                raw_message=json.dumps(report), model='gpt-5.6-terra', index_ref=old_ref)
+            history.write_historical_execution_fixture(run, old, captured, index_ref=old_ref)
             first = finalize_skeptic_phase(ROOT, run)
             self.assertEqual(first['status'], 'PARTIAL')
             process = run / 'invocation/skeptic/process-result.json'
@@ -526,7 +436,8 @@ class IndependentSkepticContractTests(unittest.TestCase):
             resumed = prepare_skeptic_resume(ROOT, run)
             new_index = read_dispatch_index(run, resumed['dispatch_index'])
             task = new_index['tasks'][0]
-            env, start, view = hook_attempt(task, resumed['dispatch_index'], 'second')
+            view = json.loads(serialize_skeptic_dispatch_context(build_skeptic_dispatch_packet(
+                ROOT, run, task['task_name'], index_ref=resumed['dispatch_index'])))
             self.assertNotIn('forward_bundle_hash', view)
             self.assertNotIn('reports', view['agent_input'])
             args = {**view['tool_context']['required_identity_arguments'],
@@ -542,16 +453,17 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 'challenges': [{'challenge_id': 'synthetic', 'statement': '单期财务不足以证明持续性。',
                     'evidence_refs': args['evidence_ids'], 'assumption_ids': [],
                     'resolution_evidence_needed': ['可比期间']}], 'confidence': .3}
-            capture, _ = handle_hook_event({**start, 'hook_event_name': 'SubagentStop',
-                'last_assistant_message': json.dumps(draft), 'stop_hook_active': False}, environ=env)
-            self.assertEqual(capture['output_capture']['status'], 'SAVED', capture)
+            capture = capture_skeptic_report(ROOT, run, task_name=task['task_name'],
+                raw_message=json.dumps(draft), model='gpt-5.6-terra', index_ref=resumed['dispatch_index'])
+            self.assertEqual(capture['status'], 'SAVED', capture)
+            history.write_historical_execution_fixture(run, task, capture, index_ref=resumed['dispatch_index'])
             final = finalize_skeptic_phase(ROOT, run, index_ref=resumed['dispatch_index'])
             self.assertEqual(final['status'], 'PASSED')
             self.assertEqual([file_hash(p) for p in immutable], before)
             package = json.loads((run / final['package_ref']).read_text())
             self.assertEqual(package['consumability'], 'DOWNSTREAM_READY')
 
-    def test_prepared_resume_uses_actual_cli_launch_and_rejects_drift_or_relaunch(self):
+    def test_prepared_resume_rejects_drift_and_retired_cli_never_launches(self):
         from product.runtime.cli import main
         from product.runtime.independent_skeptic_stage import validate_prepared_skeptic_resume
         import contextlib
@@ -605,25 +517,13 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 validate_prepared_skeptic_resume(ROOT, run, index_ref)
             report_path.unlink()
             self.assertEqual([file_hash(path) for path in frozen], before)
-            # Capture the real generated command, but never start codex or a model.
-            with patch('product.runtime.independent_skeptic_stage.subprocess.run',
-                       return_value=subprocess.CompletedProcess([], 1, '', 'synthetic stopped process')) as launch, \
-                 patch('product.runtime.cli.prepare_skeptic_resume') as prepare, \
-                 contextlib.redirect_stdout(io.StringIO()):
+            output = io.StringIO()
+            with patch('subprocess.run') as launch, contextlib.redirect_stdout(output):
                 self.assertEqual(main(['resume-independent-skeptic', '--repo', str(ROOT), '--run-dir', str(run),
-                                       '--prepared-index', index_ref]), 7)
-            prepare.assert_not_called()
-            launch.assert_called_once()
-            environment = launch.call_args.kwargs['env']
-            self.assertEqual(environment['STOCK_AGENT_SKEPTIC_DISPATCH_INDEX'], index_ref)
-            self.assertEqual(json.loads(environment['STOCK_AGENT_RESEARCH_TASK_NAMES']), prepared['retry_task_names'])
-            command = launch.call_args.args[0]
-            transport = tomllib.loads(next(arg for arg in command if arg.startswith('mcp_servers.fixture_runtime=')))['mcp_servers']['fixture_runtime']
-            self.assertEqual(transport['env']['STOCK_AGENT_SKEPTIC_DISPATCH_INDEX'], index_ref)
-            self.assertIn('evidence_catalog', transport['enabled_tools'])
-            self.assertIn('research_task_state', transport['enabled_tools'])
-            with self.assertRaisesRegex(IndependentSkepticStageError, 'COUNTER_ALREADY_LAUNCHED'):
-                validate_prepared_skeptic_resume(ROOT, run, index_ref)
+                                       '--prepared-index', index_ref]), 2)
+            launch.assert_not_called()
+            self.assertIn('NATIVE_HOST_EXECUTION_REQUIRED', output.getvalue())
+            self.assertEqual(validate_prepared_skeptic_resume(ROOT, run, index_ref), prepared)
             self.assertEqual([file_hash(path) for path in frozen], before)
             self.assertFalse(next_root.exists())
 
@@ -686,7 +586,7 @@ class IndependentSkepticContractTests(unittest.TestCase):
                 with patch(f'{__name__}.ROOT', repository), patch(
                     f'{__name__}.prepare_skeptic_resume', side_effect=resume_after_resource_change
                 ):
-                    self.test_alb_skeptic_resume_keeps_no_query_failure_and_uses_current_hook_identity()
+                    self.test_alb_skeptic_resume_keeps_no_query_failure_and_uses_current_business_identity()
 
     def test_report_requires_actual_same_invocation_query_and_attempt_10_is_valid(self):
         with self.assertRaisesRegex(
@@ -1083,38 +983,12 @@ class IndependentSkepticContractTests(unittest.TestCase):
             self.assertIn("假设未来融资成本上行", markdown)
             self.assertIn(own_id, markdown)
 
-            hook_env = {
-                "STOCK_AGENT_RUN_DIR": str(run),
-                "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(run / "invocation/skeptic/subagent-events.jsonl"),
-                "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(run / "invocation/skeptic/subagent-dispatches.jsonl"),
-                "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_skeptic",
-                "STOCK_AGENT_INDEPENDENT_SKEPTIC_STAGE": "independent-skeptic-runtime/1.0.0",
-                "STOCK_AGENT_RESEARCH_TASK_NAME": first["task_name"],
-            }
-            dispatch_payload = {
-                "hook_event_name": "PreToolUse", "session_id": "parent-1",
-                "turn_id": "turn-1", "tool_name": "spawn_agent", "tool_use_id": "tool-1",
-                "cwd": str(ROOT / "product"), "model": "gpt-5.6-terra",
-                "permission_mode": "workspace-write",
-                "tool_input": {
-                    "agent_type": "runtime_skeptic", "task_name": first["task_name"],
-                    "fork_turns": "none",
-                    "message": "启动本次冻结的独立反证研究；完整上下文由 SubagentStart Hook 交付。",
-                },
-            }
-            decision, _ = handle_hook_event(dispatch_payload, environ=hook_env)
-            self.assertEqual("ALLOW", decision["decision"])
-            start_payload = {
-                "hook_event_name": "SubagentStart", "session_id": "parent-1",
-                "turn_id": "turn-1", "agent_id": "child-1",
-                "agent_type": "runtime_skeptic", "model": "gpt-5.6-terra",
-                "cwd": str(ROOT / "product"), "permission_mode": "read-only",
-            }
-            start, context = handle_hook_event(start_payload, environ=hook_env)
-            self.assertEqual("DELIVERED", start["context_binding"]["status"])
-            delivered = context["hookSpecificOutput"]["additionalContext"]
-            self.assertIn(first["invocation_id"], delivered)
-            self.assertNotIn("forward_bundle_hash", delivered)
+            from product.runtime.independent_skeptic_stage import serialize_skeptic_dispatch_context
+            delivered = serialize_skeptic_dispatch_context(build_skeptic_dispatch_packet(
+                ROOT, run, first['task_name']))
+            self.assertIn(first['invocation_id'], delivered)
+            self.assertNotIn('forward_bundle_hash', delivered)
+            self.assertFalse((run / 'invocation/skeptic').exists())
 
             second_invocation = json.loads((run / second["invocation_ref"]).read_text())
             second_report = copy.deepcopy(report)
@@ -1123,22 +997,11 @@ class IndependentSkepticContractTests(unittest.TestCase):
             second_report["evidence_refs"] = [other_id]
             second_report["challenges"][0]["evidence_refs"] = [other_id]
             second_report["skill_execution"] = second_invocation["skill_execution"]
-            second_env = {**hook_env, "STOCK_AGENT_RESEARCH_TASK_NAME": second["task_name"]}
-            second_dispatch = copy.deepcopy(dispatch_payload)
-            second_dispatch["session_id"] = "parent-2"
-            second_dispatch["tool_input"]["task_name"] = second["task_name"]
-            allowed_dispatch, _ = handle_hook_event(second_dispatch, environ=second_env)
-            self.assertEqual("ALLOW", allowed_dispatch["decision"])
-            second_start = {**start_payload, "session_id": "parent-2", "agent_id": "child-2"}
-            handle_hook_event(second_start, environ=second_env)
-            second_stop = {
-                **second_start, "hook_event_name": "SubagentStop",
-                "last_assistant_message": json.dumps(semantic_draft(second_report, run=run, task=second)),
-                "stop_hook_active": False,
-            }
-            stopped, _ = handle_hook_event(second_stop, environ=second_env)
-            self.assertEqual("SAVED", stopped["output_capture"]["status"])
-            self.assertTrue((run / second["report_ref"]).is_file())
+            saved = capture_skeptic_report(ROOT, run, task_name=second['task_name'],
+                raw_message=json.dumps(semantic_draft(second_report, run=run, task=second)), model='gpt-5.6-terra')
+            self.assertEqual('SAVED', saved['status'])
+            self.assertTrue((run / second['report_ref']).is_file())
+            self.assertFalse((run / 'invocation/skeptic').exists())
 
     def test_core_coverage_blocks_failed_core_but_allows_specialist_source_limit(self):
         core = [

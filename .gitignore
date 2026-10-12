@@ -20,9 +20,17 @@ venv/
 .env
 .env.*
 !.env.example
+# 用户临时放置的 Tiger 认证笔记；正式配置必须迁移到仓库外目录。
+product/tiger.md
+
 # 独立个人交易 Skill 的私人记录与本地洁净插件副本。
 /product/.private/
 /.codex-local/
+
+# product就地Claude发现：本机路径和派生正文；权威来源保留在agents/skills/hosts。
+/product/CLAUDE.md
+/product/.claude/
+/product/.mcp.json
 
 # Editor-local state
 .idea/

@@ -1,0 +1,47 @@
+{
+  "source_id": "opencode-company-fileparts-native-result:20261008",
+  "as_of": "2026-10-08T04:08:11.353915+00:00",
+  "retrieved_at": "2026-10-08T04:08:11.354040+00:00",
+  "status": "STOPPED_PREPARATION_TOKEN_MISUSE_REJECTED",
+  "session_id": "ses_ee64fd74fffeBJBtEvXCL0wR81",
+  "host_version": "1.18.34",
+  "model_provider_from_native_record": "aliyun-bailian/glm-5.2",
+  "actual_attachment_delivery": {
+    "user_file_parts": 2,
+    "correct_task_token_in_native_user_text": true,
+    "full_question_in_native_user_text": true,
+    "tool_access_widened_for_file_reading": false,
+    "native_input": "run --interactive --file两份文件；本次真实附件交付已证，不再是裸@路径文字。",
+    "native_explicit_title": "Stock Agent Company Fileparts；可见记录未出现small/title调用，不由帮助选项直接推断零额外费用。"
+  },
+  "failure": {
+    "at": "2026-10-08T04:05:56.317Z",
+    "tool": "company_research_prepare_task",
+    "status": "error",
+    "error": "NATIVE_RESEARCH_PREPARATION_REJECTED",
+    "preparation_token_equals_attached_task_token": true,
+    "boundary": "主线程已有精确准备好的研究任务，却把task_token作为preparation_token再次准备；服务端按原门禁拒绝，未创建新任务或扩大权限。",
+    "portfolio_council_skill": "completed",
+    "company_task_state_when_stopped": "pending；未形成可观察的Company子session，不能写成作者执行或成功。",
+    "native_stop_action": "发现失败后关闭本次Terminal tab；不继续本轮或重派原输入。未完成的原消息状态保留，远端取消UNVERIFIED。"
+  },
+  "protected_records": {
+    "task_ref": "t.1d1c38bf23eef858af52c0a0",
+    "tools_json": 0,
+    "calculations_json": 0,
+    "submissions_json": 0,
+    "reports_or_receipts": 0,
+    "candidate_files_unchanged": 299,
+    "previous_connection_files_unchanged": 19,
+    "scope": "精确任务及研究前基线对应文件；不是OS只读证明。"
+  },
+  "counting": "主线程1，另对停止时pending但无子session的委派保守预留1，故本切片保守2/3；实际观察到的专业作者0。上一切片含title4，本宿主截至这里保守合计6/15；不是Provider请求数或费用测量。总窗口03:52:58.710038—04:22:58.710038不重置。",
+  "repair_direction": "已准备精确任务的Company阶段，原生primary不应获准备能力；用本机原生按会话权限覆盖拒绝company/market/skeptic prepare_task，并仅允许Company task。保留原通用模板及服务端门禁，不发操作方凭据、不猜新token、不新增executor。实际权限及研究仍需验证。",
+  "raw_evidence": "本次精确session官方CLI导出留在获准私有目录0600；只提取part类型、元数据、工具状态及凭据相等布尔值，不公开token或reasoning正文。",
+  "business_verdict": "NOT_RUN",
+  "host_verdict": "FILEPARTS_DELIVERY_VERIFIED_PREPARATION_CALL_REJECTED",
+  "content_verdict": "NO_REPORT",
+  "source_network_account_or_later_stages": "NOT_RUN",
+  "change_progress": "22/29；原七项保留。",
+  "archive_commit_push": "NOT_RUN"
+}

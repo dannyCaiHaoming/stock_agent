@@ -1,4 +1,4 @@
-"""多维持仓研究阶段的冻结输入、显式任务和 Codex-native 派发接缝。"""
+"""多维研究的冻结输入、业务契约及只读历史归集；不派发或启动模型。"""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ import os
 import re
 import secrets
 import shutil
-import subprocess
 import tomllib
 from datetime import date, datetime, timezone
+from decimal import Decimal, InvalidOperation
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -121,20 +121,6 @@ TECHNICAL_SUMMARY_GUIDANCE = {
 def _stage_input_binding(value):
     binding = research_input_binding(value)
     return binding if is_single_stock(value) else {k: v for k, v in binding.items() if k != "handoff_id"}
-
-
-def _parent_output_schema(run_id: str, task_count: int) -> dict[str, Any]:
-    return {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object", "additionalProperties": False,
-        "required": ["stage", "run_id", "dispatched", "completed"],
-        "properties": {
-            "stage": {"type": "string", "const": "MULTI_DIMENSIONAL_HOLDING_RESEARCH"},
-            "run_id": {"type": "string", "const": run_id},
-            "dispatched": {"type": "integer", "const": task_count},
-            "completed": {"type": "integer", "const": task_count},
-        },
-    }
 
 
 MINIMUM_QUESTIONS = {
@@ -597,52 +583,8 @@ def _macro_company_context_facts(
     return _bounded_latest_facts(scoped, per_series=1)
 
 
-def _technical_rows(
-    evidence: Sequence[Mapping[str, Any]], *, security_id: str,
-) -> list[dict[str, Any]]:
-    """把冻结的字段事实还原为确定性计算所需的逐交易日行。"""
+from product.tools.precomputed import _technical_rows
 
-    by_date: dict[str, dict[str, Any]] = {}
-    field_map = {
-        "historical_close_price": "close",
-        "adjusted_close_price": "adjusted_close",
-        "share_volume": "volume",
-        "stock_split_ratio": "stock_split",
-    }
-    for fact in evidence:
-        if fact.get("security_id") != security_id:
-            continue
-        target = field_map.get(str(fact.get("semantic_field", "")))
-        if target is None:
-            continue
-        metadata = fact.get("metadata") if isinstance(fact.get("metadata"), Mapping) else {}
-        day = metadata.get("trading_date")
-        if not isinstance(day, str):
-            as_of = fact.get("as_of")
-            day = str(as_of)[:10] if isinstance(as_of, str) and len(as_of) >= 10 else None
-        if not isinstance(day, str):
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_TECHNICAL_DATE_MISSING")
-        row = by_date.setdefault(
-            day,
-            {
-                "date": day,
-                "close": None,
-                "adjusted_close": None,
-                "volume": None,
-                "stock_split": 0,
-                "evidence_ids": [],
-            },
-        )
-        if row[target] not in {None, 0}:
-            raise MultidimensionalStageError(
-                f"MULTIDIMENSIONAL_TECHNICAL_FIELD_DUPLICATE:{security_id}:{day}:{target}"
-            )
-        row[target] = fact.get("value")
-        row["evidence_ids"].append(str(fact["evidence_id"]))
-    return [
-        row for _, row in sorted(by_date.items())
-        if row["close"] is not None
-    ]
 
 
 def _prepare_technical_artifacts(
@@ -1214,10 +1156,10 @@ def _dependency_calculation_records(
     ledger_ref = dependency_task.get("calculation_ledger_ref")
     if not ledger_ref:
         return []
-    from product.runtime.codex_hook_recorder import _validate_multidimensional_tool_calculations
+    from product.runtime.calculation_handoff import validate_tool_calculations
 
     invocation = _read_object(run_dir / dependency_task["invocation_path"])
-    _validate_multidimensional_tool_calculations(
+    validate_tool_calculations(
         report, task=dependency_task, invocation=invocation, run_dir=run_dir,
     )
     ledger = run_dir / ledger_ref
@@ -3735,43 +3677,6 @@ def read_multidimensional_task_state(run_dir: Path) -> dict[str, Any]:
         raise MultidimensionalStageError("MULTIDIMENSIONAL_TASK_STATE_BINDING_INVALID") from exc
 
 
-def build_multidimensional_stage_prompt(repository_root: Path, run_dir: Path) -> str:
-    del repository_root
-    index = _read_object(Path(run_dir).resolve() / "research/dispatch-index.json")
-    task_map = {
-        item["task_name"]: {
-            "agent_type": item["agent"],
-            "depends_on_task_names": [
-                candidate["task_name"] for dependency in item["depends_on"]
-                for candidate in index["tasks"] if candidate["task_id"] == dependency
-            ],
-            "message": build_multidimensional_dispatch_message(Path(), Path(run_dir), item["task_name"]),
-        }
-        for item in index["tasks"]
-    }
-    state_instruction = ""
-    manifest = _read_object(Path(run_dir).resolve() / "run_manifest.json")
-    if (manifest.get("tool_identity_version") == "research-tool-identity/1.0.0"
-            or (is_single_stock(manifest) and manifest.get("stage") == "INDEPENDENT_COUNTER_THESIS_RESEARCH")):
-        state_instruction = (
-            "派发前、每次wait返回后、最终返回前必须调用MCP research_task_state（参数{}），"
-            "以可信task_name状态核对你自己的归集，不凭wait空返回、正文消息或文件存在推断仍有活跃任务。"
-            "DISPATCHED等待Start，RUNNING等待Stop；两者都不得重复派发。PENDING且dependency_ready才正常派发。"
-            "上游FAILED时仍按原约定尝试一次依赖派发以记录Hook拒绝。"
-            "all_tasks_terminal=true后不再wait，直接返回原父JSON；终态齐全不等于内容PASS。"
-            "查询拒绝须如实停止，不猜状态或反复wait。"
-        )
-    return f"""你是多维持仓研究阶段的 Codex 主线程，只负责按依赖有界派发和归集，不担任 CIO。
-读取 product/AGENTS.md 与 portfolio-council Skill 的多维持仓研究阶段。严格使用以下任务映射：
-{json.dumps(task_map, ensure_ascii=False, sort_keys=True)}
-
-使用 Agent 工具，agent_type、task_name 和 message 必须逐项来自映射，fork_turns=none。最多同时保持 {min(index['target_concurrency'], len(task_map))} 个活跃 Subagent；只有 depends_on_task_names 全部结束且报告已保存后才能启动依赖任务。依赖任务已经结束但没有保存合法报告时，对每个直接依赖任务只尝试派发一次，让 Hook 留下 dependency-blocked 拒绝记录；不得重试该任务，也不得启动其子 Agent。具备条件的独立任务先填满槽位，任一结束后立即补位。不得复制冻结资料到启动消息，不得启动 runtime_skeptic、runtime_cio 或 Risk，不得改写 Specialist 输出。
-
-先连续派发已具备条件的独立任务至并发上限或当前无可派发任务，再通过 wait 等待任一终态并补位；不得把已启动计作已完成。某个子任务先于初始并发槽填满而结束时，也按真实终态归集，不为凑满槽位阻止其退出。
-在仍有活跃 Subagent、已启动任务缺少 SubagentStop，或任一任务既没有子 Agent 终态也没有 dependency-blocked Hook 拒绝时禁止返回父结果。
-{state_instruction}
-全部任务形成合法报告、显式失败或 dependency-blocked 终态后，只返回：{{"stage":"MULTI_DIMENSIONAL_HOLDING_RESEARCH","run_id":"{index['run_id']}","dispatched":{len(task_map)},"completed":{len(task_map)}}}。这里 completed 表示调度终态齐全，不表示所有研究报告均成功；最终状态由确定性 Finalizer 复核。
-"""
 
 
 def _target_task_closure(index: Mapping[str, Any], task_name: str) -> list[dict[str, Any]]:
@@ -3935,48 +3840,6 @@ def read_retry_dependencies(run_dir: Path, invocation_dir: Path, task_name: str)
     return value["dependencies"]
 
 
-def build_multidimensional_task_prompt(
-    repository_root: Path, run_dir: Path, task_name: str, *, reused_dependencies: Sequence[Mapping[str, Any]] = (),
-) -> str:
-    """构造目标维度及其依赖闭包的定点补证 Prompt。"""
-
-    del repository_root
-    index = _read_object(Path(run_dir).resolve() / "research/dispatch-index.json")
-    closure = _target_task_closure(index, task_name)
-    reused_ids = {d["task_id"] for d in reused_dependencies}
-    closure = [t for t in closure if t["task_id"] not in reused_ids]
-    if len(closure) == 1:
-        task = closure[0]
-        message = build_multidimensional_dispatch_message(Path(), Path(run_dir), task_name)
-        return f"""你是多维持仓研究阶段的 Codex 主线程。本次只执行一个独立维度的定点补证，不担任 CIO。
-读取 product/AGENTS.md 与 portfolio-council Skill 的多维持仓研究阶段。
-使用 Agent 工具且只派发一次：agent_type={task['agent']}，task_name={task_name}，fork_turns=none，message={json.dumps(message, ensure_ascii=False)}。
-等待该 Subagent 形成终态；不得启动映射外任务、runtime_skeptic、runtime_cio 或 Risk，不得改写 Specialist 输出。
-已验证的既有依赖只读复用，不重新派发或改写；Hook 会交付实际依赖报告。
-完成后只返回：{{"stage":"MULTI_DIMENSIONAL_HOLDING_RESEARCH","run_id":"{index['run_id']}","dispatched":1,"completed":1}}。
-"""
-    closure_ids = {item["task_id"] for item in closure}
-    task_map = {
-        item["task_name"]: {
-            "agent_type": item["agent"],
-            "depends_on_task_names": [
-                candidate["task_name"] for dependency_id in item.get("depends_on", [])
-                for candidate in closure if candidate["task_id"] == dependency_id
-            ],
-            "message": build_multidimensional_dispatch_message(
-                Path(), Path(run_dir), item["task_name"]
-            ),
-        }
-        for item in closure if item["task_id"] in closure_ids
-    }
-    return f"""你是多维持仓研究阶段的 Codex 主线程。本次只执行目标任务及其最小依赖闭包，不担任 CIO。
-读取 product/AGENTS.md 与 portfolio-council Skill 的多维持仓研究阶段。严格使用以下任务映射：
-{json.dumps(task_map, ensure_ascii=False, sort_keys=True)}
-
-按 depends_on_task_names 顺序逐个派发，任一时刻最多一个活跃 Subagent。每次使用 Agent 工具时，agent_type、task_name 和 message 必须来自映射，fork_turns=none。只有直接依赖已经结束且合法报告已保存，才能派发下游；若上游失败，只对下游尝试一次派发，让 Hook 留下 dependency-blocked 拒绝记录，不得跨批次复制或注入报告。
-每次派发后使用 wait 等待真实终态；不得启动映射外任务、runtime_skeptic、runtime_cio 或 Risk，不得改写 Specialist 输出。
-全部 {len(closure)} 个任务形成合法报告、显式失败或 dependency-blocked 终态后，只返回：{{"stage":"MULTI_DIMENSIONAL_HOLDING_RESEARCH","run_id":"{index['run_id']}","dispatched":{len(closure)},"completed":{len(closure)}}}。
-"""
 
 
 def finalize_multidimensional_task_evidence(
@@ -5286,432 +5149,319 @@ def launch_multidimensional_stage(
     timeout_seconds: int = 2400, task_name: str | None = None,
     initial_task: bool = False,
 ) -> tuple[dict[str, Any], int]:
-    """从宿主入口启动一次多维 Codex 研究批次。"""
+    """旧正常模型启动已退役；历史读取不依赖此入口。"""
+    raise MultidimensionalStageError("NATIVE_HOST_EXECUTION_REQUIRED:使用当前宿主portfolio-council原生会话；旧执行维护仅限明确批准的冻结版本。")
 
-    from product.runtime.nested_codex import (
-        build_verified_nested_codex_command,
-        fixture_mcp_runtime_environment,
-        integrity_snapshot,
-    )
 
-    repository_root = Path(repository_root).resolve()
-    product_root = repository_root / "product"
-    run_dir = Path(run_dir).resolve()
-    manifest = _read_object(run_dir / "run_manifest.json")
-    if (
-        manifest.get("schema_version") != (SINGLE_STOCK_STAGE_VERSION if is_single_stock(manifest) else STAGE_VERSION)
-        or manifest.get("stage") not in {
-            "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "INDEPENDENT_COUNTER_THESIS_RESEARCH",
-        }
-        or Path(manifest.get("output_dir", "")).resolve() != run_dir
-    ):
-        raise MultidimensionalStageError("MULTIDIMENSIONAL_MANIFEST_INVALID")
-    index = _read_object(run_dir / "research/dispatch-index.json")
-    from product.runtime.evidence_gate import validate_frozen_gate_binding
-    validate_frozen_gate_binding(run_dir, manifest, _read_object(run_dir / "evidence/gate.json"))
-    if is_single_stock(manifest):
-        from product.runtime.research_input import single_stock_contract_locks
-        load_research_input(run_dir, manifest=manifest)
-        if manifest.get("input_contract_locks") != single_stock_contract_locks(product_root):
-            raise MultidimensionalStageError("SINGLE_STOCK_CONTRACT_LOCK_DRIFT")
-    if initial_task:
-        if task_name is None or manifest["stage"] != "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_TASK_INVALID")
-        gate = _read_object(run_dir / "evidence/gate.json")
-        from product.runtime.research_input_topology import research_input_topology_lock
-        if (
-            manifest.get("manifest_hash") != legacy_envelope_hash(manifest, hash_field="manifest_hash")
-            or index.get("index_hash") != legacy_envelope_hash(index, hash_field="index_hash")
-            or manifest.get("dispatch_index_hash") != index.get("index_hash")
-            or not isinstance(manifest.get("run_id"), str) or not manifest["run_id"]
-            or any(value.get("run_id") != manifest["run_id"] for value in (index, gate))
-            or any(task.get("run_id") != manifest["run_id"] for task in index.get("tasks", []))
-            or manifest.get("gate_hash") != gate.get("bundle_hash")
-            or gate.get("bundle_hash") != legacy_envelope_hash(gate, hash_field="bundle_hash")
-            or not gate.get("allowed_evidence_ids")
-            or _read_object(run_dir / "council-request.json").get("request_hash")
-            != manifest.get("council_request_hash")
-            or manifest.get("research_input_topology")
-            != research_input_topology_lock(repository_root)
-            or manifest.get("research_execution_fingerprint")
-            != _research_execution_fingerprint(repository_root)
-        ):
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_INPUT_NOT_READY")
-    target_tasks = (
-        _target_task_closure(index, task_name) if task_name is not None else []
-    )
-    from product.runtime.research_submission import require_write_protocol
-    for task in (target_tasks if task_name is not None else index.get("tasks", [])):
-        if task.get("submission_version") is not None:
+def _industry_source_identity_copy_paths(task: Mapping[str, Any], draft: Mapping[str, Any]) -> list[str]:
+    if task.get("industry_source_boundary") != "industry-source-boundary/1.0.0":
+        return []
+    claims = draft.get("claims")
+    if not isinstance(claims, list):
+        return []
+    return [
+        f"claims[{index}].statement"
+        for index, claim in enumerate(claims)
+        if isinstance(claim, Mapping) and isinstance(claim.get("statement"), str)
+        and re.search(r"\b(?:source_id|as_of|retrieved_at)\s*=", claim["statement"])
+    ]
+
+
+_SOURCE_LITERAL_VERSION = "source-literal-selection/1.0.0"
+_MACRO_SOURCE_LITERAL_VERSION = "source-literal-selection/1.1.0"
+_SOURCE_LITERAL_PLACEHOLDER = re.compile(r"\{\{sf\.[A-Za-z][A-Za-z0-9_]{0,23}\}\}")
+
+
+def _macro_observation_literal(fact: Mapping[str, Any]) -> str:
+    """呈现显式选中记录的原角色和时间；不换算、补缺或选择观察期。"""
+    raw = fact.get("value")
+    if (not isinstance(raw, Mapping) or fact.get("dataset") != "macro_history"
+            or fact.get("source_family") != "moomoo_sg"
+            or fact.get("source_type") != "SECONDARY_VENDOR"
+            or fact.get("security_id") != "US:MARKET"
+            or type(raw.get("indicator_id")) is not int
+            or fact.get("source_id") != f"moomoo-sg-opend-macro:{raw['indicator_id']}"
+            or raw.get("vintage_status") != "CURRENT_VENDOR_SNAPSHOT"):
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    values = {}
+    for key in ("actual", "previous", "consensus"):
+        if key not in raw:
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        value = raw[key]
+        if value is None:
+            values[key] = "null（原缺失）"
+        elif value == "N/A":
+            values[key] = "N/A"
+        else:
+            if type(value) not in {str, int, float} or len(str(value)) > 128:
+                raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
             try:
-                require_write_protocol(task)
-            except ValueError as exc:
-                raise MultidimensionalStageError(str(exc)) from exc
-        from product.runtime.calculation_handoff import require_current_selection_transport
-        packet = build_multidimensional_dispatch_packet(
-            repository_root, run_dir, task["task_name"], include_dependency_reports=False,
-        )
+                if not Decimal(str(value)).is_finite():
+                    raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+            except InvalidOperation:
+                raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID") from None
+            values[key] = str(value)
+    for key in ("label", "unit_type", "raw_release_time"):
+        if (not isinstance(raw.get(key), str) or not raw[key].strip()
+                or len(raw[key]) > 128 or any(ord(c) < 32 for c in raw[key])
+                or "{{sf." in raw[key]):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    try:
+        # 只验证供应商标签的日期形状；没有时区证明，不据此创造UTC时点。
+        datetime.fromisoformat(raw["raw_release_time"])
+    except ValueError:
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID") from None
+    return (
+        f"【{raw['label']}；观察期(as_of)={fact['as_of']}；"
+        f"actual(原值)={values['actual']}；previous(原值)={values['previous']}；"
+        f"consensus(原值)={values['consensus']}；unit_type(原标签)={raw['unit_type']}；"
+        f"raw_release_time(供应商原标签，时区未核实)={raw['raw_release_time']}；"
+        "vintage_status=CURRENT_VENDOR_SNAPSHOT，历史vintage未核实】"
+    )
+
+
+def _bind_source_literal_selections(
+    draft: Mapping[str, Any], *, task: Mapping[str, Any], run_dir: Path,
+    reference_map: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Fill only explicitly selected source scalars in task-local draft statements."""
+
+    result = dict(draft)
+    had_selections = "source_literal_selections" in result
+    selections = result.pop("source_literal_selections", None)
+    version = task.get("source_literal_selection")
+    if version not in {_SOURCE_LITERAL_VERSION, _MACRO_SOURCE_LITERAL_VERSION}:
+        if had_selections or "{{sf." in json.dumps(result, ensure_ascii=False):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        return result
+    macro = version == _MACRO_SOURCE_LITERAL_VERSION
+    if ((macro and (task.get("capability") != "MACRO_CONTEXT"
+                    or task.get("tool_identity_version") != "research-tool-identity/1.0.0"))
+            or (not macro and task.get("capability") not in {"FUNDAMENTAL_EVENT", "OPTIONS_FLOW"})):
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    if selections is None:
+        selections = []
+    if not isinstance(selections, list) or len(selections) > 16:
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    claims = result.get("claims")
+    if not isinstance(claims, list):
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    claims = [dict(claim) if isinstance(claim, dict) else claim for claim in claims]
+    result["claims"] = claims
+    by_id = {c.get("claim_id"): c for c in claims if isinstance(c, dict) and isinstance(c.get("claim_id"), str)}
+    if len(by_id) != len(claims):
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    if not selections:
+        if "{{sf." in json.dumps(result, ensure_ascii=False):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        return result
+    gate = json.loads((run_dir / "evidence/gate.json").read_text(encoding="utf-8"))
+    if gate.get("bundle_hash") != legacy_envelope_hash(gate, hash_field="bundle_hash"):
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    allowed = set(task.get("allowed_evidence_ids", []))
+    facts = {f["evidence_id"]: f for f in gate.get("allowed_evidence", [])
+             if isinstance(f, dict) and f.get("evidence_id") in allowed}
+    queried: set[str] = set()
+    events_path = run_dir / "events/mcp/events.jsonl"
+    if not events_path.is_file() or events_path.is_symlink():
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    for line in events_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        event = json.loads(line)
+        if (event.get("event_type") == "mcp_tool_result"
+                and event.get("tool") in {"fixture_evidence.query", "live_evidence.query"}
+                and event.get("access_mode") == "read"
+                and all(event.get(k) == task.get(k) for k in ("run_id", "invocation_id", "agent"))
+                and event.get("event_hash") == legacy_envelope_hash(event, hash_field="event_hash")):
+            queried.update(x for x in event.get("evidence_ids", []) if isinstance(x, str))
+    aliases = (reference_map or {}).get("evidence", {})
+    seen: set[str] = set()
+    replacements: dict[str, tuple[str, str]] = {}
+    for selection in selections:
+        if (not isinstance(selection, dict)
+                or set(selection) != {"claim_id", "placeholder", "evidence_ref", "field"}):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        claim_id, marker, ref, field = (selection[k] for k in ("claim_id", "placeholder", "evidence_ref", "field"))
+        claim = by_id.get(claim_id)
+        if (not isinstance(marker, str) or not _SOURCE_LITERAL_PLACEHOLDER.fullmatch(marker)
+                or marker in seen or not isinstance(ref, str) or not isinstance(field, str)
+                or not isinstance(claim, dict) or not isinstance(claim.get("statement"), str)):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        seen.add(marker)
+        evidence_id = aliases.get(ref, ref)
+        cited = claim.get("evidence_refs", [])
+        if (evidence_id not in facts or evidence_id not in queried
+                or not isinstance(cited, list)
+                or evidence_id not in {aliases.get(item, item) for item in cited if isinstance(item, str)}
+                or (not macro and facts[evidence_id].get("security_id") not in task.get("security_ids", []))):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        fact = facts[evidence_id]
+        if macro:
+            if field != "moomoo_macro_observation":
+                raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+            literal = _macro_observation_literal(fact)
+        elif task["capability"] == "FUNDAMENTAL_EVENT":
+            raw = fact.get("value")
+            if (field != "sec_usd_value" or fact.get("source_type") != "sec"
+                    or fact.get("unit") != "USD" or not isinstance(raw, str)
+                    or len(raw) > 128 or re.fullmatch(r"-?\d+", raw) is None):
+                raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+            literal = raw + " USD"
+        else:
+            if (field not in {"as_of", "retrieved_at"}
+                    or fact.get("dataset") != "options_snapshot"
+                    or not str(fact.get("semantic_field", "")).startswith((
+                        "moomoo_option_quote:", "option_chain_contract:",
+                    ))):
+                raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+            raw = fact.get(field)
+            if not isinstance(raw, str) or len(raw) > 64 or not raw.endswith("Z"):
+                raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+            literal = field + "=" + raw
         try:
-            require_current_selection_transport(
-                packet, _read_object(run_dir / task["invocation_path"]), indexed_task=task,
-            )
-        except ValueError as exc:
-            raise MultidimensionalStageError(str(exc)) from exc
-    reused_dependencies = (
-        _verified_retry_dependencies(run_dir, task_name)
-        if task_name is not None and not initial_task else []
-    )
-    if reused_dependencies:
-        target_tasks = [t for t in target_tasks if t["task_id"] not in {d["task_id"] for d in reused_dependencies}]
-    if task_name is None and manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH":
-        # Verify the same projection used by SubagentStart before creating a
-        # model process. The dependent task is measured again with its report
-        # when the Hook actually delivers it.
-        for task in index["tasks"]:
-            packet = build_multidimensional_dispatch_packet(
-                repository_root, run_dir, task["task_name"],
-                include_dependency_reports=False,
-            )
-            serialize_multidimensional_model_context(packet)
-    if initial_task:
-        if (
-            not target_tasks
-            or any(item.get("capability") not in RESEARCH_CAPABILITIES for item in target_tasks)
-            or (run_dir / "invocation").exists()
-            or (run_dir / "research/task-execution-proof.json").exists()
-            or any((run_dir / "research/reports").glob("*/dimension-report.json"))
+            if not str(fact["as_of"]).endswith("Z") or not str(gate["decision_cutoff"]).endswith("Z"):
+                raise ValueError
+            as_of = datetime.fromisoformat(str(fact["as_of"]).replace("Z", "+00:00"))
+            cutoff = datetime.fromisoformat(str(gate["decision_cutoff"]).replace("Z", "+00:00"))
+            if as_of > cutoff or (field in {"as_of", "retrieved_at"} and datetime.fromisoformat(raw.replace("Z", "+00:00")).tzinfo is None):
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID") from None
+        if claim["statement"].count(marker) != 1:
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        if field == "sec_usd_value" and re.match(
+            r"\s*USD\b", claim["statement"].split(marker, 1)[1], flags=re.IGNORECASE,
         ):
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_TASK_SCOPE_OR_STATE_INVALID")
-        for task in target_tasks:
-            if (
-                manifest.get("agent_bindings", {}).get(task["agent"])
-                != _agent_binding(product_root, task["agent"])
-                or manifest.get("skill_bindings", {}).get(task["skill_name"])
-                != _skill_binding(product_root, task["skill_name"])
-            ):
-                raise MultidimensionalStageError("MULTIDIMENSIONAL_INITIAL_VERSION_MISMATCH")
-            packet = build_multidimensional_dispatch_packet(
-                repository_root, run_dir, task["task_name"],
-                include_dependency_reports=False,
-            )
-            serialize_multidimensional_initial_context(packet)
-        invocation_dir = run_dir / "invocation"
-        invocation_dir.mkdir()
-        runtime_root = run_dir / ".codex-runtime"
-    elif task_name is None:
-        invocation_dir = run_dir / "invocation"
-        if invocation_dir.exists():
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_ALREADY_LAUNCHED")
-        invocation_dir.mkdir()
-        runtime_root = run_dir / ".codex-runtime"
-    else:
-        if not (run_dir / "invocation/process-result.json").is_file():
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_BASE_NOT_TERMINAL")
-        target = target_tasks[-1]
-        expected_report_id = f"dimension-report:{target['task_id']}"
-        if any(
-            _read_object(candidate).get("report_id") == expected_report_id
-            for candidate in (run_dir / "research/reports").glob("*/dimension-report.json")
-        ):
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_RETRY_REPORT_ALREADY_VALID")
-        retry_slug = canonical_hash({"task_name": task_name})[:16]
-        retry_root = run_dir / f"invocation/retries/{retry_slug}"
-        attempt = 1
-        while (retry_root / f"attempt-{attempt}").exists():
-            attempt += 1
-        invocation_dir = retry_root / f"attempt-{attempt}"
-        invocation_dir.mkdir(parents=True)
-        runtime_root = run_dir / f".codex-runtime-retries/{retry_slug}/attempt-{attempt}"
-        if reused_dependencies:
-            _write_object(invocation_dir / "reused-dependencies.json", {
-                "target_task_name": task_name, "dependencies": reused_dependencies,
-            })
-    sqlite_home, log_dir, tmp_dir = runtime_root / "sqlite", runtime_root / "logs", runtime_root / "tmp"
-    for path in (sqlite_home, log_dir, tmp_dir):
-        path.mkdir(parents=True, exist_ok=False)
-    prompt = (
-        build_multidimensional_task_prompt(repository_root, run_dir, task_name, reused_dependencies=reused_dependencies)
-        if task_name is not None
-        else build_multidimensional_stage_prompt(repository_root, run_dir)
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        replacements[marker] = (claim_id, literal)
+    # No placeholder may occur in metadata, another claim, or an undeclared location.
+    for claim in claims:
+        statement = claim["statement"]
+        if "{{sf." in json.dumps({k: v for k, v in claim.items() if k != "statement"}, ensure_ascii=False):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        markers = _SOURCE_LITERAL_PLACEHOLDER.findall(statement)
+        if "{{sf." in statement and statement.count("{{sf.") != len(markers):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        for marker in markers:
+            if replacements.get(marker, (None,))[0] != claim["claim_id"]:
+                raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+        for marker in markers:
+            statement = statement.replace(marker, replacements[marker][1], 1)
+        claim["statement"] = statement
+    other = {k: v for k, v in result.items() if k != "claims"}
+    if "{{sf." in json.dumps(other, ensure_ascii=False):
+        raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    return result
+
+
+def _read_multidimensional_report_artifact(value, record, *, task, invocation, reference_packet, run_dir):
+    """从明确版本的草稿/回执读取正式对象；无目录创建、发布或执行准入。
+
+    冻结任务和显式协议只证明业务绑定；本函数不认证宿主、作者或实际执行。
+    历史读取检查同一业务约束，不生成执行事件或重写历史报告。
+    """
+    from product.runtime.multidimensional_references import translate_references
+    from product.runtime.calculation_handoff import (
+        validate_semantic_selection_draft, validate_tool_calculations,
+        _validate_multidimensional_calculation_structure,
     )
-    prompt_path = invocation_dir / "prompt.txt"
-    prompt_path.write_text(prompt, encoding="utf-8")
-    task_count = len(target_tasks) if task_name is not None else len(index["tasks"])
-    parent_schema = _parent_output_schema(manifest["run_id"], task_count)
-    schema_path = invocation_dir / "parent-output.schema.json"
-    _write_object(schema_path, parent_schema)
-    raw_final_path = tmp_dir / "final-message.json"
-    command = build_verified_nested_codex_command(
-        runtime_binding_path=invocation_dir / "codex-runtime.json",
-        codex_binary=codex_binary, product_root=product_root, run_dir=run_dir,
-        model=manifest["parent_model"], sqlite_home=sqlite_home, log_dir=log_dir,
-        final_message_path=raw_final_path,
-        hook_recorder_path=product_root / "runtime/codex_hook_recorder.py",
-        output_schema_path=schema_path, fixture_mcp_run_dir=run_dir,
-        research_submission_enabled=any(t.get("submission_version") for t in index["tasks"]),
-        research_task_state_enabled=(
-            (manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
-             and manifest.get("tool_identity_version") == "research-tool-identity/1.0.0")
-            or (is_single_stock(manifest) and manifest["stage"] == "INDEPENDENT_COUNTER_THESIS_RESEARCH")
-        ),
-        hook_agent_matcher="^(runtime_company_analyst|runtime_market_catalyst)$",
-    )
-    if (manifest["stage"] == "MULTI_DIMENSIONAL_HOLDING_RESEARCH"
-            or is_single_stock(manifest)):
-        # Desktop-only user MCP fields are rejected by the host CLI's strict
-        # parser. The CLI also skips project agent registration in this mode,
-        # so register only the specialists required by this frozen dispatch.
-        command.insert(command.index("exec") + 1, "--ignore-user-config")
-        product_agents = tomllib.loads(
-            (product_root / ".codex/config.toml").read_text(encoding="utf-8")
-        )["agents"]
-        for agent_name in sorted({item["agent"] for item in index["tasks"]}):
-            agent_config = product_agents.get(agent_name)
-            if not isinstance(agent_config, Mapping):
-                raise MultidimensionalStageError("MULTIDIMENSIONAL_AGENT_CONFIG_MISSING")
-            agent_path = (product_root / ".codex" / agent_config["config_file"]).resolve()
-            if not agent_path.is_relative_to(product_root / ".codex") or not agent_path.is_file():
-                raise MultidimensionalStageError("MULTIDIMENSIONAL_AGENT_CONFIG_INVALID")
-            command.extend((
-                "-c", f"agents.{agent_name}={{"
-                f"description={json.dumps(agent_config['description'], ensure_ascii=False)},"
-                f"config_file={json.dumps(str(agent_path))}}}",
-            ))
-        command.extend(("-c", f"agents.max_threads={product_agents['max_threads']}"))
-    events_path = invocation_dir / "codex-events.jsonl"
-    hook_events_path = invocation_dir / "subagent-events.jsonl"
-    dispatch_events_path = invocation_dir / "subagent-dispatches.jsonl"
-    stderr_path = invocation_dir / "codex-stderr.log"
-    environment = dict(os.environ)
-    environment.update({
-        "TMPDIR": str(tmp_dir), "PYTHONDONTWRITEBYTECODE": "1",
-        "STOCK_AGENT_RUN_DIR": str(run_dir), "STOCK_AGENT_FIXTURE_MCP_RUN_DIR": str(run_dir),
-        "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(hook_events_path),
-        "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(dispatch_events_path),
-        "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": (
-            ",".join(sorted({item["agent"] for item in target_tasks}))
-            if target_tasks
-            else "runtime_company_analyst,runtime_market_catalyst"
-        ),
-        "STOCK_AGENT_MULTIDIMENSIONAL_STAGE": manifest["schema_version"],
-        **fixture_mcp_runtime_environment(),
-    })
-    if task_name is not None:
-        selected_names = [item["task_name"] for item in target_tasks]
-        environment["STOCK_AGENT_RESEARCH_TASK_NAMES"] = json.dumps(selected_names)
-        if initial_task:
-            environment["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
-        if len(selected_names) == 1:
-            environment["STOCK_AGENT_RESEARCH_TASK_NAME"] = task_name
-        else:
-            environment.pop("STOCK_AGENT_RESEARCH_TASK_NAME", None)
-    else:
-        environment.pop("STOCK_AGENT_RESEARCH_TASK_NAME", None)
-        environment.pop("STOCK_AGENT_RESEARCH_TASK_NAMES", None)
-    environment.pop("STOCK_AGENT_START_CONTEXT", None)
-    environment.pop("STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT", None)
-    before = integrity_snapshot(repository_root)
-    _write_object(invocation_dir / "environment-manifest.json", {
-        "schema_version": "multidimensional-stage-environment/1.0.0",
-        "run_id": manifest["run_id"], "cwd": str(product_root),
-        "repo_root": str(repository_root), "product_root": str(product_root), "run_dir": str(run_dir),
-        "command": command, "model": manifest["parent_model"], "sandbox": "workspace-write",
-        "approval_policy": "never", "ephemeral": True, "sqlite_home": str(sqlite_home),
-        "log_dir": str(log_dir), "tmpdir": str(tmp_dir), "prompt_hash": file_hash(prompt_path),
-        "task_name": task_name,
-        "selected_task_names": [item["task_name"] for item in target_tasks],
-        "source_integrity_before": before,
-    })
-    interrupted = False
-    try:
-        process = subprocess.run(
-            command, input=prompt, text=True, cwd=product_root, env=environment,
-            capture_output=True, timeout=timeout_seconds, check=False,
+    from product.runtime.monetary import research_report_monetary_findings
+    if task.get("source_literal_selection"):
+        frozen_task = json.loads((run_dir / task["task_path"]).read_text(encoding="utf-8"))
+        if (reference_packet.get("task") != frozen_task
+                or {k: v for k, v in task.items() if k not in {
+                    "task_path", "invocation_path", "packet_path", "packet_hash",
+                }} != frozen_task
+                or frozen_task.get("task_hash") != legacy_envelope_hash(frozen_task, hash_field="task_hash")):
+            raise ValueError("DIMENSION_SOURCE_LITERAL_SELECTION_INVALID")
+    reference_map = reference_packet.get("reference_map")
+    # 身份已由可信 Start/任务绑定校验；只剥离程序装配的身份后检查原稿。
+    # MCP resolve 已按冻结提交版本核验原稿/事件并完成选择装配；它的返回值
+    # 是正式字段，不是第二份模型草稿。非 MCP 原稿则必须完整检查选择结构。
+    from product.runtime.research_submission import ASSEMBLY_VERSIONS
+    assembled_submission = record.get("submission_binding", {}).get("version")
+    if assembled_submission not in ASSEMBLY_VERSIONS:
+        validate_semantic_selection_draft(
+            {key: item for key, item in value.items() if key not in {"run_id", "invocation_id", "agent"}},
+            reference_packet,
         )
-        stdout, stderr, process_code, timed_out = process.stdout, process.stderr, process.returncode, False
-    except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        stderr = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-        process_code, timed_out = 124, True
-    except KeyboardInterrupt:
-        # subprocess.run 已结束子进程；Hook 落盘的报告与事件仍保持原样。
-        # 中止时未取得的管道输出不伪装成完整事件流。
-        stdout, stderr, process_code, timed_out = "", "", None, False
-        interrupted = True
-    events_path.write_text(stdout, encoding="utf-8")
-    stderr_path.write_text(stderr, encoding="utf-8")
-    failure_code = None
-    try:
-        if interrupted:
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_USER_INTERRUPTED")
-        if timed_out:
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_TIMEOUT")
-        if process_code != 0:
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_CODEX_PROCESS_FAILED")
-        if not raw_final_path.is_file():
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_FINAL_MESSAGE_MISSING")
-        final_message = _read_object(raw_final_path)
-        _write_object(invocation_dir / "final-message.json", final_message)
-        if final_message != {
-            "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH",
-            "run_id": manifest["run_id"], "dispatched": task_count,
-            "completed": task_count,
-        }:
-            raise MultidimensionalStageError("MULTIDIMENSIONAL_FINAL_MESSAGE_INVALID")
-        if task_name is not None:
-            task_proof = finalize_multidimensional_task_evidence(
-                repository_root, run_dir, task_name, invocation_dir=invocation_dir,
-            )
-            result = (
-                {"status": "PASSED", "run_id": manifest["run_id"],
-                 "completed": len(target_tasks), "expected": len(index["tasks"]),
-                 "scope": task_proof["scope"],
-                 "complete_holding_research_bundle": False,
-                 "not_run_task_names": [
-                     item["task_name"] for item in index["tasks"]
-                     if item["task_id"] not in {task["task_id"] for task in target_tasks}
-                 ],
-                 "task_proof": str(run_dir / "research/task-execution-proof.json")}
-                if initial_task else _adopt_multidimensional_retry(
-                    repository_root, run_dir, invocation_dir=invocation_dir,
-                )
-            )
-        else:
-            result = finalize_multidimensional_stage_run(repository_root, run_dir)
-        if result.get("status") == "FAILED":
-            failure_code = result.get("failure_code") or "MULTIDIMENSIONAL_TASK_VALIDATION_FAILED"
-    except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
-        failure_code = str(exc).split(":", 1)[0]
-        result = {"status": "FAILED", "run_id": manifest["run_id"], "failure_code": failure_code}
-    if interrupted:
-        # 只在本次已存在的真实 Hook 证明足以收尾时归集；不猜造未执行任务。
-        if task_name is None and not (run_dir / "research/holding-research-bundle.json").exists():
-            try:
-                partial = finalize_multidimensional_stage_run(repository_root, run_dir, user_interrupted=True)
-                result.update(partial)
-            except (OSError, ValueError, KeyError):
-                pass
-        result.update(status="USER_INTERRUPTED", failure_code=failure_code)
-    outcome_tasks = target_tasks if target_tasks else index["tasks"]
-    task_by_invocation = {item["invocation_id"]: item for item in outcome_tasks}
-    outcome_by_task: dict[str, dict[str, Any]] = {
-        item["task_id"]: {
-            "task_id": item["task_id"], "task_name": item["task_name"],
-            "status": "NOT_DISPATCHED", "failure_code": None,
-        }
-        for item in outcome_tasks
+    elif assembled_submission != task.get("submission_version"):
+        raise ValueError("RESEARCH_SUBMISSION_BINDING_INVALID")
+    if "document_selections" in value:
+        from product.runtime.research_submission import _selected_documents
+        documents = _selected_documents(value, reference_packet, value["document_selections"])
+        value = {key: item for key, item in value.items() if key != "document_selections"}
+        value["documents"] = documents
+    from product.runtime.calculation_handoff import assemble_calculation_selections
+    value = assemble_calculation_selections(run_dir, reference_packet, value)
+    value = _bind_source_literal_selections(
+        value, task=task, run_dir=run_dir, reference_map=reference_map,
+    )
+    if reference_map is not None:
+        value = translate_references(value, reference_map, local_claims={
+            c["claim_id"] for c in value.get("claims", [])
+            if isinstance(c, Mapping) and isinstance(c.get("claim_id"), str)
+        })
+    _validate_multidimensional_calculation_structure(value, packet=reference_packet)
+    if _industry_source_identity_copy_paths(task, value):
+        raise ValueError("DIMENSION_REPORT_SOURCE_IDENTITY_IN_PROSE")
+    artifact_refs = value.get("artifact_refs")
+    if (
+        not isinstance(artifact_refs, list)
+        or not set(artifact_refs) <= set(task.get("allowed_artifact_refs", []))
+    ):
+        raise ValueError("MULTIDIMENSIONAL_OUTPUT_ARTIFACT_REF_INVALID")
+    validate_tool_calculations(
+        value, task=task, invocation=invocation, run_dir=run_dir,
+    )
+    validate_breadth_calculation_references(run_dir, value)
+    from product.runtime.research_input import load_research_input, research_input_binding, research_subjects
+    handoff = load_research_input(run_dir)
+    council_request = json.loads((run_dir / "council-request.json").read_text(encoding="utf-8"))
+    gate = json.loads((run_dir / "evidence/gate.json").read_text(encoding="utf-8"))
+    from product.runtime.research_submission import selected_calculation_outputs
+    selected_upstream = selected_calculation_outputs(
+        run_dir, record.get("upstream_calculation_selections", []),
+    )
+    if research_report_monetary_findings(
+        value, task=task, gate=gate, reference_packet=reference_packet,
+        selected_upstream=selected_upstream,
+    ):
+        raise ValueError("DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED")
+    bindings = {
+        **research_input_binding(handoff), "council_request_id": council_request["request_id"],
+        "council_request_hash": council_request["request_hash"], "decision_cutoff": gate["decision_cutoff"],
     }
-    dispatch_records = (
-        [json.loads(line) for line in dispatch_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        if dispatch_events_path.is_file() else []
+    dependency_claim_ids = []
+    for dependency_id in task.get("depends_on", []):
+        dependency_matches = []
+        for path in (run_dir / "research/reports").glob("*/dimension-report.json"):
+            dependency = json.loads(path.read_text(encoding="utf-8"))
+            if dependency.get("report_id") == f"dimension-report:{dependency_id}":
+                dependency_matches.append(dependency)
+        if len(dependency_matches) != 1:
+            raise ValueError("MULTIDIMENSIONAL_DEPENDENCY_REPORT_MISSING")
+        from product.runtime.multidimensional_references import known_claim_references, VERSION
+        dependency_claim_ids.extend(known_claim_references(
+            dependency_matches,
+            allow_legacy=not reference_map or reference_map["binding"]["version"] != VERSION,
+        ))
+    report = __import__(
+        "product.council.multidimensional_research", fromlist=["envelope_research_dimension_draft"]
+    ).envelope_research_dimension_draft(
+        value, task=task, invocation=invocation, expected_bindings=bindings,
+        allowed_security_ids=[
+            item["security_id"] for item in research_subjects(handoff)
+            if item["asset_type"] == "COMMON_STOCK"
+        ],
+        allowed_evidence_ids=task["allowed_evidence_ids"],
+        allowed_calculation_evidence_ids=task.get("allowed_calculation_evidence_ids", []),
+        known_research_claim_ids=dependency_claim_ids,
+        allowed_documents=task.get("allowed_documents", []),
     )
-    hook_records = (
-        [json.loads(line) for line in hook_events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        if hook_events_path.is_file() else []
-    )
-    for item in dispatch_records:
-        task = next(
-            (candidate for candidate in outcome_tasks if candidate["task_name"] == item.get("task_name")),
-            None,
-        )
-        if task is None:
-            continue
-        if item.get("decision") == "ALLOW":
-            outcome_by_task[task["task_id"]]["status"] = "DISPATCHED_NOT_STARTED"
-        elif item.get("dispatch_binding", {}).get("failure_code") == "RESEARCH_DEPENDENCY_NOT_READY":
-            outcome_by_task[task["task_id"]].update(
-                status="DEPENDENCY_BLOCKED", failure_code="RESEARCH_DEPENDENCY_NOT_READY"
-            )
-    for item in hook_records:
-        context = item.get("context_binding")
-        if (
-            item.get("hook_event_name") == "SubagentStart"
-            and isinstance(context, Mapping)
-            and context.get("invocation_id") in task_by_invocation
-        ):
-            task = task_by_invocation[context["invocation_id"]]
-            outcome_by_task[task["task_id"]].update(
-                status="STARTED_NO_TERMINAL", failure_code="TERMINAL_EVENT_MISSING"
-            )
-        trusted = item.get("trusted_task_binding")
-        binding = item.get("output_binding")
-        invocation_id = (
-            trusted.get("invocation_id") if isinstance(trusted, Mapping) else None
-        ) or (binding.get("invocation_id") if isinstance(binding, Mapping) else None)
-        if item.get("hook_event_name") != "SubagentStop" or invocation_id not in task_by_invocation:
-            continue
-        task = task_by_invocation[invocation_id]
-        capture = item.get("output_capture")
-        if isinstance(capture, Mapping) and capture.get("status") == "SAVED":
-            outcome_by_task[task["task_id"]].update(status="SAVED", failure_code=None)
-        else:
-            outcome_by_task[task["task_id"]].update(
-                status="FAILED",
-                failure_code=(
-                    capture.get("failure_code")
-                    if isinstance(capture, Mapping) else "MULTIDIMENSIONAL_OUTPUT_INVALID"
-                ),
-            )
-            if isinstance(capture, Mapping) and isinstance(capture.get("diagnostics"), Mapping):
-                outcome_by_task[task["task_id"]]["diagnostics"] = capture["diagnostics"]
-    task_outcomes = [outcome_by_task[item["task_id"]] for item in outcome_tasks]
-    after = integrity_snapshot(repository_root)
-    process_result = {
-        "schema_version": "multidimensional-stage-process/1.0.0",
-        "run_id": manifest["run_id"], "process_exit_code": process_code,
-        "timed_out": timed_out, "interrupted": interrupted,
-        "captured_process_output_complete": not interrupted,
-        "stage_status": result["status"], "failure_code": failure_code,
-        "source_integrity_unchanged": before == after,
-        "task_outcomes": task_outcomes,
-        "saved_task_count": sum(item["status"] == "SAVED" for item in task_outcomes),
-        "failed_task_count": sum(
-            item["status"] in {"FAILED", "DEPENDENCY_BLOCKED"} for item in task_outcomes
-        ),
-        "incomplete_task_count": sum(
-            item["status"] in {"NOT_DISPATCHED", "DISPATCHED_NOT_STARTED", "STARTED_NO_TERMINAL"}
-            for item in task_outcomes
-        ),
-        "not_run_task_names": (
-            [item["task_name"] for item in index["tasks"]
-             if item["task_id"] not in {task["task_id"] for task in target_tasks}]
-            if initial_task else []
-        ),
-    }
-    from product.council.multidimensional_output import project_research_status
-    bundle_path = run_dir / "research/holding-research-bundle.json"
-    reports = (
-        [_read_frozen_object(run_dir, item["artifact_ref"])
-         for item in _read_object(bundle_path)["report_refs"]]
-        if bundle_path.is_file() else [
-            _read_object(path) for path in (run_dir / "research/reports").glob("*/dimension-report.json")
-        ]
-    )
-    coverage = (
-        _read_object(bundle_path).get("coverage", []) if bundle_path.is_file() else [
-            {"report_id": item["task_id"] if item["status"] == "SAVED" else None,
-             "status": "FAILED" if item["status"] == "FAILED" else "NOT_RESEARCHED"}
-            for item in task_outcomes
-        ]
-    )
-    result["status_projection"] = project_research_status(
-        reports, coverage=coverage, process=process_result,
-    )
-    process_result["status_projection"] = result["status_projection"]
-    _write_object(invocation_dir / "process-result.json", process_result)
-    if bundle_path.is_file() and task_name is None:
-        from product.council.multidimensional_output import render_holding_research_bundle_markdown
-        bundle = _read_object(bundle_path)
-        # 重新渲染的只是当前运行展示；冻结报告 JSON、hash 和历史包均不变。
-        checked = check_multidimensional_bundle_consumable(repository_root, run_dir, persist=False)
-        result["status_projection"] = checked["status_projection"]
-        loaded = [(item, _read_frozen_object(run_dir, item["artifact_ref"]))
-                  for item in bundle["report_refs"]]
-        markdown = render_holding_research_bundle_markdown(
-            bundle,
-            dimension_reports=[report for ref, report in loaded if ref["report_type"] == "RESEARCH_DIMENSION_REPORT"],
-            equity_reports=[report for ref, report in loaded if ref["report_type"] == "EQUITY_RESEARCH_REPORT"],
-            process=process_result,
-        )
-        (run_dir / "research/holding-research-bundle.md").write_text(markdown, encoding="utf-8")
-    return result, 130 if interrupted else 0 if result["status"] == "PASSED" and before == after else 7
+    evidence = [
+        item for item in gate["allowed_evidence"]
+        if item["evidence_id"] in set(task["allowed_evidence_ids"])
+    ]
+    return report, evidence, selected_upstream

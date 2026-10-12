@@ -706,62 +706,6 @@ def _read_repair(root: Path, packet: dict, base: dict) -> dict:
     return repair
 
 
-def bounded_stop_repair(root: Path, record: dict, repair: dict | None = None) -> dict | None:
-    """可信 Stop 在原提交对象上声明范围；回执字符串绝不充当研究原稿。"""
-    source = record.get("submission_binding", {})
-    if (record.get("identity_binding", {}).get("status") != "BOUND"
-            or source.get("version") != BOUNDED_REVISION_VERSION or source.get("submission") != 1):
-        return None
-    invocation = record["trusted_task_binding"]["invocation_id"]
-    packet = _packet(root, invocation)
-    base = _stored_submission(root, packet, 1)
-    if (_directory(root, invocation, create=False) / "2.json").exists():
-        return None  # 返回第一份回执不能重新开放已消耗的第二稿额度。
-    path = _repair_path(root, packet)
-    if path.is_file():
-        binding = _read_repair(root, packet, base)
-    elif repair is not None:
-        details = repair.get("validation_details", {})
-        findings = [*details.get("findings", []), *details.get("dangling_references", [])]
-        repeated = []
-        if repair["validation_error"] == "DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED":
-            from product.runtime.codex_hook_recorder import _monetary_repetition_context
-            repeated = _monetary_repetition_context(base["draft"], findings)
-            findings.extend(repeated)
-        binding = _bounded_repair(base, packet, findings, repair["validation_error"])
-        if binding is None:
-            return None
-        if repeated:
-            binding["repeated_amount_context"] = repeated
-        _save_repair(path, binding)
-        binding = json.loads(path.read_text())
-        # 此时 Hook 还未 append；binding_hash 随本次可信 Stop 写入不可变事件。
-    else:
-        return None
-    from product.runtime.local_revision import VERSION as REVISION_VERSION, REVISION_FORMAT_GUIDE
-    return {"repair_contract": REVISION_VERSION, "task_id": packet["task"]["task_id"],
-            "invocation_id": invocation, "attempt": 1, "maximum_submissions": 2,
-            "validation_error": binding["validation_error"], "output_schema_hash": packet["output_schema_hash"],
-            "base_draft_ref": binding["base_draft_ref"], "allowed_paths": binding["allowed_paths"],
-            "binding_path": str(path.relative_to(root)), "binding_hash": binding["content_hash"],
-            "transport": "RESEARCH_SUBMISSION",
-            **({"validation_details": {"findings": copy.deepcopy(binding["monetary_findings"])}}
-               if binding.get("monetary_findings") else {}),
-            **({"repeated_amount_context": binding["repeated_amount_context"]}
-               if binding.get("repeated_amount_context") else {}),
-            "revision_format_guide": copy.deepcopy(REVISION_FORMAT_GUIDE),
-            "instruction": "原Agent在同一会话仅调用research_report_submit提交draft={base_draft_ref,changes}；"
-                           "只改allowed_paths，保留其它主张。最多一次修订，最终原样返回新final_message；"
-                           "程序不选择引用，不代写研究，第二稿仍完整校验。"
-                           + ("amount_index按最终拼接的statement计数，包含core_statement和全部关系解释句；"
-                              "逐项对照source_value/reported_value核对两处，不能只修主段落遗漏关系句。"
-                              "由原作者在allowed_paths内保留来源原表示或真实同源计算依据，不扩大路径或次数。"
-                              if binding["validation_error"] == "DIMENSION_REPORT_MONETARY_REEXPRESSION_UNVERIFIED" else "")
-                           + ("同额重复description仅供原作者核对，不是新增硬错误或来源证明；"
-                              "核对主张和精确路径的金额单位，保留来源原表示或真实同源计算依据。"
-                              if binding.get("repeated_amount_context") else "")}
-
-
 def _verify_bounded_revision(root: Path, packet: dict, value: dict) -> None:
     if "revision_binding_hash" not in value:
         if value.get("submission_ref", "").startswith("r2."):
@@ -859,9 +803,9 @@ def _monetary_review(root: Path, assembled: dict | None, packet: dict, selected:
             for claim in claims
         )):
             return result
-        from product.runtime.codex_hook_recorder import _research_report_monetary_findings
+        from product.runtime.monetary import research_report_monetary_findings
         gate = json.loads((root / "evidence/gate.json").read_text())
-        findings = _research_report_monetary_findings(
+        findings = research_report_monetary_findings(
             assembled, task=packet["task"], gate=gate,
             reference_packet=packet, selected_upstream=selected,
         )

@@ -1,0 +1,137 @@
+{
+  "source_id": "native-package-claude-window-2-preparation:20261008",
+  "as_of": "2026-10-08T13:57:49.210Z",
+  "retrieved_at": "2026-10-08T14:01:21.411832+00:00",
+  "task": "6.1",
+  "status": "PREPARATION_COMPLETE_NOT_EXECUTION_PASS",
+  "authorization": {
+    "source_id": "claude-mapped-native-window-2:2026-10-08T13:54:06.257942+00:00",
+    "as_of": "2026-10-08T13:54:06.257942+00:00",
+    "retrieved_at": "2026-10-08T13:54:06.257942+00:00",
+    "authorization_source": {
+      "type": "AskUserQuestion actual answer",
+      "question": "已关闭窗口不能恢复。是否授权一次新的 Claude 原生窗口，按上述 5 任务／30 分钟上限继续验证？",
+      "answer": "授权一次新窗口（推荐）"
+    },
+    "workspace": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/claude-code/product-workspace",
+    "session_id": "local_fc3e06b1-3702-4e13-9ddc-6ecfbffdd200",
+    "start_at": "2026-10-08T13:54:06.257942+00:00",
+    "deadline": "2026-10-08T14:24:06.257942+00:00",
+    "max_native_tasks": 5,
+    "primary": 1,
+    "planned_specialists": {
+      "company": 1,
+      "skeptic": 1,
+      "market": 1
+    },
+    "fifth_task": "Host automatic auxiliary only, no redispatch",
+    "model": {
+      "host_alias": "opus",
+      "desktop_declaration": "claude-opus-5/high",
+      "user_approved_target": "gpt-6.1-sol",
+      "specialists": "inherit",
+      "cc_switch_configuration_read": false,
+      "provider_wire_verified": false
+    },
+    "samples": {
+      "fixture": {
+        "source": "normal-research.json",
+        "security_id": "SEC-AAA",
+        "cutoff": "2026-01-31T23:59:59Z",
+        "capabilities": [
+          "FIXTURE_COMPANY_RESEARCH",
+          "INDEPENDENT_FIRST_PASS",
+          "FIXTURE_COUNCIL_DECISION"
+        ]
+      },
+      "market": {
+        "security_id": "US:COMMON_STOCK:MRVL",
+        "cutoff": "2026-09-28T12:35:32.208143Z",
+        "capability": "TECHNICAL_STRUCTURE",
+        "benchmark_id": "US:ETF:SPY"
+      }
+    },
+    "allowed_business_outputs": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/private/claude-code",
+    "read_only_sources": [
+      "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/claude-code/product-workspace",
+      "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/source-reviewed"
+    ],
+    "first_error_stop": true,
+    "no_retry_revision_redispatch_or_alternative_backend": true,
+    "source_network_and_account_calls": 0,
+    "limitations": [
+      "Native task count is not provider request/token/cost count.",
+      "Hash checks do not prove OS-enforced read-only.",
+      "No Codex/OpenCode, Eval/Replay/Promotion, archive or Git publication."
+    ],
+    "previous_window": "CLOSED_NOT_RESUMED",
+    "candidate_reuse": "Exact unchanged 308-file Claude package and three previously unconsumed tasks; no re-signing or fresh source selection",
+    "message_transport": "Existing desktop native send_message interface; same product session, not model CLI/SDK or alternate research dispatch"
+  },
+  "authorization_sha256": "1197d47951b2ec63f0363666b221d327911cc97e78e1bafa4e5c287de5c1936e",
+  "actual_directory_and_main_model_observation": {
+    "source_id": "claude-mapped-window-2-directory:2026-10-08T13:57:49.210Z",
+    "as_of": "2026-10-08T13:57:49.210Z",
+    "retrieved_at": "2026-10-08T13:58:30.217254+00:00",
+    "fresh_assistant_count": 2,
+    "fresh_assistant_models": [
+      "gpt-6.1-sol"
+    ],
+    "fresh_tool_names": [
+      "mcp__ccd_directory__change_directory"
+    ],
+    "cwd": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/claude-code/product-workspace",
+    "desktop_model": "claude-opus-5",
+    "effort": "high",
+    "cli_binary_pin": {
+      "version": "2.1.293",
+      "wrapper": "0.3.293-rc.20261007.t063642.sha3abc54a",
+      "currentAsOfMs": 1791460889073
+    },
+    "host_alias": "opus",
+    "user_approved_mapping": "gpt-6.1-sol",
+    "mapping_matches": true,
+    "provider_wire_verified": false,
+    "cc_switch_configuration_read": false,
+    "source_zip_sha256": "d04d08df7ebcf7b4e62193d95507ee578cd1001bb76a9f9f98e0a361945c2712",
+    "new_specialists_observed": 0
+  },
+  "candidate_preparation": "claude-mapped-readiness.json",
+  "protected_sources_tests": 38,
+  "protected_old_files": 1832,
+  "protected_new_package_sources": 582,
+  "protection_hashes_unchanged": true,
+  "permissions": {
+    "existing_product_session_mode": "bypassPermissions",
+    "permission_mode_changed": false,
+    "professional_policy": "Exact role MCP tool whitelist; no generic file/shell/network/Agent tools",
+    "main_thread_authorized_file_reads": "Exactly three current small agent grants plus loaded package instructions",
+    "allowed_business_writes": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/private/claude-code",
+    "read_only_policy": [
+      "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/claude-code/product-workspace",
+      "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/source-reviewed"
+    ],
+    "os_enforced_read_only_proven": false,
+    "actual_child_tool_pool_and_initial_input": "Task 6.3 must observe; configuration is not proof"
+  },
+  "execution_request": {
+    "same_session": true,
+    "native_message_delivery": "delivered",
+    "professional_entries": [
+      "skeptic-native",
+      "company-native",
+      "market-native"
+    ],
+    "skill_arguments_only": true,
+    "order": "Skeptic first, then Company, then independent Market; no parallel claim",
+    "cio": "Only same native main thread after valid fresh reports and exact new CIO grant",
+    "tool_or_model_fallback": false,
+    "candidate_or_task_resigning": false
+  },
+  "completion_limits": [
+    "Task 6.1 preparation only; does not complete 6.3/7.x/8.1.",
+    "No Codex/OpenCode execution or complete public research.",
+    "Provider wire and actual children remain separately unverified.",
+    "The first failed window remains closed; its errors and denied stop unchanged."
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tiger-account-snapshot/1.0.0",
+  "title": "TigerAccountSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "snapshot_id", "account_ref", "source_id", "as_of",
+    "retrieved_at", "content_hash", "license", "coverage_status",
+    "account_scope", "account_values", "positions", "coverage"
+  ],
+  "properties": {
+    "schema_version": {"const": "tiger-account-snapshot/1.0.0"},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "account_ref": {"type": "string", "minLength": 1},
+    "source_id": {"type": "string", "minLength": 1},
+    "as_of": {"type": "string", "minLength": 1},
+    "retrieved_at": {"type": "string", "minLength": 1},
+    "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "license": {"const": "TBHK"},
+    "coverage_status": {"enum": ["COMPLETE", "PARTIAL", "UNKNOWN"]},
+    "account_scope": {"enum": ["BROKER_ACCOUNT", "MIXED_MARKET_ACCOUNT"]},
+    "account_values": {"type": "array", "items": {"$ref": "#/$defs/accountValue"}},
+    "positions": {"type": "array", "items": {"$ref": "#/$defs/position"}},
+    "coverage": {"$ref": "#/$defs/coverage"}
+  },
+  "$defs": {
+    "accountValue": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field", "value", "currency", "scope", "source_id", "as_of", "retrieved_at"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1},
+        "value": {"type": ["number", "string", "null"]},
+        "currency": {"type": ["string", "null"]},
+        "scope": {"enum": ["WHOLE_ACCOUNT", "US_USD_SEGMENT"]},
+        "source_id": {"type": "string", "minLength": 1},
+        "as_of": {"type": "string", "minLength": 1},
+        "retrieved_at": {"type": "string", "minLength": 1}
+      }
+    },
+    "position": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "position_id", "instrument_key", "provider_contract_id", "display_symbol", "display_name",
+        "market", "currency", "asset_type", "identity_status", "quantity",
+        "available_quantity", "average_cost", "market_price", "market_value",
+        "unrealized_pnl", "option", "intake_status", "source_id", "as_of",
+        "retrieved_at", "record_hash"
+      ],
+      "properties": {
+        "position_id": {"type": "string", "minLength": 1},
+        "instrument_key": {"type": "string", "minLength": 1},
+        "provider_contract_id": {"type": ["string", "null"]},
+        "display_symbol": {"type": "string", "minLength": 1},
+        "display_name": {"type": ["string", "null"]},
+        "market": {"type": "string", "minLength": 1},
+        "currency": {"type": "string", "minLength": 1},
+        "asset_type": {"type": "string", "minLength": 1},
+        "identity_status": {"enum": ["OBSERVED", "RESOLVED", "AMBIGUOUS"]},
+        "quantity": {"type": "number"},
+        "available_quantity": {"type": ["number", "null"]},
+        "average_cost": {"type": ["number", "null"]},
+        "market_price": {"type": ["number", "null"]},
+        "market_value": {"type": ["number", "null"]},
+        "unrealized_pnl": {"type": ["number", "null"]},
+        "option": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/option"}]},
+        "intake_status": {"enum": ["SUPPORTED_US_USD", "PENDING_FUTURE_RESEARCH", "UNCLASSIFIED"]},
+        "source_id": {"type": "string", "minLength": 1},
+        "as_of": {"type": "string", "minLength": 1},
+        "retrieved_at": {"type": "string", "minLength": 1},
+        "record_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "option": {
+      "type": "object", "additionalProperties": false,
+      "required": ["underlying_symbol", "option_type", "expiration_date", "strike", "multiplier", "raw_contract_symbol", "adjustment_status"],
+      "properties": {
+        "underlying_symbol": {"type": ["string", "null"]},
+        "option_type": {"type": ["string", "null"]},
+        "expiration_date": {"type": ["string", "null"]},
+        "strike": {"type": ["number", "null"]},
+        "multiplier": {"type": ["number", "null"]},
+        "raw_contract_symbol": {"type": ["string", "null"]},
+        "adjustment_status": {"enum": ["STANDARD", "ADJUSTED", "UNKNOWN"]}
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["visible_position_count", "supported_position_count", "excluded_position_count", "excluded_assets", "limitations"],
+      "properties": {
+        "visible_position_count": {"type": "integer", "minimum": 0},
+        "supported_position_count": {"type": "integer", "minimum": 0},
+        "excluded_position_count": {"type": "integer", "minimum": 0},
+        "excluded_assets": {"type": "array", "items": {"$ref": "#/$defs/excluded"}},
+        "limitations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "excluded": {
+      "type": "object", "additionalProperties": false,
+      "required": ["position_id", "display_symbol", "market", "currency", "asset_type", "reason", "status"],
+      "properties": {
+        "position_id": {"type": "string", "minLength": 1},
+        "display_symbol": {"type": "string", "minLength": 1},
+        "market": {"type": "string", "minLength": 1},
+        "currency": {"type": "string", "minLength": 1},
+        "asset_type": {"type": "string", "minLength": 1},
+        "reason": {"const": "UNSUPPORTED_FOR_PORTFOLIO_INTAKE"},
+        "status": {"const": "PENDING_FUTURE_RESEARCH"}
+      }
+    }
+  }
+}

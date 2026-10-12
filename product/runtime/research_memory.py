@@ -1172,54 +1172,15 @@ class ResearchMemory:
             raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_INVALID") from exc
         if not isinstance(value, dict):
             raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_INVALID")
-        required = {
-            "schema_version", "security_id", "research_input_fingerprint",
-            "reuse_key", "report", "markdown", "request", "evidence",
-            "calculations", "attachment", "validation", "manifest",
-        }
-        if set(value) != required or value.get("schema_version") != "company-research-report-package/1.0.0":
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_INVALID")
-        if value.get("reuse_key") != report_reuse_key(
-            str(value.get("security_id")), str(value.get("research_input_fingerprint")),
-        ):
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_BINDING_INVALID")
-        report = value.get("report")
-        manifest = value.get("manifest")
-        if not isinstance(report, Mapping) or not isinstance(manifest, Mapping):
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_INVALID")
-        request = value.get("request")
-        supported_request = {
-            "equity-research-report/1.0.0": "holding-research-request/1.0.0",
-            "equity-research-report/2.0.0": "holding-research-request/2.0.0",
-        }.get(report.get("schema_version"))
-        if supported_request is None:
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_READER_UNSUPPORTED_VERSION")
-        if not isinstance(request, Mapping) or request.get("schema_version") != supported_request:
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_BINDING_INVALID")
-        from product.council.common_stock_research import validate_equity_research_report
+        if value.get("schema_version") == "native-research-archive/1.0.0":
+            from product.tools.report_history import validate_archive
+            validate_archive(value)
+            return value
+        from product.tools.report_packages import validate_company_package, ReportPackageError
         try:
-            validate_equity_research_report(report, request=request,
-                calculation_artifact_ids=[item["calculation_id"] for item in value["calculations"]
-                    if isinstance(item, Mapping) and "calculation_id" in item])
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_BINDING_INVALID") from exc
-        try:
-            verify_legacy_object_hash(report, manifest.get("report_hash"), kind="canonical-object",
-                                      location="company-research-report-package:report")
-        except HashContractError as exc:
-            raise ResearchMemoryError(f"RESEARCH_MEMORY_REPORT_PACKAGE_HASH_MISMATCH:{exc}") from exc
-        expected_hashes = {
-            "request_hash": canonical_hash(value["request"]),
-            "evidence_hash": canonical_hash(value["evidence"]),
-            "calculation_hash": canonical_hash(value["calculations"]),
-            "attachment_hash": canonical_hash(value["attachment"]),
-            "markdown_hash": hashlib.sha256(
-                str(value["markdown"]).encode("utf-8")
-            ).hexdigest(),
-        }
-        if any(manifest.get(field) != digest for field, digest in expected_hashes.items()):
-            raise ResearchMemoryError("RESEARCH_MEMORY_REPORT_PACKAGE_HASH_MISMATCH")
-        return value
+            return validate_company_package(value)
+        except ReportPackageError as exc:
+            raise ResearchMemoryError(str(exc)) from exc
 
     def make_report_reference(
         self, stored: Mapping[str, Any], *, checked_at: str,

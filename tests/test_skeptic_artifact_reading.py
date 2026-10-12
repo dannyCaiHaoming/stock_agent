@@ -1,4 +1,4 @@
-"""反证冻结任务的只读绑定：真实准备/Hook 接缝，零模型。"""
+"""反证冻结任务的真实准备、业务保存与显式历史只读绑定；零模型。"""
 from __future__ import annotations
 
 import json
@@ -20,7 +20,7 @@ def snapshot(root):
 
 class SkepticArtifactReadingTests(unittest.TestCase):
     def prepare(self, directory):
-        run, task, _, _, _ = semantic.SkepticSemanticHandoffTests().prepare(directory)
+        run, task, _ = semantic.SkepticSemanticHandoffTests().prepare(directory)
         gate = json.loads((run / "evidence/gate.json").read_text())
         return run, task, gate
 
@@ -38,7 +38,7 @@ class SkepticArtifactReadingTests(unittest.TestCase):
             with patch("product.runtime.invocation.verify_invocation_manifest", side_effect=AssertionError("不能授权当前执行")) as verify:
                 path, allowed = self.read(moved, task, gate, for_execution=False)
                 verify.assert_not_called()
-            self.assertEqual(path, moved / task["invocation_ref"])
+            self.assertEqual(path, moved.resolve() / task["invocation_ref"])
             self.assertEqual(allowed, task["allowed_evidence_ids"])
             self.assertEqual(snapshot(moved), before)
             with self.assertRaises((ValueError, OSError)):
@@ -90,10 +90,11 @@ class SkepticArtifactReadingTests(unittest.TestCase):
     def test_actual_formal_package_is_readable_after_source_directory_is_removed(self):
         with tempfile.TemporaryDirectory() as directory:
             helper = semantic.SkepticSemanticHandoffTests()
-            run, task, env, start, _ = helper.prepare(directory)
+            run, task, _ = helper.prepare(directory)
             self.assertNotIn("error", helper.query(run, task, task["allowed_evidence_ids"]))
-            record, _ = helper.stop(env, start, helper.draft(task, run=run))
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
+            capture = helper.capture(run, task, helper.draft(task, run=run))
+            self.assertEqual(capture["status"], "SAVED", capture)
+            helper.write_historical_execution_fixture(run, task, capture)
             self.assertEqual(stage.finalize_skeptic_phase(semantic.fixtures.ROOT, run)["status"], "PASSED")
             package = json.loads((run / "research/skeptic/pre-decision-research-package.json").read_text())
             contract = json.loads((semantic.fixtures.ROOT / "product/schemas/runtime/pre-decision-research-package.schema.json").read_text())

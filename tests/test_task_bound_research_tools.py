@@ -83,13 +83,12 @@ class TaskBoundResearchToolsTests(unittest.TestCase):
                                                    "operation": "ratio", "evidence_ids": ["e.1", "e.2"]})
             self.assertIn("TOOL_NOT_AUTHORIZED", denied["error"]["message"])
 
-    def test_v6_submit_actual_task_route_token_and_trusted_stop_unchanged(self):
+    def test_v6_submit_task_route_token_and_pure_business_read(self):
         from tests.test_research_submission import ResearchSubmissionTests
         from product.runtime.research_submission import BOUNDED_REVISION_VERSION
-        from product.runtime.codex_hook_recorder import handle_hook_event
         helper = ResearchSubmissionTests()
         with tempfile.TemporaryDirectory() as directory:
-            fixture, run, task, env, draft = helper.submit_and_start(
+            _, run, task, _, draft = helper.submit_and_start(
                 Path(directory), version=BOUNDED_REVISION_VERSION, task_bound_tools=True)
             packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
             original = canonical_hash(packet)
@@ -109,12 +108,15 @@ class TaskBoundResearchToolsTests(unittest.TestCase):
             result = self.call(run, "research_report_submit", args)
             self.assertNotIn("error", result, result)
             receipt = result["result"]["structuredContent"]
-            payload = fixture.stop_payload(task, {}, parent="dependency-parent", child="r")
-            payload["last_assistant_message"] = receipt["final_message"]
-            stopped, _ = handle_hook_event(payload, environ=env)
-            self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
+            self.assertEqual(receipt["status"], "DRAFT_STORED_NOT_VALIDATED")
+            report, _, _, _ = helper.read_bounded_submission(run, task, receipt)
+            self.assertEqual(report["summary"], draft["summary"])
+            self.assertEqual(report["data_gaps"], draft["data_gaps"])
+            self.assertEqual(report["invocation_id"], task["invocation_id"])
             events = (run / "events/mcp/events.jsonl").read_text()
             self.assertNotIn(helper.token(run, task), events)
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
+            self.assertFalse(any((run / "research/submissions").rglob("accepted.json")))
 
     def test_index_and_invocation_tampering_rejected(self):
         for kind in ("index", "ambiguous", "invocation", "profile"):
@@ -152,10 +154,10 @@ class TaskBoundResearchToolsTests(unittest.TestCase):
             self.assertIn("error", self.call(run, "query", {"task_name": task["task_name"], "evidence_ids": []}))
             self.assertNotIn("task_name", StatelessFixtureTools().available_tools()[0]["inputSchema"]["properties"])
 
-    def test_missing_option_selector_actual_stop_one_patch_and_failure_exhaustion(self):
-        from product.runtime.codex_hook_recorder import handle_hook_event
+    def test_option_selector_explicit_patch_requires_actual_task_query(self):
+        from product.tools.revision import _apply
         from product.runtime.multidimensional_stage import prepare_multidimensional_stage_run
-        for scenario in ("valid", "wrong_field", "unqueried", "wrong_child"):
+        for scenario in ("valid", "wrong_field", "unqueried", "foreign_task"):
             with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 helper = fixtures.MultidimensionalStageTests()
@@ -176,43 +178,41 @@ class TaskBoundResearchToolsTests(unittest.TestCase):
                 prepare_multidimensional_stage_run(fixtures.ROOT, handoff_path=root / "handoff.json",
                     gate_path=root / "gate.json", run_dir=run, run_id="option-selector-missing",
                     model="gpt-5.6-terra", task_bound_tools=True)
-                task = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
-                            if t["capability"] == "OPTIONS_FLOW")
+                tasks = json.loads((run / "research/dispatch-index.json").read_text())["tasks"]
+                task = next(t for t in tasks if t["capability"] == "OPTIONS_FLOW")
                 packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
                 short = next(k for k, v in packet["reference_map"]["evidence"].items() if v == quote["evidence_id"])
-                env = helper.targeted_environment(run, task)
-                handle_hook_event(helper.dispatch_payload(task, parent="p"), environ=env)
-                handle_hook_event(helper.start_payload(task, parent="p", child="c"), environ=env)
-                if scenario != "unqueried":
-                    self.assertNotIn("error", self.call(run, "query", {"task_name": task["task_name"], "evidence_ids": [short]}))
+                query = {"task_name": task["task_name"], "evidence_ids": [short]}
+                if scenario == "foreign_task":
+                    foreign = next(t for t in tasks if t["capability"] == "FUNDAMENTAL_EVENT")
+                    self.assertIn("error", self.call(run, "query", query | {"task_name": foreign["task_name"]}))
+                elif scenario != "unqueried":
+                    self.assertNotIn("error", self.call(run, "query", query))
                 draft = helper.dimension_draft(task)
-                for key in ("run_id", "invocation_id", "agent"):
-                    draft.pop(key, None)
                 draft["claims"] = [{"claim_id": "quote", "question": "报价时间？", "statement": "盘口{{sf.time}}。",
                                     "kind": "FACT", "evidence_refs": [short], "research_claim_refs": [],
                                     "document_refs": [], "assumption_ids": []}]
-                first, response = handle_hook_event(helper.stop_payload(task, draft, parent="p", child="c"), environ=env)
-                self.assertEqual(first["output_capture"]["failure_code"], "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID", first)
-                self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first)
-                repair = json.loads(response["reason"])
-                self.assertEqual(repair["allowed_paths"], ["/source_literal_selections"])
-                base = run / first["output_capture"]["raw_path"]
-                before = base.read_bytes()
-                correction = {"base_draft_ref": repair["base_draft_ref"], "changes": [{"op": "add",
-                    "path": "/source_literal_selections", "value": [{"claim_id": "quote", "placeholder": "{{sf.time}}",
-                    "evidence_ref": short, "field": "sec_usd_value" if scenario == "wrong_field" else "as_of"}]}]}
-                if scenario == "wrong_child":
-                    rejected, _ = handle_hook_event(helper.stop_payload(task, correction, parent="p", child="foreign"), environ=env)
-                    self.assertNotEqual(rejected["identity_binding"]["status"], "BOUND")
-                second, _ = handle_hook_event(helper.stop_payload(task, correction, parent="p", child="c"), environ=env)
-                self.assertEqual(base.read_bytes(), before)
-                if scenario in {"valid", "wrong_child"}:
-                    self.assertEqual(second["output_capture"]["status"], "SAVED", second)
-                    report = json.loads((run / second["output_capture"]["path"]).read_text())
+                before = copy.deepcopy(draft)
+                with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                    helper.read_dimension_draft(run, task, draft)
+                # 测试给定作用域只验证补丁算法，不代表宿主或服务端签发修订权限。
+                correction = _apply(draft, [{"op": "add", "path": "/source_literal_selections", "value": [{
+                    "claim_id": "quote", "placeholder": "{{sf.time}}", "evidence_ref": short,
+                    "field": "sec_usd_value" if scenario == "wrong_field" else "as_of",
+                }]}], ["/source_literal_selections"])
+                if scenario != "valid":
+                    with self.assertRaisesRegex(ValueError, "DIMENSION_SOURCE_LITERAL_SELECTION_INVALID"):
+                        helper.read_dimension_draft(run, task, correction)
+                if scenario == "foreign_task":
+                    self.assertNotIn("error", self.call(run, "query", query))
+                if scenario in {"valid", "foreign_task"}:
+                    report, _ = helper.save_dimension_fixture(run, task, correction)
                     self.assertEqual(report["claims"][0]["statement"], "盘口as_of=2026-09-10T19:58:46Z。")
                 else:
-                    self.assertEqual(second["output_capture"]["status"], "FAILED", second)
-                    self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED", second)
+                    self.assertFalse((run / "research/reports").exists())
+                self.assertEqual(draft, before)
+                self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
+                self.assertFalse((run / "research/raw-drafts").exists())
 
     def test_reference_display_is_numeric_per_report_lossless_and_opt_in(self):
         reports = [{"report_id": "r", "report_hash": "original", "claims": [

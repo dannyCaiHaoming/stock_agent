@@ -1,0 +1,106 @@
+{
+  "source_id": "sec-amount-three-host-candidates:20261008",
+  "as_of": "2026-10-08T04:50:10.642156+00:00",
+  "retrieved_at": "2026-10-08T04:54:54.960702+00:00",
+  "status": "CANDIDATES_WRITTEN_AND_STDIO_CHECKED_NOT_NATIVE_ACTIVATED",
+  "scope": "沿已批准安装范围，在既有外置根新建三宿主洁净候选及独立Company连接/任务；不启动或续期产品模型窗口。",
+  "external_root": "sec-amount-current-20261008",
+  "source": {
+    "approved_files": 272,
+    "baseline": "opencode-current-20261008/source-reviewed；与既有Claude CompanyMCP批准清单相同。",
+    "source_manifest_sha256": "03c6b881cbdfa8ab5bc6590ce311dba66d0bb721fd2cd712e1f5f05052e078d1",
+    "only_overlays": {
+      "product/tools/evidence.py": "2fbe1d1ed02de6e87b047343a5dff0f968af4dd4293ea65e7797648d75be2b73",
+      "product/tools/research.py": "c35982ee613ee7fea964caa60c990ceba4b6bf18cc1a36389089b686524ae8b2",
+      "product/mcp/research.py": "110cb962e93b970d9beda444f5a8ab25396902b530b755d780baf7ec64fd0633"
+    },
+    "focused_tests_reused": "sec-amount-native-fix-check.json；最终136项及相同源码hash，不为安装重复全批。",
+    "parallel_dirty_or_private_sources_included": false
+  },
+  "sample": {
+    "security_id": "US:COMMON_STOCK:MRVL",
+    "cutoff": "2026-09-28T12:35:32.208143Z",
+    "gate_hash": "ea49de7fc2d73f459bdbfef3d261046d8710dcdd07e45649f39926adedc572f6",
+    "input_gate_and_request": "只读复用已有合法公开冻结文件，不改时点、来源状态或正文缺口。"
+  },
+  "candidates": {
+    "codex": {
+      "path": "sec-amount-current-20261008/codex/product-workspace",
+      "exported_files": 302,
+      "including_manifest": 303,
+      "manifest_sha256": "a3f610f533e608547d471eff033a4615b6019c7c6c029816eed1bafbc0ec26a5",
+      "task_ref": "t.52e6a4509e30dd858c8205b6",
+      "task_hash": "ae381710284e31089493043997a0282a0bae93f8e5355a0cb43087b97456c1e5"
+    },
+    "claude-code": {
+      "path": "sec-amount-current-20261008/claude-code/product-workspace",
+      "exported_files": 303,
+      "including_manifest": 304,
+      "manifest_sha256": "4fe9ae086a0c0a4b44369d09d35e83ddecf650693c73fbf5c0463bae1e19c95c",
+      "task_ref": "t.b33558e9dcc58dbb56a22753",
+      "task_hash": "6f6015623fe267ae179f163c37d61545481c077f03eb3f22c2419dffc0addbc2"
+    },
+    "opencode": {
+      "path": "sec-amount-current-20261008/opencode/product-workspace",
+      "exported_files": 298,
+      "including_manifest": 299,
+      "manifest_sha256": "fbc38ff0443dd8972782509d73ab3d390dffcf87a401c70d59ac2757624c69b4",
+      "task_ref": "t.4d04c20b73f28eac8cbfda36",
+      "task_hash": "fc7efab6bc7ab61d45fd4ef75d9d66d7729e9a0c638707d01c77109252a2ad85"
+    }
+  },
+  "deterministic_readiness_each_candidate": {
+    "actual_candidate_prepare_cli": true,
+    "independent_company_connection_and_task": true,
+    "agent_grant_bytes": 514,
+    "grant_and_environment_modes": "0600",
+    "stdio_initialize": true,
+    "stdio_tools_list_count": 12,
+    "updated_sec_calculation_description": true,
+    "legal_context_matches_task_hash_and_internal_id": true,
+    "wrong_task_token_rejected": true,
+    "formal_source_search_rejected_before_source_call": true,
+    "research_query_calculate_submit_or_reports": 0,
+    "new_native_activation_or_model_window": "NOT_RUN",
+    "activation_limit": "Claude项目仅绑定新Company私有文件；Codex/OpenCode保留默认disabled模板，不另建运行profile或冒称原生接线已激活。"
+  },
+  "claude_zero_tools_followup": {
+    "source_id": "claude-zero-tools-declared-configuration-check:20261008",
+    "as_of": "2026-10-08T04:54:54.543714+00:00",
+    "retrieved_at": "2026-10-08T04:54:54.960702+00:00",
+    "exact_project_mcp_command_initialize_and_list": true,
+    "project_role_allowlist_count": 11,
+    "declared_names_missing_from_actual_stdio_catalog": [],
+    "preparation_tool_not_in_role": true,
+    "literal_token_in_project_config": false,
+    "official_reference": "https://code.claude.com/docs/en/sub-agents",
+    "official_format_supported": "tools的YAML列表、mcp__server__tool精确名和mcpServers中已有连接字符串均受文档支持；显式列名不使不可用工具变为可用。",
+    "native_parent_or_child_tool_pool": "UNVERIFIED_NOT_RUN",
+    "original_zero_tools_error_repaired": false,
+    "diagnosis_limit": "只能确认新候选的服务端与声明相符，不能据stdio推断原生子任务注册/继承或宿主内部成因，不新增猜测性配置或通配工具。",
+    "documentation_limit": "WebFetch未取得errors完整目标段；Python读取errors.md因SSL证书链验证失败停止，未关闭TLS、改证书或代理。"
+  },
+  "preservation": {
+    "old_opencode_candidate_files": 299,
+    "old_claude_candidate_files": 304,
+    "old_candidate_integrity_verified": true,
+    "previous_connection_protected_subset": 23,
+    "all_current_connection_files_unchanged": 35,
+    "additional_twelve_files": "末次原生任务4份绑定文件及8份查询收据，仍保持原字节；成功计算/提交仍0。",
+    "private_tokens_raw_exports_or_transcripts_published": false,
+    "protection_limit": "明确文件集合和前后hash观察，不替代OS强制只读或实际宿主工具权限证明。"
+  },
+  "deterministic_check_failures_preserved": [
+    "首次将23项旧保护子集误作连接当前总文件数而断言失败；当时新目录未创建。确认当前35=23+4+8后分别检查旧子集和全量，不修改旧文件。",
+    "首批Codex context成功，但检查误把内部task_id与路由task_ref比较而失败；复用原新任务，改按task_hash及内部task_id核对，不改变产品契约或重建任务。"
+  ],
+  "product_model_calls": 0,
+  "research_source_network_and_account_calls": 0,
+  "network_scope": "上述0仅指产品研究来源和账户；本轮排障读取官方宿主文档发生网络请求。",
+  "fourth_opencode_profile_or_deadline_extension": false,
+  "native_research_or_content_verdict": "NOT_RUN_NOT_REVIEWED",
+  "remaining": ["6.1", "6.2", "6.3", "6.4", "7.1", "7.2", "8.1"],
+  "progress": "23/30；只补6.1安装准备，未新增已完成任务。",
+  "full_macro_body_and_three_host_acceptance": "BLOCKED；原Macro配置/正文0、完整场景、独立首轮、CIO和三原报告缺口不改。",
+  "archive_stage_commit_push_or_production_pointer_changed": false
+}

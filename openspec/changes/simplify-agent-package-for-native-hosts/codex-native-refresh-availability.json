@@ -1,0 +1,67 @@
+{
+  "source_id": "codex-native-refresh-availability:20261007",
+  "as_of": "2026-10-07T07:45:37.830141+00:00",
+  "retrieved_at": "2026-10-07T07:45:37.830141+00:00",
+  "scope": "current Codex native configuration and reload availability only",
+  "config_inventory": {
+    "command": "codex mcp list --json",
+    "exit_code": 0,
+    "servers": {
+      "company": {
+        "enabled": true,
+        "disabled_reason": null
+      },
+      "market": {
+        "enabled": true,
+        "disabled_reason": null
+      },
+      "skeptic": {
+        "enabled": true,
+        "disabled_reason": null
+      },
+      "cio": {
+        "enabled": true,
+        "disabled_reason": null
+      }
+    },
+    "stderr_present": false
+  },
+  "existing_daemon_control": {
+    "command": "codex app-server daemon version",
+    "exit_code": 1,
+    "error": "control socket does not exist",
+    "started_or_restarted_daemon": false,
+    "proxy_invoked": false,
+    "reload_invoked": false
+  },
+  "protocol_schema": {
+    "exported": true,
+    "model_started": false,
+    "reload_method_exists": true,
+    "method": "config/mcpServer/reload",
+    "export_does_not_prove_current_connection": true
+  },
+  "current_native_tools": {
+    "research_tools_visible": false,
+    "research_role_creation_retried": false,
+    "loaded": false
+  },
+  "budget": {
+    "native_task_cap": 15,
+    "conservative_charged_attempts": 2,
+    "remaining": 13,
+    "new_model_tasks_this_check": 0,
+    "source_search_calls_this_check": 0,
+    "source_body_calls_this_check": 0,
+    "account_calls": 0
+  },
+  "completion": {
+    "tasks_complete": 17,
+    "tasks_total": 24,
+    "actual_native_acceptance": "UNVERIFIED",
+    "source_body_readiness": "existing configuration and material gap remains",
+    "archive_commit_push": false
+  },
+  "next_action": "User reopen Codex, return to this chat; verify native role and research tool visibility before any further task. Approval already recorded; do not ask again.",
+  "config_sha256": "f673cf4e6dd6ce984dcc6ab0ac1996b13a1e8f38cf55958747a841cad9230668"
+}

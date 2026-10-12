@@ -24,7 +24,7 @@ except ModuleNotFoundError as exc:
         "remedy": "选择项目 .venv 并按 README 安装对应依赖。",
     }, ensure_ascii=False))
     raise SystemExit(2) from None
-from product.runtime.environment_preflight import reject_legacy_entry  # noqa: E402
+from product.runtime.entry_policy import reject_legacy_entry  # noqa: E402
 
 
 def restricted_main(argv: list[str], *, calling_cwd: Path) -> int:
@@ -34,6 +34,9 @@ def restricted_main(argv: list[str], *, calling_cwd: Path) -> int:
 
 def forwarded_command(argv: list[str], *, calling_cwd: Path) -> tuple[list[str], Path]:
     reject_legacy_entry(argv)
+    frozen_replay = bool(argv and argv[0] == "execute-frozen-replay")
+    if frozen_replay:
+        argv = ["nested-codex-smoke", *argv[1:]]
     parser = build_parser()
     subparsers = next(action for action in parser._actions if isinstance(action, argparse._SubParsersAction))
     # 从权威 CLI 读取参数契约，不维护另一份子命令或路径参数清单。
@@ -61,11 +64,18 @@ def forwarded_command(argv: list[str], *, calling_cwd: Path) -> tuple[list[str],
     if args.command in {"nested-codex-smoke", "check-run"}:
         run = (calling_cwd / args.run_dir.expanduser()).resolve()
         manifest = json.loads((run / "run_manifest.json").read_text())
+        if frozen_replay and manifest.get("run_mode") != "EXECUTION_REPLAY":
+            raise ValueError("FROZEN_EXECUTION_REPLAY_REQUIRED")
         if manifest.get("run_mode") == "EXECUTION_REPLAY":
+            import runpy
+            transport = runpy.run_path(str(INSTALLATION_ROOT / "scripts/replay-codex-transport.py"))
+            verified_workspace, _capsule = transport["validate_replay_binding"](run)
             workspace = manifest.get("execution_replay", {}).get("workspace")
             if not workspace:
                 raise ValueError("REPLAY_WORKSPACE_MISSING")
             frozen = Path(workspace).resolve()
+            if frozen != verified_workspace or frozen == INSTALLATION_ROOT or frozen.is_relative_to(INSTALLATION_ROOT):
+                raise ValueError("REPLAY_FROZEN_WORKSPACE_REQUIRED")
             if explicit_repo and frozen != repo:
                 raise ValueError("REPLAY_REPOSITORY_CONFLICT")
             repo = frozen
@@ -86,6 +96,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         arguments = list(sys.argv[1:] if argv is None else argv)
         reject_legacy_entry(arguments)
+        if arguments and arguments[0] == "check-frozen-replay":
+            _command, _repo = forwarded_command(["execute-frozen-replay", *arguments[1:]], calling_cwd=Path.cwd())
+            print(json.dumps({"status": "FROZEN_REPLAY_BINDING_VALIDATED", "llm_calls": 0}))
+            return 0
         if arguments and arguments[0] == "demo":
             # 显式的零 LLM 装配 Demo；不会转入产品 launcher 或高级 Gate。
             command = [sys.executable, "-m", "product.demo.cli", *arguments[1:]]

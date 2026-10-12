@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from product.runtime.research_input import (is_single_stock, research_input_binding, artifact_input_binding, research_subjects, validate_research_input)
+from product.tools.research_input import (is_single_stock, research_input_binding, artifact_input_binding, research_subjects, validate_research_input)
 from product.mcp.provenance import parse_timestamp
 from product.runtime.hashing import canonical_hash, legacy_envelope_hash
 from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
@@ -348,86 +348,11 @@ def validate_equity_research_report(
     if requested_skills != executed_skills:
         raise CommonStockResearchError("EQUITY_RESEARCH_SKILL_BINDING_INVALID")
 
-    claims = value.get("claims")
-    assumptions = value.get("assumptions")
-    conditions = value.get("invalidation_conditions")
-    triggers = value.get("reevaluation_triggers")
-    indicators = value.get("monitoring_indicators")
-    gaps = value.get("data_gaps")
-    if any(not isinstance(items, list) for items in (claims, assumptions, conditions, triggers, indicators, gaps)):
-        raise CommonStockResearchError("EQUITY_RESEARCH_COLLECTION_INVALID")
-    collections = (
-        (claims, "claim_id", "claims"),
-        (assumptions, "assumption_id", "assumptions"),
-        (conditions, "condition_id", "invalidation_conditions"),
-        (triggers, "trigger_id", "reevaluation_triggers"),
-        (indicators, "indicator_id", "monitoring_indicators"),
-        (gaps, "gap_id", "data_gaps"),
-    )
-    indexes: dict[str, set[str]] = {}
-    for items, id_key, name in collections:
-        if any(not isinstance(item, Mapping) for item in items):
-            raise CommonStockResearchError(f"EQUITY_RESEARCH_ITEM_INVALID:{name}")
-        ids = _canonical_ids([item.get(id_key) for item in items], name)
-        indexes[name] = set(ids)
-    claim_ids = indexes["claims"]
-    assumption_ids = indexes["assumptions"]
-    condition_ids = indexes["invalidation_conditions"]
-    gap_ids = indexes["data_gaps"]
-    known_calculations = set(calculation_artifact_ids)
-    report_artifacts = set(value.get("artifact_refs", []))
-    for claim_index, claim in enumerate(claims):
-        evidence_refs = _canonical_ids(claim.get("evidence_refs"), "claim.evidence_refs")
-        claim_assumptions = set(_canonical_ids(claim.get("assumption_ids"), "claim.assumption_ids"))
-        calculations = set(_canonical_ids(claim.get("calculation_refs"), "claim.calculation_refs"))
-        counter_claims = set(_canonical_ids(claim.get("counter_claim_refs"), "claim.counter_claim_refs"))
-        invalidations = set(_canonical_ids(claim.get("invalidation_condition_ids"), "claim.invalidation_condition_ids"))
-        if claim_assumptions - assumption_ids or counter_claims - claim_ids or invalidations - condition_ids:
-            raise CommonStockResearchError("EQUITY_RESEARCH_INTERNAL_REFERENCE_DANGLING")
-        if calculations - known_calculations or calculations - report_artifacts:
-            raise CommonStockResearchError(
-                f"EQUITY_RESEARCH_CALCULATION_REFERENCE_DANGLING:claims[{claim_index}].calculation_refs:{claim['claim_id']}"
-            )
-        if not evidence_refs and not claim_assumptions and not calculations:
-            raise CommonStockResearchError(
-                f"EQUITY_RESEARCH_CLAIM_UNGROUNDED:claims[{claim_index}]:{claim['claim_id']}"
-            )
-    summary = value.get("research_summary")
-    sections = value.get("sections")
-    if not isinstance(summary, Mapping) or not isinstance(sections, Mapping) or set(sections) != set(SECTION_NAMES):
-        raise CommonStockResearchError("EQUITY_RESEARCH_SECTIONS_INVALID")
-    if set(_canonical_ids(summary.get("claim_refs"), "summary.claim_refs")) - claim_ids:
-        raise CommonStockResearchError("EQUITY_RESEARCH_SUMMARY_REFERENCE_DANGLING")
-    if set(_canonical_ids(summary.get("primary_invalidation_condition_ids"), "summary.invalidation")) - condition_ids:
-        raise CommonStockResearchError("EQUITY_RESEARCH_SUMMARY_REFERENCE_DANGLING")
-    for name in SECTION_NAMES:
-        section = sections[name]
-        if not isinstance(section, Mapping):
-            raise CommonStockResearchError(f"EQUITY_RESEARCH_SECTION_INVALID:{name}")
-        if set(_canonical_ids(section.get("claim_refs"), f"sections.{name}.claim_refs")) - claim_ids:
-            raise CommonStockResearchError("EQUITY_RESEARCH_SECTION_REFERENCE_DANGLING")
-        if set(_canonical_ids(section.get("data_gap_ids"), f"sections.{name}.data_gap_ids")) - gap_ids:
-            raise CommonStockResearchError("EQUITY_RESEARCH_SECTION_REFERENCE_DANGLING")
-    for condition in conditions:
-        if set(_canonical_ids(condition.get("claim_refs"), "condition.claim_refs")) - claim_ids:
-            raise CommonStockResearchError("EQUITY_RESEARCH_CONDITION_REFERENCE_DANGLING")
-    for trigger in triggers:
-        if set(_canonical_ids(trigger.get("claim_refs"), "trigger.claim_refs")) - claim_ids:
-            raise CommonStockResearchError("EQUITY_RESEARCH_TRIGGER_REFERENCE_DANGLING")
-    for indicator in indicators:
-        for field in ("baseline", "unit", "comparison_period", "reevaluation_rule"):
-            if field in indicator and indicator[field] is not None and (
-                not isinstance(indicator[field], str) or not indicator[field].strip()
-            ):
-                raise CommonStockResearchError(
-                    f"EQUITY_RESEARCH_MONITORING_CONTEXT_INVALID:{field}"
-                )
-    for gap in gaps:
-        if "reason_code" in gap and gap["reason_code"] not in allowed_gap_reasons:
-            raise CommonStockResearchError("EQUITY_RESEARCH_GAP_REASON_INVALID")
+    from product.tools.research_content import validate_company_content, ResearchContentError
     try:
-        return validate_evidence_closure(value, allowed_evidence_ids=request["allowed_evidence_ids"])
-    except ArtifactValidationError as exc:
+        return validate_company_content(value, allowed_evidence_ids=request["allowed_evidence_ids"],
+                                        calculation_artifact_ids=calculation_artifact_ids)
+    except ResearchContentError as exc:
         raise CommonStockResearchError(str(exc)) from exc
 
 

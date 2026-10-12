@@ -1,0 +1,64 @@
+{
+  "source_id": "mrvl-authorized-source-configuration-stop:20261007",
+  "as_of": "2026-10-07T07:20:58.028419+00:00",
+  "retrieved_at": "2026-10-07T07:20:58.028419+00:00",
+  "user_reply": "是",
+  "authorization_basis": "同意紧接的公开资料准备方案：OpenAlex已有配置、最多9检索+15正文尝试、新合法cutoff，不购买服务/新增凭据/账户访问。",
+  "authorized_source_domains": [
+    "api.openalex.org",
+    "content.openalex.org"
+  ],
+  "maximum_search_attempts": 9,
+  "maximum_body_attempts": 15,
+  "maximum_native_model_tasks": 15,
+  "maximum_minutes": 30,
+  "automatic_retry": false,
+  "configuration_presence_checks": [
+    {
+      "scope": "current_execution_environment",
+      "configured": false
+    },
+    {
+      "scope": "macOS_GUI_launch_environment",
+      "configured": false,
+      "read_exit_code": 0
+    },
+    {
+      "scope": "/Users/caihaoming/.claude/settings.json",
+      "exists": true,
+      "configured": false
+    },
+    {
+      "scope": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-code/product-workspace/.claude/settings.json",
+      "exists": false,
+      "configured": false
+    },
+    {
+      "scope": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-code/product-workspace/.claude/settings.local.json",
+      "exists": false,
+      "configured": false
+    }
+  ],
+  "credential_values_printed_or_stored": false,
+  "configuration_files_modified": false,
+  "status": "STOPPED_BEFORE_SOURCE_OR_MODEL_MISSING_EXISTING_OPENALEX_CONFIGURATION",
+  "native_session_state": "Claude UI inspected, no product prompt submitted, no model session started",
+  "actual_native_model": "UNVERIFIED",
+  "source_search_attempts_consumed": 0,
+  "source_body_attempts_consumed": 0,
+  "native_model_tasks_consumed": 0,
+  "remaining_search_attempts": 9,
+  "remaining_body_attempts": 15,
+  "remaining_native_model_tasks": 15,
+  "current_task_grants_rewritten": false,
+  "original_claude_install_verification": "PASS",
+  "installed_copies_updated": false,
+  "account_calls": 0,
+  "new_cutoff_frozen": false,
+  "original_public_artifacts_modified": false,
+  "tasks_complete": 17,
+  "tasks_total": 24,
+  "archive_commit_push": "NOT_PERFORMED",
+  "configuration_observation_limit": "未证明机器其他未知位置无凭据；已知执行/GUI环境及Claude配置未提供可用项。未扫描私人会话或其他秘密。",
+  "next_requirement": "用户提供已有安全配置位置，或将已有OpenAlex配置在所选Claude宿主环境中启用；不在聊天发送密钥。若无已有配置，需另外选择来源方案，不能自动新增凭据/换提供商。"
+}

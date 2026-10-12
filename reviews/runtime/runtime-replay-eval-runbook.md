@@ -2,89 +2,41 @@
 
 本文描述开发控制面的离线验证流程。所有输出仅用于研究建议验证；不得连接券商、修改账户或真实下单。
 
-按当前任务读取所需章节，不要求每次执行完整手册。验收范围与证据复用见 [开发流程](../../docs/development/workflow.md)，权限及路径见 [开发环境](../../docs/development/environment.md)。以下模块命令从仓库根执行；产品子进程的工作目录由既有 launcher 固定，不能以 cwd 或配置存在宣称资源已经加载。
+按当前任务读取所需章节，不要求每次执行完整手册。验收范围与证据复用见 [开发流程](../../docs/development/workflow.md)，权限及路径见 [开发环境](../../docs/development/environment.md)。以下模块命令从仓库根执行；正常研究由原生宿主执行，旧维护才加载明确冻结工作区；cwd、配置或文件存在不证明资源已加载。
 
-## 1. 运行与持久化
+## 1. 原生运行与持久化
 
-使用 `portfolio-council` Skill 创建全新的 Run 目录。Runtime 在 Agent 调用前完成 portfolio 校验和 PIT Evidence Gate，并生成 `replay_capsule/manifest.json` 与内容寻址对象。已有目录不会被覆盖。
+正常研究/Smoke在用户所选Codex、Claude Code或OpenCode的当前原生产品会话执行。使用共享portfolio-council和四职责正文，原生主线程委派、等待并回收结果；Python不创建另一模型进程。安装、样本/阶段、实际模型、时间/调用上限和停止条件另获批准；三份薄模板、合成检查和旧Codex记录都不证明三个宿主实际通过。
 
-Capsule 同时锁定研究问题、截止时点、模型、Codex/Python runtime、Profile、版本 manifest 和产品完整性 hash。
+Claude Code使用现有CC Switch映射时，专业角色沿inherit，native Skill不覆盖model。运行授权/记录分别说明宿主选择或别名、用户批准映射目标与主子实际可观察模型；有明确映射时不因名称不同判冲突。用户声明不等于配置读取证明，转录不等于Provider wire；未知身份不补造。无已知映射、观察到未批准目标或实际不可用仍按窗口条件停止，不读/分发CC Switch数据库、API key或完整环境，不自动换模/重派，旧评分/维护锁不变。
 
-普通产品运行固定使用 Company Analyst、Independent Skeptic 与 CIO；`EVAL_ABLATION` 只能用于开发评估，不能作为产品建议发布。
-
-按当前已批准范围，真实产品执行仅由宿主 Terminal 使用现有代理适配与统一 launcher，不额外创建项目沙箱。准备好的运行使用：
-
-```text
-bash <repository-root>/scripts/run-product-smoke.sh \
-  --prepared-run <run-dir> <new-invocation-output-dir>
-```
-
-模型来自 prepare 写入的锁定 manifest。launcher 保存固定 prompt 文件、JSONL、stderr、环境和进程结果，调用现有 Hook 与完成判定；必须核对真实 Skill、Agent、MCP、Hook 事件与终态产物，不能只看 shell exit code。禁止恢复旧 `smoke-prompt | codex exec` 管道作为验收入口。
-
-正反研究交接 CIO 使用同一宿主脚本的显式 `--stage predecision-cio-synthesis`，参数和级别边界见 [产品说明](../../docs/product/predecision-cio-research.md)。先重验来源 `PreDecisionResearchPackage` 并在新外置运行中冻结，随后由一次主线程 CIO 消费多报告，最后执行 `check-predecision-cio`。本阶段仅交付原来源 cutoff 的 `RESEARCH_SYNTHESIS`：保存 CIO/查询/同源报告/Trace，Risk 必须为 `NOT_RUN`，不得生成 `risk.json` 或 `decision.json`。用户告知 MRVL 已清仓，系统未独立核验当前账户；来源 Handoff 仅证明历史研究身份，不要求当前账户、现金、ETF/期权或 Mandate，也不推断当前账户适配。`PORTFOLIO_ADVICE` 请求须在模型前拒绝，不能静默降级。旧 advice 实验产物仅保留原文件供人工只读审计，当前 checker 不重新认证旧 advice，原有 fixture Council/Risk 不受影响。Luna 若被当前 CLI 账号拒绝，应保留失败证据；对本冻结 MRVL 包可按已有用户批准显式选 `gpt-5.6-terra`，不得静默回退。此专项不启动 Runtime Eval、Execution Replay 或回测。
-
-该阶段成功检查须同时读取宿主 `invocation/process-result.json`，核对同一 run_id、零退出码、非超时、无失败原因、成功终态和受保护产品文件前后完整性一致。实际命令应显示原生沙箱、仓库外工作区且源码目录未列为可写根；上述证据不宣称全进程 OS 强制只读，后者仍为 `UNVERIFIED`。进程证明不能代替模型事件、版本锁、Evidence 查询和报告内容复核。
+Claude正常入口是当前仓库 `product/`；外置目录仅存私有数据，不是另一产品项目。就地准备、同请求多任务复用、来源证据复用、连接加载条件及必要观察的取得时点统一见 [产品使用说明](../../product/hosts/INSTALL.md)，不在运行手册重复接线/诊断流程。真实Smoke仍需当前有效阶段、模型/预算/停止点授权及必要宿主能力，配置/绑定/业务/原生执行/内容分列；缺证按对应阶段阻断，不恢复旧窗口、改hash重试或另起模型后端。
 
 ### 1.1 普通股专项运行前门槛
 
-`COMMON_STOCK_RESEARCH` 的新估值附件版本在宿主启动前必须同时满足：实际 Hook `additionalContext` 紧凑 UTF-8 JSON 不超过 256 KiB；附件目录明确列出 `valuation_snapshot`、`valuation_history`、`fundamental_supplement`、`peer_comparison` 的实际可用状态；fixture MCP 的 `tools/list` 与 `tools/call` 能在 run/invocation/security/cutoff/Gate 绑定下读取附件。图表不进入模型工具。
+确认PortfolioHandoff或核实的SINGLE_STOCK_RESEARCH与冻结Gate，保留完整资产覆盖。任务准备绑定请求、角色、证券、cutoff及允许对象，私有能力凭据只防误路由，不认证实际作者。Company专业范围、附件状态、查询/计算血缘、两稿上限及历史包的只读验证不放宽。旧Hook的256 KiB和run-scoped进程协议仅解释冻结旧包，正常工具不要求另一CLI或旧版本号。
 
-launcher 从运行目录内的一次性隔离源码副本启动并保存当前工作区前后 hash。进程以独立进程组运行；超时后只证明本地 TERM/KILL 与进程回收，远端服务端取消不能证明时写 `UNKNOWN`。任何 timeout、非零退出、缺 Stop、缺/非法报告或引用失败都必须完成 Coverage v1、stage、process 的失败归集，不得留下 `QUEUED`，也不得自动追加模型重试。准备和零模型门槛通过不等于真实模型验收、Runtime Eval 或 Promotion PASS。
+资料准备与正式研究分开：只有明确获来源授权的准备任务可search/fetch，实际尝试和配置失败保留。BODY_VERIFIED正文经实际读取后由作者明确选择；目录不等于消费，超过已实现响应上限明确停止，不截断正文。同行目录只是候选，原确定性物化器验证实际选择后冻结事实。新共同cutoff须保留原准备请求和事实血缘；显式过去时点不得借新取数推进。
 
-自动 live 数据准备还必须配置仓库外 `RESEARCH_MEMORY_ROOT`。增量范围、报告原截止时间、严格复用、`--force-rerun`、补存和备份恢复以 [Company Research Memory 运行说明](../../docs/development/company-research-memory.md) 为准。全复用时 dispatch-index 为空且每只目标均须有有效复用引用，launcher 不创建模型进程；这不是“空任务自动成功”。
+### 1.2 多维依赖与完整覆盖
 
-### 1.2 多维定点调试：资料身份与执行身份分开
+八维及Company全部保留；RESEARCH_REPORT等待合格基本面/正文，行业消费实际已核实同行，Macro/Market各保存共享市场研究。Python只验证回执、合法依赖与覆盖，不重建原生Agent生命周期。部分失败保留成果，只阻断真实依赖，不能将定点或核心切片称为完整八维。严格复用明确冻结版本时校验完整输入、Gate、研究范围、依赖及业务资源，不派新模型、不自动选择“最新”报告、不改原cutoff或状态。
 
-复用旧冻结资料准备**新的正向多维运行**时，确定性准备入口显式添加 `--reuse-frozen-gate`，并提供新的 UUID `run_id`；宿主 `--stage multidimensional-holding-research` 自动生成新的执行身份并透传此模式。原 Gate 字节保存在新运行的 `audit/frozen-gate-source.json`，`gate_input_binding` 记录原 run/hash、原资料内容 hash 及本次执行 run/hash；原文件、Evidence、来源时间、截止点及历史锁不回写。来源 hash 不符、来源副本或执行视图被改动时拒绝启动。反证仍遵守原同批身份约束，不能使用该模式跨批导入。
+### 1.3 非持仓单股与显式综合
 
-零模型准备示例（只创建运行资料，不启动产品）：
+只提供股票代码时不伪造Handoff、数量、账户或Mandate。用户选择公司、多维、独立反证或显式综合停止点；不自动推进。独立Skeptic首轮只能接收原始允许资料和非结论性问题，不能继承正向历史或读取正向报告；宿主实际隔离不可证时阻断。
 
-```text
-python3 scripts/council-dev.py prepare-multidimensional-research \
-  --repo <repository-root> --handoff <confirmed-handoff.json> \
-  --gate <frozen-gate.json> --reuse-frozen-gate \
-  --run-dir <new-external-run-dir> --run-id <new-debug-UUID> \
-  --model <explicitly-selected-model> --structured-report-submission
-```
+综合由当前主线程实际read获准报告、query采用事实并解释重要反证，仅输出RESEARCH_SYNTHESIS、advisory_only=true、Risk=NOT_RUN。PORTFOLIO_ADVICE在准备时拒绝，不输出动作/仓位/金额。既有fixture数据/硬Risk契约保留，真实原生fixture能力须有相应入口与实际证据，不能由研究级结果推导。
 
-定点真实执行只能在获批预算下，经宿主 `--start-multidimensional-task <new-run-dir> <actual-task-name> <new-output-dir>` 进入既有 launcher。任务名从实际 dispatch-index 选择：OPTIONS 只执行自身；RESEARCH_REPORT 只执行基本面→研报闭包；未知、缺失、循环或重名依赖在模型前失败。定点证明不生成完整八维通过状态。`--resume-multidimensional-task` 是同一运行的显式重试，不冒充新的运行；只读复用已有上游须重新验证来源/允许集、截止点、Agent/Skill、模型、Schema/工具拓扑、共享实现指纹、报告与执行事件。旧包缺少复用所需证明或配置漂移时拒绝复用，不补写旧证据、不自动新增模型调用。
+业务验证、宿主观察和内容裁定分列，UNKNOWN不补造成旧执行身份。原稿、实际读取/查询/计算收据及同源中文保存于获准仓库外目录；私人凭据、原工具转录和账户正文不进入Git。未完成、超时或失败保留剩余项，未经授权不重跑。
 
-### 1.3 非持仓单股研究
-
-只提供股票代码时走 `SINGLE_STOCK_RESEARCH`，不得伪造 Handoff、数量或账户确认。沿用本节原宿主 shell launcher，先配置仓库外 `LIVE_SOURCE_ACCESS_FILE`、`RESEARCH_MEMORY_ROOT` 与 SEC 联系标识 `SEC_USER_AGENT`（不得提交授权配置）。
-
-```text
-bash scripts/run-product-smoke.sh --stage single-stock-research \
-  --single-stock ALB --through cio --prepare-only <new-external-plan-dir>
-```
-
-`--question` 可选；默认核实商业、经营、风险及不确定性。`--cutoff latest` 在资料准备及正文/同行取证后冻结正式研究截止点，原准备记录保留，只通过显式血缘导入；不以今日取数回填历史。prepare-only 采集真实来源并生成实际计划/packet，但不启动模型，不表示研究完成。显式历史冻结输入及回测另属专项，本 live 入口拒绝过去截止点。
-
-移除 `--prepare-only`、使用新的外置目录才执行真实研究。`--through forward`（默认）止于正向八维，`skeptic` 加独立反证，`cio` 再加主线程研究综合。完整链最多材料4＋Company1＋八维8＋Skeptic1专业子及5宿主父（含CIO1），失败计数、依赖失败即停，不自动补跑；必须已有相应调用授权。默认 `gpt-6-luna`；显式 `--model` 仍受原模型政策限制，不可用不静默回退。
-
-此入口输出 `RESEARCH_SYNTHESIS` 而非交易动作。不判断当前持仓、仓位、金额或账户适配，Risk 为 `NOT_RUN`；`PORTFOLIO_ADVICE`、账户及跨批来源参数在模型前拒绝。旧持仓/fixture 入口及旧冻结报告读取不迁移。发布或提交仅使用已审阅的报告与脱敏证明，不包含任务 packet bearer、凭据或宿主私人转录。
-
-若独立反证恢复尝试已经准备但尚未执行，获准后只从原宿主 resume 显式消费包内索引，不再次 prepare：
-
-```text
-bash scripts/run-product-smoke.sh --resume-independent-skeptic-run <external-run-dir> \
-  --prepared-index research/skeptic/attempts/<attempt>/dispatch-index.json \
-  <new-external-invocation-output-dir>
-```
-
-启动前只读重验最高尝试、同 run/forward/Gate、上一完整 package/process 链及本次 packet/当前 Invocation；已有启动、报告或终态时拒绝。仅派发本尝试未就绪任务，成功项与历史原件保留；不自动选尝试、不另建下一次、不启动 CIO。省略 `--prepared-index` 仍按原 prepare-resume 语义准备新尝试；已有未执行准备时不得用该默认分支替代显式消费。只读准备校验和合成测试不证明模型加载或研究通过，合法不足仍须保持 PARTIAL，CIO 必须等待 DOWNSTREAM_READY。
+旧normal/stage/resume/launch模型入口及五父串联已退役，在取数、代理探测、目录写入或模型前拒绝。日常研究不得恢复旧shell命令、Codex专属Hook/状态工具或换另一宿主；冻结旧Execution Replay单独见第3节。
 
 ## 2. Artifact Replay
 
-### 研报结构化提交试验入口
+### 原生提交与冻结旧格式读取
 
-从新资料准备完整运行时，宿主 `--stage multidimensional-holding-research` 同样接受显式 `--structured-report-submission` 并透传至原prepare；其他stage拒绝该开关，默认入口和旧包不变。可与 `--require-materials` 一起使用，先严格核对四项材料和同行取证，再启动八维；不增加重试或模型预算。
-
-本入口是显式 Change 验证，不是 Execution Replay。零模型 `prepare-multidimensional-research` 增加 `--structured-report-submission` 时，只为新包 RESEARCH_REPORT 授权 `research_report_submit`；默认不启用，旧包不迁移。当前新写入协议为 `research-object-submission/6.0.0`：Agent 以 invocation_id 路由，传本任务 submission_token 和不含技术身份的 draft；文档/计算使用实际交付的 `document_selections`/`calculation_selections`，上游计算沿已验证依赖选择，程序装配固定字段。研报每条外部主张引用须配同主张的 Agent 关系句，结构配对不表示语义通过。工具返回精确绑定草稿的短 `final_message`；最终原样返回该短引用，不抄序号或完整hash。可信 Stop 结合实际Start、冻结packet和短引用重验草稿、装配身份后执行完整报告校验。其它七维沿各自当前语义草稿返回方式，不能因提交工具可见而误用。工具写入限定于运行目录，不是任意文件写接口。
-
-任务凭据是防误路由的 bearer capability，不是 MCP caller 身份认证。它仅存本地私有 packet 并向对应任务交付，不进入普通审计；packet 和可能含工具参数的宿主原始转录不得直接发布或提交。旧v1–v5已有产物按对应读取器重验，不能据历史装配版本开放旧写入；新执行必须新准备当前包，不修改旧包。保存原稿与选择绑定，展示及下游读取重验上游报告、收据和事件；原文金额及来源主体仍需内容复核。
-
-有界上限为首稿加一次原Agent局部修订；已通过任务授权的无效提交也计入尝试。修订使用实际反馈的 `base_draft_ref`、`allowed_paths`及changes，不完整重交、不由程序改观点，修订后完整再验。权限/完整性错误不可用宽松修复绕过。工具参数/格式或语义仍可能失败，短回执不表示报告完成。定点验证经已批准宿主 `--start-multidimensional-task` 执行最小依赖闭包；完整八维经 `--resume-multidimensional-run`（8子/1父）。实际范围和预算以当前 Change 明确授权为准，没有额度时只准备与检查，不运行。
+原生作者使用research_submit提交研究字段与精确选择，首稿加最多一次原作者定位修订；服务端从可信任务和实际工具记录装配技术元数据并返回唯一不可变回执。读取使用research_read_submission，不解析Codex Stop、不抄hash、不猜最后一稿。权限/完整性错误不能借宽松纠正绕过。旧research-object-submission等协议及Hook材料按冻结版本读取，不为新原生运行开放旧写入或改写原事件。
 
 ```text
 python3 -m product.runtime.cli artifact-replay \
@@ -105,6 +57,14 @@ python3 -m product.runtime.cli trace-check \
 
 ## 3. Execution Replay
 
+本节仅适用于另获源包、冻结版本、模型/调用预算及停止条件授权的旧维护。宿主执行命令为：
+
+```bash
+bash <repository-root>/scripts/run-product-smoke.sh --prepared-run <run-dir> <new-invocation-output-dir>
+```
+
+正常原生研究不使用此入口，旧维护也不能只看 shell exit code；必须重验冻结版本要求的实际运行/资源证据与终态。
+
 先通过安装仓库的薄入口物化密封工作区并准备新的 Run（不是额外创建项目沙箱）：
 
 ```text
@@ -114,7 +74,7 @@ python3 <repository-root>/scripts/council-dev.py prepare-execution-replay \
   --run-id <new-run-id>
 ```
 
-该薄入口在新 Run 保存 `host-replay-source.json`，供宿主 transport 校验来源 Capsule；直接使用底层 prepare 命令不会创建此绑定，不能用于随后宿主执行，也不得手工向旧 Run 补写。随后在宿主 Terminal 使用上述 --prepared-run 入口，既有转发器按 manifest 选择冻结 workspace，通过同一 nested-codex-smoke launcher 执行；不要手动传当前仓库的 --repo，不要使用当前工作树替换冻结资源或临时复制缺失文件。独立 Reviewer 只提出补跑缺口，不自动执行。完成后运行：
+该薄入口在新 Run 保存 `host-replay-source.json`，供宿主 transport 校验来源 Capsule；直接使用底层 prepare 命令不会创建此绑定，不能用于随后宿主执行，也不得手工向旧 Run 补写。随后在宿主 Terminal 使用上述 --prepared-run 入口，既有转发器按 manifest 选择冻结 workspace，先经当前check-frozen-replay验证源manifest/封闭快照，再由execute-frozen-replay转发冻结旧版本自己的nested-codex-smoke；当前工作树的该模型命令仍明确退役；不要手动传当前仓库的 --repo，不要使用当前工作树替换冻结资源或临时复制缺失文件。独立 Reviewer 只提出补跑缺口，不自动执行。完成后运行：
 
 ```text
 python3 -m product.runtime.cli finalize-execution-replay \

@@ -2,7 +2,7 @@
 
 ## 最终目标
 
-构建一个运行在 Codex 上的 LLM-native 多 Agent 股票研究与组合决策 Agent Package。
+构建一套共享投研方法与确定性业务工具、由 Codex、Claude Code 或 OpenCode 当前原生会话执行的 LLM-native 多 Agent 股票研究与组合决策 Agent Package。各宿主的实际加载、权限和独立上下文分别验收，不由三份模板推定支持。
 
 用户主要输入真实持仓。
 
@@ -38,7 +38,7 @@ BUY / ADD / HOLD / REDUCE / EXIT / HEDGE / NO_TRADE
 
 ```mermaid
 flowchart TB
-    U["截图 / 手工持仓"] --> I["portfolio-intake Skill：提取与用户确认"]
+    U["截图 / 手工持仓 / 已批准的只读券商快照"] --> I["portfolio-intake Skill：提取与用户确认"]
     I --> H["PortfolioHandoff：完整持仓与账户上下文"]
     H --> C["portfolio-council：主线程阶段调度"]
     C --> D["Python 数据准备 / 只读 Provider 与 MCP"]
@@ -106,3 +106,5 @@ Research Memory = 跨运行保存、增量状态和受限历史读取，是共�
 验收样本规模与持仓数量上限分开，不能把有限测试样本数变成产品持仓限制。历史时间字段与研究报告为回溯提供资料基础，但不代表已具备历史重放、绩效计算或回测能力。来源覆盖、研究充分性与执行成功分别依据实际产物判断，不能把接口存在视为资料齐全。
 
 工程基础设施只做到足以支持当前授权产品能力；新增研究职责优先复用已有 Agent 与 Skills，确有独立判断或上下文隔离需求时再拆分 Agent。
+
+只读券商接入属于确定性账户输入能力，不是研究 Agent 或交易系统。只有用户明确批准、仓库外凭据隔离、读取接口硬白名单和一次 Intake 确认同时成立时，受支持的账户快照才可进入 `PortfolioHandoff`；历史交易保留在独立私人账本，不自动成为 Company、Market、Macro、Skeptic 或 CIO 的研究 Evidence。产品永久不提供订单、换汇、转账、交易解锁或账户修改能力。

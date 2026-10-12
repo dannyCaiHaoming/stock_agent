@@ -1,4 +1,4 @@
-"""成功工具/预计算 → 明确选择 → 实际Hook保存；零LLM。"""
+"""实际stdio工具/预计算 → 明确选择 → 纯业务报告与历史读取；零LLM。"""
 from __future__ import annotations
 
 import copy
@@ -15,7 +15,7 @@ from product.runtime.calculation_handoff import (
     load_tool_receipts, receipt_calculation, selection_draft_schema,
     semantic_selection_draft_schema, validate_semantic_selection_draft,
 )
-from product.runtime.codex_hook_recorder import handle_hook_event, _validate_multidimensional_tool_calculations
+from product.runtime.calculation_handoff import validate_tool_calculations as _validate_multidimensional_tool_calculations
 from product.runtime.fixture_mcp import StatelessFixtureTools, serve_stdio
 from product.runtime.hashing import canonical_hash, legacy_envelope_hash
 from product.runtime.multidimensional_stage import (
@@ -70,18 +70,14 @@ class CalculationHandoffTests(unittest.TestCase):
         draft["calculation_selections"] = [{"calculation_ref": ref, "claim_ids": ["comparison"]}]
         return draft
 
-    def test_actual_stdio_to_hook_preserves_prose_and_assembles_exact_result(self):
+    def test_actual_stdio_to_business_report_preserves_prose_and_exact_result(self):
         with tempfile.TemporaryDirectory() as directory:
             run, task, packet = self.prepared(Path(directory))
             result = self.successful_ratio(run, task, packet)
             draft = self.draft(task, result["calculation_ref"], result["evidence_ids"])
             original = copy.deepcopy(draft)
-            env = self.helper.targeted_environment(run, task)
-            handle_hook_event(self.helper.dispatch_payload(task, parent="calc-parent"), environ=env)
-            handle_hook_event(self.helper.start_payload(task, parent="calc-parent", child="calc-child"), environ=env)
-            saved, _ = handle_hook_event(self.helper.stop_payload(task, draft, parent="calc-parent", child="calc-child"), environ=env)
-            self.assertEqual(saved["output_capture"]["status"], "SAVED", saved)
-            report = json.loads((run / saved["output_capture"]["path"]).read_text())
+            report, output = self.helper.save_dimension_fixture(run, task, draft)
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
             receipt = json.loads((run / task["calculation_ledger_ref"]).read_text())
             self.assertEqual(report["calculations"], [receipt_calculation(receipt, task["calculation_ledger_ref"])])
             self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["statement"])
@@ -89,7 +85,7 @@ class CalculationHandoffTests(unittest.TestCase):
             self.assertEqual(report["artifact_refs"], [task["calculation_ledger_ref"]])
             self.assertNotIn("calculation_selections", report)
             self.assertEqual(draft, original)
-            self.assertIn(result["value"], (run / saved["output_capture"]["markdown_path"]).read_text())
+            self.assertIn(result["value"], Path(output["markdown"]).read_text())
             moved = Path(directory) / "moved-calculation-package"
             shutil.copytree(run, moved)
             preserved = Path(directory) / "original-outside-declared-path"
@@ -203,22 +199,16 @@ class CalculationHandoffTests(unittest.TestCase):
                 self.assertIn("calculation_selections", guide["required"])
                 self.assertEqual(context["calculation_selection_contract"]["prepared_results"], [])
 
-    def test_native_whole_draft_structure_precedes_damaged_receipt_at_actual_hook(self):
+    def test_whole_draft_structure_precedes_damaged_receipt_at_business_boundary(self):
         with tempfile.TemporaryDirectory() as directory:
             run, task, packet = self.prepared(Path(directory))
             result = self.successful_ratio(run, task, packet)
             draft = self.draft(task, result["calculation_ref"])
             draft["claims"][0].pop("question")
             original = copy.deepcopy(draft)
-            env = self.helper.targeted_environment(run, task)
-            handle_hook_event(self.helper.dispatch_payload(task, parent="shape-parent"), environ=env)
-            handle_hook_event(self.helper.start_payload(task, parent="shape-parent", child="shape-child"), environ=env)
             (run / task["calculation_ledger_ref"]).write_text("not-json\n")
-            saved, _ = handle_hook_event(self.helper.stop_payload(
-                task, draft, parent="shape-parent", child="shape-child"), environ=env)
-            self.assertEqual(saved["output_capture"]["status"], "FAILED", saved)
-            self.assertEqual(saved["output_capture"]["failure_code"],
-                             "SCHEMA_REQUIRED_MISSING:$.claims[0]:question")
+            with self.assertRaisesRegex(ValueError, r"SCHEMA_REQUIRED_MISSING:\$\.claims\[0\]:question"):
+                self.helper.read_dimension_draft(run, task, draft)
             self.assertEqual(draft, original)
             self.assertFalse(list((run / "research/reports").glob("*/dimension-report.json")))
 
@@ -261,30 +251,6 @@ class CalculationHandoffTests(unittest.TestCase):
                 self.assertEqual(assemble_calculation_selections(run, packet, legacy), original)
                 self.assertEqual(legacy, original)
 
-    def test_missing_selection_repairs_only_that_field_at_actual_hook(self):
-        for corrected in (True, False):
-            with self.subTest(corrected=corrected), tempfile.TemporaryDirectory() as directory:
-                run, task, packet = self.prepared(Path(directory))
-                draft = self.helper.dimension_draft(task)
-                draft.pop("document_selections")
-                original = copy.deepcopy(draft)
-                env = self.helper.targeted_environment(run, task)
-                handle_hook_event(self.helper.dispatch_payload(task, parent="missing-parent"), environ=env)
-                handle_hook_event(self.helper.start_payload(task, parent="missing-parent", child="missing-child"), environ=env)
-                first, response = handle_hook_event(self.helper.stop_payload(
-                    task, draft, parent="missing-parent", child="missing-child"), environ=env)
-                self.assertEqual(first["output_capture"]["failure_code"], "SCHEMA_REQUIRED_MISSING:$:document_selections")
-                repair = json.loads(response["reason"])
-                self.assertEqual(repair["allowed_paths"], ["/document_selections"])
-                self.assertEqual(json.loads((run / first["output_capture"]["raw_path"]).read_text()), original)
-                second_draft = copy.deepcopy(draft)
-                if corrected:
-                    second_draft["document_selections"] = []
-                second, _ = handle_hook_event(self.helper.stop_payload(
-                    task, second_draft, parent="missing-parent", child="missing-child"), environ=env)
-                self.assertEqual(second["output_capture"]["status"], "SAVED" if corrected else "FAILED", second)
-                self.assertEqual(second["output_capture"]["repair_state"], "REPAIRED" if corrected else "EXHAUSTED")
-                self.assertEqual(draft, original)
 
     def test_submission_relation_structure_and_actual_guides_share_canonical_schema(self):
         from product.runtime.research_submission import _assemble_draft, BOUNDED_REVISION_VERSION
@@ -326,13 +292,11 @@ class CalculationHandoffTests(unittest.TestCase):
             result = self.successful_ratio(run, task, packet)
             draft = self.draft(task, result["calculation_ref"], ["e." + "0" * 12 + ".1"])
             validate_semantic_selection_draft(draft, packet)
-            env = self.helper.targeted_environment(run, task)
-            handle_hook_event(self.helper.dispatch_payload(task, parent="unknown-parent"), environ=env)
-            handle_hook_event(self.helper.start_payload(task, parent="unknown-parent", child="unknown-child"), environ=env)
-            saved, _ = handle_hook_event(self.helper.stop_payload(
-                task, draft, parent="unknown-parent", child="unknown-child"), environ=env)
-            self.assertEqual(saved["output_capture"]["status"], "FAILED", saved)
-            self.assertIn("REFERENCE_UNKNOWN", saved["output_capture"]["failure_code"])
+            original = copy.deepcopy(draft)
+            with self.assertRaisesRegex(ValueError, "REFERENCE_UNKNOWN"):
+                self.helper.read_dimension_draft(run, task, draft)
+            self.assertEqual(draft, original)
+            self.assertFalse((run / "research/reports").exists())
 
     def test_precomputed_windows_only_offer_complete_values_with_exact_lineage(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -353,13 +317,8 @@ class CalculationHandoffTests(unittest.TestCase):
             for entry in context["calculation_selection_contract"]["prepared_results"]:
                 self.assertNotIn("input_evidence_refs", entry)
                 self.assertEqual(entry["input_fact_count"], len(raw["evidence_fact_ids"]))
-            env = self.helper.targeted_environment(run, task)
-            handle_hook_event(self.helper.dispatch_payload(task, parent="technical-parent"), environ=env)
-            handle_hook_event(self.helper.start_payload(task, parent="technical-parent", child="technical-child"), environ=env)
-            saved, _ = handle_hook_event(self.helper.stop_payload(task, draft, parent="technical-parent", child="technical-child"), environ=env)
-            self.assertEqual(saved["output_capture"]["status"], "SAVED", saved)
             from product.council.multidimensional_research import validate_research_dimension_report
-            report = json.loads((run / saved["output_capture"]["path"]).read_text())
+            report, _, _ = self.helper.read_dimension_draft(run, task, draft)
             self.assertEqual(task["allowed_evidence_ids"], [])
             self.assertTrue(task["allowed_calculation_evidence_ids"])
             report["claims"][0]["evidence_refs"] = [raw["evidence_fact_ids"][0]]
@@ -388,25 +347,21 @@ class CalculationHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "CALCULATION_PATH_INVALID"):
                 assemble_calculation_selections(run, packet, self.draft(task, result["calculation_ref"]))
 
-    def test_successful_source_report_to_native_research_selection_and_reopen(self):
-        from product.runtime.research_submission import selected_calculations_for_report, BOUNDED_REVISION_VERSION
+    def test_source_calculation_to_historical_selection_survives_reopen(self):
+        from product.runtime.research_submission import selected_calculations_for_report, FORMAL_VERSION
         with tempfile.TemporaryDirectory() as directory:
-            # Reuse the document fixture, but let the actual tool/Hook produce
-            # the dependency instead of its usual synthetic pre-saved report.
+            # 实际stdio计算生成收据，纯业务装配生成依赖；目标为显式v4历史读取向量。
+            # 不生成当前Hook、作者或宿主执行证明。
             def reserve_invocation_directory(run, index):
                 (run / "invocation").mkdir(exist_ok=True)
             with patch.object(fixtures.MultidimensionalStageTests, "save_fundamental_dependency", side_effect=reserve_invocation_directory):
-                f, run, task = submissions.ResearchSubmissionTests().prepare(Path(directory), version=BOUNDED_REVISION_VERSION)
+                f, run, task = submissions.ResearchSubmissionTests().prepare(Path(directory), version=FORMAL_VERSION)
             index = json.loads((run / "research/dispatch-index.json").read_text())
             source_task = next(t for t in index["tasks"] if t["capability"] == "FUNDAMENTAL_EVENT")
             source_packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, source_task["task_name"])
             result = self.successful_ratio(run, source_task, source_packet)
             draft = self.draft(source_task, result["calculation_ref"], result["evidence_ids"])
-            source_env = f.targeted_environment(run, source_task)
-            handle_hook_event(f.dispatch_payload(source_task, parent="dependency-parent"), environ=source_env)
-            handle_hook_event(f.start_payload(source_task, parent="dependency-parent", child="source-child"), environ=source_env)
-            source, _ = handle_hook_event(f.stop_payload(source_task, draft, parent="dependency-parent", child="source-child"), environ=source_env)
-            self.assertEqual(source["output_capture"]["status"], "SAVED", source)
+            _, source_output = f.save_dimension_fixture(run, source_task, draft)
             packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
             catalog = build_calculation_catalog(run, packet)
             ref, entry = next((ref, entry) for ref, entry in catalog.items() if entry["kind"] == "DEPENDENCY")
@@ -427,16 +382,11 @@ class CalculationHandoffTests(unittest.TestCase):
                 self.assertEqual(context["calculation_selection_contract"]["prepared_results"][0]["calculation_ref"], ref)
             denied = self.call(run, task, "calculate", operation="ratio", evidence_ids=task["allowed_evidence_ids"][:2])
             self.assertIn("error", denied)
-            env = f.targeted_environment(run, task)
-            handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-            handle_hook_event(f.start_payload(task, parent="dependency-parent", child="research-child"), environ=env)
+            from tests.historical_submission_fixture import store_historical_report_fixture
             output = submissions.ResearchSubmissionTests().submit(
                 StatelessFixtureTools(default_run_dir=run), task, downstream)
-            payload = f.stop_payload(task, {}, parent="dependency-parent", child="research-child")
-            payload["last_assistant_message"] = output["final_message"]
-            saved, _ = handle_hook_event(payload, environ=env)
-            self.assertEqual(saved["output_capture"]["status"], "SAVED", saved)
-            report = json.loads((run / saved["output_capture"]["path"]).read_text())
+            report, _, _ = store_historical_report_fixture(run, task, output["final_message"])
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
             selected = selected_calculations_for_report(run, report)
             self.assertEqual(selected[0]["calculation_id"], result["calculation_id"])
             self.assertEqual(selected[0]["verified_output"]["value"], result["value"])
@@ -457,7 +407,7 @@ class CalculationHandoffTests(unittest.TestCase):
                     selected_calculations_for_report(moved, report, for_execution=False)
             finally:
                 preserved.rename(run)
-            marker = run / source["output_capture"]["path"]
+            marker = Path(source_output["json"])
             modified = json.loads(marker.read_text())
             modified["claims"][0]["statement"] += " changed"
             modified["report_hash"] = legacy_envelope_hash(modified, hash_field="report_hash")

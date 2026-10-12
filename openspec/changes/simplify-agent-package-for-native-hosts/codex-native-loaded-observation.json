@@ -1,0 +1,142 @@
+{
+  "source_id": "codex-current-native-mcp-observation:20261007",
+  "as_of": "2026-10-07 09:21:07 UTC",
+  "retrieved_at": "2026-10-07 09:21:07 UTC",
+  "thread_id": "01a111a1-f911-7032-8228-4d0100e725b3",
+  "turn_id": "01a115a0-d3fa-7352-9566-afad2418b526",
+  "loaded_tools": [
+    "mcp__cio__research_catalog",
+    "mcp__cio__research_context",
+    "mcp__cio__research_prepare_task",
+    "mcp__cio__research_query",
+    "mcp__cio__research_read_reports",
+    "mcp__cio__research_read_submission",
+    "mcp__cio__research_submit",
+    "mcp__company__research_calculate",
+    "mcp__company__research_calculations",
+    "mcp__company__research_catalog",
+    "mcp__company__research_context",
+    "mcp__company__research_fetch",
+    "mcp__company__research_prepare_task",
+    "mcp__company__research_query",
+    "mcp__company__research_read_documents",
+    "mcp__company__research_read_reports",
+    "mcp__company__research_read_submission",
+    "mcp__company__research_search",
+    "mcp__company__research_submit",
+    "mcp__market__research_calculate",
+    "mcp__market__research_calculations",
+    "mcp__market__research_catalog",
+    "mcp__market__research_context",
+    "mcp__market__research_fetch",
+    "mcp__market__research_prepare_task",
+    "mcp__market__research_query",
+    "mcp__market__research_read_documents",
+    "mcp__market__research_read_reports",
+    "mcp__market__research_read_submission",
+    "mcp__market__research_search",
+    "mcp__market__research_submit",
+    "mcp__skeptic__research_catalog",
+    "mcp__skeptic__research_context",
+    "mcp__skeptic__research_prepare_task",
+    "mcp__skeptic__research_query",
+    "mcp__skeptic__research_read_submission",
+    "mcp__skeptic__research_submit"
+  ],
+  "native_business_calls": {
+    "context": {
+      "result": "PASS",
+      "capability": "COMPANY_RESEARCH",
+      "security_id": "US:COMMON_STOCK:MRVL",
+      "allowed_evidence_count": 1398,
+      "permissions": [
+        "query",
+        "calculate",
+        "submit",
+        "read_submission"
+      ],
+      "decision_cutoff": "2026-09-28T12:35:32.208143Z",
+      "source_id": "native-research-preparation:eight-dimension-rebuild-20260928-v2",
+      "as_of": "2026-09-28T12:35:32.208143Z",
+      "retrieved_at": "2026-10-07T07:33:39.667979Z"
+    },
+    "catalog": {
+      "result": "PASS",
+      "total": 1398,
+      "returned_count": 3
+    },
+    "query": {
+      "result": "PASS",
+      "evidence_ids": [
+        "ev-live-derived-0b234972f35f37ab1fde549df3a9daa6bf967d18991c9036e39d3c258bbf94b7"
+      ],
+      "result_hash": "dbfd01a1181c2304fed2c324a7d890063ca8cb627d41ed1d6928bc02d7b5827a"
+    },
+    "source_access_denial": {
+      "result": "PASS_REJECTED_BEFORE_NETWORK",
+      "error": "NATIVE_MATERIAL_SOURCE_ACCESS_FORBIDDEN"
+    },
+    "valid_shape_wrong_task_capability": {
+      "result": "PASS_REJECTED",
+      "error": "NATIVE_RESEARCH_ACCESS_INVALID"
+    },
+    "resources_list": {
+      "result": "METHOD_NOT_FOUND",
+      "interpretation": "This business MCP exposes tools, not resources; no longer unknown server."
+    }
+  },
+  "operator_task_preparation": {
+    "result": "PASS",
+    "task_ref": "t.0645d16990d61449d53c6755",
+    "capability": "COMPANY_RESEARCH",
+    "author_has_not_run": true
+  },
+  "native_delegation": {
+    "agent_type": "runtime_company_analyst",
+    "fork_turns": "none",
+    "result": "REJECTED_BEFORE_CREATION",
+    "error": "unknown agent_type 'runtime_company_analyst'",
+    "retry": false,
+    "subagents_created": 0
+  },
+  "model_observation": {
+    "selected_parent_model": "gpt-6.1-sol",
+    "basis": "Exact current thread latest turn_context metadata only",
+    "provider_execution_attestation": "UNVERIFIED",
+    "specialist_model": "NOT_RUN"
+  },
+  "budget": {
+    "cap": 15,
+    "conservative_charged_total": 3,
+    "remaining": 12,
+    "charged_breakdown": {
+      "primary_reserved": 1,
+      "rejected_role_attempt_before_reload": 1,
+      "rejected_role_attempt_after_explicit_user_resume": 1
+    },
+    "source_searches": 0,
+    "source_fetches": 0,
+    "account_calls": 0,
+    "research_reports": 0
+  },
+  "integrity": {
+    "protected_public_originals": 22,
+    "protected_source_files": 797,
+    "mismatches": []
+  },
+  "source_dependency": {
+    "user_confirmed_no_existing_openalex_key": true,
+    "codex_itself_does_not_require_openalex": true,
+    "current_material_adapter_uses_openalex_for_discovery_content": true,
+    "existing_free_federal_reserve_gate_text_available": true,
+    "text_length": 2511,
+    "frozen_gate_text_is_not_automatically_a_native_preparation_receipt": true,
+    "no_new_provider_or_evidence_gate_bypass": true
+  },
+  "completion": {
+    "tasks_checked": 17,
+    "total": 24,
+    "codex_full_acceptance": "NOT_COMPLETE",
+    "archive_commit_push": false
+  }
+}

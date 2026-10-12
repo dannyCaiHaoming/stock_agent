@@ -17,7 +17,6 @@ from product.runtime.multidimensional_stage import (
     prepare_multidimensional_stage_run,
     finalize_multidimensional_stage_run, check_multidimensional_bundle_consumable,
 )
-from product.runtime.codex_hook_recorder import handle_hook_event, _multidimensional_repair_packet
 from product.runtime.fixture_mcp import StatelessFixtureTools, serve_stdio
 from product.runtime.calculation_handoff import build_calculation_catalog
 from tests import test_multidimensional_stage as fixtures
@@ -39,7 +38,7 @@ def breadth_fact():
 
 
 class BreadthTests(unittest.TestCase):
-    def test_frozen_gate_to_hook_saved_report_and_tamper_rejection(self):
+    def test_frozen_gate_to_business_report_and_historical_bundle_rejects_tampering(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             helper = fixtures.MultidimensionalStageTests()
@@ -72,58 +71,50 @@ class BreadthTests(unittest.TestCase):
                 "statement": "合成分桶上涨30、下跌10、持平5，仅供应商覆盖。", "kind": "FACT",
                 "evidence_refs": [fact["evidence_id"]], "research_claim_refs": [], "document_refs": [],
                 "assumption_ids": []}]
-            env = helper.targeted_environment(run, task)
-            handle_hook_event(helper.dispatch_payload(task, parent="p"), environ=env)
-            handle_hook_event(helper.start_payload(task, parent="p", child="c"), environ=env)
             wrong = copy.deepcopy(draft)
             wrong["calculations"] = [{**calculation, "unit": "stocks"}]
-            rejected, _ = handle_hook_event(helper.stop_payload(task, wrong, parent="p", child="c"), environ=env)
-            self.assertEqual(rejected["output_capture"]["repair_state"], "REPAIR_REQUESTED", rejected)
-            trusted = {"identity_binding": {"status": "BOUND"},
-                       "trusted_task_binding": {"invocation_id": task["invocation_id"]}}
+            with self.assertRaisesRegex(ValueError, "SCHEMA_EXTRA_PROPERTY"):
+                helper.read_dimension_draft(run, task, wrong)
             for field, value in [("value", "30"), ("method", "sum"), ("unit", "stocks"),
                                  ("input_evidence_refs", []), ("calculation_id", "wrong")]:
-                # 历史正式稿只读诊断保留；当前写入不再要求作者抄写这些字段。
-                bad = helper.formal_dimension_draft(task)
-                bad["calculations"] = [copy.deepcopy(calculation)]
-                bad["artifact_refs"] = [calculation["artifact_ref"]]
+                # 正式历史计算独立重验，不恢复旧Hook的辅助修订调度。
+                bad = {"calculations": [copy.deepcopy(packet["prepared_analysis"]["breadth_report_calculation"])],
+                       "artifact_refs": [calculation["artifact_ref"]]}
                 bad["calculations"][0][field] = value
+                original = copy.deepcopy(bad)
                 failure = "MARKET_BREADTH_REFERENCE_INVALID" if field in {"input_evidence_refs", "calculation_id"} else "MARKET_BREADTH_VALUE_INVALID"
-                payload = {"last_assistant_message": json.dumps(bad)}
-                repair = _multidimensional_repair_packet(payload, env, failure_code=failure, attempt=1, trusted_record=trusted)
-                self.assertIsNotNone(repair, field)
-                self.assertIn(f"calculations[0].{field}", [f["path"] for f in repair["validation_details"]["findings"]])
-                self.assertEqual(repair["validation_details"]["breadth_report_calculation"], calculation)
-                self.assertIsNone(_multidimensional_repair_packet(payload, env, failure_code=failure, attempt=2, trusted_record=trusted))
-                self.assertIsNone(_multidimensional_repair_packet(payload, env, failure_code=failure, attempt=1))
-            record, _ = handle_hook_event(helper.stop_payload(task, draft, parent="p", child="c"), environ=env)
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-            self.assertEqual(record["output_capture"]["repair_state"], "REPAIRED")
-            path = run / record["output_capture"]["path"]
-            self.assertTrue(path.with_suffix(".md").exists())
-            validate_breadth_calculation_references(run, json.loads(path.read_text()))
+                with self.subTest(field=field), self.assertRaisesRegex(ValueError, failure):
+                    validate_breadth_calculation_references(run, bad)
+                self.assertEqual(bad, original)
+            # 下面只构造显式历史读取向量；不是实际宿主派发/执行证明。
+            events = []
             for other in index["tasks"]:
-                if other == task:
-                    continue
-                other_env = helper.targeted_environment(run, other)
-                parent, child = "p", "c-" + other["task_name"]
-                handle_hook_event(helper.dispatch_payload(other, parent=parent), environ=other_env)
-                handle_hook_event(helper.start_payload(other, parent=parent, child=child), environ=other_env)
-                gap_draft = helper.dimension_draft(other)
+                gap_draft = draft if other == task else helper.dimension_draft(other)
                 if other["capability"] == "MACRO_CONTEXT":
                     wrong = copy.deepcopy(gap_draft)
                     wrong["artifact_refs"] = [calculation["artifact_ref"]]
-                    rejected, _ = handle_hook_event(helper.stop_payload(other, wrong, parent=parent, child=child), environ=other_env)
-                    self.assertEqual(rejected["output_capture"]["failure_code"], "SCHEMA_EXTRA_PROPERTY:$:artifact_refs")
-                saved, _ = handle_hook_event(helper.stop_payload(other, gap_draft, parent=parent, child=child), environ=other_env)
-                self.assertEqual(saved["output_capture"]["status"], "SAVED", saved)
+                    with self.assertRaisesRegex(ValueError, r"SCHEMA_EXTRA_PROPERTY:\$:artifact_refs"):
+                        helper.read_dimension_draft(run, other, wrong)
+                saved, output = helper.save_dimension_fixture(run, other, gap_draft)
+                if other == task:
+                    self.assertTrue(Path(output["markdown"]).exists())
+                    validate_breadth_calculation_references(run, saved)
+                events.append({"hook_event_name": "SubagentStop", "output_capture": {
+                    "status": "SAVED", "task_id": other["task_id"],
+                    "path": str(Path(output["json"]).relative_to(run)),
+                }})
+            (run / "invocation").mkdir(exist_ok=True)
+            (run / "invocation/subagent-events.jsonl").write_text(
+                "\n".join(json.dumps(event) for event in events) + "\n")
+            (run / "invocation/subagent-dispatches.jsonl").write_text(
+                "\n".join(json.dumps({"task_name": item["task_name"], "decision": "ALLOW"})
+                          for item in index["tasks"]) + "\n")
             finalize_multidimensional_stage_run(fixtures.ROOT, run)
             self.assertTrue((run / "research/holding-research-bundle.md").exists())
             check_multidimensional_bundle_consumable(fixtures.ROOT, run)
             artifact = json.loads((run / calculation["artifact_ref"]).read_text())
             artifact["counts"]["rise"] = 999
             (run / calculation["artifact_ref"]).write_text(json.dumps(artifact))
-            self.assertIsNone(_multidimensional_repair_packet(payload, env, failure_code=failure, attempt=1, trusted_record=trusted))
             with self.assertRaisesRegex(ValueError, "ARTIFACT_MISMATCH"):
                 check_multidimensional_bundle_consumable(fixtures.ROOT, run)
 
@@ -162,13 +153,13 @@ class BreadthTests(unittest.TestCase):
                 else:
                     self.assertEqual(breadth["evidence_fact_ids"], ["z-newer"])
 
-    def test_breadth_second_invalid_stop_exhausts_repair(self):
-        self._breadth_invalid_stop()
+    def test_invalid_breadth_fields_remain_rejected_without_auto_repair(self):
+        self._invalid_breadth_draft()
 
-    def test_breadth_field_error_cannot_mask_unauthorized_document(self):
-        self._breadth_invalid_stop(unknown_document=True)
+    def test_breadth_field_error_does_not_authorize_unknown_document(self):
+        self._invalid_breadth_draft(unknown_document=True)
 
-    def _breadth_invalid_stop(self, unknown_document=False):
+    def _invalid_breadth_draft(self, unknown_document=False):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             helper = fixtures.MultidimensionalStageTests()
@@ -185,38 +176,28 @@ class BreadthTests(unittest.TestCase):
             prepare_multidimensional_stage_run(fixtures.ROOT, handoff_path=root / "handoff.json", gate_path=root / "gate.json", run_dir=run, run_id="exhaustion", model="gpt-5.6-terra")
             task = next(t for t in json.loads((run / "research/dispatch-index.json").read_text())["tasks"] if t["capability"] == "MARKET_STATE")
             packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
-            draft = helper.formal_dimension_draft(task)  # 仅用于下方历史辅助诊断。
             calc = copy.deepcopy(packet["prepared_analysis"]["breadth_report_calculation"])
             calc["unit"] = "stocks"
-            draft["calculations"] = [calc]
-            draft["artifact_refs"] = [calc["artifact_ref"]]
-            env = helper.targeted_environment(run, task)
-            handle_hook_event(helper.dispatch_payload(task, parent="p"), environ=env)
-            handle_hook_event(helper.start_payload(task, parent="p", child="c"), environ=env)
-            trusted = {"identity_binding": {"status": "BOUND"}, "trusted_task_binding": {"invocation_id": task["invocation_id"]}}
-            mixed = copy.deepcopy(draft)
-            mixed["documents"] = [{"document_id": "not-authorized"}]
-            self.assertIsNone(_multidimensional_repair_packet({"last_assistant_message": json.dumps(mixed)}, env,
-                failure_code="MARKET_BREADTH_VALUE_INVALID", attempt=1, trusted_record=trusted))
-            if unknown_document:
-                native = helper.dimension_draft(task)
-                native["document_selections"] = ["d.not-authorized.1"]
-                for state in ("REPAIR_REQUESTED", "EXHAUSTED"):
-                    record, response = handle_hook_event(helper.stop_payload(task, native, parent="p", child="c"), environ=env)
-                    self.assertEqual(record["output_capture"]["repair_state"], state, record)
-                    self.assertNotEqual(record["output_capture"]["status"], "SAVED")
-                    self.assertNotIn("breadth_report_calculation", json.dumps(response))
-                return
+            formal = {"calculations": [calc], "artifact_refs": [calc["artifact_ref"]]}
+            with self.assertRaisesRegex(ValueError, "MARKET_BREADTH_VALUE_INVALID"):
+                validate_breadth_calculation_references(run, formal)
             native = helper.dimension_draft(task)
-            native["calculations"] = [calc]
-            for state in ("REPAIR_REQUESTED", "EXHAUSTED"):
-                record, _ = handle_hook_event(helper.stop_payload(task, native, parent="p", child="c"), environ=env)
-                self.assertEqual(record["output_capture"]["repair_state"], state, record)
-                self.assertNotEqual(record["output_capture"]["status"], "SAVED")
-            trusted = {"identity_binding": {"status": "BOUND"}, "trusted_task_binding": {"invocation_id": task["invocation_id"]}}
-            draft["artifact_refs"].append("../outside.json")
-            self.assertIsNone(_multidimensional_repair_packet({"last_assistant_message": json.dumps(draft)}, env,
-                failure_code="MARKET_BREADTH_VALUE_INVALID", attempt=1, trusted_record=trusted))
+            if unknown_document:
+                native["document_selections"] = ["d.not-authorized.1"]
+                failure = "SCHEMA_ENUM_INVALID"
+            else:
+                native["calculations"] = [calc]
+                failure = "SCHEMA_EXTRA_PROPERTY"
+            original = copy.deepcopy(native)
+            for _ in range(2):
+                with self.assertRaisesRegex(ValueError, failure):
+                    helper.read_dimension_draft(run, task, native)
+                self.assertEqual(native, original)
+            outside = {"calculations": [], "artifact_refs": ["../outside/market-breadth-calculation.json"]}
+            with self.assertRaisesRegex(ValueError, "MARKET_BREADTH_ARTIFACT_INVALID"):
+                validate_breadth_calculation_references(run, outside)
+            self.assertFalse((run / "research/reports").exists())
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
     def test_sum_and_order_and_input_unchanged(self):
         fact = breadth_fact()

@@ -1,0 +1,23 @@
+{
+  "source_id": "native-zero-model-closeout-check:20261006",
+  "as_of": "2026-10-06T15:40:23.133785+00:00",
+  "retrieved_at": "2026-10-06T15:40:23.133785+00:00",
+  "openspec_strict": "PASS",
+  "git_diff_check": "PASS",
+  "document_links_and_whitespace": "PASS",
+  "approved_source_count_reverified": 270,
+  "protected_public_originals_count": 23,
+  "actual_stdio_tool_checks_passed": 57,
+  "model_calls": 0,
+  "source_network_calls": 0,
+  "account_calls": 0,
+  "report_submissions": 0,
+  "git_branch": "main",
+  "staged_files": [],
+  "native_host_execution": "NOT_RUN",
+  "full_smoke": "NOT_READY",
+  "tasks_completed": 17,
+  "tasks_total": 24,
+  "archive_commit_push": "NOT_PERFORMED",
+  "evidence_sha256": "12fa38510c831042a1277da515d3cd68e8c9b7a71df51eb9cf60f8d426e63686"
+}

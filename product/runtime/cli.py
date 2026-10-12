@@ -8,72 +8,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from .execution_proof import (
-    ExecutionProofError,
-    build_ephemeral_run_specialist_execution_proof,
-    build_run_specialist_execution_proof,
-    discover_and_build_run_specialist_execution_proof,
-)
-from .run_package import fail_run, finalize_cio, prepare_cio, prepare_run
-from .replay import replay_run, write_replay_result
-from .native_eval import evaluate_run, persist_eval_result
-from .native_rerun import prepare_native_rerun
-from .release_gate import check_run
-from .smoke_prompt import build_smoke_prompt
-from .terminal_contract import FailureStage
-from .execution_replay import finalize_execution_replay, prepare_execution_replay
-from .reason_codes import code_from_error
-from .runtime_eval import build_eval_smoke_prompt, finalize_eval_job, prepare_eval_job
-from .eval_execution_proof import (
-    build_eval_execution_proof,
-    discover_eval_rollouts,
-    persist_eval_execution_proof,
-)
-from .trace_validation import trace_integrity_report
-from .nested_codex import launch_nested_codex
-from .environment_preflight import reject_legacy_entry
-from .common_stock_stage import (
-    build_common_stock_stage_prompt,
-    launch_common_stock_stage,
-    persist_common_stock_report_package,
-    prepare_common_stock_stage_run,
-    validate_common_stock_stage_run_package,
-)
-from .common_stock_eval import (
-    build_common_stock_eval_prompt,
-    finalize_common_stock_eval_job,
-    launch_common_stock_eval,
-    prepare_common_stock_eval_job,
-)
-from .common_stock_data import (
-    attach_research_supplement,
-    assemble_common_stock_evidence_from_live_snapshot,
-    collect_common_stock_data_from_handoff, collect_single_stock_research_data, finalize_single_stock_research_data,
-)
-from .multidimensional_stage import (
-    assemble_canonical_holding_research_package,
-    build_multidimensional_stage_prompt,
-    check_multidimensional_bundle_consumable,
-    launch_multidimensional_stage,
-    prepare_multidimensional_stage_run,
-)
-from .research_materials_stage import (
-    build_research_materials_stage_prompt,
-    launch_research_materials_stage,
-    prepare_research_materials_stage,
-    materialize_selected_peers,
-)
-from .independent_skeptic_stage import (
-    prepare_skeptic_phase, launch_skeptic_phase, finalize_skeptic_phase,
-    prepare_skeptic_resume, validate_prepared_skeptic_resume,
-    validate_forward_gate,
-)
-from .predecision_cio_stage import (
-    check_predecision_cio_trace, finalize_predecision_cio_advice,
-    finalize_predecision_cio_research, launch_predecision_cio_run,
-    prepare_predecision_cio_run,
-)
-from .research_consumption_audit import build_research_consumption_audit, render_audit_summary
+from .entry_policy import reject_legacy_entry
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -188,10 +123,6 @@ def build_parser() -> argparse.ArgumentParser:
     stock_supplement.add_argument("--package", type=Path, required=True)
     stock_supplement.add_argument("--batch", type=Path, required=True)
 
-    stock_prompt = subparsers.add_parser("common-stock-research-prompt")
-    stock_prompt.add_argument("--repo", type=Path, required=True)
-    stock_prompt.add_argument("--run-dir", type=Path, required=True)
-
     stock_validate = subparsers.add_parser(
         "validate-common-stock-research",
         help="验证已准备的普通股研究运行包；不启动模型",
@@ -254,10 +185,6 @@ def build_parser() -> argparse.ArgumentParser:
                                help="仅反证阶段：执行现有六项核心准入的正向依赖，不执行八维整批")
     multi_prepare.add_argument("--reuse-frozen-gate", action="store_true",
                                help="以新执行身份复用冻结 Gate，保留原文件及来源绑定")
-
-    multi_prompt = subparsers.add_parser("multidimensional-research-prompt")
-    multi_prompt.add_argument("--repo", type=Path, required=True)
-    multi_prompt.add_argument("--run-dir", type=Path, required=True)
 
     multi_launch = subparsers.add_parser(
         "launch-multidimensional-research",
@@ -383,10 +310,6 @@ def build_parser() -> argparse.ArgumentParser:
     materials_prepare.add_argument("--model", required=True)
     materials_prepare.add_argument("--max-concurrency", type=int, default=3)
     materials_prepare.add_argument("--reuse-frozen-gate", action="store_true")
-
-    materials_prompt = subparsers.add_parser("research-materials-prompt")
-    materials_prompt.add_argument("--repo", type=Path, required=True)
-    materials_prompt.add_argument("--run-dir", type=Path, required=True)
 
     materials_launch = subparsers.add_parser(
         "launch-research-materials",
@@ -590,6 +513,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     args = parser.parse_args(arguments)
     if args.command == "prepare":
+        from .run_package import prepare_run
         result = prepare_run(
             args.repo,
             fixture_path=args.fixture,
@@ -602,6 +526,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             trigger_reason=args.trigger_reason,
         )
     elif args.command == "collect-single-stock-data":
+        from .common_stock_data import collect_single_stock_research_data
         import os
         result = collect_single_stock_research_data(
             args.single_stock, question=args.question, cutoff=args.cutoff,
@@ -610,9 +535,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             sec_user_agent=os.environ.get("SEC_USER_AGENT", ""), run_id=args.run_id,
         )
     elif args.command == "freeze-single-stock-data":
+        from .common_stock_data import finalize_single_stock_research_data
         result = finalize_single_stock_research_data(data_dir=args.data_dir,
             materials_run=args.materials_run, output_dir=args.output_dir)
     elif args.command == "collect-common-stock-data":
+        from .common_stock_data import collect_common_stock_data_from_handoff
         try:
             import os
             result = collect_common_stock_data_from_handoff(
@@ -632,6 +559,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             }, ensure_ascii=False))
             return 2
     elif args.command == "attach-research-supplement":
+        from .common_stock_data import attach_research_supplement
         try:
             result = attach_research_supplement(
                 args.data_dir, background_path=args.background,
@@ -644,6 +572,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             }, ensure_ascii=False))
             return 2
     elif args.command == "prepare-common-stock-data":
+        from .common_stock_data import assemble_common_stock_evidence_from_live_snapshot
         try:
             from product.mcp.live.contracts import external_path
             from product.mcp.live.market import load_locked_calendar
@@ -679,6 +608,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             }, ensure_ascii=False))
             return 2
     elif args.command == "prepare-common-stock-research":
+        from .common_stock_stage import prepare_common_stock_stage_run
         result = prepare_common_stock_stage_run(
             args.repo, handoff_path=args.handoff, research_input_path=args.research_input, gate_path=args.gate,
             run_dir=args.run_dir, run_id=args.run_id, model=args.model,
@@ -691,23 +621,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             memory_root=args.memory_root, force_rerun=args.force_rerun,
             reuse_frozen_gate=args.reuse_frozen_gate,
         )
-    elif args.command == "common-stock-research-prompt":
-        print(build_common_stock_stage_prompt(args.repo, args.run_dir))
-        return 0
     elif args.command == "validate-common-stock-research":
+        from .common_stock_stage import validate_common_stock_stage_run_package
         result = validate_common_stock_stage_run_package(args.repo, args.run_dir)
     elif args.command == "persist-common-stock-report":
+        from .common_stock_stage import persist_common_stock_report_package
         result = persist_common_stock_report_package(
             args.repo, args.run_dir, security_id=args.security_id,
         )
-    elif args.command == "launch-common-stock-research":
-        result, exit_code = launch_common_stock_stage(
-            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
     elif args.command == "prepare-multidimensional-research":
+        from .multidimensional_stage import prepare_multidimensional_stage_run
         result = prepare_multidimensional_stage_run(
             args.repo, handoff_path=args.handoff, research_input_path=args.research_input, gate_path=args.gate,
             run_dir=args.run_dir, run_id=args.run_id, model=args.model,
@@ -723,43 +646,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             reuse_frozen_gate=args.reuse_frozen_gate,
             core_forward_only=args.core_forward_only,
         )
-    elif args.command == "multidimensional-research-prompt":
-        print(build_multidimensional_stage_prompt(args.repo, args.run_dir))
-        return 0
-    elif args.command == "launch-multidimensional-research":
-        result, exit_code = launch_multidimensional_stage(
-            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds, task_name=args.task_name,
-            initial_task=args.initial_task,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
     elif args.command == "check-multidimensional-consumption":
+        from .multidimensional_stage import check_multidimensional_bundle_consumable
         result = check_multidimensional_bundle_consumable(args.repo, args.run_dir)
     elif args.command == "prepare-independent-skeptic":
+        from .independent_skeptic_stage import prepare_skeptic_phase
         result = prepare_skeptic_phase(args.repo, args.run_dir)
-    elif args.command == "launch-independent-skeptic":
-        result, exit_code = launch_skeptic_phase(
-            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
-    elif args.command == "resume-independent-skeptic":
-        prepared = (validate_prepared_skeptic_resume(args.repo, args.run_dir, args.prepared_index)
-                    if args.prepared_index else prepare_skeptic_resume(args.repo, args.run_dir))
-        result, exit_code = launch_skeptic_phase(
-            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds, index_ref=prepared["dispatch_index"],
-            task_names=prepared["retry_task_names"],
-        )
-        print(json.dumps({"resume": prepared, "result": result}, ensure_ascii=False, sort_keys=True))
-        return exit_code
     elif args.command == "check-independent-skeptic":
+        from .independent_skeptic_stage import validate_forward_gate
         result = validate_forward_gate(args.repo, args.run_dir)
     elif args.command == "finalize-independent-skeptic":
+        from .independent_skeptic_stage import finalize_skeptic_phase
         result = finalize_skeptic_phase(args.repo, args.run_dir)
     elif args.command == "prepare-predecision-cio":
+        from .predecision_cio_stage import prepare_predecision_cio_run
         result = prepare_predecision_cio_run(
             args.repo, source_run_dir=args.source_run, run_dir=args.run_dir,
             run_id=args.run_id, target_security_id=args.target_security_id,
@@ -767,20 +667,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_research_age_days=args.max_research_age_days,
             mandate_path=args.mandate, model=args.model,
         )
-    elif args.command == "launch-predecision-cio":
-        result, exit_code = launch_predecision_cio_run(
-            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
     elif args.command == "finalize-predecision-cio-research":
+        from .predecision_cio_stage import finalize_predecision_cio_research
         result = finalize_predecision_cio_research(args.repo, args.run_dir)
     elif args.command == "finalize-predecision-cio-advice":
+        from .predecision_cio_stage import finalize_predecision_cio_advice
         result = finalize_predecision_cio_advice(args.repo, args.run_dir)
     elif args.command == "check-predecision-cio":
+        from .predecision_cio_stage import check_predecision_cio_trace
         result = check_predecision_cio_trace(args.repo, args.run_dir)
     elif args.command == "assemble-canonical-holding-research":
+        from .multidimensional_stage import assemble_canonical_holding_research_package
         result = assemble_canonical_holding_research_package(
             args.repo,
             base_run_dir=args.base_run,
@@ -789,6 +686,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             supplement_run_dirs=args.supplement_run,
         )
     elif args.command == "prepare-research-materials":
+        from .research_materials_stage import prepare_research_materials_stage
         result = prepare_research_materials_stage(
             args.repo, handoff_path=args.handoff, research_input_path=args.research_input, gate_path=args.gate,
             peer_candidate_pool_path=args.peer_candidates, run_dir=args.run_dir,
@@ -796,17 +694,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             target_concurrency=args.max_concurrency,
             reuse_frozen_gate=args.reuse_frozen_gate,
         )
-    elif args.command == "research-materials-prompt":
-        print(build_research_materials_stage_prompt(args.repo, args.run_dir))
-        return 0
-    elif args.command == "launch-research-materials":
-        result, exit_code = launch_research_materials_stage(
-            args.repo, run_dir=args.run_dir, codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
     elif args.command == "materialize-selected-peers":
+        from .research_materials_stage import materialize_selected_peers
         import os
         result = materialize_selected_peers(
             args.materials_run, source_access_path=args.source_access,
@@ -814,19 +703,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_dir=args.output_dir, memory_root=args.memory_root,
         )
     elif args.command == "common-stock-eval-prepare":
+        from .common_stock_eval import prepare_common_stock_eval_job
         result = prepare_common_stock_eval_job(
             report_path=args.report, request_path=args.request, gate_path=args.gate,
             rubric_path=args.rubric, output_dir=args.output_dir, eval_id=args.eval_id,
             mcp_events_path=args.mcp_events,
         )
     elif args.command == "common-stock-eval-prompt":
+        from .common_stock_eval import build_common_stock_eval_prompt
         print(build_common_stock_eval_prompt(args.eval_dir))
         return 0
     elif args.command == "common-stock-eval-finalize":
+        from .common_stock_eval import finalize_common_stock_eval_job
         result = finalize_common_stock_eval_job(
             eval_dir=args.eval_dir, semantic_result_path=args.semantic_result,
         )
     elif args.command == "launch-common-stock-eval":
+        from .common_stock_eval import launch_common_stock_eval
         result, exit_code = launch_common_stock_eval(
             args.repo, eval_dir=args.eval_dir, model=args.model,
             codex_binary=args.codex_binary, timeout_seconds=args.timeout_seconds,
@@ -863,13 +756,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         }, ensure_ascii=False))
         return 2
     elif args.command == "prepare-cio":
+        from .run_package import prepare_cio
         result = prepare_cio(args.repo, run_dir=args.run_dir, model=args.model)
     elif args.command == "finalize-cio":
+        from .run_package import finalize_cio
         result = finalize_cio(args.repo, run_dir=args.run_dir, revision=args.revision)
     elif args.command == "smoke-prompt":
+        from .smoke_prompt import build_smoke_prompt
         print(build_smoke_prompt(args.run_dir, repository_root=args.repo, sessions_root=args.sessions_root))
         return 0
     elif args.command == "execution-proof":
+        from .execution_proof import ExecutionProofError, build_ephemeral_run_specialist_execution_proof, build_run_specialist_execution_proof, discover_and_build_run_specialist_execution_proof
+        from .run_package import fail_run
+        from .terminal_contract import FailureStage
         try:
             ephemeral_values = (args.codex_events, args.hook_events, args.latency_ms)
             if any(value is not None for value in ephemeral_values):
@@ -941,13 +840,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 trace=trace,
             )
     elif args.command == "replay":
+        from .replay import replay_run, write_replay_result
         result = replay_run(args.repo, run_dir=args.run_dir)
         write_replay_result(result, output_path=args.output)
     elif args.command == "artifact-replay":
+        from .reason_codes import code_from_error
+        from .replay import replay_run, write_replay_result
         try:
             result = replay_run(args.repo, run_dir=args.run_dir)
             write_replay_result(result, output_path=args.output)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
+            from .reason_codes import code_from_error
             failure = {
                 "status": "FAIL",
                 "reason_code": code_from_error(exc),
@@ -957,9 +860,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(failure, ensure_ascii=False, sort_keys=True))
             return 6
     elif args.command == "eval":
+        from .native_eval import evaluate_run, persist_eval_result
         result = evaluate_run(args.repo, run_dir=args.run_dir)
         persist_eval_result(result, run_dir=args.run_dir)
     elif args.command == "audit-research-consumption":
+        from .research_consumption_audit import build_research_consumption_audit, render_audit_summary
         try:
             from product.mcp.live.contracts import external_path
             destination = external_path(args.output_dir)
@@ -985,20 +890,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "FAILED", "failure_code": str(exc).split(":", 1)[0], "llm_calls": 0}, ensure_ascii=False))
             return 2
     elif args.command == "check-run":
+        from .release_gate import check_run
         result, exit_code = check_run(args.repo, run_dir=args.run_dir)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return exit_code
-    elif args.command == "nested-codex-smoke":
-        result, exit_code = launch_nested_codex(
-            args.repo,
-            run_dir=args.run_dir,
-            codex_binary=args.codex_binary,
-            timeout_seconds=args.timeout_seconds,
-            preflight_report=None,
-        )
-        print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-        return exit_code
     elif args.command == "prepare-rerun":
+        from .native_rerun import prepare_native_rerun
         result = prepare_native_rerun(
             args.repo,
             source_run_dir=args.source_run_dir,
@@ -1008,6 +905,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         try:
             if args.command == "prepare-execution-replay":
+                from .execution_replay import prepare_execution_replay
                 result = prepare_execution_replay(
                     source_run_dir=args.source_run_dir,
                     new_run_dir=args.run_dir,
@@ -1015,12 +913,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                     workspace_root=args.workspace,
                 )
             elif args.command == "finalize-execution-replay":
+                from .execution_replay import finalize_execution_replay
                 result = finalize_execution_replay(
                     source_run_dir=args.source_run_dir,
                     replay_run_dir=args.run_dir,
                     output_dir=args.output_dir,
                 )
             elif args.command == "eval-prepare":
+                from .runtime_eval import prepare_eval_job
                 result = prepare_eval_job(
                     args.repo,
                     run_dir=args.run_dir,
@@ -1029,15 +929,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                     expected_terminal_states=tuple(args.expected_terminal_state or ("COMPLETED", "SAFE_NO_TRADE")),
                 )
             elif args.command == "eval-finalize":
+                from .runtime_eval import finalize_eval_job
                 result = finalize_eval_job(
                     args.repo,
                     eval_dir=args.eval_dir,
                     semantic_result_path=args.semantic_result,
                 )
             elif args.command == "eval-smoke-prompt":
+                from .runtime_eval import build_eval_smoke_prompt
                 print(build_eval_smoke_prompt(args.repo, eval_dir=args.eval_dir, sessions_root=args.sessions_root))
                 return 0
             elif args.command == "eval-execution-proof":
+                from .eval_execution_proof import build_eval_execution_proof, discover_eval_rollouts, persist_eval_execution_proof
                 parent, child = discover_eval_rollouts(
                     args.sessions_root,
                     eval_dir=args.eval_dir.resolve(),
@@ -1122,6 +1025,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         output_dir=args.output_dir,
                     )
             elif args.command == "trace-check":
+                from .trace_validation import trace_integrity_report
                 trace = json.loads((args.run_dir / "decision_trace.json").read_text(encoding="utf-8"))
                 result = trace_integrity_report(trace, run_dir=args.run_dir)
                 if args.output.exists():
@@ -1149,6 +1053,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     test_targets=args.test_target,
                 )
         except (OSError, ValueError, json.JSONDecodeError) as exc:
+            from .reason_codes import code_from_error
             failure = {
                 "status": "FAIL",
                 "reason_code": code_from_error(exc),

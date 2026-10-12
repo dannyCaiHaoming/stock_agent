@@ -12,7 +12,6 @@ from product.runtime import research_submission as submission
 from product.runtime import multidimensional_stage as stage
 from product.runtime.fixture_mcp import StatelessFixtureTools, serve_stdio
 from product.runtime.hashing import canonical_hash, file_hash
-from product.runtime.codex_hook_recorder import handle_hook_event, _capture_multidimensional_report
 from tests import test_research_submission as fixtures
 from tests import test_multidimensional_stage as stage_fixtures
 
@@ -33,27 +32,14 @@ class SubmissionProtocolAdmissionTests(unittest.TestCase):
             self.assertEqual(before, {str(path.relative_to(run)): file_hash(path)
                                      for path in run.rglob('*') if path.is_file()})
 
-    def test_retired_start_and_publish_are_rejected_before_context_or_report(self):
+    def test_retired_protocol_cannot_authorize_publish_or_acceptance(self):
         helper = fixtures.ResearchSubmissionTests()
         for version in sorted(submission.READ_VERSIONS - submission.WRITE_VERSIONS):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
-                f, run, task, env, draft = helper.submit_and_start(Path(directory), version=version)
-                handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-                record, response = handle_hook_event(
-                    f.start_payload(task, parent="dependency-parent", child="r"), environ=env)
-                self.assertEqual(record['context_binding'], {
-                    'status': 'FAILED', 'failure_code': 'RESEARCH_SUBMISSION_LEGACY_READ_ONLY',
-                })
-                self.assertIn('禁止研究', response['hookSpecificOutput']['additionalContext'])
-                self.assertNotIn('evidence_catalog', response['hookSpecificOutput']['additionalContext'])
-                packet = submission._packet(run, task['invocation_id'])
-                trusted_record = {'identity_binding': {'status': 'BOUND'},
-                                  'trusted_task_binding': packet['identity'],
-                                  'output_binding': packet['identity']}
-                payload = f.stop_payload(task, draft, parent="dependency-parent", child="r")
+                _, run, task, _, _ = helper.submit_and_start(Path(directory), version=version)
                 before = {str(path.relative_to(run)): file_hash(path) for path in run.rglob('*') if path.is_file()}
                 with self.assertRaisesRegex(ValueError, 'RESEARCH_SUBMISSION_LEGACY_READ_ONLY'):
-                    _capture_multidimensional_report(payload, trusted_record, env)
+                    submission.require_write_protocol(task)
                 # 即使调用方伪装成当前提交，冻结任务仍旧时也不能写接受记录。
                 for binding_version in (version, submission.BOUNDED_REVISION_VERSION):
                     marker_record = {'submission_binding': {'version': binding_version}}
@@ -159,8 +145,8 @@ class SubmissionProtocolAdmissionTests(unittest.TestCase):
                     task = next(item for item in index['tasks'] if item['capability'] == 'RESEARCH_REPORT')
                     args = {} if mode == 'batch' else {'task_name': task['task_name'], 'initial_task': mode == 'initial'}
                     before = {str(path.relative_to(run)): file_hash(path) for path in run.rglob('*') if path.is_file()}
-                    with patch.object(stage.subprocess, 'run') as process, self.assertRaisesRegex(
-                        stage.MultidimensionalStageError, 'RESEARCH_SUBMISSION_LEGACY_READ_ONLY'
+                    with patch('subprocess.run') as process, self.assertRaisesRegex(
+                        stage.MultidimensionalStageError, 'NATIVE_HOST_EXECUTION_REQUIRED'
                     ):
                         stage.launch_multidimensional_stage(stage_fixtures.ROOT, run_dir=run, **args)
                     process.assert_not_called()

@@ -1,3 +1,4 @@
+"""显式补丁、完整业务重验与保留维护绑定；不模拟正常Hook或签发运行权限。"""
 from __future__ import annotations
 
 import copy
@@ -7,13 +8,13 @@ import unittest
 from pathlib import Path
 
 import tests.test_multidimensional_stage as fixtures
-from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.hashing import canonical_hash, legacy_envelope_hash
-from product.runtime.local_revision import VERSION, _apply, located_paths
+from product.runtime.local_revision import VERSION, _apply, located_paths, bind, resolve, verify_binding
 from product.runtime.schema_validation import schema_issue_locations
 
 
 class LocalRevisionTests(unittest.TestCase):
+    """直接验证仍供显式维护使用的绑定API；合成身份不是作者/宿主证明。"""
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -21,120 +22,109 @@ class LocalRevisionTests(unittest.TestCase):
         self.run, _ = self.fixture.prepare(Path(self.temp.name), count=1)
         tasks = json.loads((self.run / "research/dispatch-index.json").read_text())["tasks"]
         self.task = next(t for t in tasks if t["capability"] == "FUNDAMENTAL_EVENT")
-        self.env = self.fixture.targeted_environment(self.run, self.task)
-        self.env["STOCK_AGENT_MULTIDIMENSIONAL_INITIAL_CONTEXT"] = "1"
-        self.parent, self.child = "local-parent", "local-child"
-        handle_hook_event(self.fixture.dispatch_payload(self.task, parent=self.parent), environ=self.env)
-        handle_hook_event(self.fixture.start_payload(self.task, parent=self.parent, child=self.child), environ=self.env)
         self.draft = self.fixture.dimension_draft(self.task)
         self.draft["observation_conditions"] = [{"condition_id": "bad-condition", "description": "待验证披露。",
                                                  "claim_refs": ["missing-claim"], "evidence_refs": []}]
+        with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING"):
+            self.fixture.read_dimension_draft(self.run, self.task, self.draft)
+        self.payload = {"hook_event_name": "SubagentStop", "session_id": "synthetic-parent",
+                        "agent_id": "synthetic-child", "agent_type": self.task["agent"],
+                        "model": "synthetic-maintenance-model", "last_assistant_message": json.dumps(self.draft)}
+        self.identity = {"identity_binding": {"status": "BOUND"}, "trusted_task_binding": {
+            key: self.task[key] for key in ("run_id", "invocation_id", "agent", "task_id", "task_name")}}
+        self.base = self.run / "explicit-revision-base.json"
+        self.base.write_text(self.payload["last_assistant_message"] + "\n")
+        # 调用方显式提供诊断/身份，只验证维护边界，不恢复首Stop自动授权或额度调度。
+        self.repair = bind(self.run, self.payload, self.identity, {
+            "raw_path": self.base.name,
+            "raw_output_hash": canonical_hash({"assistant_message": self.payload["last_assistant_message"]}),
+        }, {"validation_error": "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING"},
+            [{"path": "/observation_conditions/0"}])
+        self.assertEqual(self.repair["repair_contract"], VERSION)
+        self.assertEqual(self.repair["allowed_paths"], ["/observation_conditions/0"])
+        self.first = {**copy.deepcopy(self.identity), "repair_request": self.repair}
+        self.first["event_hash"] = legacy_envelope_hash(self.first, hash_field="event_hash")
 
-    def stop(self, draft, **overrides):
-        payload = self.fixture.stop_payload(self.task, draft, parent=self.parent, child=self.child)
-        return handle_hook_event({**payload, **overrides}, environ=self.env)
-
-    def first(self):
-        record, response = self.stop(self.draft)
-        self.assertEqual(record["output_capture"]["repair_state"], "REPAIR_REQUESTED", record)
-        repair = json.loads(response["reason"])
-        self.assertEqual(repair["repair_contract"], VERSION)
-        self.assertEqual(repair["allowed_paths"], ["/observation_conditions/0"])
-        self.assertNotIn("original_draft", repair)
-        self.assertNotIn("binding_hash", repair)
-        self.assertNotIn("binding_path", repair)
-        return record, {**repair, "binding_path": record["repair_request"]["binding_path"]}
-
-    @staticmethod
-    def patch(repair, changes=None):
-        return {"base_draft_ref": repair["base_draft_ref"], "changes": changes or [
+    def patch(self, changes=None):
+        return {"base_draft_ref": self.repair["base_draft_ref"], "changes": changes or [
             {"op": "remove", "path": "/observation_conditions/0"}]}
 
-    def test_native_patch_saves_report_and_both_originals_without_rewriting_base(self):
-        first, repair = self.first()
-        path = self.run / first["output_capture"]["raw_path"]
-        original = path.read_bytes()
-        second, response = self.stop(self.patch(repair))
-        self.assertEqual(second["output_capture"]["status"], "SAVED", second)
-        self.assertEqual(response, {})
-        self.assertEqual(path.read_bytes(), original)
-        self.assertNotEqual(first["output_capture"]["raw_path"], second["output_capture"]["raw_path"])
-        report = json.loads((self.run / second["output_capture"]["path"]).read_text())
+    def resolve_patch(self, candidate, **identity_overrides):
+        record = copy.deepcopy(self.identity)
+        resolved = resolve(self.run, {**self.payload, **identity_overrides,
+                                     "last_assistant_message": json.dumps(candidate)}, record, self.first)
+        return json.loads(resolved["last_assistant_message"]), record
+
+    def test_explicit_patch_persists_business_report_without_rewriting_base(self):
+        original = self.base.read_bytes()
+        corrected, record = self.resolve_patch(self.patch())
+        report, output = self.fixture.save_dimension_fixture(self.run, self.task, corrected)
         self.assertEqual(report["observation_conditions"], [])
         self.assertEqual(report["data_gaps"], self.draft["data_gaps"])
-        self.assertEqual(second["local_revision"]["base_hash"], canonical_hash(self.draft))
+        self.assertEqual(record["local_revision"]["base_hash"], canonical_hash(self.draft))
+        self.assertEqual(json.loads(Path(output["json"]).read_text()), report)
+        self.assertEqual(self.base.read_bytes(), original)
+        self.assertFalse((self.run / "invocation/subagent-events.jsonl").exists())
 
     def test_unrelated_change_rejected_without_publish(self):
-        _, repair = self.first()
-        second, response = self.stop(self.patch(repair, [{"op": "replace", "path": "/data_gaps", "value": []}]))
-        self.assertEqual(second["output_capture"]["failure_code"], "LOCAL_REVISION_OUT_OF_SCOPE:/data_gaps")
-        self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
-        self.assertEqual(response, {})
-        raw = json.loads((self.run / second["output_capture"]["raw_path"]).read_text())
-        self.assertEqual(raw["changes"][0]["path"], "/data_gaps")
+        with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_OUT_OF_SCOPE:/data_gaps"):
+            self.resolve_patch(self.patch([{"op": "replace", "path": "/data_gaps", "value": []}]))
+        self.assertFalse((self.run / "research/reports").exists())
 
     def test_complete_second_draft_cannot_bypass_allowed_paths(self):
-        self.first()
-        second, _ = self.stop({**self.draft, "observation_conditions": [], "data_gaps": []})
-        self.assertEqual(second["output_capture"]["failure_code"], "LOCAL_REVISION_OUT_OF_SCOPE:/data_gaps/0")
+        with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_OUT_OF_SCOPE:/data_gaps/0"):
+            self.resolve_patch({**self.draft, "observation_conditions": [], "data_gaps": []})
 
-    def test_complete_object_compatibility_is_still_bound_to_exact_base(self):
-        self.first()
-        second, _ = self.stop({**self.draft, "observation_conditions": []})
-        self.assertEqual(second["output_capture"]["status"], "SAVED", second)
-        self.assertEqual(second["local_revision"]["transport"], "FULL_OBJECT_COMPATIBILITY")
+    def test_retained_full_object_transport_is_bound_to_exact_base(self):
+        corrected, record = self.resolve_patch({**self.draft, "observation_conditions": []})
+        self.assertEqual(corrected, {**self.draft, "observation_conditions": []})
+        self.assertEqual(record["local_revision"]["transport"], "FULL_OBJECT_COMPATIBILITY")
+        self.fixture.read_dimension_draft(self.run, self.task, corrected)
 
     def test_full_validator_rejects_dangling_reference_in_allowed_change(self):
-        _, repair = self.first()
-        second, _ = self.stop(self.patch(repair, [{"op": "replace", "path": "/observation_conditions/0/claim_refs",
-                                                 "value": ["another-missing-claim"]}]))
-        self.assertEqual(second["output_capture"]["failure_code"], "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING")
-        self.assertIn("local_revision", second)
-        self.assertEqual(second["output_capture"]["repair_state"], "EXHAUSTED")
-        third, _ = self.stop(self.patch(repair))
-        self.assertEqual(third["output_capture"]["failure_code"], "LOCAL_REVISION_LIMIT_EXHAUSTED")
-        self.assertNotIn("raw_path", third["output_capture"])
+        corrected, _ = self.resolve_patch(self.patch([{"op": "replace", "path": "/observation_conditions/0/claim_refs",
+                                                      "value": ["another-missing-claim"]}]))
+        with self.assertRaisesRegex(ValueError, "DIMENSION_REPORT_CONDITION_REFERENCE_DANGLING"):
+            self.fixture.read_dimension_draft(self.run, self.task, corrected)
+        self.assertFalse((self.run / "research/reports").exists())
 
-    def test_wrong_model_does_not_consume_original_agent_attempt(self):
-        _, repair = self.first()
-        bad, _ = self.stop(self.patch(repair), model="untrusted-model")
-        self.assertEqual(bad["identity_binding"]["status"], "FAILED")
-        self.assertNotIn("raw_path", bad["output_capture"])
-        good, _ = self.stop(self.patch(repair))
-        self.assertEqual(good["output_capture"]["attempt"], 2)
-        self.assertEqual(good["output_capture"]["status"], "SAVED", good)
+    def test_identity_mismatch_rejects_without_modifying_binding_or_base(self):
+        before = {str(path): path.read_bytes() for path in self.run.rglob("*") if path.is_file()}
+        for field in ("model", "agent_id", "session_id", "agent_type"):
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, "LOCAL_REVISION_BINDING_DRIFT"):
+                self.resolve_patch(self.patch(), **{field: "foreign"})
+        self.assertEqual(before, {str(path): path.read_bytes() for path in self.run.rglob("*") if path.is_file()})
+        corrected, _ = self.resolve_patch(self.patch())
+        self.fixture.read_dimension_draft(self.run, self.task, corrected)
 
     def test_wrong_base_reference_fails_closed(self):
-        _, repair = self.first()
-        patch = self.patch(repair)
-        patch["base_draft_ref"] = "b.other-task"
-        record, _ = self.stop(patch)
-        self.assertEqual(record["output_capture"]["failure_code"], "LOCAL_REVISION_BASE_REFERENCE_INVALID")
+        with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_BASE_REFERENCE_INVALID"):
+            self.resolve_patch({**self.patch(), "base_draft_ref": "b.other-task"})
 
-    def test_base_and_constraint_tampering_rejected(self):
-        _, repair = self.first()
-        path = self.run / repair["binding_path"]
+    def test_resigned_constraint_tampering_rejected_without_write(self):
+        path = self.run / self.repair["binding_path"]
         original = path.read_bytes()
-        value = json.loads(path.read_text())
+        value = json.loads(original)
         value["allowed_paths"].append("/data_gaps")
         value["content_hash"] = legacy_envelope_hash(value, hash_field="content_hash")
         path.write_text(json.dumps(value))
-        before = {str(p): p.read_bytes() for p in (self.run / "research/raw-drafts").glob("*")}
-        record, _ = self.stop(self.patch(repair))
-        self.assertEqual(record["output_capture"]["failure_code"], "LOCAL_REVISION_BINDING_DRIFT")
-        self.assertFalse(record["local_revision_authorized"])
-        self.assertEqual({str(p): p.read_bytes() for p in (self.run / "research/raw-drafts").glob("*")}, before)
+        before = {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()}
+        with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_BINDING_DRIFT"):
+            self.resolve_patch(self.patch())
+        self.assertEqual(before, {str(p): p.read_bytes() for p in self.run.rglob("*") if p.is_file()})
         path.write_bytes(original)
-        accepted, _ = self.stop(self.patch(repair))
-        self.assertEqual(accepted["output_capture"]["attempt"], 2)
-        self.assertEqual(accepted["output_capture"]["status"], "SAVED")
+        corrected, _ = self.resolve_patch(self.patch())
+        self.fixture.read_dimension_draft(self.run, self.task, corrected)
 
-    def test_original_draft_tampering_rejected(self):
-        record, repair = self.first()
-        path = self.run / record["output_capture"]["raw_path"]
-        path.write_text(json.dumps({**self.draft, "data_gaps": []}))
-        failed, _ = self.stop(self.patch(repair))
-        self.assertEqual(failed["output_capture"]["failure_code"], "LOCAL_REVISION_BASE_DRIFT")
+    def test_original_draft_and_event_tampering_rejected(self):
+        original = self.base.read_bytes()
+        self.base.write_text(json.dumps({**self.draft, "data_gaps": []}))
+        with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_BASE_DRIFT"):
+            self.resolve_patch(self.patch())
+        self.base.write_bytes(original)
+        self.first["repair_request"] = {**self.repair, "allowed_paths": ["/data_gaps"]}
+        with self.assertRaisesRegex(ValueError, "LOCAL_REVISION_EVENT_DRIFT"):
+            verify_binding(self.run, self.payload, self.identity, self.first)
 
 
 class LocalRevisionMechanicsTests(unittest.TestCase):

@@ -1,4 +1,4 @@
-"""资料准备语义草稿与真实 MCP/Hook 接缝；零 LLM、无外部网络。"""
+"""资料准备语义装配、真实 MCP 审计与显式历史读取；零模型、零网络。"""
 from __future__ import annotations
 
 import copy
@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from product.runtime import research_materials_stage as stage
 from product.runtime.codex_hook_recorder import handle_hook_event
-from product.runtime.fixture_mcp import StatelessFixtureTools, serve_stdio
+from product.runtime.fixture_mcp import serve_stdio
 from product.runtime.hashing import canonical_hash
 from product.runtime.schema_validation import SchemaValidationError
 from tests import test_research_materials_stage as fixtures
@@ -24,33 +24,12 @@ class SearchUnavailable(fixtures.FakeOpenAlexClient):
 
 class MaterialSemanticHandoffTests(unittest.TestCase):
     def prepare(self, root, kind="RESEARCH_REPORT_DISCOVERY"):
-        # 此接缝一次只模拟一个子任务；不绕过真实首波派发完成约束。
         run = fixtures.ResearchMaterialsStageTests().prepare(root, count=1, target_concurrency=1)
         index = json.loads((run / "research/dispatch-index.json").read_text())
         task = next(item for item in index["tasks"] if item["preparation_kind"] == kind)
-        invocation = run / "invocation"
-        invocation.mkdir(exist_ok=True)
-        env = {
-            "STOCK_AGENT_RUN_DIR": str(run),
-            "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(invocation / "subagent-events.jsonl"),
-            "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(invocation / "subagent-dispatches.jsonl"),
-            "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst,runtime_market_catalyst",
-            "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": stage.STAGE_VERSION,
-        }
-        start = {"session_id": "parent", "turn_id": "turn", "agent_id": "child",
-                 "agent_type": task["agent"], "model": "gpt-5.6-terra",
-                 "cwd": str(fixtures.ROOT / "product"), "permission_mode": "read-only"}
-        pre = {**start, "hook_event_name": "PreToolUse", "tool_name": "spawn_agent",
-               "permission_mode": "workspace-write",
-               "tool_use_id": "spawn", "tool_input": {"agent_type": task["agent"],
-                   "task_name": task["task_name"], "fork_turns": "none",
-                   "message": stage.build_research_materials_dispatch_message(fixtures.ROOT, run, task["task_name"])}}
-        record, _ = handle_hook_event(pre, environ=env)
-        self.assertEqual(record["decision"], "ALLOW")
-        record, response = handle_hook_event({**start, "hook_event_name": "SubagentStart"}, environ=env)
-        self.assertEqual(record["context_binding"]["status"], "DELIVERED")
-        packet = json.loads(response["hookSpecificOutput"]["additionalContext"])
-        return run, task, packet, env, start
+        packet = stage.build_research_materials_dispatch_packet(fixtures.ROOT, run, task["task_name"])
+        view = json.loads(stage.serialize_research_materials_dispatch_context(packet))
+        return run, task, view
 
     def call(self, run, task, name, **extra):
         args = {key: task[key] for key in ("run_id", "agent", "invocation_id", "security_id")}
@@ -79,35 +58,46 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
                 "gaps": ([] if status == "READY" else [{"reason_code": status,
                     "description": "当前未取得正文。", "impact": "不能形成正文支持的结论。"}])}
 
-    def stop(self, env, start, draft):
-        record, _ = handle_hook_event({**start, "hook_event_name": "SubagentStop", "stop_hook_active": False,
-            "last_assistant_message": json.dumps(draft, ensure_ascii=False)}, environ=env)
-        return record
+    def save_material_fixture(self, run, task, draft):
+        # 显式历史消费者夹具；实际工具审计不等于宿主/作者执行证明。
+        run = run.resolve()
+        output, audit = stage.assemble_material_semantic_draft(draft, task=task, run_dir=run)
+        relative = Path("research/material-results") / canonical_hash({"task_id": task["task_id"]})[:16]
+        directory = run / relative
+        directory.mkdir(parents=True, exist_ok=False)
+        (directory / "preparation-result.json").write_text(json.dumps(output, ensure_ascii=False))
+        (directory / "tool-audit.json").write_text(json.dumps(audit, ensure_ascii=False))
+        binding = {"path": str(relative / "preparation-result.json"), "output_hash": canonical_hash(output),
+                   "tool_audit_ref": str(relative / "tool-audit.json"), "tool_audit_hash": audit["audit_hash"]}
+        stage.verify_material_tool_audit(run, task, output, binding)
+        return output, binding
 
-    def test_actual_start_schema_and_stop_assemble_fixed_fields_and_tool_audit(self):
+    def test_business_schema_and_assembly_bind_fixed_fields_and_actual_tool_audit(self):
         for kind in sorted(stage.DISCOVERY_KINDS):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory, patch(
                 "product.mcp.live.public_research.OpenAlexResearchClient", fixtures.FakeOpenAlexClient
             ):
-                run, task, packet, env, start = self.prepare(Path(directory), kind)
-                schema = packet["output_schema"]
-                self.assertEqual(schema, stage.material_semantic_schema(task))
+                run, task, packet = self.prepare(Path(directory), kind)
+                self.assertEqual(packet["output_schema"], stage.material_semantic_schema(task))
                 for field in ("run_id", "invocation_id", "agent", "artifact_refs", "queries", "security_id"):
-                    self.assertNotIn(field, schema["properties"])
+                    self.assertNotIn(field, packet["output_schema"]["properties"])
                 self.assertEqual(packet["submission_guidance"]["format"], "semantic-draft")
                 self.search(run, task)
                 self.fetch(run, task)
-                record = self.stop(env, start, self.draft())
-                capture = record["output_capture"]
-                self.assertEqual(capture["status"], "SAVED", record)
-                formal = json.loads((run / capture["path"]).read_text())
+                draft = self.draft()
+                before = copy.deepcopy(draft)
+                formal, binding = self.save_material_fixture(run, task, draft)
                 stage.validate_material_preparation_output(formal, task=task, run_dir=run)
-                binding = stage.verify_material_tool_audit(run, task, formal, capture)
-                self.assertEqual(binding["tool_audit_hash"], capture["tool_audit_hash"])
-                self.assertEqual(formal["summary"], self.draft()["summary"])
+                verified = stage.verify_material_tool_audit(run, task, formal, binding)
+                self.assertEqual(verified["tool_audit_hash"], binding["tool_audit_hash"])
+                self.assertEqual(formal["summary"], draft["summary"])
+                for field in ("run_id", "invocation_id", "agent", "security_id", "preparation_kind"):
+                    self.assertEqual(formal[field], task[field])
                 self.assertEqual(len(formal["artifact_refs"]), 3)
-                audit = json.loads((run / capture["tool_audit_ref"]).read_text())
+                audit = json.loads((run / binding["tool_audit_ref"]).read_text())
                 self.assertEqual([item["operation"] for item in audit["attempts"]], ["public_research.search", "public_research.fetch"])
+                self.assertEqual(draft, before)
+                self.assertFalse((run / "invocation").exists())
 
     def test_fetch_failure_and_missing_configuration_keep_actual_attempt_status(self):
         for client, status in ((fixtures.UnavailableOpenAlexClient, "SOURCE_LIMITED"),
@@ -115,12 +105,11 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as directory, patch(
                 "product.mcp.live.public_research.OpenAlexResearchClient", client
             ):
-                run, task, _, env, start = self.prepare(Path(directory))
+                run, task, _ = self.prepare(Path(directory))
                 self.search(run, task)
                 self.assertEqual(self.fetch(run, task)["status"], status)
-                record = self.stop(env, start, self.draft(status))
-                self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-                audit = stage.build_material_tool_audit(run, task)
+                formal, audit = stage.assemble_material_semantic_draft(self.draft(status), task=task, run_dir=run)
+                self.assertEqual(formal["status"], status)
                 self.assertEqual(audit["attempts"][-1]["status"], status)
                 self.assertIsNotNone(audit["attempts"][-1]["failure_code"])
                 if status == "BLOCKED_CONFIGURATION":
@@ -131,10 +120,10 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", SearchUnavailable
         ):
-            run, task, _, env, start = self.prepare(Path(directory))
+            run, task, _ = self.prepare(Path(directory))
             self.assertEqual(self.search(run, task)["status"], "SOURCE_LIMITED")
-            record = self.stop(env, start, self.draft("SOURCE_LIMITED"))
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
+            formal, _ = stage.assemble_material_semantic_draft(self.draft("SOURCE_LIMITED"), task=task, run_dir=run)
+            self.assertEqual(formal["status"], "SOURCE_LIMITED")
             with self.assertRaisesRegex(stage.ResearchMaterialsStageError, "DOCUMENT_SELECTION_INVALID"):
                 stage.assemble_material_semantic_draft(self.draft(), task=task, run_dir=run)
 
@@ -142,7 +131,7 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", fixtures.FakeOpenAlexClient
         ):
-            run, task, _, _, _ = self.prepare(Path(directory))
+            run, task, _ = self.prepare(Path(directory))
             self.search(run, task)
             self.fetch(run, task)
             self.assertTrue(self.fetch(run, task)["cache_hit"])
@@ -157,11 +146,10 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", fixtures.FakeOpenAlexClient
         ):
-            run, task, _, _, _ = self.prepare(Path(directory))
+            run, task, _ = self.prepare(Path(directory))
             self.search(run, task)
             self.fetch(run, task)
-            for intents in ([], [{"query": "never executed", "purpose": "说明"}],
-                            self.draft()["query_intents"] * 2):
+            for intents in ([], [{"query": "never executed", "purpose": "说明"}], self.draft()["query_intents"] * 2):
                 draft = {**self.draft(), "query_intents": intents}
                 before = copy.deepcopy(draft)
                 with self.assertRaisesRegex(stage.ResearchMaterialsStageError, "INTENT_NOT_EXECUTED"):
@@ -172,7 +160,7 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", fixtures.FakeOpenAlexClient
         ):
-            run, task, _, env, start = self.prepare(Path(directory))
+            run, task, _ = self.prepare(Path(directory))
             self.search(run, task)
             self.fetch(run, task)
             for field in ("candidate_id", "document_id"):
@@ -180,18 +168,17 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
                 draft["selections"][0][field] = "foreign-id"
                 with self.assertRaisesRegex(stage.ResearchMaterialsStageError, "DOCUMENT_SELECTION_INVALID"):
                     stage.assemble_material_semantic_draft(draft, task=task, run_dir=run)
-            record = self.stop(env, start, {**self.draft(), "invocation_id": "foreign"})
-            self.assertNotEqual(record.get("output_capture", {}).get("status"), "SAVED")
+            with self.assertRaisesRegex(SchemaValidationError, "SCHEMA_EXTRA_PROPERTY"):
+                stage.assemble_material_semantic_draft({**self.draft(), "invocation_id": "foreign"}, task=task, run_dir=run)
             self.assertFalse((run / "research/material-results").exists())
 
     def test_structure_is_validated_before_missing_tool_proof(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, _, env, start = self.prepare(Path(directory))
+            run, task, _ = self.prepare(Path(directory))
             draft = self.draft()
             draft.pop("summary")
-            record = self.stop(env, start, draft)
-            self.assertEqual(record["output_capture"]["status"], "FAILED")
-            self.assertIn("SCHEMA_REQUIRED_MISSING", record["output_capture"]["failure_code"])
+            with self.assertRaisesRegex(SchemaValidationError, "SCHEMA_REQUIRED_MISSING"):
+                stage.assemble_material_semantic_draft(draft, task=task, run_dir=run)
             with self.assertRaises(SchemaValidationError):
                 stage.assemble_material_semantic_draft({**self.draft(), "artifact_refs": []}, task=task, run_dir=run)
 
@@ -200,7 +187,7 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory, patch(
                 "product.mcp.live.public_research.OpenAlexResearchClient", fixtures.FakeOpenAlexClient
             ):
-                run, task, _, _, _ = self.prepare(Path(directory))
+                run, task, _ = self.prepare(Path(directory))
                 search = self.search(run, task)
                 self.fetch(run, task)
                 events = run / "events/mcp/events.jsonl"
@@ -222,33 +209,30 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", fixtures.FakeOpenAlexClient
         ):
-            run, task, _, env, start = self.prepare(Path(directory))
+            run, task, _ = self.prepare(Path(directory))
             self.search(run, task)
             self.fetch(run, task)
-            record = self.stop(env, start, self.draft())
-            capture = record["output_capture"]
-            formal = json.loads((run / capture["path"]).read_text())
-            audit_path = run / capture["tool_audit_ref"]
+            formal, binding = self.save_material_fixture(run, task, self.draft())
+            audit_path = run / binding["tool_audit_ref"]
             audit = json.loads(audit_path.read_text())
             audit["attempts"][0]["query"] = "not-executed"
             audit["audit_hash"] = canonical_hash({key: value for key, value in audit.items() if key != "audit_hash"})
             audit_path.write_text(json.dumps(audit))
-            capture["tool_audit_hash"] = audit["audit_hash"]
+            binding["tool_audit_hash"] = audit["audit_hash"]
             with self.assertRaisesRegex(stage.ResearchMaterialsStageError, "AUDIT_BINDING_INVALID"):
-                stage.verify_material_tool_audit(run, task, formal, capture)
+                stage.verify_material_tool_audit(run, task, formal, binding)
 
     def test_task_cannot_downgrade_current_invocation_to_legacy_full_output(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, _, env, start = self.prepare(Path(directory), "PEER_SELECTION")
+            run, task, _ = self.prepare(Path(directory), "PEER_SELECTION")
             path = run / "research/dispatch-index.json"
             index = json.loads(path.read_text())
             selected = next(item for item in index["tasks"] if item["task_id"] == task["task_id"])
             selected.pop("semantic_output_version")
             index["index_hash"] = canonical_hash({key: value for key, value in index.items() if key != "index_hash"})
             path.write_text(json.dumps(index))
-            record = self.stop(env, start, {**self.draft(), "query_intents": [], "selections": []})
-            self.assertEqual(record["output_capture"]["status"], "FAILED", record)
-            self.assertIn("SEMANTIC_PROTOCOL_INVALID", record["output_capture"]["failure_code"])
+            with self.assertRaisesRegex(stage.ResearchMaterialsStageError, "SEMANTIC_PROTOCOL_INVALID"):
+                stage.assemble_material_semantic_draft({**self.draft(), "query_intents": [], "selections": []}, task=selected, run_dir=run)
             self.assertFalse((run / "research/material-results").exists())
 
     def test_legacy_material_protocol_cannot_start_process_or_create_runtime_directories(self):
@@ -270,60 +254,44 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
                     path = run / task["invocation_path"]
                     invocation = json.loads(path.read_text())
                     invocation.pop("semantic_output_version")
-                    invocation["manifest_hash"] = canonical_hash({
-                        key: value for key, value in invocation.items() if key != "manifest_hash"})
+                    invocation["manifest_hash"] = canonical_hash({key: value for key, value in invocation.items() if key != "manifest_hash"})
                     path.write_text(json.dumps(invocation))
                 index["index_hash"] = canonical_hash({key: value for key, value in index.items() if key != "index_hash"})
                 index_path.write_text(json.dumps(index))
                 originals = {path: path.read_bytes() for path in run.rglob('*') if path.is_file()}
-                with patch.object(stage.subprocess, "run") as process, self.assertRaisesRegex(
-                    stage.ResearchMaterialsStageError, "RESEARCH_MATERIALS_LEGACY_OUTPUT_EXECUTION_RETIRED"
-                ):
+                with patch('subprocess.run') as process, self.assertRaisesRegex(stage.ResearchMaterialsStageError, "NATIVE_HOST_EXECUTION_REQUIRED"):
                     stage.launch_research_materials_stage(fixtures.ROOT, run_dir=run)
                 process.assert_not_called()
                 self.assertFalse((run / "invocation").exists())
                 self.assertFalse((run / ".codex-runtime").exists())
                 self.assertEqual({path: path.read_bytes() for path in run.rglob('*') if path.is_file()}, originals)
 
-    def test_legacy_material_result_still_validates_but_stop_cannot_save_new_output(self):
+    def test_legacy_material_result_still_validates_but_retired_hook_cannot_save(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, _, env, start = self.prepare(Path(directory), "PEER_SELECTION")
+            run, task, _ = self.prepare(Path(directory), "PEER_SELECTION")
             draft = {**self.draft(), "query_intents": [], "selections": []}
             formal, _ = stage.assemble_material_semantic_draft(draft, task=task, run_dir=run)
-            index_path = run / "research/dispatch-index.json"
-            index = json.loads(index_path.read_text())
-            selected = next(item for item in index["tasks"] if item["task_id"] == task["task_id"])
-            selected.pop("semantic_output_version")
-            index["index_hash"] = canonical_hash({key: value for key, value in index.items() if key != "index_hash"})
-            index_path.write_text(json.dumps(index))
-            invocation_path = run / task["invocation_path"]
-            invocation = json.loads(invocation_path.read_text())
-            invocation.pop("semantic_output_version")
-            invocation["manifest_hash"] = canonical_hash({
-                key: value for key, value in invocation.items() if key != "manifest_hash"})
-            invocation_path.write_text(json.dumps(invocation))
-            # 校验历史业务结构不重写旧对象；不以 Hook 捕获代替只读校验。
+            old_task = {key: value for key, value in task.items() if key != "semantic_output_version"}
             before = json.dumps(formal, sort_keys=True)
-            stage.validate_material_preparation_output(formal, task=selected, run_dir=run)
+            stage.validate_material_preparation_output(formal, task=old_task, run_dir=run)
             self.assertEqual(json.dumps(formal, sort_keys=True), before)
-            record = self.stop(env, start, formal)
-            self.assertEqual(record["output_capture"]["status"], "FAILED", record)
-            self.assertIn("RESEARCH_MATERIALS_LEGACY_OUTPUT_WRITE_RETIRED", record["output_capture"]["failure_code"])
+            with self.assertRaisesRegex(ValueError, "NATIVE_HOST_EXECUTION_REQUIRED"):
+                handle_hook_event({"hook_event_name": "SubagentStop", "last_assistant_message": json.dumps(formal)},
+                                  environ={"STOCK_AGENT_RUN_DIR": str(run), "STOCK_AGENT_RESEARCH_MATERIALS_STAGE": stage.STAGE_VERSION})
             self.assertFalse((run / "research/material-results").exists())
+            self.assertFalse((run / "invocation").exists())
 
     def test_peer_native_selection_has_no_queries_or_tool_permission(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, task, packet, env, start = self.prepare(Path(directory), "PEER_SELECTION")
+            run, task, packet = self.prepare(Path(directory), "PEER_SELECTION")
             self.assertEqual(packet["output_schema"]["properties"]["query_intents"]["maxItems"], 0)
             response = self.call(run, task, "research_search", decision_cutoff=task["decision_cutoff"], query="forbidden")
             self.assertIn("TOOL_NOT_AUTHORIZED", response["error"]["message"])
             self.assertFalse((run / "research/materials").exists())
             candidate = packet["peer_candidate_group"]["candidates"][0]
-            draft = {**self.draft(), "query_intents": [], "selections": [{
-                "candidate_id": candidate["candidate_id"], "document_id": None, "rationale": "可比性待核实。"}]}
-            record = self.stop(env, start, draft)
-            self.assertEqual(record["output_capture"]["status"], "SAVED", record)
-            audit = stage.build_material_tool_audit(run, task)
+            draft = {**self.draft(), "query_intents": [], "selections": [{"candidate_id": candidate["candidate_id"], "document_id": None, "rationale": "可比性待核实。"}]}
+            formal, audit = stage.assemble_material_semantic_draft(draft, task=task, run_dir=run)
+            self.assertEqual(formal["selections"], draft["selections"])
             self.assertEqual(audit["attempts"], [])
             self.assertEqual(audit["artifact_refs"], [])
 
@@ -331,19 +299,17 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch(
             "product.mcp.live.public_research.OpenAlexResearchClient", fixtures.FakeOpenAlexClient
         ):
-            run, task, _, env, start = self.prepare(Path(directory))
+            run, task, _ = self.prepare(Path(directory))
             self.search(run, task)
             self.fetch(run, task)
             formal, _ = stage.assemble_material_semantic_draft(self.draft(), task=task, run_dir=run)
             before = json.dumps(formal, sort_keys=True)
             stage.validate_material_preparation_output(formal, task=task, run_dir=run)
             self.assertEqual(json.dumps(formal, sort_keys=True), before)
-            record = self.stop(env, start, formal)
-            self.assertEqual(record["output_capture"]["status"], "FAILED")
-            self.assertIn("SCHEMA_REQUIRED_MISSING", record["output_capture"]["failure_code"])
-            record = self.stop(env, start, {**formal, "query_intents": self.draft()["query_intents"]})
-            self.assertEqual(record["output_capture"]["status"], "FAILED")
-            self.assertIn("SCHEMA_EXTRA_PROPERTY", record["output_capture"]["failure_code"])
+            with self.assertRaisesRegex(SchemaValidationError, "SCHEMA_REQUIRED_MISSING"):
+                stage.assemble_material_semantic_draft(formal, task=task, run_dir=run)
+            with self.assertRaisesRegex(SchemaValidationError, "SCHEMA_EXTRA_PROPERTY"):
+                stage.assemble_material_semantic_draft({**formal, "query_intents": self.draft()["query_intents"]}, task=task, run_dir=run)
 
     def test_search_lead_or_missing_provenance_cannot_be_assembled_as_body(self):
         for change in ({"verification_status": "LEAD_ONLY"}, {"source_id": None}, {"security_id": "foreign"}):
@@ -353,13 +319,13 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
             with self.subTest(change=change), tempfile.TemporaryDirectory() as directory, patch(
                 "product.mcp.live.public_research.OpenAlexResearchClient", InvalidDocument
             ):
-                run, task, _, _, _ = self.prepare(Path(directory))
+                run, task, _ = self.prepare(Path(directory))
                 self.search(run, task)
                 self.fetch(run, task)
                 with self.assertRaisesRegex(stage.ResearchMaterialsStageError, "DOCUMENT_PROVENANCE_INVALID"):
                     stage.assemble_material_semantic_draft(self.draft(), task=task, run_dir=run)
 
-    def test_finalizer_and_formal_import_reverify_audit_without_rewriting_original(self):
+    def test_historical_finalizer_and_import_reverify_audit_without_rewriting_original(self):
         from product.runtime.multidimensional_stage import _import_research_materials
         for tampered in (False, True):
             with self.subTest(tampered=tampered), tempfile.TemporaryDirectory() as directory, patch(
@@ -368,7 +334,7 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
                 root = Path(directory)
                 helper = fixtures.ResearchMaterialsStageTests()
                 run = helper.prepare(root, count=1)
-                helper.execute_with_hooks(run)
+                helper.write_historical_fixture(run)
                 manifest = json.loads((run / "research/material-preparation-manifest.json").read_text())
                 entry = next(item for item in manifest["outputs"] if item["preparation_kind"] == "RESEARCH_REPORT_DISCOVERY")
                 original = (run / entry["output_ref"]).read_bytes()
@@ -377,8 +343,7 @@ class MaterialSemanticHandoffTests(unittest.TestCase):
                     with self.assertRaisesRegex(stage.ResearchMaterialsStageError, "AUDIT_BINDING_INVALID"):
                         stage.finalize_research_materials_stage(fixtures.ROOT, run)
                 handoff = json.loads((run / "audit/portfolio-handoff.json").read_text())
-                args = {"source_run": run, "target_run": root / "consumer",
-                        "expected_handoff": handoff,
+                args = {"source_run": run, "target_run": root / "consumer", "expected_handoff": handoff,
                         "target_gate": json.loads((run / "evidence/gate.json").read_text()),
                         "expected_security_ids": [p["security_id"] for p in handoff["portfolio"]["positions"]]}
                 if tampered:

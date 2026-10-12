@@ -20,7 +20,6 @@ from product.council.multidimensional_research import (
     derive_unresolved_research_questions, envelope_research_dimension_draft, validate_research_dimension_report,
 )
 from product.council.multidimensional_output import render_dimension_report_markdown
-from product.runtime.codex_hook_recorder import handle_hook_event
 from product.runtime.research_submission import _assemble_v4_draft, _v4_reference_binding, _verify_v4_saved_statements
 from product.runtime.research_submission import _selected_documents
 from tests import test_multidimensional_stage as fixtures
@@ -183,7 +182,7 @@ class ScopedResearchClaimTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "RELATION_REFERENCE_INVALID"):
             _assemble_v4_draft(bad, packet)
 
-    def test_real_hook_producer_scoped_reference_reaches_formal_consumer(self):
+    def test_business_producer_scoped_reference_reaches_formal_consumer(self):
         f = fixtures.MultidimensionalStageTests()
         with tempfile.TemporaryDirectory() as directory:
             run, _ = f.prepare(Path(directory), count=1)
@@ -198,20 +197,17 @@ class ScopedResearchClaimTests(unittest.TestCase):
                 self.assertNotIn("rc1.", json.dumps(context))
                 for item in context.get("upstream_short_references", {}).values():
                     self.assertEqual(set(item), {"report_id", "claim_id"})
-            env = f.targeted_environment(run, task)
-            handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-            handle_hook_event(f.start_payload(task, parent="dependency-parent", child="claim-child"), environ=env)
             draft = f.dimension_draft(task)
             short = next(iter(packet["reference_map"]["claims"]))
             draft["claims"] = [{"claim_id": "mrvl_core_drivers", "question": "上游研究意味着什么？",
                                 "statement": "原研究事实只是基线，不能证明未来增速。", "kind": "INTERPRETATION",
                                 "evidence_refs": [], "research_claim_refs": [short], "document_refs": [],
                                 "assumption_ids": []}]
-            stopped, _ = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="claim-child"), environ=env)
-            self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
-            path = run / stopped["output_capture"]["path"]
+            report, output = f.save_dimension_fixture(run, task, draft)
+            path = Path(output["json"])
             before = path.read_bytes()
-            report = json.loads(before)
+            self.assertEqual(json.loads(before), report)
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
             allowed = known_claim_references(packet["dependency_reports"], allow_legacy=False)
             validate_research_dimension_report(
                 report, expected_bindings=report["bindings"], allowed_security_ids=task["security_ids"],

@@ -10,6 +10,7 @@ from .hashing import canonical_hash, file_hash
 from .replay import replay_run
 from .replay_capsule import (
     ReplayCapsuleError,
+    FIXTURE_MCP_PATH,
     materialize_replay_capsule,
     seal_materialized_snapshot,
     validate_materialized_snapshot,
@@ -82,6 +83,8 @@ def _configuration_hashes(
             raise ExecutionReplayError("EXECUTION_REPLAY_CONFIGURATION_CATEGORY_EMPTY")
         return values
 
+    # 历史锁只读使用原路径；新锁不把本机派生配置混入模板身份。
+    mcp_config = FIXTURE_MCP_PATH if FIXTURE_MCP_PATH in files else "product/.mcp.json"
     prompt_exact = (
         "product/AGENTS.md",
         "product/runtime/smoke_prompt.py",
@@ -115,7 +118,7 @@ def _configuration_hashes(
         "mcp_adapters": canonical_hash(
             {
                 "versions": version.get("mcp_adapters"),
-                "files": selected("product/mcp/", exact=("product/.mcp.json", "product/runtime/fixture_mcp.py")),
+                "files": selected("product/mcp/", exact=(mcp_config, "product/runtime/fixture_mcp.py")),
             }
         ),
         "runtime_profile": canonical_hash(

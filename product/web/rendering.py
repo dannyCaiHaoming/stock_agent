@@ -11,7 +11,7 @@ from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import quote, urlencode
 
 
-NAV = (("/", "总览"), ("/macro", "Macro"), ("/market", "Market"), ("/companies", "Company"))
+NAV = (("/", "总览"), ("/macro", "Macro"), ("/market", "Market"), ("/companies", "Company"), ("/reports", "研究归档"), ("/trades", "交易复盘"))
 
 
 def h(value: Any) -> str:
@@ -70,16 +70,183 @@ def error_page(code: str, status: int = 500) -> str:
     return _layout(labels.get(code, "资料暂时无法读取"), "", _empty(labels.get(code, "资料暂时无法读取"), "其他独立栏目仍可继续使用。", code=code), subtitle=f"HTTP {status}")
 
 
+def native_reports_page(reports: Sequence[Mapping[str, Any]]) -> str:
+    """展示目录已验证的原报告；不访问归档中的私人输入或执行器。"""
+    from product.tools.report_reading import render_report
+
+    body = '<p class="note">已保存报告的业务结构与引用已校验；宿主执行和内容质量仍需分别核对。</p>'
+    if not reports:
+        body += _empty("暂无原生研究归档", "从已指定的本地资料目录读取；页面不会启动研究或搜索其他目录。")
+    for report in sorted(reports, key=lambda item: (item["decision_cutoff"], item["report_id"]), reverse=True):
+        title = f'{report["security"]["display_symbol"]} · {report["capability"]}'
+        body += f'<section class="report"><h2>{h(title)}</h2>'
+        body += f'<p class="note">资料截止：{h(report["decision_cutoff"])} · 研究状态：{h(report["research"]["status"])}</p>'
+        body += '<p class="note">宿主执行：未验证 · 内容裁定：未复核</p>'
+        body += f'<pre>{h(render_report(report))}</pre></section>'
+    return _layout("研究归档", "/reports", body)
+
+
+def _trade_line_svg(chart: Mapping[str, Any]) -> str:
+    points = chart.get("points") if isinstance(chart.get("points"), list) else []
+    series_fields = (
+        ("asset_value", "资产", "#55d6be"),
+        ("net_external_flow", "净入金", "#f0b35a"),
+        ("cumulative_return", "累计收益", "#79a8ff"),
+    ) if chart.get("chart_id") == "equity-flow-return" else (("drawdown", "回撤", "#ef6f6c"),)
+    width, height, pad = 620, 230, 34
+    paths, legends = [], []
+    for field, label, color in series_fields:
+        observed = [(index, _number(point.get(field))) for index, point in enumerate(points)]
+        observed = [(index, value) for index, value in observed if value is not None]
+        if not observed:
+            continue
+        values = [value for _, value in observed]
+        low, high = min(values), max(values)
+        span = high - low or 1
+        coords = [
+            f"{pad + index * (width - 2 * pad) / max(1, len(points) - 1):.2f},{height - pad - (value - low) * (height - 2 * pad) / span:.2f}"
+            for index, value in observed
+        ]
+        paths.append(f'<polyline points="{" ".join(coords)}" fill="none" stroke="{color}" stroke-width="2.5"/>')
+        legends.append(f'<span><i style="background:{color}"></i>{h(label)}</span>')
+    if not paths:
+        return ""
+    first = points[0].get("date") if points else ""
+    last = points[-1].get("date") if points else ""
+    return f'''<svg class="plot" viewBox="0 0 {width} {height}" role="img" aria-label="{h(chart.get('title'))}"><line x1="{pad}" y1="{height-pad}" x2="{width-pad}" y2="{height-pad}" stroke="#40505e"/><line x1="{pad}" y1="{pad}" x2="{pad}" y2="{height-pad}" stroke="#40505e"/>{''.join(paths)}<text x="{pad}" y="{height-8}" fill="#90a0ad" font-size="11">{h(first)}</text><text x="{width-pad}" y="{height-8}" text-anchor="end" fill="#90a0ad" font-size="11">{h(last)}</text></svg><div class="legend">{''.join(legends)}</div>'''
+
+
+def _trade_heatmap_svg(chart: Mapping[str, Any]) -> str:
+    points = chart.get("points") if isinstance(chart.get("points"), list) else []
+    if not points:
+        return ""
+    cell, gap, pad = 78, 8, 24
+    width = max(360, pad * 2 + len(points) * (cell + gap))
+    cells = []
+    for index, point in enumerate(points):
+        value = _number(point.get("value"))
+        intensity = min(1, abs(value or 0) * 8)
+        color = f"rgba(85,214,190,{0.18 + intensity * 0.72:.2f})" if (value or 0) >= 0 else f"rgba(239,111,108,{0.18 + intensity * 0.72:.2f})"
+        x = pad + index * (cell + gap)
+        cells.append(f'<rect x="{x}" y="24" width="{cell}" height="70" rx="8" fill="{color}"/><text x="{x + cell/2}" y="54" text-anchor="middle" fill="#e8f0f5" font-size="12">{h(point.get("month"))}</text><text x="{x + cell/2}" y="77" text-anchor="middle" fill="#e8f0f5" font-size="12">{h("不可用" if value is None else f"{value:.2%}")}</text>')
+    return f'<svg class="plot" viewBox="0 0 {width} 120" role="img" aria-label="月度收益热力图">{"".join(cells)}</svg>'
+
+
+def _trade_bar_svg(chart: Mapping[str, Any]) -> str:
+    points = chart.get("points") if isinstance(chart.get("points"), list) else []
+    if not points:
+        return ""
+    width, height, pad = 620, 250, 38
+    values = [abs(_number(item.get("system_review_net_pnl")) or 0) for item in points]
+    scale = max(values) or 1
+    bar_width = max(14, min(46, (width - 2 * pad) / max(1, len(points)) - 8))
+    baseline = height / 2
+    bars = []
+    for index, point in enumerate(points):
+        value = _number(point.get("system_review_net_pnl"))
+        x = pad + index * (width - 2 * pad) / max(1, len(points))
+        bar_height = abs(value or 0) * (height / 2 - pad) / scale
+        y = baseline - bar_height if (value or 0) >= 0 else baseline
+        color = "#55d6be" if (value or 0) >= 0 else "#ef6f6c"
+        bars.append(f'<rect x="{x:.2f}" y="{y:.2f}" width="{bar_width:.2f}" height="{bar_height:.2f}" fill="{color}" rx="3"/><text x="{x + bar_width/2:.2f}" y="{height-10}" text-anchor="middle" fill="#90a0ad" font-size="10">{h(point.get("display_symbol"))}</text>')
+    return f'<svg class="plot" viewBox="0 0 {width} {height}" role="img" aria-label="证券净盈亏柱状图"><line x1="{pad}" y1="{baseline}" x2="{width-pad}" y2="{baseline}" stroke="#40505e"/>{"".join(bars)}</svg>'
+
+
+def _trade_scatter_svg(chart: Mapping[str, Any]) -> str:
+    points = chart.get("points") if isinstance(chart.get("points"), list) else []
+    observed = [(point, _number(point.get("holding_seconds")), _number(point.get("net_pnl"))) for point in points]
+    observed = [(point, x, y) for point, x, y in observed if x is not None and y is not None]
+    if not observed:
+        return ""
+    width, height, pad = 620, 240, 38
+    xs, ys = [x for _, x, _ in observed], [y for _, _, y in observed]
+    xmin, xmax, ymin, ymax = min(xs), max(xs), min(ys), max(ys)
+    xspan, yspan = xmax - xmin or 1, ymax - ymin or 1
+    circles = []
+    for point, x, y in observed:
+        cx = pad + (x - xmin) * (width - 2 * pad) / xspan
+        cy = height - pad - (y - ymin) * (height - 2 * pad) / yspan
+        circles.append(f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="6" fill="{"#55d6be" if y >= 0 else "#ef6f6c"}"><title>{h(point.get("symbol"))} · {h(x)} 秒 · {h(y)} USD</title></circle>')
+    return f'<svg class="plot" viewBox="0 0 {width} {height}" role="img" aria-label="持有期与净盈亏散点图"><line x1="{pad}" y1="{height-pad}" x2="{width-pad}" y2="{height-pad}" stroke="#40505e"/><line x1="{pad}" y1="{pad}" x2="{pad}" y2="{height-pad}" stroke="#40505e"/>{"".join(circles)}</svg>'
+
+
+def _trade_timeline_svg(chart: Mapping[str, Any]) -> str:
+    points = chart.get("points") if isinstance(chart.get("points"), list) else []
+    if not points:
+        return ""
+    width, height, pad = 620, 125, 34
+    circles = []
+    for index, point in enumerate(points):
+        x = pad + index * (width - 2 * pad) / max(1, len(points) - 1)
+        circles.append(f'<circle cx="{x:.2f}" cy="55" r="6" fill="#79a8ff"><title>{h(point.get("date"))} · {h(point.get("category"))} · {h(point.get("symbol"))} · {h(point.get("status"))}</title></circle>')
+    return f'<svg class="plot" viewBox="0 0 {width} {height}" role="img" aria-label="交易活动时间线"><line x1="{pad}" y1="55" x2="{width-pad}" y2="55" stroke="#40505e" stroke-width="2"/>{"".join(circles)}</svg>'
+
+
+def _trade_chart(chart: Mapping[str, Any]) -> str:
+    chart_id = chart.get("chart_id")
+    if chart_id in {"equity-flow-return", "drawdown"}:
+        svg = _trade_line_svg(chart)
+    elif chart_id == "monthly-return":
+        svg = _trade_heatmap_svg(chart)
+    elif chart_id == "security-pnl-fees":
+        svg = _trade_bar_svg(chart)
+    elif chart_id == "holding-period":
+        svg = _trade_scatter_svg(chart)
+    else:
+        svg = _trade_timeline_svg(chart)
+    limitations = "".join(f"<li>{h(item)}</li>" for item in chart.get("limitations", []))
+    empty = _empty("图形数据不可用", "查看该图的状态与限制。") if not svg else ""
+    tone = "warn" if chart.get("status") != "AVAILABLE" else "accent"
+    limited = "limited" if chart.get("status") != "AVAILABLE" else ""
+    return f'''<article class="chart {limited}"><div class="chart-title"><div><span class="kicker">{h(chart.get("unit"))}</span><h3>{h(chart.get("title"))}</h3></div><div>{_badge(chart.get("status"), tone)}</div></div><p class="note">实际窗口 {h(chart.get("window_start"))} → {h(chart.get("window_end"))} · {h(len(chart.get("points", [])))} 点 · {h(chart.get("formula_version"))}</p>{svg}{empty}<ul>{limitations}</ul></article>'''
+
+
+def trades_page(model: Mapping[str, Any]) -> str:
+    status = model.get("status")
+    if status == "UNCONFIGURED":
+        return _layout("交易历史复盘", "/trades", _empty("未配置私人账本", "启动浏览器时显式提供 --trade-ledger；页面不会扫描默认路径。"), subtitle="只读 · 私人本机资料")
+    if status == "NO_ANALYSIS":
+        return _layout("交易历史复盘", "/trades", _empty("账本尚无分析包", "先通过显式 analyze 命令生成确定性复盘；刷新页面不会连接 Tiger。"), subtitle="只读 · 私人本机资料")
+    analysis = model["analysis"]
+    metrics = "".join(
+        f'<div class="metric"><span>{h(item["metric_id"])}</span><strong>{h(item["value"] if item["value"] is not None else "不可用")}</strong><small>{h(item["unit"])} · {h(item["status"])}</small>{f"<p class=note>{h(item["reason"])}</p>" if item.get("reason") else ""}</div>'
+        for item in analysis["metrics"]
+    )
+    limitations = "".join(f"<li>{h(item)}</li>" for item in analysis["limitations"])
+    versions = "".join(
+        f'<option value="{h(item["analysis_id"])}" {"selected" if item["analysis_id"] == analysis["analysis_id"] else ""}>{h(item["as_of"])} · {h(item["content_hash"][:12])}</option>'
+        for item in model.get("versions", [])
+    )
+    filters = model.get("filters", {})
+    def selected(name: str, value: str) -> str:
+        return "selected" if str(filters.get(name) or "").casefold() == value.casefold() else ""
+    form = f'''<section class="toolbar"><form method="get" class="trade-filter"><label>分析版本<select name="analysis"><option value="">最新</option>{versions}</select></label><label>起始日期<input name="date_from" type="date" value="{h(filters.get('date_from'))}"></label><label>结束日期<input name="date_to" type="date" value="{h(filters.get('date_to'))}"></label><label>证券<input name="symbol" value="{h(filters.get('symbol'))}" maxlength="128"></label><label>市场<input name="market" value="{h(filters.get('market'))}" maxlength="32"></label><label>币种<input name="currency" value="{h(filters.get('currency'))}" maxlength="16"></label><label>方向<select name="direction"><option value="">全部</option><option value="BUY" {selected('direction','BUY')}>BUY</option><option value="SELL" {selected('direction','SELL')}>SELL</option></select></label><label>类别<input name="category" value="{h(filters.get('category'))}" maxlength="64"></label><label>状态<input name="status" value="{h(filters.get('status'))}" maxlength="64"></label><button>筛选</button></form></section>'''
+    params = {**filters, "analysis": analysis["analysis_id"]}
+    previous = urlencode({**params, "page": max(1, model["page"] - 1)})
+    following = urlencode({**params, "page": model["page"] + 1})
+    previous_link = f'<a href="?{previous}">上一页</a>' if model["page"] > 1 else ""
+    following_link = f'<a href="?{following}">下一页</a>' if model["page"] < model["pages"] else ""
+    pagination = f'<div class="pagination"><span>{h(model["total"])} 条 · 第 {h(model["page"])} / {h(max(1, model["pages"]))} 页</span><span>{previous_link} {following_link}</span></div>'
+    activities = _table(
+        ["时间", "类别", "证券", "市场/币种", "方向", "状态", "数量", "价格", "金额", "Revision"],
+        ((item.get("time") or item.get("date"), item.get("category"), item.get("symbol"), f"{item.get('market') or '—'} / {item.get('currency') or '—'}", item.get("direction"), item.get("status"), item.get("quantity"), item.get("price"), item.get("amount"), item.get("revision")) for item in model["items"]),
+        label="交易活动",
+    )
+    body = f'''<section class="card"><div class="metric-row"><div><span>覆盖</span><strong>{h(analysis["coverage_status"])}</strong></div><div><span>实际窗口</span><strong>{h(analysis["window_start"])} → {h(analysis["window_end"])}</strong></div><div><span>冻结账本</span><strong>{h(analysis["ledger_hash"][:16])}</strong></div></div><p class="note">只聚合 US/USD 受支持资产；排除 {h(analysis["excluded_count"])} 条，未知 {h(analysis["unknown_count"])} 条。此页不是税务报表、券商结单或策略回测。</p><ul>{limitations}</ul></section><section><h2>确定性指标</h2><div class="grid metrics">{metrics}</div></section><section><h2>六组复盘图形</h2><p class="note">资产/净入金/累计收益在首图中各自独立缩放；月度收益率与月度净盈亏不混用。</p><div class="chart-grid">{"".join(_trade_chart(item) for item in analysis["charts"])}</div></section><section><h2>活动筛选</h2>{form}{activities}{pagination}</section>'''
+    return _layout("交易历史复盘", "/trades", body, subtitle="只读 · 私人本机资料")
+
+
 def overview(
     memory: Mapping[str, Any] | None, artifacts: Mapping[str, Any], *,
     coverage: Mapping[str, Any] | None = None, memory_error: str | None = None,
 ) -> str:
     count = memory.get("company_count", 0) if memory else 0
     cards = f"""
-    <section class="grid three">
+    <section class="grid metrics">
       <a class="card link-card" href="/macro"><span class="kicker">MACRO</span><h2>宏观快照</h2><p>官方指标、实际观测时间与已有宏观研究。</p></a>
       <a class="card link-card" href="/market"><span class="kicker">MARKET</span><h2>市场状态</h2><p>基准日线、已保存窗口统计与研究报告。</p></a>
       <a class="card link-card" href="/companies"><span class="kicker">COMPANY</span><h2>{h(count)} 家已保存公司</h2><p>事实、View、图表、报告及数据状态。</p></a>
+      <a class="card link-card" href="/trades"><span class="kicker">PRIVATE · READ ONLY</span><h2>交易历史复盘</h2><p>冻结私人账本上的确定性指标、图形与活动筛选。</p></a>
     </section>"""
     status = (
         _empty("Research Memory 不可用", "请检查启动时配置的 Memory 目录；不会自动创建数据库。", code=memory_error)
@@ -1132,6 +1299,6 @@ def _artifact_issues(issues: Sequence[Mapping[str, Any]]) -> str:
 
 CSS = r"""
 :root{color-scheme:dark;--bg:#081018;--panel:#101b24;--panel2:#152430;--line:#263846;--text:#e8f0f4;--muted:#91a4b2;--accent:#37d6c0;--warn:#ffb86b;--danger:#ff7387;--violet:#9f9bff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
-*{box-sizing:border-box}html{scroll-behavior:smooth;max-width:100%;overflow-x:hidden}body{margin:0;max-width:100%;overflow-x:hidden;background:radial-gradient(circle at 80% -20%,#183244 0,transparent 35%),var(--bg);color:var(--text);line-height:1.55}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;max-width:100%;padding:16px max(24px,calc((100vw - 1280px)/2));background:rgba(8,16,24,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.brand{color:var(--text);font-weight:750;letter-spacing:.02em}.sub{color:var(--muted);font-size:12px;margin-left:12px}nav{display:flex;gap:8px;min-width:0}header nav a,.anchors a,.filter{color:var(--muted);padding:7px 11px;border-radius:9px}header nav a.active,.anchors a:hover,.filter.active{color:var(--text);background:var(--panel2);text-decoration:none}main{max-width:1280px;min-width:0;margin:auto;padding:40px 24px 80px}.page-title,.company-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;min-width:0;margin-bottom:26px}.page-title h1,.company-head h1{margin:3px 0;font-size:clamp(28px,4vw,48px);line-height:1.08}.eyebrow,.kicker{font-size:11px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;margin:0}.grid{display:grid;gap:16px;min-width:0}.three{grid-template-columns:repeat(3,1fr)}.metrics{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.card,.metric,.chart,.empty,.toolbar,details,.report,.event-card,.dimension-card,.report-section,.report-summary,.confidence{min-width:0;background:linear-gradient(145deg,var(--panel),#0d1820);border:1px solid var(--line);border-radius:16px;padding:20px}.link-card{color:var(--text);min-height:165px}.link-card:hover{border-color:var(--accent);text-decoration:none}.card h2,.chart h3{margin:6px 0}.card p,.note,.chart p,.empty p{color:var(--muted)}section{min-width:0;margin:28px 0}section>h2{font-size:22px;margin:0 0 14px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:16px}.section-head h2{margin:3px 0}.warn-text{color:var(--warn)!important}.metric-row,.time-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.metric-row div,.time-strip div,.metric{display:flex;flex-direction:column;gap:5px;min-width:0}.metric-row span,.time-strip span,.metric span{font-size:12px;color:var(--muted)}.metric-row strong,.metric strong{font-size:24px}.time-strip{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}.time-strip strong{font-size:13px;overflow-wrap:anywhere}.anchors{position:sticky;top:74px;z-index:4;max-width:100%;overflow:auto;white-space:nowrap;background:rgba(8,16,24,.95);padding:8px 0;border-bottom:1px solid var(--line)}button,input,select{max-width:100%;font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px}button{background:var(--accent);color:#05211e;border-color:var(--accent);font-weight:700;cursor:pointer}.secondary{background:transparent;color:var(--text);border-color:var(--line)}.toolbar form{display:flex;gap:8px;min-width:0}.toolbar input[type=search]{flex:1;min-width:0}.filters{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.note{font-size:13px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--line);border-radius:13px}table{border-collapse:collapse;width:100%;min-width:780px;background:var(--panel)}th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}th{color:var(--muted);font-weight:600;background:#0b151d}td small{display:block;color:var(--muted);margin-top:3px}.badge{display:inline-block;font-size:11px;padding:3px 7px;border-radius:99px;background:var(--panel2);margin:2px}.badge.accent{color:var(--accent)}.badge.warn{color:var(--warn)}.badge.danger{color:var(--danger)}.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}.chart{margin:0;min-width:0}.chart.limited{border-style:dashed;min-height:210px}.chart-title,.event-head{display:flex;justify-content:space-between;align-items:start;gap:16px}.event-head h3,.event-head h4{margin:3px 0}.event-timeline{display:grid;gap:14px}.event-card,.dimension-card{margin:0}.event-card p,.dimension-card p,.disclosure-body{overflow-wrap:anywhere}.supplemental-research,.disclosure-section{margin-top:24px}.dimension-group{margin:18px 0}.report-section,.report-summary,.confidence{margin:14px 0}.confidence strong{display:block;font-size:30px;color:var(--accent)}.plot{display:block;width:100%;height:auto;margin-top:12px}.chart li{color:var(--muted);font-size:13px}.pagination{display:flex;justify-content:space-between;margin-top:16px}.pagination a{padding:8px 12px;border:1px solid var(--line);border-radius:9px}details{margin:12px 0;padding:0}summary{cursor:pointer;padding:15px 18px;font-weight:650}.details-body{min-width:0;padding:0 18px 18px}.details-body>*{min-width:0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#071018;padding:14px;border-radius:10px;border:1px solid var(--line);font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}.report-grid{display:grid;grid-template-columns:1fr;gap:16px;min-width:0}.report-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.report{min-width:0;margin:0}.report-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px}footer{color:var(--muted);font-size:12px;text-align:center;padding:24px;border-top:1px solid var(--line)}code{color:var(--warn)}
+*{box-sizing:border-box}html{scroll-behavior:smooth;max-width:100%;overflow-x:hidden}body{margin:0;max-width:100%;overflow-x:hidden;background:radial-gradient(circle at 80% -20%,#183244 0,transparent 35%),var(--bg);color:var(--text);line-height:1.55}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}header{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;max-width:100%;padding:16px max(24px,calc((100vw - 1280px)/2));background:rgba(8,16,24,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.brand{color:var(--text);font-weight:750;letter-spacing:.02em}.sub{color:var(--muted);font-size:12px;margin-left:12px}nav{display:flex;gap:8px;min-width:0}header nav a,.anchors a,.filter{color:var(--muted);padding:7px 11px;border-radius:9px}header nav a.active,.anchors a:hover,.filter.active{color:var(--text);background:var(--panel2);text-decoration:none}main{max-width:1280px;min-width:0;margin:auto;padding:40px 24px 80px}.page-title,.company-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;min-width:0;margin-bottom:26px}.page-title h1,.company-head h1{margin:3px 0;font-size:clamp(28px,4vw,48px);line-height:1.08}.eyebrow,.kicker{font-size:11px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase;margin:0}.grid{display:grid;gap:16px;min-width:0}.three{grid-template-columns:repeat(3,1fr)}.metrics{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.card,.metric,.chart,.empty,.toolbar,details,.report,.event-card,.dimension-card,.report-section,.report-summary,.confidence{min-width:0;background:linear-gradient(145deg,var(--panel),#0d1820);border:1px solid var(--line);border-radius:16px;padding:20px}.link-card{color:var(--text);min-height:165px}.link-card:hover{border-color:var(--accent);text-decoration:none}.card h2,.chart h3{margin:6px 0}.card p,.note,.chart p,.empty p{color:var(--muted)}section{min-width:0;margin:28px 0}section>h2{font-size:22px;margin:0 0 14px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:16px}.section-head h2{margin:3px 0}.warn-text{color:var(--warn)!important}.metric-row,.time-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.metric-row div,.time-strip div,.metric{display:flex;flex-direction:column;gap:5px;min-width:0}.metric-row span,.time-strip span,.metric span{font-size:12px;color:var(--muted)}.metric-row strong,.metric strong{font-size:24px}.time-strip{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}.time-strip strong{font-size:13px;overflow-wrap:anywhere}.anchors{position:sticky;top:74px;z-index:4;max-width:100%;overflow:auto;white-space:nowrap;background:rgba(8,16,24,.95);padding:8px 0;border-bottom:1px solid var(--line)}button,input,select{max-width:100%;font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px}button{background:var(--accent);color:#05211e;border-color:var(--accent);font-weight:700;cursor:pointer}.secondary{background:transparent;color:var(--text);border-color:var(--line)}.toolbar form{display:flex;gap:8px;min-width:0}.toolbar input[type=search]{flex:1;min-width:0}.trade-filter{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));align-items:end}.trade-filter label{display:grid;gap:5px;color:var(--muted);font-size:12px}.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px}.legend span{display:flex;align-items:center;gap:5px}.legend i{width:18px;height:3px;display:inline-block}.filters{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.note{font-size:13px}.table-wrap{max-width:100%;min-width:0;overflow-x:auto;border:1px solid var(--line);border-radius:13px}table{border-collapse:collapse;width:100%;min-width:780px;background:var(--panel)}th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}th{color:var(--muted);font-weight:600;background:#0b151d}td small{display:block;color:var(--muted);margin-top:3px}.badge{display:inline-block;font-size:11px;padding:3px 7px;border-radius:99px;background:var(--panel2);margin:2px}.badge.accent{color:var(--accent)}.badge.warn{color:var(--warn)}.badge.danger{color:var(--danger)}.chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}.chart{margin:0;min-width:0}.chart.limited{border-style:dashed;min-height:210px}.chart-title,.event-head{display:flex;justify-content:space-between;align-items:start;gap:16px}.event-head h3,.event-head h4{margin:3px 0}.event-timeline{display:grid;gap:14px}.event-card,.dimension-card{margin:0}.event-card p,.dimension-card p,.disclosure-body{overflow-wrap:anywhere}.supplemental-research,.disclosure-section{margin-top:24px}.dimension-group{margin:18px 0}.report-section,.report-summary,.confidence{margin:14px 0}.confidence strong{display:block;font-size:30px;color:var(--accent)}.plot{display:block;width:100%;height:auto;margin-top:12px}.chart li{color:var(--muted);font-size:13px}.pagination{display:flex;justify-content:space-between;margin-top:16px}.pagination a{padding:8px 12px;border:1px solid var(--line);border-radius:9px}details{margin:12px 0;padding:0}summary{cursor:pointer;padding:15px 18px;font-weight:650}.details-body{min-width:0;padding:0 18px 18px}.details-body>*{min-width:0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#071018;padding:14px;border-radius:10px;border:1px solid var(--line);font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace}.report-grid{display:grid;grid-template-columns:1fr;gap:16px;min-width:0}.report-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.report{min-width:0;margin:0}.report-meta{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px}footer{color:var(--muted);font-size:12px;text-align:center;padding:24px;border-top:1px solid var(--line)}code{color:var(--warn)}
 @media(max-width:720px){header{position:static;display:block;padding:14px 16px;overflow:hidden}.sub{display:none}header nav{max-width:100%;margin-top:12px;overflow:auto;flex-wrap:nowrap}header nav a,.anchors a{white-space:nowrap;flex:0 0 auto}main{padding:26px 14px 60px}.page-title,.company-head,.event-head,.section-head{display:block}.section-head>.note{display:block;margin-top:6px;overflow-wrap:anywhere}.page-title form,.company-head form{max-width:100%;margin-top:14px}.company-head label,.company-head select{display:block;width:100%}.company-head button{margin-top:8px}.three,.chart-grid,.time-strip,.metric-row,.report-grid.two{grid-template-columns:minmax(0,1fr)}.anchors{top:0}.toolbar form{display:grid;grid-template-columns:minmax(0,1fr) auto}.chart,.event-card,.dimension-card,.report{padding:15px}h1{overflow-wrap:anywhere}}
 """

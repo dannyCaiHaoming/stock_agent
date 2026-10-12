@@ -24,12 +24,13 @@ SENSITIVE_PATTERNS = (
     re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(rb"\bghp_[A-Za-z0-9]{30,}\b"),
 )
+FIXTURE_MCP_PATH = "product/hosts/codex/fixture-mcp.json"
 REQUIRED_PRODUCT_PATHS = {
     "product/AGENTS.md",
     "product/version-manifest.json",
     "product/runtime-profile.json",
     "product/model-routing.json",
-    "product/.mcp.json",
+    FIXTURE_MCP_PATH,
     "product/.codex/config.toml",
     "product/.codex-plugin/plugin.json",
     "product/contracts/council-decision-contract.json",
@@ -103,7 +104,7 @@ def _protected_repository_files(repository_root: Path) -> list[tuple[str, Path]]
             "version-manifest.json",
             "runtime-profile.json",
             "model-routing.json",
-            ".mcp.json",
+            "hosts/codex/fixture-mcp.json",
             ".codex/config.toml",
         )
     )
@@ -131,7 +132,7 @@ def _role(logical_path: str) -> str:
         return "schema-or-contract"
     if "/runtime/" in logical_path or "/deterministic/" in logical_path:
         return "deterministic-runtime"
-    if "/mcp/" in logical_path or logical_path.endswith(".mcp.json"):
+    if logical_path == FIXTURE_MCP_PATH or "/mcp/" in logical_path or logical_path.endswith(".mcp.json"):
         return "mcp-adapter"
     return "runtime-config"
 
@@ -299,7 +300,11 @@ def validate_replay_capsule(
     }
     if canonical_hash(integrity_paths) != context.get("product_integrity_hash"):
         raise ReplayCapsuleError("CAPSULE_LOCKED_CONTEXT_INTEGRITY_MISMATCH")
-    missing = sorted((REQUIRED_PRODUCT_PATHS | {FROZEN_FIXTURE, FROZEN_GATE}) - paths)
+    required = REQUIRED_PRODUCT_PATHS | {FROZEN_FIXTURE, FROZEN_GATE}
+    # 旧密封包按原逻辑路径只读；新构建只收权威模板，不读取本机派生配置。
+    if "product/.mcp.json" in paths:
+        required = required - {FIXTURE_MCP_PATH}
+    missing = sorted(required - paths)
     if missing:
         raise ReplayCapsuleError(f"CAPSULE_REQUIRED_OBJECT_MISSING:{','.join(missing)}")
     actual_objects = {path.name for path in (capsule_dir / "objects").iterdir() if path.is_file()}

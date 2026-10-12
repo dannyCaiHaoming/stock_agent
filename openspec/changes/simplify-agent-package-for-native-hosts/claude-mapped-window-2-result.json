@@ -1,0 +1,90 @@
+{
+  "source_id": "native-package-claude-window-2-result:20261008",
+  "as_of": "2026-10-08T14:03:00.357Z",
+  "retrieved_at": "2026-10-08T14:07:06.840005+00:00",
+  "status": "STOPPED_ACTUAL_SKILL_SOURCE_MISMATCH",
+  "window": {
+    "start_at": "2026-10-08T13:54:06.257942+00:00",
+    "original_deadline": "2026-10-08T14:24:06.257942+00:00",
+    "closed_at": "2026-10-08T14:07:06.840005+00:00",
+    "native_tasks_observed": 1,
+    "professional_tasks_observed": 0,
+    "max_native_tasks": 5,
+    "no_retry_or_extension": true
+  },
+  "authorization_source": {
+    "type": "AskUserQuestion actual answer",
+    "question": "已关闭窗口不能恢复。是否授权一次新的 Claude 原生窗口，按上述 5 任务／30 分钟上限继续验证？",
+    "answer": "授权一次新窗口（推荐）"
+  },
+  "native_directory": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/claude-code/product-workspace",
+  "desktop_model": "claude-opus-5",
+  "effort": "high",
+  "fresh_assistant_models": [
+    "gpt-6.1-sol"
+  ],
+  "approved_mapping": "opus -> gpt-6.1-sol",
+  "mapping_matches": true,
+  "provider_wire_verified": false,
+  "cc_switch_configuration_read": false,
+  "skill_observation": {
+    "call_timestamp": "2026-10-08T14:00:20.959Z",
+    "tool": "Skill",
+    "skill": "portfolio-council",
+    "input_fields": [
+      "args",
+      "skill"
+    ],
+    "body_injection_timestamp": "2026-10-08T14:00:20.985Z",
+    "body_injection_uuid": "c653813b-fd72-4050-96eb-fcb2691429b3",
+    "actual_base_directory": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/minimal-slice-20261008/claude-code/product-workspace/.claude/skills/portfolio-council",
+    "expected_base_directory": "/Users/caihaoming/Documents/stock-agent-native-acceptance/20261006/claude-mapped-current-20261008T132228Z/claude-code/product-workspace/.claude/skills/portfolio-council",
+    "actual_skill_sha256": "95dd563b1d89a6f9d8f80dfbc0d65be6e1a05050002ad9cf0a41f57d5ecf250f",
+    "expected_skill_sha256": "95dd563b1d89a6f9d8f80dfbc0d65be6e1a05050002ad9cf0a41f57d5ecf250f",
+    "same_content": true,
+    "actual_tool_source_mismatch": true,
+    "cwd_change_did_not_prove_skill_source_reload": true,
+    "internal_cache_root_cause": "NOT_PROVEN",
+    "raw_skill_tool_result": "Launching skill: portfolio-council; Base directory is in the separately injected isMeta user body, not this short tool_result"
+  },
+  "fresh_tool_names": [
+    "mcp__ccd_directory__change_directory",
+    "Skill",
+    "SendMessage"
+  ],
+  "new_grant_reads": 0,
+  "new_business_calls": 0,
+  "new_reports": 0,
+  "cio_or_risk": "NOT_RUN",
+  "host_execution": "PARTIAL_MAIN_MODEL_AND_CWD_OBSERVED_SKILL_SOURCE_FAILED",
+  "business_validation": "NOT_RUN",
+  "content_verdict": "NOT_REVIEWED_NO_NEW_REPORTS",
+  "preparation_receipt": "claude-mapped-window-2-preparation.json",
+  "preparation_receipt_status": "Early directory/model preparation snapshot is superseded by actual Skill source rejection; task 6.1 was never checked complete",
+  "protection": {
+    "source_test_files": 38,
+    "old_files": 1832,
+    "new_package_source_files": 582,
+    "all_hashes_unchanged": true,
+    "os_enforced_read_only_proven": false
+  },
+  "official_export": {
+    "zip_sha256": "427748e3bf3bb279dab11e7336aa4afbb465a74525c67142834b67bda3f17020",
+    "size_bytes": 1204100,
+    "raw_export_private_only": true,
+    "subagent_files": []
+  },
+  "completion": {
+    "complete": 24,
+    "total": 29,
+    "unchecked": [
+      "6.1",
+      "6.3",
+      "7.1",
+      "7.2",
+      "8.1"
+    ],
+    "archive_commit_push": false
+  },
+  "minimal_repair": "Correct thin installation guidance: do not treat reused-session directory change as a full skill/agent/MCP refresh. Start a fresh native product session directly from the exact approved package, then separately verify actual sources. Do not clear/delete original session, change global configuration, use alternate dispatch names or add a project loader."
+}

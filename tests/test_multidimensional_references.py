@@ -2,119 +2,51 @@ from __future__ import annotations
 
 import copy
 import json
-import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 
 from tests import test_multidimensional_stage as fixtures
-from product.runtime.codex_hook_recorder import handle_hook_event, _multidimensional_repair_packet, _multidimensional_draft_diagnostics
+from product.council.multidimensional_research import (
+    validate_research_dimension_report, finalize_research_dimension_report,
+)
 from product.runtime.fixture_mcp import StatelessFixtureTools, _write_event
 from product.runtime.multidimensional_references import translate_references
 from product.runtime.multidimensional_stage import build_multidimensional_dispatch_packet, _text_locator
 from product.runtime.multidimensional_stage import (
     serialize_multidimensional_model_context, serialize_multidimensional_initial_context,
-    _verified_retry_dependencies, read_retry_dependencies, build_multidimensional_task_prompt,
-    finalize_multidimensional_task_evidence,
-    launch_multidimensional_stage,
+    _verified_retry_dependencies, read_retry_dependencies,
 )
 
 
 class ReferenceBoundaryTests(unittest.TestCase):
-    def test_unparseable_json_preserves_diagnostics_but_cannot_authorize_full_regeneration(self):
-        for defect in ("empty_key", "truncated", "fenced"):
-            for second in ("valid", "syntax", "reference", "identity"):
-                with self.subTest(defect=defect, second=second), tempfile.TemporaryDirectory() as directory:
-                    f, run, task = self.prepare_with_document(Path(directory))
-                    env = f.targeted_environment(run, task)
-                    handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-                    handle_hook_event(f.start_payload(task, parent="dependency-parent", child="r"), environ=env)
-                    draft = f.dimension_draft(task)
-                    payload = f.stop_payload(task, draft, parent="dependency-parent", child="r")
-                    original = payload["last_assistant_message"]
-                    malformed = (original[:-1] + ',""}' if defect == "empty_key" else
-                                 original[:-1] if defect == "truncated" else '```json\n' + original + '\n```')
-                    payload["last_assistant_message"] = malformed
-                    first, response = handle_hook_event(payload, environ=env)
-                    self.assertEqual(first["output_capture"]["repair_state"], "NOT_ALLOWED", first)
-                    self.assertNotEqual(response.get("decision"), "block")
-                    self.assertNotIn("repair_request", first)
-                    finding = first["output_capture"]["diagnostics"]["findings"][0]
-                    self.assertEqual(finding["code"], "RESEARCH_OUTPUT_JSON_INVALID")
-                    self.assertGreaterEqual(finding["line"], 1)
-                    self.assertNotIn("original_draft", first["output_capture"]["diagnostics"])
-                    self.assertEqual((run / first["output_capture"]["raw_path"]).read_text().rstrip('\n'), malformed)
-                    if second == "reference":
-                        draft["artifact_refs"] = ["forged.json"]
-                    if second == "identity":
-                        draft["run_id"] = "forged-run"
-                    payload = f.stop_payload(task, draft, parent="dependency-parent", child="r")
-                    if second == "syntax":
-                        payload["last_assistant_message"] = malformed
-                    final, response = handle_hook_event(payload, environ=env)
-                    self.assertEqual(final["output_capture"]["status"], "FAILED", final)
-                    self.assertEqual(final["output_capture"]["failure_code"],
-                                     "RESEARCH_OUTPUT_IDENTITY_CONFLICT" if second == "identity" else "LOCAL_REVISION_NOT_AUTHORIZED")
-                    if second != "identity":
-                        self.assertEqual(final["output_capture"]["repair_state"], "EXHAUSTED")
-                    self.assertNotEqual(response.get("decision"), "block")
 
-    def test_json_syntax_feedback_rejects_missing_binding_oversize_and_tampering(self):
-        with tempfile.TemporaryDirectory() as directory:
-            f, run, task = self.prepare_with_document(Path(directory))
-            env = f.targeted_environment(run, task)
-            handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=env)
-            handle_hook_event(f.start_payload(task, parent="dependency-parent", child="r"), environ=env)
-            payload = f.stop_payload(task, f.dimension_draft(task), parent="dependency-parent", child="r")
-            payload["last_assistant_message"] = '{"secret":"never-copy-this", ""}'
-            args = {"failure_code": "RESEARCH_OUTPUT_JSON_INVALID", "attempt": 1}
-            self.assertIsNone(_multidimensional_repair_packet(payload, env, **args))
-            for message in (None, "{}", "[]", "中" * (256 * 1024 // 3 + 1)):
-                changed = dict(payload, last_assistant_message=message)
-                self.assertEqual(_multidimensional_draft_diagnostics(changed, env, failure_code=args["failure_code"])["status"], "UNAVAILABLE")
-            record, _ = handle_hook_event(payload, environ=env)
-            self.assertNotIn("never-copy-this", json.dumps(record["output_capture"]["diagnostics"]))
-            trusted = copy.deepcopy(record)
-            trusted["identity_binding"]["status"] = "CONFLICT"
-            self.assertIsNone(_multidimensional_repair_packet(payload, env, trusted_record=trusted, **args))
-            path = run / task["packet_path"]
-            packet = json.loads(path.read_text())
-            packet["instruction"] += " tampered"
-            path.write_text(json.dumps(packet))
-            self.assertIsNone(_multidimensional_repair_packet(payload, env, trusted_record=record, **args))
 
-    def test_retry_launcher_selects_only_research_and_counts_one(self):
-        with tempfile.TemporaryDirectory() as directory:
-            f, run, task = self.prepare_with_document(Path(directory))
-
-            def simulated(command, *, input, cwd, env, **kwargs):
-                self.assertEqual(json.loads(env["STOCK_AGENT_RESEARCH_TASK_NAMES"]), [task["task_name"]])
-                self.assertIn('"dispatched":1', input)
-                record, _ = handle_hook_event(f.dispatch_payload(task, parent="retry"), environ=env)
-                self.assertEqual(record["decision"], "ALLOW")
-                handle_hook_event(f.start_payload(task, parent="retry", child="r"), environ=env)
-                record, _ = handle_hook_event(f.stop_payload(task, f.dimension_draft(task), parent="retry", child="r"), environ=env)
-                self.assertEqual(record["output_capture"]["status"], "SAVED")
-                (Path(env["TMPDIR"]) / "final-message.json").write_text(json.dumps({
-                    "stage": "MULTI_DIMENSIONAL_HOLDING_RESEARCH", "run_id": task["run_id"],
-                    "dispatched": 1, "completed": 1,
-                }))
-                return subprocess.CompletedProcess([], 0, "", "")
-
-            with patch("product.runtime.multidimensional_stage.subprocess.run", side_effect=simulated), patch(
-                "product.runtime.multidimensional_stage._adopt_multidimensional_retry", return_value={"status": "PASSED"}
-            ):
-                result, code = launch_multidimensional_stage(fixtures.ROOT, run_dir=run, task_name=task["task_name"])
-            self.assertEqual(code, 0)
-            proof_path = next((run / "invocation/retries").glob("*/attempt-1/task-execution-proof.json"))
-            proof = json.loads(proof_path.read_text())
-            self.assertEqual(proof["task_names"], [task["task_name"]])
-            self.assertEqual(len(proof["reused_dependencies"]), 1)
+    def write_historical_dependency_fixture(self, run, task):
+        """单独提供旧复用reader需要的向量；不由业务保存隐式生成。"""
+        index = json.loads((run / "research/dispatch-index.json").read_text())
+        dependency = next(t for t in index["tasks"] if t["task_id"] in task["depends_on"])
+        path = next((run / "research/reports").glob("*/dimension-report.json"))
+        report = json.loads(path.read_text())
+        events = [
+            {"hook_event_name": "SubagentStart", "parent_session_id": "historical-fixture",
+             "child_session_id": "historical-child"},
+            {"hook_event_name": "SubagentStop", "parent_session_id": "historical-fixture",
+             "child_session_id": "historical-child", "output_capture": {
+                 "status": "SAVED", "task_id": dependency["task_id"],
+                 "path": str(path.relative_to(run)), "output_hash": fixtures.canonical_hash(report),
+             }},
+        ]
+        log = run / "invocation/subagent-events.jsonl"
+        with log.open('x') as stream:
+            stream.write("".join(json.dumps({**e, "event_hash": fixtures.canonical_hash(e)}) + "\n" for e in events))
 
     def test_report_retry_reuses_dependency_without_dispatch_or_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
             f, run, task = self.prepare_with_document(Path(directory))
+            self.write_historical_dependency_fixture(run, task)
+            log = run / "invocation/subagent-events.jsonl"
             reused = _verified_retry_dependencies(run, task["task_name"])
             self.assertEqual(len(reused), 1)
             dependency_path = run / reused[0]["report_ref"]
@@ -124,20 +56,7 @@ class ReferenceBoundaryTests(unittest.TestCase):
             (attempt / "reused-dependencies.json").write_text(json.dumps({
                 "target_task_name": task["task_name"], "dependencies": reused,
             }))
-            prompt = build_multidimensional_task_prompt(fixtures.ROOT, run, task["task_name"], reused_dependencies=reused)
-            self.assertIn('"dispatched":1', prompt)
-            environment = f.targeted_environment(run, task)
-            environment["STOCK_AGENT_SUBAGENT_EVENT_LOG"] = str(attempt / "subagent-events.jsonl")
-            environment["STOCK_AGENT_SUBAGENT_DISPATCH_LOG"] = str(attempt / "subagent-dispatches.jsonl")
-            dispatch, _ = handle_hook_event(f.dispatch_payload(task, parent="retry"), environ=environment)
-            self.assertEqual(dispatch["decision"], "ALLOW", dispatch)
-            handle_hook_event(f.start_payload(task, parent="retry", child="r"), environ=environment)
-            saved, _ = handle_hook_event(f.stop_payload(task, f.dimension_draft(task), parent="retry", child="r"), environ=environment)
-            self.assertEqual(saved["output_capture"]["status"], "SAVED")
-            proof = finalize_multidimensional_task_evidence(fixtures.ROOT, run, task["task_name"], invocation_dir=attempt)
-            self.assertEqual(proof["task_names"], [task["task_name"]])
-            self.assertEqual(len(proof["report_inventory"]), 2)
-            self.assertEqual(len(proof["reused_dependencies"]), 1)
+            self.assertEqual(read_retry_dependencies(run, attempt, task["task_name"]), reused)
             self.assertEqual(dependency_path.read_bytes(), original)
             dependency_path.write_bytes(original + b"\n")
             with self.assertRaisesRegex(ValueError, "REUSE_CHANGED"):
@@ -173,6 +92,8 @@ class ReferenceBoundaryTests(unittest.TestCase):
             run, _ = f.prepare(root, count=1)
         index = json.loads((run / "research/dispatch-index.json").read_text())
         f.save_fundamental_dependency(run, index)
+        # 显式历史读取向量；不是当前宿主进程结果。
+        (run / "invocation").mkdir(exist_ok=True)
         (run / "invocation/process-result.json").write_text(json.dumps({
             "source_integrity_unchanged": True, "timed_out": False, "process_exit_code": 0,
         }))
@@ -275,88 +196,69 @@ class ReferenceBoundaryTests(unittest.TestCase):
                         "rationale": "模拟：该发行人披露自身提供经营依据。",
                         "resulting_claim_refs": ["comparison"],
                     }]
-                environment = f.targeted_environment(run, task)
-                handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=environment)
-                handle_hook_event(f.start_payload(task, parent="dependency-parent", child="r"), environ=environment)
-                result, _ = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="r"), environ=environment)
-                self.assertEqual(result["output_capture"]["status"], "SAVED", result)
-                report = json.loads((run / result["output_capture"]["path"]).read_text())
+                original = copy.deepcopy(draft)
+                report, _, _ = f.read_dimension_draft(run, task, draft)
+                self.assertEqual(draft, original)
+                self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
                 self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["statement"])
                 self.assertEqual(len(report["research_relationships"]), int(with_document))
 
-    def test_metadata_and_state_same_session_repair_or_exhaustion(self):
-        for defect in ("state", "document", "failed_evaluation"):
-            for corrected in (True, False):
-                with self.subTest(defect=defect, corrected=corrected), tempfile.TemporaryDirectory() as directory:
-                    f, run, task = self.prepare_with_document(Path(directory))
-                    environment = f.targeted_environment(run, task)
-                    handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=environment)
-                    handle_hook_event(f.start_payload(task, parent="dependency-parent", child="r"), environ=environment)
-                    draft = f.dimension_draft(task)
-                    if defect == "document":
-                        draft["document_selections"] = ["d.not-authorized.1"]
-                    else:
-                        draft["status"] = "SOURCE_LIMITED" if defect == "state" else "FAILED"
-                        draft["evaluation_status"] = "NOT_EVALUATED" if defect == "state" else "PASS"
-                    original = copy.deepcopy(draft)
-                    first, response = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="r"), environ=environment)
-                    self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first)
-                    repair = json.loads(response["reason"])
-                    self.assertNotIn("original_draft", repair)
-                    if defect != "document":
-                        self.assertIn("output_contract_rules", repair["validation_details"])
-                    else:
-                        self.assertTrue(any(f["path"].startswith("/document_selections")
-                                            for f in repair["validation_details"]["findings"]))
-                    self.assertEqual(json.loads((run / first["output_capture"]["raw_path"]).read_text()), original)
-                    if corrected:
-                        if defect == "document":
-                            packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
-                            draft["document_selections"] = list(packet["reference_map"]["documents"])
-                        else:
-                            draft["evaluation_status"] = "SOURCE_LIMITED" if defect == "state" else "FAIL"
-                    second, _ = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="r"), environ=environment)
-                    self.assertEqual(second["output_capture"]["repair_state"], "REPAIRED" if corrected else "EXHAUSTED")
-                    self.assertEqual(second["output_capture"]["status"], "SAVED" if corrected else "FAILED")
+    def test_metadata_and_state_fail_closed_without_mutating_or_publishing(self):
+        for defect, code in (("state", "SOURCE_LIMITED_STATE_INVALID"),
+                             ("document", r"SCHEMA_ENUM_INVALID:\$\.document_selections\[0\]"),
+                             ("failed_evaluation", "FAILED_EVALUATION_INVALID")):
+            with self.subTest(defect=defect), tempfile.TemporaryDirectory() as directory:
+                f, run, task = self.prepare_with_document(Path(directory))
+                draft = f.dimension_draft(task)
+                if defect == "document":
+                    draft["document_selections"] = ["d.not-authorized.1"]
+                else:
+                    draft["status"] = "SOURCE_LIMITED" if defect == "state" else "FAILED"
+                    draft["evaluation_status"] = "NOT_EVALUATED" if defect == "state" else "PASS"
+                original = copy.deepcopy(draft)
+                with self.assertRaisesRegex(ValueError, code):
+                    f.read_dimension_draft(run, task, draft)
+                self.assertEqual(draft, original)
+                corrected = copy.deepcopy(draft)
+                if defect == "document":
+                    packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
+                    corrected["document_selections"] = list(packet["reference_map"]["documents"])
+                else:
+                    corrected["evaluation_status"] = "SOURCE_LIMITED" if defect == "state" else "FAIL"
+                report, _, _ = f.read_dimension_draft(run, task, corrected)
+                self.assertEqual(report["evaluation_status"], corrected["evaluation_status"])
+                self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
-    def test_compound_diagnostics_unknown_document_and_budget(self):
+    def test_formal_document_metadata_and_frozen_packet_drift_remain_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             f, run, task = self.prepare_with_document(Path(directory))
-            environment = f.targeted_environment(run, task)
-            # 历史完整稿只读诊断；不经当前 Stop 写入入口。
-            draft = f.formal_dimension_draft(task)
-            draft["status"] = "SOURCE_LIMITED"
-            draft["documents"] = copy.deepcopy(task["allowed_documents"])
-            draft["documents"][0]["as_of"] = "2026-09-11T20:00:00Z"
-            draft["claims"] = [{"claim_id": "local", "research_claim_refs": ["invented"]}]
-            def repair(value):
-                return _multidimensional_repair_packet(
-                    f.stop_payload(task, value, parent="p", child="c"), environment,
-                    failure_code="DIMENSION_REPORT_SOURCE_LIMITED_STATE_INVALID", attempt=1)
-            result = repair(draft)
-            self.assertEqual({x["path"] for x in result["validation_details"]["findings"]},
-                             {"evaluation_status", "documents[0].as_of", "claims[0].research_claim_refs[0]"})
-            self.assertIn("valid_upstream_claims", result["validation_details"])
-            self.assertEqual(len(json.dumps(result).encode()) < 16 * 1024, True)
-            unknown = copy.deepcopy(draft)
-            unknown["documents"][0]["document_id"] = "foreign-document"
-            self.assertIsNone(repair(unknown))
-            many = copy.deepcopy(draft)
-            many["documents"] *= 33
-            self.assertIsNone(repair(many))
             packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
-            oversized = copy.deepcopy(packet)
-            oversized["task"]["allowed_documents"][0]["title"] = "large " * 4000
-            with patch("product.runtime.multidimensional_references.load_reference_packet", return_value=oversized):
-                self.assertIsNone(repair(draft))
-            # Frozen packet tampering prevents diagnostic feedback, not just saving.
+            draft = f.dimension_draft(task)
+            draft["document_selections"] = list(packet["reference_map"]["documents"])
+            report, _, _ = f.read_dimension_draft(run, task, draft)
+            self.assertTrue(report["documents"])
+            for defect, code in (("metadata", "DOCUMENT_METADATA_DRIFT"), ("foreign", "DOCUMENT_NOT_ALLOWED")):
+                changed = copy.deepcopy(report)
+                if defect == "metadata": changed["documents"][0]["as_of"] = "2026-09-11T20:00:00Z"
+                else: changed["documents"][0]["document_id"] = "foreign-document"
+                changed = finalize_research_dimension_report(changed)
+                original = copy.deepcopy(changed)
+                with self.subTest(defect=defect), self.assertRaisesRegex(ValueError, code):
+                    validate_research_dimension_report(
+                        changed, expected_bindings=report["bindings"],
+                        allowed_security_ids=task["security_ids"],
+                        allowed_evidence_ids=task["allowed_evidence_ids"],
+                        allowed_documents=task["allowed_documents"],
+                    )
+                self.assertEqual(changed, original)
             path = run / task["packet_path"]
             frozen = json.loads(path.read_text())
             frozen["instruction"] = "tampered"
             path.write_text(json.dumps(frozen))
-            self.assertIsNone(repair(draft))
+            with self.assertRaisesRegex(ValueError, "PACKET_HASH_MISMATCH"):
+                f.read_dimension_draft(run, task, draft)
 
-    def test_short_query_calculate_and_stop_preserve_canonical_report(self):
+    def test_short_query_calculate_and_read_preserve_canonical_report(self):
         f = fixtures.MultidimensionalStageTests()
         with tempfile.TemporaryDirectory() as directory:
             run, _ = f.prepare(Path(directory), count=1)
@@ -380,22 +282,18 @@ class ReferenceBoundaryTests(unittest.TestCase):
             self.assertEqual(ledger["output"]["value"], calculated["value"])
             with self.assertRaisesRegex(ValueError, "REFERENCE_UNKNOWN"):
                 tools.query(**args, evidence_ids=["e.other-task.1"])
-            environment = f.targeted_environment(run, task)
-            handle_hook_event(f.dispatch_payload(task, parent="p"), environ=environment)
-            handle_hook_event(f.start_payload(task, parent="p", child="c"), environ=environment)
             draft = f.dimension_draft(task)
             draft["claims"] = [{
                 "claim_id": "local-1", "question": "事实？", "statement": f"模拟文本保留 {short}",
                 "kind": "FACT", "evidence_refs": [short], "research_claim_refs": [],
                 "document_refs": [], "assumption_ids": [],
             }]
-            stopped, _ = handle_hook_event(f.stop_payload(task, draft, parent="p", child="c"), environ=environment)
-            self.assertEqual(stopped["output_capture"]["status"], "SAVED", stopped)
-            report = json.loads((run / stopped["output_capture"]["path"]).read_text())
+            original = copy.deepcopy(draft)
+            report, _, _ = f.read_dimension_draft(run, task, draft)
             self.assertEqual(report["claims"][0]["evidence_refs"], [full])
             self.assertEqual(report["claims"][0]["statement"], draft["claims"][0]["statement"])
-            raw = json.loads((run / stopped["output_capture"]["raw_path"]).read_text())
-            self.assertEqual(raw, draft)
+            self.assertEqual(draft, original)
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
             broken = copy.deepcopy(mapping)
             broken["evidence"][short] = "ev-forged"
             with self.assertRaisesRegex(ValueError, "MAP_INVALID"):
@@ -421,37 +319,33 @@ class ReferenceBoundaryTests(unittest.TestCase):
                 run_id=task["run_id"], agent=task["agent"], invocation_id=task["invocation_id"], evidence_ids=[full])
             self.assertEqual(output["evidence"][0]["evidence_id"], full)
 
-    def test_upstream_claim_repair_and_unknown_reference_are_bounded(self):
-        f = fixtures.MultidimensionalStageTests()
+    def test_upstream_claim_and_reference_type_remain_exact_without_auto_selection(self):
         with tempfile.TemporaryDirectory() as directory:
-            run, _ = f.prepare(Path(directory), count=1)
-            index = json.loads((run / "research/dispatch-index.json").read_text())
-            f.save_fundamental_dependency(run, index)
-            task = next(t for t in index["tasks"] if t["capability"] == "RESEARCH_REPORT")
+            f, run, task = self.prepare_with_document(Path(directory))
             packet = build_multidimensional_dispatch_packet(fixtures.ROOT, run, task["task_name"])
             mapping = packet["reference_map"]
             claim_short = next(iter(mapping["claims"]))
-            # 直接辅助函数测试使用带身份的历史稿；当前新稿身份来自 Start。
-            draft = f.formal_dimension_draft(task)
-            draft["claims"] = [{"claim_id": "local", "research_claim_refs": ["mrvl_growth_continuity"]}]
-            draft["research_relationships"] = [{"target_claim_refs": ["mrvl_growth_continuity"]}]
-            environment = f.targeted_environment(run, task)
-            payload = f.stop_payload(task, draft, parent="p", child="c")
-            repair = _multidimensional_repair_packet(payload, environment, failure_code="DIMENSION_REPORT_RESEARCH_CLAIM_DANGLING", attempt=1)
-            self.assertEqual(len(repair["validation_details"]["findings"]), 2)
-            self.assertEqual(repair["validation_details"]["valid_upstream_claims"][0]["claim_id"], "mrvl_core_drivers")
-            self.assertIsNone(_multidimensional_repair_packet(payload, environment, failure_code="DIMENSION_REPORT_RESEARCH_CLAIM_DANGLING", attempt=2))
+            draft = f.dimension_draft(task)
+            draft["claims"] = [{
+                "claim_id": "local", "question": "对照？", "statement": "模拟研究主张关系。",
+                "kind": "INTERPRETATION", "evidence_refs": [],
+                "research_claim_refs": ["mrvl_growth_continuity"],
+                "document_refs": [], "assumption_ids": [],
+            }]
+            original = copy.deepcopy(draft)
+            with self.assertRaisesRegex(ValueError, "RESEARCH_CLAIM_DANGLING"):
+                f.read_dimension_draft(run, task, draft)
+            self.assertEqual(draft, original)
             draft["claims"][0]["research_claim_refs"] = [claim_short]
-            resolved = translate_references(draft, mapping)
-            self.assertEqual(resolved["claims"][0]["research_claim_refs"],
+            report, _, _ = f.read_dimension_draft(run, task, draft)
+            self.assertEqual(report["claims"][0]["research_claim_refs"],
                              [mapping["claims"][claim_short]["canonical_ref"]])
             with self.assertRaisesRegex(ValueError, "REFERENCE_UNKNOWN"):
                 translate_references({"evidence_refs": [claim_short]}, mapping)
-            unknown = f.formal_dimension_draft(task)
-            unknown["claims"] = [{"claim_id": "local", "evidence_refs": ["e.wrong.1"]}]
-            repair = _multidimensional_repair_packet(f.stop_payload(task, unknown, parent="p", child="c"), environment,
-                failure_code="MULTIDIMENSIONAL_REFERENCE_UNKNOWN:claims[0].evidence_refs[0]:e.wrong.1", attempt=1)
-            self.assertIsNotNone(repair)
+            draft["claims"][0]["evidence_refs"] = ["e.wrong.1"]
+            with self.assertRaisesRegex(ValueError, "REFERENCE_UNKNOWN"):
+                f.read_dimension_draft(run, task, draft)
+            self.assertFalse((run / "invocation/subagent-events.jsonl").exists())
 
     def test_heading_not_confused_with_short_substantive_text(self):
         heading = {"value": "Item 1. Business 3 ", "metadata": {"section": "business", "truncated": False}}
@@ -460,30 +354,3 @@ class ReferenceBoundaryTests(unittest.TestCase):
         self.assertEqual(_text_locator(body)["content_kind"], "SECTION_TEXT")
         self.assertEqual(_text_locator({"value": "We sell chips."})["content_kind"], "UNKNOWN")
         self.assertEqual(_text_locator({"value": "We sell chips.", "metadata": {"section": "business", "truncated": True}})["content_kind"], "SECTION_EXCERPT")
-
-    def test_upstream_same_session_correction_saves_or_exhausts(self):
-        f = fixtures.MultidimensionalStageTests()
-        for corrected in (True, False):
-            with self.subTest(corrected=corrected), tempfile.TemporaryDirectory() as directory:
-                run, _ = f.prepare(Path(directory), count=1)
-                index = json.loads((run / "research/dispatch-index.json").read_text())
-                f.save_fundamental_dependency(run, index)
-                task = next(t for t in index["tasks"] if t["capability"] == "RESEARCH_REPORT")
-                environment = f.targeted_environment(run, task)
-                handle_hook_event(f.dispatch_payload(task, parent="dependency-parent"), environ=environment)
-                handle_hook_event(f.start_payload(task, parent="dependency-parent", child="research-c"), environ=environment)
-                draft = f.dimension_draft(task)
-                draft["claims"] = [{
-                    "claim_id": "local", "question": "对照？", "statement": "模拟研究主张关系。",
-                    "kind": "INTERPRETATION", "evidence_refs": [],
-                    "research_claim_refs": ["mrvl_growth_continuity"],
-                    "document_refs": [], "assumption_ids": [],
-                }]
-                first, response = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="research-c"), environ=environment)
-                self.assertEqual(first["output_capture"]["repair_state"], "REPAIR_REQUESTED", first["output_capture"])
-                repair = json.loads(response["reason"])
-                if corrected:
-                    draft["claims"][0]["research_claim_refs"] = [next(iter(repair["validation_details"]["upstream_short_references"]))]
-                second, _ = handle_hook_event(f.stop_payload(task, draft, parent="dependency-parent", child="research-c"), environ=environment)
-                self.assertEqual(second["output_capture"]["status"], "SAVED" if corrected else "FAILED")
-                self.assertEqual(second["output_capture"]["repair_state"], "REPAIRED" if corrected else "EXHAUSTED")

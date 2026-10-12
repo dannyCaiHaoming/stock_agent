@@ -1,0 +1,115 @@
+{
+  "schema_version": "tiger-readonly-capability-manifest/1.0.0",
+  "manifest_id": "tbhk-readonly-v1",
+  "status": "APPROVED_FOR_READ_ONLY_IMPLEMENTATION",
+  "license": "TBHK",
+  "sdk_distribution": "tigeropen",
+  "sdk_version": "3.8.0",
+  "sdk_wheel_sha256": "8f87fe69997d9c25463b04b2646dcd7b2e395209058195514675ab675cd3563a",
+  "verified_at": "2026-09-23T00:00:00Z",
+  "official_sources": [
+    "https://pypi.org/project/tigeropen/3.8.0/",
+    "https://github.com/tigerfintech/openapi-python-sdk",
+    "https://quant.itigerup.com/openapi/en/python/operation/trade/tradeList.html",
+    "https://quant.itigerup.com/openapi/en/python/operation/trade/accountInfo.html",
+    "https://quant.itigerup.com/openapi/en/python/permission/requestLimit.html"
+  ],
+  "capabilities": [
+    {
+      "operation": "managed_accounts",
+      "sdk_method": "get_managed_accounts",
+      "dataset": "ACCOUNT_PROFILE",
+      "pagination": "NONE",
+      "window": "CURRENT",
+      "read_only": true,
+      "field_status": "VERIFY_WITH_REAL_TBHK"
+    },
+    {
+      "operation": "prime_assets",
+      "sdk_method": "get_prime_assets",
+      "dataset": "ACCOUNT_ASSET",
+      "pagination": "NONE",
+      "window": "CURRENT",
+      "read_only": true,
+      "field_status": "DOCUMENTED"
+    },
+    {
+      "operation": "positions",
+      "sdk_method": "get_positions",
+      "dataset": "POSITION",
+      "pagination": "NONE",
+      "window": "CURRENT",
+      "read_only": true,
+      "field_status": "DOCUMENTED"
+    },
+    {
+      "operation": "analytics_asset",
+      "sdk_method": "get_analytics_asset",
+      "dataset": "ASSET_POINT",
+      "pagination": "DATE_WINDOW",
+      "window": "BOUNDED_DATE_RANGE",
+      "read_only": true,
+      "field_status": "DOCUMENTED"
+    },
+    {
+      "operation": "orders",
+      "sdk_method": "get_orders",
+      "dataset": "ORDER",
+      "pagination": "PAGE_TOKEN",
+      "window": "BOUNDED_TIME_RANGE",
+      "read_only": true,
+      "field_status": "DOCUMENTED"
+    },
+    {
+      "operation": "order_with_charges",
+      "sdk_method": "get_order",
+      "dataset": "ORDER_CHARGE",
+      "pagination": "NONE",
+      "window": "BY_ORDER_ID",
+      "read_only": true,
+      "field_status": "DOCUMENTED"
+    },
+    {
+      "operation": "transactions",
+      "sdk_method": "get_transactions",
+      "dataset": "EXECUTION",
+      "pagination": "PAGE_TOKEN",
+      "window": "BOUNDED_TIME_OR_DATE_RANGE",
+      "read_only": true,
+      "field_status": "DOCUMENTED_PRIME_ONLY"
+    },
+    {
+      "operation": "fund_details",
+      "sdk_method": "get_fund_details",
+      "dataset": "CASH_ACTIVITY",
+      "pagination": "START_LIMIT",
+      "window": "BOUNDED_DATE_RANGE",
+      "read_only": true,
+      "field_status": "VERIFY_WITH_REAL_TBHK"
+    },
+    {
+      "operation": "funding_history",
+      "sdk_method": "get_funding_history",
+      "dataset": "FUNDING_ACTIVITY",
+      "pagination": "NONE_DOCUMENTED",
+      "window": "PROVIDER_VISIBLE_HISTORY",
+      "read_only": true,
+      "field_status": "DOCUMENTED"
+    }
+  ],
+  "forbidden_sdk_methods": [
+    "place_order",
+    "preview_order",
+    "modify_order",
+    "cancel_order",
+    "place_forex_order",
+    "transfer_segment_fund",
+    "cancel_segment_fund",
+    "transfer_position",
+    "grab_quote_permission",
+    "connect",
+    "subscribe_order",
+    "subscribe_position",
+    "subscribe_asset"
+  ]
+}

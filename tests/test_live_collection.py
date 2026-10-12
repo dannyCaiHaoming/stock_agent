@@ -366,7 +366,7 @@ class LiveCollectionTests(unittest.TestCase):
                         run_dir=materials, run_id=gate['run_id'], model='gpt-6-luna', target_concurrency=8)
                     with patch('product.mcp.live.public_research.OpenAlexResearchClient', LateBodyClient):
                         helper = ResearchMaterialsStageTests()
-                        helper.execute_with_hooks(materials)
+                        helper.write_historical_fixture(materials)
                         helper.mark_material_process_success(materials)
                     result = finalize_single_stock_research_data(data_dir=directory / 'data', materials_run=materials,
                                                                 output_dir=directory / 'final-data')

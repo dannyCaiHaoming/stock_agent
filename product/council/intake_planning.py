@@ -15,7 +15,7 @@ from typing import Any, Mapping
 from product.intake.v3 import HANDOFF_SCHEMA_VERSION, IntakeV3ValidationError, validate_handoff
 from product.runtime.hashing import canonical_hash
 from product.runtime.schema_validation import SchemaValidationError, validate_schema_instance
-from product.runtime.research_input import (
+from product.tools.research_input import (
     is_single_stock, research_input_binding, research_subjects, validate_research_input,
 )
 

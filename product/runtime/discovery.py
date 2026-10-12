@@ -1,4 +1,4 @@
-"""Resolve repository-owned Codex resources before any model call."""
+"""Resolve locked fixture/maintenance resources, not local host discovery files."""
 
 from __future__ import annotations
 import json
@@ -42,7 +42,8 @@ class ProductDiscovery:
 
 RESOURCE_PATHS = {
     "plugin": ".codex-plugin/plugin.json",
-    "plugin_mcp": ".mcp.json",
+    # 保留原禁用模板字节及版本锁；产品根.mcp.json只属于本机原生配置。
+    "plugin_mcp": "hosts/codex/fixture-mcp.json",
     "runtime_config": ".codex/config.toml",
     "runtime_profile": "runtime-profile.json",
     "decision_contract": "contracts/council-decision-contract.json",

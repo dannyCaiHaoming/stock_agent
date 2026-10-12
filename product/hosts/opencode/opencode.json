@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["product/AGENTS.md"],
+  "agent": {
+    "runtime_company_analyst": {
+      "description": "逐证券公司研究，只使用当前任务业务工具。",
+      "mode": "subagent",
+      "prompt": "{file:./product/agents/runtime_company_analyst.md}",
+      "permission": {"*": "deny", "company_*": "allow", "company_research_prepare_task": "deny", "skill": {"*": "deny", "evidence-grounding": "allow", "company-research": "allow", "valuation": "allow", "catalyst-analysis": "allow", "research-report-analysis": "allow"}}
+    },
+    "runtime_market_catalyst": {
+      "description": "每个任务执行一项市场多维能力。",
+      "mode": "subagent",
+      "prompt": "{file:./product/agents/runtime_market_catalyst.md}",
+      "permission": {"*": "deny", "market_*": "allow", "market_research_prepare_task": "deny", "skill": {"*": "deny", "evidence-grounding": "allow", "catalyst-analysis": "allow", "technical-structure": "allow", "industry-comparison": "allow", "macro-market-analysis": "allow", "ownership-disclosure": "allow", "options-market-structure": "allow", "research-report-analysis": "allow"}}
+    },
+    "runtime_skeptic": {
+      "description": "只读原始资料的独立首轮反证，不读取正向报告。",
+      "mode": "subagent",
+      "prompt": "{file:./product/agents/runtime_skeptic.md}",
+      "permission": {"*": "deny", "skeptic_*": "allow", "skeptic_research_prepare_task": "deny", "skill": {"*": "deny", "evidence-grounding": "allow", "counter-thesis": "allow"}}
+    },
+    "runtime_cio": {
+      "description": "当前主线程在明确授权后组织研究与形成非动作综合。",
+      "mode": "primary",
+      "prompt": "{file:./product/agents/runtime_cio.md}",
+      "permission": {"*": "deny", "cio_*": "allow", "company_research_prepare_task": "allow", "market_research_prepare_task": "allow", "skeptic_research_prepare_task": "allow", "skill": {"*": "deny", "portfolio-council": "allow"}, "task": {"*": "deny", "runtime_company_analyst": "allow", "runtime_market_catalyst": "allow", "runtime_skeptic": "allow"}}
+    }
+  },
+  "mcp": {
+    "company": {"type": "local", "enabled": false, "command": ["{{PYTHON}}", "-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_COMPANY"], "environment": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_COMPANY_CONNECTION": "{env:STOCK_AGENT_COMPANY_CONNECTION}", "STOCK_AGENT_COMPANY_TOKEN": "{env:STOCK_AGENT_COMPANY_TOKEN}"}},
+    "market": {"type": "local", "enabled": false, "command": ["{{PYTHON}}", "-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_MARKET"], "environment": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_MARKET_CONNECTION": "{env:STOCK_AGENT_MARKET_CONNECTION}", "STOCK_AGENT_MARKET_TOKEN": "{env:STOCK_AGENT_MARKET_TOKEN}"}},
+    "skeptic": {"type": "local", "enabled": false, "command": ["{{PYTHON}}", "-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_SKEPTIC"], "environment": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_SKEPTIC_CONNECTION": "{env:STOCK_AGENT_SKEPTIC_CONNECTION}", "STOCK_AGENT_SKEPTIC_TOKEN": "{env:STOCK_AGENT_SKEPTIC_TOKEN}"}},
+    "cio": {"type": "local", "enabled": false, "command": ["{{PYTHON}}", "-B", "-m", "product.mcp.research", "--connection-env-prefix", "STOCK_AGENT_CIO"], "environment": {"PYTHONPATH": "{{REPOSITORY_ROOT}}", "STOCK_AGENT_CIO_CONNECTION": "{env:STOCK_AGENT_CIO_CONNECTION}", "STOCK_AGENT_CIO_TOKEN": "{env:STOCK_AGENT_CIO_TOKEN}"}}
+  }
+}

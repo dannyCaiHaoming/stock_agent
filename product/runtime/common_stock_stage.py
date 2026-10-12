@@ -1,7 +1,6 @@
-"""普通股持仓研究阶段的运行包、派发消息和执行证明。
+"""普通股研究的冻结输入、业务契约、报告保存与历史执行归集。
 
-Codex 主线程负责派发 LLM Subagent；本模块只冻结输入、验证绑定、
-归集事件和产物，不实现 Python LLM 编排。
+正常研究由当前宿主原生执行；本模块不派发或启动模型。
 """
 
 from __future__ import annotations
@@ -12,10 +11,7 @@ import json
 import re
 import os
 import shutil
-import signal
 import sqlite3
-import subprocess
-import sys
 import tempfile
 import tomllib
 from datetime import datetime, timezone
@@ -40,6 +36,10 @@ from product.runtime.multidimensional_references import (
     translate_references, validate_reference_map, reference_output_schema,
 )
 from product.runtime.calculation_handoff import VERSION as CALCULATION_SELECTION_VERSION, selection_draft_schema
+from product.tools.research_scope import (
+    COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS, COMPANY_RESEARCH_EXCLUDED_DATASETS,
+    is_company_research_evidence as _is_company_research_evidence,
+)
 
 
 STAGE_VERSION = "common-stock-research-runtime/1.0.0"
@@ -54,42 +54,14 @@ REQUIRED_SKILLS = (
 
 # 日线 OHLCV 属于后续 technical-structure 阶段。Company Analyst 仍可通过
 # 冻结附件使用估值快照，但不应为首版公司研究注入逐日技术序列。
-COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS = frozenset({
-    "adjusted_close_price",
-    "historical_close_price",
-    "open_price",
-    "high_price",
-    "low_price",
-    "share_volume",
-})
+
 
 # These datasets have dedicated consumers in the multidimensional stage.  Keep
 # them in the frozen Gate, but do not duplicate them into the legacy Company
 # Analyst start context.  Company datasets without a dedicated capability
 # consumer remain visible.
-COMPANY_RESEARCH_EXCLUDED_DATASETS = frozenset({
-    "share_short_context",
-    "institutional_ownership",
-    "insider_transactions",
-    "analyst_expectations",
-    "research_discovery",
-    "options_snapshot",
-    "vendor_money_flow",
-    "options_underlying_context",
-    "option_market_statistics",
-    "market_breadth",
-    "macro_history",
-    "economic_calendar",
-    "fedwatch_expectations",
-    "dot_plot",
-})
 
 
-def _is_company_research_evidence(fact: Mapping[str, Any]) -> bool:
-    return (
-        fact.get("semantic_field") not in COMPANY_RESEARCH_EXCLUDED_SEMANTIC_FIELDS
-        and fact.get("dataset") not in COMPANY_RESEARCH_EXCLUDED_DATASETS
-    )
 
 CURRENT_SOURCE_REUSE_DATASETS = {
     "live_snapshot": "live",
@@ -1673,23 +1645,6 @@ def prepare_common_stock_stage_run(
     }
 
 
-def build_common_stock_stage_prompt(repository_root: Path, run_dir: Path) -> str:
-    run_dir = Path(run_dir).resolve()
-    index = _read_object(run_dir / "research/dispatch-index.json")
-    messages = {
-        item["task_name"]: build_common_stock_dispatch_message(repository_root, run_dir, item["task_name"])
-        for item in index["tasks"]
-    }
-    concurrency = min(index["target_concurrency"], len(messages))
-    subject_label = "非持仓单股" if is_single_stock(load_research_input(run_dir)) else "普通股持仓"
-    return f"""你是{subject_label}研究阶段的 Codex 主线程，只负责有界派发和归集，不担任 CIO。
-读取产品 AGENTS.md 与 portfolio-council Skill 中的普通股研究阶段说明。使用 Agent 工具，agent_type 必须为 runtime_company_analyst，fork_turns=none。
-最多同时保持 {concurrency} 个活跃 Subagent。在等待任何一个结果前，先按映射顺序发起最初 {concurrency} 个独立任务；任一任务结束后立即用下一个未派发任务补位，直到全部任务结束。不得一次派发超过并发上限：
-{json.dumps(messages, ensure_ascii=False, sort_keys=True)}
-每个 task_name 必须使用映射中的键；message 仅为非权威启动提示，完整冻结输入由 SubagentStart Hook 按已校验 task_name 注入。不得把研究数据复制进 message。不得启动 runtime_skeptic、runtime_cio、Risk 或完整 Council；不得自行改写 Specialist 输出。
-`wait_agent` 必须显式使用 `timeout_ms=600000`。它可能因子任务启动、进度消息或其他非终态活动提前返回；即使返回空 `receiver_thread_ids`、空 `agents_states` 或仅进度消息，也不是终态，必须立即再次长等待。每次返回后都要检查任务是否真实结束，并继续等待尚无终态的任务。对仍在运行且未请求协助的子任务，不得发送 follow-up 或反复 list；只在真实终态、needs-attention 或宿主硬超时后改变动作。不得以固定 wait 次数、父线程自报 dispatched 数或普通消息推断完成。父线程 Stop Hook 会按冻结 task/invocation 绑定复核终态，缺失时会要求继续等待。
-只有全部任务均已收到真实终态后，才返回：{{"stage":"COMMON_STOCK_RESEARCH","run_id":"{index['run_id']}","dispatched":{len(messages)}}}。
-"""
 
 
 def finalize_common_stock_stage_run(repository_root: Path, run_dir: Path) -> dict[str, Any]:
@@ -2588,273 +2543,13 @@ def _run_bounded_process_group(
     environment: Mapping[str, str], timeout_seconds: int,
     termination_grace_seconds: float = 2.0,
 ) -> dict[str, Any]:
-    """运行一个独立本地进程组；超时后有界 TERM/KILL 整棵本地进程树。"""
-
-    process = subprocess.Popen(
-        list(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, text=True, cwd=cwd, env=dict(environment),
-        start_new_session=True,
-    )
-    timed_out = False
-    term_sent = False
-    kill_sent = False
-    try:
-        stdout, stderr = process.communicate(input=prompt, timeout=timeout_seconds)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-            term_sent = True
-        except ProcessLookupError:
-            pass
-        try:
-            stdout, stderr = process.communicate(timeout=termination_grace_seconds)
-        except subprocess.TimeoutExpired:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-                kill_sent = True
-            except ProcessLookupError:
-                pass
-            stdout, stderr = process.communicate()
-    return {
-        "stdout": stdout or "", "stderr": stderr or "",
-        "process_exit_code": 124 if timed_out else process.returncode,
-        "timed_out": timed_out,
-        "local_process_group": {
-            "pid": process.pid, "term_sent": term_sent, "kill_sent": kill_sent,
-            "cleanup_complete": process.poll() is not None,
-        },
-        "remote_cancellation_status": "UNKNOWN" if timed_out else "NOT_APPLICABLE",
-    }
+    """旧正常模型启动已退役；历史读取不依赖此入口。"""
+    raise CommonStockStageError("NATIVE_HOST_EXECUTION_REQUIRED:使用当前宿主portfolio-council原生会话；旧执行维护仅限明确批准的冻结版本。")
 
 
 def launch_common_stock_stage(
     repository_root: Path, *, run_dir: Path, codex_binary: str = "codex",
     timeout_seconds: int = 1800,
 ) -> tuple[dict[str, Any], int]:
-    """通过现有 nested Codex 命令构造器运行显式普通股研究阶段。"""
-
-    from product.runtime.nested_codex import (
-        build_verified_nested_codex_command,
-        fixture_mcp_runtime_environment,
-        integrity_snapshot,
-    )
-
-    repository_root = Path(repository_root).resolve()
-    product_root = repository_root / "product"
-    run_dir = Path(run_dir).resolve()
-    manifest = _validate_common_stock_stage_run_package(repository_root, run_dir)
-    if manifest.get("reference_transport_version") != REFERENCE_TRANSPORT_VERSION:
-        raise CommonStockStageError("COMMON_STOCK_LEGACY_REFERENCE_EXECUTION_RETIRED")
-    if manifest.get("calculation_selection_version") != CALCULATION_SELECTION_VERSION:
-        raise CommonStockStageError("COMMON_STOCK_LEGACY_CALCULATION_EXECUTION_RETIRED")
-    invocation_dir = run_dir / "invocation"
-    if invocation_dir.exists():
-        raise CommonStockStageError("COMMON_STOCK_STAGE_ALREADY_LAUNCHED")
-    invocation_dir.mkdir()
-    dispatch_index = _read_object(run_dir / "research/dispatch-index.json")
-    if not dispatch_index["tasks"]:
-        started = _utc_now()
-        result = finalize_common_stock_stage_run(repository_root, run_dir)
-        process_result = {
-            "schema_version": "common-stock-stage-process/1.0.0",
-            "run_id": manifest["run_id"], "started_at": started,
-            "completed_at": _utc_now(), "process_exit_code": 0,
-            "timed_out": False, "process_status": result["status"],
-            "stage_status": result.get("stage_status", result["status"]),
-            "failure_code": None, "source_integrity_unchanged": True,
-            "isolated_source_integrity_unchanged": True,
-            "isolated_source_discarded": True,
-            "local_process_group": {
-                "pid": None, "term_sent": False, "kill_sent": False,
-                "cleanup_complete": True,
-            },
-            "remote_cancellation_status": "NOT_APPLICABLE",
-            "late_output_rejected": False,
-            "model_started": False,
-        }
-        _write_object(invocation_dir / "process-result.json", process_result)
-        return result, 0 if result["status"] == "PASSED" else 7
-    runtime_root = run_dir / ".codex-runtime"
-    sqlite_home, log_dir, tmp_dir = (
-        runtime_root / "sqlite", runtime_root / "logs", runtime_root / "tmp"
-    )
-    for path in (sqlite_home, log_dir, tmp_dir):
-        path.mkdir(parents=True, exist_ok=False)
-    isolated_source_root = runtime_root / "isolated-source"
-    isolated_product_root = isolated_source_root / "product"
-    shutil.copytree(
-        product_root, isolated_product_root,
-        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", ".private"),
-    )
-    isolated_agent, isolated_skills = current_research_bindings(isolated_source_root)
-    if (
-        isolated_agent != manifest["agent_binding"]
-        or isolated_skills != manifest["skill_bindings"]
-    ):
-        raise CommonStockStageError("COMMON_STOCK_ISOLATED_AGENT_BINDING_DRIFT")
-    product_agents = tomllib.loads(
-        (isolated_product_root / ".codex/config.toml").read_text(encoding="utf-8")
-    )["agents"]
-    registration = product_agents["runtime_company_analyst"]
-    if registration["config_file"] != "agents/runtime_company_analyst.toml":
-        raise CommonStockStageError("COMMON_STOCK_AGENT_REGISTRATION_DRIFT")
-    isolated_agent_path = (isolated_product_root / ".codex" / COMPANY_AGENT_PROFILE).resolve()
-    if not isolated_agent_path.is_relative_to(isolated_product_root / ".codex"):
-        raise CommonStockStageError("COMMON_STOCK_AGENT_PROFILE_INVALID")
-    prompt = build_common_stock_stage_prompt(repository_root, run_dir)
-    prompt_path = invocation_dir / "prompt.txt"
-    prompt_path.write_text(prompt, encoding="utf-8")
-    parent_schema = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object", "additionalProperties": False,
-        "required": ["stage", "run_id", "dispatched"],
-        "properties": {
-            "stage": {"type": "string", "const": "COMMON_STOCK_RESEARCH"},
-            "run_id": {"type": "string", "const": manifest["run_id"]},
-            "dispatched": {
-                "type": "integer",
-                "const": len(_read_object(run_dir / "research/dispatch-index.json")["tasks"]),
-            },
-        },
-    }
-    schema_path = invocation_dir / "parent-output.schema.json"
-    _write_object(schema_path, parent_schema)
-    events_path = invocation_dir / "codex-events.jsonl"
-    hook_events_path = invocation_dir / "subagent-events.jsonl"
-    dispatch_events_path = invocation_dir / "subagent-dispatches.jsonl"
-    parent_stop_events_path = invocation_dir / "parent-stop-events.jsonl"
-    stderr_path = invocation_dir / "codex-stderr.log"
-    raw_final_path = tmp_dir / "final-message.json"
-    command = build_verified_nested_codex_command(
-        runtime_binding_path=invocation_dir / "codex-runtime.json",
-        codex_binary=codex_binary, product_root=isolated_product_root, run_dir=run_dir,
-        model=manifest["parent_model"], sqlite_home=sqlite_home, log_dir=log_dir,
-        final_message_path=raw_final_path,
-        hook_recorder_path=isolated_product_root / "runtime/codex_hook_recorder.py",
-        output_schema_path=schema_path,
-        fixture_mcp_run_dir=run_dir,
-        enable_parent_stop_barrier=True,
-        skip_git_repo_check=True,
-    )
-    command.insert(command.index("exec") + 1, "--ignore-user-config")
-    command[command.index("--model"):command.index("--model")] = [
-        "-c", "agents.runtime_company_analyst={"
-        f"description={json.dumps(registration['description'], ensure_ascii=False)},"
-        f"config_file={json.dumps(str(isolated_agent_path))}" "}",
-    ]
-    environment = dict(os.environ)
-    environment.update({
-        "TMPDIR": str(tmp_dir), "PYTHONDONTWRITEBYTECODE": "1",
-        "STOCK_AGENT_RUN_DIR": str(run_dir),
-        "STOCK_AGENT_FIXTURE_MCP_RUN_DIR": str(run_dir),
-        "STOCK_AGENT_SUBAGENT_EVENT_LOG": str(hook_events_path),
-        "STOCK_AGENT_SUBAGENT_DISPATCH_LOG": str(dispatch_events_path),
-        "STOCK_AGENT_PARENT_STOP_LOG": str(parent_stop_events_path),
-        "STOCK_AGENT_REQUIRED_PARALLEL_SUBAGENTS": "runtime_company_analyst",
-        "STOCK_AGENT_COMMON_STOCK_STAGE": STAGE_VERSION,
-        **fixture_mcp_runtime_environment(),
-    })
-    environment.pop("STOCK_AGENT_START_CONTEXT", None)
-    environment.pop("STOCK_AGENT_CAPTURE_SPECIALIST_OUTPUT", None)
-    before = integrity_snapshot(repository_root)
-    isolated_before = integrity_snapshot(isolated_source_root)
-    environment_manifest = {
-        "schema_version": "common-stock-stage-environment/1.0.0",
-        "run_id": manifest["run_id"], "cwd": str(isolated_product_root),
-        "repo_root": str(repository_root), "product_root": str(product_root),
-        "isolated_source_root": str(isolated_source_root),
-        "model_source_mode": "DISPOSABLE_ISOLATED_COPY",
-        "run_dir": str(run_dir), "command": command,
-        "model": manifest["parent_model"],
-        "parent_model": manifest["parent_model"],
-        "analyst_model": manifest["analyst_model"],
-        "selected_company_agent_profile": str(isolated_agent_path),
-        "selected_company_agent_profile_hash": isolated_agent["content_hash"],
-        "sandbox": "workspace-write", "approval_policy": "never", "ephemeral": True,
-        "sqlite_home": str(sqlite_home), "log_dir": str(log_dir), "tmpdir": str(tmp_dir),
-        "parent_stop_log": str(parent_stop_events_path),
-        "prompt_hash": file_hash(prompt_path), "source_integrity_before": before,
-    }
-    _write_object(invocation_dir / "environment-manifest.json", environment_manifest)
-    started = _utc_now()
-    launch_error: str | None = None
-    try:
-        execution = _run_bounded_process_group(
-            command, prompt=prompt, cwd=isolated_product_root,
-            environment=environment, timeout_seconds=timeout_seconds,
-        )
-    except OSError:
-        launch_error = "COMMON_STOCK_PROCESS_START_FAILED"
-        execution = {
-            "stdout": "", "stderr": "", "process_exit_code": 126,
-            "timed_out": False,
-            "local_process_group": {
-                "pid": None, "term_sent": False, "kill_sent": False,
-                "cleanup_complete": True,
-            },
-            "remote_cancellation_status": "NOT_APPLICABLE",
-        }
-    timed_out = execution["timed_out"]
-    stdout, stderr = execution["stdout"], execution["stderr"]
-    process_code = execution["process_exit_code"]
-    events_path.write_text(stdout, encoding="utf-8")
-    stderr_path.write_text(stderr, encoding="utf-8")
-    result: dict[str, Any]
-    failure_code = None
-    try:
-        if launch_error is not None:
-            raise CommonStockStageError(launch_error)
-        if timed_out:
-            if raw_final_path.is_file():
-                raw_final_path.replace(invocation_dir / "rejected-late-final-message.json")
-            raise CommonStockStageError("COMMON_STOCK_STAGE_TIMEOUT")
-        if process_code != 0:
-            raise CommonStockStageError("COMMON_STOCK_CODEX_PROCESS_FAILED")
-        if not raw_final_path.is_file():
-            raise CommonStockStageError("COMMON_STOCK_FINAL_MESSAGE_MISSING")
-        final_message = _read_object(raw_final_path)
-        _write_object(invocation_dir / "final-message.json", final_message)
-        if (
-            final_message.get("stage") != "COMMON_STOCK_RESEARCH"
-            or final_message.get("run_id") != manifest["run_id"]
-        ):
-            raise CommonStockStageError("COMMON_STOCK_FINAL_MESSAGE_INVALID")
-        result = finalize_common_stock_stage_run(repository_root, run_dir)
-        if result["status"] != "PASSED":
-            raise CommonStockStageError("COMMON_STOCK_REPORT_SET_INCOMPLETE")
-    except (OSError, ValueError, KeyError, json.JSONDecodeError, CommonStockStageError) as exc:
-        failure_code = str(exc).split(":", 1)[0]
-        result = _finalize_failed_common_stock_stage(
-            run_dir, failure_code=failure_code, timed_out=timed_out,
-        )
-    isolated_after = integrity_snapshot(isolated_source_root)
-    after = integrity_snapshot(repository_root)
-    if before != after and result["status"] == "PASSED":
-        failure_code = "COMMON_STOCK_ACTIVE_SOURCE_MUTATED"
-        result = _finalize_failed_common_stock_stage(
-            run_dir, failure_code=failure_code, timed_out=False,
-        )
-    if isolated_before != isolated_after and result["status"] == "PASSED":
-        failure_code = "COMMON_STOCK_ISOLATED_SOURCE_MUTATED"
-        result = _finalize_failed_common_stock_stage(
-            run_dir, failure_code=failure_code, timed_out=False,
-        )
-    isolated_source_unchanged = isolated_before == isolated_after
-    shutil.rmtree(isolated_source_root)
-    process_result = {
-        "schema_version": "common-stock-stage-process/1.0.0",
-        "run_id": manifest["run_id"], "started_at": started, "completed_at": _utc_now(),
-        "process_exit_code": process_code, "timed_out": timed_out,
-        "process_status": result["status"],
-        "stage_status": result.get("stage_status", result["status"]),
-        "failure_code": failure_code,
-        "source_integrity_unchanged": before == after,
-        "isolated_source_integrity_unchanged": isolated_source_unchanged,
-        "isolated_source_discarded": not isolated_source_root.exists(),
-        "local_process_group": execution["local_process_group"],
-        "remote_cancellation_status": execution["remote_cancellation_status"],
-        "late_output_rejected": (invocation_dir / "rejected-late-final-message.json").is_file(),
-    }
-    _replace_object(invocation_dir / "process-result.json", process_result)
-    return result, 0 if result["status"] == "PASSED" and before == after else 7
+    """旧正常模型启动已退役；历史读取不依赖此入口。"""
+    raise CommonStockStageError("NATIVE_HOST_EXECUTION_REQUIRED:使用当前宿主portfolio-council原生会话；旧执行维护仅限明确批准的冻结版本。")

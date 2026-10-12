@@ -134,31 +134,8 @@ def validate_skeptic_report(
     _validate_common(value, run_id=run_id, manifest=manifest, agent="runtime_skeptic")
     if value.get("mode") != "INDEPENDENT_FIRST_PASS":
         raise ArtifactValidationError("CONTEXT_ISOLATION_VIOLATION")
-    assumption_ids: set[str] = set()
-    if version.endswith("2.1.0"):
-        for assumption in value["assumptions"]:
-            if (not isinstance(assumption, Mapping)
-                    or set(assumption) != {"assumption_id", "statement"}
-                    or not isinstance(assumption["assumption_id"], str)
-                    or not assumption["assumption_id"].strip()
-                    or not isinstance(assumption["statement"], str)
-                    or not assumption["statement"].strip()):
-                raise ArtifactValidationError("INVALID_ASSUMPTION")
-            if assumption["assumption_id"] in assumption_ids:
-                raise ArtifactValidationError("DUPLICATE_ASSUMPTION")
-            assumption_ids.add(assumption["assumption_id"])
-    for challenge in value["challenges"]:
-        if not isinstance(challenge, Mapping):
-            raise ArtifactValidationError("INVALID_CHALLENGE")
-        if not challenge.get("evidence_refs") and not challenge.get("assumption_ids"):
-            raise ArtifactValidationError("UNGROUNDED_CHALLENGE")
-        if version.endswith("2.1.0"):
-            references = challenge.get("assumption_ids", [])
-            if not isinstance(references, list) or any(
-                not isinstance(item, str) for item in references
-            ) or set(references) - assumption_ids:
-                raise ArtifactValidationError("UNKNOWN_ASSUMPTION")
-    return validate_evidence_closure(value, allowed_evidence_ids=manifest["evidence_ids"])
+    from product.tools.research_content import validate_skeptic_content
+    return validate_skeptic_content(value, allowed_evidence_ids=manifest["evidence_ids"], version=version)
 
 
 def validate_cio_draft(
@@ -190,27 +167,5 @@ def validate_cio_draft(
         raise ArtifactValidationError("SPECIALIST_REPORT_HASH_INVALID")
     if report_hashes is not None and consumed_hashes != dict(report_hashes):
         raise ArtifactValidationError("SPECIALIST_REPORT_HASH_MISMATCH")
-    for conflict in value.get("conflicts", []):
-        if not isinstance(conflict, Mapping):
-            raise ArtifactValidationError("CIO_CONFLICT_NOT_OBJECT")
-        _require_exact_keys(conflict, CIO_CONFLICT_REQUIRED, "CIOConflict")
-        if (
-            not isinstance(conflict.get("evidence_refs"), list)
-            or len(set(conflict["evidence_refs"])) < 2
-        ):
-            raise ArtifactValidationError("CIO_CONFLICT_REQUIRES_MULTIPLE_EVIDENCE")
-        if conflict.get("unresolved") is not True:
-            raise ArtifactValidationError("CIO_CONFLICT_MUST_RETAIN_UNRESOLVED_STATE")
-        for field in (
-            "conflict_key",
-            "summary",
-            "decision_impact",
-            "confidence_impact",
-        ):
-            if not isinstance(conflict.get(field), str) or not conflict[field].strip():
-                raise ArtifactValidationError(f"CIO_CONFLICT_FIELD_REQUIRED:{field}")
-    try:
-        validate_decision_action(value, load_decision_contract(PRODUCT_ROOT))
-    except DecisionContractError as exc:
-        raise ArtifactValidationError(str(exc)) from exc
-    return validate_evidence_closure(value, allowed_evidence_ids=manifest["evidence_ids"])
+    from product.tools.fixture_business import validate_cio_content
+    return validate_cio_content(value, allowed_evidence_ids=manifest["evidence_ids"])

@@ -77,7 +77,7 @@ def store_historical_submission_fixture(tools, task, draft):
 
 def read_historical_report_fixture(run, task, receipt, *, attempt=1):
     """历史回执及正式业务对象的只读检查，不生成 Hook/执行证明。"""
-    from product.runtime.codex_hook_recorder import _read_multidimensional_report_artifact
+    from product.runtime.multidimensional_stage import _read_multidimensional_report_artifact
     packet = submission._packet(run, task["invocation_id"])
     if packet["task"]["submission_version"] not in {
         submission.VERSION, submission.FORMAL_VERSION, submission.SHORT_RECEIPT_VERSION,
