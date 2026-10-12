@@ -21,3 +21,8 @@ config_file = "agents/dev_reviewer.toml"
 
 [sandbox_workspace_write]
 network_access = true
+
+[mcp_servers.stock_data]
+command = ".venv/bin/python"
+args = ["-m", "product.mcp.server"]
+startup_timeout_sec = 30

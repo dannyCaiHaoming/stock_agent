@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "stock-data": {
+      "command": ".venv/bin/python",
+      "args": ["-m", "product.mcp.server"]
+    }
+  }
+}
