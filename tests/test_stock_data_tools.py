@@ -35,6 +35,11 @@ FACTS = [
     fact("Revenues", "2025-01-01", "2025-09-30", "330", "2025-10-30T00:00:00Z", "a-q3"),
     fact("Revenues", "2024-10-01", "2024-12-31", "95", "2025-02-01T00:00:00Z", "a-10k-24", form="10-K"),
     fact("Assets", None, "2025-12-31", "900", "2026-02-01T00:00:00Z", "a-10k-25", form="10-K"),
+    # cash flow reported only as YTD in 10-Qs
+    fact("NetCashProvidedByUsedInOperatingActivities", "2025-01-01", "2025-03-31", "30", "2025-04-30T00:00:00Z", "a-q1"),
+    fact("NetCashProvidedByUsedInOperatingActivities", "2025-01-01", "2025-06-30", "70", "2025-07-30T00:00:00Z", "a-q2"),
+    fact("NetCashProvidedByUsedInOperatingActivities", "2025-01-01", "2025-09-30", "100", "2025-10-30T00:00:00Z", "a-q3"),
+    fact("NetCashProvidedByUsedInOperatingActivities", "2025-01-01", "2025-12-31", "150", "2026-02-01T00:00:00Z", "a-10k-25", form="10-K"),
 ]
 
 
@@ -58,6 +63,8 @@ class StatementTests(unittest.TestCase):
         self.assertEqual(result["lines"]["revenue"], ["100", "110", "120", "150"])
         self.assertEqual(result["derived_cells"][0]["period_end"], "2025-12-31")
         self.assertEqual(result["ttm"]["values"]["revenue"], "480")
+        self.assertEqual(result["lines"]["operating_cash_flow"], ["30", "40", "30", "50"])
+        self.assertEqual(result["ttm"]["values"]["operating_cash_flow"], "150")
 
     def test_as_of_excludes_later_publications(self):
         result = data_tools.get_financial_statements("AAA", period="annual", as_of="2025-12-31")

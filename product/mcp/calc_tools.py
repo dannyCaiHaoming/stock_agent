@@ -192,14 +192,17 @@ def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict[st
         points.append([day, close, format(eps, "f"),
                        format(round(Decimal(close) / eps, 2), "f") if eps > 0 else None])
     values = [Decimal(p[3]) for p in points if p[3] is not None]
-    current = values[-1] if values else None
+    # "current" is the latest month only; a loss-making latest fiscal year means P/E is not applicable.
+    current = Decimal(points[-1][3]) if points and points[-1][3] is not None else None
     return {
         "ticker": statements["ticker"], "columns": ["month", "close", "fy_diluted_eps", "trailing_pe"],
         "rows": points,
         "summary": None if not values else {
-            "current": format(current, "f"), "median": format(sorted(values)[len(values) // 2], "f"),
+            "current": format(current, "f") if current is not None else None,
+            "current_status": "AVAILABLE" if current is not None else "NOT_APPLICABLE_NON_POSITIVE_EPS",
+            "median": format(sorted(values)[len(values) // 2], "f"),
             "min": format(min(values), "f"), "max": format(max(values), "f"), "points": len(values),
-            "current_percentile_0_100": format(round(midrank_percentile(current, values[:-1]), 1), "f") if len(values) > 1 else None},
+            "current_percentile_0_100": format(round(midrank_percentile(current, values[:-1]), 1), "f") if current is not None and len(values) > 1 else None},
         "provenance": {"prices": prices["provenance"], "eps": statements["provenance"]},
         "limitations": ["EPS is fiscal-year diluted EPS (latest restated), not quarterly TTM and not as originally reported.",
                         "A 60-day filing lag is assumed between fiscal year end and EPS availability.",

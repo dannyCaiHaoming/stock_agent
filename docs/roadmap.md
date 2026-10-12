@@ -317,4 +317,10 @@
 
 ## 进度
 
-- 第 1 阶段 G1（宿主可行性探针）：Codex 已验证（2026-10-13）：通过 `.agents/skills` 符号链接可见 4 个 Skills；`.codex/config.toml` 的 `stock_data` server 被加载，带 `readOnlyHint` 的工具在 `codex exec` 中无需审批即可调用。Claude Code：`.claude/skills` 符号链接可见；`.mcp.json` 已被识别，但项目级 MCP 需用户在交互会话中批准一次，尚未实际调用验证。
+第 1 阶段（2026-10-13）：
+- G1 宿主探针：完成。两宿主都能通过符号链接看到 Skills；Codex 已实际调用 MCP 工具（带 `readOnlyHint` 的工具无需审批；`save_decision` 在 `.codex/config.toml` 中预先批准）。Claude Code 已识别 `.mcp.json`，项目级 MCP 需用户在交互会话中批准一次。
+- G2–G5 工具：完成。`product/mcp/{settings,data_tools,calc_tools,decision_log,server}.py`，共 15 个工具，已在 MSFT/JPM/ALB 实网验证。
+- G6 Skills：完成 6 份（`stock-research`、`research-standards`、`company-fundamentals`、`valuation`、`technical-structure`、`investment-decision`）。
+- G7 测试：`tests/test_stock_data_tools.py` 9 项离线测试通过。
+- G8 文档：完成。
+- G9 实跑验收：进行中。

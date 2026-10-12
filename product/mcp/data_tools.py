@@ -385,17 +385,24 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
                                          "values_by_filing": sorted({(c["published_at"][:10], c["value"]) for c in candidates})})
                     break
                 if (period == "quarterly" and name not in INSTANT_ITEMS and name not in NON_ADDITIVE):
-                    fy = [f for f in by_tag.get(tag, []) if f["unit"] == unit and f["period_end"] == end
-                          and f["context_type"] == "duration" and 350 <= (_days(f) or 0) <= 380]
-                    nine = [f for f in by_tag.get(tag, []) if f["unit"] == unit and fy
-                            and f["period_start"] == _latest(fy)["period_start"] and 260 <= (_days(f) or 0) <= 285
-                            and (date.fromisoformat(f["period_end"]) + timedelta(days=1)).isoformat() == start]
-                    if fy and nine:
-                        a, b = _latest(fy), _latest(nine)
+                    # 10-Q flows (especially cash flow) are often year-to-date: quarter = YTD(end) - YTD(start - 1 day).
+                    prior_end = (date.fromisoformat(start) - timedelta(days=1)).isoformat()
+                    longer = [f for f in by_tag.get(tag, []) if f["unit"] == unit and f["period_end"] == end
+                              and f["context_type"] == "duration" and f["period_start"] < start
+                              and (_days(f) or 0) <= 380]
+                    pair = None
+                    for a in sorted(longer, key=lambda f: f["period_start"], reverse=True):
+                        prior = [f for f in by_tag.get(tag, []) if f["unit"] == unit and f["period_end"] == prior_end
+                                 and f["period_start"] == a["period_start"] and f["context_type"] == "duration"]
+                        if prior:
+                            pair = (a, _latest(prior))
+                            break
+                    if pair:
+                        a, b = _latest([f for f in longer if f["period_start"] == pair[0]["period_start"]]), pair[1]
                         cell = format(Decimal(a["value"]) - Decimal(b["value"]), "f")
                         tags_used.setdefault(name, f"us-gaap:{tag}")
                         derived_cells.append({"line": name, "period_end": end,
-                                              "method": "fiscal year minus nine-month YTD",
+                                              "method": f"YTD to {end} minus YTD to {prior_end} (same fiscal start)",
                                               "inputs": [a["accession"], b["accession"]]})
                         break
             row.append(cell)

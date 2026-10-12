@@ -76,7 +76,7 @@ description: 把基本面、估值、技术面与反证综合为 BUY/ADD/HOLD/RE
 
 ## 保存
 
-把报告展示给用户后，调用 `save_decision` 保存：
+把报告展示给用户后，**必须**调用 `save_decision` 保存。这个 MCP 工具由 stock-data server 写入仓库外的私人数据目录，不受你当前沙箱或工作区只读限制的影响；不要因为沙箱是只读的就跳过。参数：
 
 - `key_evidence`：3–6 条最关键的证据，每条一句话并附来源；
 - `risks` 与 `invalidation`：对应报告中的相应章节；
