@@ -24,7 +24,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 7. **moomoo 第三方 Skills（必做，不可跳过）**（按 `research-standards` 的“第三方软件内容”规则处理）。下面四项每次研究都要执行；某项失败或 OpenD 未运行时，在“数据缺口”写明原因，不能不调用就略过：
    - `moomoo-news-search`：近期新闻（news_type=1）与公告（news_type=2），必要时研报（news_type=3）。用于事件地图与催化剂线索。
-   - `moomoo-comment-sentiment`：社区情绪快照（按该 Skill 说明调用 `stock_feed` 接口），只放入“第三方观点”。
+   - `moomoo-comment-sentiment`：社区情绪快照，**必须**按该 Skill 说明调用 `https://ai-news-search.moomoo.com/stock_feed` 接口（不能用新闻搜索结果代替），只放入“第三方观点”。
    - 异动类（需本机 OpenD，三个都要跑）：`moomoo-capital-anomaly`、`moomoo-derivatives-anomaly`、`moomoo-technical-anomaly`。代码用 `US.<TICKER>` 形式。**在仓库根目录用 `.venv/bin/python -I product/skills/<skill>/scripts/<script>.py US.<TICKER> --time-range 7 --json` 运行**（不要用系统 `python3`，依赖装在 `.venv`）。OpenD 未连接时记为数据缺口（`SOURCE_UNSUPPORTED`：OpenD 未运行），不重试。
    - 不使用 `moomoo-stock-digest` 替代自己的事件分析；如调用，其结论同样只作参考展示。
 

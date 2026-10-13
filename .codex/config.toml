@@ -21,6 +21,8 @@ config_file = "agents/dev_reviewer.toml"
 
 [sandbox_workspace_write]
 network_access = true
+# futu-api SDK 固定把日志写到 ~/.com.futunn.FutuOpenD/Log；moomoo 异动 Skills 需要这个可写目录。
+writable_roots = ["/Users/caihaoming/.com.futunn.FutuOpenD"]
 
 [mcp_servers.stock_data]
 command = ".venv/bin/python"
