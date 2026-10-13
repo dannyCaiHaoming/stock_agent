@@ -119,7 +119,8 @@ def _yahoo_get_once(url: str, params: dict, *, crumb: bool = False) -> bytes:
 
 
 def get_price_history(ticker: str, start: str | None = None, end: str | None = None,
-                      interval: str = "1d", as_of: str | None = None) -> dict[str, Any]:
+                      interval: str = "1d", as_of: str | None = None,
+                      max_rows: int = MAX_PRICE_ROWS) -> dict[str, Any]:
     ticker = _ticker(ticker)
     if interval not in ("1d", "1wk", "1mo"):
         raise DataToolError("INTERVAL_INVALID: use 1d, 1wk or 1mo")
@@ -153,7 +154,7 @@ def get_price_history(ticker: str, start: str | None = None, end: str | None = N
                      _num(adjclose[i]), _num(quote.get("volume", [None] * len(stamps))[i], 0)])
     if not rows:
         raise DataToolError("NO_PRICE_ROWS")
-    if len(rows) > MAX_PRICE_ROWS:
+    if len(rows) > max_rows:
         raise DataToolError(f"TOO_MANY_ROWS ({len(rows)}): narrow the range or use interval=1wk/1mo")
     incomplete = (interval == "1d" and as_of is None and rows[-1][0] == datetime.now(NEW_YORK).date().isoformat()
                   and datetime.now(NEW_YORK).time() < dtime(16, 0))

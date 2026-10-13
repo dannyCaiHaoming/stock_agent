@@ -4,6 +4,7 @@ description: 反方研究员，两种模式。“独立评估…”只接收代�
 model: inherit
 tools:
   - mcp__stock-data__financial_ratios
+  - mcp__stock-data__forward_returns
   - mcp__stock-data__get_analyst_snapshot
   - mcp__stock-data__get_filing_text
   - mcp__stock-data__get_financial_statements

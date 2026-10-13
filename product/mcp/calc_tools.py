@@ -208,3 +208,56 @@ def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict[st
                         "A 60-day filing lag is assumed between fiscal year end and EPS availability.",
                         "A historical percentile describes the past range only; it is not a valuation conclusion."],
     }
+
+
+def forward_returns(ticker: str, dates: list[str], horizons_days: list[int] | None = None,
+                    benchmark: str = "SPY", as_of: str | None = None) -> dict[str, Any]:
+    """Historical check: total return (adjusted close) after each date over N trading days, vs a benchmark.
+
+    Each date is moved to the first trading day on or after it. Horizons that end after the cutoff are null.
+    """
+    horizons = sorted({int(h) for h in (horizons_days or [63, 126, 252]) if 1 <= int(h) <= 1260})
+    days = sorted({date.fromisoformat(str(d)[:10]) for d in dates})[:40]
+    if not days or not horizons:
+        raise CalcToolError("DATES_AND_HORIZONS_REQUIRED")
+    start = (days[0] - timedelta(days=7)).isoformat()
+    series = {}
+    provenance = {}
+    for symbol in (ticker, benchmark):
+        prices = data_tools.get_price_history(symbol, start=start, interval="1d", as_of=as_of, max_rows=20000)
+        rows = _rows(prices)
+        series[symbol] = [(r["date"], Decimal(r["adjusted_close"] or r["close"])) for r in rows]
+        provenance[symbol] = prices["provenance"]
+    bench_index = {d: i for i, (d, _) in enumerate(series[benchmark])}
+    table, excess_by_h = [], {h: [] for h in horizons}
+    stock = series[ticker]
+    for day in days:
+        index = next((i for i, (d, _) in enumerate(stock) if d >= day.isoformat()), None)
+        if index is None:
+            continue
+        base_date, base = stock[index]
+        b_index = bench_index.get(base_date)
+        row = {"date": day.isoformat(), "base_date": base_date, "base_price": format(round(base, 4), "f")}
+        for h in horizons:
+            if index + h >= len(stock) or b_index is None or b_index + h >= len(series[benchmark]):
+                row[f"ret_{h}d_pct"] = row[f"excess_{h}d_pct"] = None
+                continue
+            ret = stock[index + h][1] / base - 1
+            bret = series[benchmark][b_index + h][1] / series[benchmark][b_index][1] - 1
+            row[f"ret_{h}d_pct"] = format(round(ret * 100, 2), "f")
+            row[f"excess_{h}d_pct"] = format(round((ret - bret) * 100, 2), "f")
+            excess_by_h[h].append(ret - bret)
+        table.append(row)
+    summary = {}
+    for h, values in excess_by_h.items():
+        if values:
+            ordered = sorted(values)
+            summary[f"{h}d"] = {"n": len(values),
+                                "median_excess_pct": format(round(ordered[len(ordered) // 2] * 100, 2), "f"),
+                                "hit_rate_excess_positive": format(round(Decimal(sum(v > 0 for v in values)) / len(values), 2), "f")}
+    return {"ticker": data_tools._ticker(ticker), "benchmark": data_tools._ticker(benchmark), "rows": table,
+            "summary": summary, "provenance": provenance,
+            "limitations": ["Small samples: a few historical instances are anecdotes, not statistics.",
+                            "Overlapping windows are not independent; regime and company changes limit comparability.",
+                            "Trading-day horizons: 63 ~ 3 months, 126 ~ 6 months, 252 ~ 1 year."]}
+

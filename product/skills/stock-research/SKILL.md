@@ -1,11 +1,11 @@
 ---
 name: stock-research
-description: 单只美股或 ETF 的端到端研究入口：用户说“研究/分析 TICKER”“该不该买/卖 TICKER”时使用。启动独立 skeptic 子 Agent，完成资料收集、基本面、估值、同业、宏观与市场、技术面，逐条处置反方挑战，最后给出 BUY/ADD/HOLD/REDUCE/EXIT/NO_TRADE 建议并保存决策记录。
+description: 单只美股或 ETF 的端到端研究入口：用户说“研究/分析 TICKER”“该不该买/卖 TICKER”时使用。并行启动独立的正向（advocate）与反向（skeptic）子 Agent，完成资料收集与各维度分析，由 CIO 逐条使用正反论点、按情景风险收益决策，经论证审查后给出 BUY/ADD/HOLD/REDUCE/EXIT/NO_TRADE 建议并保存决策记录。
 ---
 
 # 个股研究流程
 
-依赖 stock-data MCP 工具、`skeptic` 子 Agent，以及以下 Skills：`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`investment-decision`。
+依赖 stock-data MCP 工具、`advocate` 与 `skeptic` 子 Agent，以及以下 Skills：`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`investment-decision`。
 
 ## 0. 确认输入（不要过度提问）
 
@@ -13,13 +13,14 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 - `as_of`：默认现在。用户要求“以某日为准”时，对所有支持 `as_of` 的工具都传入同一个日期。`get_analyst_snapshot` 只有当前快照，不能用于过去的日期。
 - ETF 没有 SEC 财报：跳过基本面那一步，改为说明 ETF 的跟踪对象、费率和持仓特征（资料不足时如实说明），然后做技术面与估值背景。
 
-## 1. 启动独立反方研究（第一步就做）
+## 1. 启动独立的正向与反向研究（第一步就做，两个并行）
 
-调用 `skeptic` 子 Agent（Claude Code：用 Agent/Task 工具，`subagent_type` 设为 `skeptic`；Codex：派生 `skeptic` agent）。**只能**传入下面这段话，不要附带你的任何发现、结论、Thesis 或报告内容：
+同时调用两个子 Agent（Claude Code：Agent/Task 工具，`subagent_type` 分别为 `advocate` 和 `skeptic`，在后台运行；Codex：分别派生 `advocate` 与 `skeptic` agent）。**只能**传入下面的话，不要附带你的任何发现或结论：
 
-> 独立评估投资 {TICKER} 的主要风险与反方证据。数据截至：{as_of 或“当前”}。按 skeptic-review Skill 输出挑战清单。
+> advocate：正向评估投资 {TICKER} 的看多亮点，并做历史验证。数据截至：{as_of 或“当前”}。按 bull-case Skill 输出。
+> skeptic：独立评估投资 {TICKER} 的主要风险与反方证据。数据截至：{as_of 或“当前”}。按 skeptic-review Skill 输出挑战清单。
 
-子 Agent 自行取数，与主研究互不可见。**在第 4 步写下初步判断之前，不要读取它的结果**（Codex 不要提前 wait；Claude Code 让它在后台运行）。子 Agent 失败或超时，要在“数据缺口”写明，并改为自己做反方自检（标注“非独立”）。
+两个子 Agent 自行取数，与主研究互不可见。**在第 4 步写下初步判断之前，不要读取它们的结果**（Codex 不要提前 wait）。任何一个失败或超时，都要在“数据缺口”写明，并由你自己补做该方向的分析（标注“非独立”）。
 
 ## 2. 资料收集（建议顺序，可以并行调用）
 
@@ -47,22 +48,22 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 ## 4. 初步判断
 
-按 `investment-decision` 第 1 步，写下初步动作、信心、3–5 条核心论据（带关键数字）和估值逻辑。这一步完成后，才读取第 1 步 skeptic 的独立首轮结果。
+按 `investment-decision` 第 1 步，写下初步动作、信心和 3–5 条核心论据（带关键数字）。完成后才读取两个子 Agent 的结果。
 
-## 5. 论证审查
+## 5. CIO 综合
 
-再调用一次 `skeptic` 子 Agent（新的调用），任务以“论证审查”开头，**只**附上第 4 步的初步判断，不附带完整报告：
+应用 `investment-decision`：把正向亮点、反向风险和你的补充填进同一张表，逐条写出事实核实、历史验证、是否已被定价和 CIO 用法；做三个情景的风险收益计算；得出最终判断。
 
-> 论证审查：{TICKER}，数据截至 {as_of}。以下是主研究的初步判断，请按 skeptic-review 模式 B 审查。
-> 初步动作与信心：…
-> 核心论据：1. … 2. …
-> 估值逻辑：…
+## 6. 论证审查
 
-它会检查：证据是否充分、推理是否跳步、数字是否支撑结论（例如增长率与倍数是否相称）、看多与看空的理由是否已经反映在价格中。失败或超时就在“数据缺口”写明，并自己按同样的问题清单自检。
+再调用一次 `skeptic`（新的调用），任务以“论证审查”开头，附上最终判断和正反论点用法的摘要（不附完整报告）：
 
-## 6. 决策与报告
+> 论证审查：{TICKER}，数据截至 {as_of}。以下是 CIO 的最终判断，请按 skeptic-review 模式 B 双向审查。
+> 最终动作与信心：…（初步判断：…）
+> 决定性论点：…；支持：…；驳回或仅观察：…（各附理由）
+> 情景与风险收益：保守 … / 中性 … / 乐观 …（相对现价 …）
 
-应用 `investment-decision`：把独立首轮、论证审查和自检的每一条，分“事实核实”和“对结论的影响”两栏处置；完成看多检验；从初步判断得出最终判断；按模板写出完整报告。
+逐条回应审查意见：接受就修正，不接受就说明理由；动作因此改变时写明原因，然后按模板写出完整报告。审查失败或超时，就在“数据缺口”写明，并自己按模式 B 的问题清单自检。
 
 ## 7. 交付
 
@@ -71,4 +72,4 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 ## 预算
 
-目标在 25 分钟内完成（含两次 skeptic 调用），主研究工具调用大约 25–40 次。资料够用就停止，不为求全而无限追加调用。时间或预算不够时，优先保证核心问题、估值和挑战处置，其余写入“数据缺口与限制”。
+目标在 25 分钟内完成（含 advocate、skeptic 与论证审查三次子 Agent 调用），主研究工具调用大约 25–40 次。资料够用就停止，不为求全而无限追加调用。时间或预算不够时，优先保证核心问题、估值和挑战处置，其余写入“数据缺口与限制”。

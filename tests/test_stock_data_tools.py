@@ -130,6 +130,22 @@ class ContextToolTests(unittest.TestCase):
         self.assertIsNone(context_tools._returns(closes, 20))
 
 
+class ForwardReturnTests(unittest.TestCase):
+    def test_forward_and_excess_returns(self):
+        def prices(symbol, start=None, interval="1d", as_of=None, max_rows=None):
+            closes = [100, 110, 121] if symbol == "AAA" else [100, 100, 105]
+            rows = [[f"2025-01-0{i + 2}", None, None, None, str(c), str(c), "1"] for i, c in enumerate(closes)]
+            return {"columns": ["date", "open", "high", "low", "close", "adj_close", "volume"], "rows": rows,
+                    "provenance": {"source_id": f"yahoo-chart:{symbol}"}}
+        with mock.patch.object(calc_tools.data_tools, "get_price_history", side_effect=prices):
+            result = calc_tools.forward_returns("AAA", ["2025-01-01"], [1, 2, 5])
+        row = result["rows"][0]
+        self.assertEqual(row["base_date"], "2025-01-02")
+        self.assertEqual((row["ret_1d_pct"], row["excess_1d_pct"]), ("10.00", "10.00"))
+        self.assertEqual((row["ret_2d_pct"], row["excess_2d_pct"]), ("21.00", "16.00"))
+        self.assertIsNone(row["ret_5d_pct"])
+
+
 class CutoffAndRetryTests(unittest.TestCase):
     def test_today_as_of_means_now_but_future_is_rejected(self):
         today = datetime.now(ZoneInfo("America/New_York")).date()

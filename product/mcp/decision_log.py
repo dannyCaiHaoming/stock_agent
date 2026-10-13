@@ -19,8 +19,8 @@ from product.mcp.provenance import iso_utc
 
 ACTIONS = ("BUY", "ADD", "HOLD", "REDUCE", "EXIT", "NO_TRADE")
 # Report sections required by the investment-decision template (heading prefixes, "## " level).
-REQUIRED_SECTIONS = ("结论", "核心问题与判断", "估值", "同业比较", "宏观与市场背景", "技术面", "反方论点与处置", "看多论点与处置",
-                     "第三方观点", "数据缺口与限制", "来源")
+REQUIRED_SECTIONS = ("结论", "核心问题与判断", "估值", "同业比较", "宏观与市场背景", "技术面", "正向与反向论点",
+                     "情景与风险收益", "论证审查", "第三方观点", "数据缺口与限制", "来源")
 CONFIDENCE = ("low", "medium", "high")
 
 

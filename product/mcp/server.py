@@ -167,6 +167,16 @@ def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+def forward_returns(ticker: str, dates: list[str], horizons_days: list[int] | None = None,
+                    benchmark: str = "SPY", as_of: str | None = None) -> dict:
+    """Historical validation: what happened after given dates (e.g. past instances of a similar setup)?
+    Returns total and excess return vs benchmark over N trading days (default 63/126/252) per date,
+    with median excess and hit rate. Use to test whether a signal was reliable in the past."""
+    return calc_tools.forward_returns(ticker, dates, horizons_days=horizons_days, benchmark=benchmark, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
 def valuation_multiples(price: str, shares_outstanding: str, valuation_date: str, financial_period: str,
                         evidence_refs: list[str], ttm_eps: str | None = None, ttm_revenue: str | None = None,
                         common_equity: str | None = None, ttm_operating_cash_flow: str | None = None,

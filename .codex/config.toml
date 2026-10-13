@@ -23,6 +23,10 @@ config_file = "agents/dev_reviewer.toml"
 description = "独立反方研究员（产品研究流程使用）：只接收股票代码、截止时点与中性问题。"
 config_file = "agents/skeptic.toml"
 
+[agents.advocate]
+description = "正向研究员（产品研究流程使用）：只接收股票代码、截止时点与中性问题，找亮点并做历史验证。"
+config_file = "agents/advocate.toml"
+
 [sandbox_workspace_write]
 network_access = true
 # futu-api SDK 固定把日志写到 ~/.com.futunn.FutuOpenD/Log；moomoo 异动 Skills 需要这个可写目录。
