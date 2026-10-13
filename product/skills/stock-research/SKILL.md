@@ -22,6 +22,12 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 5. `list_filings`：近期 10-K、10-Q、8-K。
 6. `get_filing_text`：最新 10-Q 的 `management_discussion`；不熟悉的公司加读 10-K 的 `business`；与核心问题相关时读 `risk_factors`。只读需要的部分，用 `next_offset` 分页。若某章节只返回目录或交叉引用（银行等发行人常见），改用 `section="full_text"` 并传 `query`（例如“net interest income”“Results of Operations”）直接定位内容；不要把“这次没读到正文”写成资料不存在。
 
+7. **moomoo 第三方 Skills**（按 `research-standards` 的“第三方软件内容”规则处理）：
+   - `moomoo-news-search`：近期新闻（news_type=1）与公告（news_type=2），必要时研报（news_type=3）。用于事件地图与催化剂线索。
+   - `moomoo-comment-sentiment`：社区情绪快照，只放入“第三方观点”。
+   - 异动类（需本机 OpenD）：`moomoo-capital-anomaly`、`moomoo-derivatives-anomaly`、`moomoo-technical-anomaly`。代码用 `US.<TICKER>` 形式。**在仓库根目录用 `.venv/bin/python -I product/skills/<skill>/scripts/<script>.py US.<TICKER> --time-range 7 --json` 运行**（不要用系统 `python3`，依赖装在 `.venv`）。OpenD 未连接时记为数据缺口（`SOURCE_UNSUPPORTED`：OpenD 未运行），不重试。
+   - 不使用 `moomoo-stock-digest` 替代自己的事件分析；如调用，其结论同样只作参考展示。
+
 工具报错时，看错误代码后用正确参数重试一次；仍失败就记为数据缺口，不要反复重试。
 
 ## 2. 分析

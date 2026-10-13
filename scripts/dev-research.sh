@@ -47,10 +47,12 @@ PY
   claude -p "$prompt" --model "$model" \
     --mcp-config "$run_dir/mcp.json" --strict-mcp-config \
     --allowedTools "Skill" "Read" "Glob" "Grep" "mcp__stock-data__*" \
+      "Bash(curl:*)" "Bash(.venv/bin/python -I product/skills/moomoo-:*)" \
     --output-format stream-json --verbose \
     > "$run_dir/transcript.jsonl" 2> "$run_dir/stderr.log" || status=$?
 else
-  codex exec --skip-git-repo-check -s read-only -m "$model" \
+  # workspace-write + [sandbox_workspace_write] network_access=true：允许 moomoo 公开 HTTP 与本机 OpenD 连接。
+  codex exec --skip-git-repo-check -s workspace-write -m "$model" \
     -c "mcp_servers.stock_data.env.STOCK_AGENT_DATA_DIR=\"$run_dir\"" \
     "$prompt" < /dev/null > "$run_dir/transcript.log" 2>&1 || status=$?
 fi
