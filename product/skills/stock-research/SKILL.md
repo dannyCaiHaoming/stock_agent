@@ -15,7 +15,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 ## 1. 启动独立的正向与反向研究（第一步就做，两个并行）
 
-同时调用两个子 Agent（Claude Code：Agent/Task 工具，`subagent_type` 分别为 `advocate` 和 `skeptic`，在后台运行；Codex：分别派生 `advocate` 与 `skeptic` agent）。**只能**传入下面的话，不要附带你的任何发现或结论：
+同时调用两个子 Agent（Claude Code：Agent/Task 工具，`subagent_type` 分别为 `advocate` 和 `skeptic`，在后台运行；Codex：用 `spawn_agent` 分别派生 `advocate` 与 `skeptic`，**`fork_turns` 必须设为 `"none"`**，否则子 Agent 会继承本对话，破坏独立性）。**只能**传入下面的话，不要附带你的任何发现或结论：
 
 > advocate：正向评估投资 {TICKER} 的看多亮点，并做历史验证。数据截至：{as_of 或“当前”}。按 bull-case Skill 输出。
 > skeptic：独立评估投资 {TICKER} 的主要风险与反方证据。数据截至：{as_of 或“当前”}。按 skeptic-review Skill 输出挑战清单。
@@ -56,7 +56,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 ## 6. 论证审查
 
-再调用一次 `skeptic`（新的调用），任务以“论证审查”开头，附上最终判断和正反论点用法的摘要（不附完整报告）：
+把论证审查任务发给第 1 步的 `skeptic`（Codex 用 `followup_task`；Claude Code 新开一次 `skeptic` 调用；任何新派生同样用 `fork_turns="none"`），任务以“论证审查”开头，附上最终判断和正反论点用法的摘要（不附完整报告）：
 
 > 论证审查：{TICKER}，数据截至 {as_of}。以下是 CIO 的最终判断，请按 skeptic-review 模式 B 双向审查。
 > 最终动作与信心：…（初步判断：…）
