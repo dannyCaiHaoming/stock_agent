@@ -324,4 +324,6 @@
 - G7 测试：`tests/test_stock_data_tools.py` 9 项离线测试通过。
 - G8 文档：完成。
 - G9 实跑验收（Codex，gpt-6-luna，2026-10-12）：MSFT、ALB、JPM 均完成并保存决策记录（单股 2–6 分钟，12–25 次工具调用）。实跑中发现并修复：虚报计算来源、只读沙箱下跳过保存、PE 当前值回退到旧值、季度现金流 YTD 未差分。观察到同一股票两次运行结论不同（MSFT 首跑 BUY、修复后重跑 NO_TRADE），决策稳定性列入第 4 阶段评估。Claude Code 三个样本待运行（项目 MCP 需批准一次，或登录 `claude` CLI 后用脚本运行）。
+- G9 实跑验收（Claude Code，claude-haiku-5-5，CLI 2.1.296，2026-10-13）：MSFT、ALB、JPM 均完成并保存决策（单股 2–3 分钟，约 $0.03–0.13）。实跑中发现并修复：MCP SDK 隐藏非 ToolError 异常原因（模型无法自我纠正）、`save_decision` 参数格式过松、银行 10-Q 的 MD&A 不在标准 Item 中（新增 `query` 定位，并去除 XBRL 头）。修复后重跑 MSFT/JPM 无未处理错误。
+- 6 份报告（两宿主各 3 份）的路径见 `.local/runs/`，待用户人工评分。观察：多数结论为 NO_TRADE；同一股票在不同运行间动作不同（MSFT 出现过 BUY），决策稳定性留给第 4 阶段评估。
 - 2026-10-13：调试运行统一用 `scripts/dev-research.sh`（Claude Code 默认 `claude-haiku-5-5`、Codex 默认 `gpt-6-luna`，可选择），产物统一放入 `.local/`；此前散落在 `/tmp` 与 `~/StockAgentData` 的验收产物已迁移到 `.local/runs/20261012T163400Z-codex-phase1-acceptance/`。
