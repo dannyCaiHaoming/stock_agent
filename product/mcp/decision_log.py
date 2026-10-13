@@ -6,7 +6,8 @@ Records go to <STOCK_AGENT_DATA_DIR>/decisions.jsonl (default <repo>/.local/data
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal, InvalidOperation
 import hashlib
 import json
 import os
@@ -48,13 +49,26 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         raise DecisionLogError("NO_TRADE_REASON_REQUIRED")
     if action != "NO_TRADE" and price_at_decision is None:
         raise DecisionLogError("PRICE_AT_DECISION_REQUIRED")
+    if not isinstance(data_as_of, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", data_as_of.strip()[:10]) \
+            or len(data_as_of.strip()) not in (10, 20, 25):
+        raise DecisionLogError("DATA_AS_OF_INVALID: use the data cutoff date as YYYY-MM-DD, e.g. '2026-10-12'")
+    data_as_of = data_as_of.strip()
+    date.fromisoformat(data_as_of[:10])
+    if price_at_decision is not None:
+        try:
+            price = Decimal(str(price_at_decision).strip())
+        except InvalidOperation:
+            raise DecisionLogError("PRICE_AT_DECISION_INVALID: plain number only, e.g. '541.15'") from None
+        if not price.is_finite() or price <= 0:
+            raise DecisionLogError("PRICE_AT_DECISION_INVALID: must be a positive number")
+        price_at_decision = format(price, "f")
     for name, value in (("horizon", horizon), ("thesis", thesis), ("report_markdown", report_markdown)):
         if not isinstance(value, str) or not value.strip():
             raise DecisionLogError(f"{name.upper()}_REQUIRED")
     decided_at = iso_utc(datetime.now(UTC))
     record = {
         "schema": "decision-record/1",
-        "ticker": ticker, "decided_at": decided_at, "data_as_of": iso_utc(data_as_of) if "T" in data_as_of else data_as_of,
+        "ticker": ticker, "decided_at": decided_at, "data_as_of": data_as_of[:10],
         "action": action, "confidence": confidence, "horizon": horizon.strip(),
         "price_at_decision": price_at_decision, "thesis": thesis.strip(),
         "key_evidence": _text_list("key_evidence", key_evidence),

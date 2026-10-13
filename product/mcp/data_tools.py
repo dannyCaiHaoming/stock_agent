@@ -494,9 +494,34 @@ def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
 SECTIONS = ("business", "risk_factors", "management_discussion", "full_text")
 
 
+class _BodyText(_Text):
+    """Filing text without the inline-XBRL header block (thousands of hidden tagged facts)."""
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "ix:header":
+            self.hidden.append(tag)
+        else:
+            super().handle_starttag(tag, attrs)
+
+
+def _excerpts(text: str, query: str, *, window: int, limit: int) -> list[dict]:
+    hits, lowered, needle, position = [], text.lower(), query.lower(), 0
+    while len(hits) < limit:
+        index = lowered.find(needle, position)
+        if index < 0:
+            break
+        start, end = max(0, index - window), min(len(text), index + len(query) + window)
+        if hits and start <= hits[-1]["end"]:
+            hits[-1]["end"] = end
+        else:
+            hits.append({"start": start, "end": end})
+        position = index + len(needle)
+    return [{"offset": h["start"], "text": text[h["start"]:h["end"]]} for h in hits]
+
+
 def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K",
                     section: str = "management_discussion", offset: int = 0, max_chars: int = 12000,
-                    as_of: str | None = None) -> dict[str, Any]:
+                    query: str | None = None, as_of: str | None = None) -> dict[str, Any]:
     if section not in SECTIONS:
         raise DataToolError(f"SECTION_INVALID: one of {SECTIONS}")
     max_chars = max(1000, min(int(max_chars), 30000))
@@ -526,7 +551,7 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
         encoding = "windows-1252"
     if section == "full_text":
         source = raw.decode(encoding)
-        parser = _Text(source)
+        parser = _BodyText(source)
         parser.feed(source)
         parser.close()
         text = re.sub(r"\s+", " ", "".join(parser.parts)).strip()
@@ -538,13 +563,23 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
         if not pieces:
             raise DataToolError(f"SECTION_NOT_FOUND: {section} (try section=full_text)")
         text = re.sub(r"\s+", " ", max(pieces, key=lambda p: len(p["text"]))["text"]).strip()
-    chunk = text[offset:offset + max_chars]
-    next_offset = offset + len(chunk) if offset + len(chunk) < len(text) else None
+    if query:
+        if len(query.strip()) < 3:
+            raise DataToolError("QUERY_TOO_SHORT")
+        found = _excerpts(text, query.strip(), window=max(300, max_chars // 16), limit=8)
+        body = {"query": query, "matches": found,
+                "note": None if found else "No match; try another phrase or section=full_text"}
+    else:
+        chunk = text[offset:offset + max_chars]
+        body = {"offset": offset, "next_offset": offset + len(chunk) if offset + len(chunk) < len(text) else None,
+                "text": chunk}
+        if section != "full_text" and len(text) < 2000:
+            body["note"] = ("Section looks like a table of contents or cross-reference only; "
+                            "use section=full_text with query=<heading or metric> to locate the content.")
     return {
         "ticker": identity["ticker"], "accession": filing["accession"], "form": filing["form"],
-        "report_date": filing["report_date"], "section": section,
-        "total_chars": len(text), "offset": offset, "next_offset": next_offset,
-        "text": chunk, "sections_missing_in_document": missing,
+        "report_date": filing["report_date"], "section": section, "total_chars": len(text),
+        **body, "sections_missing_in_document": missing,
         "provenance": {"source_id": document["source_id"], "source_locator": document["source_locator"],
                        "as_of": document["published_at"], "published_at": document["published_at"],
                        "retrieved_at": document["retrieved_at"], "raw_content_hash": document["raw_content_hash"],

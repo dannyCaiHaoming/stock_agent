@@ -20,7 +20,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 3. `technical_stats`：相对 SPY。
 4. `pe_history`：只适用于盈利公司。
 5. `list_filings`：近期 10-K、10-Q、8-K。
-6. `get_filing_text`：最新 10-Q 的 `management_discussion`；不熟悉的公司加读 10-K 的 `business`；与核心问题相关时读 `risk_factors`。只读需要的部分，用 `next_offset` 分页。
+6. `get_filing_text`：最新 10-Q 的 `management_discussion`；不熟悉的公司加读 10-K 的 `business`；与核心问题相关时读 `risk_factors`。只读需要的部分，用 `next_offset` 分页。若某章节只返回目录或交叉引用（银行等发行人常见），改用 `section="full_text"` 并传 `query`（例如“net interest income”“Results of Operations”）直接定位内容；不要把“这次没读到正文”写成资料不存在。
 
 工具报错时，看错误代码后用正确参数重试一次；仍失败就记为数据缺口，不要反复重试。
 

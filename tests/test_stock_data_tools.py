@@ -110,6 +110,15 @@ class CalcTests(unittest.TestCase):
         self.assertEqual(metrics["enterprise_value"]["status"], "INPUT_MISSING")
 
 
+class ServerErrorTests(unittest.TestCase):
+    def test_tool_errors_reach_the_model(self):
+        from mcp.server.mcpserver.exceptions import ToolError
+        from product.mcp import server
+        with self.assertRaises(ToolError) as caught:
+            server.percent_change("1", "2", "a", "b", "USD", [])
+        self.assertIn("EVIDENCE_REFS_REQUIRED", str(caught.exception))
+
+
 class DecisionLogTests(unittest.TestCase):
     def save(self, **overrides):
         args = dict(ticker="AAA", action="HOLD", confidence="medium", horizon="12 months", thesis="t",
@@ -132,7 +141,8 @@ class DecisionLogTests(unittest.TestCase):
     def test_rejects_invalid_records(self):
         for overrides in ({"action": "SELL"}, {"confidence": "0.8"}, {"risks": []},
                           {"action": "NO_TRADE", "price_at_decision": None},
-                          {"price_at_decision": None}):
+                          {"price_at_decision": None}, {"price_at_decision": "541.15（收盘）"},
+                          {"data_as_of": "2026-10-12（价格）；财务截至 FY2026"}):
             with self.subTest(overrides=overrides), self.assertRaises(decision_log.DecisionLogError):
                 self.save(**overrides)
 

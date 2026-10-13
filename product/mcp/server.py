@@ -8,8 +8,10 @@ SEC_USER_AGENT ("app contact@email").
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import functools
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
 from product.mcp import calc_tools, data_tools, decision_log
@@ -23,17 +25,32 @@ server = MCPServer(
     ),
 )
 
+def explain_errors(fn):
+    """Surface the real failure reason to the model (the SDK masks non-ToolError exceptions)."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except ToolError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - every failure must be explained to the caller
+            raise ToolError(f"{type(exc).__name__}: {exc}") from exc
+    return wrapper
+
+
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
 LOCAL_WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def ping() -> dict[str, str]:
     """Health check: confirms the stock-data server is reachable."""
     return {"status": "ok", "server": "stock-data", "time": datetime.now(UTC).isoformat()}
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def get_price_history(ticker: str, start: str | None = None, end: str | None = None,
                       interval: str = "1d", as_of: str | None = None) -> dict:
     """Daily/weekly/monthly OHLCV, adjusted close, dividends and splits (Yahoo).
@@ -42,6 +59,7 @@ def get_price_history(ticker: str, start: str | None = None, end: str | None = N
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def get_analyst_snapshot(ticker: str) -> dict:
     """Current company profile, key statistics, analyst consensus (targets, ratings), EPS/revenue
     estimates with 7-90 day estimate trend and revisions, and next earnings date (Yahoo, current-only)."""
@@ -49,6 +67,7 @@ def get_analyst_snapshot(ticker: str) -> dict:
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5,
                              as_of: str | None = None) -> dict:
     """Standardized income statement, cash flow and balance sheet lines from SEC XBRL (as reported).
@@ -58,6 +77,7 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def get_sec_concept(ticker: str, tag: str, taxonomy: str = "us-gaap", limit: int = 12,
                     as_of: str | None = None) -> dict:
     """All periods of one XBRL concept (e.g. tag='OperatingLeaseLiability'), latest version per period,
@@ -66,6 +86,7 @@ def get_sec_concept(ticker: str, tag: str, taxonomy: str = "us-gaap", limit: int
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
                  as_of: str | None = None) -> dict:
     """Recent SEC filings (accession, form, report date, acceptance time). forms e.g. ['10-K','10-Q','8-K']."""
@@ -73,16 +94,20 @@ def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K",
                     section: str = "management_discussion", offset: int = 0, max_chars: int = 12000,
-                    as_of: str | None = None) -> dict:
+                    query: str | None = None, as_of: str | None = None) -> dict:
     """Text of a 10-K/10-Q/8-K. section: business | risk_factors | management_discussion | full_text.
-    Without accession, uses the latest filing of `form`. Page with offset/next_offset."""
+    Without accession, uses the latest filing of `form`. Page with offset/next_offset, or pass
+    `query` (e.g. 'net interest income') to get excerpts around matches. Some issuers (e.g. banks)
+    put MD&A outside standard Items: then use section=full_text with a query."""
     return data_tools.get_filing_text(ticker, accession=accession, form=form, section=section,
-                                      offset=offset, max_chars=max_chars, as_of=as_of)
+                                      offset=offset, max_chars=max_chars, query=query, as_of=as_of)
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def technical_stats(ticker: str, benchmark: str = "SPY", as_of: str | None = None) -> dict:
     """20/60/252-session total and relative return, annualized volatility, max drawdown, volume ratio,
     window high/low, and 50/200-day moving averages, versus a benchmark ETF."""
@@ -90,12 +115,14 @@ def technical_stats(ticker: str, benchmark: str = "SPY", as_of: str | None = Non
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict:
     """Monthly trailing P/E from fiscal-year diluted EPS with min/median/max and current percentile."""
     return calc_tools.pe_history(ticker, years=years, as_of=as_of)
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def valuation_multiples(price: str, shares_outstanding: str, valuation_date: str, financial_period: str,
                         evidence_refs: list[str], ttm_eps: str | None = None, ttm_revenue: str | None = None,
                         common_equity: str | None = None, ttm_operating_cash_flow: str | None = None,
@@ -115,6 +142,7 @@ def valuation_multiples(price: str, shares_outstanding: str, valuation_date: str
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def financial_ratios(ttm_net_income: str, ending_equity: str, ending_assets: str, current_assets: str,
                      current_liabilities: str, cash_and_equivalents: str, marketable_securities: str,
                      net_receivables: str, restricted_cash: str, interest_bearing_debt: str, ttm_ebit: str,
@@ -131,6 +159,7 @@ def financial_ratios(ttm_net_income: str, ending_equity: str, ending_assets: str
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def percent_change(earlier_value: str, later_value: str, earlier_period: str, later_period: str, unit: str,
                    evidence_refs: list[str]) -> dict:
     """Absolute and percentage change between two comparable periods (same unit)."""
@@ -138,6 +167,7 @@ def percent_change(earlier_value: str, later_value: str, earlier_period: str, la
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def ratio(numerator: str, denominator: str, numerator_period: str, denominator_period: str,
           numerator_unit: str, denominator_unit: str, evidence_refs: list[str]) -> dict:
     """numerator / denominator; rejects mismatched periods or units."""
@@ -146,6 +176,7 @@ def ratio(numerator: str, denominator: str, numerator_period: str, denominator_p
 
 
 @server.tool(annotations=READ_ONLY)
+@explain_errors
 def scenario_value(revenue: str, operating_margin: str, valuation_multiple: str, net_cash: str, shares: str,
                    period: str, assumptions: list[str], evidence_refs: list[str]) -> dict:
     """Per-share value for one explicit scenario: ((revenue x operating margin) x EV/EBIT multiple
@@ -155,12 +186,15 @@ def scenario_value(revenue: str, operating_margin: str, valuation_multiple: str,
 
 
 @server.tool(annotations=LOCAL_WRITE)
+@explain_errors
 def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesis: str,
                   key_evidence: list[str], risks: list[str], invalidation: list[str], data_as_of: str,
                   report_markdown: str, price_at_decision: str | None = None,
                   no_trade_reason: str | None = None, host: str | None = None, model: str | None = None) -> dict:
     """Persist the final decision and full report to the private decision log (append-only).
-    action: BUY|ADD|HOLD|REDUCE|EXIT|NO_TRADE; confidence: low|medium|high."""
+    action: BUY|ADD|HOLD|REDUCE|EXIT|NO_TRADE; confidence: low|medium|high.
+    price_at_decision: plain number only, e.g. "541.15" (required unless NO_TRADE).
+    data_as_of: date of the data used, YYYY-MM-DD (put source details in the report, not here)."""
     return decision_log.save_decision(
         ticker, action, confidence, horizon, thesis, key_evidence, risks, invalidation, data_as_of,
         report_markdown, price_at_decision=price_at_decision, no_trade_reason=no_trade_reason,
