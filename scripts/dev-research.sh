@@ -10,6 +10,9 @@
 # 原始响应缓存共用 .local/cache/。
 set -euo pipefail
 
+# 整个流程放在函数里：bash 先读完整个文件再执行，运行中修改脚本不会破坏正在进行的运行。
+main() {
+
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 usage() { sed -n '2,10p' "$0"; exit 2; }
 [ $# -ge 2 ] || usage
@@ -52,7 +55,9 @@ PY
     > "$run_dir/transcript.jsonl" 2> "$run_dir/stderr.log" || status=$?
 else
   # workspace-write + [sandbox_workspace_write] network_access=true：允许 moomoo 公开 HTTP 与本机 OpenD 连接。
+  # 调试运行不读取、也不生成 Codex 全局记忆（~/.codex/memories 含旧项目规则）。
   codex exec --skip-git-repo-check -s workspace-write -m "$model" \
+    -c memories.use_memories=false -c memories.generate_memories=false \
     -c "mcp_servers.stock_data.env.STOCK_AGENT_DATA_DIR=\"$run_dir\"" \
     "$prompt" < /dev/null > "$run_dir/transcript.log" 2>&1 || status=$?
 fi
@@ -88,3 +93,6 @@ json.dump(record, open(f"{run_dir}/run.json", "w"), ensure_ascii=False, indent=2
 print(json.dumps(record, ensure_ascii=False, indent=2))
 PY
 exit "$status"
+}
+
+main "$@"
