@@ -123,8 +123,8 @@ class ContextToolTests(unittest.TestCase):
     def test_yoy_and_window_returns(self):
         from decimal import Decimal
         from product.mcp import context_tools
-        points = [(2025, m, Decimal(100 + m)) for m in range(1, 13)] + [(2026, 1, Decimal("104.04"))]
-        self.assertEqual(context_tools._yoy_rows(points, months=1), [["2026-01", "104.04", "3.00"]])
+        points = [(2025, m, Decimal(100 + m)) for m in range(1, 13)] + [(2026, 1, Decimal("104.03"))]
+        self.assertEqual(context_tools._yoy_rows(points, months=1), [["2026-01", "104.03", "3.00"]])
         closes = [(f"d{i}", Decimal(v)) for i, v in enumerate([100, 101, 102, 103, 104, 110])]
         self.assertEqual(context_tools._returns(closes, 5), "10.00")
         self.assertIsNone(context_tools._returns(closes, 20))
