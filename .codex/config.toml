@@ -19,6 +19,10 @@ config_file = "agents/dev_eval.toml"
 description = "按日常差异、Change 验收或候选晋升目的开展只读复核。"
 config_file = "agents/dev_reviewer.toml"
 
+[agents.skeptic]
+description = "独立反方研究员（产品研究流程使用）：只接收股票代码、截止时点与中性问题。"
+config_file = "agents/skeptic.toml"
+
 [sandbox_workspace_write]
 network_access = true
 # futu-api SDK 固定把日志写到 ~/.com.futunn.FutuOpenD/Log；moomoo 异动 Skills 需要这个可写目录。

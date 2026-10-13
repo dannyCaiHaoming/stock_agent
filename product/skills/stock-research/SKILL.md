@@ -1,11 +1,11 @@
 ---
 name: stock-research
-description: 单只美股或 ETF 的端到端研究入口：用户说“研究/分析 TICKER”“该不该买/卖 TICKER”时使用。依次完成资料收集、基本面、估值、技术面、反方自检，最后给出 BUY/ADD/HOLD/REDUCE/EXIT/NO_TRADE 建议并保存决策记录。
+description: 单只美股或 ETF 的端到端研究入口：用户说“研究/分析 TICKER”“该不该买/卖 TICKER”时使用。启动独立 skeptic 子 Agent，完成资料收集、基本面、估值、同业、宏观与市场、技术面，逐条处置反方挑战，最后给出 BUY/ADD/HOLD/REDUCE/EXIT/NO_TRADE 建议并保存决策记录。
 ---
 
 # 个股研究流程
 
-依赖 stock-data MCP 工具，以及以下 Skills：`research-standards`、`company-fundamentals`、`valuation`、`technical-structure`、`investment-decision`。
+依赖 stock-data MCP 工具、`skeptic` 子 Agent，以及以下 Skills：`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`investment-decision`。
 
 ## 0. 确认输入（不要过度提问）
 
@@ -13,7 +13,15 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 - `as_of`：默认现在。用户要求“以某日为准”时，对所有支持 `as_of` 的工具都传入同一个日期。`get_analyst_snapshot` 只有当前快照，不能用于过去的日期。
 - ETF 没有 SEC 财报：跳过基本面那一步，改为说明 ETF 的跟踪对象、费率和持仓特征（资料不足时如实说明），然后做技术面与估值背景。
 
-## 1. 资料收集（建议顺序，可以并行调用）
+## 1. 启动独立反方研究（第一步就做）
+
+调用 `skeptic` 子 Agent（Claude Code：用 Agent/Task 工具，`subagent_type` 设为 `skeptic`；Codex：派生 `skeptic` agent）。**只能**传入下面这段话，不要附带你的任何发现、结论、Thesis 或报告内容：
+
+> 独立评估投资 {TICKER} 的主要风险与反方证据。数据截至：{as_of 或“当前”}。按 skeptic-review Skill 输出挑战清单。
+
+子 Agent 自行取数，与主研究互不可见。宿主不支持后台运行时，就等它返回再继续；它返回的挑战清单在第 3 步逐条处置。子 Agent 失败或超时，要在“数据缺口”写明，并改为自己做反方自检（标注“非独立”）。
+
+## 2. 资料收集（建议顺序，可以并行调用）
 
 1. `get_analyst_snapshot`：公司概况、价格、市值、共识、预估、下次财报日。
 2. `get_financial_statements`：年度 5 期，再取季度 6 期（看 `ttm`、推导出的 Q4、重述）。
@@ -29,21 +37,23 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
    - 异动类（需本机 OpenD，三个都要跑）：`moomoo-capital-anomaly`、`moomoo-derivatives-anomaly`、`moomoo-technical-anomaly`。代码用 `US.<TICKER>` 形式。**在仓库根目录用 `.venv/bin/python -I product/skills/<skill>/scripts/<script>.py US.<TICKER> --time-range 7 --json` 运行**（不要用系统 `python3`，依赖装在 `.venv`）。OpenD 未连接时记为数据缺口（`SOURCE_UNSUPPORTED`：OpenD 未运行），不重试。
    - 不使用 `moomoo-stock-digest` 替代自己的事件分析；如调用，其结论同样只作参考展示。
 
+8. `get_macro_snapshot` 与 `get_market_context`（各一次）；`get_peer_candidates` 与 `get_peer_snapshot`。
+
 工具报错时，看错误代码后用正确参数重试一次；仍失败就记为数据缺口，不要反复重试。
 
-## 2. 分析
+## 3. 分析
 
-依次应用 `company-fundamentals`（先选 2–3 个核心问题）→ `valuation` → `technical-structure`。需要的数字计算全部调用计算工具完成。
+依次应用 `company-fundamentals`（先选 2–3 个核心问题）→ `valuation` → `peer-comparison` → `macro-market-context` → `technical-structure`。需要的数字计算全部调用计算工具完成。
 
-## 3. 决策与报告
+## 4. 决策与报告
 
-应用 `investment-decision`：完成反方自检，选定动作和信心，按模板写出完整报告。
+应用 `investment-decision`：逐条处置 skeptic 的挑战，选定动作和信心，按模板写出完整报告。
 
-## 4. 交付
+## 5. 交付
 
 1. 在对话中给出完整报告。
 2. 调用 `save_decision` 保存，并告诉用户保存位置。
 
 ## 预算
 
-目标在 15 分钟内完成，工具调用大约 15–30 次。资料够用就停止，不为求全而无限追加调用。时间或预算不够时，优先保证核心问题、估值和反方自检，其余写入“数据缺口与限制”。
+目标在 25 分钟内完成（含 skeptic），主研究工具调用大约 25–40 次。资料够用就停止，不为求全而无限追加调用。时间或预算不够时，优先保证核心问题、估值和挑战处置，其余写入“数据缺口与限制”。

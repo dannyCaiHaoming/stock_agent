@@ -46,7 +46,7 @@ json.dump(config, open(f"{run_dir}/mcp.json", "w"), indent=2)
 PY
   claude -p "$prompt" --model "$model" \
     --mcp-config "$run_dir/mcp.json" --strict-mcp-config \
-    --allowedTools "Skill" "Read" "Glob" "Grep" "mcp__stock-data__*" \
+    --allowedTools "Skill" "Read" "Glob" "Grep" "mcp__stock-data__*" "Agent" "Task" \
       "Bash(curl:*)" "Bash(.venv/bin/python -I product/skills/moomoo-:*)" \
     --output-format stream-json --verbose \
     > "$run_dir/transcript.jsonl" 2> "$run_dir/stderr.log" || status=$?

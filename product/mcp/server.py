@@ -14,7 +14,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from product.mcp import calc_tools, data_tools, decision_log
+from product.mcp import calc_tools, context_tools, data_tools, decision_log
 
 server = MCPServer(
     name="stock-data",
@@ -117,6 +117,37 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
     return data_tools.get_filing_text(ticker, accession=accession, form=form, section=section, offset=offset,
                                       max_chars=max_chars, query=query, document=document,
                                       match_offset=match_offset, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+def get_macro_snapshot(as_of: str | None = None) -> dict:
+    """US macro: unemployment, payrolls, 2/10/30Y Treasury yields and 10Y-2Y spread, CPI and core CPI with
+    computed YoY, latest Fed communication, and BLS releases in the next 45 days (official free sources)."""
+    return context_tools.get_macro_snapshot(as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+def get_market_context(as_of: str | None = None) -> dict:
+    """Market state: SPY, 11 sector ETFs, TLT, UUP, GLD, USO, HYG and VIX with last close and 5/20/60-session
+    % change, plus recent market headlines. ETF values are proxies."""
+    return context_tools.get_market_context(as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+def get_peer_candidates(ticker: str) -> dict:
+    """Unverified peer candidates (Yahoo related symbols; popularity-based, often noisy)."""
+    return context_tools.get_peer_candidates(ticker)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+def get_peer_snapshot(tickers: list[str]) -> dict:
+    """Side-by-side provider-reported statistics for up to 6 tickers: sector, industry, market cap, P/E,
+    forward P/E, EV/revenue, EV/EBITDA, P/B, growth, margins, ROE, debt/equity, 52-week change."""
+    return context_tools.get_peer_snapshot(tickers)
 
 
 @server.tool(annotations=READ_ONLY)
