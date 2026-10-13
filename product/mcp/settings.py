@@ -13,16 +13,26 @@ class SettingsError(ValueError):
     pass
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DATA_DIR = REPO_ROOT / ".local" / "data"
+
+
 def data_dir() -> Path:
-    """Private data root outside the repository (cache, reports, decision log)."""
-    root = Path(os.environ.get("STOCK_AGENT_DATA_DIR", "~/StockAgentData")).expanduser().resolve()
+    """Private data root: reports and decision log. Default <repo>/.local/data (git-ignored).
+
+    Dev test runs override it with STOCK_AGENT_DATA_DIR=<repo>/.local/runs/<run-id>.
+    """
+    configured = os.environ.get("STOCK_AGENT_DATA_DIR")
+    root = Path(configured).expanduser().resolve() if configured else DEFAULT_DATA_DIR
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     return root
 
 
 @lru_cache(maxsize=1)
 def cache() -> SnapshotCache:
-    return SnapshotCache(data_dir() / "cache")
+    """Shared raw-response cache. Default <repo>/.local/cache, shared by normal use and dev runs."""
+    configured = os.environ.get("STOCK_AGENT_CACHE_DIR")
+    return SnapshotCache(Path(configured).expanduser().resolve() if configured else REPO_ROOT / ".local" / "cache")
 
 
 def sec_user_agent() -> str:

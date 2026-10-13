@@ -1,6 +1,6 @@
 """Append-only decision log: the basis for later forward-return evaluation.
 
-Records go to <STOCK_AGENT_DATA_DIR>/decisions.jsonl and the full report to
+Records go to <STOCK_AGENT_DATA_DIR>/decisions.jsonl (default <repo>/.local/data) and the full report to
 <STOCK_AGENT_DATA_DIR>/reports/<YYYY-MM-DD>/<TICKER>-<decision_id>.md.
 """
 

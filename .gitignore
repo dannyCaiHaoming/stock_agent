@@ -27,6 +27,9 @@ product/tiger.md
 /product/.private/
 /.codex-local/
 
+# 本地私人数据与开发调试产物：.local/data（正式使用）、.local/runs/<run-id>（每次调试运行）。
+/.local/
+
 # Editor-local state
 .idea/
 .vscode/

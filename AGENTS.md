@@ -8,7 +8,7 @@
 
 - `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`technical-structure`、`investment-decision`），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。
 - `product/skills-pending/`：待后续阶段重写的旧 Skills（宏观、行业、期权、所有权、研报、反证、持仓录入、交易日志与反思），不暴露给宿主。
-- `product/mcp/server.py`：stock-data MCP server（`.mcp.json`、`.codex/config.toml` 的 `stock_data`），工具在 `data_tools.py`、`calc_tools.py`、`decision_log.py`；私人数据目录 `STOCK_AGENT_DATA_DIR`（默认 `~/StockAgentData`）。
+- `product/mcp/server.py`：stock-data MCP server（`.mcp.json`、`.codex/config.toml` 的 `stock_data`），工具在 `data_tools.py`、`calc_tools.py`、`decision_log.py`；数据默认写入仓库内已忽略的 `.local/`：`.local/data/`（正式使用的报告与决策记录）、`.local/cache/`（共享原始响应缓存）、`.local/runs/<run-id>/`（每次调试运行）。
 - `product/deterministic/`：估值、市场/技术统计、组合指标与硬风险约束。
 - `product/mcp/live/`、`product/mcp/provenance.py`：SEC、NASDAQ、Yahoo、Moomoo OpenD、Eastmoney、宏观、期权等只读数据源接入代码，供 MCP 工具复用。
 - `product/intake/`：持仓截图/手工输入 → PortfolioDraft/Handoff v3。
@@ -29,3 +29,4 @@
 - 券商接入永久只读：禁止下单、预览、改单、撤单、换汇、转账、交易解锁及任何账户写入。凭据与完整账户号不得进入仓库、Agent 上下文或网页。
 - 不提交凭据、私人账本（`product/.private/`）、`product/tiger.md` 或私人会话数据。
 - 只做当前任务需要的最小改动；新增机制前先说明现有能力为何不够。
+- 宿主实跑调试统一用 `scripts/dev-research.sh <claude|codex> <TICKER> [--model M]`：默认 Claude Code `claude-haiku-5-5`、Codex `gpt-6-luna`，可用 `--model` 或 `STOCK_AGENT_CLAUDE_MODEL` / `STOCK_AGENT_CODEX_MODEL` 覆盖。产物只写入 `.local/runs/<run-id>/`；不要写到 `/tmp` 或用户主目录。

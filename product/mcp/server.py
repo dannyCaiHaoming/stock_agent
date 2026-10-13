@@ -1,7 +1,8 @@
 """stock-data MCP server: read-only US equity data and deterministic calculations.
 
 Run with: python -m product.mcp.server  (stdio transport)
-Environment: STOCK_AGENT_DATA_DIR (default ~/StockAgentData), SEC_USER_AGENT ("app contact@email").
+Environment: STOCK_AGENT_DATA_DIR (default <repo>/.local/data), STOCK_AGENT_CACHE_DIR (default <repo>/.local/cache),
+SEC_USER_AGENT ("app contact@email").
 """
 
 from __future__ import annotations

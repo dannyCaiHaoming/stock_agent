@@ -11,7 +11,8 @@
 在本仓库目录打开 Claude Code 或 Codex，说“研究 MSFT”即可。首次在 Claude Code 中使用时需批准项目 MCP server `stock-data`。
 
 - 入口 Skill：`stock-research`；数据与计算：stock-data MCP（免费来源 SEC EDGAR、Yahoo）。
-- 报告与决策记录保存在 `~/StockAgentData`（可用 `STOCK_AGENT_DATA_DIR` 修改），不进入仓库。
+- 报告与决策记录保存在仓库内已忽略的 `.local/data/`（可用 `STOCK_AGENT_DATA_DIR` 修改），不进入 git。
+- 开发调试：`scripts/dev-research.sh <claude|codex> <TICKER> [--model M]`，产物在 `.local/runs/`。
 - 开发路线与进度：[docs/roadmap.md](docs/roadmap.md)。旧版本完整内容见 git tag `pre-slim-20261012`。
 
 ## 目录

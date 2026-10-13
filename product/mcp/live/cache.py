@@ -1,4 +1,4 @@
-"""外置、按内容寻址的追加缓存；不保存联系身份或持仓。"""
+"""外置或 <repo>/.local/ 下、按内容寻址的追加缓存；不保存联系身份或持仓。"""
 from __future__ import annotations
 
 import hashlib
@@ -15,8 +15,10 @@ class SnapshotCache:
     def __init__(self, root: Path):
         self.root = Path(root).resolve()
         repo = Path(__file__).resolve().parents[3]
-        if self.root == repo or repo in self.root.parents:
-            raise ValueError("LIVE_CACHE_MUST_BE_EXTERNAL")
+        # Allowed: outside the repository, or inside the git-ignored <repo>/.local/ tree.
+        local = repo / ".local"
+        if (self.root == repo or repo in self.root.parents) and local not in self.root.parents:
+            raise ValueError("LIVE_CACHE_MUST_BE_EXTERNAL_OR_UNDER_DOT_LOCAL")
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     def _path(self, kind: str, digest: str) -> Path:
