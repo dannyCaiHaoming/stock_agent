@@ -450,6 +450,7 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
            "depreciation + amortization of intangibles (separately filed tags)", only_missing=True)
     derive("ebitda", ("operating_income", "depreciation_amortization"), 1, "operating income + D&A")
     derive("free_cash_flow", ("operating_cash_flow", "capex"), -1, "operating cash flow - capex")
+    derive("total_debt", ("debt_current", "debt_noncurrent"), 1, "debt_current + debt_noncurrent (excludes leases)")
     ttm = None
     if period == "quarterly" and len(periods) >= 4:
         last4 = periods[-4:]

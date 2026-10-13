@@ -12,7 +12,7 @@ description: 美股个股的估值方法：选择估值方式、计算当前倍�
 1. **选方法并说明理由**：盈利稳定的公司看 P/E、EV/EBIT、FCF yield；亏损成长公司看 P/S 和通往盈利的路径；周期公司要用正常化盈利（周期顶部低 P/E 是陷阱）；银行看 P/B 和 ROE。
 2. **当前倍数**：调用 `valuation_multiples`，输入取自 `get_financial_statements(period="quarterly")`：
    - TTM：`ttm.values` 里的 revenue、operating_cash_flow、capex、ebitda（营业利润 + D&A，推导值）、free_cash_flow；TTM EPS 若无公司报告值，可用 `ttm.eps_diluted_approx`（近似值，须在报告注明）。
-   - 资产负债（最后一期）：debt = `debt_current` + `debt_noncurrent`（用 `ratio`/计算工具前先列出两项）；cash（+ 短期投资，需说明口径）；`preferred_stock`、`noncontrolling_interest`。行不存在表示公司没有按这些标签申报：先用 `get_sec_concept` 或在 10-K 全文搜索确认，确认没有才传 '0' 并注明依据；无法确认就让 EV 显示 `INPUT_MISSING`。
+   - 资产负债（最后一期）：debt 用 `total_debt`（= `debt_current` + `debt_noncurrent` 的推导行；只有一项申报时直接用该项并注明）；cash（+ 短期投资，需说明口径）；`preferred_stock`、`noncontrolling_interest`。行不存在表示公司没有按这些标签申报：先用 `get_sec_concept` 或在 10-K 全文搜索确认，确认没有才传 '0' 并注明依据；无法确认就让 EV 显示 `INPUT_MISSING`。
    - 租赁负债（`operating_lease_liability`、`finance_lease_liability`）单列，默认不计入 EV 债务；与供应商（如 Yahoo totalDebt）口径不同时说明差异来自租赁。
    - 可转换证券与强制转换优先股会影响每股价值：在 10-K/10-Q 全文搜索转换条款，按转换后股数做敏感性说明。
 3. **历史区间**：调用 `pe_history`。它基于财年 EPS，并有工具列出的限制。分位数只描述过去的位置，不能单独得出“便宜/昂贵”。说明窗口、点数和断点（亏损期、重组）。
