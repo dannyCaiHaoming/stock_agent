@@ -71,8 +71,9 @@ def get_analyst_snapshot(ticker: str) -> dict:
 def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5,
                              as_of: str | None = None) -> dict:
     """Standardized income statement, cash flow and balance sheet lines from SEC XBRL (as reported).
-    period: annual | quarterly (quarterly includes a TTM block and derived Q4 = FY - 9M YTD).
-    Cells are strings in USD unless noted in `units`; null means not reported (not zero)."""
+    period: annual | quarterly (quarterly derives discrete quarters from YTD filings and has a TTM block
+    with eps_diluted_approx). Includes derived ebitda and free_cash_flow, lease liabilities, preferred stock
+    and noncontrolling interest. Cells are strings in USD unless noted; null means not reported (not zero)."""
     return data_tools.get_financial_statements(ticker, period=period, limit=limit, as_of=as_of)
 
 
@@ -95,15 +96,27 @@ def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+def list_filing_documents(ticker: str, accession: str, as_of: str | None = None) -> dict:
+    """All documents in one SEC filing: primary document and exhibits (e.g. 8-K EX-99.1 earnings press
+    release). Read one with get_filing_text(accession=..., document=<file name>)."""
+    return data_tools.list_filing_documents(ticker, accession, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
 def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K",
                     section: str = "management_discussion", offset: int = 0, max_chars: int = 12000,
-                    query: str | None = None, as_of: str | None = None) -> dict:
-    """Text of a 10-K/10-Q/8-K. section: business | risk_factors | management_discussion | full_text.
-    Without accession, uses the latest filing of `form`. Page with offset/next_offset, or pass
-    `query` (e.g. 'net interest income') to get excerpts around matches. Some issuers (e.g. banks)
-    put MD&A outside standard Items: then use section=full_text with a query."""
-    return data_tools.get_filing_text(ticker, accession=accession, form=form, section=section,
-                                      offset=offset, max_chars=max_chars, query=query, as_of=as_of)
+                    query: str | None = None, document: str | None = None, match_offset: int = 0,
+                    as_of: str | None = None) -> dict:
+    """Text of a 10-K/10-Q/8-K or one of its exhibits.
+    section: business | risk_factors | management_discussion | full_text. Without accession, uses the
+    latest filing of `form`. `document` (with accession) reads an exhibit file from list_filing_documents.
+    Page with offset/next_offset. `query` returns excerpts: exact phrase first, else passages containing
+    all query words; total_matches and next_match_offset allow paging; cover/TOC hits are listed last.
+    Search contract terms (convertible, preferred, covenant, lease) in section=full_text."""
+    return data_tools.get_filing_text(ticker, accession=accession, form=form, section=section, offset=offset,
+                                      max_chars=max_chars, query=query, document=document,
+                                      match_offset=match_offset, as_of=as_of)
 
 
 @server.tool(annotations=READ_ONLY)

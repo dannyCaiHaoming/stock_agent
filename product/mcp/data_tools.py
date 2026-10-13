@@ -280,7 +280,8 @@ LINE_ITEMS: dict[str, tuple[str, tuple[str, ...]]] = {
     "gross_profit": ("USD", ("GrossProfit",)),
     "research_and_development": ("USD", ("ResearchAndDevelopmentExpense",)),
     "operating_income": ("USD", ("OperatingIncomeLoss",)),
-    "interest_expense": ("USD", ("InterestExpense", "InterestExpenseNonoperating")),
+    "interest_expense": ("USD", ("InterestExpense", "InterestExpenseNonoperating", "InterestAndDebtExpense",
+                                 "InterestExpenseDebt")),
     "pretax_income": ("USD", ("IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
                               "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments")),
     "income_tax": ("USD", ("IncomeTaxExpenseBenefit",)),
@@ -290,7 +291,11 @@ LINE_ITEMS: dict[str, tuple[str, tuple[str, ...]]] = {
     "diluted_shares_weighted": ("shares", ("WeightedAverageNumberOfDilutedSharesOutstanding",)),
     "operating_cash_flow": ("USD", ("NetCashProvidedByUsedInOperatingActivities",)),
     "capex": ("USD", ("PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets")),
-    "depreciation_amortization": ("USD", ("DepreciationDepletionAndAmortization", "DepreciationAndAmortization")),
+    "depreciation_amortization": ("USD", ("DepreciationDepletionAndAmortization", "DepreciationAndAmortization",
+                                          "DepreciationAmortizationAndAccretionNet")),
+    # components, used to derive depreciation_amortization when only separate tags are filed
+    "depreciation": ("USD", ("Depreciation",)),
+    "amortization_of_intangibles": ("USD", ("AmortizationOfIntangibleAssets",)),
     "stock_based_compensation": ("USD", ("ShareBasedCompensation", "AllocatedShareBasedCompensationExpense")),
     "buybacks": ("USD", ("PaymentsForRepurchaseOfCommonStock",)),
     "dividends_paid": ("USD", ("PaymentsOfDividendsCommonStock", "PaymentsOfDividends")),
@@ -312,10 +317,15 @@ LINE_ITEMS: dict[str, tuple[str, tuple[str, ...]]] = {
     "debt_noncurrent": ("USD", ("LongTermDebtNoncurrent", "LongTermDebt")),
     "stockholders_equity": ("USD", ("StockholdersEquity",)),
     "shares_outstanding": ("shares", ("CommonStockSharesOutstanding",)),
+    "operating_lease_liability": ("USD", ("OperatingLeaseLiability",)),
+    "finance_lease_liability": ("USD", ("FinanceLeaseLiability",)),
+    "preferred_stock": ("USD", ("PreferredStockValue", "TemporaryEquityCarryingAmountAttributableToParent")),
+    "noncontrolling_interest": ("USD", ("MinorityInterest",)),
 }
 INSTANT_ITEMS = {"cash_and_equivalents", "short_term_investments", "receivables", "inventory", "current_assets",
                  "total_assets", "current_liabilities", "total_liabilities", "debt_current", "debt_noncurrent",
-                 "stockholders_equity", "shares_outstanding"}
+                 "stockholders_equity", "shares_outstanding", "operating_lease_liability",
+                 "finance_lease_liability", "preferred_stock", "noncontrolling_interest"}
 NON_ADDITIVE = {"eps_basic", "eps_diluted", "diluted_shares_weighted"}
 
 
@@ -423,6 +433,23 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
             row.append(cell)
         if any(v is not None for v in row):
             lines[name] = row
+    # Derived lines (marked in derived_cells): D&A from components, EBITDA, free cash flow.
+    def derive(name: str, parts: tuple[str, str], sign: int, method: str, only_missing: bool = False) -> None:
+        a_row, b_row = lines.get(parts[0]), lines.get(parts[1])
+        if not a_row or not b_row:
+            return
+        row = list(lines.get(name) or [None] * len(periods))
+        for i, (a, b) in enumerate(zip(a_row, b_row)):
+            if (only_missing and row[i] is not None) or a is None or b is None:
+                continue
+            row[i] = format(Decimal(a) + sign * Decimal(b), "f")
+            derived_cells.append({"line": name, "period_end": periods[i][1], "method": method})
+        if any(v is not None for v in row):
+            lines[name] = row
+    derive("depreciation_amortization", ("depreciation", "amortization_of_intangibles"), 1,
+           "depreciation + amortization of intangibles (separately filed tags)", only_missing=True)
+    derive("ebitda", ("operating_income", "depreciation_amortization"), 1, "operating income + D&A")
+    derive("free_cash_flow", ("operating_cash_flow", "capex"), -1, "operating cash flow - capex")
     ttm = None
     if period == "quarterly" and len(periods) >= 4:
         last4 = periods[-4:]
@@ -436,6 +463,17 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
                 window = row[-4:]
                 ttm["values"][name] = (format(sum(Decimal(v) for v in window), "f")
                                        if all(v is not None for v in window) else None)
+            net = ttm["values"].get("net_income")
+            share_row = lines.get("diluted_shares_weighted") or []
+            known = [(periods[i][1], v) for i, v in enumerate(share_row) if v not in (None, "0")]
+            if net is not None and known:
+                shares_end, shares = known[-1]
+                ttm["eps_diluted_approx"] = {
+                    "value": format(round(Decimal(net) / Decimal(shares), 4), "f"),
+                    "shares_period_end": shares_end,
+                    "method": "TTM net income / most recent reported quarterly weighted diluted shares "
+                              "(approximation; not company-reported EPS; ignores preferred dividends and "
+                              "share-count changes)"}
     return {
         "ticker": identity["ticker"], "company": identity["name"], "cik": identity["cik"],
         "period_type": period,
@@ -453,7 +491,9 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
                        "raw_content_hash": data["raw_content_hash"], "coverage": data["coverage"],
                        "notes": "Values as reported in SEC XBRL, latest version published before as_of. "
                                 "Lines absent from the table were not reported under the mapped tags "
-                                "(use get_sec_concept for other tags). Missing cells are NOT zero."},
+                                "(use get_sec_concept for other tags). Missing cells are NOT zero. "
+                                "ebitda, free_cash_flow and some D&A cells are derived (see derived_cells). "
+                                "debt_* excludes leases; lease liabilities are separate lines."},
     }
 
 
@@ -519,31 +559,45 @@ class _BodyText(_Text):
             super().handle_starttag(tag, attrs)
 
 
-def _excerpts(text: str, query: str, *, window: int, limit: int) -> list[dict]:
-    hits, lowered, needle, position = [], text.lower(), query.lower(), 0
-    while len(hits) < limit:
-        index = lowered.find(needle, position)
-        if index < 0:
-            break
-        start, end = max(0, index - window), min(len(text), index + len(query) + window)
-        if hits and start <= hits[-1]["end"]:
-            hits[-1]["end"] = end
+FRONT_MATTER_CHARS = 6000
+SEARCH_PAGE = 10
+
+
+def _search(text: str, query: str, *, window: int, match_offset: int) -> dict[str, Any]:
+    """Case-insensitive phrase search; if the exact phrase is absent, fall back to passages where all
+    query words (3+ letters) appear within ~400 characters. Hits in the cover/TOC area are listed last."""
+    lowered, phrase = text.lower(), " ".join(query.lower().split())
+    positions = [m.start() for m in re.finditer(re.escape(phrase), lowered)]
+    mode = "exact_phrase"
+    if not positions:
+        words = [w for w in re.findall(r"[\w$%.-]+", phrase) if len(w) >= 3]
+        if len(words) >= 2:
+            mode = "all_words_within_400_chars"
+            anchor = min(words, key=lambda w: lowered.count(w) or 10**9)
+            for m in re.finditer(re.escape(anchor), lowered):
+                span = lowered[max(0, m.start() - 200):m.start() + 200]
+                if all(w in span for w in words):
+                    positions.append(m.start())
+    merged: list[list[int]] = []
+    for pos in positions:
+        start, end = max(0, pos - window), min(len(text), pos + len(phrase) + window)
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = end
         else:
-            hits.append({"start": start, "end": end})
-        position = index + len(needle)
-    return [{"offset": h["start"], "text": text[h["start"]:h["end"]]} for h in hits]
+            merged.append([start, end])
+    body = [m for m in merged if m[0] >= FRONT_MATTER_CHARS]
+    front = [m for m in merged if m[0] < FRONT_MATTER_CHARS]
+    ordered = body + front
+    page = ordered[match_offset:match_offset + SEARCH_PAGE]
+    return {"query": query, "match_mode": mode if positions else "no_match", "total_matches": len(ordered),
+            "match_offset": match_offset,
+            "next_match_offset": match_offset + len(page) if match_offset + len(page) < len(ordered) else None,
+            "matches": [{"offset": a, "in_front_matter": a < FRONT_MATTER_CHARS, "text": text[a:b]} for a, b in page],
+            "note": None if positions else "No match: try synonyms, fewer words, another document (exhibits via "
+                                           "list_filing_documents) or the 10-K/10-Q full_text."}
 
 
-def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K",
-                    section: str = "management_discussion", offset: int = 0, max_chars: int = 12000,
-                    query: str | None = None, as_of: str | None = None) -> dict[str, Any]:
-    if section not in SECTIONS:
-        raise DataToolError(f"SECTION_INVALID: one of {SECTIONS}")
-    max_chars = max(1000, min(int(max_chars), 30000))
-    offset = max(0, int(offset))
-    cutoff = _cutoff(as_of)
-    identity = resolve_company(ticker)
-    client = _sec()
+def _filing(identity: dict, client: SecClient, accession: str | None, form: str, cutoff: datetime) -> dict:
     record = client.submissions(identity["cik"], max_age_seconds=SUBMISSIONS_MAX_AGE)
     filings = parse_submissions(client.cache.read(record), cik=identity["cik"], retrieved_at=record["retrieved_at"])
     if accession:
@@ -557,8 +611,63 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
         filing = max(candidates, key=lambda f: f["published_at"])
     if parse_timestamp(filing["published_at"]) > cutoff:
         raise DataToolError("FILING_PUBLISHED_AFTER_AS_OF")
-    document = client.read_document(filing, max_age_seconds=365 * 86400)
-    raw = client.cache.read(document["cache_record"])
+    return filing
+
+
+DOCUMENT_NAME = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9_.-]*\.html?", re.I)
+
+
+def list_filing_documents(ticker: str, accession: str, as_of: str | None = None) -> dict[str, Any]:
+    """All documents in one filing (primary document, EX-99.x press releases, other exhibits)."""
+    from product.mcp.live.attachments import _Rows
+    cutoff = _cutoff(as_of)
+    identity = resolve_company(ticker)
+    client = _sec()
+    filing = _filing(identity, client, accession, "", cutoff)
+    prefix = filing["document_url"].rsplit("/", 1)[0]
+    index = client.read_document(dict(filing, document_url=f"{prefix}/{filing['accession']}-index.html"),
+                                 max_age_seconds=365 * 86400)
+    parser = _Rows()
+    parser.feed(client.cache.read(index["cache_record"]).decode("utf-8", errors="replace"))
+    parser.close()
+    rows = []
+    for cells, links in parser.rows:
+        if len(cells) != 5 or cells[0] == "Seq" or not links:
+            continue
+        name = links[0].rsplit("/", 1)[-1]
+        rows.append([cells[3] or None, cells[1] or None, name, cells[4] or None,
+                     bool(DOCUMENT_NAME.fullmatch(name))])
+    return {"ticker": identity["ticker"], "accession": filing["accession"], "form": filing["form"],
+            "report_date": filing["report_date"],
+            "columns": ["type", "description", "document", "size_bytes", "readable_with_get_filing_text"],
+            "rows": rows,
+            "provenance": {"source_id": index["source_id"], "source_locator": index["source_locator"],
+                           "as_of": index["published_at"], "retrieved_at": index["retrieved_at"],
+                           "raw_content_hash": index["raw_content_hash"],
+                           "notes": "Earnings press releases are usually type EX-99.1 in 8-K filings."}}
+
+
+def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K",
+                    section: str = "management_discussion", offset: int = 0, max_chars: int = 12000,
+                    query: str | None = None, document: str | None = None, match_offset: int = 0,
+                    as_of: str | None = None) -> dict[str, Any]:
+    if section not in SECTIONS:
+        raise DataToolError(f"SECTION_INVALID: one of {SECTIONS}")
+    max_chars = max(1000, min(int(max_chars), 30000))
+    offset, match_offset = max(0, int(offset)), max(0, int(match_offset))
+    cutoff = _cutoff(as_of)
+    identity = resolve_company(ticker)
+    client = _sec()
+    filing = _filing(identity, client, accession, form, cutoff)
+    if document:
+        if not accession:
+            raise DataToolError("DOCUMENT_REQUIRES_ACCESSION: call list_filing_documents first")
+        if not DOCUMENT_NAME.fullmatch(document):
+            raise DataToolError("DOCUMENT_NAME_INVALID: an .htm/.html file name from list_filing_documents")
+        filing = dict(filing, document_url=filing["document_url"].rsplit("/", 1)[0] + "/" + document)
+        section = "full_text"
+    document_record = client.read_document(filing, max_age_seconds=365 * 86400)
+    raw = client.cache.read(document_record["cache_record"])
     encoding = "utf-8"
     try:
         raw.decode("utf-8")
@@ -572,7 +681,8 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
         text = re.sub(r"\s+", " ", "".join(parser.parts)).strip()
         missing = []
     else:
-        extracted = extract_sections(raw, document, encoding=encoding, section_limit=2_000_000, total_limit=6_000_000)
+        extracted = extract_sections(raw, document_record, encoding=encoding, section_limit=2_000_000,
+                                     total_limit=6_000_000)
         pieces = [p for p in extracted["evidence"] if p["section"] == section]
         missing = extracted["missing_sections"]
         if not pieces:
@@ -581,9 +691,7 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
     if query:
         if len(query.strip()) < 3:
             raise DataToolError("QUERY_TOO_SHORT")
-        found = _excerpts(text, query.strip(), window=max(300, max_chars // 16), limit=8)
-        body = {"query": query, "matches": found,
-                "note": None if found else "No match; try another phrase or section=full_text"}
+        body = _search(text, query.strip(), window=max(300, max_chars // 16), match_offset=match_offset)
     else:
         chunk = text[offset:offset + max_chars]
         body = {"offset": offset, "next_offset": offset + len(chunk) if offset + len(chunk) < len(text) else None,
@@ -591,9 +699,11 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
         if section != "full_text" and len(text) < 2000:
             body["note"] = ("Section looks like a table of contents or cross-reference only; "
                             "use section=full_text with query=<heading or metric> to locate the content.")
+    document = document_record
     return {
         "ticker": identity["ticker"], "accession": filing["accession"], "form": filing["form"],
-        "report_date": filing["report_date"], "section": section, "total_chars": len(text),
+        "report_date": filing["report_date"], "document": filing["document_url"].rsplit("/", 1)[-1],
+        "section": section, "total_chars": len(text),
         **body, "sections_missing_in_document": missing,
         "provenance": {"source_id": document["source_id"], "source_locator": document["source_locator"],
                        "as_of": document["published_at"], "published_at": document["published_at"],

@@ -35,6 +35,11 @@ FACTS = [
     fact("Revenues", "2025-01-01", "2025-09-30", "330", "2025-10-30T00:00:00Z", "a-q3"),
     fact("Revenues", "2024-10-01", "2024-12-31", "95", "2025-02-01T00:00:00Z", "a-10k-24", form="10-K"),
     fact("Assets", None, "2025-12-31", "900", "2026-02-01T00:00:00Z", "a-10k-25", form="10-K"),
+    fact("OperatingIncomeLoss", "2025-07-01", "2025-09-30", "40", "2025-10-30T00:00:00Z", "a-q3"),
+    fact("Depreciation", "2025-07-01", "2025-09-30", "7", "2025-10-30T00:00:00Z", "a-q3"),
+    fact("AmortizationOfIntangibleAssets", "2025-07-01", "2025-09-30", "3", "2025-10-30T00:00:00Z", "a-q3"),
+    fact("PaymentsToAcquirePropertyPlantAndEquipment", "2025-07-01", "2025-09-30", "12", "2025-10-30T00:00:00Z", "a-q3"),
+    fact("MinorityInterest", None, "2025-12-31", "25", "2026-02-01T00:00:00Z", "a-10k-25", form="10-K"),
     # cash flow reported only as YTD in 10-Qs
     fact("NetCashProvidedByUsedInOperatingActivities", "2025-01-01", "2025-03-31", "30", "2025-04-30T00:00:00Z", "a-q1"),
     fact("NetCashProvidedByUsedInOperatingActivities", "2025-01-01", "2025-06-30", "70", "2025-07-30T00:00:00Z", "a-q2"),
@@ -65,6 +70,11 @@ class StatementTests(unittest.TestCase):
         self.assertEqual(result["ttm"]["values"]["revenue"], "480")
         self.assertEqual(result["lines"]["operating_cash_flow"], ["30", "40", "30", "50"])
         self.assertEqual(result["ttm"]["values"]["operating_cash_flow"], "150")
+        q3 = result["periods"].index({"start": "2025-07-01", "end": "2025-09-30"})
+        self.assertEqual(result["lines"]["depreciation_amortization"][q3], "10")   # 7 + 3, derived
+        self.assertEqual(result["lines"]["ebitda"][q3], "50")                      # 40 + 10
+        self.assertEqual(result["lines"]["free_cash_flow"][q3], "18")              # 30 - 12
+        self.assertEqual(result["lines"]["noncontrolling_interest"][-1], "25")
 
     def test_as_of_excludes_later_publications(self):
         result = data_tools.get_financial_statements("AAA", period="annual", as_of="2025-12-31")
@@ -96,6 +106,17 @@ class PriceTests(unittest.TestCase):
     def test_invalid_ticker_rejected(self):
         with self.assertRaises(data_tools.DataToolError):
             data_tools.get_price_history("aa$")
+
+
+class SearchTests(unittest.TestCase):
+    def test_phrase_then_word_fallback_and_front_matter_last(self):
+        text = "Cover: convertible preferred. " + "x" * 7000 + " The Preferred Stock will convert on the mandatory conversion date. "
+        exact = data_tools._search(text, "mandatory conversion date", window=50, match_offset=0)
+        self.assertEqual((exact["match_mode"], exact["total_matches"]), ("exact_phrase", 1))
+        fuzzy = data_tools._search(text, "preferred convert date", window=50, match_offset=0)
+        self.assertEqual(fuzzy["match_mode"], "all_words_within_400_chars")
+        both = data_tools._search(text, "preferred", window=10, match_offset=0)
+        self.assertEqual([m["in_front_matter"] for m in both["matches"]], [False, True])
 
 
 class CutoffAndRetryTests(unittest.TestCase):

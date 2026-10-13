@@ -328,4 +328,5 @@
 - 6 份报告（两宿主各 3 份）的路径见 `.local/runs/`，待用户人工评分。观察：多数结论为 NO_TRADE；同一股票在不同运行间动作不同（MSFT 出现过 BUY），决策稳定性留给第 4 阶段评估。
 - 2026-10-13：调试运行统一用 `scripts/dev-research.sh`（Claude Code 默认 `claude-haiku-5-5`、Codex 默认 `gpt-6-luna`，可选择），产物统一放入 `.local/`；此前散落在 `/tmp` 与 `~/StockAgentData` 的验收产物已迁移到 `.local/runs/20261012T163400Z-codex-phase1-acceptance/`。
 - 2026-10-13：按用户决定直接使用 moomoo 官方 Skills（搜索类 3 个、异动类 3 个，不含 OpenAPI 交易类），原样放在 `product/skills/`。第三方方向判断/情绪/异动解读只放报告“第三方观点（仅供参考）”一节，无时间戳用读取时间。异动脚本依赖 `.venv` 的 `futu-api` 与本机 OpenD；Codex 调试使用 `workspace-write`（网络开启）并允许写入 futu SDK 日志目录 `~/.com.futunn.FutuOpenD`。两宿主 MSFT 实跑均完成全部 moomoo 步骤并符合模板；同一股票两宿主结论仍不同（Codex BUY、Claude NO_TRADE）。
+- 2026-10-13：数据缺口排查与修复（见 `docs/data/known-data-gaps.md`）。修复：财报新增 D&A 组件推导、EBITDA/FCF 推导行、租赁负债、优先股、少数股东权益、`InterestAndDebtExpense`；TTM 增加 `eps_diluted_approx`；新增 `list_filing_documents` 与 `get_filing_text(document=...)` 读取 8-K EX-99.1 等附件；全文搜索支持短语→关键词同段回退、总命中数与翻页、封面/目录命中后置。固有限制记录在 known-data-gaps。
 

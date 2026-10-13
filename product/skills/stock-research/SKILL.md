@@ -19,8 +19,9 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 2. `get_financial_statements`：年度 5 期，再取季度 6 期（看 `ttm`、推导出的 Q4、重述）。
 3. `technical_stats`：相对 SPY。
 4. `pe_history`：只适用于盈利公司。
-5. `list_filings`：近期 10-K、10-Q、8-K。
+5. `list_filings`：近期 10-K、10-Q、8-K。最近一次财报的 8-K 要读新闻稿：先 `list_filing_documents(accession)` 找到 `EX-99.1`，再用 `get_filing_text(accession=..., document=<文件名>)` 读取。
 6. `get_filing_text`：最新 10-Q 的 `management_discussion`；不熟悉的公司加读 10-K 的 `business`；与核心问题相关时读 `risk_factors`。只读需要的部分，用 `next_offset` 分页。若某章节只返回目录或交叉引用（银行等发行人常见），改用 `section="full_text"` 并传 `query`（例如“net interest income”“Results of Operations”）直接定位内容；不要把“这次没读到正文”写成资料不存在。
+   查条款类内容（可转换证券、优先股、债务契约、租赁承诺、诉讼）一律在 10-K/10-Q 的 `section="full_text"` 用 `query` 搜索；`query` 先精确匹配短语，找不到会按“所有关键词同段出现”再找，结果带 `total_matches`，用 `match_offset` 翻页。0 命中时换同义词再试一次，仍无结果才记为缺口，并写明搜过的词和文件。
 
 7. **moomoo 第三方 Skills（必做，不可跳过）**（按 `research-standards` 的“第三方软件内容”规则处理）。下面四项每次研究都要执行；某项失败或 OpenD 未运行时，在“数据缺口”写明原因，不能不调用就略过：
    - `moomoo-news-search`：近期新闻（news_type=1）与公告（news_type=2），必要时研报（news_type=3）。用于事件地图与催化剂线索。
