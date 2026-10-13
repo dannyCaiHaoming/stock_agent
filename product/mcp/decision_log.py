@@ -18,6 +18,9 @@ from product.mcp import settings
 from product.mcp.provenance import iso_utc
 
 ACTIONS = ("BUY", "ADD", "HOLD", "REDUCE", "EXIT", "NO_TRADE")
+# Report sections required by the investment-decision template (heading prefixes, "## " level).
+REQUIRED_SECTIONS = ("结论", "核心问题与判断", "估值", "同业比较", "宏观与市场背景", "技术面", "反方论点与处置",
+                     "第三方观点", "数据缺口与限制", "来源")
 CONFIDENCE = ("low", "medium", "high")
 
 
@@ -65,6 +68,11 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
     for name, value in (("horizon", horizon), ("thesis", thesis), ("report_markdown", report_markdown)):
         if not isinstance(value, str) or not value.strip():
             raise DecisionLogError(f"{name.upper()}_REQUIRED")
+    headings = [line[3:].strip() for line in report_markdown.splitlines() if line.startswith("## ")]
+    missing = [name for name in REQUIRED_SECTIONS if not any(h.startswith(name) for h in headings)]
+    if missing:
+        raise DecisionLogError("REPORT_SECTIONS_MISSING: rewrite the report with the investment-decision template "
+                               "headings (\"## <name>\"), then save again. Missing: " + ", ".join(missing))
     decided_at = iso_utc(datetime.now(UTC))
     record = {
         "schema": "decision-record/1",

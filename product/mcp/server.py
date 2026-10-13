@@ -238,7 +238,8 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
     """Persist the final decision and full report to the private decision log (append-only).
     action: BUY|ADD|HOLD|REDUCE|EXIT|NO_TRADE; confidence: low|medium|high.
     price_at_decision: plain number only, e.g. "541.15" (required unless NO_TRADE).
-    data_as_of: date of the data used, YYYY-MM-DD (put source details in the report, not here)."""
+    data_as_of: date of the data used, YYYY-MM-DD (put source details in the report, not here).
+    report_markdown must use the investment-decision template "## " headings; missing sections are rejected."""
     return decision_log.save_decision(
         ticker, action, confidence, horizon, thesis, key_evidence, risks, invalidation, data_as_of,
         report_markdown, price_at_decision=price_at_decision, no_trade_reason=no_trade_reason,

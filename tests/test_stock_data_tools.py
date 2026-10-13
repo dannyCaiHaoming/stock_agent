@@ -174,7 +174,8 @@ class DecisionLogTests(unittest.TestCase):
     def save(self, **overrides):
         args = dict(ticker="AAA", action="HOLD", confidence="medium", horizon="12 months", thesis="t",
                     key_evidence=["e"], risks=["r"], invalidation=["i"], data_as_of="2025-01-02",
-                    report_markdown="# report", price_at_decision="10")
+                    report_markdown="\n".join(f"## {name}\n内容" for name in decision_log.REQUIRED_SECTIONS),
+                    price_at_decision="10")
         args.update(overrides)
         return decision_log.save_decision(**args)
 
@@ -193,7 +194,8 @@ class DecisionLogTests(unittest.TestCase):
         for overrides in ({"action": "SELL"}, {"confidence": "0.8"}, {"risks": []},
                           {"action": "NO_TRADE", "price_at_decision": None},
                           {"price_at_decision": None}, {"price_at_decision": "541.15（收盘）"},
-                          {"data_as_of": "2026-10-12（价格）；财务截至 FY2026"}):
+                          {"data_as_of": "2026-10-12（价格）；财务截至 FY2026"},
+                          {"report_markdown": "## 一、核心结论\n## 二、估值"}):
             with self.subTest(overrides=overrides), self.assertRaises(decision_log.DecisionLogError):
                 self.save(**overrides)
 
