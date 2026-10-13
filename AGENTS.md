@@ -6,7 +6,7 @@
 
 ## 目录
 
-- `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`technical-structure`、`investment-decision`），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。
+- `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`technical-structure`、`investment-decision`），以及原样引入的 moomoo 官方搜索类与异动类 Skills（来源与约束见 `product/vendor/moomoo-skills.md`；OpenAPI 交易类明确不引入），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。moomoo 的方向判断、情绪与异动解读只作参考展示，不参与研究判断。
 - `product/skills-pending/`：待后续阶段重写的旧 Skills（宏观、行业、期权、所有权、研报、反证、持仓录入、交易日志与反思），不暴露给宿主。
 - `product/mcp/server.py`：stock-data MCP server（`.mcp.json`、`.codex/config.toml` 的 `stock_data`），工具在 `data_tools.py`、`calc_tools.py`、`decision_log.py`；数据默认写入仓库内已忽略的 `.local/`：`.local/data/`（正式使用的报告与决策记录）、`.local/cache/`（共享原始响应缓存）、`.local/runs/<run-id>/`（每次调试运行）。
 - `product/deterministic/`：估值、市场/技术统计、组合指标与硬风险约束。
