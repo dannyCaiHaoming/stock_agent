@@ -52,6 +52,9 @@ def _cutoff(as_of: str | None) -> datetime:
     else:
         moment = parse_timestamp(as_of)
     if moment > now:
+        # A date-only as_of of today (New York) means "now"; genuinely future dates are rejected.
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of) and date.fromisoformat(as_of) <= now.astimezone(NEW_YORK).date():
+            return now
         raise DataToolError("AS_OF_IN_FUTURE")
     return moment
 
@@ -83,6 +86,18 @@ def _yahoo():
 
 
 def _yahoo_get(url: str, params: dict, *, crumb: bool = False) -> bytes:
+    """GET with an anonymous crumb when needed; on 401 refresh the session/crumb and retry once."""
+    try:
+        return _yahoo_get_once(url, params, crumb=crumb)
+    except DataToolError as exc:
+        if not crumb or str(exc) != "YAHOO_HTTP_401":
+            raise
+    global _yahoo_session, _yahoo_crumb
+    _yahoo_session, _yahoo_crumb = None, None
+    return _yahoo_get_once(url, params, crumb=crumb)
+
+
+def _yahoo_get_once(url: str, params: dict, *, crumb: bool = False) -> bytes:
     global _yahoo_crumb
     session = _yahoo()
     if crumb:

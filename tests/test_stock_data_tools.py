@@ -98,6 +98,25 @@ class PriceTests(unittest.TestCase):
             data_tools.get_price_history("aa$")
 
 
+class CutoffAndRetryTests(unittest.TestCase):
+    def test_today_as_of_means_now_but_future_is_rejected(self):
+        today = datetime.now(ZoneInfo("America/New_York")).date()
+        self.assertLessEqual(data_tools._cutoff(today.isoformat()), datetime.now(ZoneInfo("UTC")))
+        with self.assertRaises(data_tools.DataToolError):
+            data_tools._cutoff((today.replace(year=today.year + 1)).isoformat())
+
+    def test_yahoo_401_refreshes_crumb_and_retries_once(self):
+        calls = []
+        def once(url, params, *, crumb=False):
+            calls.append(crumb)
+            if len(calls) == 1:
+                raise data_tools.DataToolError("YAHOO_HTTP_401")
+            return b"ok"
+        with mock.patch.object(data_tools, "_yahoo_get_once", side_effect=once):
+            self.assertEqual(data_tools._yahoo_get("u", {}, crumb=True), b"ok")
+        self.assertEqual(len(calls), 2)
+
+
 class CalcTests(unittest.TestCase):
     def test_calculations_require_evidence_refs(self):
         with self.assertRaises(calc_tools.CalcToolError):
