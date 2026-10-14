@@ -230,9 +230,10 @@ def financial_ratio(
     if bottom == 0:
         raise ValueError("ratio denominator cannot be zero")
     if numerator_period != denominator_period:
-        raise ValueError("ratio periods must be comparable")
+        raise ValueError("ratio periods must be identical labels; pass the same period string for both "
+                         f"(got {numerator_period!r} vs {denominator_period!r}), e.g. 'FQ4 FY26'")
     if numerator_unit != denominator_unit:
-        raise ValueError("ratio units must match")
+        raise ValueError(f"ratio units must match (got {numerator_unit!r} vs {denominator_unit!r})")
     inputs = {"numerator": str(top), "denominator": str(bottom)}
     outputs = {"ratio": str(top / bottom)}
     return _artifact(
@@ -240,6 +241,57 @@ def financial_ratio(
         outputs=outputs, periods={"numerator": numerator_period, "denominator": denominator_period},
         units={"numerator": numerator_unit, "denominator": denominator_unit, "ratio": "ratio"},
         as_of=as_of, assumption_ids=assumption_ids, evidence_fact_ids=evidence_fact_ids,
+    )
+
+
+def price_implied_operating_assumption(
+    *, price: object, shares: object, net_cash: object, revenue: object,
+    operating_margin: object | None, valuation_multiple: object | None,
+    period: str, currency: str, as_of: str, evidence_fact_ids: tuple[str, ...],
+) -> CalculationArtifact:
+    """Invert the operating scenario: given a price, solve the EV/EBIT multiple or the margin."""
+
+    if (operating_margin is None) == (valuation_multiple is None):
+        raise ValueError("give exactly one of operating_margin or valuation_multiple")
+    price_value = _decimal(price, "price")
+    share_count = _decimal(shares, "shares")
+    net_cash_value = _decimal(net_cash, "net_cash")
+    revenue_value = _decimal(revenue, "revenue")
+    if not period or not currency:
+        raise ValueError("scenario period and currency are required")
+    if price_value <= 0 or share_count <= 0 or revenue_value <= 0:
+        raise ValueError("price, shares and revenue must be positive")
+    enterprise_value = price_value * share_count - net_cash_value
+    inputs = {"price": str(price_value), "shares": str(share_count), "net_cash": str(net_cash_value),
+              "revenue": str(revenue_value)}
+    outputs = {"enterprise_value": str(enterprise_value)}
+    units = {"price": f"{currency}/share", "shares": "shares", "net_cash": currency, "revenue": currency,
+             "enterprise_value": currency}
+    if valuation_multiple is None:
+        margin = _decimal(operating_margin, "operating_margin")
+        if margin <= 0 or margin > 1:
+            raise ValueError("operating_margin must be in (0, 1]")
+        operating_profit = revenue_value * margin
+        inputs["operating_margin"] = str(margin)
+        outputs |= {"operating_profit": str(operating_profit),
+                    "implied_valuation_multiple": str(enterprise_value / operating_profit)}
+        units |= {"operating_margin": "ratio", "operating_profit": currency,
+                  "implied_valuation_multiple": "multiple"}
+        formula = "(price * shares - net_cash) / (revenue * operating_margin)"
+    else:
+        multiple = _decimal(valuation_multiple, "valuation_multiple")
+        if multiple <= 0:
+            raise ValueError("valuation_multiple must be positive")
+        inputs["valuation_multiple"] = str(multiple)
+        outputs |= {"implied_operating_profit": str(enterprise_value / multiple),
+                    "implied_operating_margin": str(enterprise_value / multiple / revenue_value)}
+        units |= {"valuation_multiple": "multiple", "implied_operating_profit": currency,
+                  "implied_operating_margin": "ratio"}
+        formula = "(price * shares - net_cash) / valuation_multiple / revenue"
+    return _artifact(
+        method="price-implied-operating-assumption", formula=formula, inputs=inputs, outputs=outputs,
+        periods={"revenue": period, "net_cash": as_of, "shares": as_of, "price": as_of}, units=units,
+        as_of=as_of, assumption_ids=(), evidence_fact_ids=evidence_fact_ids,
     )
 
 

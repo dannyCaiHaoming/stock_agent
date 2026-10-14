@@ -134,6 +134,17 @@ def scenario_value(revenue: str, operating_margin: str, valuation_multiple: str,
     return {**_artifact(result), "assumptions": assumptions}
 
 
+def implied_assumption(price: str, shares: str, net_cash: str, revenue: str, period: str,
+                       evidence_refs: list[str], operating_margin: str | None = None,
+                       valuation_multiple: str | None = None) -> dict[str, Any]:
+    """Inverse of scenario_value: what EV/EBIT multiple (or margin) a given price implies."""
+    refs = tuple(_refs(evidence_refs))
+    return _artifact(valuation.price_implied_operating_assumption(
+        price=price, shares=shares, net_cash=net_cash, revenue=revenue, operating_margin=operating_margin,
+        valuation_multiple=valuation_multiple, period=period, currency="USD", as_of=_now(),
+        evidence_fact_ids=refs))
+
+
 def _rows(prices: dict) -> list[dict]:
     index = prices["columns"].index
     return [{"date": r[index("date")], "close": r[index("close")], "adjusted_close": r[index("adj_close")],

@@ -153,6 +153,15 @@ class CutoffAndRetryTests(unittest.TestCase):
         with self.assertRaises(data_tools.DataToolError):
             data_tools._cutoff((today.replace(year=today.year + 1)).isoformat())
 
+    def test_asia_today_is_now_while_new_york_is_still_yesterday(self):
+        # 2026-10-14T03:05Z is 23:05 on 10-13 in New York but already 10-14 in Asia.
+        fixed = datetime(2026, 10, 14, 3, 5, tzinfo=ZoneInfo("UTC"))
+        with mock.patch.object(data_tools, "datetime", wraps=datetime) as fake:
+            fake.now.return_value = fixed
+            self.assertEqual(data_tools._cutoff("2026-10-14"), fixed)
+            with self.assertRaises(data_tools.DataToolError):
+                data_tools._cutoff("2026-10-16")
+
     def test_yahoo_401_refreshes_crumb_and_retries_once(self):
         calls = []
         def once(url, params, *, crumb=False):
@@ -214,6 +223,28 @@ class DecisionLogTests(unittest.TestCase):
                           {"report_markdown": "## 一、核心结论\n## 二、估值"}):
             with self.subTest(overrides=overrides), self.assertRaises(decision_log.DecisionLogError):
                 self.save(**overrides)
+
+
+
+
+
+class ImpliedAssumptionTest(unittest.TestCase):
+    def test_inverts_scenario_value(self):
+        from decimal import Decimal
+
+        forward = calc_tools.scenario_value("6330000000", "0.30", "40", "1101000000", "90580000", "FY2027",
+                                           ["neutral"], ["test"])
+        price = forward["outputs"]["value_per_share"]
+        multiple = calc_tools.implied_assumption(price, "90580000", "1101000000", "6330000000", "FY2027",
+                                                 ["test"], operating_margin="0.30")
+        self.assertEqual(Decimal(multiple["outputs"]["implied_valuation_multiple"]).quantize(Decimal("0.001")),
+                         Decimal("40.000"))
+        margin = calc_tools.implied_assumption(price, "90580000", "1101000000", "6330000000", "FY2027",
+                                               ["test"], valuation_multiple="40")
+        self.assertEqual(Decimal(margin["outputs"]["implied_operating_margin"]).quantize(Decimal("0.0001")),
+                         Decimal("0.3000"))
+        with self.assertRaises(ValueError):
+            calc_tools.implied_assumption(price, "90580000", "0", "6330000000", "FY2027", ["test"])
 
 
 if __name__ == "__main__":

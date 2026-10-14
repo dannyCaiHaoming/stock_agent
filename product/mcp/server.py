@@ -224,7 +224,7 @@ def percent_change(earlier_value: str, later_value: str, earlier_period: str, la
 @explain_errors
 def ratio(numerator: str, denominator: str, numerator_period: str, denominator_period: str,
           numerator_unit: str, denominator_unit: str, evidence_refs: list[str]) -> dict:
-    """numerator / denominator; rejects mismatched periods or units."""
+    """numerator / denominator. Both period labels must be the same string (e.g. "FQ4 FY26") and units must match."""
     return calc_tools.ratio(numerator, denominator, numerator_period, denominator_period,
                             numerator_unit, denominator_unit, evidence_refs)
 
@@ -237,6 +237,18 @@ def scenario_value(revenue: str, operating_margin: str, valuation_multiple: str,
     + net cash) / shares. State every assumption in `assumptions`."""
     return calc_tools.scenario_value(revenue, operating_margin, valuation_multiple, net_cash, shares, period,
                                      assumptions, evidence_refs)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+def implied_assumption(price: str, shares: str, net_cash: str, revenue: str, period: str,
+                       evidence_refs: list[str], operating_margin: str | None = None,
+                       valuation_multiple: str | None = None) -> dict:
+    """Inverse of scenario_value. Give a price (current or a candidate BUY price) and exactly one of
+    operating_margin or valuation_multiple; returns the EV/EBIT multiple or operating margin that
+    price implies: EV = price x shares - net cash."""
+    return calc_tools.implied_assumption(price, shares, net_cash, revenue, period, evidence_refs,
+                                         operating_margin, valuation_multiple)
 
 
 @server.tool(annotations=LOCAL_WRITE)

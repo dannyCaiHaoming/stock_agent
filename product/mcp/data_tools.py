@@ -52,10 +52,11 @@ def _cutoff(as_of: str | None) -> datetime:
     else:
         moment = parse_timestamp(as_of)
     if moment > now:
-        # A date-only as_of of today (New York) means "now"; genuinely future dates are rejected.
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of) and date.fromisoformat(as_of) <= now.astimezone(NEW_YORK).date():
+        # A date-only as_of that is already "today" somewhere (the caller may be in Asia while New York
+        # is still on the previous day) means "now"; clamping to now cannot leak future data.
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of) and date.fromisoformat(as_of) <= (now + timedelta(hours=14)).date():
             return now
-        raise DataToolError("AS_OF_IN_FUTURE")
+        raise DataToolError(f"AS_OF_IN_FUTURE: {as_of} is later than now ({now:%Y-%m-%dT%H:%MZ}); omit as_of for latest data")
     return moment
 
 

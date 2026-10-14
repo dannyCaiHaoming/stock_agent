@@ -47,10 +47,13 @@ config = json.load(open(".mcp.json"))
 config["mcpServers"]["stock-data"].setdefault("env", {})["STOCK_AGENT_DATA_DIR"] = run_dir
 json.dump(config, open(f"{run_dir}/mcp.json", "w"), indent=2)
 PY
-  claude -p "$prompt" --model "$model" \
+  # dontAsk: anything not listed below is denied instead of falling back to the user's default mode.
+  # curl is limited to the moomoo Skill form and may only print to stdout.
+  claude -p "$prompt" --model "$model" --permission-mode dontAsk \
     --mcp-config "$run_dir/mcp.json" --strict-mcp-config \
-    --allowedTools "Skill" "Read" "Glob" "Grep" "mcp__stock-data__*" "Agent" "Task" \
-      "Bash(curl:*)" "Bash(.venv/bin/python -I product/skills/moomoo-:*)" \
+    --allowedTools "Skill" "Read" "Glob" "Grep" "ToolSearch" "mcp__stock-data__*" "Agent" "Task" \
+      "Bash(curl -sG 'https://ai-news-search.moomoo.com/*)" "Bash(.venv/bin/python -I product/skills/moomoo-*)" \
+    --disallowedTools "Bash(curl * -o *)" "Bash(curl * --output *)" \
     --output-format stream-json --verbose \
     > "$run_dir/transcript.jsonl" 2> "$run_dir/stderr.log" || status=$?
 else
