@@ -8,7 +8,7 @@
 
 - `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`skeptic-review`、`investment-decision`），以及原样引入的 moomoo 官方搜索类与异动类 Skills（来源与约束见 `product/vendor/moomoo-skills.md`；OpenAPI 交易类明确不引入），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。moomoo 的方向判断、情绪与异动解读只作参考展示，不参与研究判断。
 - `product/skills-pending/`：待后续阶段重写的旧 Skills（期权、所有权、研报、催化剂、持仓录入、交易日志与反思），不暴露给宿主。
-- 子 Agent：`advocate`（正向研究：亮点与历史验证）与 `skeptic`（反向研究与论证审查），定义在 `.claude/agents/` 与 `.codex/agents/`；主线程担任 CIO。
+- 子 Agent：`advocate`（正向研究：亮点与历史验证）与 `skeptic`（反向研究），两者也分别从正反两个角度审查 CIO 的最终判断；定义在 `.claude/agents/` 与 `.codex/agents/`；主线程担任 CIO。
 - `product/mcp/server.py`：stock-data MCP server（`.mcp.json`、`.codex/config.toml` 的 `stock_data`），工具在 `data_tools.py`、`calc_tools.py`、`context_tools.py`（宏观、市场、同业）、`decision_log.py`；数据默认写入仓库内已忽略的 `.local/`：`.local/data/`（正式使用的报告与决策记录）、`.local/cache/`（共享原始响应缓存）、`.local/runs/<run-id>/`（每次调试运行）。
 - `product/deterministic/`：估值、市场/技术统计、组合指标与硬风险约束。
 - `product/mcp/live/`、`product/mcp/provenance.py`：SEC、NASDAQ、Yahoo、Moomoo OpenD、Eastmoney、宏观、期权等只读数据源接入代码，供 MCP 工具复用。
