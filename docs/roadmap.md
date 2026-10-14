@@ -144,20 +144,24 @@
 
 ### 第 2 階段：批判與綜合品質
 - **目標**：透過獨立反證與更廣的背景研究降低錯誤。
-- **功能**：
-  - Skeptic subagent（兩宿主）；
-  - 決策綜合規則：逐條處置挑戰；
+- **功能**（2026-10-13 按用戶設計調整為「正向 / 反向 / CIO」三方結構）：
+  - 正向研究員 advocate subagent（兩宿主）：從證據中找亮點，用 `forward_returns` 做歷史驗證，判斷是否值得博弈；
+  - 反向研究員 skeptic subagent（兩宿主）：獨立首輪查證風險，並檢驗當前價格隱含的預期是否被基本面支撐（例如 10% 增長能否支撐 30 倍 P/E）；
+  - CIO（主線程）：先寫初步判斷，再逐條說明如何使用正反論點（決定性 / 支持 / 僅觀察 / 駁回，含是否已被定價），用三個情景給出風險收益；NO_TRADE 必須給出轉為 BUY 的價格或條件；
+  - 論證審查：由 skeptic 雙向審查 CIO 的最終判斷；
   - 宏觀與市場背景工具及 Skill；
-  - 同業比較（Nasdaq 全集 + 同業估值工具）；
-  - 新聞/催化劑標題與 8-K。
-- **復用**：`macro`、`market_context`、`nasdaq`、`peer_candidates`、`build_peer_comparison`、`moomoo_public_news`、counter-thesis/macro/industry Skill 的方法內容。
+  - 同業比較（Yahoo 候選 + 人工篩選 + 同業估值工具）；
+  - 新聞/催化劑：8-K 與 EX-99.1、moomoo 官方搜索類與異動類 Skills（僅作第三方參考）。
+- **復用**：`macro`、`market_context`、`peer_candidates`、`moomoo` 官方 Skills、counter-thesis/macro/industry Skill 的方法內容。
 - **驗收**：
-  - Skeptic 確實看不到正向報告（檢查它的輸入）；
-  - 每份報告至少 2 個針對實際主張的實質挑戰，且全部被處置；
+  - advocate 與 skeptic 首輪都看不到主研究結論（Claude Code 檢查傳入提示；Codex 檢查 `fork_turns="none"`）；
+  - 每份報告的正反論點都有 CIO 用法與理由，論證審查意見全部被回應；
   - 與第 1 階段同樣的樣本相比，人工評分不下降，且「挑戰處置」「反向情景」兩個維度提升；
+  - 兩宿主都跑過新結構；
+  - 對照測試：估值相對歷史與同業偏低、增長未惡化的樣本，流程能給出 BUY 或清楚說明為何不能（排除結構性偏向 NO_TRADE）；
   - 單股耗時不超過 25 分鐘。
 - **依賴**：第 1 階段。
-- **風險**：反證流於形式；宏觀資料傳導到個股時過於空泛（ALB 第 6 份報告的問題）。
+- **風險**：反證流於形式；宏觀資料傳導到個股時過於空泛（ALB 第 6 份報告的問題）；正反結構使結論系統性偏向 NO_TRADE。
 
 ### 第 3 階段：真實組合
 - **目標**：讀取真實組合，逐股研究後輸出組合層級建議。
@@ -332,3 +336,5 @@
 - 2026-10-13：第 2 阶段实现——skeptic 子 Agent（`.claude/agents/skeptic.md`、`.codex/agents/skeptic.toml`）、`get_macro_snapshot`/`get_market_context`/`get_peer_candidates`/`get_peer_snapshot`、Skills `skeptic-review`/`macro-market-context`/`peer-comparison`，`investment-decision` 逐条处置挑战并新增同业、宏观章节；`save_decision` 校验报告必备章节。验收运行（MSFT/ALB/JPM × 两宿主）：每份 6–11 分钟；skeptic 均被启动（Claude 传入的提示只有代码、时点与中性问题；Codex `fork_turns=none`，消息正文在会话记录中加密，无法直接核对）；每份 4–10 条挑战全部处置，合计 39 条中拒绝仅 1 条；结论除 Codex MSFT 为 BUY 外均为 NO_TRADE。调试运行关闭 Codex 全局记忆。待用户与第 1 阶段报告对比评分。
 - 2026-10-13：按用户设计改为“正向（advocate：亮点 + 历史验证）/ 反向（skeptic）/ CIO（主线程逐条使用正反论点 + 情景风险收益）”，论证审查改为双向审查 CIO 最终判断；新增 `forward_returns` 历史验证工具。Codex 重跑 MSFT/ALB/JPM：10–17 分钟；三份均 NO_TRADE（初步判断已是 NO_TRADE，审查未改变动作，但修正了情景口径），均给出转为 BUY 的价格/条件；发现 Codex 一轮派生使用 `fork_turns=all`，已在 Skill 中强制 `none`。
 
+- 2026-10-13：Codex 重跑 LITE（`fork_turns=none` 生效，论证审查经 `followup_task` 发给同一 skeptic）：约 12 分钟，初步与最终均为 NO_TRADE / medium，给出约 $600 的重评价位与 BUY 条件。
+- 2026-10-14：第 2 阶段正文按三方结构更新；收尾待办：Claude Code 跑新结构（LITE）、人工评分、BUY 对照测试。之后进入第 3 阶段，并行启动第 4 阶段前瞻追踪。
