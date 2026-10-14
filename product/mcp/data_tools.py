@@ -119,6 +119,28 @@ def _yahoo_get_once(url: str, params: dict, *, crumb: bool = False) -> bytes:
     return response.content
 
 
+def _later_split_factor(ticker: str, after_day: date) -> tuple[Decimal, list[list[Any]]]:
+    """Product of split ratios after `after_day` (Yahoo prices are adjusted for every later split)."""
+    period1 = int(datetime.combine(after_day + timedelta(days=1), dtime(0, 0), NEW_YORK).timestamp())
+    period2 = int(datetime.now(UTC).timestamp())
+    if period1 >= period2:
+        return Decimal(1), []
+    raw = _yahoo_get(YAHOO_CHART.format(ticker=ticker), {"period1": period1, "period2": period2,
+                                                          "interval": "1mo", "events": "splits"})
+    try:
+        events = (json.loads(raw)["chart"]["result"][0].get("events") or {}).get("splits", {})
+    except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+        return Decimal(1), []
+    factor, later = Decimal(1), []
+    for value in events.values():
+        day = datetime.fromtimestamp(int(value["date"]), NEW_YORK).date()
+        numerator, denominator = Decimal(str(value.get("numerator") or 0)), Decimal(str(value.get("denominator") or 0))
+        if day > after_day and numerator > 0 and denominator > 0:
+            factor *= numerator / denominator
+            later.append([day.isoformat(), value.get("splitRatio")])
+    return factor, sorted(later)
+
+
 def get_price_history(ticker: str, start: str | None = None, end: str | None = None,
                       interval: str = "1d", as_of: str | None = None,
                       max_rows: int = MAX_PRICE_ROWS) -> dict[str, Any]:
@@ -155,6 +177,15 @@ def get_price_history(ticker: str, start: str | None = None, end: str | None = N
                      _num(adjclose[i]), _num(quote.get("volume", [None] * len(stamps))[i], 0)])
     if not rows:
         raise DataToolError("NO_PRICE_ROWS")
+    # Point in time: undo splits that happened after the cutoff, so prices match per-share data
+    # (EPS, share counts) published at that time and do not reveal the later split.
+    factor, later_splits = (Decimal(1), [])
+    if as_of is not None:
+        factor, later_splits = _later_split_factor(ticker, last_day)
+    if factor != 1:
+        for row in rows:
+            row[1:6] = [_num(Decimal(v) * factor) if v is not None else None for v in row[1:6]]
+            row[6] = _num(Decimal(row[6]) / factor, 0) if row[6] is not None else None
     if len(rows) > max_rows:
         raise DataToolError(f"TOO_MANY_ROWS ({len(rows)}): narrow the range or use interval=1wk/1mo")
     incomplete = (interval == "1d" and as_of is None and rows[-1][0] == datetime.now(NEW_YORK).date().isoformat()
@@ -174,7 +205,9 @@ def get_price_history(ticker: str, start: str | None = None, end: str | None = N
         "provenance": {"source_id": f"yahoo-chart:{ticker}", "source_locator": url,
                        "as_of": rows[-1][0], "retrieved_at": retrieved_at,
                        "raw_content_hash": record["raw_content_hash"],
-                       "notes": "Unofficial free Yahoo endpoint. close is split-adjusted, adj_close also dividend-adjusted."},
+                       "notes": "Unofficial free Yahoo endpoint. close is split-adjusted, adj_close also dividend-adjusted."
+                                + (" With as_of, prices are as they traded at that time: splits after the cutoff are"
+                                   " undone." if as_of is not None else "")},
     }
 
 
@@ -329,6 +362,8 @@ INSTANT_ITEMS = {"cash_and_equivalents", "short_term_investments", "receivables"
                  "stockholders_equity", "shares_outstanding", "operating_lease_liability",
                  "finance_lease_liability", "preferred_stock", "noncontrolling_interest"}
 NON_ADDITIVE = {"eps_basic", "eps_diluted", "diluted_shares_weighted"}
+# Per-share values and share counts are on the split basis of the filing they came from.
+SPLIT_SENSITIVE = ("eps_basic", "eps_diluted", "diluted_shares_weighted", "shares_outstanding")
 
 
 def _days(fact: dict) -> int | None:
@@ -392,8 +427,10 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
     derived_cells: list[dict] = []
     restated: list[dict] = []
     sources: dict[str, dict] = {}
+    split_sensitive: dict[str, list] = {}
     for name, (unit, tags) in LINE_ITEMS.items():
         row = []
+        published_row = []
         for start, end in periods:
             cell = None
             for tag in tags:
@@ -405,6 +442,7 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
                 if candidates:
                     chosen = _latest(candidates)
                     cell = chosen["value"]
+                    published_row.append(chosen["published_at"][:10])
                     tags_used.setdefault(name, f"us-gaap:{tag}")
                     sources[chosen["accession"]] = {"form": chosen["form"], "published_at": chosen["published_at"]}
                     if len({c["value"] for c in candidates}) > 1:
@@ -433,8 +471,12 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
                                               "inputs": [a["accession"], b["accession"]]})
                         break
             row.append(cell)
+            if len(published_row) < len(row):
+                published_row.append(None)
         if any(v is not None for v in row):
             lines[name] = row
+            if name in SPLIT_SENSITIVE:
+                split_sensitive[name] = published_row
     # Derived lines (marked in derived_cells): D&A from components, EBITDA, free cash flow.
     def derive(name: str, parts: tuple[str, str], sign: int, method: str, only_missing: bool = False) -> None:
         a_row, b_row = lines.get(parts[0]), lines.get(parts[1])
@@ -487,6 +529,7 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
         "ttm": ttm,
         "derived_cells": derived_cells,
         "restatements": restated[:30],
+        "per_share_published_at": split_sensitive,
         "filings_used": dict(sorted(sources.items(), key=lambda kv: kv[1]["published_at"])[-12:]),
         "provenance": {"source_id": f"sec-companyfacts-{identity['cik']}",
                        "source_locator": f"https://data.sec.gov/api/xbrl/companyfacts/CIK{identity['cik']}.json",
@@ -496,7 +539,9 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
                                 "Lines absent from the table were not reported under the mapped tags "
                                 "(use get_sec_concept for other tags). Missing cells are NOT zero. "
                                 "ebitda, free_cash_flow and some D&A cells are derived (see derived_cells). "
-                                "debt_* excludes leases; lease liabilities are separate lines."},
+                                "debt_* excludes leases; lease liabilities are separate lines. "
+                                "Per-share values and share counts are on the split basis of the filing they came "
+                                "from (per_share_published_at); across a stock split, adjust before comparing."},
     }
 
 

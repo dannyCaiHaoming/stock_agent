@@ -187,12 +187,28 @@ def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict[st
     eps_row = statements["lines"].get("eps_diluted")
     if not eps_row:
         raise CalcToolError("ANNUAL_DILUTED_EPS_UNAVAILABLE")
-    fiscal = [(p["end"], Decimal(v)) for p, v in zip(statements["periods"], eps_row) if v is not None]
+    published = statements.get("per_share_published_at", {}).get("eps_diluted") or [None] * len(eps_row)
     end = date.fromisoformat(as_of[:10]) if as_of else date.today()
+    # Daily closes (monthly bars can include closes after the cutoff), sampled at each month's last session.
     prices = data_tools.get_price_history(ticker, start=(end - timedelta(days=365 * years)).isoformat(),
-                                          interval="1mo", as_of=as_of)
-    points = []
+                                          interval="1d", as_of=as_of, max_rows=20000)
+    # Prices are split-adjusted up to the cutoff; an EPS filed before a later split is on the old basis.
+    splits = [(day, Decimal(a) / Decimal(b)) for day, ratio in prices.get("splits", [])
+              if ratio and ":" in ratio for a, b in [ratio.split(":")] if Decimal(b) > 0]
+    fiscal = []
+    for p, v, filed in zip(statements["periods"], eps_row, published):
+        if v is None:
+            continue
+        factor = Decimal(1)
+        for split_day, ratio in splits:
+            if filed and split_day > filed:
+                factor *= ratio
+        fiscal.append((p["end"], Decimal(v) / factor))
+    month_last: dict[str, list] = {}
     for row in prices["rows"]:
+        month_last[row[0][:7]] = row
+    points = []
+    for row in month_last.values():
         day, close = row[0], row[4]
         # Use EPS of the latest fiscal year ending at least ~60 days before the month (10-K filing lag proxy).
         known = [eps for fy_end, eps in fiscal
@@ -206,7 +222,7 @@ def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict[st
     # "current" is the latest month only; a loss-making latest fiscal year means P/E is not applicable.
     current = Decimal(points[-1][3]) if points and points[-1][3] is not None else None
     return {
-        "ticker": statements["ticker"], "columns": ["month", "close", "fy_diluted_eps", "trailing_pe"],
+        "ticker": statements["ticker"], "columns": ["month_last_session", "close", "fy_diluted_eps", "trailing_pe"],
         "rows": points,
         "summary": None if not values else {
             "current": format(current, "f") if current is not None else None,
@@ -215,7 +231,8 @@ def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict[st
             "min": format(min(values), "f"), "max": format(max(values), "f"), "points": len(values),
             "current_percentile_0_100": format(round(midrank_percentile(current, values[:-1]), 1), "f") if current is not None and len(values) > 1 else None},
         "provenance": {"prices": prices["provenance"], "eps": statements["provenance"]},
-        "limitations": ["EPS is fiscal-year diluted EPS (latest restated), not quarterly TTM and not as originally reported.",
+        "limitations": ["EPS is fiscal-year diluted EPS (latest restated), not quarterly TTM; EPS filed before a later "
+                        "stock split is divided by that split ratio to match split-adjusted prices.",
                         "A 60-day filing lag is assumed between fiscal year end and EPS availability.",
                         "A historical percentile describes the past range only; it is not a valuation conclusion."],
     }

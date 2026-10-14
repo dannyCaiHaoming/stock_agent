@@ -267,5 +267,23 @@ class ReplayModeTests(unittest.TestCase):
             self.assertIsNone(pe.call_args.kwargs["as_of"])
 
 
+class PeHistorySplitTests(unittest.TestCase):
+    def test_eps_filed_before_split_is_put_on_split_adjusted_basis(self):
+        statements = {"ticker": "XYZ", "periods": [{"start": "2022-01-01", "end": "2022-12-31"},
+                                                   {"start": "2023-01-01", "end": "2023-12-31"}],
+                      "lines": {"eps_diluted": ["10", "1.2"]},
+                      "per_share_published_at": {"eps_diluted": ["2023-02-20", "2024-02-20"]},
+                      "provenance": {}}
+        prices = {"rows": [["2023-06-30", "1", "1", "1", "20", "20", "1"],
+                           ["2024-03-28", "1", "1", "1", "24", "24", "1"]],
+                  "splits": [["2023-08-01", "10:1"]], "provenance": {}}
+        with mock.patch.object(data_tools, "get_financial_statements", return_value=statements), \
+                mock.patch.object(data_tools, "get_price_history", return_value=prices):
+            result = calc_tools.pe_history("XYZ", as_of="2024-04-01")
+        # FY2022 EPS 10 was filed before the 10:1 split -> 1.0 on the adjusted basis; P/E 20.
+        self.assertEqual(result["rows"][0][2:], ["1", "20.00"])
+        self.assertEqual(result["rows"][1][2:], ["1.2", "20.00"])
+
+
 if __name__ == "__main__":
     unittest.main()
