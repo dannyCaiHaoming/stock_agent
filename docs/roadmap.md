@@ -338,3 +338,4 @@
 
 - 2026-10-13：Codex 重跑 LITE（`fork_turns=none` 生效，论证审查经 `followup_task` 发给同一 skeptic）：约 12 分钟，初步与最终均为 NO_TRADE / medium，给出约 $600 的重评价位与 BUY 条件。
 - 2026-10-14：第 2 阶段正文按三方结构更新；收尾待办：Claude Code 跑新结构（LITE）、人工评分、BUY 对照测试。之后进入第 3 阶段，并行启动第 4 阶段前瞻追踪。
+- 2026-10-14：Claude Code（claude-haiku-5-5）跑新结构 LITE：约 6.5 分钟，NO_TRADE / medium，与 Codex 一致；advocate、skeptic 首轮提示只含代码与中性问题，论证审查 8 条全部接受、动作未变。问题：8-K EX-99.1 未取得原文（40 次 `get_filing_text`），部分倍数手工计算，moomoo 新闻调试时 curl 临时写入 `/tmp`。
