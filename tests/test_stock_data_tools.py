@@ -247,5 +247,25 @@ class ImpliedAssumptionTest(unittest.TestCase):
             calc_tools.implied_assumption(price, "90580000", "0", "6330000000", "FY2027", ["test"])
 
 
+class ReplayModeTests(unittest.TestCase):
+    def test_replay_pins_as_of_and_refuses_current_only_tools(self):
+        from mcp.server.mcpserver.exceptions import ToolError
+        from product.mcp import server
+
+        with mock.patch.dict(os.environ, {"STOCK_AGENT_REPLAY_AS_OF": "2025-01-02"}), \
+                mock.patch.object(calc_tools, "pe_history", return_value={}) as pe:
+            server.pe_history("ADBE")
+            self.assertEqual(pe.call_args.kwargs["as_of"], "2025-01-02")
+            server.pe_history("ADBE", as_of="2024-06-30")
+            self.assertEqual(pe.call_args.kwargs["as_of"], "2024-06-30")
+            with self.assertRaisesRegex(ToolError, "REPLAY_AS_OF_EXCEEDED"):
+                server.pe_history("ADBE", as_of="2026-10-14")
+            with self.assertRaisesRegex(ToolError, "NOT_POINT_IN_TIME"):
+                server.get_analyst_snapshot("ADBE")
+        with mock.patch.object(calc_tools, "pe_history", return_value={}) as pe:
+            server.pe_history("ADBE")
+            self.assertIsNone(pe.call_args.kwargs["as_of"])
+
+
 if __name__ == "__main__":
     unittest.main()

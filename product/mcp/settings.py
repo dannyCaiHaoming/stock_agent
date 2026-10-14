@@ -41,3 +41,18 @@ def sec_user_agent() -> str:
     if "@" not in value:
         raise SettingsError("SEC_USER_AGENT_REQUIRED: set SEC_USER_AGENT to 'app-name contact@email'")
     return value
+
+
+def replay_as_of() -> str | None:
+    """Historical replay date (YYYY-MM-DD) from STOCK_AGENT_REPLAY_AS_OF, or None for normal use.
+
+    In replay mode every point-in-time tool is pinned to this date and current-only tools are refused,
+    so a replayed study cannot see prices, estimates or news published afterwards.
+    """
+    value = os.environ.get("STOCK_AGENT_REPLAY_AS_OF", "").strip()
+    if not value:
+        return None
+    import re
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise SettingsError("STOCK_AGENT_REPLAY_AS_OF must be YYYY-MM-DD")
+    return value

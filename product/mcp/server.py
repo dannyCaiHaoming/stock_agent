@@ -9,12 +9,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import functools
+import inspect
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from product.mcp import calc_tools, context_tools, data_tools, decision_log
+from product.mcp import calc_tools, context_tools, data_tools, decision_log, settings
 
 server = MCPServer(
     name="stock-data",
@@ -38,6 +39,37 @@ def explain_errors(fn):
     return wrapper
 
 
+def point_in_time(fn):
+    """Replay mode: default as_of to the replay date and refuse anything later."""
+    signature = inspect.signature(fn)
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        replay = settings.replay_as_of()
+        if replay:
+            bound = signature.bind_partial(*args, **kwargs)
+            requested = bound.arguments.get("as_of")
+            if not requested:
+                bound.arguments["as_of"] = replay
+            elif str(requested)[:10] > replay:
+                raise ToolError(f"REPLAY_AS_OF_EXCEEDED: this is a replay as of {replay}; later data is not allowed")
+            return fn(*bound.args, **bound.kwargs)
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def current_only(fn):
+    """Replay mode: refuse tools that only return today's data (it would leak the future)."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        replay = settings.replay_as_of()
+        if replay:
+            raise ToolError(f"NOT_POINT_IN_TIME: replay as of {replay}; this tool only returns current data. "
+                            "Record it as a data gap (SOURCE_UNSUPPORTED) and continue.")
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
 LOCAL_WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False)
 
@@ -51,6 +83,7 @@ def ping() -> dict[str, str]:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def get_price_history(ticker: str, start: str | None = None, end: str | None = None,
                       interval: str = "1d", as_of: str | None = None) -> dict:
     """Daily/weekly/monthly OHLCV, adjusted close, dividends and splits (Yahoo).
@@ -60,6 +93,7 @@ def get_price_history(ticker: str, start: str | None = None, end: str | None = N
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@current_only
 def get_analyst_snapshot(ticker: str) -> dict:
     """Current company profile, key statistics, analyst consensus (targets, ratings), EPS/revenue
     estimates with 7-90 day estimate trend and revisions, and next earnings date (Yahoo, current-only)."""
@@ -68,6 +102,7 @@ def get_analyst_snapshot(ticker: str) -> dict:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5,
                              as_of: str | None = None) -> dict:
     """Standardized income statement, cash flow and balance sheet lines from SEC XBRL (as reported).
@@ -79,6 +114,7 @@ def get_financial_statements(ticker: str, period: str = "annual", limit: int = 5
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def get_sec_concept(ticker: str, tag: str, taxonomy: str = "us-gaap", limit: int = 12,
                     as_of: str | None = None) -> dict:
     """All periods of one XBRL concept (e.g. tag='OperatingLeaseLiability'), latest version per period,
@@ -88,6 +124,7 @@ def get_sec_concept(ticker: str, tag: str, taxonomy: str = "us-gaap", limit: int
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
                  as_of: str | None = None) -> dict:
     """Recent SEC filings (accession, form, report date, acceptance time). forms e.g. ['10-K','10-Q','8-K']."""
@@ -96,6 +133,7 @@ def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def list_filing_documents(ticker: str, accession: str, as_of: str | None = None) -> dict:
     """All documents in one SEC filing: primary document and exhibits (e.g. 8-K EX-99.1 earnings press
     release). Read one with get_filing_text(accession=..., document=<file name>)."""
@@ -104,6 +142,7 @@ def list_filing_documents(ticker: str, accession: str, as_of: str | None = None)
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K",
                     section: str = "management_discussion", offset: int = 0, max_chars: int = 12000,
                     query: str | None = None, document: str | None = None, match_offset: int = 0,
@@ -121,6 +160,7 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def get_macro_snapshot(as_of: str | None = None) -> dict:
     """US macro: unemployment, payrolls, 2/10/30Y Treasury yields and 10Y-2Y spread, CPI and core CPI with
     computed YoY, latest Fed communication, and BLS releases in the next 45 days (official free sources)."""
@@ -129,6 +169,7 @@ def get_macro_snapshot(as_of: str | None = None) -> dict:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def get_market_context(as_of: str | None = None) -> dict:
     """Market state: SPY, 11 sector ETFs, TLT, UUP, GLD, USO, HYG and VIX with last close and 5/20/60-session
     % change, plus recent market headlines. ETF values are proxies."""
@@ -137,6 +178,7 @@ def get_market_context(as_of: str | None = None) -> dict:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@current_only
 def get_peer_candidates(ticker: str) -> dict:
     """Unverified peer candidates (Yahoo related symbols; popularity-based, often noisy)."""
     return context_tools.get_peer_candidates(ticker)
@@ -144,6 +186,7 @@ def get_peer_candidates(ticker: str) -> dict:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@current_only
 def get_peer_snapshot(tickers: list[str]) -> dict:
     """Side-by-side provider-reported statistics for up to 6 tickers: sector, industry, market cap, P/E,
     forward P/E, EV/revenue, EV/EBITDA, P/B, growth, margins, ROE, debt/equity, 52-week change."""
@@ -152,6 +195,7 @@ def get_peer_snapshot(tickers: list[str]) -> dict:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def technical_stats(ticker: str, benchmark: str = "SPY", as_of: str | None = None) -> dict:
     """20/60/252-session total and relative return, annualized volatility, max drawdown, volume ratio,
     window high/low, and 50/200-day moving averages, versus a benchmark ETF."""
@@ -160,6 +204,7 @@ def technical_stats(ticker: str, benchmark: str = "SPY", as_of: str | None = Non
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict:
     """Monthly trailing P/E from fiscal-year diluted EPS with min/median/max and current percentile."""
     return calc_tools.pe_history(ticker, years=years, as_of=as_of)
@@ -167,6 +212,7 @@ def pe_history(ticker: str, years: int = 5, as_of: str | None = None) -> dict:
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
 def forward_returns(ticker: str, dates: list[str], horizons_days: list[int] | None = None,
                     benchmark: str = "SPY", as_of: str | None = None) -> dict:
     """Historical validation: what happened after given dates (e.g. past instances of a similar setup)?

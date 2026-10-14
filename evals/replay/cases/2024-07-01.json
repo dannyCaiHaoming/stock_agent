@@ -1,0 +1,569 @@
+{
+  "start": "2024-07-01",
+  "horizon_days": 252,
+  "benchmark": "SPY",
+  "seed": 0,
+  "created_at": "2026-10-14T07:43:18Z",
+  "universe_size": 82,
+  "skipped": {},
+  "limitations": [
+    "幸存者偏差：候选池按 2026-10 的认知挑选。",
+    "超额收益为复权价总回报减 SPY 总回报。"
+  ],
+  "groups": {
+    "winner": [
+      {
+        "ticker": "NFLX",
+        "base_date": "2024-07-01",
+        "return_pct": 92.57,
+        "excess_pct": 76.47
+      },
+      {
+        "ticker": "IBM",
+        "base_date": "2024-07-01",
+        "return_pct": 71.79,
+        "excess_pct": 55.7
+      },
+      {
+        "ticker": "AVGO",
+        "base_date": "2024-07-01",
+        "return_pct": 69.62,
+        "excess_pct": 53.52
+      }
+    ],
+    "loser": [
+      {
+        "ticker": "ADBE",
+        "base_date": "2024-07-01",
+        "return_pct": -32.27,
+        "excess_pct": -48.37
+      },
+      {
+        "ticker": "MRK",
+        "base_date": "2024-07-01",
+        "return_pct": -34.59,
+        "excess_pct": -50.69
+      },
+      {
+        "ticker": "UNH",
+        "base_date": "2024-07-01",
+        "return_pct": -36.44,
+        "excess_pct": -52.54
+      }
+    ],
+    "control": [
+      {
+        "ticker": "DE",
+        "base_date": "2024-07-01",
+        "return_pct": 46.35,
+        "excess_pct": 30.25
+      },
+      {
+        "ticker": "CAT",
+        "base_date": "2024-07-01",
+        "return_pct": 22.86,
+        "excess_pct": 6.77
+      },
+      {
+        "ticker": "AMZN",
+        "base_date": "2024-07-01",
+        "return_pct": 13.29,
+        "excess_pct": -2.81
+      }
+    ]
+  },
+  "all_ranked": [
+    {
+      "ticker": "NFLX",
+      "base_date": "2024-07-01",
+      "return_pct": 92.57,
+      "excess_pct": 76.47
+    },
+    {
+      "ticker": "IBM",
+      "base_date": "2024-07-01",
+      "return_pct": 71.79,
+      "excess_pct": 55.7
+    },
+    {
+      "ticker": "AVGO",
+      "base_date": "2024-07-01",
+      "return_pct": 69.62,
+      "excess_pct": 53.52
+    },
+    {
+      "ticker": "GILD",
+      "base_date": "2024-07-01",
+      "return_pct": 68.06,
+      "excess_pct": 51.96
+    },
+    {
+      "ticker": "ORCL",
+      "base_date": "2024-07-01",
+      "return_pct": 67.71,
+      "excess_pct": 51.61
+    },
+    {
+      "ticker": "GS",
+      "base_date": "2024-07-01",
+      "return_pct": 59.35,
+      "excess_pct": 43.26
+    },
+    {
+      "ticker": "T",
+      "base_date": "2024-07-01",
+      "return_pct": 57.21,
+      "excess_pct": 41.11
+    },
+    {
+      "ticker": "GE",
+      "base_date": "2024-07-01",
+      "return_pct": 56.34,
+      "excess_pct": 40.24
+    },
+    {
+      "ticker": "CSCO",
+      "base_date": "2024-07-01",
+      "return_pct": 51.27,
+      "excess_pct": 35.17
+    },
+    {
+      "ticker": "TSLA",
+      "base_date": "2024-07-01",
+      "return_pct": 50.27,
+      "excess_pct": 34.17
+    },
+    {
+      "ticker": "MS",
+      "base_date": "2024-07-01",
+      "return_pct": 50.01,
+      "excess_pct": 33.91
+    },
+    {
+      "ticker": "RTX",
+      "base_date": "2024-07-01",
+      "return_pct": 49.48,
+      "excess_pct": 33.39
+    },
+    {
+      "ticker": "JPM",
+      "base_date": "2024-07-01",
+      "return_pct": 48.13,
+      "excess_pct": 32.03
+    },
+    {
+      "ticker": "WMT",
+      "base_date": "2024-07-01",
+      "return_pct": 47.26,
+      "excess_pct": 31.16
+    },
+    {
+      "ticker": "NEM",
+      "base_date": "2024-07-01",
+      "return_pct": 46.93,
+      "excess_pct": 30.83
+    },
+    {
+      "ticker": "DE",
+      "base_date": "2024-07-01",
+      "return_pct": 46.35,
+      "excess_pct": 30.25
+    },
+    {
+      "ticker": "C",
+      "base_date": "2024-07-01",
+      "return_pct": 44.6,
+      "excess_pct": 28.5
+    },
+    {
+      "ticker": "META",
+      "base_date": "2024-07-01",
+      "return_pct": 42.96,
+      "excess_pct": 26.86
+    },
+    {
+      "ticker": "AXP",
+      "base_date": "2024-07-01",
+      "return_pct": 42.29,
+      "excess_pct": 26.19
+    },
+    {
+      "ticker": "BLK",
+      "base_date": "2024-07-01",
+      "return_pct": 41.35,
+      "excess_pct": 25.25
+    },
+    {
+      "ticker": "WFC",
+      "base_date": "2024-07-01",
+      "return_pct": 41.29,
+      "excess_pct": 25.2
+    },
+    {
+      "ticker": "V",
+      "base_date": "2024-07-01",
+      "return_pct": 37.32,
+      "excess_pct": 21.22
+    },
+    {
+      "ticker": "ABT",
+      "base_date": "2024-07-01",
+      "return_pct": 32.88,
+      "excess_pct": 16.78
+    },
+    {
+      "ticker": "PYPL",
+      "base_date": "2024-07-01",
+      "return_pct": 32.49,
+      "excess_pct": 16.39
+    },
+    {
+      "ticker": "NOW",
+      "base_date": "2024-07-01",
+      "return_pct": 32.41,
+      "excess_pct": 16.32
+    },
+    {
+      "ticker": "MA",
+      "base_date": "2024-07-01",
+      "return_pct": 30.84,
+      "excess_pct": 14.75
+    },
+    {
+      "ticker": "NVDA",
+      "base_date": "2024-07-01",
+      "return_pct": 28.23,
+      "excess_pct": 12.13
+    },
+    {
+      "ticker": "DIS",
+      "base_date": "2024-07-01",
+      "return_pct": 28.17,
+      "excess_pct": 12.07
+    },
+    {
+      "ticker": "SCHW",
+      "base_date": "2024-07-01",
+      "return_pct": 26.35,
+      "excess_pct": 10.25
+    },
+    {
+      "ticker": "SBUX",
+      "base_date": "2024-07-01",
+      "return_pct": 25.49,
+      "excess_pct": 9.4
+    },
+    {
+      "ticker": "BAC",
+      "base_date": "2024-07-01",
+      "return_pct": 25.29,
+      "excess_pct": 9.19
+    },
+    {
+      "ticker": "CAT",
+      "base_date": "2024-07-01",
+      "return_pct": 22.86,
+      "excess_pct": 6.77
+    },
+    {
+      "ticker": "DUK",
+      "base_date": "2024-07-01",
+      "return_pct": 22.53,
+      "excess_pct": 6.43
+    },
+    {
+      "ticker": "CVS",
+      "base_date": "2024-07-01",
+      "return_pct": 21.32,
+      "excess_pct": 5.22
+    },
+    {
+      "ticker": "BMY",
+      "base_date": "2024-07-01",
+      "return_pct": 20.76,
+      "excess_pct": 4.67
+    },
+    {
+      "ticker": "INTU",
+      "base_date": "2024-07-01",
+      "return_pct": 20.73,
+      "excess_pct": 4.64
+    },
+    {
+      "ticker": "MCD",
+      "base_date": "2024-07-01",
+      "return_pct": 20.4,
+      "excess_pct": 4.3
+    },
+    {
+      "ticker": "AMT",
+      "base_date": "2024-07-01",
+      "return_pct": 18.02,
+      "excess_pct": 1.93
+    },
+    {
+      "ticker": "COST",
+      "base_date": "2024-07-01",
+      "return_pct": 17.32,
+      "excess_pct": 1.22
+    },
+    {
+      "ticker": "HON",
+      "base_date": "2024-07-01",
+      "return_pct": 16.36,
+      "excess_pct": 0.26
+    },
+    {
+      "ticker": "KO",
+      "base_date": "2024-07-01",
+      "return_pct": 16.05,
+      "excess_pct": -0.05
+    },
+    {
+      "ticker": "BA",
+      "base_date": "2024-07-01",
+      "return_pct": 15.65,
+      "excess_pct": -0.45
+    },
+    {
+      "ticker": "ABBV",
+      "base_date": "2024-07-01",
+      "return_pct": 15.14,
+      "excess_pct": -0.96
+    },
+    {
+      "ticker": "TXN",
+      "base_date": "2024-07-01",
+      "return_pct": 14.26,
+      "excess_pct": -1.83
+    },
+    {
+      "ticker": "AMZN",
+      "base_date": "2024-07-01",
+      "return_pct": 13.29,
+      "excess_pct": -2.81
+    },
+    {
+      "ticker": "HD",
+      "base_date": "2024-07-01",
+      "return_pct": 13.22,
+      "excess_pct": -2.88
+    },
+    {
+      "ticker": "LIN",
+      "base_date": "2024-07-01",
+      "return_pct": 12.27,
+      "excess_pct": -3.83
+    },
+    {
+      "ticker": "VZ",
+      "base_date": "2024-07-01",
+      "return_pct": 11.37,
+      "excess_pct": -4.73
+    },
+    {
+      "ticker": "MSFT",
+      "base_date": "2024-07-01",
+      "return_pct": 10.06,
+      "excess_pct": -6.04
+    },
+    {
+      "ticker": "JNJ",
+      "base_date": "2024-07-01",
+      "return_pct": 10.01,
+      "excess_pct": -6.09
+    },
+    {
+      "ticker": "LOW",
+      "base_date": "2024-07-01",
+      "return_pct": 8.92,
+      "excess_pct": -7.17
+    },
+    {
+      "ticker": "NEE",
+      "base_date": "2024-07-01",
+      "return_pct": 8.85,
+      "excess_pct": -7.25
+    },
+    {
+      "ticker": "UNP",
+      "base_date": "2024-07-01",
+      "return_pct": 7.48,
+      "excess_pct": -8.62
+    },
+    {
+      "ticker": "CRM",
+      "base_date": "2024-07-01",
+      "return_pct": 7.01,
+      "excess_pct": -9.09
+    },
+    {
+      "ticker": "LMT",
+      "base_date": "2024-07-01",
+      "return_pct": 1.77,
+      "excess_pct": -14.32
+    },
+    {
+      "ticker": "NKE",
+      "base_date": "2024-07-01",
+      "return_pct": 1.56,
+      "excess_pct": -14.54
+    },
+    {
+      "ticker": "PG",
+      "base_date": "2024-07-01",
+      "return_pct": 1.25,
+      "excess_pct": -14.84
+    },
+    {
+      "ticker": "XOM",
+      "base_date": "2024-07-01",
+      "return_pct": 1.0,
+      "excess_pct": -15.1
+    },
+    {
+      "ticker": "PLD",
+      "base_date": "2024-07-01",
+      "return_pct": -0.13,
+      "excess_pct": -16.23
+    },
+    {
+      "ticker": "CVX",
+      "base_date": "2024-07-01",
+      "return_pct": -0.9,
+      "excess_pct": -17.0
+    },
+    {
+      "ticker": "AAPL",
+      "base_date": "2024-07-01",
+      "return_pct": -1.02,
+      "excess_pct": -17.11
+    },
+    {
+      "ticker": "AMGN",
+      "base_date": "2024-07-01",
+      "return_pct": -1.01,
+      "excess_pct": -17.11
+    },
+    {
+      "ticker": "GOOGL",
+      "base_date": "2024-07-01",
+      "return_pct": -1.42,
+      "excess_pct": -17.51
+    },
+    {
+      "ticker": "CMCSA",
+      "base_date": "2024-07-01",
+      "return_pct": -1.65,
+      "excess_pct": -17.75
+    },
+    {
+      "ticker": "FCX",
+      "base_date": "2024-07-01",
+      "return_pct": -4.03,
+      "excess_pct": -20.13
+    },
+    {
+      "ticker": "PFE",
+      "base_date": "2024-07-01",
+      "return_pct": -4.05,
+      "excess_pct": -20.15
+    },
+    {
+      "ticker": "MU",
+      "base_date": "2024-07-01",
+      "return_pct": -6.59,
+      "excess_pct": -22.69
+    },
+    {
+      "ticker": "AMD",
+      "base_date": "2024-07-01",
+      "return_pct": -12.54,
+      "excess_pct": -28.64
+    },
+    {
+      "ticker": "PEP",
+      "base_date": "2024-07-01",
+      "return_pct": -13.86,
+      "excess_pct": -29.96
+    },
+    {
+      "ticker": "LLY",
+      "base_date": "2024-07-01",
+      "return_pct": -14.04,
+      "excess_pct": -30.14
+    },
+    {
+      "ticker": "COP",
+      "base_date": "2024-07-01",
+      "return_pct": -15.53,
+      "excess_pct": -31.62
+    },
+    {
+      "ticker": "QCOM",
+      "base_date": "2024-07-01",
+      "return_pct": -17.13,
+      "excess_pct": -33.22
+    },
+    {
+      "ticker": "AMAT",
+      "base_date": "2024-07-01",
+      "return_pct": -18.77,
+      "excess_pct": -34.87
+    },
+    {
+      "ticker": "UPS",
+      "base_date": "2024-07-01",
+      "return_pct": -19.04,
+      "excess_pct": -35.14
+    },
+    {
+      "ticker": "TMO",
+      "base_date": "2024-07-01",
+      "return_pct": -20.49,
+      "excess_pct": -36.59
+    },
+    {
+      "ticker": "SLB",
+      "base_date": "2024-07-01",
+      "return_pct": -21.28,
+      "excess_pct": -37.38
+    },
+    {
+      "ticker": "TGT",
+      "base_date": "2024-07-01",
+      "return_pct": -26.07,
+      "excess_pct": -42.16
+    },
+    {
+      "ticker": "INTC",
+      "base_date": "2024-07-01",
+      "return_pct": -26.61,
+      "excess_pct": -42.71
+    },
+    {
+      "ticker": "ALB",
+      "base_date": "2024-07-01",
+      "return_pct": -29.57,
+      "excess_pct": -45.66
+    },
+    {
+      "ticker": "ADBE",
+      "base_date": "2024-07-01",
+      "return_pct": -32.27,
+      "excess_pct": -48.37
+    },
+    {
+      "ticker": "MRK",
+      "base_date": "2024-07-01",
+      "return_pct": -34.59,
+      "excess_pct": -50.69
+    },
+    {
+      "ticker": "UNH",
+      "base_date": "2024-07-01",
+      "return_pct": -36.44,
+      "excess_pct": -52.54
+    }
+  ]
+}
