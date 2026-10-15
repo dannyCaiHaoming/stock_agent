@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 from product.mcp import settings
 from product.mcp.live.disclosure import _Text, extract_sections
-from product.mcp.live.sec import parse_companyfacts, parse_submissions
+from product.mcp.live.sec import parse_companyfacts, parse_submission_page, parse_submissions
 from product.mcp.live.sec_client import SecClient
 from product.mcp.provenance import iso_utc, parse_timestamp
 
@@ -570,13 +570,38 @@ def get_sec_concept(ticker: str, tag: str, taxonomy: str = "us-gaap", limit: int
     }
 
 
+HISTORY_YEARS = 3
+
+
+def _submissions(identity: dict, client: SecClient, cutoff: datetime) -> tuple[dict, dict]:
+    """Recent submissions plus older SEC pages covering [cutoff - 3y, cutoff] when `recent` does not reach back.
+
+    Heavy filers (banks issuing structured notes) have only a few months in the `recent` block.
+    """
+    record = client.submissions(identity["cik"], max_age_seconds=SUBMISSIONS_MAX_AGE)
+    filings = parse_submissions(client.cache.read(record), cik=identity["cik"], retrieved_at=record["retrieved_at"])
+    earliest = min((parse_timestamp(f["published_at"]) for f in filings.values()), default=cutoff)
+    window_start = cutoff - timedelta(days=365 * HISTORY_YEARS)
+    if earliest > window_start:
+        body = json.loads(client.cache.read(record))
+        for page in body.get("filings", {}).get("files", []):
+            if page.get("filingTo", "9999") < window_start.date().isoformat() \
+                    or page.get("filingFrom", "0000") > cutoff.date().isoformat():
+                continue
+            page_record = client.fetch(f"https://data.sec.gov/submissions/{page['name']}", max_age_seconds=30 * 86400)
+            older = parse_submission_page(client.cache.read(page_record), cik=identity["cik"], name=page["name"],
+                                          retrieved_at=page_record["retrieved_at"], excluded=[])
+            for accession, filing in older.items():
+                filings.setdefault(accession, filing)
+    return filings, record
+
+
 def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
                  as_of: str | None = None) -> dict[str, Any]:
     cutoff = _cutoff(as_of)
     identity = resolve_company(ticker)
     client = _sec()
-    record = client.submissions(identity["cik"], max_age_seconds=SUBMISSIONS_MAX_AGE)
-    filings = parse_submissions(client.cache.read(record), cik=identity["cik"], retrieved_at=record["retrieved_at"])
+    filings, record = _submissions(identity, client, cutoff)
     wanted = {f.upper() for f in forms} if forms else None
     rows = [f for f in filings.values() if parse_timestamp(f["published_at"]) <= cutoff
             and (wanted is None or f["form"].upper() in wanted)]
@@ -590,7 +615,8 @@ def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
                        "source_locator": f"https://data.sec.gov/submissions/CIK{identity['cik']}.json",
                        "as_of": iso_utc(cutoff), "retrieved_at": record["retrieved_at"],
                        "raw_content_hash": record["raw_content_hash"],
-                       "notes": "Recent submissions only (SEC 'recent' block)."},
+                       "notes": "SEC 'recent' block, plus older pages covering the 3 years before as_of when "
+                                "the recent block does not reach back that far."},
     }
 
 
@@ -646,12 +672,11 @@ def _search(text: str, query: str, *, window: int, match_offset: int) -> dict[st
 
 
 def _filing(identity: dict, client: SecClient, accession: str | None, form: str, cutoff: datetime) -> dict:
-    record = client.submissions(identity["cik"], max_age_seconds=SUBMISSIONS_MAX_AGE)
-    filings = parse_submissions(client.cache.read(record), cik=identity["cik"], retrieved_at=record["retrieved_at"])
+    filings, _ = _submissions(identity, client, cutoff)
     if accession:
         filing = filings.get(accession)
         if filing is None:
-            raise DataToolError("ACCESSION_NOT_IN_RECENT_SUBMISSIONS")
+            raise DataToolError("ACCESSION_NOT_FOUND_IN_SUBMISSIONS (searched 3 years before as_of)")
     else:
         candidates = [f for f in filings.values() if f["form"] == form and parse_timestamp(f["published_at"]) <= cutoff]
         if not candidates:
