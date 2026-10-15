@@ -19,7 +19,7 @@ description: 反方研究方法，由 skeptic 子 Agent 使用，分两种模式
 
 ### 方法
 
-1. 自己取数：`get_financial_statements`（年度与季度）、`get_analyst_snapshot`、`technical_stats`、`valuation_multiples`、`pe_history`、`get_peer_snapshot`、`list_filings`、`list_filing_documents`、`get_filing_text`（10-K `risk_factors`、10-Q `management_discussion`、最近财报 8-K 的 EX-99.1；条款类内容用 `full_text` 加 `query`）、`get_macro_snapshot`。
+1. 自己取数：`get_financial_statements`（年度与季度）、`get_analyst_snapshot`、`technical_stats`、`valuation_multiples`、`pe_history`、`get_peer_snapshot`、`list_filings`、`list_filing_documents`、`get_filing_text`（10-K `risk_factors`、10-Q `management_discussion`、最近财报 8-K 的 EX-99.1；条款类内容用 `full_text` 加 `query`）、`get_macro_snapshot`、`get_insider_transactions`（非计划内的集中卖出）、`get_fund_holdings`（知名基金减持/清仓）、`get_congress_trades`、`get_news_history`（诉讼、调查、监管等可用 `query`；标题只是线索，需核实）。
 2. **预期与估值合理性（必做）**：当前价格隐含了什么？
    - 当前倍数（P/E、EV/EBITDA、P/S、FCF 收益率）对比实际与预期增长（历史收入/EPS 增速、共识预期增速）。例如：30 倍 P/E 配 10% 增长，需要怎样的增长持续期或利润率扩张才合理？用 `implied_assumption` 算出当前价格隐含的 EV/EBIT 倍数或利润率（必要时配合 `scenario_value`、`ratio`），与公司历史和同业对比。
    - 对比同业倍数与增长：估值溢价是否与增长、利润率、ROE 的差距相称？

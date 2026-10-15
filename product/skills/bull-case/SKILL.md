@@ -15,7 +15,7 @@ description: 正向研究方法，由 advocate 子 Agent 使用，分两种模�
 
 ## 方法
 
-1. **自己取数**：`get_financial_statements`（年度与季度）、`get_analyst_snapshot`（预期趋势与修正）、`pe_history`、`technical_stats`、`get_peer_snapshot`、`list_filings` / `list_filing_documents` / `get_filing_text`（最近财报 8-K EX-99.1、10-Q MD&A）、`get_macro_snapshot`。所有计算都用计算工具完成。
+1. **自己取数**：`get_financial_statements`（年度与季度）、`get_analyst_snapshot`（预期趋势与修正）、`pe_history`、`technical_stats`、`get_peer_snapshot`、`list_filings` / `list_filing_documents` / `get_filing_text`（最近财报 8-K EX-99.1、10-Q MD&A）、`get_macro_snapshot`、`get_insider_transactions`（内部人公开市场买入）、`get_fund_holdings`（知名基金建仓/加仓）、`get_news_history`（标题线索，需回到原始披露核实）。所有计算都用计算工具完成。
 2. **找亮点**（只保留有证据的），常见类型：
    - 增长或利润率拐点：加速、触底回升、经营杠杆显现；
    - 预期上修：`eps_trend` 上调、上修家数多于下修；

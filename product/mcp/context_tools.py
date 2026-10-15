@@ -321,3 +321,75 @@ def get_peer_snapshot(tickers: list[str]) -> dict[str, Any]:
                            "notes": "PROVIDER_REPORTED current values (Yahoo definitions; TTM unless noted; ratios as "
                                     "decimals, 0.25 = 25%). Not point-in-time. For accounting-consistent comparison "
                                     "use get_financial_statements on each peer."}}
+
+
+GDELT_DOC = "https://api.gdeltproject.org/api/v2/doc/doc"
+_NAME_SUFFIX = re.compile(r"[,.]?\s+(Inc|Incorporated|Corp|Corporation|Co|Company|Ltd|Limited|plc|PLC|Holdings?|"
+                          r"Group|N\.?V|S\.?A|AG|L\.?P|& Co)\b\.?.*$", re.I)
+
+
+def _gdelt_throttle() -> None:
+    """GDELT allows one request per 5 seconds; serialize across MCP server processes with a lock file."""
+    import fcntl
+    import time
+    lock_path = settings.cache().root / "derived" / "gdelt.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "a+") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        handle.seek(0)
+        last = float(handle.read() or 0)
+        wait = 5.5 - (time.time() - last)
+        if wait > 0:
+            time.sleep(wait)
+        handle.seek(0)
+        handle.truncate()
+        handle.write(str(time.time()))
+        handle.flush()
+        fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def get_news_history(ticker: str, days: int = 30, query: str | None = None, as_of: str | None = None) -> dict[str, Any]:
+    """English news headlines about the company from GDELT within `days` before the cutoff."""
+    from urllib.parse import urlencode
+    cutoff = _cutoff(as_of)
+    days = max(1, min(int(days), 90))
+    start = cutoff - timedelta(days=days)
+    identity = data_tools.resolve_company(ticker)
+    name = _NAME_SUFFIX.sub("", identity["name"]).strip() or identity["ticker"]
+    terms = query or "(stock OR shares OR earnings OR revenue OR analyst OR guidance OR CEO)"
+    q = f'"{name}" {terms} sourcelang:english'
+    params = {"query": q, "mode": "ArtList", "format": "json", "maxrecords": "75", "sort": "DateDesc",
+              "startdatetime": start.strftime("%Y%m%d%H%M%S"), "enddatetime": cutoff.strftime("%Y%m%d%H%M%S")}
+    url = f"{GDELT_DOC}?{urlencode(params)}"
+    cache: SnapshotCache = settings.cache()
+    final = cutoff < datetime.now(UTC) - timedelta(days=2)
+    key = {"provider": "gdelt-doc", "url": url, "fetched_on": "final" if final else datetime.now(UTC).date().isoformat()}
+    record = cache.lookup(key)
+    if record is None:
+        import time
+        for attempt in range(3):  # 429 means too many requests from this IP; back off and retry
+            _gdelt_throttle()
+            response = macro._http(Request(url, headers=HEADERS))
+            if response.status != 429:
+                break
+            time.sleep(10 * (attempt + 1))
+        if response.status != 200 or not response.body.lstrip().startswith(b"{"):
+            raise DataToolError(f"GDELT_UNAVAILABLE: {response.body[:120]!r}")
+        record = cache.store(key, response.body, retrieved_at=_now())
+    articles = json.loads(cache.read(record) or b"{}").get("articles", [])
+    seen, rows = set(), []
+    for a in articles:
+        title = " ".join((a.get("title") or "").split())
+        norm = re.sub(r"\W+", " ", title.lower()).strip()
+        if not title or norm in seen:
+            continue
+        seen.add(norm)
+        when = datetime.strptime(a["seendate"], "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+        if when <= cutoff:
+            rows.append([iso_utc(when)[:16], a.get("domain"), title[:200], a.get("url")])
+    return {"ticker": identity["ticker"], "query": q, "window": [iso_utc(start)[:10], iso_utc(cutoff)[:10]],
+            "columns": ["seen_at", "domain", "title", "url"], "rows": rows[:50],
+            "provenance": {"source_id": "gdelt-doc-2.0", "source_locator": url, "retrieved_at": record["retrieved_at"],
+                           "notes": "Headlines only, as first seen by GDELT (point in time). Name matching is noisy "
+                                    "(same-name places, people, other companies): verify relevance from the title, "
+                                    "and confirm company facts from SEC filings before using them."}}

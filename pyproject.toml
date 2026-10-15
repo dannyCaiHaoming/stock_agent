@@ -12,7 +12,7 @@ dependencies = ["jsonschema>=4.23,<5"]
 [project.optional-dependencies]
 live = ["yfinance==1.7.0", "akshare==1.18.94", "exchange-calendars==4.13.2", "certifi==2026.7.22", "moomoo-api==10.10.7008"]
 broker-tiger = ["tigeropen==3.8.0"]
-server = ["mcp>=2.3,<3"]
+server = ["mcp>=2.3,<3", "pypdf>=5,<7"]
 moomoo = ["futu-api>=10.11,<11"]
 
 [tool.setuptools.packages.find]

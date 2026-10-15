@@ -15,7 +15,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from product.mcp import calc_tools, context_tools, data_tools, decision_log, ownership_tools, settings
+from product.mcp import calc_tools, congress_tools, context_tools, data_tools, decision_log, ownership_tools, settings
 
 server = MCPServer(
     name="stock-data",
@@ -305,6 +305,26 @@ def get_fund_holdings(ticker: str, as_of: str | None = None) -> dict:
     13F-HR reports filed before as_of: shares, quarter-over-quarter change, new/exited, put/call. A fixed sample of
     managers, 45-day reporting lag, long positions only. First call per quarter can take ~2 minutes."""
     return ownership_tools.get_fund_holdings(ticker, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_congress_trades(ticker: str, days: int = 365, as_of: str | None = None) -> dict:
+    """U.S. House members' trades in this stock from Periodic Transaction Reports filed in the `days` before as_of:
+    member, owner (self/spouse/joint/child), purchase/sale, trade date, amount range. Point in time by filing date
+    (trades may be reported up to 45 days late). Senate not covered."""
+    return congress_tools.get_congress_trades(ticker, days=days, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_news_history(ticker: str, days: int = 30, query: str | None = None, as_of: str | None = None) -> dict:
+    """English news headlines mentioning the company (GDELT) within `days` (max 90) before as_of, newest first,
+    with domain and URL. Headlines only; name matching is noisy. Optional `query` replaces the default finance
+    keywords, e.g. '(lawsuit OR investigation)'. Works for historical dates."""
+    return context_tools.get_news_history(ticker, days=days, query=query, as_of=as_of)
 
 
 @server.tool(annotations=READ_ONLY)

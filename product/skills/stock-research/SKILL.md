@@ -38,7 +38,14 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 6. `get_filing_text`：最新 10-Q 的 `management_discussion`；不熟悉的公司加读 10-K 的 `business`；与核心问题相关时读 `risk_factors`。只读需要的部分，用 `next_offset` 分页。若某章节只返回目录或交叉引用（银行等发行人常见），改用 `section="full_text"` 并传 `query`（例如“net interest income”“Results of Operations”）直接定位内容；不要把“这次没读到正文”写成资料不存在。
    查条款类内容（可转换证券、优先股、债务契约、租赁承诺、诉讼）一律在 10-K/10-Q 的 `section="full_text"` 用 `query` 搜索；`query` 先精确匹配短语，找不到会按“所有关键词同段出现”再找，结果带 `total_matches`，用 `match_offset` 翻页。0 命中时换同义词再试一次，仍无结果才记为缺口，并写明搜过的词和文件。
 
-7. **moomoo 第三方 Skills（必做，不可跳过）**（按 `research-standards` 的“第三方软件内容”规则处理）。下面四项每次研究都要执行；某项失败或 OpenD 未运行时，在“数据缺口”写明原因，不能不调用就略过：
+7. **消息面与持仓变动**（都支持历史时点）：
+   - `get_news_history`（默认 30 天财经相关标题；必要时用 `query` 查诉讼、调查、监管等专题）。标题只是线索：同名地点、人物和机构增减持的自动稿很多，先判断相关性；涉及公司事实的，回到 8-K 等原始披露核实后再引用。
+   - `get_insider_transactions`（默认 180 天）：看公开市场买入（尤其多位高管同时买入）和卖出；10b5-1 计划内的卖出、授予、行权、代扣税信息量低。
+   - `get_fund_holdings`：约 18 家知名基金最近两期 13F 的持仓与变化（季度末之后最多 45 天才公布，只有多头）。
+   - `get_congress_trades`（默认 365 天）：众议院议员的交易申报（金额为区间，最多延迟 45 天，不含参议院）。
+   这些写进报告“消息面与持仓变动”一节，并在论点表中说明是否使用、如何使用；单笔小额交易、计划内卖出不应当作论点。
+
+8. **moomoo 第三方 Skills（必做，不可跳过）**（按 `research-standards` 的“第三方软件内容”规则处理）。下面四项每次研究都要执行；某项失败或 OpenD 未运行时，在“数据缺口”写明原因，不能不调用就略过：
    - `moomoo-news-search`：近期新闻（news_type=1）与公告（news_type=2），必要时研报（news_type=3）。用于事件地图与催化剂线索。
    - `moomoo-comment-sentiment`：社区情绪快照，**必须**按该 Skill 说明调用 `https://ai-news-search.moomoo.com/stock_feed` 接口（不能用新闻搜索结果代替），只放入“第三方观点”。
    - 异动类（需本机 OpenD，三个都要跑）：`moomoo-capital-anomaly`、`moomoo-derivatives-anomaly`、`moomoo-technical-anomaly`。代码用 `US.<TICKER>` 形式。**在仓库根目录逐个运行**（不要用系统 `python3`，依赖装在 `.venv`）：
@@ -49,7 +56,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
    - Bash 只用于上面两类命令，每次一条，不用 `for`、`ls`、`grep`、`cat` 等浏览文件（查看 Skill 说明用 Read 或 Skill 工具）。某条命令被权限拒绝时，只说明那条命令的格式不符合要求：按上面的格式改正后重试一次，其余 moomoo 步骤照常执行。
    - 不使用 `moomoo-stock-digest` 替代自己的事件分析；如调用，其结论同样只作参考展示。
 
-8. `get_macro_snapshot` 与 `get_market_context`（各一次）；`get_peer_candidates` 与 `get_peer_snapshot`。
+9. `get_macro_snapshot` 与 `get_market_context`（各一次）；`get_peer_candidates` 与 `get_peer_snapshot`。
 
 工具报错时，看错误代码后用正确参数重试一次；仍失败就记为数据缺口，不要反复重试。
 
