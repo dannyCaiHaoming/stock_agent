@@ -27,6 +27,7 @@ BLS_SERIES = {"cpi_all_items": "CUUR0000SA0", "cpi_core": "CUUR0000SA0L1E",
 # Conservative release lags (BLS publishes month M data in month M+1): Employment Situation on the first
 # Friday (by day 7), CPI around mid-month. Data for month M counts as known only from these days of M+1.
 BLS_RELEASE_DAY = {"cpi_all_items": 16, "cpi_core": 16, "unemployment_rate": 8, "nonfarm_payrolls_thousands": 8}
+POLICY = Path(__file__).resolve().parent / "live" / "research-source-policy.json"  # market context collector
 # BLS data via FRED's public CSV (no API key or daily quota; current revised values, not vintages).
 FRED_SERIES = {"cpi_all_items": "CPIAUCNS", "cpi_core": "CPILFENS", "unemployment_rate": "UNRATE",
                "nonfarm_payrolls_thousands": "PAYEMS"}
@@ -338,7 +339,7 @@ def _gdelt_throttle() -> None:
         fcntl.flock(handle, fcntl.LOCK_EX)
         handle.seek(0)
         last = float(handle.read() or 0)
-        wait = 5.5 - (time.time() - last)
+        wait = 6 - (time.time() - last)
         if wait > 0:
             time.sleep(wait)
         handle.seek(0)
@@ -372,7 +373,7 @@ def get_news_history(ticker: str, days: int = 30, query: str | None = None, as_o
             response = macro._http(Request(url, headers=HEADERS))
             if response.status != 429:
                 break
-            time.sleep(10 * (attempt + 1))
+            time.sleep(20 * (attempt + 1))
         if response.status != 200 or not response.body.lstrip().startswith(b"{"):
             raise DataToolError(f"GDELT_UNAVAILABLE: {response.body[:120]!r}")
         record = cache.store(key, response.body, retrieved_at=_now())
