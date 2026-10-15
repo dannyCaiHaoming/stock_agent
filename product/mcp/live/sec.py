@@ -5,7 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import date
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 
 from product.mcp.provenance import content_hash, iso_utc, parse_timestamp
@@ -129,6 +130,15 @@ def parse_companyfacts(raw: bytes, *, cik: str, security_id: str,
                 for index, row in enumerate(rows):
                     accession = row["accn"]
                     filing = filings.get(accession)
+                    if filing is None and re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(row.get("filed", ""))):
+                        # Older filings of heavy filers are not in the loaded submission pages; the fact's own
+                        # filing date bounds publication (end of that New York day, conservative to the day).
+                        end_of_day = datetime.combine(date.fromisoformat(row["filed"]), time(23, 59, 59),
+                                                      ZoneInfo("America/New_York"))
+                        filing = {"cik": cik, "accession": accession, "form": row["form"],
+                                  "published_at": iso_utc(end_of_day),
+                                  "published_at_policy": "companyfacts_filed_date_end_of_day",
+                                  "published_at_precision": "day", "retrieved_at": retrieved_at}
                     if filing is None:
                         excluded.append({"accession": accession, "taxonomy": taxonomy,
                                          "tag": tag, "unit": unit, "row_index": index,

@@ -49,6 +49,8 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         raise DecisionLogError(f"ACTION_INVALID: one of {ACTIONS}")
     if confidence not in CONFIDENCE:
         raise DecisionLogError(f"CONFIDENCE_INVALID: one of {CONFIDENCE}")
+    if price_at_decision is not None and not str(price_at_decision).strip():
+        price_at_decision = None  # NO_TRADE may leave the price empty
     if action == "NO_TRADE" and not (no_trade_reason or "").strip():
         raise DecisionLogError("NO_TRADE_REASON_REQUIRED")
     if action != "NO_TRADE" and price_at_decision is None:
