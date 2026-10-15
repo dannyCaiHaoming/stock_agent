@@ -154,3 +154,72 @@ def get_congress_trades(ticker: str, days: int = 365, as_of: str | None = None) 
                                 "Scanned/handwritten reports cannot be parsed (counted as unreadable). Senate not "
                                 "covered."},
     }
+
+
+def _member_trades(member: str, until: date) -> list[dict[str, Any]]:
+    needle = member.lower().strip()
+    trades = []
+    for path in sorted(_index_dir().glob("*.json")):
+        for report in json.loads(path.read_text())["reports"].values():
+            if needle not in report["member"].lower() or date.fromisoformat(report["filed"]) > until:
+                continue
+            for row in report["rows"]:
+                if row["asset_type"] in ("ST", "OP") and row["type"] in ("purchase", "sale", "partial_sale"):
+                    trades.append({**row, "member": report["member"], "filed": report["filed"]})
+    return trades
+
+
+def get_member_track_record(member: str, horizon_days: int = 252, as_of: str | None = None) -> dict[str, Any]:
+    """Past hit rate of one member's disclosed trades, measured from the filing date (when the trade became
+    public) over `horizon_days` sessions versus SPY. Only trades whose full horizon ended before the cutoff count."""
+    from product.mcp import calc_tools
+    cutoff = _cutoff(as_of)
+    horizon_days = max(21, min(int(horizon_days), 252))
+    known_until = (cutoff - timedelta(days=int(horizon_days * 1.45) + 7)).date()  # sessions -> calendar days
+    trades = [t for t in _member_trades(member, cutoff.date()) if date.fromisoformat(t["filed"]) <= known_until]
+    if not trades:
+        return {"member": member, "completed_trades": 0, "note": "No disclosed stock/option trades with a completed "
+                "horizon before as_of (index covers the years built by scripts/build-house-ptr-index.py)."}
+    by_ticker: dict[str, set[str]] = {}
+    for t in trades:
+        by_ticker.setdefault(t["ticker"], set()).add(t["filed"])
+    excess: dict[tuple[str, str], float] = {}
+    missing = []
+    for ticker, days in by_ticker.items():
+        try:
+            result = calc_tools.forward_returns(ticker, sorted(days)[-40:], horizons_days=[horizon_days],
+                                                as_of=iso_utc(cutoff))
+            for row in result["rows"]:
+                value = row.get(f"excess_{horizon_days}d_pct")
+                if value is not None:
+                    excess[(ticker, row["date"])] = float(value)
+        except Exception:  # noqa: BLE001 - delisted or unknown symbols are reported, not fatal
+            missing.append(ticker)
+    scored = []
+    for t in trades:
+        value = excess.get((t["ticker"], t["filed"]))
+        if value is None:
+            continue
+        buy = t["type"] == "purchase"
+        scored.append({"filed": t["filed"], "ticker": t["ticker"], "type": t["type"], "asset_type": t["asset_type"],
+                       "amount": t["amount"], "excess_pct": value, "right": value > 0 if buy else value < 0})
+
+    def stats(rows: list[dict]) -> dict[str, Any]:
+        if not rows:
+            return {"n": 0}
+        values = sorted(r["excess_pct"] for r in rows)
+        return {"n": len(rows), "hit_rate": round(sum(r["right"] for r in rows) / len(rows), 2),
+                "median_excess_pct": values[len(values) // 2]}
+    buys = [r for r in scored if r["type"] == "purchase"]
+    sells = [r for r in scored if r["type"] != "purchase"]
+    return {
+        "member": sorted({t["member"] for t in trades}), "as_of": iso_utc(cutoff), "horizon_days": horizon_days,
+        "completed_trades": len(scored), "purchases": stats(buys), "sales": stats(sells), "all": stats(scored),
+        "recent_scored": sorted(scored, key=lambda r: r["filed"], reverse=True)[:15],
+        "unpriced_tickers": missing,
+        "provenance": {"source_id": "house-clerk-ptr+yahoo-chart",
+                       "notes": "Measured from the filing date (when the trade became public, i.e. what a follower "
+                                "could act on), excess return vs SPY. A purchase is right if it beat SPY, a sale if it "
+                                "lagged. Options counted by direction of the underlying. Only trades whose horizon "
+                                "ended before as_of; small samples are anecdotes."},
+    }

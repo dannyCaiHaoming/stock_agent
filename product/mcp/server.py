@@ -320,6 +320,17 @@ def get_congress_trades(ticker: str, days: int = 365, as_of: str | None = None) 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
 @point_in_time
+def get_member_track_record(member: str, horizon_days: int = 252, as_of: str | None = None) -> dict:
+    """Past record of one House member's disclosed trades (name substring, e.g. 'Pelosi'): hit rate and median
+    excess return vs SPY over `horizon_days` sessions after each filing date, for purchases and sales, using only
+    trades whose horizon ended before as_of. Use it to judge whether a member's trades in get_congress_trades
+    deserve weight."""
+    return congress_tools.get_member_track_record(member, horizon_days=horizon_days, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
 def get_news_history(ticker: str, days: int = 30, query: str | None = None, as_of: str | None = None) -> dict:
     """English news headlines mentioning the company (GDELT) within `days` (max 90) before as_of, newest first,
     with domain and URL. Headlines only; name matching is noisy. Optional `query` replaces the default finance
