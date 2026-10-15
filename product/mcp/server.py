@@ -15,7 +15,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from product.mcp import calc_tools, context_tools, data_tools, decision_log, settings
+from product.mcp import calc_tools, context_tools, data_tools, decision_log, ownership_tools, settings
 
 server = MCPServer(
     name="stock-data",
@@ -284,6 +284,27 @@ def scenario_value(revenue: str, operating_margin: str, valuation_multiple: str,
     + net cash) / shares. State every assumption in `assumptions`."""
     return calc_tools.scenario_value(revenue, operating_margin, valuation_multiple, net_cash, shares, period,
                                      assumptions, evidence_refs)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_insider_transactions(ticker: str, days: int = 180, as_of: str | None = None) -> dict:
+    """Insider trades from SEC Form 4 filed in the `days` before as_of: open-market purchases and sales (who,
+    role, shares, price, value, 10b5-1 plan flag) with totals; grants, option exercises and tax withholding are
+    only counted. Point in time by filing acceptance time."""
+    return ownership_tools.get_insider_transactions(ticker, days=days, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_fund_holdings(ticker: str, as_of: str | None = None) -> dict:
+    """Positions of ~18 well-known funds (Berkshire, Bridgewater, Renaissance, Pershing Square, Tiger, Coatue,
+    Viking, Third Point, Duquesne, Soros, Scion, Elliott, D1, Icahn...) in this stock from their latest two
+    13F-HR reports filed before as_of: shares, quarter-over-quarter change, new/exited, put/call. A fixed sample of
+    managers, 45-day reporting lag, long positions only. First call per quarter can take ~2 minutes."""
+    return ownership_tools.get_fund_holdings(ticker, as_of=as_of)
 
 
 @server.tool(annotations=READ_ONLY)

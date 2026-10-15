@@ -42,8 +42,9 @@ def parse_submissions(raw: bytes, *, cik: str, retrieved_at: str) -> dict[str, d
     if normalize_cik(body["cik"]) != cik:
         raise ValueError("SEC_CIK_MISMATCH")
     recent = body["filings"]["recent"]
+    # Old paper filings have no primary document; skip them instead of rejecting the whole list.
     return _parse_submission_rows(recent, raw=raw, cik=cik, retrieved_at=retrieved_at,
-                                  locator=f"https://data.sec.gov/submissions/CIK{cik}.json")
+                                  locator=f"https://data.sec.gov/submissions/CIK{cik}.json", excluded=[])
 
 
 def parse_submission_page(raw: bytes, *, cik: str, name: str, retrieved_at: str,
