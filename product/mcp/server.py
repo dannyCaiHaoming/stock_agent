@@ -162,8 +162,9 @@ def get_filing_text(ticker: str, accession: str | None = None, form: str = "10-K
 @explain_errors
 @point_in_time
 def get_macro_snapshot(as_of: str | None = None) -> dict:
-    """US macro: unemployment, payrolls, 2/10/30Y Treasury yields and 10Y-2Y spread, CPI and core CPI with
-    computed YoY, latest Fed communication, and BLS releases in the next 45 days (official free sources)."""
+    """US macro as of a date: 3M/2Y/10Y/30Y Treasury yields with 10Y-2Y spread (latest and 20/60/250 sessions
+    earlier), CPI and core CPI YoY, unemployment, payroll changes (only months already released), the latest FOMC
+    statement text, and upcoming BLS releases (current dates only). Works for historical dates."""
     return context_tools.get_macro_snapshot(as_of=as_of)
 
 

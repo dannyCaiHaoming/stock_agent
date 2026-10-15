@@ -120,17 +120,22 @@ class SearchTests(unittest.TestCase):
 
 
 class ContextToolTests(unittest.TestCase):
-    def test_yoy_and_window_returns(self):
+    def test_bls_series_only_show_months_released_by_cutoff(self):
         from decimal import Decimal
         from product.mcp import context_tools
-        points = [(2025, m, Decimal(100 + m)) for m in range(1, 13)] + [(2026, 1, Decimal("104.03"))]
-        self.assertEqual(context_tools._yoy_rows(points, months=1), [["2026-01", "104.03", "3.00"]])
         closes = [(f"d{i}", Decimal(v)) for i, v in enumerate([100, 101, 102, 103, 104, 110])]
         self.assertEqual(context_tools._returns(closes, 5), "10.00")
         self.assertIsNone(context_tools._returns(closes, 20))
+        csv_body = b"observation_date,CPIAUCNS\n2023-01-01,100\n2023-11-01,103\n2023-12-01,104\n2024-01-01,104.03\n"
+        with mock.patch.object(context_tools, "_fetch", return_value=(csv_body, {"retrieved_at": "x"})):
+            # 2024-01-10: December CPI (released mid-January) is not known yet; November is.
+            result = context_tools._bls(datetime(2024, 1, 10, tzinfo=ZoneInfo("UTC")))
+        rows = result["series"]["cpi_all_items"]["rows"]
+        self.assertEqual(rows[-1][0], "2023-11")
+        with mock.patch.object(context_tools, "_fetch", return_value=(csv_body, {"retrieved_at": "x"})):
+            result = context_tools._bls(datetime(2025, 2, 20, tzinfo=ZoneInfo("UTC")))
+        self.assertEqual(result["series"]["cpi_all_items"]["rows"][-1], ["2024-01", "104.03", "4.03"])
 
-
-class ForwardReturnTests(unittest.TestCase):
     def test_forward_and_excess_returns(self):
         def prices(symbol, start=None, interval="1d", as_of=None, max_rows=None):
             closes = [100, 110, 121] if symbol == "AAA" else [100, 100, 105]
