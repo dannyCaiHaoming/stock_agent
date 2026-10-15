@@ -126,7 +126,7 @@ def get_insider_transactions(ticker: str, days: int = 180, as_of: str | None = N
 TRACKED_13F = {
     "Berkshire Hathaway": "0001067983", "Bridgewater Associates": "0001350694",
     "Renaissance Technologies": "0001037389", "Pershing Square": "0001336528", "Appaloosa": "0001656456",
-    "Baupost Group": "0001054420", "Tiger Global": "0001167483", "Coatue": "0001135730",
+    "Baupost Group": "0001061768", "Tiger Global": "0001167483", "Coatue": "0001135730",
     "Lone Pine": "0001061165", "Viking Global": "0001103804", "Third Point": "0001040273",
     "Duquesne Family Office": "0001536411", "Soros Fund Management": "0001029160",
     "Scion Asset Management": "0001649339", "Elliott Investment Management": "0001791786",

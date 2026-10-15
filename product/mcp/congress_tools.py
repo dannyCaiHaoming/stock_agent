@@ -58,7 +58,7 @@ def _filings(year: int) -> list[dict[str, str]]:
     return out
 
 
-def _parse_pdf(raw: bytes) -> list[dict[str, str]]:
+def _parse_pdf(raw: bytes) -> tuple[list[dict[str, str]], int]:
     from pypdf import PdfReader
     text = " ".join(" ".join(page.extract_text() or "" for page in PdfReader(BytesIO(raw)).pages)
                     .replace("\x00", "").split())
@@ -78,24 +78,31 @@ def _parse_pdf(raw: bytes) -> list[dict[str, str]]:
                      "type": TYPES.get(m.group("type"), m.group("type")),
                      "trade_date": datetime.strptime(m.group("trade"), "%m/%d/%Y").date().isoformat(),
                      "amount": " ".join(m.group("amount").split())})
-    return rows
+    return rows, len(text)
 
 
 def update_index(year: int, max_new: int | None = None) -> dict[str, Any]:
     """Download and parse PTRs of `year` not yet indexed. Returns counts."""
     path = _index_dir() / f"{year}.json"
     index = json.loads(path.read_text()) if path.exists() else {"year": year, "reports": {}}
-    todo = [f for f in _filings(year) if f["doc_id"] not in index["reports"]]
+    # "NO_TEXT_ROWS" is an older status that mixed scanned reports with reports holding no ticker rows.
+    todo = [f for f in _filings(year) if f["doc_id"] not in index["reports"]
+            or index["reports"][f["doc_id"]]["status"] == "NO_TEXT_ROWS"]
     if max_new is not None:
         todo = todo[:max_new]
     for filing in todo:
         try:
-            rows = _parse_pdf(_get(PTR_PDF.format(year=year, doc_id=filing["doc_id"])))
-            index["reports"][filing["doc_id"]] = {**filing, "rows": rows, "status": "PARSED" if rows else "NO_TEXT_ROWS"}
+            rows, text_len = _parse_pdf(_get(PTR_PDF.format(year=year, doc_id=filing["doc_id"])))
+            # Scanned/handwritten reports yield almost no text; others may simply list no tickered assets
+            # (Treasuries, bonds, funds without symbols).
+            status = "PARSED" if rows else ("NO_TICKER_ROWS" if text_len > 300 else "NO_TEXT_SCANNED")
+            index["reports"][filing["doc_id"]] = {**filing, "rows": rows, "status": status}
         except Exception as exc:  # noqa: BLE001 - record and continue
             index["reports"][filing["doc_id"]] = {**filing, "rows": [], "status": f"ERROR {type(exc).__name__}"}
     index["updated_at"] = iso_utc(datetime.now(UTC))
-    path.write_text(json.dumps(index, ensure_ascii=False))
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(index, ensure_ascii=False))
+    tmp.replace(path)  # atomic: concurrent readers never see a half-written index
     return {"year": year, "new_reports": len(todo), "total_reports": len(index["reports"])}
 
 
@@ -119,7 +126,8 @@ def get_congress_trades(ticker: str, days: int = 365, as_of: str | None = None) 
         index = json.loads(path.read_text())
         reports = index["reports"].values()
         coverage[str(year)] = {"reports": len(index["reports"]),
-                               "unreadable": sum(1 for r in reports if r["status"] != "PARSED"),
+                               "scanned_unreadable": sum(1 for r in reports if r["status"] == "NO_TEXT_SCANNED"),
+                               "errors": sum(1 for r in reports if r["status"].startswith("ERROR")),
                                "updated_at": index.get("updated_at")}
         for report in reports:
             filed = date.fromisoformat(report["filed"])
