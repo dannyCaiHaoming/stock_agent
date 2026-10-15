@@ -290,5 +290,16 @@ class PeHistorySplitTests(unittest.TestCase):
         self.assertEqual(result["rows"][1][2:], ["1.2", "20.00"])
 
 
+class ProbabilityWeightedTests(unittest.TestCase):
+    def test_weighted_value_and_expected_return(self):
+        from decimal import Decimal
+        result = calc_tools.probability_weighted_value(["80", "110", "150"], ["25", "50", "25"], "100")
+        self.assertEqual(Decimal(result["weighted_value"]), Decimal("112.5"))
+        self.assertEqual(Decimal(result["expected_return_pct"]), Decimal("12.5"))
+        self.assertEqual(Decimal(result["downside_probability"]), Decimal("0.25"))
+        with self.assertRaises(calc_tools.CalcToolError):
+            calc_tools.probability_weighted_value(["80", "110"], ["0.5", "0.4"], "100")
+
+
 if __name__ == "__main__":
     unittest.main()

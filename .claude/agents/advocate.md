@@ -20,6 +20,7 @@ tools:
   - mcp__stock-data__ratio
   - mcp__stock-data__scenario_value
   - mcp__stock-data__implied_assumption
+  - mcp__stock-data__probability_weighted_value
   - mcp__stock-data__get_insider_transactions
   - mcp__stock-data__get_fund_holdings
   - mcp__stock-data__get_congress_trades

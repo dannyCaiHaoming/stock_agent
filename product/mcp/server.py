@@ -340,6 +340,15 @@ def get_news_history(ticker: str, days: int = 30, query: str | None = None, as_o
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+def probability_weighted_value(values: list[str], probabilities: list[str], price: str,
+                               labels: list[str] | None = None) -> dict:
+    """Probability-weighted value of scenario values (e.g. from scenario_value) with subjective probabilities
+    summing to 1 (or 100): weighted per-share value, expected return versus price, probability of a loss."""
+    return calc_tools.probability_weighted_value(values, probabilities, price, labels)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
 def implied_assumption(price: str, shares: str, net_cash: str, revenue: str, period: str,
                        evidence_refs: list[str], operating_margin: str | None = None,
                        valuation_multiple: str | None = None) -> dict:

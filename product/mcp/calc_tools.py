@@ -145,6 +145,36 @@ def implied_assumption(price: str, shares: str, net_cash: str, revenue: str, per
         evidence_fact_ids=refs))
 
 
+def probability_weighted_value(values: list[str], probabilities: list[str], price: str,
+                               labels: list[str] | None = None) -> dict[str, Any]:
+    """Probability-weighted per-share value of explicit scenarios and the implied return versus `price`."""
+    if not values or len(values) != len(probabilities):
+        raise CalcToolError("VALUES_AND_PROBABILITIES_REQUIRED: same length, one per scenario")
+    vals = [Decimal(str(v)) for v in values]
+    probs = [Decimal(str(p)) for p in probabilities]
+    if any(p < 0 for p in probs):
+        raise CalcToolError("PROBABILITY_NEGATIVE")
+    if any(p > 1 for p in probs):  # accept percentages
+        probs = [p / 100 for p in probs]
+    total = sum(probs, Decimal(0))
+    if abs(total - 1) > Decimal("0.001"):
+        raise CalcToolError(f"PROBABILITIES_MUST_SUM_TO_1 (got {total})")
+    current = Decimal(str(price))
+    if current <= 0:
+        raise CalcToolError("PRICE_MUST_BE_POSITIVE")
+    weighted = sum((v * p for v, p in zip(vals, probs)), Decimal(0))
+    names = labels if labels and len(labels) == len(vals) else [f"scenario_{i + 1}" for i in range(len(vals))]
+    return _tidy({
+        "formula": "sum(probability_i * value_i); expected_return = weighted / price - 1",
+        "scenarios": [{"label": n, "value": format(v, "f"), "probability": format(p, "f"),
+                       "return_pct": format((v / current - 1) * 100, "f")} for n, v, p in zip(names, vals, probs)],
+        "weighted_value": format(weighted, "f"),
+        "expected_return_pct": format((weighted / current - 1) * 100, "f"),
+        "downside_probability": format(sum((p for v, p in zip(vals, probs) if v < current), Decimal(0)), "f"),
+        "note": "Probabilities are the analyst's judgement, not statistics.",
+    })
+
+
 def _rows(prices: dict) -> list[dict]:
     index = prices["columns"].index
     return [{"date": r[index("date")], "close": r[index("close")], "adjusted_close": r[index("adj_close")],
