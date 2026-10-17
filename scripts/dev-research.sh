@@ -3,6 +3,7 @@
 #
 # 用法：scripts/dev-research.sh <claude|codex> <TICKER> [--model MODEL] [--prompt "补充说明"] [--as-of YYYY-MM-DD]
 # --as-of：历史回放。工具固定在该日期，只有当前数据的工具与 moomoo 被禁用。
+# --tag：附加到运行目录名（对照实验区分变体，避免同一秒启动的运行共用目录）。
 # 默认模型（可用 --model 或环境变量覆盖）：
 #   claude → $STOCK_AGENT_CLAUDE_MODEL，默认 claude-haiku-5-5
 #   codex  → $STOCK_AGENT_CODEX_MODEL，默认 gpt-6-luna
@@ -15,15 +16,16 @@ set -euo pipefail
 main() {
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n '2,11p' "$0"; exit 2; }
+usage() { sed -n '2,12p' "$0"; exit 2; }
 [ $# -ge 2 ] || usage
 host="$1"; ticker="$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"; shift 2
-model=""; extra="我目前未持有。"; as_of=""
+model=""; extra="我目前未持有。"; as_of=""; tag=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) model="$2"; shift 2 ;;
     --prompt) extra="$2"; shift 2 ;;
     --as-of) as_of="$2"; shift 2 ;;
+    --tag) tag="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
@@ -33,8 +35,9 @@ case "$host" in
   *) usage ;;
 esac
 
-run_id="$(date -u +%Y%m%dT%H%M%SZ)-${host}-${ticker}${as_of:+-asof$as_of}"
+run_id="$(date -u +%Y%m%dT%H%M%SZ)-${host}-${ticker}${as_of:+-asof$as_of}${tag:+-$tag}"
 run_dir="$repo/.local/runs/$run_id"
+[ ! -e "$run_dir" ] || { echo "run dir exists: $run_dir" >&2; exit 3; }
 mkdir -p "$run_dir"
 prompt="研究 ${ticker}，按 stock-research Skill 的流程完成并给出建议。${extra}"
 if [ -n "$as_of" ]; then
