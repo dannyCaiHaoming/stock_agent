@@ -37,7 +37,7 @@ class DataToolError(ValueError):
 
 def _ticker(value: str) -> str:
     ticker = str(value or "").strip().upper()
-    if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", ticker):
+    if not re.fullmatch(r"\^?[A-Z][A-Z0-9.\-]{0,9}", ticker):  # "^" for index symbols such as ^VIX
         raise DataToolError(f"TICKER_INVALID: {value!r}")
     return ticker
 
@@ -125,8 +125,15 @@ def _later_split_factor(ticker: str, after_day: date) -> tuple[Decimal, list[lis
     period2 = int(datetime.now(UTC).timestamp())
     if period1 >= period2:
         return Decimal(1), []
-    raw = _yahoo_get(YAHOO_CHART.format(ticker=ticker), {"period1": period1, "period2": period2,
-                                                          "interval": "1mo", "events": "splits"})
+    key = {"provider": "yahoo-splits-after", "ticker": ticker, "after": after_day.isoformat(),
+           "day": datetime.now(UTC).date().isoformat()}
+    record = settings.cache().lookup(key)
+    if record is not None:
+        raw = settings.cache().read(record)
+    else:
+        raw = _yahoo_get(YAHOO_CHART.format(ticker=ticker), {"period1": period1, "period2": period2,
+                                                              "interval": "1mo", "events": "splits"})
+        settings.cache().store(key, raw, retrieved_at=_now())
     try:
         events = (json.loads(raw)["chart"]["result"][0].get("events") or {}).get("splits", {})
     except (KeyError, IndexError, TypeError, json.JSONDecodeError):
@@ -155,11 +162,17 @@ def get_price_history(ticker: str, start: str | None = None, end: str | None = N
     period1 = int(datetime.combine(first_day, dtime(0, 0), NEW_YORK).timestamp())
     period2 = int(datetime.combine(last_day + timedelta(days=1), dtime(0, 0), NEW_YORK).timestamp())
     url = YAHOO_CHART.format(ticker=ticker)
-    raw = _yahoo_get(url, {"period1": period1, "period2": period2, "interval": interval,
-                           "events": "div,splits", "includeAdjustedClose": "true"})
-    retrieved_at = _now()
-    record = settings.cache().store({"provider": "yahoo-chart", "ticker": ticker, "interval": interval,
-                                     "period1": period1, "period2": period2}, raw, retrieved_at=retrieved_at)
+    key = {"provider": "yahoo-chart", "ticker": ticker, "interval": interval, "period1": period1, "period2": period2}
+    # A window that ended before yesterday cannot change (except later split/dividend re-adjustment, which is
+    # undone below for as_of reads): reuse the cached response instead of downloading it again.
+    record = settings.cache().lookup(key) if last_day < datetime.now(NEW_YORK).date() - timedelta(days=1) else None
+    if record is not None:
+        raw, retrieved_at = settings.cache().read(record), record["retrieved_at"]
+    else:
+        raw = _yahoo_get(url, {"period1": period1, "period2": period2, "interval": interval,
+                               "events": "div,splits", "includeAdjustedClose": "true"})
+        retrieved_at = _now()
+        record = settings.cache().store(key, raw, retrieved_at=retrieved_at)
     try:
         result = json.loads(raw)["chart"]["result"][0]
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:

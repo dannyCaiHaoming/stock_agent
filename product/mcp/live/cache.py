@@ -59,6 +59,16 @@ class SnapshotCache:
         with os.fdopen(fd, "a") as handle:
             handle.write(record_hash + "\n")
 
+    def _mark_checked(self, key_hash: str, at: str) -> None:
+        path = self._path("keys", key_hash).with_suffix(".checked")
+        tmp = path.with_suffix(".checked.tmp")
+        tmp.write_text(iso_utc(at))
+        tmp.replace(path)
+
+    def _checked_at(self, key_hash: str) -> str | None:
+        path = self._path("keys", key_hash).with_suffix(".checked")
+        return path.read_text().strip() if path.exists() else None
+
     def _ensure_index(self) -> None:
         marker = self.root / "keys" / ".built"
         if marker.exists():
@@ -90,7 +100,10 @@ class SnapshotCache:
         # 同请求、同内容只保存第一次实际获取时间。
         old = self.lookup(key, raw_hash=digest)
         if old:
-            return old
+            # Same content again: keep the first retrieval time on the record, but note that it was re-verified
+            # now, so freshness checks do not re-download unchanged data on every call.
+            self._mark_checked(key_hash, retrieved_at)
+            return dict(old, checked_at=iso_utc(retrieved_at))
         record = {"schema_version": "live-cache/1.0.0", "key": key,
                   "key_hash": key_hash, "raw_content_hash": digest,
                   "retrieved_at": iso_utc(retrieved_at)}
@@ -152,7 +165,13 @@ class SnapshotCache:
                 iso_utc(record["retrieved_at"])
                 self.read(record)
                 matches.append(dict(record, record_hash=path.name))
-        return max(matches, key=lambda item: item["retrieved_at"]) if matches else None
+        if not matches:
+            return None
+        latest = max(matches, key=lambda item: item["retrieved_at"])
+        checked = self._checked_at(content_hash(key))
+        if checked and checked > latest["retrieved_at"]:
+            latest = dict(latest, checked_at=checked)
+        return latest
 
     def read(self, record: dict) -> bytes:
         raw = self._path("objects", record["raw_content_hash"]).read_bytes()

@@ -232,6 +232,8 @@ def get_market_context(as_of: str | None = None) -> dict[str, Any]:
 
 def _market_context(as_of: str | None) -> dict[str, Any]:
     cutoff = _cutoff(as_of)
+    if as_of and cutoff < datetime.now(UTC) - timedelta(days=2):
+        return _market_context_history(cutoff)
     snap = market_context.collect_market_context_snapshot(
         policy_path=POLICY, output_path=_snapshot_path("market"), cache_root=settings.cache().root,
         decision_cutoff=iso_utc(cutoff) if as_of else None)
@@ -266,6 +268,32 @@ def _market_context(as_of: str | None) -> dict[str, Any]:
                        "notes": "ETF prices are proxies (not index levels, spot prices or fund flows). "
                                 "VIX is an equity implied-volatility index, not a credit measure. "
                                 "% changes are computed from daily closes in the window."},
+    }
+
+
+def _market_context_history(cutoff: datetime) -> dict[str, Any]:
+    """Historical dates: the same ETF/VIX table from (cached) daily prices; no headlines (use get_news_history)."""
+    start = (cutoff - timedelta(days=130)).date().isoformat()
+    rows, gaps = [], []
+    for symbol, (_, role, proxy) in market_context.SERIES.items():
+        try:
+            prices = data_tools.get_price_history(symbol, start=start, as_of=iso_utc(cutoff))
+            closes = [(r[0], Decimal(r[4])) for r in prices["rows"] if r[4] is not None]
+            rows.append([symbol, role, closes[-1][0], _num(closes[-1][1], 2), _returns(closes, 5),
+                         _returns(closes, 20), _returns(closes, 60), proxy])
+        except Exception as exc:  # noqa: BLE001 - one series failing must not hide the others
+            gaps.append({"symbol": symbol, "reason": f"{type(exc).__name__}: {exc}"[:200]})
+    rows.sort(key=lambda r: (r[1] != "BROAD_EQUITY", r[1]))
+    return {
+        "as_of": iso_utc(cutoff),
+        "columns": ["symbol", "role", "last_date", "last_close", "chg_5d_pct", "chg_20d_pct", "chg_60d_pct",
+                    "is_proxy"],
+        "rows": rows, "headlines": [], "gaps": gaps + [{"reason": "historical date: market headlines not available "
+                                                                 "here, use get_news_history"}],
+        "provenance": {"source_id": "yahoo-chart", "retrieved_at": _now(),
+                       "notes": "ETF prices are proxies (not index levels, spot prices or fund flows). "
+                                "VIX is an equity implied-volatility index, not a credit measure. "
+                                "% changes are computed from daily closes up to the cutoff."},
     }
 
 

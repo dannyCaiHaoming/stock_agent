@@ -148,7 +148,8 @@ class SecClient:
             cached = None
             cache_failure = str(exc).split(":", 1)[0]
         if cached and not refresh:
-            age = (self.now() - parse_timestamp(cached["retrieved_at"])).total_seconds()
+            # checked_at: last time the same bytes were fetched again (the record keeps its first retrieval time).
+            age = (self.now() - parse_timestamp(cached.get("checked_at") or cached["retrieved_at"])).total_seconds()
             if stable_document or 0 <= age <= max_age_seconds:
                 self.events.append({
                     "status": "stable_cache_hit" if stable_document else "cache_hit",
