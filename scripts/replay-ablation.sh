@@ -18,7 +18,9 @@ cd "$repo"
 if [ "${1:-}" = "_one" ]; then
   shift
   local start="$1" host="$2" variant="$3" model="$4" ticker="$5"
-  local args=(--as-of "$start" --tag "$variant")
+  local tag="$variant"
+  [ "$model" = "-" ] || tag="$variant-$model"
+  local args=(--as-of "$start" --tag "$tag")
   [ "$model" = "-" ] || args+=(--model "$model")
   [ "$variant" = solo ] && args+=(--prompt "$SOLO_PROMPT")
   case "$variant" in a|b|c) args+=(--prompt "我目前未持有。本次是对照实验变体 $(printf '%s' "$variant" | tr a-z A-Z)：先读取 product/experiments/variant-$variant.md，按其中说明调整流程。") ;; esac
@@ -41,7 +43,8 @@ while [ $# -gt 0 ]; do
 done
 case "$variant" in full|solo|a|b|c) ;; *) sed -n '2,9p' "$0"; exit 2 ;; esac
 cases="evals/replay/cases/$start.json"
-out="evals/replay/ablation/$start-$host-$variant.json"
+out="evals/replay/ablation/$start-$host-$variant${model:+}.json"
+[ "$model" = "-" ] || out="evals/replay/ablation/$start-$host-$variant-$model.json"
 mkdir -p "$(dirname "$out")"
 
 .venv/bin/python -c 'import json,sys; d=json.load(open(sys.argv[1])); [print(i["ticker"]) for g in d["groups"].values() for i in g]' "$cases" \
