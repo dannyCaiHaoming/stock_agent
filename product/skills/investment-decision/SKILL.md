@@ -65,6 +65,7 @@ description: CIO 综合：把主研究事实、正向研究员的亮点（含历
 
 ## 结论
 动作：{ACTION}｜仓位：{试探/标准/不适用}｜信心：{低/中/高}｜分析期限：{…}｜决策时价格：{price}（{日期}）
+方向预测：营收增速 {加速/放缓/持平}（概率）｜营业利润率 {扩张/收缩/持平}（概率）｜126 日相对板块 {跑赢/跑输}（概率）｜公司指引 {上调/下调/维持/不适用}
 一句话核心判断。
 初步判断：{动作/信心} → 最终判断：{动作/信心}；变化原因：{哪些正向/反向论点或论证审查改变了什么，没有变化则说明原因}
 （持有状态假设：…）
@@ -122,5 +123,13 @@ skeptic（反向）与 advocate（正向）的审查意见及逐条回应（接�
 - `price_at_decision`：决策时使用的价格（NO_TRADE 时可以留空）；
 - `data_as_of`：报告所用数据的截止日期；
 - `host`、`model`：填写当前宿主和模型名称。
+- `forecasts`（必填，NO_TRADE 也要填）：与“方向预测”一行一致的结构化预测，之后会按 SEC 季度数据与板块 ETF 自动评分。Q0 = 截至 `data_as_of` 已公布的最近一个财季，Q2 = 其后第二个财季：
+  - `revenue_growth`：Q2 营收同比增速相对 Q0 同比增速 `accelerate` / `decelerate` / `flat`（±1 个百分点以内为 flat）；
+  - `operating_margin`：Q2 的 GAAP 营业利润率相对去年同季 `expand` / `contract` / `flat`（±0.5 个百分点）；
+  - `relative_return_126d`：之后 126 个交易日相对所属板块 ETF `outperform` / `underperform`；
+  - 可选 `guidance`：下一次公司指引相对上一次 `raise` / `cut` / `maintain` / `not_applicable`。
+  每项给 `probability`（所述方向发生的概率）和一句 `basis`。方向预测与动作分开：不买也要说清你认为会往哪里变。
+- `expected_return_pct`：情景概率加权的期望回报（`probability_weighted_value` 的结果）。
+- `variant`：任务指定了实验变体时填写。
 
 保存失败时把错误告诉用户，不要假装已保存。

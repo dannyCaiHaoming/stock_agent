@@ -37,11 +37,57 @@ def _text_list(name: str, value: Any, *, required: bool = True) -> list[str]:
     return [v.strip() for v in value]
 
 
+# Structured direction forecasts, scored later against SEC quarterly data and sector-relative returns.
+# Q0 = the latest fiscal quarter reported by data_as_of; Q2 = the second fiscal quarter after Q0.
+FORECAST_TARGETS = {
+    "revenue_growth": ("accelerate", "decelerate", "flat"),     # YoY growth in Q2 minus YoY growth in Q0 (±1pp)
+    "operating_margin": ("expand", "contract", "flat"),         # GAAP margin in Q2 vs the same quarter a year earlier (±0.5pp)
+    "relative_return_126d": ("outperform", "underperform"),     # 126 sessions after data_as_of vs the sector ETF
+}
+OPTIONAL_TARGETS = {"guidance": ("raise", "cut", "maintain", "not_applicable")}  # next company guidance vs prior
+
+
+def _forecasts(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        raise DecisionLogError("FORECASTS_REQUIRED: list of {target, direction, probability, basis}; targets: "
+                               + ", ".join(FORECAST_TARGETS))
+    out, seen = [], set()
+    for item in value:
+        if not isinstance(item, dict):
+            raise DecisionLogError("FORECAST_INVALID: each item is an object {target, direction, probability, basis}")
+        target, direction = str(item.get("target", "")).strip(), str(item.get("direction", "")).strip()
+        allowed = FORECAST_TARGETS.get(target) or OPTIONAL_TARGETS.get(target)
+        if allowed is None:
+            raise DecisionLogError(f"FORECAST_TARGET_INVALID: {target!r}; one of {list(FORECAST_TARGETS) + list(OPTIONAL_TARGETS)}")
+        if direction not in allowed:
+            raise DecisionLogError(f"FORECAST_DIRECTION_INVALID: {target} direction one of {allowed}")
+        try:
+            probability = Decimal(str(item.get("probability")).strip())
+        except InvalidOperation:
+            raise DecisionLogError("FORECAST_PROBABILITY_INVALID: number between 0 and 1, e.g. '0.6'") from None
+        if probability > 1:
+            probability = probability / 100
+        if not probability.is_finite() or not 0 <= probability <= 1:
+            raise DecisionLogError("FORECAST_PROBABILITY_INVALID: number between 0 and 1")
+        basis = str(item.get("basis", "")).strip()
+        if not basis:
+            raise DecisionLogError(f"FORECAST_BASIS_REQUIRED: one sentence of evidence for {target}")
+        if target in seen:
+            raise DecisionLogError(f"FORECAST_DUPLICATE: {target}")
+        seen.add(target)
+        out.append({"target": target, "direction": direction, "probability": format(probability, "f"), "basis": basis})
+    missing = [t for t in FORECAST_TARGETS if t not in seen]
+    if missing:
+        raise DecisionLogError("FORECASTS_MISSING: " + ", ".join(missing) + " (give a direction even for NO_TRADE)")
+    return out
+
+
 def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesis: str,
                   key_evidence: list[str], risks: list[str], invalidation: list[str],
                   data_as_of: str, report_markdown: str, price_at_decision: str | None = None,
                   no_trade_reason: str | None = None, host: str | None = None,
-                  model: str | None = None) -> dict[str, Any]:
+                  model: str | None = None, forecasts: list[dict[str, Any]] | None = None,
+                  expected_return_pct: str | None = None, variant: str | None = None) -> dict[str, Any]:
     ticker = str(ticker).strip().upper()
     if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", ticker):
         raise DecisionLogError("TICKER_INVALID")
@@ -76,6 +122,14 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
     if missing:
         raise DecisionLogError("REPORT_SECTIONS_MISSING: rewrite the report with the investment-decision template "
                                "headings (\"## <name>\"), then save again. Missing: " + ", ".join(missing))
+    forecasts = _forecasts(forecasts)
+    if expected_return_pct is not None and str(expected_return_pct).strip():
+        try:
+            expected_return_pct = format(Decimal(str(expected_return_pct).strip().rstrip("%")), "f")
+        except InvalidOperation:
+            raise DecisionLogError("EXPECTED_RETURN_PCT_INVALID: plain number, e.g. '12.5'") from None
+    else:
+        expected_return_pct = None
     decided_at = iso_utc(datetime.now(UTC))
     record = {
         "schema": "decision-record/1",
@@ -87,6 +141,7 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         "invalidation": _text_list("invalidation", invalidation),
         "no_trade_reason": (no_trade_reason or "").strip() or None,
         "host": host, "model": model,
+        "forecasts": forecasts, "expected_return_pct": expected_return_pct, "variant": variant,
     }
     record["decision_id"] = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()[:12]
     root = settings.data_dir()

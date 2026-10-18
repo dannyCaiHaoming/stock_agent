@@ -205,7 +205,11 @@ class DecisionLogTests(unittest.TestCase):
         args = dict(ticker="AAA", action="HOLD", confidence="medium", horizon="12 months", thesis="t",
                     key_evidence=["e"], risks=["r"], invalidation=["i"], data_as_of="2025-01-02",
                     report_markdown="\n".join(f"## {name}\n内容" for name in decision_log.REQUIRED_SECTIONS),
-                    price_at_decision="10")
+                    price_at_decision="10",
+                    forecasts=[{"target": "revenue_growth", "direction": "accelerate", "probability": "0.6", "basis": "b"},
+                               {"target": "operating_margin", "direction": "flat", "probability": "55", "basis": "b"},
+                               {"target": "relative_return_126d", "direction": "outperform", "probability": "0.5",
+                                "basis": "b"}])
         args.update(overrides)
         return decision_log.save_decision(**args)
 
@@ -219,13 +223,16 @@ class DecisionLogTests(unittest.TestCase):
             self.assertTrue(os.path.exists(first["report_path"]))
             self.assertEqual(json.loads(lines[1])["action"], "NO_TRADE")
             self.assertNotEqual(first["decision_id"], second["decision_id"])
+            self.assertEqual(json.loads(lines[0])["forecasts"][1]["probability"], "0.55")
 
     def test_rejects_invalid_records(self):
         for overrides in ({"action": "SELL"}, {"confidence": "0.8"}, {"risks": []},
                           {"action": "NO_TRADE", "price_at_decision": None},
                           {"price_at_decision": None}, {"price_at_decision": "541.15（收盘）"},
                           {"data_as_of": "2026-10-12（价格）；财务截至 FY2026"},
-                          {"report_markdown": "## 一、核心结论\n## 二、估值"}):
+                          {"report_markdown": "## 一、核心结论\n## 二、估值"},
+                          {"forecasts": None}, {"forecasts": [{"target": "revenue_growth", "direction": "up",
+                                                               "probability": "0.6", "basis": "b"}]}):
             with self.subTest(overrides=overrides), self.assertRaises(decision_log.DecisionLogError):
                 self.save(**overrides)
 

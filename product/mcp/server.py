@@ -364,16 +364,26 @@ def implied_assumption(price: str, shares: str, net_cash: str, revenue: str, per
 def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesis: str,
                   key_evidence: list[str], risks: list[str], invalidation: list[str], data_as_of: str,
                   report_markdown: str, price_at_decision: str | None = None,
-                  no_trade_reason: str | None = None, host: str | None = None, model: str | None = None) -> dict:
+                  no_trade_reason: str | None = None, host: str | None = None, model: str | None = None,
+                  forecasts: list[dict] | None = None, expected_return_pct: str | None = None,
+                  variant: str | None = None) -> dict:
     """Persist the final decision and full report to the private decision log (append-only).
     action: BUY|ADD|HOLD|REDUCE|EXIT|NO_TRADE; confidence: low|medium|high.
     price_at_decision: plain number only, e.g. "541.15" (required unless NO_TRADE).
     data_as_of: date of the data used, YYYY-MM-DD (put source details in the report, not here).
-    report_markdown must use the investment-decision template "## " headings; missing sections are rejected."""
+    report_markdown must use the investment-decision template "## " headings; missing sections are rejected.
+    forecasts (required, also for NO_TRADE): list of {target, direction, probability, basis} for
+      revenue_growth (accelerate|decelerate|flat: YoY growth in the 2nd quarter after the latest reported one
+        vs YoY growth in the latest reported quarter, ±1pp),
+      operating_margin (expand|contract|flat: GAAP margin in that quarter vs the same quarter a year earlier, ±0.5pp),
+      relative_return_126d (outperform|underperform: next 126 sessions vs the sector ETF),
+      optional guidance (raise|cut|maintain|not_applicable). probability = chance the stated direction happens.
+    expected_return_pct: probability-weighted expected return from the scenarios, e.g. "12.5".
+    variant: experiment label if the task names one."""
     return decision_log.save_decision(
         ticker, action, confidence, horizon, thesis, key_evidence, risks, invalidation, data_as_of,
         report_markdown, price_at_decision=price_at_decision, no_trade_reason=no_trade_reason,
-        host=host, model=model)
+        host=host, model=model, forecasts=forecasts, expected_return_pct=expected_return_pct, variant=variant)
 
 
 def main() -> None:
