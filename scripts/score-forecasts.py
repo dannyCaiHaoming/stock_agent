@@ -94,7 +94,9 @@ def market_truth(ticker: str, as_of: str, etf: str) -> dict:
     for h in (63, 126):
         value = row.get(f"excess_{h}d_pct")
         out[f"excess_{h}d_pct"] = float(value) if value is not None else None
-    prices = data_tools.get_price_history(ticker, start=as_of, max_rows=400)["rows"][:127]
+    from datetime import timedelta
+    end = (date.fromisoformat(as_of) + timedelta(days=200)).isoformat()
+    prices = data_tools.get_price_history(ticker, start=as_of, end=end, max_rows=400)["rows"][:127]
     closes = [float(r[5] or r[4]) for r in prices]
     peak, drawdown = closes[0] if closes else None, 0.0
     for c in closes:
@@ -117,7 +119,11 @@ def main() -> None:
         for run, d in decisions(arg):
             ticker, as_of = d["ticker"], d["data_as_of"]
             etf = sector_etf(ticker, etf_cache)
-            truth = {**fundamentals_truth(ticker, as_of), **market_truth(ticker, as_of, etf)}
+            try:
+                truth = {**fundamentals_truth(ticker, as_of), **market_truth(ticker, as_of, etf)}
+            except Exception as exc:  # noqa: BLE001 - one sample failing must not stop the scoring
+                print(f"WARN {ticker} {as_of}: {type(exc).__name__}: {exc}", file=sys.stderr)
+                truth = {"status": f"ERROR {type(exc).__name__}"}
             if truth.get("excess_126d_pct") is not None:
                 truth["relative_return_126d"] = "outperform" if truth["excess_126d_pct"] > 0 else "underperform"
             scored = []

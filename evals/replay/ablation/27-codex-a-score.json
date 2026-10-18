@@ -1,0 +1,1611 @@
+[
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T105616Z-codex-MU-asof2025-01-02-a",
+    "ticker": "MU",
+    "as_of": "2025-01-02",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-12.827815",
+    "forecasts": [
+      {
+        "basis": "Q1 FY25同比营收增速84.3%，Q2指引营收低于Q1实际，NAND出货和价格已回落；预测Q3同比增速较Q1同比增速放缓。",
+        "direction": "decelerate",
+        "probability": "0.70",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.09
+      },
+      {
+        "basis": "DRAM/HBM改善延续且Q1营业利润率已转正；Q2指引走弱和NAND压力使概率低于高信心。",
+        "direction": "expand",
+        "probability": "0.65",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "截至日60/252日相对SPY落后，股价低于50/200日均线；周期反弹仍可能逆转趋势。",
+        "direction": "underperform",
+        "probability": "0.60",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Q2营收指引下降且NAND偏弱，但公司未明确下调后续季度指引，判断不确定。",
+        "direction": "cut",
+        "probability": "0.50",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-11-28",
+      "q2_end": "2025-05-29",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -47.72,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 12.76,
+      "benchmark": "XLK",
+      "excess_63d_pct": -4.55,
+      "excess_126d_pct": 31.93,
+      "max_drawdown_126d_pct": -40.75,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": -4.55,
+    "net_excess_126d_pct": 31.93
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T081248Z-codex-NEM-asof2025-01-02-a",
+    "ticker": "NEM",
+    "as_of": "2025-01-02",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-14.067893",
+    "forecasts": [
+      {
+        "basis": "Q3收入受Newcrest并表及高金价支持，而已公告资产剥离对后续同比增速形成压力。",
+        "direction": "decelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "金价较高且Q3盈利恢复，但CAS同比上升，利润率扩张并非确定。",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": null
+      },
+      {
+        "basis": "60日相对XLB落后15.29%，且收盘低于50/200日均线。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "截至回放日最新Q4 2024指引为10月披露，缺少下次指引修订证据。",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-09-30",
+      "q2_end": "2025-03-31",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -60.18,
+      "benchmark": "XLB",
+      "excess_63d_pct": 21.79,
+      "excess_126d_pct": 41.02,
+      "max_drawdown_126d_pct": -13.03,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 21.79,
+    "net_excess_126d_pct": 41.02
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T081353Z-codex-INTC-asof2025-01-02-a",
+    "ticker": "INTC",
+    "as_of": "2025-01-02",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-38.314837",
+    "forecasts": [
+      {
+        "basis": "Q0为Q3 2024、Q2为Q1 2025；截至日收入同比-6.17%，但Q4指引仍较上年同期偏弱，判断Q1同比增速改善概率略高。",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q1 2025 GAAP经营利润率相对Q1 2024；成本削减可能改善基数，但尚无后续结果验证。",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "截至日252日相对SPY落后82.41个百分点、股价低于50日及200日均线；XLK历史数据缺口，预测信心有限。",
+        "direction": "underperform",
+        "probability": "0.6",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Q4 2024收入指引中点同比下降约10.42%，CEO交接与经营压力使下一次指引下修风险偏高。",
+        "direction": "cut",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-09-28",
+      "q2_end": "2025-03-29",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 5.73,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 6.03,
+      "benchmark": "XLK",
+      "excess_63d_pct": 19.41,
+      "excess_126d_pct": 5.81,
+      "max_drawdown_126d_pct": -33.81,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 19.41,
+    "net_excess_126d_pct": 5.81
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T081955Z-codex-UNH-asof2025-01-02-a",
+    "ticker": "UNH",
+    "as_of": "2025-01-02",
+    "action": "NO_TRADE",
+    "expected_return_pct": "9.378358",
+    "forecasts": [
+      {
+        "basis": "2025 outlook implies moderate growth, while 2024 Q3 growth was already strong and medical cost/cyber impacts remain.",
+        "direction": "decelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Q3 2024 MCR rose 2.9pp YoY to 85.2%; no subsequent improvement was yet reported.",
+        "direction": "contract",
+        "probability": "0.60",
+        "target": "operating_margin",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Valuation below historical P/E median and 2025 outlook support recovery, though weak trend is a counterweight.",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "2025 initial outlook was issued on 2024-12-03 and no subsequent revision was disclosed by cutoff.",
+        "direction": "maintain",
+        "probability": "0.60",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-09-30",
+      "q2_end": "2025-03-31",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": 0.64,
+      "operating_margin": "flat",
+      "operating_margin_delta_pp": 0.37,
+      "benchmark": "XLV",
+      "excess_63d_pct": 5.83,
+      "excess_126d_pct": -37.25,
+      "max_drawdown_126d_pct": -54.23,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 5.83,
+    "net_excess_126d_pct": -37.25
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T082718Z-codex-PYPL-asof2025-01-02-a",
+    "ticker": "PYPL",
+    "as_of": "2025-01-02",
+    "action": "BUY",
+    "expected_return_pct": "35.958443",
+    "forecasts": [
+      {
+        "basis": "Q0为Q3 2024收入同比+5.8%；判断至Q2即Q1 2025的同比增速提高超过1个百分点，但Q4低个位数指引限制把握。",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Q3利润率改善、营业利润增速高于收入；预计Q1 2025 GAAP营业利润率同比扩张超过0.5个百分点。",
+        "direction": "expand",
+        "probability": "0.65",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "252日相对SPY超额14.94个百分点且估值分位较低；预测126日跑赢XLF，信心有限。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Q3已上调全年非GAAP指引、Q4收入指引偏低；下次更新更可能维持。",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-09-30",
+      "q2_end": "2025-03-31",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -4.59,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 4.47,
+      "benchmark": "XLF",
+      "excess_63d_pct": -24.28,
+      "excess_126d_pct": -22.0,
+      "max_drawdown_126d_pct": -37.47,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -24.48,
+    "net_excess_126d_pct": -22.2
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T082654Z-codex-NOW-asof2025-01-02-a",
+    "ticker": "NOW",
+    "as_of": "2025-01-02",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-19.568722",
+    "forecasts": [
+      {
+        "basis": "预计 Q1 2025 同比收入增速较 Q3 2024 的约 22% 略降；公司 FY2024 指引仍强，但高基数与逐步正常化形成压力。",
+        "direction": "decelerate",
+        "probability": "0.60",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "Q3 2024 GAAP 营业利润率 15%，显著高于上一年同期；预计后续仍有经营杠杆。",
+        "direction": "expand",
+        "probability": "0.65",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "截至回放日 252 日大幅跑赢，但估值偏高且长期利率上行，预计未来 126 日相对 XLK 略弱。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-09-30",
+      "q2_end": "2025-03-31",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -3.61,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.85,
+      "benchmark": "XLK",
+      "excess_63d_pct": -10.31,
+      "excess_126d_pct": -13.84,
+      "max_drawdown_126d_pct": -38.34,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -10.31,
+    "net_excess_126d_pct": -13.84
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T083645Z-codex-TGT-asof2025-01-02-a",
+    "ticker": "TGT",
+    "as_of": "2025-01-02",
+    "action": "NO_TRADE",
+    "expected_return_pct": "13.737909",
+    "forecasts": [
+      {
+        "basis": "Q3可比销售仅+0.3%、客单额-2.0%，且全年指引下修，短期增长加速缺少证据。",
+        "direction": "decelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q3营业利润同比-11.2%，客单额下降与促销压力尚未见底。",
+        "direction": "contract",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "252日相对XLP落后约11.9%，且价格低于200日均线；反弹需经营确认。",
+        "direction": "underperform",
+        "probability": "0.60",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "11月20日全年EPS指引已从此前水平下调至$8.30–$8.90，下一次仍有下修风险。",
+        "direction": "cut",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-11-02",
+      "q2_end": "2025-05-03",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -3.86,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 0.89,
+      "benchmark": "XLP",
+      "excess_63d_pct": -30.28,
+      "excess_126d_pct": -29.22,
+      "max_drawdown_126d_pct": -37.18,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -30.28,
+    "net_excess_126d_pct": -29.22
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T083307Z-codex-AMD-asof2025-01-02-a",
+    "ticker": "AMD",
+    "as_of": "2025-01-02",
+    "action": "NO_TRADE",
+    "expected_return_pct": "1.528487",
+    "forecasts": [
+      {
+        "basis": "Q3 FY2024收入同比约+17.6%，Q4指引同比约+22%，假设增长延续。",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q3 FY2024 GAAP营业利润率10.6%，上年同期3.9%；数据中心/客户端组合可能延续改善。",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "经营改善可能支持反弹，但截止日AMD 60/252日相对SPY分别落后32.8/38.2pp。",
+        "direction": "outperform",
+        "probability": "0.52",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": true,
+        "brier": 0.2304
+      },
+      {
+        "basis": "Q4指引继续增长，但业务分化和竞争令后续上调不确定。",
+        "direction": "raise",
+        "probability": "0.45",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-09-28",
+      "q2_end": "2025-03-29",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 18.33,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 10.18,
+      "benchmark": "XLK",
+      "excess_63d_pct": -7.66,
+      "excess_126d_pct": 3.39,
+      "max_drawdown_126d_pct": -39.63,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": -7.66,
+    "net_excess_126d_pct": 3.39
+  },
+  {
+    "set": "2025-01-02-codex-a",
+    "run": "20261018T084152Z-codex-BLK-asof2025-01-02-a",
+    "ticker": "BLK",
+    "as_of": "2025-01-02",
+    "action": "BUY",
+    "expected_return_pct": "14.691031",
+    "forecasts": [
+      {
+        "basis": "Q3 2024同比增长14.9%且业绩费高于去年同期，预测Q2相对Q0增速略放缓。",
+        "direction": "decelerate",
+        "probability": "0.58",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.1764
+      },
+      {
+        "basis": "Q3营业利润率38.6%，高于去年36.2%；规模与费用收入可继续支持温和扩张。",
+        "direction": "expand",
+        "probability": "0.56",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": false,
+        "brier": 0.3136
+      },
+      {
+        "basis": "BLK过去252日跑赢SPY，且营业利润率改善；但金融板块与利率风险使优势不确定。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "截至回放日未发现公司已上调或下调下一期经营指引的证据，按维持作方向预测。",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-09-30",
+      "q2_end": "2025-03-31",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -3.34,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -3.62,
+      "benchmark": "XLF",
+      "excess_63d_pct": -10.72,
+      "excess_126d_pct": -2.26,
+      "max_drawdown_126d_pct": -23.74,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -10.92,
+    "net_excess_126d_pct": -2.46
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T090420Z-codex-MU-asof2025-04-01-a",
+    "ticker": "MU",
+    "as_of": "2025-04-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "6.947343",
+    "forecasts": [
+      {
+        "basis": "同比基数抬高，客户去库存及NAND压力令Q4 FY25同比增速或低于Q2。",
+        "direction": "decelerate",
+        "probability": "0.65",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.4225
+      },
+      {
+        "basis": "预期Q4 FY25 GAAP营业利润率高于FY24 Q4约19.6%，周期复苏支撑，但Q3毛利率指引回落。",
+        "direction": "expand",
+        "probability": "0.65",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "252日落后SOXX且低于200日线，虽短期相对表现改善。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Q3收入指引回升但毛利率承压，下一次指引大致维持为基线。",
+        "direction": "maintain",
+        "probability": "0.60",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-02-27",
+      "q2_end": "2025-08-28",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 7.73,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 12.65,
+      "benchmark": "XLK",
+      "excess_63d_pct": 15.09,
+      "excess_126d_pct": 68.28,
+      "max_drawdown_126d_pct": -27.04,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 15.09,
+    "net_excess_126d_pct": 68.28
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T090420Z-codex-ALB-asof2025-04-01-a",
+    "ticker": "ALB",
+    "as_of": "2025-04-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "0.272834",
+    "forecasts": [
+      {
+        "basis": "公司预计能源存储销量增长0%-10%，同比增速改善但不确定。",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "低基数、成本控制和销量增长可能使Q2同比利润率改善。",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "一年相对SPY明显跑输，仍低于50/200日线。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "2月发布的2025指引已反映观察锂价情景，暂以维持为基准。",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-12-31",
+      "q2_end": "2025-06-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 40.71,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 38.01,
+      "benchmark": "XLB",
+      "excess_63d_pct": -11.2,
+      "excess_126d_pct": 15.25,
+      "max_drawdown_126d_pct": -29.74,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": -11.2,
+    "net_excess_126d_pct": 15.25
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T091045Z-codex-AMAT-asof2025-04-01-a",
+    "ticker": "AMAT",
+    "as_of": "2025-04-01",
+    "action": "BUY",
+    "expected_return_pct": "12.509236",
+    "forecasts": [
+      {
+        "basis": "Forecast FY2025 Q3 YoY revenue growth to exceed FY2025 Q1's 6.84% by more than 1pp if AI/leading-edge demand holds; subjective, given no historical consensus series.",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Forecast FY2025 Q3 GAAP operating margin to exceed FY2024 Q3 by more than 0.5pp, supported by FY2025 Q1 margin of 30.35% versus 29.33% in the prior-year comparable quarter.",
+        "direction": "expand",
+        "probability": "0.60",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "Forecast underperformance versus XLK over the next 126 sessions because AMAT is below both moving averages and has sharply underperformed SPY; operating improvement is a counterweight.",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Latest Q2 guidance implies continued modest growth but export rules and macro uncertainty argue against assuming a raise.",
+        "direction": "maintain",
+        "probability": "0.60",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-01-26",
+      "q2_end": "2025-07-27",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": 0.89,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.93,
+      "benchmark": "XLK",
+      "excess_63d_pct": 8.68,
+      "excess_126d_pct": 13.09,
+      "max_drawdown_126d_pct": -21.37,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 8.48,
+    "net_excess_126d_pct": 12.89
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T091449Z-codex-ADBE-asof2025-04-01-a",
+    "ticker": "ADBE",
+    "as_of": "2025-04-01",
+    "action": "BUY",
+    "expected_return_pct": "20.32092",
+    "forecasts": [
+      {
+        "basis": "Q1 FY2025收入同比增长10.3%，FY2025指引重申；预测其后第二个财季的同比增长相对Q1变化在±1个百分点以内。",
+        "direction": "flat",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "TTM GAAP营业利润率约36.3%，规模与订阅组合提供轻微扩张可能；仍有AI投入与市场不确定性。",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "低历史估值分位和业务稳定性提供修复可能，但弱势趋势令概率仅略高于一半；相对XLK。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "公司在3月12日重申FY2025目标；经营指标仍增长，预计下一次指引大概率维持。",
+        "direction": "maintain",
+        "probability": "0.70",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-02-28",
+      "q2_end": "2025-08-29",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": 0.46,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -0.55,
+      "benchmark": "XLK",
+      "excess_63d_pct": -23.37,
+      "excess_126d_pct": -47.55,
+      "max_drawdown_126d_pct": -20.69,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -23.57,
+    "net_excess_126d_pct": -47.75
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T091955Z-codex-NOW-asof2025-04-01-a",
+    "ticker": "NOW",
+    "as_of": "2025-04-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-22.305974",
+    "forecasts": [
+      {
+        "basis": "规模增长后增速可能趋缓",
+        "direction": "decelerate",
+        "probability": "0.60",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "FY2024利润率改善但延续性待证",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "估值敏感和市场风险偏弱",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "截至当时无已核实的指引调整",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-12-31",
+      "q2_end": "2025-06-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 1.05,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 2.0,
+      "benchmark": "XLK",
+      "excess_63d_pct": 2.28,
+      "excess_126d_pct": -24.82,
+      "max_drawdown_126d_pct": -18.55,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 2.28,
+    "net_excess_126d_pct": -24.82
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T092329Z-codex-UNH-asof2025-04-01-a",
+    "ticker": "UNH",
+    "as_of": "2025-04-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "9.016352",
+    "forecasts": [
+      {
+        "basis": "Expected Q2 2025 YoY growth normalizes from recent growth and company FY25 outlook.",
+        "direction": "decelerate",
+        "probability": "0.6",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Q4 2024 medical care ratio rose to 85.5% from 83.2% year earlier; elevated utilization trends may persist.",
+        "direction": "contract",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "Relative to XLV; policy and medical cost uncertainty, with price below 200-day average.",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Management affirmed guidance in January but cost and payment risks remain.",
+        "direction": "cut",
+        "probability": "0.35",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-12-31",
+      "q2_end": "2025-06-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 6.15,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -3.35,
+      "benchmark": "XLV",
+      "excess_63d_pct": -35.67,
+      "excess_126d_pct": -33.55,
+      "max_drawdown_126d_pct": -60.06,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -35.67,
+    "net_excess_126d_pct": -33.55
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T092644Z-codex-ABBV-asof2025-04-01-a",
+    "ticker": "ABBV",
+    "as_of": "2025-04-01",
+    "action": "BUY",
+    "expected_return_pct": "9.350691",
+    "forecasts": [
+      {
+        "basis": "FY2024 Q4 reported revenue growth was 5.6%; company reaffirmed high-single-digit revenue CAGR through 2029 and Skyrizi/Rinvoq are growing rapidly, partly offset by Humira erosion.",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q4 2024 GAAP margin was depressed by acquired IPR&D and emraclidine impairment; Q4 adjusted operating margin was 34.7%, and 2025 adjusted EPS guidance implies improved underlying profitability, though this forecast is GAAP-scored.",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "ABBV outperformed SPY over 60 and 252 sessions through 2025-04-01 and trades above 50/200-day averages; compare next 126 sessions against XLV.",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "2025 adjusted EPS guidance was newly issued at $12.12-$12.32 on 2025-01-31; strong new-product growth offsets known Humira erosion.",
+        "direction": "maintain",
+        "probability": "0.65",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-12-31",
+      "q2_end": "2025-06-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 1.04,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 4.09,
+      "benchmark": "XLV",
+      "excess_63d_pct": -1.55,
+      "excess_126d_pct": 19.57,
+      "max_drawdown_126d_pct": -16.74,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": -1.75,
+    "net_excess_126d_pct": 19.37
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T093519Z-codex-AMGN-asof2025-04-01-a",
+    "ticker": "AMGN",
+    "as_of": "2025-04-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "6.035034",
+    "forecasts": [
+      {
+        "basis": "Q4 2024 reported growth was 11%, while FY2025 guidance midpoint implies substantially slower full-year growth; compare Q2 2025 YoY with Q4 2024 YoY.",
+        "direction": "decelerate",
+        "probability": "0.65",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "Recent 2024 quarterly GAAP operating margins improved from Q1 to Q4; growth products and operating leverage may lift Q2 2025 vs Q2 2024, though purchase amortization remains.",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "AMGN had positive relative performance versus SPY over the prior 60 and 252 sessions; defensive healthcare sector resilience supports a modest edge versus XLV.",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "The company issued FY2025 revenue and non-GAAP EPS ranges on 2025-02-04; current product trends support maintenance, while biosimilar erosion is a risk.",
+        "direction": "maintain",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2024-12-31",
+      "q2_end": "2025-06-30",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -1.43,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 6.18,
+      "benchmark": "XLV",
+      "excess_63d_pct": 2.69,
+      "excess_126d_pct": -2.12,
+      "max_drawdown_126d_pct": -15.35,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 2.69,
+    "net_excess_126d_pct": -2.12
+  },
+  {
+    "set": "2025-04-01-codex-a",
+    "run": "20261018T093434Z-codex-INTU-asof2025-04-01-a",
+    "ticker": "INTU",
+    "as_of": "2025-04-01",
+    "action": "BUY",
+    "expected_return_pct": "3.910382",
+    "forecasts": [
+      {
+        "basis": "Q0 为 FY25 Q2 营收同比 +17.04%；FY25 全年指引与已披露 FY25 实际数据推导的 FY25 Q4 增长中点约 +7.80%，低于 Q0。",
+        "direction": "decelerate",
+        "probability": "0.7",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.49
+      },
+      {
+        "basis": "FY25 Q4 GAAP 营业利润率按全年指引减已披露前三季实际/指引推算约 10.39%，高于 FY24 Q4 -4.74%；含显著季节性。",
+        "direction": "expand",
+        "probability": "0.9",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.01
+      },
+      {
+        "basis": "截至回放日 INTU 相对 XLK 20/60 日分别 +7.27/+8.90 个百分点，虽 252 日仍 -5.55 个百分点；方向预测信心接近均衡。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "FY25 Q2 新闻稿重申全年指引且 Q3 指引维持 12%–13% 营收增幅，但后续宏观不确定性较高。",
+        "direction": "maintain",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-01-31",
+      "q2_end": "2025-07-31",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.28,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 13.59,
+      "benchmark": "XLK",
+      "excess_63d_pct": 4.13,
+      "excess_126d_pct": -26.2,
+      "max_drawdown_126d_pct": -19.99,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 3.93,
+    "net_excess_126d_pct": -26.4
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T100019Z-codex-MU-asof2025-07-01-a",
+    "ticker": "MU",
+    "as_of": "2025-07-01",
+    "action": "BUY",
+    "expected_return_pct": "44.948203",
+    "forecasts": [
+      {
+        "basis": "Q3 FY25 revenue accelerated to +36.6% YoY and Q4 revenue guidance implies further growth; memory cycle risk remains.",
+        "direction": "accelerate",
+        "probability": "0.60",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "Q3 GAAP operating margin 23.3% vs 22.0% prior quarter; Q4 gross margin guidance 41%.",
+        "direction": "expand",
+        "probability": "0.60",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "60-session relative momentum strong and earnings cycle improving, offset by high volatility and weak 252-session relative return.",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q4 guidance was strong; next guidance may rise if improving memory demand persists, but this remains uncertain.",
+        "direction": "raise",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-29",
+      "q2_end": "2025-11-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 20.1,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 20.01,
+      "benchmark": "XLK",
+      "excess_63d_pct": 26.08,
+      "excess_126d_pct": 126.34,
+      "max_drawdown_126d_pct": -20.5,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 25.88,
+    "net_excess_126d_pct": 126.14
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T100019Z-codex-INTC-asof2025-07-01-a",
+    "ticker": "INTC",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "4.1",
+    "forecasts": [
+      {
+        "basis": "Q3 2025同比收入增速较Q1 2025约持平放缓；Q2指引中点低于上年同期。",
+        "direction": "decelerate",
+        "probability": "0.6",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Q3 2025 GAAP营业利润率同比改善；比较基数含重大减值。",
+        "direction": "expand",
+        "probability": "0.75",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.0625
+      },
+      {
+        "basis": "主观判断未来126交易日跑输XLK，基本面验证不足且板块动量更强。",
+        "direction": "underperform",
+        "probability": "0.58",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3364
+      },
+      {
+        "basis": "主观判断下一次公司指引大致维持当前恢复路径；历史时点分析师共识不可得。",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.23,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 73.18,
+      "benchmark": "XLK",
+      "excess_63d_pct": 34.37,
+      "excess_126d_pct": 47.04,
+      "max_drawdown_126d_pct": -19.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 34.37,
+    "net_excess_126d_pct": 47.04
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T100532Z-codex-AMD-asof2025-07-01-a",
+    "ticker": "AMD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "3.540399",
+    "forecasts": [
+      {
+        "basis": "Q1同比+35.9%，Q2指引约$7.4B对应约27%同比，预测其后Q2同比较Q1增速回落；管理层表示2025年仍预期强劲增长。",
+        "direction": "decelerate",
+        "probability": "0.60",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Q1 GAAP营业利润率10.84%，同比明显改善；预计两季后利润率略高于去年同期，但收购与竞争造成不确定性。",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "AI/EPYC增长和近期相对强势提供支持，估值与波动限制信心。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "公司最近公布Q2收入指引约$7.4B；无截至研究日的后续指引变更。",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.31,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 3.12,
+      "benchmark": "XLK",
+      "excess_63d_pct": 6.41,
+      "excess_126d_pct": 42.01,
+      "max_drawdown_126d_pct": -25.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 6.41,
+    "net_excess_126d_pct": 42.01
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T100713Z-codex-ADBE-asof2025-07-01-a",
+    "ticker": "ADBE",
+    "as_of": "2025-07-01",
+    "action": "BUY",
+    "expected_return_pct": "22.564233",
+    "forecasts": [
+      {
+        "basis": "Q2收入增长11%，管理层上调FY25收入目标；预测Q4 FY25同比增速较FY25 Q2加快，仍有宏观与产品采用不确定性。",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "TTM GAAP营业利润率36.37%，Q2表现稳健，订阅模式支持规模效益；FY26 Q2仍取决于AI投入和竞争。",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "估值和指引改善提供修复空间，但截至日252日相对SPY显著落后、趋势未确认。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "公司已于2025-06-12上调FY25目标；预计下一次更新维持或再上调的概率略高于下调。",
+        "direction": "raise",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-30",
+      "q2_end": "2025-11-28",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.13,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.59,
+      "benchmark": "XLK",
+      "excess_63d_pct": -22.49,
+      "excess_126d_pct": -26.3,
+      "max_drawdown_126d_pct": -20.33,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -22.69,
+    "net_excess_126d_pct": -26.5
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T101015Z-codex-NOW-asof2025-07-01-a",
+    "ticker": "NOW",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-19.767945",
+    "forecasts": [
+      {
+        "basis": "FY2025订阅收入指引同比约18.5%-19%，相较Q1恒定汇率增速及较高基数，判断Q3 2025营收同比增速较Q1 2025放缓。",
+        "direction": "decelerate",
+        "probability": "0.62",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.3844
+      },
+      {
+        "basis": "Q1 2025 GAAP营业利润率同比提高约1.9个百分点，规模效应有望延续；预测Q3 2025 GAAP利润率较Q3 2024提高超过0.5个百分点。",
+        "direction": "expand",
+        "probability": "0.60",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "相对科技板块强势和经营质量提供支撑，但高估值、低FCF收益率和近20日相对走弱使未来126交易日跑输XLK的风险略高。",
+        "direction": "underperform",
+        "probability": "0.58",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.1764
+      },
+      {
+        "basis": "Q1公司称业务保持强劲但只将部分汇率利好计入全年指引，基准判断下次更新维持区间。",
+        "direction": "maintain",
+        "probability": "0.60",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.18,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.84,
+      "benchmark": "XLK",
+      "excess_63d_pct": -21.51,
+      "excess_126d_pct": -39.99,
+      "max_drawdown_126d_pct": -26.97,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -21.51,
+    "net_excess_126d_pct": -39.99
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T101402Z-codex-INTU-asof2025-07-01-a",
+    "ticker": "INTU",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "2.155779",
+    "forecasts": [
+      {
+        "basis": "Q3 FY2025同比+15%，高基数及产品季节性下Q1 FY2026同比增速较低的概率略高。",
+        "direction": "decelerate",
+        "probability": "0.6",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Q3 FY2025 GAAP营业利润率约48.0%，高于上年同期约46.1%，但季度组合存在差异。",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "252日相对SPY跑赢约6个百分点，经营动能稳健；估值限制胜率。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "回放日FY2025指引已上调，下一次正式年度指引尚无。",
+        "direction": "not_applicable",
+        "probability": "1",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-04-30",
+      "q2_end": "2025-10-31",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.24,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 5.49,
+      "benchmark": "XLK",
+      "excess_63d_pct": -24.74,
+      "excess_126d_pct": -30.0,
+      "max_drawdown_126d_pct": -21.94,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -24.74,
+    "net_excess_126d_pct": -30.0
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T101714Z-codex-HD-asof2025-07-01-a",
+    "ticker": "HD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "3.624619",
+    "forecasts": [
+      {
+        "basis": "Q1 FY2025报告销售同比+9.4%受SRS并表影响；公司全年总销售指引仅+2.8%，且Q1同店-0.3%，预测Q3 FY2025同比增速较Q1放缓。",
+        "direction": "decelerate",
+        "probability": "0.85",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.0225
+      },
+      {
+        "basis": "Q1 GAAP EPS同比下降，FY2025营业利润率指引约13.0%，低于FY2024约13.5%；预测Q3 FY2025利润率同比收缩。",
+        "direction": "contract",
+        "probability": "0.65",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "截至研究日过去60日HD相对SPY为-9.92个百分点、低于200日均线；经营同店与EPS压力未解除。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "2025-05-20管理层重申FY2025指引；目前无截止日后信息，基准判断为下一次更新维持。",
+        "direction": "maintain",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -6.62,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -0.53,
+      "benchmark": "XLY",
+      "excess_63d_pct": -0.79,
+      "excess_126d_pct": -16.76,
+      "max_drawdown_126d_pct": -21.5,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -0.79,
+    "net_excess_126d_pct": -16.76
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T101915Z-codex-AVGO-asof2025-07-01-a",
+    "ticker": "AVGO",
+    "as_of": "2025-07-01",
+    "action": "BUY",
+    "expected_return_pct": "8.300304",
+    "forecasts": [
+      {
+        "basis": "Q2 FY2025 AI revenue grew 46% YoY and management projected $5.1B in Q3; expects total FY growth momentum to extend.",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q3 outlook guided adjusted EBITDA margin at least 66%; GAAP operating margin may expand with software/AI mix, though definitions differ.",
+        "direction": "expand",
+        "probability": "0.60",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "AI demand and strong relative trend support outperformance, offset by valuation and volatility.",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Recent guidance raised AI revenue outlook for Q3, but after that likely maintains pending execution.",
+        "direction": "maintain",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 8.03,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 8.75,
+      "benchmark": "XLK",
+      "excess_63d_pct": 12.38,
+      "excess_126d_pct": 16.42,
+      "max_drawdown_126d_pct": -21.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 12.18,
+    "net_excess_126d_pct": 16.22
+  },
+  {
+    "set": "2025-07-01-codex-a",
+    "run": "20261018T102417Z-codex-BLK-asof2025-07-01-a",
+    "ticker": "BLK",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-1.326886",
+    "forecasts": [
+      {
+        "basis": "HPS于2025-07-01完成交割且FY2024、Q1收入增长为正，但Q2到Q3同比增长加速仍未验证。",
+        "direction": "accelerate",
+        "probability": "0.65",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "Q1 2025 GAAP营业利润率32.18%，低于Q1 2024的35.81%；并购整合费用可能延续。",
+        "direction": "contract",
+        "probability": "0.60",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "截至2025-07-01 BLK过去252日相对SPY跑赢，但估值偏高限制把握。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "回放未取得可比的公司量化下一期营收或利润率指引；不以叙述性战略目标冒充指引。",
+        "direction": "not_applicable",
+        "probability": "0.50",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 13.65,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -8.56,
+      "benchmark": "XLF",
+      "excess_63d_pct": 8.47,
+      "excess_126d_pct": -1.76,
+      "max_drawdown_126d_pct": -17.47,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 8.47,
+    "net_excess_126d_pct": -1.76
+  }
+]
