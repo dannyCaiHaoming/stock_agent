@@ -49,6 +49,41 @@ class SnapshotCache:
         finally:
             os.unlink(name)
 
+    # Key index: keys/<key_hash> lists the record hashes stored for that key, so a lookup reads only
+    # those records instead of scanning every record (the cache holds tens of thousands).
+    def _index_path(self, key_hash: str) -> Path:
+        return self._path("keys", key_hash)
+
+    def _index_add(self, key_hash: str, record_hash: str) -> None:
+        fd = os.open(self._index_path(key_hash), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        with os.fdopen(fd, "a") as handle:
+            handle.write(record_hash + "\n")
+
+    def _ensure_index(self) -> None:
+        marker = self.root / "keys" / ".built"
+        if marker.exists():
+            return
+        import fcntl
+        (self.root / "keys").mkdir(exist_ok=True, mode=0o700)
+        with open(self.root / "keys" / ".lock", "a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if not marker.exists():
+                records = self.root / "records"
+                records.mkdir(exist_ok=True, mode=0o700)
+                by_key: dict[str, list[str]] = {}
+                for path in records.iterdir():
+                    if path.name.startswith(".pending-") or path.is_symlink():
+                        continue
+                    by_key.setdefault(json.loads(path.read_bytes())["key_hash"], []).append(path.name)
+                for key_hash, hashes in by_key.items():
+                    existing = set(self._index_path(key_hash).read_text().split()) \
+                        if self._index_path(key_hash).exists() else set()
+                    for record_hash in hashes:
+                        if record_hash not in existing:
+                            self._index_add(key_hash, record_hash)
+                marker.write_text("1\n")
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
     def store(self, key: dict, raw: bytes, *, retrieved_at: str) -> dict:
         digest = hashlib.sha256(raw).hexdigest()
         key_hash = content_hash(key)
@@ -62,6 +97,7 @@ class SnapshotCache:
         self._append(self._path("objects", digest), raw)
         record_hash = content_hash(record)
         self._append(self._path("records", record_hash), canonical_json(record).encode())
+        self._index_add(key_hash, record_hash)
         return dict(record, record_hash=record_hash)
 
     def repair_verified(self, key: dict, raw: bytes, *, retrieved_at: str) -> dict:
@@ -97,10 +133,13 @@ class SnapshotCache:
         return self.store(key, raw, retrieved_at=retrieved_at)
 
     def lookup(self, key: dict, *, raw_hash: str | None = None) -> dict | None:
+        self._ensure_index()
+        index = self._index_path(content_hash(key))
+        names = set(index.read_text().split()) if index.exists() else set()
         directory = self._path("records", "0" * 64).parent
         matches = []
-        for path in directory.iterdir():
-            if path.name.startswith(".pending-"):
+        for path in (directory / name for name in sorted(names)):
+            if not path.exists() or path.name.startswith(".pending-"):
                 continue
             if path.is_symlink():
                 raise ValueError("CACHE_SYMLINK_REJECTED")
