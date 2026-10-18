@@ -130,7 +130,7 @@ def main() -> None:
                 scored.append({**f, "actual": actual, "hit": hit,
                                "brier": round((float(f["probability"]) - (1.0 if hit else 0.0)) ** 2, 4)})
             cost = 2 * args.cost_bp / 100 if d["action"] in ("BUY", "ADD") else 0.0
-            net = {h: (truth.get(f"excess_{h}d_pct") - cost if truth.get(f"excess_{h}d_pct") is not None else None)
+            net = {h: (round(truth.get(f"excess_{h}d_pct") - cost, 2) if truth.get(f"excess_{h}d_pct") is not None else None)
                    for h in (63, 126)}
             rows.append({"set": label, "run": run, "ticker": ticker, "as_of": as_of, "action": d["action"],
                          "expected_return_pct": d.get("expected_return_pct"), "forecasts": scored, "truth": truth,

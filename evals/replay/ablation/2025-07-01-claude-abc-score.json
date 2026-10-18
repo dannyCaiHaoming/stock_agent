@@ -1,0 +1,1608 @@
+[
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T041131Z-claude-MU-asof2025-07-01-a",
+    "ticker": "MU",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "7.0",
+    "forecasts": [
+      {
+        "basis": "FQ3 FY25 同比 +36.6%；FQ4 指引 $10.7B 环比 +15%；FQ1 FY26 同比以 FQ1 FY25 基数 $8,709M 计算，若收入持平于 FQ4 指引则同比约 +23%，需要环比约 +12% 才能加速",
+        "direction": "decelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "FQ4 指引推算 GAAP 营业利润率约 28.4%，高于 FQ1 FY25 的 25.0%；NAND ASP 下降是主要反向因素，收缩需要利润率跌破约 24.5%",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "以 XLK 作板块代理。价格已接近指引 run-rate 的 12–13x，收入增速基数效应可能使动量减弱；但若 HBM 与指引持续超预期，相对表现会改善",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "FQ3 实际收入 $9.3B 超出 $8.8B 指引，FQ4 指引高于 FQ3 实际；FQ1 FY26 指引无数据，NAND ASP 下降与 HBM 增长并存，判断接近中性",
+        "direction": "raise",
+        "probability": "0.5",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-29",
+      "q2_end": "2025-11-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 20.1,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 20.01,
+      "benchmark": "XLK",
+      "excess_63d_pct": 26.08,
+      "excess_126d_pct": 126.34,
+      "max_drawdown_126d_pct": -20.5,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 26.08,
+    "net_excess_126d_pct": 126.34
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T041131Z-claude-INTC-asof2025-07-01-a",
+    "ticker": "INTC",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-30.3",
+    "forecasts": [
+      {
+        "basis": "Q1 2025 同比 -0.4% 受 Q1 2024 客户激励推高基数影响（10-Q）；Q3 2024 营收 132.8 亿美元，基数高于 Q1 2024 且未受此影响，同比增速更难维持。未取得 Q2 2025 指引。",
+        "direction": "decelerate",
+        "probability": "0.5",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "Q3 2024 GAAP 营业利润率 -68.2%（ratio 工具计算，含大额减值与费用），基数极低；Q1 2025 已为 -2.4%。风险：Q2 2025 修订重组计划可能带来新增费用。",
+        "direction": "expand",
+        "probability": "0.8",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.04
+      },
+      {
+        "basis": "基准为 XLK。252 日相对 SPY -39.3%，60 日相对 SPY -13.6%，同期 XLK 60 日 +28.6%；近 20 日相对 SPY +11.2% 尚不足以扭转中期动量。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.23,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 73.18,
+      "benchmark": "XLK",
+      "excess_63d_pct": 34.37,
+      "excess_126d_pct": 47.04,
+      "max_drawdown_126d_pct": -19.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 34.37,
+    "net_excess_126d_pct": 47.04
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T042819Z-claude-ADBE-asof2025-07-01-a",
+    "ticker": "ADBE",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-5.5",
+    "forecasts": [
+      {
+        "basis": "FY25 收入目标中点隐含下半年同比约 +8.6%，相对 FQ2 FY25 的 +10.6% 低于 −1pp 判定带；FQ2 与 FQ1 增速分别为 10.6% 与 10.3%",
+        "direction": "decelerate",
+        "probability": "0.65",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.4225
+      },
+      {
+        "basis": "H1 FY25 GAAP 营业利润率 36.9%（工具计算），FY25 目标 36.0% 隐含下半年回落；对比 FQ4 FY24 基数 34.9%，结果取决于 Q4 绝对值，判断为略偏向收缩",
+        "direction": "contract",
+        "probability": "0.45",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": false,
+        "brier": 0.2025
+      },
+      {
+        "basis": "ADBE 相对 SPY 252 日 −42.7pp，60 日 +6.8% vs XLK 60 日 +28.6%；趋势与相对强度偏弱，但估值与 FCF 提供部分支撑",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "刚于 2025-06-12 上调 FY25 目标；下半年隐含增速放缓，再次上调需要 AI 变现超预期",
+        "direction": "maintain",
+        "probability": "0.45",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-30",
+      "q2_end": "2025-11-28",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.13,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.59,
+      "benchmark": "XLK",
+      "excess_63d_pct": -22.49,
+      "excess_126d_pct": -26.3,
+      "max_drawdown_126d_pct": -20.33,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -22.49,
+    "net_excess_126d_pct": -26.3
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T042633Z-claude-AMD-asof2025-07-01-a",
+    "ticker": "AMD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "10.2",
+    "forecasts": [
+      {
+        "basis": "Q2 指引同比约 +27%，低于 Q1 的 +36%；Q3 2024 基数 $6.82B；Q3 同比须超过 +36% 才算加速，缺乏依据",
+        "direction": "decelerate",
+        "probability": "0.75",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.5625
+      },
+      {
+        "basis": "Q3 2024 GAAP 营业利润率 10.6%；Q1 2025 已达 10.8%，毛利率 50%；但 ZT 与费用增长压低利润率，不确定性高",
+        "direction": "expand",
+        "probability": "0.5",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.25
+      },
+      {
+        "basis": "60 日相对 SPY +30pp 后动量透支；板块 ETF（XLK）在回放数据中缺失，基准未验证",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "下一次指引为 Q2 财报后的 Q3 指引；MI308 费用与 Q2 指引已披露，上调或下调证据不足，低置信",
+        "direction": "maintain",
+        "probability": "0.4",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.31,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 3.12,
+      "benchmark": "XLK",
+      "excess_63d_pct": 6.41,
+      "excess_126d_pct": 42.01,
+      "max_drawdown_126d_pct": -25.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 6.41,
+    "net_excess_126d_pct": 42.01
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T044211Z-claude-INTU-asof2025-07-01-a",
+    "ticker": "INTU",
+    "as_of": "2025-07-01",
+    "action": "BUY",
+    "expected_return_pct": "10.2",
+    "forecasts": [
+      {
+        "basis": "Q0 为 Q3 FY25（截至 2025-04-30 最近披露季度），YoY +15.1%（ratio/percent_change 工具）。Q2 为 Q1 FY26（2025-08 至 2025-10）。该季度无报税季，增长主要由 Online Ecosystem（FY25 指引约 20%）与 Credit Karma（FY25 指引约 28%）驱动；Q3 的 15.1% 含报税季，判断 Q1 FY26 增速高于 16.1%（+1pp）的概率更高，但 Q1 FY25 基数与分项明细未经工具取得，属推断。",
+        "direction": "accelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "FY25 指引中点 GAAP 营业利润率 26.2%，高于 FY24 的 22.3%；Q2 FY25 与 Q3 FY25 的 GAAP 营业利润率均高于去年同季（ratio 工具）。Q1 FY25 GAAP 营业利润率为 271/3,283 = 8.25%（手工计算，未经工具），处于低基数，扩张概率较高；但 Q1 为非报税季，费用结构与 FY25 Q1 的重组影响需进一步核实。",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "板块 ETF 取 XLK（信息技术）。正向：60 日相对 SPY +15.1%，指引上调后动量仍强（technical_stats）。负向：trailing P/E 处于 80 分位，内部人非计划卖出，同业 ADBE 252 日相对 SPY -42.7%、CRM -6.1%，软件板块分化明显。综合接近中性，概率取 0.5，不作强信号。",
+        "direction": "outperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.25
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-04-30",
+      "q2_end": "2025-10-31",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.24,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 5.49,
+      "benchmark": "XLK",
+      "excess_63d_pct": -24.74,
+      "excess_126d_pct": -30.0,
+      "max_drawdown_126d_pct": -21.94,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -24.939999999999998,
+    "net_excess_126d_pct": -30.2
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T045701Z-claude-HD-asof2025-07-01-a",
+    "ticker": "HD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-4.3",
+    "forecasts": [
+      {
+        "basis": "Q0 = FQ1 FY25（2025-05-04）营收同比 +9.4%，其中 SRS 贡献 26 亿美元且有一周日历错位。Q2 = FQ3 FY25，去年同季（40.217 亿？见下）无 SRS，SRS 约贡献 6–7 个百分点，加上 comps 约 1%，估计 7–8%，低于 8.4% 阈值。边界情况：若增速落在 7.4%–9.4% 之间会判为 flat。",
+        "direction": "decelerate",
+        "probability": "0.6",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "去年同季 GAAP 营业利润率 13.47%（5,418/40,217）。FY25 指引营业利润率 13.0%，对比 FY24 的 13.5%，Q1 同比下降 100bp。SRS 摊销与产品组合继续拖累，判断收缩的概率 0.6。",
+        "direction": "contract",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "判断依据：远期 P/E 25.8、comps 接近零、利润率下滑；60 日相对 SPY 已 -9.9%。未计算与 XLY 的历史相对收益，把握较低。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "本季指引为维持（2025-05-20 重申），经营数据没有明显改善，判断下一次更新维持的概率较高。",
+        "direction": "maintain",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -6.62,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -0.53,
+      "benchmark": "XLY",
+      "excess_63d_pct": -0.79,
+      "excess_126d_pct": -16.76,
+      "max_drawdown_126d_pct": -21.5,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -0.79,
+    "net_excess_126d_pct": -16.76
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T044145Z-claude-NOW-asof2025-07-01-a",
+    "ticker": "NOW",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-4.4",
+    "forecasts": [
+      {
+        "basis": "Q1'25 同比 18.6%（Q4'24 为 21.3%）；FY25 订阅指引中值 +18.75%，Q2 指引 +19–19.5%，隐含下半年持平或略降；Q3'25 增速低于 17.6% 记为减速。",
+        "direction": "decelerate",
+        "probability": "0.45",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q3'24 GAAP 营业利润率 14.9%；Q1'25 GAAP 为 14.6%（同比 +1.8pp）；FY25 非GAAP 指引 30.5%，有经营杠杆。",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "相对 XLK 无明确优势：252 日相对 SPY +16%，但 20 日相对 SPY −4.5%，估值较高；按 50% 记。",
+        "direction": "outperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "Q1 订阅收入超过指引上限，公司表示只将部分汇率顺风计入全年指引（8-K 原文）；下一次指引为 Q2 财报。",
+        "direction": "raise",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.18,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.84,
+      "benchmark": "XLK",
+      "excess_63d_pct": -21.51,
+      "excess_126d_pct": -39.99,
+      "max_drawdown_126d_pct": -26.97,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -21.51,
+    "net_excess_126d_pct": -39.99
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T051221Z-claude-AVGO-asof2025-07-01-a",
+    "ticker": "AVGO",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-37.0",
+    "forecasts": [
+      {
+        "basis": "Q0 = Q2 FY25（截至 2025-05-04）同比 +20.2%；Q2 = Q4 FY25。Q3 指引 158 亿（同比约 +20.9%）；若之后序列增长约 4%/季，Q4 约 165 亿，对 Q4 FY24 的 140.54 亿同比约 +17%，低于 19.2% 下限，判为放缓。",
+        "direction": "decelerate",
+        "probability": "0.6",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "Q4 FY24 GAAP 营业利润率 32.9%（46.27/140.54）。Q1、Q2 FY25 分别为 42.0%、38.9%，摊销与 SG&A 下降支撑；风险是 R&D 与 SBC 上升。",
+        "direction": "expand",
+        "probability": "0.75",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.0625
+      },
+      {
+        "basis": "相对 XLK，未来 126 个交易日。现价隐含基准 52.6x EBIT，期望回报 −37%；但 60 日动量与 AI 指引强劲，判断略偏跑输。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "下一次指引为 Q3 FY25 财报中的 Q4 FY25 指引。Q2 AI 收入已加速（+46% 同比，Q3 指引环比约 +16%），但总营收同比增速并未加速，上调概率中性偏高。",
+        "direction": "raise",
+        "probability": "0.5",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 8.03,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 8.75,
+      "benchmark": "XLK",
+      "excess_63d_pct": 12.38,
+      "excess_126d_pct": 16.42,
+      "max_drawdown_126d_pct": -21.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 12.38,
+    "net_excess_126d_pct": 16.42
+  },
+  {
+    "set": "2025-07-01-claude-a",
+    "run": "20261018T052216Z-claude-BLK-asof2025-07-01-a",
+    "ticker": "BLK",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-7.3",
+    "forecasts": [
+      {
+        "basis": "Q3 2025 同比需在 10.6%–12.6% 之间（相对 Q1 2025 的 +11.6%），需环比约+10%。市场反弹（SPY 60日+15%）支持，但费率压缩与 GIP 并表基数效应并存；单季读数，接近中性。",
+        "direction": "flat",
+        "probability": "0.4",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.16
+      },
+      {
+        "basis": "相对 Q3 2024 的 38.6%。Q1 2025 同比 -3.6pp，G&A +34%，摊销 117M（去年 38M）；HPS 交割于 7/1，整合与摊销成本未量化，偏向收缩。",
+        "direction": "contract",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "相对 XLF。动量强（60日相对 SPY +4pp，252日 +23.5pp），但估值 79 分位抵消；优势很小。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Q1 2025 EX-99.1 关键词检索（Outlook、expect）未找到数字指引。",
+        "direction": "not_applicable",
+        "probability": "1",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 13.65,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -8.56,
+      "benchmark": "XLF",
+      "excess_63d_pct": 8.47,
+      "excess_126d_pct": -1.76,
+      "max_drawdown_126d_pct": -17.47,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 8.47,
+    "net_excess_126d_pct": -1.76
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T041135Z-claude-MU-asof2025-07-01-b",
+    "ticker": "MU",
+    "as_of": "2025-07-01",
+    "action": "BUY",
+    "expected_return_pct": "-0.2",
+    "forecasts": [
+      {
+        "basis": "Q0 为 FQ3-25（2025-05-29），同比 +36.6%。Q2 为 FQ1-26（2025-11-27 前后）。FQ1-25 基数为 8,709 百万，同比要保持 36.6% 需 FQ1-26 营收约 119 亿，即 FQ4 指引之上再环比 +11%。FQ4 指引本身环比 +15%，所以需求动能在，但基数变高，放缓概率高于加速。加速 20%、持平 25%。",
+        "direction": "decelerate",
+        "probability": "0.55",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Q2 为 FQ1-26，去年同季 GAAP 营业利润率 25.0%（2,174/8,709）。FQ4 指引隐含约 28.4%，只要 FQ1-26 利润率不低于 25.5%，即为扩张。扩张 65%、持平 20%、收缩 15%。",
+        "direction": "expand",
+        "probability": "0.65",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "126 日相对 XLK 的方向接近掷硬币：动量强（60 日相对 SPY +47%），但估值与周期顶部风险并存。这一项是低置信度判断。",
+        "direction": "outperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": true,
+        "brier": 0.25
+      },
+      {
+        "basis": "公司最近三次指引（FQ2、FQ3、FQ4）都逐步上调，且 FQ2 之后的实际结果均达到或超过指引中值。下一次指引（FQ1-26，约 2025 年 9 月）是否上调取决于 DRAM 定价能否持续，概率 60%。",
+        "direction": "raise",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-29",
+      "q2_end": "2025-11-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 20.1,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 20.01,
+      "benchmark": "XLK",
+      "excess_63d_pct": 26.08,
+      "excess_126d_pct": 126.34,
+      "max_drawdown_126d_pct": -20.5,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 25.88,
+    "net_excess_126d_pct": 126.14
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T041135Z-claude-INTC-asof2025-07-01-b",
+    "ticker": "INTC",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "10.0",
+    "forecasts": [
+      {
+        "basis": "最近已报告季度 Q1'25 同比 -0.4%；第 2 个后续季度为 Q3'25，对比 Q3'24 收入 132.8 亿。Q2 指引中点 118 亿（约同比 -8%）；Q3 无指引，方向依据是 Q2 指引的走势。",
+        "direction": "decelerate",
+        "probability": "0.65",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.4225
+      },
+      {
+        "basis": "Q3'24 GAAP 营业利润率为 -68.2%（基数极低），Q3'25 同比扩张概率高；注意这是基数效应，并不代表经营改善，环比方向为收缩（Q2 指引毛利率 34.3% 低于 Q1 的 36.9%）。",
+        "direction": "expand",
+        "probability": "0.85",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.0225
+      },
+      {
+        "basis": "vs 半导体/科技板块 ETF（XLK）。252 日相对 SPY -39%，60 日相对 SPY -13.6%；20 日反弹明显但基本面方向未改。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "下一次指引为 Q2 财报（约 2025 年 7 月下旬，日期未取得）给出的 Q3 指引。Q1 实际超过指引，但 Q2 指引中点环比下降 7%，上调、下调与维持的概率都有不确定性。",
+        "direction": "maintain",
+        "probability": "0.4",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.23,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 73.18,
+      "benchmark": "XLK",
+      "excess_63d_pct": 34.37,
+      "excess_126d_pct": 47.04,
+      "max_drawdown_126d_pct": -19.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 34.37,
+    "net_excess_126d_pct": 47.04
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T042814Z-claude-AMD-asof2025-07-01-b",
+    "ticker": "AMD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-30.2",
+    "forecasts": [
+      {
+        "basis": "Q0=2025Q1 YoY +35.9%；Q2 指引 7.4B 隐含 2025Q2 YoY 约 +27%；按变体 B 定义的 Q2（即 2025Q3）要维持 36% 同比需营收约 92.7 亿美元，远高于指引节奏。",
+        "direction": "decelerate",
+        "probability": "0.7",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.49
+      },
+      {
+        "basis": "GAAP 营业利润率：2025Q1 10.8%，2024Q3 10.6%；Q2 约 8 亿美元出口费用为一次性，不计入 Q3 基线；ZT 摊销增加使其压力上行，故给 contract 0.30、expand 0.25。",
+        "direction": "flat",
+        "probability": "0.45",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": false,
+        "brier": 0.2025
+      },
+      {
+        "basis": "相对 XLK（板块 ETF）。AMD 60 日相对 SPY +29.7%，但 252 日相对 SPY -29.1%；trailing P/E 约 99x，短期超买后相对强弱反转的风险较高。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "下一次公司指引相对 Q2 的 7.4B ±0.3B：前两次指引被超越（偏向上调），但 MI308 出口许可不确定、可能压低营收，因此给 maintain 0.40。",
+        "direction": "maintain",
+        "probability": "0.4",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.31,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 3.12,
+      "benchmark": "XLK",
+      "excess_63d_pct": 6.41,
+      "excess_126d_pct": 42.01,
+      "max_drawdown_126d_pct": -25.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 6.41,
+    "net_excess_126d_pct": 42.01
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T042944Z-claude-ADBE-asof2025-07-01-b",
+    "ticker": "ADBE",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-2.5",
+    "forecasts": [
+      {
+        "basis": "Q2 FY25（至 2025-05-30）同比 +10.6%；公司 Q3 FY25 指引营收同比 +8.6%～+9.6%；FY25 目标推算 Q4 约 +7%～+9%（Q2 对应 Q4 FY25，相对 Q0 减速超过 1pp）",
+        "direction": "decelerate",
+        "probability": "0.7",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.49
+      },
+      {
+        "basis": "Q4 FY24 GAAP 营业利润率 34.9%；FY25 GAAP 36% 指引隐含 H2 约 35%，推算 Q4 FY25 约 34.3%，收缩超过 0.5pp；扩张概率 0.15，持平 0.35",
+        "direction": "contract",
+        "probability": "0.5",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "60 日相对 XLK 约跑输 22pp（ADBE +6.8% vs XLK 板块 ETF 60 日 +28.6%）；252 日相对 SPY -42.7%，动量弱；估值低（P/E 6.7 分位）为反向支撑，故概率仅 0.55",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "FY25 营收与非 GAAP EPS 目标在 2025-06 已上调；连续四季营收超过指引上沿；下一次指引（Q3 FY25 结果，预计 9 月中旬）按同样模式上调的概率较高",
+        "direction": "raise",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-30",
+      "q2_end": "2025-11-28",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.13,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.59,
+      "benchmark": "XLK",
+      "excess_63d_pct": -22.49,
+      "excess_126d_pct": -26.3,
+      "max_drawdown_126d_pct": -20.33,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -22.49,
+    "net_excess_126d_pct": -26.3
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T044033Z-claude-NOW-asof2025-07-01-b",
+    "ticker": "NOW",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-32.3",
+    "forecasts": [
+      {
+        "basis": "Q0=Q1-25 总收入同比 18.5%（公司披露）。Q2=Q3-25：FY25 订阅指引中点隐含 H2 订阅同比约 18.7%（推算：(12,660-3,005-3,030)/(2,715+2,866)）；Q3-24 基数高（+22.2%）；公司历来超指引，故 accelerate 有一定概率",
+        "direction": "flat",
+        "probability": "0.45",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.2025
+      },
+      {
+        "basis": "连续四季 GAAP 营业利润率同比扩张（+1.5 至 +4.8pp）；但 Q3-24 基数 14.9% 偏高，且 FY25 非 GAAP 利润率指引 30.5% 未上调，限制扩张幅度",
+        "direction": "expand",
+        "probability": "0.55",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "60 日相对 SPY +15.3%，但 20 日相对 SPY −4.5%；同业 CRM、ADBE 长期跑输 SPY；估值 137.8x TTM P/E，相对表现对情绪敏感，没有明确优势，取 0.5",
+        "direction": "outperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "Q1-25 订阅收入超出指引高端，但全年仅上调 $5M，超出部分未全额转入指引；下一次指引在 2025 年 Q2 财报（日期未经工具核实）",
+        "direction": "raise",
+        "probability": "0.7",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.18,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.84,
+      "benchmark": "XLK",
+      "excess_63d_pct": -21.51,
+      "excess_126d_pct": -39.99,
+      "max_drawdown_126d_pct": -26.97,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -21.51,
+    "net_excess_126d_pct": -39.99
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T044451Z-claude-INTU-asof2025-07-01-b",
+    "ticker": "INTU",
+    "as_of": "2025-07-01",
+    "action": "BUY",
+    "expected_return_pct": "1.1",
+    "forecasts": [
+      {
+        "basis": "Q0 = FY25 Q3（2025-04）同比 +15.1%；Q2 = FY26 Q1（2025-10）。Q1 FY25 同比仅 +10.2%，基数较低，偏向加速；但 Consumer 全年指引仅 +10%、ProTax +3–4%，Credit Karma（+31%）与 GBS（约 +16%）对 Q1 的拉动有限，综合判断增速在 14–17% 区间，±1pp 内为 flat 的概率最大。",
+        "direction": "flat",
+        "probability": "0.4",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.16
+      },
+      {
+        "basis": "Q2 = FY26 Q1，对比去年同季 GAAP 营业利润率 8.3%（271/3283）。FY25 全年 GAAP 营业利润指引 +35%，Q2、Q3 分别同比扩张约 4.1 与 1.9 个百分点；重组计划（总额约 2.38 亿美元）在 FY25 Q1 基本完成，成本端有顺风。风险：Q1 非报税季，营销费用与一次性费用可能抵消。",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "经营修正方向向好（上调指引、利润率扩张）支持跑赢；但估值已处于 5 年高位分位（P/E 80% 分位），且 60 日相对 SPY 已 +15%，动量与估值互相抵消，概率接近 50%。",
+        "direction": "outperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "下一次公司指引为 FY26 首次全年指引（预计 2025 年 8 月随 FY25 Q4 结果发布，按惯例推断，未经回放数据核实），无直接前值可比；参照 FY25 上调历史（Feb 维持、May 上调）与 Q4 指引 +17–18%，判断为 50/50。",
+        "direction": "raise",
+        "probability": "0.5",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-04-30",
+      "q2_end": "2025-10-31",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.24,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 5.49,
+      "benchmark": "XLK",
+      "excess_63d_pct": -24.74,
+      "excess_126d_pct": -30.0,
+      "max_drawdown_126d_pct": -21.94,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -24.939999999999998,
+    "net_excess_126d_pct": -30.2
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T045742Z-claude-AVGO-asof2025-07-01-b",
+    "ticker": "AVGO",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-33.6",
+    "forecasts": [
+      {
+        "basis": "FQ2 FY25 同比 +20.2%（工具）；Q4 FY25 需环比约 +6.9% 才能持平（手算，假设 Q4 营收 $16.6B）；Q1–Q3 环比 +6.1%、+0.6%、+5.3%（Q3 为指引）",
+        "direction": "decelerate",
+        "probability": "0.5",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "Q4 FY24 同季 GAAP 营业利润率约 32.9%（手算）；FQ1 FY25 42.0%、FQ2 FY25 38.8%（工具）；需超过 33.4% 才算扩张",
+        "direction": "expand",
+        "probability": "0.65",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.1225
+      },
+      {
+        "basis": "现价隐含 63.5x TTM EBIT，5 年 P/E 分位 98；但 252 日相对 SPY +54%，趋势强，存在动量风险",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "指引序列 14.6 → 14.9 → 15.8（8-K 原文）；连续三次实际超过指引；Q4 指引需高于 Q3 的 $15.8B",
+        "direction": "raise",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 8.03,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 8.75,
+      "benchmark": "XLK",
+      "excess_63d_pct": 12.38,
+      "excess_126d_pct": 16.42,
+      "max_drawdown_126d_pct": -21.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 12.38,
+    "net_excess_126d_pct": 16.42
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T045657Z-claude-HD-asof2025-07-01-b",
+    "ticker": "HD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-3.2",
+    "forecasts": [
+      {
+        "basis": "Q1 FY25 增速 9.4% 含 SRS 贡献 26 亿美元，剔除后约 +2.3%；Q3 FY24 基数已完整并入 SRS，Q3 FY25 的并购增量基本消失，同比增速预计回落。反证：若可比销售持续改善（FY 指引需要剩余季度约 +1.3%），降幅会小于预期。",
+        "direction": "decelerate",
+        "probability": "0.85",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.0225
+      },
+      {
+        "basis": "Q1 GAAP 营业利润率同比 -1.0pp（12.9% vs 13.9%），SG&A 增速快于销售；FY25 指引 13.0% 低于 FY24 13.5%，剩余季度需要继续收缩才能与全年指引相符。反证：Q3 FY24 基数（13.5%）较低的季度利润率或已有企稳迹象。",
+        "direction": "contract",
+        "probability": "0.7",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.09
+      },
+      {
+        "basis": "接近五五开。HD 近 60 个交易日总回报 +5.5%，XLY +14.3%，动量相对消费可选板块偏弱；估值（P/E 25.0，历史分位 55）中性，无足够证据判断方向。",
+        "direction": "underperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.25
+      },
+      {
+        "basis": "Q1 已重申 FY25 指引。下调风险（可比销售需要改善）与上调可能性（同店修复）都存在，维持为最可能的单一结果。",
+        "direction": "maintain",
+        "probability": "0.5",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -6.62,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -0.53,
+      "benchmark": "XLY",
+      "excess_63d_pct": -0.79,
+      "excess_126d_pct": -16.76,
+      "max_drawdown_126d_pct": -21.5,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -0.79,
+    "net_excess_126d_pct": -16.76
+  },
+  {
+    "set": "2025-07-01-claude-b",
+    "run": "20261018T051049Z-claude-BLK-asof2025-07-01-b",
+    "ticker": "BLK",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-0.7",
+    "forecasts": [
+      {
+        "basis": "Q3'25 同比增速相对 Q1'25 的 +11.6%：Preqin 3 月并表后 Q3 完整贡献、HPS 7/1 交割、市场水平较 2024 年 Q3 显著更高（SPY 60 日 +15%）；反向：Q1 ETF 净流入仅 107 百万美元（Q1'24 为 431），现金管理流入几乎为零，有机增长未必加速。HPS 收入未取得，不能量化。",
+        "direction": "accelerate",
+        "probability": "0.6",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "Q3'25 GAAP 营业利润率相对 Q3'24 的 38.6%：Q1'25 GAAP 利润率已同比下降 3.6pp，摊销季度额由 3800 万升至 1.17 亿美元，HPS 交割当季存在收购与整合成本；经调整利润率仍在扩张（+1pp），因此不是极高把握。",
+        "direction": "contract",
+        "probability": "0.7",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.09
+      },
+      {
+        "basis": "126 个交易日相对 XLF：价格处于 52 周高点附近、P/E 78.6 分位、隐含假设偏高，略偏跑输；但 252 日相对 SPY 已 +23.5pp，动量为正，概率接近抛硬币。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "读取的 2025-01-15 与 2025-04-11 业绩新闻稿 EX-99.1 中未找到量化的下一季或全年指引（Outlook 检索只命中前瞻性声明套话），BLK 不提供营收/利润指引。",
+        "direction": "not_applicable",
+        "probability": "1",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 13.65,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -8.56,
+      "benchmark": "XLF",
+      "excess_63d_pct": 8.47,
+      "excess_126d_pct": -1.76,
+      "max_drawdown_126d_pct": -17.47,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 8.47,
+    "net_excess_126d_pct": -1.76
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T041139Z-claude-MU-asof2025-07-01-c",
+    "ticker": "MU",
+    "as_of": "2025-07-01",
+    "action": "BUY",
+    "expected_return_pct": "5.2",
+    "forecasts": [
+      {
+        "basis": "Q0 为 FQ3-25，同比 +36.6%。Q2 为 FQ1-26，与 FQ1-25（8,709M）比较；要维持 +36.6%，FQ1-26 需达 11.9B，比 FQ4 指引高约 11%，基数效应使同比更可能回落。",
+        "direction": "decelerate",
+        "probability": "0.7",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.49
+      },
+      {
+        "basis": "Q2 为 FQ1-26，对比 FQ1-25 GAAP 营业利润率 25.0%。FQ4 指引隐含 28.4%，若指引兑现即扩张；主要风险是 NAND ASP 下行。",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "相对所属板块 ETF XLK。上修指引支持跑赢，但 60 日涨幅 +62.6%，同组 WDC、STX 涨幅更大，拥挤与周期风险使把握有限。",
+        "direction": "outperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "FQ3 实际超过指引中值 5.7%，FQ4 指引较 FQ3 实际环比 +15%，近两期均为超预期模式；NAND 定价是主要变数。",
+        "direction": "raise",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-29",
+      "q2_end": "2025-11-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 20.1,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 20.01,
+      "benchmark": "XLK",
+      "excess_63d_pct": 26.08,
+      "excess_126d_pct": 126.34,
+      "max_drawdown_126d_pct": -20.5,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 25.88,
+    "net_excess_126d_pct": 126.14
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T041139Z-claude-INTC-asof2025-07-01-c",
+    "ticker": "INTC",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-54.8",
+    "forecasts": [
+      {
+        "basis": "Q0 为 2025Q1，同比 -0.4%（12,667 对 12,724，季度 XBRL）。Q2 为 2025Q3：Q2 指引中点 118 亿较 Q2'24 同比 -8.0%；Q3'24 基数 132.8 亿，Q3'25 需 ≥130.9 亿才能维持 ±1pp 内，即较指引中点环比约 +11%，可能性低。",
+        "direction": "decelerate",
+        "probability": "0.7",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.49
+      },
+      {
+        "basis": "Q3'24 GAAP 营业利润率 -68.2%（营业亏损 90.57 亿，季度 XBRL），基数极低；Q3'25 只要高于约 -67.7% 即扩张。风险在于新增减值等一次性项目。",
+        "direction": "expand",
+        "probability": "0.9",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.01
+      },
+      {
+        "basis": "252 日相对 SPY -39.3pp，60 日 -13.6pp（technical_stats，子 Agent 核对）；20 日 +11.2pp 未形成趋势，同期 AMD、NVDA 大幅跑赢。概率仅略高于 50%。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "Q2 指引中点 118 亿，较 Q1 指引中点 122 亿已下调；Q2 GAAP 毛利率指引 34.3% 低于 Q1 36.9%。下一次指引相对 Q2 指引中点：下调 0.45、维持 0.35、上调 0.20。",
+        "direction": "cut",
+        "probability": "0.45",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.23,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 73.18,
+      "benchmark": "XLK",
+      "excess_63d_pct": 34.37,
+      "excess_126d_pct": 47.04,
+      "max_drawdown_126d_pct": -19.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 34.37,
+    "net_excess_126d_pct": 47.04
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T045638Z-claude-AMD-asof2025-07-01-c",
+    "ticker": "AMD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "2.8",
+    "forecasts": [
+      {
+        "basis": "Q2 指引中点 +26.8% YoY，低于 Q1 +35.9%；Q3 维持 ≥34.9% 需约 +24% 环比（8-K EX-99.1 2025-05-06；季度表）",
+        "direction": "decelerate",
+        "probability": "0.8",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.64
+      },
+      {
+        "basis": "Q3'24 GAAP 营业利润率 10.6%，Q1'25 为 10.8%；Q2 一次性费用不延续；Q1 营业费用 +16% 而营收 +36%，存在经营杠杆",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "60 日 +45% 后均值回归风险，指引减速；相对 XLK 的方向判断为轻微偏向跑输",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "下一次指引（Q3）在 Q2 财报时发布，晚于截止日，且与上一次指引不是同一期间，无结构化可比项",
+        "direction": "not_applicable",
+        "probability": "1",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-29",
+      "q2_end": "2025-09-27",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.31,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 3.12,
+      "benchmark": "XLK",
+      "excess_63d_pct": 6.41,
+      "excess_126d_pct": 42.01,
+      "max_drawdown_126d_pct": -25.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 6.41,
+    "net_excess_126d_pct": 42.01
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T045659Z-claude-ADBE-asof2025-07-01-c",
+    "ticker": "ADBE",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "7.7",
+    "forecasts": [
+      {
+        "basis": "FQ2 FY25 同比 +10.6%；6 月指引隐含 FQ4 同比约 +8.2%（FQ4 FY24 5.606B，指引隐含营收约 6.06B）。要使 FQ4 增速落在 flat 区间（与 10.6% 相差 1 个百分点以内），需要超出指引隐含值约 2.4 个百分点；FQ1/FQ2 的超额约 0.6–0.9%，不足以达到。",
+        "direction": "decelerate",
+        "probability": "0.7",
+        "target": "revenue_growth",
+        "actual": "flat",
+        "hit": false,
+        "brier": 0.49
+      },
+      {
+        "basis": "FQ3 FY25 GAAP 营业利润率指引 36.0%，低于 FQ3 FY24 的 36.8%（-0.8pp，超过 ±0.5pp 阈值）；FQ4 指引未披露。FQ2 FY25 相对去年同季仅 +0.4pp，无扩张迹象。概率 0.5 而非更高，因为 FQ4 FY24 基数较低（34.9%）。",
+        "direction": "contract",
+        "probability": "0.5",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "ADBE 60 日 +6.8% 对 XLK +28.6%；252 日相对 SPY -42.7 个百分点；价格低于 200 日均线。相对动量的持续性有限，故概率仅 0.55。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "FQ1、FQ2 营收均超过指引上沿，FY25 指引已在 6 月上调一次。但 FQ3 指引中值对去年同季仅 +9.1%，上调空间有限，故概率 0.55。",
+        "direction": "raise",
+        "probability": "0.55",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-30",
+      "q2_end": "2025-11-28",
+      "revenue_growth": "flat",
+      "revenue_growth_delta_pp": -0.13,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.59,
+      "benchmark": "XLK",
+      "excess_63d_pct": -22.49,
+      "excess_126d_pct": -26.3,
+      "max_drawdown_126d_pct": -20.33,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -22.49,
+    "net_excess_126d_pct": -26.3
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T053105Z-claude-NOW-asof2025-07-01-c",
+    "ticker": "NOW",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "5.5",
+    "forecasts": [
+      {
+        "basis": "FY25 订阅指引 18.5–19% 与 Q1 实际 19%、Q2 指引 19–19.5% 相比，隐含 H2 增速低于 Q2；固定汇率上限下调至 19.5%。Q0 = Q1 2025（营收 +18.6%）",
+        "direction": "decelerate",
+        "probability": "0.6",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.36
+      },
+      {
+        "basis": "GAAP 营业利润率 Q1 同比约 +180bp，FY 非 GAAP 利润率指引 30.5%；风险是 Moveworks 整合成本拖累下半年",
+        "direction": "expand",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "GAAP 估值 137.8x 与 252 日 +30.7% 的动量并存；近 20 日相对 SPY 跑输约 4.5pp；把握度低，仅略高于一半",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q1 订阅超过指引上限但管理层称仅部分传导到全年，上调有依据；但固定汇率区间已收窄，维持也可能",
+        "direction": "raise",
+        "probability": "0.5",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.18,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 1.84,
+      "benchmark": "XLK",
+      "excess_63d_pct": -21.51,
+      "excess_126d_pct": -39.99,
+      "max_drawdown_126d_pct": -26.97,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -21.51,
+    "net_excess_126d_pct": -39.99
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T053502Z-claude-INTU-asof2025-07-01-c",
+    "ticker": "INTU",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "0.9",
+    "forecasts": [
+      {
+        "basis": "Q1 FY26（Q2 相对 Q0=Q3 FY25 的 +15%）：税务季驱动的 ARPR 提价难以持续；Q4 指引 17–18% 的加速依赖非税季 Online Ecosystem（指引 +21%）；Q4 与 Q1 口径不完全可比，把握有限。",
+        "direction": "decelerate",
+        "probability": "0.5",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "FY25 GAAP 营业利润率指引中点 26.2%，高于 FY24 的 22.3%（含重组费用）；FY26 Q1 同比是否继续扩张取决于投入与税季费用，无可靠依据偏向任何一方。",
+        "direction": "expand",
+        "probability": "0.5",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": true,
+        "brier": 0.25
+      },
+      {
+        "basis": "相对 XLK：60 日 XLK +28.6% 已部分反映行业动量；估值已高；但 FY26 方向不确定，概率接近中性。",
+        "direction": "underperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.25
+      },
+      {
+        "basis": "FY25 全年指引在 Q3 已上调两次，公司在经营顺利时倾向上调；但 FY26 为全新指引，与 FY25 指引的比较口径不同。",
+        "direction": "raise",
+        "probability": "0.5",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-04-30",
+      "q2_end": "2025-10-31",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 3.24,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 5.49,
+      "benchmark": "XLK",
+      "excess_63d_pct": -24.74,
+      "excess_126d_pct": -30.0,
+      "max_drawdown_126d_pct": -21.94,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -24.74,
+    "net_excess_126d_pct": -30.0
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T060343Z-claude-HD-asof2025-07-01-c",
+    "ticker": "HD",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-8.6",
+    "forecasts": [
+      {
+        "basis": "Q0 为 Q1 FY25（营收同比 +9.4%，含 SRS 非可比收入）；Q2 为 Q3 FY25，同比基数已含整季 SRS；FY25 指引总销售 +2.8%、可比 +1.0%，Q1 可比 −0.3%",
+        "direction": "decelerate",
+        "probability": "0.85",
+        "target": "revenue_growth",
+        "actual": "decelerate",
+        "hit": true,
+        "brier": 0.0225
+      },
+      {
+        "basis": "Q3 FY24 GAAP 营业利润率 13.47%；FY25 指引约 13.0%（FY24 为 13.49%）；Q1 FY25 同比下降 107bp；无形资产摊销 Q1 139 百万美元，去年同期 52 百万美元",
+        "direction": "contract",
+        "probability": "0.6",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.16
+      },
+      {
+        "basis": "相对 XLY：HD 近 60 日相对 SPY −9.9pp；估值不便宜且指引无上调；弱优势，不确定性高",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.2025
+      },
+      {
+        "basis": "FY25 指引已在 2 月与 5 月两次维持；下一次指引在 2025 年 8 月 Q2 财报；下修风险存在但证据未到",
+        "direction": "maintain",
+        "probability": "0.6",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "decelerate",
+      "revenue_growth_delta_pp": -6.62,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -0.53,
+      "benchmark": "XLY",
+      "excess_63d_pct": -0.79,
+      "excess_126d_pct": -16.76,
+      "max_drawdown_126d_pct": -21.5,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": -0.79,
+    "net_excess_126d_pct": -16.76
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T060629Z-claude-AVGO-asof2025-07-01-c",
+    "ticker": "AVGO",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-16.4",
+    "forecasts": [
+      {
+        "basis": "Q0=FQ2 FY25 同比 +20.2%；FQ3 指引 +20.9%（±1pp 内为持平）；Q2=FQ4 需超过约 21.2% 才算加速。AI 收入环比仍增长，但 FQ1→FQ2 已减速约 4.5pp，故给 35%。",
+        "direction": "accelerate",
+        "probability": "0.35",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": true,
+        "brier": 0.4225
+      },
+      {
+        "basis": "FQ2 GAAP 营业利润率 38.8%，较 FQ1 的 42.0% 环比下降，主要因 R&D 与 SBC 增速快于毛利。去年同季 GAAP 利润率基数未核实，故概率为判断。",
+        "direction": "contract",
+        "probability": "0.5",
+        "target": "operating_margin",
+        "actual": "expand",
+        "hit": false,
+        "brier": 0.25
+      },
+      {
+        "basis": "相对信息技术板块（XLK）；60 日总回报 +72.3%、高于 200 日均线 31.5%，但 TTM P/E 98.9x，短期动量与估值压力并存。",
+        "direction": "underperform",
+        "probability": "0.55",
+        "target": "relative_return_126d",
+        "actual": "outperform",
+        "hit": false,
+        "brier": 0.3025
+      },
+      {
+        "basis": "下一次季度指引相对上一次（FQ3 指引 $15.8B）；AI 收入季度环比加速支持上调，但 FQ2 总营收仅环比 +0.6% 的节奏限制了上调幅度。",
+        "direction": "raise",
+        "probability": "0.5",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-05-04",
+      "q2_end": "2025-11-02",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 8.03,
+      "operating_margin": "expand",
+      "operating_margin_delta_pp": 8.75,
+      "benchmark": "XLK",
+      "excess_63d_pct": 12.38,
+      "excess_126d_pct": 16.42,
+      "max_drawdown_126d_pct": -21.05,
+      "relative_return_126d": "outperform"
+    },
+    "net_excess_63d_pct": 12.38,
+    "net_excess_126d_pct": 16.42
+  },
+  {
+    "set": "2025-07-01-claude-c",
+    "run": "20261018T063657Z-claude-BLK-asof2025-07-01-c",
+    "ticker": "BLK",
+    "as_of": "2025-07-01",
+    "action": "NO_TRADE",
+    "expected_return_pct": "-10.6",
+    "forecasts": [
+      {
+        "basis": "Q0=Q1'25 同比 +11.6%（含 GIP 并表）；Q2 为 Q3'25 同比，Q3'24 无 GIP 基数；Q1 业绩费 −71%，增速放缓概率高于加速",
+        "direction": "decelerate",
+        "probability": "0.45",
+        "target": "revenue_growth",
+        "actual": "accelerate",
+        "hit": false,
+        "brier": 0.2025
+      },
+      {
+        "basis": "Q1'25 GAAP 营业利润率 32.2%，较去年同期 −3.6pp；Q3'24 基数 38.6% 偏高",
+        "direction": "contract",
+        "probability": "0.5",
+        "target": "operating_margin",
+        "actual": "contract",
+        "hit": true,
+        "brier": 0.25
+      },
+      {
+        "basis": "252 日相对 SPY +23.5pp，P/E 78.6 分位，相对板块边际优势不确定",
+        "direction": "underperform",
+        "probability": "0.5",
+        "target": "relative_return_126d",
+        "actual": "underperform",
+        "hit": true,
+        "brier": 0.25
+      },
+      {
+        "basis": "已读 EX-99.1 段落未见数值指引；BLK 不提供数值指引",
+        "direction": "not_applicable",
+        "probability": "1",
+        "target": "guidance",
+        "actual": null
+      }
+    ],
+    "truth": {
+      "status": "RESOLVED",
+      "q0_end": "2025-03-31",
+      "q2_end": "2025-09-30",
+      "revenue_growth": "accelerate",
+      "revenue_growth_delta_pp": 13.65,
+      "operating_margin": "contract",
+      "operating_margin_delta_pp": -8.56,
+      "benchmark": "XLF",
+      "excess_63d_pct": 8.47,
+      "excess_126d_pct": -1.76,
+      "max_drawdown_126d_pct": -17.47,
+      "relative_return_126d": "underperform"
+    },
+    "net_excess_63d_pct": 8.47,
+    "net_excess_126d_pct": -1.76
+  }
+]
