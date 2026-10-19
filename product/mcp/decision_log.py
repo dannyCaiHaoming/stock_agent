@@ -81,6 +81,22 @@ def _forecasts(value: Any) -> list[dict[str, Any]]:
     return out
 
 
+def _code_version() -> dict[str, Any]:
+    """Git commit of the Skills / references / tools that produced the decision (for later attribution)."""
+    import subprocess
+    repo = settings.REPO_ROOT
+    try:
+        commit = subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"], capture_output=True,
+                                text=True, timeout=5).stdout.strip() or None
+        dirty = bool(subprocess.run(["git", "-C", str(repo), "status", "--porcelain", "--", "product", ".claude",
+                                     ".codex"], capture_output=True, text=True, timeout=5).stdout.strip())
+        tags = subprocess.run(["git", "-C", str(repo), "tag", "--points-at", "HEAD"], capture_output=True,
+                              text=True, timeout=5).stdout.split()
+    except (OSError, subprocess.SubprocessError):
+        return {"commit": None}
+    return {"commit": commit, "dirty": dirty, "tags": tags}
+
+
 def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesis: str,
                   key_evidence: list[str], risks: list[str], invalidation: list[str],
                   data_as_of: str, report_markdown: str, price_at_decision: str | None = None,
@@ -143,6 +159,7 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         "host": host, "model": model,
         "forecasts": forecasts, "expected_return_pct": expected_return_pct, "variant": variant,
         "methods": [str(m).strip() for m in (methods or []) if str(m).strip()],
+        "code_version": _code_version(),
     }
     record["decision_id"] = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()[:12]
     root = settings.data_dir()
