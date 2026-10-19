@@ -1,6 +1,6 @@
 ---
 name: stock-research
-description: 单只美股或 ETF 的端到端研究入口：用户说“研究/分析 TICKER”“该不该买/卖 TICKER”时使用。并行启动独立的正向（advocate）与反向（skeptic）子 Agent，完成资料收集与各维度分析，由 CIO 逐条使用正反论点、按情景风险收益决策，经论证审查后给出 BUY/ADD/HOLD/REDUCE/EXIT/NO_TRADE 建议并保存决策记录。
+description: 单只美股或 ETF 的端到端研究入口：用户说“研究/分析 TICKER”“该不该买/卖 TICKER”时使用。并行启动独立的正向（advocate）与反向（skeptic）子 Agent，按共享方法卡分析，反向读正向论点后补充一轮核验，由 CIO 权衡证据、结合行情与持仓后给出 BUY/ADD/HOLD/REDUCE/EXIT/NO_TRADE 建议并保存决策记录。
 ---
 
 # 个股研究流程
@@ -24,8 +24,8 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 同时调用两个子 Agent（Claude Code：Agent/Task 工具，`subagent_type` 分别为 `advocate` 和 `skeptic`，在后台运行；Codex：用 `spawn_agent` 分别派生 `advocate` 与 `skeptic`，**`fork_turns` 必须设为 `"none"`**，否则子 Agent 会继承本对话，破坏独立性）。**只能**传入下面的话，不要附带你的任何发现或结论：
 
-> advocate：正向评估投资 {TICKER} 的看多亮点，并做历史验证。数据截至：{as_of 或“当前”}。按 bull-case Skill 输出。
-> skeptic：独立评估投资 {TICKER} 的主要风险与反方证据。数据截至：{as_of 或“当前”}。按 skeptic-review Skill 输出挑战清单。
+> advocate：正向评估投资 {TICKER}。数据截至：{as_of 或“当前”}。按 bull-case Skill 与共享 references 输出正向初稿。
+> skeptic：独立评估投资 {TICKER}。数据截至：{as_of 或“当前”}。按 skeptic-review Skill 第一步与共享 references 输出反向初稿。
 
 两个子 Agent 自行取数，与主研究互不可见。**在第 4 步写下初步判断之前，不要读取它们的结果**（Codex 不要提前 wait）。任何一个失败或超时，都要在“数据缺口”写明，并由你自己补做该方向的分析（标注“非独立”）。
 
@@ -63,26 +63,24 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 ## 3. 分析
 
-依次应用 `company-fundamentals`（先选 2–3 个核心问题）→ `valuation` → `peer-comparison` → `macro-market-context` → `technical-structure`。需要的数字计算全部调用计算工具完成。
+按 `product/references/methods/` 的方法卡分析（适用才用），并参考 `company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure` 的取数细节。三方（你、advocate、skeptic）用同样的工具与 `as_of`，读到的是同一份数据（工具结果有缓存）。需要的数字计算全部调用计算工具完成。
 
 ## 4. 初步判断
 
-按 `investment-decision` 第 1 步，写下初步动作、信心和 3–5 条核心论据（带关键数字）。完成后才读取两个子 Agent 的结果。
+按 `investment-decision` 第 2 步，写下初步动作和 3 条核心理由。完成后才读取两个子 Agent 的初稿。
 
-## 5. CIO 综合
+## 5. 反向核验（只补一轮）
 
-应用 `investment-decision`：把正向亮点、反向风险和你的补充填进同一张表，逐条写出事实核实、历史验证、是否已被定价和 CIO 用法；做三个情景的风险收益计算；得出最终判断。
+收到 advocate 的正向初稿后，把它发给第 1 步的 `skeptic`（Codex 用 `followup_task`；Claude Code 新开一次 `skeptic` 调用；任何新派生同样用 `fork_turns="none"`），任务以“核验”开头，只附正向初稿，不附你的判断：
 
-## 6. 论证审查
+> 核验：{TICKER}，数据截至 {as_of}。以下是正向论点。按 skeptic-review 第二步检验其关键前提、补充遗漏风险，结论可以是“未发现足以改变结论的反证”。
+> {正向初稿全文}
 
-把同一份论证审查任务**同时**发给第 1 步的 `skeptic` 和 `advocate`（两个并行；Codex 用 `followup_task`；Claude Code 各新开一次调用；任何新派生同样用 `fork_turns="none"`）。skeptic 按 skeptic-review 模式 B 审查，advocate 按 bull-case 模式 B 从正向角度审查。任务以“论证审查”开头，附上最终判断和正反论点用法的摘要（不附完整报告）：
+核验失败或超时，就在“数据缺口”写明，并自己按第二步的问题清单检查。
 
-> 论证审查：{TICKER}，数据截至 {as_of}。以下是 CIO 的最终判断，请按你的 Skill 的模式 B 审查。
-> 最终动作与信心：…（初步判断：…）
-> 决定性论点：…；支持：…；驳回或仅观察：…（各附理由）
-> 情景与风险收益：保守 … / 中性 … / 乐观 …（相对现价 …）
+## 6. CIO 判断
 
-逐条回应两份审查意见：接受就修正，不接受就说明理由。两方意见冲突时，按证据强弱决定采纳哪一方，并写明理由，不默认偏向任何一方。动作因此改变时写明原因，然后按模板写出完整报告。某一方审查失败或超时，就在“数据缺口”写明，并自己按该方模式 B 的问题清单自检。
+应用 `investment-decision`：对齐时间尺度、判断方法适用性、权衡正向初稿、反向初稿与核验的证据，结合统计、案例、行情与持仓，得出动作、仓位、方向预测与改判条件，按模板写出完整报告。不再做事后论证审查。
 
 ## 7. 交付
 
@@ -91,4 +89,4 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 ## 预算
 
-目标在 25 分钟内完成（含 advocate、skeptic 与论证审查三次子 Agent 调用），主研究工具调用大约 25–40 次。资料够用就停止，不为求全而无限追加调用。时间或预算不够时，优先保证核心问题、估值和挑战处置，其余写入“数据缺口与限制”。
+目标在 25 分钟内完成（含 advocate 初稿、skeptic 初稿与核验三次子 Agent 调用），主研究工具调用大约 25–40 次。资料够用就停止，不为求全而无限追加调用。时间或预算不够时，优先保证核心问题、估值和多空权衡，其余写入“数据缺口与限制”。

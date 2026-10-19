@@ -308,5 +308,35 @@ class ProbabilityWeightedTests(unittest.TestCase):
             calc_tools.probability_weighted_value(["80", "110"], ["0.5", "0.4"], "100")
 
 
+class ReferenceToolsTests(unittest.TestCase):
+    def test_signal_stats_only_count_outcomes_known_before_as_of(self):
+        from product.mcp import reference_tools
+
+        def ev(signal, exit_date, excess):
+            return {"signal": signal, "ticker": "AAA", "signal_date": "2024-01-02", "entry_date": "2024-01-03",
+                    "benchmark": "XLK", "excess": {"60": excess}, "exit_dates": {"60": exit_date}, "detail": {}}
+        rows = [ev("trend_stage2_entry", "2024-04-01", 0.10), ev("trend_stage2_entry", "2024-09-01", -0.20),
+                ev("baseline_days", "2024-04-01", 0.01)]
+        with mock.patch.object(reference_tools, "_events", return_value=(rows, {})):
+            early = reference_tools.get_signal_stats("trend_stage2_entry", 60, as_of="2024-06-30")
+            late = reference_tools.get_signal_stats("trend_stage2_entry", 60, as_of="2024-12-31")
+        self.assertEqual(early["events"]["n"], 1)
+        self.assertEqual(early["status"], "需要验证")
+        self.assertEqual(early["mean_minus_baseline_pct"], 9.0)
+        self.assertEqual(late["events"]["n"], 2)
+
+    def test_cases_hidden_until_outcome_known(self):
+        from product.mcp import reference_tools
+        with tempfile.TemporaryDirectory() as root:
+            path = os.path.join(root, "X.md")
+            with open(path, "w") as handle:
+                handle.write("---\nid: X\nticker: AAA\ncase_date: 2024-01-02\noutcome_known_at: 2025-01-03\n"
+                             "methods: [trend-stage]\nresult: failure\n---\n# t\nbody\n")
+            with mock.patch.object(reference_tools, "CASES_DIR", __import__("pathlib").Path(root)):
+                self.assertEqual(len(reference_tools.get_reference_cases(as_of="2025-01-03")["cases"]), 0)
+                self.assertEqual(len(reference_tools.get_reference_cases("trend-stage", as_of="2025-01-04")["cases"]), 1)
+                self.assertEqual(len(reference_tools.get_reference_cases("quality", as_of="2026-01-01")["cases"]), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

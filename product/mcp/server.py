@@ -15,7 +15,8 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from product.mcp import calc_tools, congress_tools, context_tools, data_tools, decision_log, ownership_tools, settings
+from product.mcp import (calc_tools, congress_tools, context_tools, data_tools, decision_log, ownership_tools,
+                         reference_tools, settings)
 
 server = MCPServer(
     name="stock-data",
@@ -349,6 +350,28 @@ def probability_weighted_value(values: list[str], probabilities: list[str], pric
 
 @server.tool(annotations=READ_ONLY)
 @explain_errors
+@point_in_time
+def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = None) -> dict:
+    """Historical statistics of one explicit signal across the stock universe (method-card evidence): excess
+    return vs sector ETF after the signal (20/60/126 sessions), hit rate, distribution, by year, and the
+    unconditional baseline. Only samples whose outcome was known before as_of. Signals: trend_stage2_entry,
+    trend_stage4_entry, ma_bull_alignment_entry, revenue_growth_acceleration, revenue_growth_deceleration,
+    operating_margin_expansion, operating_margin_contraction. status 需要验证 = too few events."""
+    return reference_tools.get_signal_stats(signal, horizon_days=horizon_days, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_reference_cases(method: str | None = None, as_of: str | None = None) -> dict:
+    """Historical case cards (what was known then, the original judgement, what followed, why it worked or
+    failed), optionally for one method card id, e.g. 'trend-stage'. Only cases whose outcome was known before
+    as_of. Cases illustrate mechanisms; they are not statistics."""
+    return reference_tools.get_reference_cases(method=method, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
 def implied_assumption(price: str, shares: str, net_cash: str, revenue: str, period: str,
                        evidence_refs: list[str], operating_margin: str | None = None,
                        valuation_multiple: str | None = None) -> dict:
@@ -366,7 +389,7 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
                   report_markdown: str, price_at_decision: str | None = None,
                   no_trade_reason: str | None = None, host: str | None = None, model: str | None = None,
                   forecasts: list[dict] | None = None, expected_return_pct: str | None = None,
-                  variant: str | None = None) -> dict:
+                  variant: str | None = None, methods: list[str] | None = None) -> dict:
     """Persist the final decision and full report to the private decision log (append-only).
     action: BUY|ADD|HOLD|REDUCE|EXIT|NO_TRADE; confidence: low|medium|high.
     price_at_decision: plain number only, e.g. "541.15" (required unless NO_TRADE).
@@ -379,11 +402,13 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
       relative_return_126d (outperform|underperform: next 126 sessions vs the sector ETF),
       optional guidance (raise|cut|maintain|not_applicable). probability = chance the stated direction happens.
     expected_return_pct: probability-weighted expected return from the scenarios, e.g. "12.5".
-    variant: experiment label if the task names one."""
+    variant: experiment label if the task names one.
+    methods: method cards used, as id@version (e.g. "trend-stage@1")."""
     return decision_log.save_decision(
         ticker, action, confidence, horizon, thesis, key_evidence, risks, invalidation, data_as_of,
         report_markdown, price_at_decision=price_at_decision, no_trade_reason=no_trade_reason,
-        host=host, model=model, forecasts=forecasts, expected_return_pct=expected_return_pct, variant=variant)
+        host=host, model=model, forecasts=forecasts, expected_return_pct=expected_return_pct, variant=variant,
+        methods=methods)
 
 
 def main() -> None:

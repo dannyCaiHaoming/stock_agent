@@ -19,9 +19,8 @@ from product.mcp.provenance import iso_utc
 
 ACTIONS = ("BUY", "ADD", "HOLD", "REDUCE", "EXIT", "NO_TRADE")
 # Report sections required by the investment-decision template (heading prefixes, "## " level).
-REQUIRED_SECTIONS = ("结论", "核心问题与判断", "估值", "同业比较", "宏观与市场背景", "技术面", "消息面与持仓变动",
-                     "正向与反向论点",
-                     "情景与风险收益", "历史教训对照", "论证审查", "第三方观点", "数据缺口与限制", "来源")
+REQUIRED_SECTIONS = ("结论", "选用方法与证据", "正向论点", "反向论点与前提检验", "估值与情景", "行情与技术",
+                     "消息面与持仓变动", "宏观与市场背景", "CIO 权衡", "改判条件", "第三方观点", "数据缺口与限制", "来源")
 CONFIDENCE = ("low", "medium", "high")
 
 
@@ -87,7 +86,8 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
                   data_as_of: str, report_markdown: str, price_at_decision: str | None = None,
                   no_trade_reason: str | None = None, host: str | None = None,
                   model: str | None = None, forecasts: list[dict[str, Any]] | None = None,
-                  expected_return_pct: str | None = None, variant: str | None = None) -> dict[str, Any]:
+                  expected_return_pct: str | None = None, variant: str | None = None,
+                  methods: list[str] | None = None) -> dict[str, Any]:
     ticker = str(ticker).strip().upper()
     if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", ticker):
         raise DecisionLogError("TICKER_INVALID")
@@ -142,6 +142,7 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         "no_trade_reason": (no_trade_reason or "").strip() or None,
         "host": host, "model": model,
         "forecasts": forecasts, "expected_return_pct": expected_return_pct, "variant": variant,
+        "methods": [str(m).strip() for m in (methods or []) if str(m).strip()],
     }
     record["decision_id"] = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()[:12]
     root = settings.data_dir()
