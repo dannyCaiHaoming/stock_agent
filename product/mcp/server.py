@@ -353,8 +353,9 @@ def probability_weighted_value(values: list[str], probabilities: list[str], pric
 @point_in_time
 def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = None) -> dict:
     """Historical statistics of one explicit signal across the stock universe (method-card evidence): excess
-    return vs sector ETF after the signal (20/60/126 sessions), hit rate, distribution, by year, and the
-    unconditional baseline. Only samples whose outcome was known before as_of. Signals: trend_stage2_entry,
+    return vs sector ETF after the signal (20/60/126 sessions, before costs, plus an after-cost mean), hit rate,
+    average win/loss, the difference from the same-date universe control with 95% cluster-bootstrap intervals
+    (by ticker and by month), and by-year differences. Only samples whose outcome was known before as_of. Signals: trend_stage2_entry,
     trend_stage4_entry, ma_bull_alignment_entry, revenue_growth_acceleration, revenue_growth_deceleration,
     operating_margin_expansion, operating_margin_contraction. status 需要验证 = too few events."""
     return reference_tools.get_signal_stats(signal, horizon_days=horizon_days, as_of=as_of)

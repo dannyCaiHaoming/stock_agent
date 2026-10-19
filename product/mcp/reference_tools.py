@@ -49,40 +49,49 @@ def _summary(values: list[float]) -> dict[str, Any]:
 
 
 def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = None) -> dict[str, Any]:
+    from product.deterministic import signal_stats
     signals = {**TECHNICAL_SIGNALS, **FUNDAMENTAL_SIGNALS}
-    if signal not in signals:
-        raise DataToolError(f"SIGNAL_UNKNOWN: one of {sorted(signals)}")
+    if signal not in signals or signal.startswith("baseline"):
+        raise DataToolError(f"SIGNAL_UNKNOWN: one of {sorted(k for k in signals if not k.startswith('baseline'))}")
     if horizon_days not in HORIZONS:
         raise DataToolError(f"HORIZON_INVALID: one of {list(HORIZONS)}")
     cutoff = _cutoff(as_of).astimezone(NEW_YORK).date().isoformat()  # New York trading date
     rows, meta = _events()
     h = str(horizon_days)
-    baseline = "baseline_days" if signal in TECHNICAL_SIGNALS else "baseline_filings"
 
     def known(name: str) -> list[dict]:
         # Only samples whose whole outcome window ended before the cutoff.
         return [e for e in rows if e["signal"] == name and e["exit_dates"].get(h) and e["exit_dates"][h] < cutoff
                 and e["excess"].get(h) is not None]
-    hits, base = known(signal), known(baseline)
-    values = [e["excess"][h] for e in hits]
-    by_year: dict[str, list[float]] = {}
+    hits = signal_stats.matched(known(signal), known("baseline_days"), h)
     for e in hits:
-        by_year.setdefault(e["signal_date"][:4], []).append(e["excess"][h])
-    summary, base_summary = _summary(values), _summary([e["excess"][h] for e in base])
-    status = "需要验证" if summary["n"] < MIN_EVENTS else "可参考"
+        e["excess_h"] = e["excess"][h]
+    summary = signal_stats.summarize(hits, ROUND_TRIP_COST_PCT)
+    by_year = {}
+    for year in sorted({e["entry_date"][:4] for e in hits}):
+        group = [e for e in hits if e["entry_date"][:4] == year]
+        by_year[year] = {"n": len(group),
+                         "mean_vs_matched_control_pp": round(statistics.mean(e["abnormal"] for e in group) * 100, 2)}
+    cis = [summary.get("ci95_cluster_by_ticker_pp"), summary.get("ci95_cluster_by_month_pp")]
+    if summary["n"] < MIN_EVENTS or None in cis:
+        status = "需要验证"
+    elif all(lo > 0 for lo, _ in cis):
+        status = "高于同日对照（两种置信区间都在 0 以上）"
+    elif all(hi < 0 for _, hi in cis):
+        status = "低于同日对照（两种置信区间都在 0 以下）"
+    else:
+        status = "与同日对照无可靠差异"
     return {
         "signal": signal, "definition": signals[signal], "horizon_days": horizon_days, "as_of": cutoff,
-        "status": status, "events": summary, "distinct_tickers": len({e["ticker"] for e in hits}),
-        "baseline": {"signal": baseline, **base_summary},
-        "mean_minus_baseline_pct": round(summary["mean_pct"] - base_summary["mean_pct"], 2)
-        if summary["n"] and base_summary["n"] else None,
-        "mean_after_round_trip_cost_pct": round(summary["mean_pct"] - ROUND_TRIP_COST_PCT, 2) if summary["n"] else None,
-        "by_year": {y: _summary(v) for y, v in sorted(by_year.items())},
+        "definitions_version": signal_stats.SIGNAL_DEFINITIONS_VERSION, "status": status, "summary": summary,
+        "by_year_vs_matched_control": by_year,
         "provenance": {"source_id": "signal-events", "built_at": meta.get("built_at"),
                        "notes": "Excess return vs the stock's sector ETF from the close of the session after the "
-                                "signal. Only samples whose outcome window ended before as_of. Overlapping windows "
-                                "across tickers and dates are not independent. " + meta.get("universe_note", "")
-                                + f" status=需要验证 when fewer than {MIN_EVENTS} events."},
+                                "signal, before costs; mean_excess_after_cost_pct subtracts a 0.2pp round trip. "
+                                "mean_vs_matched_control_pp compares with the whole universe's average excess on the "
+                                "same date. 95% intervals from cluster bootstraps by ticker (repeat signals) and by "
+                                "month (overlapping windows). Only samples whose outcome window ended before as_of. "
+                                + meta.get("universe_note", "")},
     }
 
 

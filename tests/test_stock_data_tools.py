@@ -312,18 +312,19 @@ class ReferenceToolsTests(unittest.TestCase):
     def test_signal_stats_only_count_outcomes_known_before_as_of(self):
         from product.mcp import reference_tools
 
-        def ev(signal, exit_date, excess):
-            return {"signal": signal, "ticker": "AAA", "signal_date": "2024-01-02", "entry_date": "2024-01-03",
+        def ev(signal, ticker, entry, exit_date, excess):
+            return {"signal": signal, "ticker": ticker, "signal_date": entry, "entry_date": entry,
                     "benchmark": "XLK", "excess": {"60": excess}, "exit_dates": {"60": exit_date}, "detail": {}}
-        rows = [ev("trend_stage2_entry", "2024-04-01", 0.10), ev("trend_stage2_entry", "2024-09-01", -0.20),
-                ev("baseline_days", "2024-04-01", 0.01)]
+        controls = [ev("baseline_days", f"C{i}", "2024-01-02", "2024-04-01", 0.01) for i in range(10)]
+        rows = controls + [ev("trend_stage2_entry", "AAA", "2024-01-03", "2024-04-02", 0.10),
+                           ev("trend_stage2_entry", "BBB", "2024-01-04", "2024-09-01", -0.20)]
         with mock.patch.object(reference_tools, "_events", return_value=(rows, {})):
             early = reference_tools.get_signal_stats("trend_stage2_entry", 60, as_of="2024-06-30")
             late = reference_tools.get_signal_stats("trend_stage2_entry", 60, as_of="2024-12-31")
-        self.assertEqual(early["events"]["n"], 1)
+        self.assertEqual(early["summary"]["n"], 1)
         self.assertEqual(early["status"], "需要验证")
-        self.assertEqual(early["mean_minus_baseline_pct"], 9.0)
-        self.assertEqual(late["events"]["n"], 2)
+        self.assertEqual(early["summary"]["mean_vs_matched_control_pp"], 9.0)
+        self.assertEqual(late["summary"]["n"], 2)
 
     def test_cases_hidden_until_outcome_known(self):
         from product.mcp import reference_tools
