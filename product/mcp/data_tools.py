@@ -586,7 +586,8 @@ def get_sec_concept(ticker: str, tag: str, taxonomy: str = "us-gaap", limit: int
 HISTORY_YEARS = 3
 
 
-def _submissions(identity: dict, client: SecClient, cutoff: datetime) -> tuple[dict, dict]:
+def _submissions(identity: dict, client: SecClient, cutoff: datetime,
+                 history_years: int = HISTORY_YEARS) -> tuple[dict, dict]:
     """Recent submissions plus older SEC pages covering [cutoff - 3y, cutoff] when `recent` does not reach back.
 
     Heavy filers (banks issuing structured notes) have only a few months in the `recent` block.
@@ -594,7 +595,7 @@ def _submissions(identity: dict, client: SecClient, cutoff: datetime) -> tuple[d
     record = client.submissions(identity["cik"], max_age_seconds=SUBMISSIONS_MAX_AGE)
     filings = parse_submissions(client.cache.read(record), cik=identity["cik"], retrieved_at=record["retrieved_at"])
     earliest = min((parse_timestamp(f["published_at"]) for f in filings.values()), default=cutoff)
-    window_start = cutoff - timedelta(days=365 * HISTORY_YEARS)
+    window_start = cutoff - timedelta(days=365 * history_years)
     if earliest > window_start:
         body = json.loads(client.cache.read(record))
         for page in body.get("filings", {}).get("files", []):
@@ -621,8 +622,9 @@ def list_filings(ticker: str, forms: list[str] | None = None, limit: int = 20,
     rows.sort(key=lambda f: f["published_at"], reverse=True)
     return {
         "ticker": identity["ticker"], "company": identity["name"],
-        "columns": ["accession", "form", "report_date", "published_at", "document_url"],
-        "rows": [[f["accession"], f["form"], f["report_date"], f["published_at"], f["document_url"]]
+        "columns": ["accession", "form", "report_date", "published_at", "document_url", "items_8k"],
+        "rows": [[f["accession"], f["form"], f["report_date"], f["published_at"], f["document_url"],
+                  ",".join(f.get("items") or []) or None]
                  for f in rows[:max(1, min(int(limit), 100))]],
         "provenance": {"source_id": f"sec-submissions-{identity['cik']}",
                        "source_locator": f"https://data.sec.gov/submissions/CIK{identity['cik']}.json",

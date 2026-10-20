@@ -105,7 +105,10 @@ def _parse_submission_rows(recent: dict, *, raw: bytes, cik: str,
                              "reason": "SEC_HISTORY_DOCUMENT_MISSING",
                              "isolation_version": HISTORY_ISOLATION_VERSION})
         else:
+            items = recent.get("items")
             result[accession] = {**filing,
+                "items": [x for x in str(items[index]).split(",") if x] if isinstance(items, list)
+                and len(items) == len(recent["accessionNumber"]) and items[index] else [],
                 "document_url": f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{document}"}
     if excluded is not None:
         excluded.extend(isolated)

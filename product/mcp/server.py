@@ -357,7 +357,9 @@ def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = No
     average win/loss, the difference from the same-date universe control with 95% cluster-bootstrap intervals
     (by ticker and by month), and by-year differences. Only samples whose outcome was known before as_of. Signals: trend_stage2_entry,
     trend_stage4_entry, ma_bull_alignment_entry, revenue_growth_acceleration, revenue_growth_deceleration,
-    operating_margin_expansion, operating_margin_contraction. status 需要验证 = too few events."""
+    operating_margin_expansion, operating_margin_contraction (horizons 20/60/126); and 8-K items as
+    8k_item_<code>, e.g. 8k_item_2.02 earnings, 8k_item_5.02 officer changes, 8k_item_1.01 material agreements,
+    8k_item_2.05 restructuring, 8k_item_4.02 restatement (horizons 1/5/20/60). status 需要验证 = too few events."""
     return reference_tools.get_signal_stats(signal, horizon_days=horizon_days, as_of=as_of)
 
 

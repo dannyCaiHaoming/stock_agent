@@ -13,7 +13,8 @@ import statistics
 from pathlib import Path
 from typing import Any
 
-from product.deterministic.signal_events import FUNDAMENTAL_SIGNALS, HORIZONS, TECHNICAL_SIGNALS
+from product.deterministic.signal_events import (EVENT_HORIZONS, FORM_8K_ITEMS, FUNDAMENTAL_SIGNALS, HORIZONS,
+                                                TECHNICAL_SIGNALS)
 from product.mcp import settings
 from product.mcp.data_tools import NEW_YORK, DataToolError, _cutoff
 from product.mcp.provenance import iso_utc
@@ -21,19 +22,23 @@ from product.mcp.provenance import iso_utc
 CASES_DIR = Path(__file__).resolve().parents[1] / "references" / "cases"
 ROUND_TRIP_COST_PCT = 0.2  # 10bp each side
 MIN_EVENTS = 30
-_EVENTS: dict[str, Any] = {}
+_EVENTS: dict[str, dict[str, Any]] = {}
+EVENT_FILES = {"main": ("events.jsonl", "meta.json", "scripts/build-signal-events.py"),
+               "8k": ("events-8k.jsonl", "meta-8k.json", "scripts/build-8k-events.py")}
 
 
-def _events() -> tuple[list[dict], dict]:
+def _events(kind: str = "main") -> tuple[list[dict], dict]:
     root = settings.cache().root / "derived" / "signals"
-    path = root / "events.jsonl"
+    name, meta_name, script = EVENT_FILES[kind]
+    path = root / name
     if not path.exists():
-        raise DataToolError("SIGNAL_EVENTS_NOT_BUILT: run scripts/build-signal-events.py")
+        raise DataToolError(f"SIGNAL_EVENTS_NOT_BUILT: run {script}")
     mtime = path.stat().st_mtime
-    if _EVENTS.get("mtime") != mtime:
-        _EVENTS.update(mtime=mtime, rows=[json.loads(line) for line in path.open()],
-                       meta=json.loads((root / "meta.json").read_text()))
-    return _EVENTS["rows"], _EVENTS["meta"]
+    cached = _EVENTS.setdefault(kind, {})
+    if cached.get("mtime") != mtime:
+        cached.update(mtime=mtime, rows=[json.loads(line) for line in path.open()],
+                      meta=json.loads((root / meta_name).read_text()))
+    return cached["rows"], cached["meta"]
 
 
 def _summary(values: list[float]) -> dict[str, Any]:
@@ -50,20 +55,24 @@ def _summary(values: list[float]) -> dict[str, Any]:
 
 def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = None) -> dict[str, Any]:
     from product.deterministic import signal_stats
-    signals = {**TECHNICAL_SIGNALS, **FUNDAMENTAL_SIGNALS}
+    signals = {**TECHNICAL_SIGNALS, **FUNDAMENTAL_SIGNALS,
+               **{f"8k_item_{k}": f"8-K 事项 {k}：{v}" for k, v in FORM_8K_ITEMS.items()}}
     if signal not in signals or signal.startswith("baseline"):
         raise DataToolError(f"SIGNAL_UNKNOWN: one of {sorted(k for k in signals if not k.startswith('baseline'))}")
-    if horizon_days not in HORIZONS:
-        raise DataToolError(f"HORIZON_INVALID: one of {list(HORIZONS)}")
+    is_8k = signal.startswith("8k_item_")
+    horizons = EVENT_HORIZONS if is_8k else HORIZONS
+    if horizon_days not in horizons:
+        raise DataToolError(f"HORIZON_INVALID: one of {list(horizons)}")
     cutoff = _cutoff(as_of).astimezone(NEW_YORK).date().isoformat()  # New York trading date
-    rows, meta = _events()
+    rows, meta = _events("8k" if is_8k else "main")
+    control = "baseline_days_daily" if is_8k else "baseline_days"
     h = str(horizon_days)
 
     def known(name: str) -> list[dict]:
         # Only samples whose whole outcome window ended before the cutoff.
         return [e for e in rows if e["signal"] == name and e["exit_dates"].get(h) and e["exit_dates"][h] < cutoff
                 and e["excess"].get(h) is not None]
-    hits = signal_stats.matched(known(signal), known("baseline_days"), h)
+    hits = signal_stats.matched(known(signal), known(control), h)
     for e in hits:
         e["excess_h"] = e["excess"][h]
     summary = signal_stats.summarize(hits, ROUND_TRIP_COST_PCT)

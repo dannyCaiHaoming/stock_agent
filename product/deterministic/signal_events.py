@@ -11,6 +11,18 @@ from dataclasses import dataclass
 from typing import Iterable
 
 HORIZONS = (20, 60, 126)
+EVENT_HORIZONS = (1, 5, 20, 60)  # 8-K and other dated events
+
+# SEC Form 8-K items (9.01 exhibits only is not an event).
+FORM_8K_ITEMS = {
+    "1.01": "签订重大协议", "1.02": "终止重大协议", "1.03": "破产或接管", "1.05": "重大网络安全事件",
+    "2.01": "完成收购或处置资产", "2.02": "公布经营业绩（财报）", "2.03": "产生直接财务义务（发债、借款）",
+    "2.04": "加速或增加财务义务的触发事件", "2.05": "退出或处置活动相关成本（重组）", "2.06": "重大减值",
+    "3.01": "退市或不符合上市标准通知", "3.02": "未登记的股权销售", "3.03": "证券持有人权利重大变更",
+    "4.01": "更换审计师", "4.02": "此前财报不可依赖（需重述）", "5.01": "控制权变更",
+    "5.02": "董事或高管离任、任命与薪酬安排", "5.03": "公司章程或财年变更", "5.07": "股东大会表决结果",
+    "7.01": "Regulation FD 披露", "8.01": "其他重要事件",
+}
 
 TECHNICAL_SIGNALS = {
     "trend_stage2_entry": "收盘价上穿 150 日均线且该均线较 20 个交易日前上升（此前至少 20 个交易日不满足）",
@@ -45,12 +57,12 @@ def _sma(values: list[float], end: int, n: int) -> float | None:
     return sum(values[end + 1 - n:end + 1]) / n
 
 
-def forward_excess(dates: list[str], closes: list[float], bench: dict[str, float], start_index: int
-                   ) -> tuple[dict, dict]:
+def forward_excess(dates: list[str], closes: list[float], bench: dict[str, float], start_index: int,
+                   horizons: tuple[int, ...] = HORIZONS) -> tuple[dict, dict]:
     """Excess return from the close at start_index to start_index + h, versus the benchmark on the same dates."""
     excess, exits = {}, {}
     base_date = dates[start_index]
-    for h in HORIZONS:
+    for h in horizons:
         j = start_index + h
         if j >= len(dates) or base_date not in bench or dates[j] not in bench:
             excess[h], exits[h] = None, None
@@ -103,4 +115,32 @@ def fundamental_events(ticker: str, quarters: Iterable[dict], dates: list[str], 
             names.append("operating_margin_expansion" if m > 0.5 else "operating_margin_contraction" if m < -0.5 else "")
         for name in filter(None, names):
             events.append(Event(name, ticker, q["public_at"], dates[start], benchmark, excess, exits, detail))
+    return events
+
+
+def form_8k_events(ticker: str, filings: Iterable[dict], dates: list[str], closes: list[float],
+                   bench_closes: dict[str, float], benchmark: str) -> list[Event]:
+    """One event per 8-K item. Entry at the first close at or after acceptance: the same session's close when
+    accepted before 16:00 New York time on a trading day, otherwise the next session's close."""
+    events = []
+    for f in filings:
+        accepted = f["accepted_ny"]  # "YYYY-MM-DDTHH:MM" New York time
+        day, hhmm = accepted[:10], accepted[11:16]
+        start = next((i for i, d in enumerate(dates) if d > day or (d == day and hhmm < "16:00")), None)
+        if start is None:
+            continue
+        excess, exits = forward_excess(dates, closes, bench_closes, start, EVENT_HORIZONS)
+        for item in f["items"]:
+            if item in FORM_8K_ITEMS:
+                events.append(Event(f"8k_item_{item}", ticker, day, dates[start], benchmark, excess, exits,
+                                    {"accession": f["accession"], "items": f["items"], "accepted_ny": accepted}))
+    return events
+
+
+def baseline_events(ticker: str, dates: list[str], closes: list[float], bench_closes: dict[str, float],
+                    benchmark: str, horizons: tuple[int, ...], name: str, step: int = 5) -> list[Event]:
+    events = []
+    for i in range(200, len(dates) - 1, step):
+        excess, exits = forward_excess(dates, closes, bench_closes, i + 1, horizons)
+        events.append(Event(name, ticker, dates[i], dates[i + 1], benchmark, excess, exits, {}))
     return events
