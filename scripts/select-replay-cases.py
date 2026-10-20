@@ -21,7 +21,7 @@ from product.mcp import calc_tools  # noqa: E402
 
 def universe() -> list[str]:
     text = (REPO / "evals/replay/universe.txt").read_text()
-    return [t for line in text.splitlines() if not line.startswith("#") for t in line.split()]
+    return list(dict.fromkeys(t for line in text.splitlines() if not line.startswith("#") for t in line.split()))
 
 
 def main() -> None:

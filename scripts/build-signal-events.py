@@ -30,7 +30,7 @@ SECTOR_ETF = {"Technology": "XLK", "Communication Services": "XLC", "Consumer Cy
 
 def universe() -> list[str]:
     text = (REPO / "evals/replay/universe.txt").read_text()
-    return [t for line in text.splitlines() if not line.startswith("#") for t in line.split()]
+    return list(dict.fromkeys(t for line in text.splitlines() if not line.startswith("#") for t in line.split()))
 
 
 def closes(ticker: str, start: str) -> tuple[list[str], list[float]]:
