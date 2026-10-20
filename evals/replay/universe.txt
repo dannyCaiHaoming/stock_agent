@@ -16,8 +16,8 @@ XOM CVX COP SLB LIN FCX ALB NEM
 # Utilities / REIT
 NEE DUK PLD AMT
 # 2026 上半年热门板块（用户指定板块，每板块按 2026-01-01～06-30 涨幅取前 5；有“挑选赢家”的偏差）
-# 航空公司
-DAL JBLU LUV UAL AAL
+# 航天与太空（SpaceX 未上市；按涨幅前 5，另加用户点名的 RKLB）
+IRDM VSAT PL RDW BKSY RKLB
 # 电力
 GEV SO NEE DUK TLN
 # 存储
