@@ -43,7 +43,7 @@ def quarters_as_known(ticker: str, start: str) -> list[dict]:
     """Per 10-Q/10-K: growth and margin deltas computed only from data published by that filing time."""
     filings = data_tools.list_filings(ticker, forms=["10-Q", "10-K"], limit=100)["rows"]
     out = []
-    for accession, form, report_date, published_at, _ in filings:
+    for accession, form, report_date, published_at, *_ in filings:
         if not report_date or published_at[:10] < start:
             continue
         try:
