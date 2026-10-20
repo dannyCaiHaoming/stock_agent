@@ -101,7 +101,11 @@ def main() -> None:
             if ticker in skip:
                 continue
             try:
-                row = build(ticker)
+                try:
+                    row = build(ticker)
+                except Exception:  # noqa: BLE001 - transient network failures: one retry
+                    time.sleep(3)
+                    row = build(ticker)
                 with path.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps({"snapshot_date": day, **row}, ensure_ascii=False) + "\n")
                 ok += 1
