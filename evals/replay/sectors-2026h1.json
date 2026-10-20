@@ -1,0 +1,7 @@
+{"selected_by": "2026-01-01 to 2026-06-30 total return, top 5 per sector (selection bias: winners)",
+ "airlines": ["DAL", "JBLU", "LUV", "UAL", "AAL"],
+ "power": ["GEV", "SO", "NEE", "DUK", "TLN"],
+ "storage": ["SNDK", "MU", "WDC", "STX", "NTAP"],
+ "optical": ["AAOI", "LITE", "COHR", "CIEN", "CRDO"],
+ "semiconductors": ["INTC", "MRVL", "ALAB", "AMD", "TXN"],
+ "semi_equipment": ["AMAT", "MKSI", "LRCX", "TER", "KLAC"]}
