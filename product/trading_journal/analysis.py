@@ -116,7 +116,7 @@ def _analyze(records: list[dict], *, window: dict | None, opening_positions: dic
     all_records = sorted(deepcopy(records), key=lambda item: (_time_interval(item)[0], item.get("record_id") or ""))
     ordered = list(all_records)
     if window and window.get("end"):
-        ordered = [record for record in ordered if record_in_window(record, {"end": window["end"], "timezone": window.get("timezone", "Asia/Shanghai")})]
+        ordered = [record for record in ordered if record_in_window(record, {"end": window["end"], "timezone": window.get("timezone", "Asia/Tokyo")})]
     by_key: dict[str, list[dict]] = defaultdict(list)
     for record in ordered:
         by_key[str(record.get("instrument", {}).get("key") or "unknown")].append(record)

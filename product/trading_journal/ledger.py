@@ -139,7 +139,7 @@ def _normalise_coverage(coverage: dict | None, records: list[dict], requested: d
     if requested and requested.get("start") and requested.get("end"):
         from zoneinfo import ZoneInfo
         try:
-            zone = ZoneInfo(requested.get("timezone") or "Asia/Shanghai")
+            zone = ZoneInfo(requested.get("timezone") or "Asia/Tokyo")
             start_day = iso_datetime(requested["start"]).astimezone(zone).date()
             end_day = iso_datetime(requested["end"]).astimezone(zone).date()
             months = set()

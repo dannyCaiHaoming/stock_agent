@@ -516,10 +516,10 @@ class JournalCliTests(unittest.TestCase):
 
     def test_computer_use_export_exact_window_filters_boundary_overfetch_before_ledger(self):
         text = CSV + (
-            'before,2026-08-31T15:59:59Z,AAPL,STOCK,US,USD,BUY,1,100,0\n'
-            'first,2026-08-31T16:00:00Z,AAPL,STOCK,US,USD,BUY,1,100,0\n'
-            'last,2026-09-30T15:59:59.999999Z,AAPL,STOCK,US,USD,SELL,1,100,0\n'
-            'after,2026-09-30T16:00:00Z,AAPL,STOCK,US,USD,SELL,1,100,0\n')
+            'before,2026-08-31T14:59:59Z,AAPL,STOCK,US,USD,BUY,1,100,0\n'
+            'first,2026-08-31T15:00:00Z,AAPL,STOCK,US,USD,BUY,1,100,0\n'
+            'last,2026-09-30T14:59:59.999999Z,AAPL,STOCK,US,USD,SELL,1,100,0\n'
+            'after,2026-09-30T15:00:00Z,AAPL,STOCK,US,USD,SELL,1,100,0\n')
         storage, source, receipt_path, _ = self.computer_use_fixture(text)
         result = self.computer_use_import(source, receipt_path)
         self.assertEqual(result['receipt']['inserted'], 4)

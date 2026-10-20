@@ -38,13 +38,13 @@ def record(number, *, side="BUY", qty="10", price="100", fees="1", currency="USD
 
 class WindowTests(unittest.TestCase):
     def test_calendar_month_end_and_leap_year(self):
-        self.assertEqual(resolve_window("一个月", now="2024-03-31T08:00:00Z")["start"], "2024-02-29T16:00:00+08:00")
-        self.assertEqual(resolve_window("一年", now="2024-02-29T08:00:00Z")["start"], "2023-02-28T16:00:00+08:00")
-        self.assertEqual(resolve_window("半年", now="2026-08-31T08:00:00Z")["start"], "2026-02-28T16:00:00+08:00")
+        self.assertEqual(resolve_window("一个月", now="2024-03-31T08:00:00Z")["start"], "2024-02-29T17:00:00+09:00")
+        self.assertEqual(resolve_window("一年", now="2024-02-29T08:00:00Z")["start"], "2023-02-28T17:00:00+09:00")
+        self.assertEqual(resolve_window("半年", now="2026-08-31T08:00:00Z")["start"], "2026-02-28T17:00:00+09:00")
 
     def test_week_and_custom_inclusive_local_date(self):
         window = resolve_window("一周", now="2026-10-01T00:00:00Z")
-        self.assertEqual(window["start"], "2026-09-24T08:00:00+08:00")
+        self.assertEqual(window["start"], "2026-09-24T09:00:00+09:00")
         window = resolve_window("custom", start="2026-09-01", end="2026-09-30", now=AS_OF)
         self.assertTrue(record_in_window(record(1, day="2026-09-30"), window))
         self.assertFalse(record_in_window(record(1, day="2026-08-31"), window))
@@ -60,7 +60,7 @@ class WindowTests(unittest.TestCase):
 
     def test_custom_end_never_after_cutoff(self):
         value = resolve_window("custom", start="2026-09-01", end="2026-12-31", now=AS_OF)
-        self.assertEqual(value["end"], "2026-10-01T09:00:00+08:00")
+        self.assertEqual(value["end"], "2026-10-01T10:00:00+09:00")
 
 
 class NormalizationTests(unittest.TestCase):

@@ -63,7 +63,7 @@ def build_parser():
                              help="自选起止日期或四种快捷期间；旧 lifetime 参数仅兼容历史调用")
         command.add_argument("--start")
         command.add_argument("--end")
-        command.add_argument("--timezone", default="Asia/Shanghai")
+        command.add_argument("--timezone", default="Asia/Tokyo")
         command.add_argument("--account-opened-at", help=argparse.SUPPRESS)
         if name in {"import", "collect"}:
             command.add_argument("--new-account", action="store_true")
@@ -310,7 +310,7 @@ def run(args):
                     raise JournalError("NO_RECORDS_FOR_MARKET", "当前版本没有可查询行情的证券记录。")
                 start = (date.fromisoformat(min(times)) - timedelta(days=90)).isoformat()
                 from zoneinfo import ZoneInfo
-                zone = ZoneInfo((window or {}).get("timezone", "Asia/Shanghai"))
+                zone = ZoneInfo((window or {}).get("timezone", "Asia/Tokyo"))
                 end = datetime.fromisoformat(utc_now().replace("Z", "+00:00")).astimezone(zone).date().isoformat()
                 instruments = {record["instrument"]["key"]: record["instrument"] for record in snapshot["records"]}
                 market = [fetch_market(instrument, start, end) for instrument in instruments.values()]

@@ -115,7 +115,7 @@ For each symbol separately:
    - merge visible title + desc into one analysis text
 2. Convert timestamps:
    - treat `publish_time` as a Unix epoch value (seconds); if it looks like milliseconds (> 1e12), divide by 1000
-   - convert to a human-readable string in the format `YYYY-MM-DD HH:mm` using UTC+8 (Asia/Shanghai) unless the user's locale implies otherwise
+   - convert to a human-readable string in the format `YYYY-MM-DD HH:mm` using UTC+9 (Asia/Tokyo) unless the user's locale implies otherwise
    - store the converted string as `published_at` on each post
    - after processing all posts for a symbol, record `time_range_earliest` and `time_range_latest` from the full (pre-filter) batch so the header reflects the actual data window
 3. Filter low-quality content:
@@ -471,7 +471,7 @@ Return one structured object with the following top-level fields:
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `text` | string | opinion summary text |
-| `published_at` | string | human-readable time string, `YYYY-MM-DD HH:mm` (UTC+8) |
+| `published_at` | string | human-readable time string, `YYYY-MM-DD HH:mm` (UTC+9) |
 
 ### `request`
 
@@ -508,7 +508,7 @@ Only required when `mode=multi`.
 | `bear_pct` | string | percentage string |
 | `neutral_pct` | string | percentage string |
 | `post_count` | int32 | retained post count |
-| `time_range` | object | `{ earliest: string, latest: string }` in `YYYY-MM-DD HH:mm` (UTC+8), derived from the full pre-filter batch |
+| `time_range` | object | `{ earliest: string, latest: string }` in `YYYY-MM-DD HH:mm` (UTC+9), derived from the full pre-filter batch |
 | `summary` | string | one-line symbol summary |
 | `top_opinions` | Opinion[] | top viewpoints for this symbol, each with `text` and `published_at` |
 | `signals` | object | optional reasoning evidence |

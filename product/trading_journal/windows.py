@@ -36,7 +36,7 @@ def _bound(value: str, tz: ZoneInfo, *, is_end: bool) -> datetime:
 
 
 def resolve_window(preset: str, *, now: str | datetime | None = None,
-                   timezone_name: str = "Asia/Shanghai", start: str | None = None,
+                   timezone_name: str = "Asia/Tokyo", start: str | None = None,
                    end: str | None = None, account_opened_at: str | None = None) -> dict:
     """Return an inclusive frozen interval; lifetime start may remain unknown."""
     if preset not in _PRESETS:
@@ -88,7 +88,7 @@ def record_in_window(record: dict, window: dict | None) -> bool:
     if record.get("time_precision") == "DATE" or len(occurred) == 10:
         # Date-only records cannot establish inclusion at intraday boundaries.
         # Retain the boundary day as explicitly uncertain, rather than discard it.
-        tz = ZoneInfo(record.get("source_timezone") or record.get("instrument", {}).get("exchange_timezone") or window.get("timezone") or "Asia/Shanghai")
+        tz = ZoneInfo(record.get("source_timezone") or record.get("instrument", {}).get("exchange_timezone") or window.get("timezone") or "Asia/Tokyo")
         local_day = date.fromisoformat(occurred)
         return ((not start or local_day >= iso_datetime(start).astimezone(tz).date())
                 and (not end or local_day <= iso_datetime(end).astimezone(tz).date()))
@@ -101,7 +101,7 @@ def window_membership(record: dict, window: dict | None) -> str:
         return "EXCLUDED"
     if not window or record.get("time_precision") != "DATE":
         return "INCLUDED"
-    zone_name = record.get("source_timezone") or record.get("instrument", {}).get("exchange_timezone") or window.get("timezone") or "Asia/Shanghai"
+    zone_name = record.get("source_timezone") or record.get("instrument", {}).get("exchange_timezone") or window.get("timezone") or "Asia/Tokyo"
     zone = ZoneInfo(zone_name)
     observed_day = date.fromisoformat(record["occurred_at"])
     for bound, edge in ((window.get("start"), "start"), (window.get("end"), "end")):
