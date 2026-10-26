@@ -57,7 +57,9 @@ class GetSignalStatsTests(unittest.TestCase):
                   for t, d, e, v in (("T1", "2024-03-01", "2024-03-29", 2.5), ("T2", "2024-06-03", "2024-07-01", 1.0))]
         insider = [{"kind": "event", "signal": "insider_buy_officer", "ticker": "T1", "entry_date": "2024-03-01",
                     "20": 0.5, "exit_20": "2024-03-29"}]
-        self._write("events-pead.jsonl", controls + events, "meta-pead.json")
+        self._write("events-pead.jsonl", controls + events, "meta-pead.json")  # v1: insider/congress controls
+        v2 = [{**r, "signal_date": r["entry_date"], "entry_date": "x"} for r in controls + events]  # keyed by D0
+        self._write("events-pead-v2.jsonl", v2, "meta-pead-v2.json")
         self._write("events-insider.jsonl", insider, "meta-insider.json")
 
     def _write(self, name, rows, meta):

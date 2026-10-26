@@ -365,10 +365,11 @@ def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = No
     operating_margin_contraction (horizons 20/60/126); 8-K items as 8k_item_<code>, e.g. 8k_item_2.02,
     8k_item_5.02, 8k_item_1.01, 8k_item_2.05, 8k_item_4.02 (horizons 1/5/20/60); post-earnings drift by
     earnings-day reaction pead_strong_up, pead_up, pead_flat, pead_down, pead_strong_down, and with volume >= 2x
-    pead_strong_up_high_volume, pead_strong_down_high_volume; insider_buy, insider_buy_large,
+    pead_strong_up_high_volume, pead_strong_down_high_volume (v2: D1-open entry after the EDGAR-acceptance-based signal day,
+    horizons 5/20/60); insider_buy, insider_buy_large,
     insider_buy_officer, insider_buy_cluster, insider_sell_cluster (Form 4); House member trades congress_buy,
     congress_buy_skilled, congress_buy_large, congress_buy_cluster, congress_sell (horizons 5/20/60/126/252
-    for pead/insider/congress)."""
+    for insider/congress)."""
     return reference_tools.get_signal_stats(signal, horizon_days=horizon_days, as_of=as_of)
 
 

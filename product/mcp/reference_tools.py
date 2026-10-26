@@ -22,11 +22,13 @@ from product.mcp.provenance import iso_utc
 CASES_DIR = Path(__file__).resolve().parents[1] / "references" / "cases"
 ROUND_TRIP_COST_PCT = 0.2  # 10bp each side
 MIN_EVENTS = 30
-LONG_HORIZONS = (5, 20, 60, 126, 252)  # PEAD / insider / congress tables
+LONG_HORIZONS = (5, 20, 60, 126, 252)  # insider / congress tables
+PEAD_HORIZONS = (5, 20, 60)  # PEAD v2 table
 _EVENTS: dict[str, dict[str, Any]] = {}
 EVENT_FILES = {"main": ("events.jsonl", "meta.json", "scripts/build-signal-events.py"),
                "8k": ("events-8k.jsonl", "meta-8k.json", "scripts/build-8k-events.py"),
-               "pead": ("events-pead.jsonl", "meta-pead.json", "scripts/build-pead-events.py"),
+               "pead": ("events-pead-v2.jsonl", "meta-pead-v2.json", "scripts/build-pead-events-v2.py"),
+               "pead_v1": ("events-pead.jsonl", "meta-pead.json", "scripts/build-pead-events.py"),  # insider/congress controls
                "insider": ("events-insider.jsonl", "meta-insider.json", "scripts/build-insider-events.py"),
                "congress": ("events-congress.jsonl", "meta-congress.json", "scripts/build-congress-events.py")}
 CONTROL_SIGNAL = {"main": "baseline_days", "8k": "baseline_days_daily"}
@@ -34,10 +36,10 @@ PEAD_BUCKETS = {
     "strong_up": "大涨 >+5%", "up": "小涨 +2%～+5%", "flat": "持平 ±2%", "down": "小跌 −5%～−2%",
     "strong_down": "大跌 <−5%"}
 PEAD_SIGNALS = {
-    **{f"pead_{b}": f"财报后漂移：8-K 2.02 财报公告反应{label}（公告前收盘到入场收盘的板块超额涨跌），"
-                    "入场在反应可见后的收盘；对照为同日全股票池每日对照行" for b, label in PEAD_BUCKETS.items()},
-    "pead_strong_up_high_volume": "财报后漂移：反应大涨 >+5% 且公告日成交量放大 ≥2 倍",
-    "pead_strong_down_high_volume": "财报后漂移：反应大跌 <−5% 且公告日成交量放大 ≥2 倍"}
+    **{f"pead_{b}": f"财报后漂移（v2 口径）：8-K 2.02 财报反应{label}（公告前收盘 P 到信号日 D0 收盘的板块超额涨跌，"
+                    "D0 由 EDGAR 受理时间决定），D1 开盘入场、D_h 收盘退出；对照为 D0 同日全股票池每日对照行（同口径）" for b, label in PEAD_BUCKETS.items()},
+    "pead_strong_up_high_volume": "财报后漂移（v2 口径）：反应大涨 >+5% 且 P 之后到 D0 的最大成交量 ≥ 2 倍 P 前 50 日均量",
+    "pead_strong_down_high_volume": "财报后漂移（v2 口径）：反应大跌 <−5% 且 P 之后到 D0 的最大成交量 ≥ 2 倍 P 前 50 日均量"}
 INSIDER_SIGNALS = {
     "insider_buy": "任一内部人公开市场买入（Form 4 交易代码 P），申报日次一交易日收盘入场",
     "insider_buy_large": "单次申报买入金额 ≥ $100k",
@@ -78,7 +80,10 @@ def _events(kind: str = "main") -> tuple[dict[str, list[dict]], dict, dict]:
 
     Event rows have `excess` / `exit_dates` dicts keyed by horizon; control pools are
     {horizon: {entry_date: (sorted values, latest exit date)}}. The insider and congress tables have no controls
-    of their own: get_signal_stats uses the daily control rows stored in the PEAD table."""
+    of their own: get_signal_stats uses the daily control rows stored in the v1 PEAD table ("pead_v1").
+
+    PEAD (v2) rows are keyed by D0 (`signal_date`, exposed as `entry_date` here): events and controls are matched on
+    the same D0 key; each row's excess return runs from D1 open to the exit close."""
     root = settings.cache().root / "derived" / "signals"
     name, meta_name, script = EVENT_FILES[kind]
     path = root / name
@@ -97,8 +102,14 @@ def _events(kind: str = "main") -> tuple[dict[str, list[dict]], dict, dict]:
                         controls.append(r)
                     else:
                         by_signal.setdefault(r["signal"], []).append(r)
+                elif kind == "pead_v1":
+                    r = _flat_row(r)
+                    if r["kind"] == "control":
+                        controls.append({"entry_date": r["entry_date"], "excess": r["excess"],
+                                         "exit_dates": r["exit_dates"]})
                 elif kind == "pead":
                     r = _flat_row(r)
+                    r["entry_date"] = r["signal_date"]  # match events and controls on D0
                     if r["kind"] == "control":
                         controls.append({"entry_date": r["entry_date"], "excess": r["excess"],
                                          "exit_dates": r["exit_dates"]})
@@ -126,7 +137,7 @@ def _signal_catalog() -> dict[str, tuple[str, str, tuple[int, ...]]]:
         out[f"8k_item_{k}"] = (f"8-K 事项 {k}：{v}", "8k", EVENT_HORIZONS)
     for kind, table in (("pead", PEAD_SIGNALS), ("insider", INSIDER_SIGNALS), ("congress", CONGRESS_SIGNALS)):
         for k, v in table.items():
-            out[k] = (v, kind, LONG_HORIZONS)
+            out[k] = (v, kind, PEAD_HORIZONS if kind == "pead" else LONG_HORIZONS)
     return out
 
 
@@ -141,7 +152,7 @@ def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = No
     cutoff = _cutoff(as_of).astimezone(NEW_YORK).date().isoformat()  # New York trading date
     events, controls, meta = _events(kind)
     if kind in ("insider", "congress"):
-        _, controls, _ = _events("pead")  # daily control rows live in the PEAD table
+        _, controls, _ = _events("pead_v1")  # daily control rows live in the v1 PEAD table
     h = str(horizon_days)
     # Only samples whose whole outcome window ended before the cutoff.
     pools = {d: v for d, (v, last_exit) in controls.get(h, {}).items() if last_exit < cutoff}
@@ -168,8 +179,9 @@ def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = No
         "definitions_version": signal_stats.SIGNAL_DEFINITIONS_VERSION, "status": status, "summary": summary,
         "by_year_percentile_minus_50": by_year,
         "provenance": {"source_id": "signal-events", "built_at": meta.get("built_at"),
-                       "notes": "Excess return vs the stock's sector ETF from the first tradable close after the "
-                                "signal, before costs; mean_excess_after_cost_pct subtracts a 0.2pp round trip. "
+                       "notes": "Excess return vs the stock's sector ETF, before costs (pead_*: from the D1 open after "
+                                "the signal day D0, matched to controls on D0; other tables: from the first tradable "
+                                "close after the signal); mean_excess_after_cost_pct subtracts a 0.2pp round trip. "
                                 "mean_percentile_minus_50 is the event's mid-rank percentile inside the whole "
                                 "universe's control excess returns on the same entry date, minus 50 (percentile "
                                 "points; 0 = no better than a random stock that day), robust to extreme winners. "
