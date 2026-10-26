@@ -8,7 +8,7 @@
 - `ledger.jsonl`：唯一账本，**只追加**，已有行不改写；提交到 git，以提交时间作为时间戳佐证。每行 `kind` 为：
   - `selection`：当天的选股结果与每只的入选原因，在研究开始前写入。
   - `prediction`：一次成功运行的冻结记录（动作、置信度、期限、方向预测、期望收益、论点摘要、失效条件、方法卡、`code_version`、模型、基准 ETF、纸面规则、完整报告的 `report_sha256`）。
-  - `failure`：运行失败或没有保存决策，使缺失结果可见（`status`：run_failed / no_decision_saved / report_missing / run_json_missing）。
+  - `failure`：运行失败或没有保存决策，使缺失结果可见（`status`：run_failed / no_decision_saved / report_missing / run_json_missing）。每只股票失败后自动重试一次，两次尝试都留在账本里；两次都失败则当天该股票没有预测，不再补跑。错误以 `FORWARD_ERROR` 开头即时写入 `.local/data/history/forward-errors.log` 并发 macOS 通知。
 - 同一 `run_id` 不能重复记录。
 
 ## 选股规则（预先固定，不得因结果调整）
