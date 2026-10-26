@@ -353,13 +353,22 @@ def probability_weighted_value(values: list[str], probabilities: list[str], pric
 @point_in_time
 def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = None) -> dict:
     """Historical statistics of one explicit signal across the stock universe (method-card evidence): excess
-    return vs sector ETF after the signal (20/60/126 sessions, before costs, plus an after-cost mean), hit rate,
-    average win/loss, the difference from the same-date universe control with 95% cluster-bootstrap intervals
-    (by ticker and by month), and by-year differences. Only samples whose outcome was known before as_of. Signals: trend_stage2_entry,
-    trend_stage4_entry, ma_bull_alignment_entry, revenue_growth_acceleration, revenue_growth_deceleration,
-    operating_margin_expansion, operating_margin_contraction (horizons 20/60/126); and 8-K items as
-    8k_item_<code>, e.g. 8k_item_2.02 earnings, 8k_item_5.02 officer changes, 8k_item_1.01 material agreements,
-    8k_item_2.05 restructuring, 8k_item_4.02 restatement (horizons 1/5/20/60). status 需要验证 = too few events."""
+    return vs sector ETF after the signal (before costs, plus an after-cost mean), hit rate, average win/loss,
+    and the key comparison: mean_percentile_minus_50 = the event's mid-rank percentile within the whole
+    universe's excess returns on the same entry date, minus 50 (percentile points; 0 = no better than a random
+    stock that day; robust to extreme winners), with 95% cluster-bootstrap intervals by ticker and by month
+    (ci95_cluster_by_ticker_pts / ci95_cluster_by_month_pts; reliable only if both exclude 0), plus by-year
+    values. status: 高于对照 / 低于对照 only if both intervals exclude 0; 与对照无可靠差异; 需要验证 = too few
+    events (<30). Only samples whose outcome window ended before as_of. Signal families:
+    technical/fundamental trend_stage2_entry, trend_stage4_entry, ma_bull_alignment_entry,
+    revenue_growth_acceleration, revenue_growth_deceleration, operating_margin_expansion,
+    operating_margin_contraction (horizons 20/60/126); 8-K items as 8k_item_<code>, e.g. 8k_item_2.02,
+    8k_item_5.02, 8k_item_1.01, 8k_item_2.05, 8k_item_4.02 (horizons 1/5/20/60); post-earnings drift by
+    earnings-day reaction pead_strong_up, pead_up, pead_flat, pead_down, pead_strong_down, and with volume >= 2x
+    pead_strong_up_high_volume, pead_strong_down_high_volume; insider_buy, insider_buy_large,
+    insider_buy_officer, insider_buy_cluster, insider_sell_cluster (Form 4); House member trades congress_buy,
+    congress_buy_skilled, congress_buy_large, congress_buy_cluster, congress_sell (horizons 5/20/60/126/252
+    for pead/insider/congress)."""
     return reference_tools.get_signal_stats(signal, horizon_days=horizon_days, as_of=as_of)
 
 

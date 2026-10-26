@@ -1,6 +1,6 @@
 # 三个角色的输出格式
 
-三方读取同一份共享数据。每条证据都写明：所用方法卡（id@version）、数据与期间、来源（source_id / accession），有统计就引用 `get_signal_stats` 的结果（样本数、主窗口 60 日均值与对照组差、状态），有案例就引用 `get_reference_cases` 的案例 id。
+三方读取同一份共享数据。每条证据都写明：所用方法卡（id@version）、数据与期间、来源（source_id / accession），有统计就引用 `get_signal_stats` 的结果（样本数、主窗口 60 日 `mean_percentile_minus_50`（同日全股票池百分位−50，百分位点）及两个置信区间、状态），有案例就引用 `get_reference_cases` 的案例 id。
 
 ## 正向初稿（advocate）
 

@@ -2,6 +2,13 @@
 
 前瞻验证只使用冻结版本；冻结后的修改进入下一个版本，不回头按历史回放样本调整。每条决策记录的 `code_version` 写明产生它的 git commit 与是否有未提交改动。
 
+## research-v4（2026-10-26）
+
+相对 research-v3 的变化：
+- **统计口径**：`get_signal_stats` 改为同日横截面百分位（信号定义 v2，`mean_percentile_minus_50` 与两个整群置信区间），并新增财报后漂移（`pead_*`）、内部人（`insider_*`）、议员（`congress_*`）信号族。
+- **方法卡**：新增 `earnings-reaction`（财报反应与短期漂移，20 日主窗口），共 7 张；其余 6 张不变。
+- 流程、角色 Skill、决策记录格式不变（仅统计字段措辞同步）。
+
 ## research-v3（2026-10-19）
 
 - **流程**：`stock-research`（advocate 与 skeptic 并行独立初稿 → skeptic 核验正向论点一轮 → CIO 判断，无事后审查）、`bull-case`、`skeptic-review`、`investment-decision`，以及 `research-standards` 与各分析 Skill。
