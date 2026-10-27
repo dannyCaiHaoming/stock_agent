@@ -28,7 +28,7 @@ H = "20"
 COST_PP, TRIVIAL_PP, MIN_N, REPS, SEED = 0.2, 0.5, 30, 1000, 0
 FIRST_TEST_YEAR, MIN_GROUP, DEN_MIN = 2020, 5, 0.01
 BUCKETS = ["strong_down", "down", "flat", "up", "strong_up"]
-H2H3_P = {"H2a": 0.142, "H2b": 0.150, "H3": 0.924}
+H2H3_P = {"H2a": 0.182, "H2b": 0.124, "H3": 0.516}  # 须与 earnings-h2h3-latest.md 一致；2026-10-27 时间戳修正后更新（原 0.142/0.150/0.924）
 
 
 def winsor_stats(pool):

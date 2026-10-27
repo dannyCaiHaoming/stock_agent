@@ -35,6 +35,23 @@ def _decode(raw: bytes) -> dict:
     return result
 
 
+NEW_YORK = ZoneInfo("America/New_York")
+
+
+def parse_index_accepted(html: bytes | str) -> datetime:
+    """EDGAR 申报索引页（*-index.htm）的 “Accepted” 字段：纽约当地时间，无时区标注；返回 UTC。
+
+    `acceptanceDateTime`（submissions JSON，recent 与历史分页相同）的正确含义是真正的 UTC（带 .000Z），
+    转纽约时间应与索引页一致。2026-10 中旬 SEC 曾在部分响应里把该字段整体多加一次纽约时差（夏令时 +4h、
+    冬令时 +5h，内容仍带 Z）；这类响应无法从 JSON 自身识别，只能用索引页抽样核对，见 scripts/build-8k-events.py。
+    """
+    text = html.decode("utf-8", "replace") if isinstance(html, bytes) else html
+    match = re.search(r'Accepted</div>\s*<div class="info">(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})</div>', text)
+    if not match:
+        raise ValueError("SEC_INDEX_ACCEPTED_MISSING")
+    return datetime.fromisoformat(match.group(1)).replace(tzinfo=NEW_YORK).astimezone(ZoneInfo("UTC"))
+
+
 def parse_submissions(raw: bytes, *, cik: str, retrieved_at: str) -> dict[str, dict]:
     """读取 recent 平行数组；历史分页由后续采集器单独获取，不假装完整。"""
     cik = normalize_cik(cik)

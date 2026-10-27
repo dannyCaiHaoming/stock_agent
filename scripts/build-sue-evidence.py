@@ -385,7 +385,8 @@ def build_pack(ev: dict) -> dict | None:
 
 
 def llm_view(pack: dict) -> dict:
-    return {k: v for k, v in pack.items() if not k.startswith("_")}
+    # `filed` 不进入 LLM 视图：提示词从不使用它，而受理时间若进入缓存键，修正时间戳会让全部缓存的 Haiku 答案失效。
+    return {k: v for k, v in pack.items() if not k.startswith("_") and k != "filed"}
 
 
 # ---------------------------------------------------------------- LLM
@@ -808,7 +809,7 @@ def build_text_view(pack: dict) -> dict | None:
             last = m.start()
     if not snips:
         return None
-    return dict(id=pack["id"], ticker=pack["ticker"], filed=pack["filed"], text_head=pack["text_head"],
+    return dict(id=pack["id"], ticker=pack["ticker"], text_head=pack["text_head"],
                 period_text=pack.get("period_text"), snippets=snips[:8], mode="text_snippets")
 
 
