@@ -29,6 +29,7 @@
 - 流程结构、判断问题、模型能力都没有带来方向预测上的可靠改善（27 个回放样本，`evals/replay/ablation/27-codex-summary.md`）。
 - **财报后漂移（v2 可成交口径，2026-10-26 重估）**：v1 用同一收盘价形成信号并入场，已作废。按受理时间定信号日、次日开盘入场、相对同日基准后，只有“财报大跌（< −5%）后 20 日约 −1.1 个百分点”有证据；大涨后的延续尚无法确认。方法卡 `earnings-reaction` v2 在 CIO 有卡/无卡对照前不引用。见 `evals/signals/pead-v2-latest.md`。
 - **财报事件第一批（H1 SUE、H2 财报前涨幅、H3 板块环境交互）**：事先登记，Holm 校正后四项均“尚无法确认”；SUE 方向甚至与经典预期相反（不显著）。SUE 用逐事件 8-K 附件证据链（`build-sue-evidence.py`，2,237 个事件可算）。见 `earnings-h1-sue-latest.md`、`earnings-h2h3-latest.md`。
+- **市场情境研究线（2026-10-28）**：宏观 M1–M3、空头拥挤 S1–S2 事先登记后检验。只有 M2（VIX/VIX3M > 1 后 20 日 QQQ 实际波动高约 12 个年化点）有证据，且样本集中在少数压力事件；预测的是风险而非方向。实际利率、压力与宽度背离、空头拥挤 × 财报均尚无法确认。新闻与社区没有可回测历史，2026-10-27 起前向存档（`snapshot-news.sh`、社区盘中 `--rerun`）。研究流程已接入 `get_market_regime`、`get_short_interest`、`get_attention_snapshot`，CIO 报告区分事实与待验证解释。见 `evals/macro/`、`evals/short/`、`evals/news/`、`evals/community/`。
 - **前瞻纸面记录**：2026-10-27 起由 Codex 定时运行 `scripts/forward-run.sh`，账本 `evals/forward/ledger.jsonl` 只追加；这是唯一干净的检验来源。
 - **组合叠加不成立**：事先登记的 4 个检验（看多叠加、看空叠加、财报反应 × 趋势）20 日全部不成立（`evals/signals/combo-latest.md`）。
 - 内部人：CEO/CFO 买入后 5–20 日反而偏弱（可靠，但 n=162 且年份间不稳定，未写进方法卡）；多人买入、大额买入、多人非计划卖出无可靠差异。
