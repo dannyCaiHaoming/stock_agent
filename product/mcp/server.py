@@ -15,8 +15,8 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 
-from product.mcp import (calc_tools, congress_tools, context_tools, data_tools, decision_log, ownership_tools,
-                         reference_tools, settings)
+from product.mcp import (calc_tools, congress_tools, context_state_tools, context_tools, data_tools, decision_log,
+                         ownership_tools, reference_tools, settings)
 
 server = MCPServer(
     name="stock-data",
@@ -381,6 +381,42 @@ def get_reference_cases(method: str | None = None, as_of: str | None = None) -> 
     failed), optionally for one method card id, e.g. 'trend-stage'. Only cases whose outcome was known before
     as_of. Cases illustrate mechanisms; they are not statistics."""
     return reference_tools.get_reference_cases(method=method, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_market_regime(as_of: str | None = None) -> dict:
+    """Descriptive macro/market risk state known at as_of: rates (real yield, breakeven, 2y/10y, curve),
+    volatility (VIX family, MOVE), credit proxies (HYG/IEF, LQD/IEF; HY OAS only since 2023-10), breadth
+    (RSP/SPY, sector ETFs above 50-day average), NFCI first release. Each feature has its value, its percentile
+    within panel history up to as_of, and known-at rules and lagged FRED observation dates. Not a signal: validated
+    findings and limits are in evals/macro/. Requires the panel built by scripts/build-macro-panel.py."""
+    return context_state_tools.get_market_regime(as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_short_interest(ticker: str, periods: int = 6, as_of: str | None = None) -> dict:
+    """FINRA semi-monthly short interest (position snapshot, not daily short volume) for the last N periods that
+    were public before as_of (usable from the trading day after publication_date): short interest, change_pct,
+    days_to_cover, % of shares outstanding (with stale-denominator flag and source), split/revision flags and the
+    ticker's own-history percentiles. Revised values only (no first release); non-commercial license; 106-stock
+    universe."""
+    return context_state_tools.get_short_interest(ticker, periods=periods, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
+def get_attention_snapshot(ticker: str, days: int = 7, as_of: str | None = None) -> dict:
+    """Community attention from the forward-collected moomoo archive (starts 2026-10-20): posts per covered hour
+    over the last 24h and `days`, percentile vs the ticker's own short history, top co-mentioned tickers and
+    keywords, CJK share, 10 most recent titles, and recent archived news headlines (first seen before as_of) when
+    that archive exists. Only posts and snapshots known at as_of. Third-party content, reference only; no
+    sentiment label is computed."""
+    return context_state_tools.get_attention_snapshot(ticker, days=days, as_of=as_of)
 
 
 @server.tool(annotations=READ_ONLY)
