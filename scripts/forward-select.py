@@ -1,9 +1,10 @@
-"""前瞻纸面预测：按预先固定的规则选出当天要研究的股票（最多 4 只）。
+"""前瞻纸面预测：按预先固定的规则选出本次要研究的股票（最多 4 只；v2 起每周运行一次）。
 
 用法：.venv/bin/python -I scripts/forward-select.py [--date YYYY-MM-DD] [--write]
 规则（详见 evals/forward/README.md）：
   1. 股票池 evals/replay/universe.txt 中，财报 8-K（Item 2.02）信号日 D0 等于“最近一个已收盘交易日”的股票，
-     按 sha256("D0:代码") 排序取前 2 只（避免字母序偏向）。覆盖上次选择的信号日之后、到最近已收盘交易日之间的所有信号日，避免漏掉。D0 口径同 evals/signals/pead-v2-definition-2026-10-26.md。
+     按 sha256("D0:代码") 排序最多取 4 只（避免字母序偏向）。v2（2026-11-08 起每周运行一次）：只覆盖最近 5 个已收盘交易日中、
+     晚于上次选择信号日的信号日。D0 口径同 evals/signals/pead-v2-definition-2026-10-26.md。
   2. 剩余名额用轮转补齐：股票池按字母序去重，起点 = (date.toordinal() * 2) % 股票池大小，依次取、跳过已选。
 --write：把选择结果（含每只的原因）作为 kind=selection 追加到 evals/forward/ledger.jsonl（同一天只能写一次；已写则直接输出已写内容）。
 输出 JSON，其中 todo 为尚未有预测/失败记录的代码。日期按纽约时间。
@@ -27,7 +28,8 @@ if not os.environ.get("SEC_USER_AGENT"):
 
 NY = ZoneInfo("America/New_York")
 LEDGER = REPO / "evals" / "forward" / "ledger.jsonl"
-MAX_TOTAL, MAX_EARNINGS = 4, 2
+MAX_TOTAL, MAX_EARNINGS = 4, 4  # ledger v2 (2026-11-08): weekly run, earnings first
+LOOKBACK_SESSIONS = 5  # weekly: only signal days within the last 5 completed sessions
 
 
 def universe() -> list[str]:
@@ -89,7 +91,8 @@ def select(run_date: date, now_ny: datetime | None = None, prev_signal_day: str 
     names = universe()
     cutoff = run_date.isoformat()
     # 覆盖上次选择之后到 d0 的所有信号日：价格缓存滞后、节假日或漏跑都不会跳过某个信号日。
-    d0s = {d for d in completed if (prev_signal_day is None and d == d0) or (prev_signal_day is not None and prev_signal_day < d <= d0)}
+    recent = set(completed[-LOOKBACK_SESSIONS:])
+    d0s = {d for d in recent if prev_signal_day is None or prev_signal_day < d <= d0}
     hits = earnings_hits(names, d0s, days, cutoff)
     errors = hits.pop("_errors", {})
     order = sorted(hits, key=lambda x: hashlib.sha256(f"{hits[x][0]}:{x}".encode()).hexdigest())
@@ -103,7 +106,7 @@ def select(run_date: date, now_ny: datetime | None = None, prev_signal_day: str 
         if t not in taken:
             chosen.append({"ticker": t, "reason": f"rotation: index {(start + i) % len(names)} of {len(names)}, start {start}"})
             taken.add(t)
-    return {"kind": "selection", "ledger_version": 1, "date": run_date.isoformat(), "signal_day": d0,
+    return {"kind": "selection", "ledger_version": 2, "date": run_date.isoformat(), "signal_day": d0,
             "signal_days_covered": sorted(d0s),
             "earnings_hits_total": len(hits), "tickers": chosen, "list_errors": errors}
 
