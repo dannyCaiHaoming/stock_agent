@@ -136,7 +136,7 @@ def main() -> None:
         path = root / name / f"{day}.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
         skip = set() if (args.rerun and name == "community") else done(path)
-        ok, failed = 0, {}
+        ok, failed, unsupported = 0, {}, {}
         for ticker in tickers(args.tickers):
             if ticker in skip:
                 continue
@@ -150,9 +150,13 @@ def main() -> None:
                     handle.write(json.dumps({"snapshot_date": day, **row}, ensure_ascii=False) + "\n")
                 ok += 1
             except Exception as exc:  # noqa: BLE001 - record and continue
-                failed[ticker] = f"{type(exc).__name__}: {exc}"[:200]
+                if "code=1004" in str(exc):  # moomoo does not map this symbol to a stock feed: permanent, not a failure
+                    unsupported[ticker] = str(exc)[:200]
+                else:
+                    failed[ticker] = f"{type(exc).__name__}: {exc}"[:200]
             time.sleep(pause)
-        summary[name] = {"file": str(path), "written": ok, "skipped_existing": len(skip), "failed": failed}
+        summary[name] = {"file": str(path), "written": ok, "skipped_existing": len(skip), "failed": failed,
+                         "unsupported": unsupported}
     log = root / "snapshot-log.jsonl"
     with log.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps({"run_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "day": day,
