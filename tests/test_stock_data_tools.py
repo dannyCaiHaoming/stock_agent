@@ -208,7 +208,7 @@ class DecisionLogTests(unittest.TestCase):
                     price_at_decision="10",
                     forecasts=[{"target": "revenue_growth", "direction": "accelerate", "probability": "0.6", "basis": "b"},
                                {"target": "operating_margin", "direction": "flat", "probability": "55", "basis": "b"},
-                               {"target": "relative_return_126d", "direction": "outperform", "probability": "0.5",
+                               {"target": "relative_return_126d", "direction": "outperform", "probability": "0.55",
                                 "basis": "b"}])
         args.update(overrides)
         return decision_log.save_decision(**args)
@@ -235,6 +235,19 @@ class DecisionLogTests(unittest.TestCase):
                                                                "probability": "0.6", "basis": "b"}]}):
             with self.subTest(overrides=overrides), self.assertRaises(decision_log.DecisionLogError):
                 self.save(**overrides)
+
+    def test_relative_return_needs_a_lean(self):
+        flat = [{"target": "revenue_growth", "direction": "flat", "probability": "0.6", "basis": "b"},
+                {"target": "operating_margin", "direction": "flat", "probability": "0.6", "basis": "b"},
+                {"target": "relative_return_126d", "direction": "underperform", "probability": "50", "basis": "b"}]
+        with self.assertRaises(decision_log.DecisionLogError) as caught:
+            self.save(forecasts=flat)
+        self.assertIn("FORECAST_NO_LEAN", str(caught.exception))
+
+    def test_headings_match_ignoring_spaces(self):
+        report = "\n".join(f"## {name.replace(' ', '')}\n内容" for name in decision_log.REQUIRED_SECTIONS)
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_DATA_DIR": root}):
+            self.assertTrue(self.save(report_markdown=report)["decision_id"])
 
 
 

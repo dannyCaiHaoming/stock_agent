@@ -68,6 +68,9 @@ def _forecasts(value: Any) -> list[dict[str, Any]]:
             probability = probability / 100
         if not probability.is_finite() or not 0 <= probability <= 1:
             raise DecisionLogError("FORECAST_PROBABILITY_INVALID: number between 0 and 1")
+        if target == "relative_return_126d" and probability <= Decimal("0.5"):
+            raise DecisionLogError("FORECAST_NO_LEAN: relative_return_126d needs a lean above 0.5 for the chosen "
+                                   "direction (e.g. 0.55); pick the more likely side even for NO_TRADE")
         basis = str(item.get("basis", "")).strip()
         if not basis:
             raise DecisionLogError(f"FORECAST_BASIS_REQUIRED: one sentence of evidence for {target}")
@@ -133,8 +136,8 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
     for name, value in (("horizon", horizon), ("thesis", thesis), ("report_markdown", report_markdown)):
         if not isinstance(value, str) or not value.strip():
             raise DecisionLogError(f"{name.upper()}_REQUIRED")
-    headings = [line[3:].strip() for line in report_markdown.splitlines() if line.startswith("## ")]
-    missing = [name for name in REQUIRED_SECTIONS if not any(h.startswith(name) for h in headings)]
+    headings = ["".join(line[3:].split()) for line in report_markdown.splitlines() if line.startswith("## ")]
+    missing = [name for name in REQUIRED_SECTIONS if not any(h.startswith("".join(name.split())) for h in headings)]
     if missing:
         raise DecisionLogError("REPORT_SECTIONS_MISSING: rewrite the report with the investment-decision template "
                                "headings (\"## <name>\"), then save again. Missing: " + ", ".join(missing))
