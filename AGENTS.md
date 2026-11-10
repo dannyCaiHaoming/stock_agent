@@ -31,4 +31,4 @@
 - 券商接入永久只读：禁止下单、预览、改单、撤单、换汇、转账、交易解锁及任何账户写入。凭据与完整账户号不得进入仓库、Agent 上下文或网页。
 - 不提交凭据、私人账本（`product/.private/`）、`product/tiger.md` 或私人会话数据。
 - 只做当前任务需要的最小改动；新增机制前先说明现有能力为何不够。
-- 宿主实跑调试统一用 `scripts/dev-research.sh <claude|codex> <TICKER> [--model M]`：默认 Claude Code `claude-haiku-5-5`、Codex `gpt-6-luna`，可用 `--model` 或 `STOCK_AGENT_CLAUDE_MODEL` / `STOCK_AGENT_CODEX_MODEL` 覆盖。产物只写入 `.local/runs/<run-id>/`；不要写到 `/tmp` 或用户主目录。
+- 宿主实跑调试统一用 `scripts/dev-research.sh <claude|codex> <TICKER> [--model M]`：2026-11-10 起调试与批量回放优先用 Codex（`gpt-6-luna` 默认，`gpt-6.1-terra` 用于需要更强推理的对照），Claude Code 会话额度留给交互开发；Claude Code 默认 `claude-haiku-5-5`。可用 `--model` 或 `STOCK_AGENT_CLAUDE_MODEL` / `STOCK_AGENT_CODEX_MODEL` 覆盖。产物只写入 `.local/runs/<run-id>/`；不要写到 `/tmp` 或用户主目录。
