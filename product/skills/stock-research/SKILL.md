@@ -46,13 +46,15 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
    - `get_congress_trades`（默认 365 天）：众议院议员的交易申报（金额为区间，最多延迟 45 天，不含参议院）。
    这些写进报告“消息面与持仓变动”一节，并在论点表中说明是否使用、如何使用；单笔小额交易、计划内卖出不应当作论点。
 
-8. **moomoo 第三方 Skills（必做，不可跳过）**（按 `research-standards` 的“第三方软件内容”规则处理）。下面四项每次研究都要执行；某项失败或 OpenD 未运行时，在“数据缺口”写明原因，不能不调用就略过：
-   - `moomoo-news-search`：近期新闻（news_type=1）与公告（news_type=2），必要时研报（news_type=3）。用于事件地图与催化剂线索。
-   - `moomoo-comment-sentiment`：社区情绪快照，**必须**按该 Skill 说明调用 `https://ai-news-search.moomoo.com/stock_feed` 接口（不能用新闻搜索结果代替），只放入“第三方观点”。
-   - 异动类（需本机 OpenD，三个都要跑）：`moomoo-capital-anomaly`、`moomoo-derivatives-anomaly`、`moomoo-technical-anomaly`。代码用 `US.<TICKER>` 形式。**在仓库根目录逐个运行**（不要用系统 `python3`，依赖装在 `.venv`）：
-     - `.venv/bin/python -I product/skills/moomoo-capital-anomaly/scripts/handle_capital_anomaly.py US.<TICKER> --time-range 7 --json`
-     - `.venv/bin/python -I product/skills/moomoo-derivatives-anomaly/scripts/handle_derivatives_anomaly.py US.<TICKER> --time-range 7 --json`
-     - `.venv/bin/python -I product/skills/moomoo-technical-anomaly/scripts/handle_technical_anomaly.py US.<TICKER> --time-range 7 --json`OpenD 未连接时记为数据缺口（`SOURCE_UNSUPPORTED`：OpenD 未运行），不重试。
+8. **moomoo 第三方 Skills**（按 `research-standards` 的“第三方软件内容”规则处理）：
+   - 每次都做：`moomoo-news-search`，近期新闻（news_type=1）与公告（news_type=2），必要时研报（news_type=3）。标题与时间是事件地图与催化剂的线索。失败时在“数据缺口”写明原因。
+   - 只在用户要求看第三方观点、社区情绪或异动时才做（它们不参与判断，默认不调用，“第三方观点”一节写“本次未调用”）：
+     - `moomoo-comment-sentiment`：按该 Skill 说明调用 `https://ai-news-search.moomoo.com/stock_feed` 接口，只放入“第三方观点”。
+     - 异动类（需本机 OpenD）：`moomoo-capital-anomaly`、`moomoo-derivatives-anomaly`、`moomoo-technical-anomaly`。代码用 `US.<TICKER>` 形式，**在仓库根目录逐个运行**（不要用系统 `python3`，依赖装在 `.venv`）：
+       - `.venv/bin/python -I product/skills/moomoo-capital-anomaly/scripts/handle_capital_anomaly.py US.<TICKER> --time-range 7 --json`
+       - `.venv/bin/python -I product/skills/moomoo-derivatives-anomaly/scripts/handle_derivatives_anomaly.py US.<TICKER> --time-range 7 --json`
+       - `.venv/bin/python -I product/skills/moomoo-technical-anomaly/scripts/handle_technical_anomaly.py US.<TICKER> --time-range 7 --json`
+       OpenD 未连接时记为数据缺口（`SOURCE_UNSUPPORTED`：OpenD 未运行），不重试。
    - moomoo 接口按 Skill 原样的 `curl -sG 'https://ai-news-search.moomoo.com/...'` 形式调用，结果直接输出，不加 `-o` 或重定向，不写任何临时文件。
    - Bash 只用于上面两类命令，每次一条，不用 `for`、`ls`、`grep`、`cat` 等浏览文件（查看 Skill 说明用 Read 或 Skill 工具）。某条命令被权限拒绝时，只说明那条命令的格式不符合要求：按上面的格式改正后重试一次，其余 moomoo 步骤照常执行。
    - 不使用 `moomoo-stock-digest` 替代自己的事件分析；如调用，其结论同样只作参考展示。

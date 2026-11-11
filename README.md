@@ -23,12 +23,12 @@
 | `product/skills-pending/` | 待重写的旧 Skills |
 | `product/mcp/server.py` 等 | stock-data MCP：数据、计算、决策记录工具 |
 | `product/deterministic/` | 估值、TTM、市场/技术统计、组合指标、硬风险约束 |
-| `product/mcp/live/` | SEC（companyfacts、13F、segments、Forms 3/4/5）、NASDAQ、Yahoo、Moomoo OpenD、Eastmoney、宏观（BLS/Treasury/Fed）、期权、OpenAlex 数据接入 |
+| `product/mcp/live/` | MCP 工具复用的只读数据接入：SEC（companyfacts、13F、申报文本）、NASDAQ、Yahoo、Eastmoney、宏观（BLS/Treasury/Fed）、moomoo 公开新闻 |
 | `product/intake/` | 持仓截图/手工输入 → PortfolioHandoff v3（`python3 -m product.intake.cli`） |
 | `product/broker/tiger/` | Tiger 只读账户快照与私人券商账本（`python3 -m product.broker.tiger.cli`） |
 | `product/trading_journal/` | 个人交易日志、K 线标记与交易反思 |
-| `product/runtime/` | 共享 helper、Research Memory、PIT evidence gate |
-| `evals/` | 合成评估样本、rubric、回归情境 |
+| `product/runtime/` | 共享 helper（hashing、schema 校验、金额、单股输入） |
+| `evals/` | 历史回放、信号统计、前瞻账本 |
 | `docs/data/` | 数据源目录、免费源能力矩阵、SDK 契约、Tiger 只读边界 |
 | `archive/` | 只读参考：历史规格、未完成需求、旧角色与流程文档 |
 

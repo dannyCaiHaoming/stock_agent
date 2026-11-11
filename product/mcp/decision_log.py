@@ -41,8 +41,10 @@ def _text_list(name: str, value: Any, *, required: bool = True) -> list[str]:
 FORECAST_TARGETS = {
     "revenue_growth": ("accelerate", "decelerate", "flat"),     # YoY growth in Q2 minus YoY growth in Q0 (±1pp)
     "operating_margin": ("expand", "contract", "flat"),         # GAAP margin in Q2 vs the same quarter a year earlier (±0.5pp)
+    "relative_return_60d": ("outperform", "underperform"),      # 60 sessions (the main window) vs the sector ETF
     "relative_return_126d": ("outperform", "underperform"),     # 126 sessions after data_as_of vs the sector ETF
 }
+LEAN_TARGETS = ("relative_return_60d", "relative_return_126d")
 OPTIONAL_TARGETS = {"guidance": ("raise", "cut", "maintain", "not_applicable")}  # next company guidance vs prior
 
 
@@ -68,8 +70,8 @@ def _forecasts(value: Any) -> list[dict[str, Any]]:
             probability = probability / 100
         if not probability.is_finite() or not 0 <= probability <= 1:
             raise DecisionLogError("FORECAST_PROBABILITY_INVALID: number between 0 and 1")
-        if target == "relative_return_126d" and probability <= Decimal("0.5"):
-            raise DecisionLogError("FORECAST_NO_LEAN: relative_return_126d needs a lean above 0.5 for the chosen "
+        if target in LEAN_TARGETS and probability <= Decimal("0.5"):
+            raise DecisionLogError(f"FORECAST_NO_LEAN: {target} needs a lean above 0.5 for the chosen "
                                    "direction (e.g. 0.55); pick the more likely side even for NO_TRADE")
         basis = str(item.get("basis", "")).strip()
         if not basis:
@@ -180,3 +182,58 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         os.close(fd)
     return {"saved": True, "decision_id": record["decision_id"], "report_path": str(report_path),
             "decision_log": str(root / "decisions.jsonl")}
+
+
+def save_group_forecasts(group: str, data_as_of: str, forecasts: list[dict[str, Any]], horizon_days: int = 60,
+                         host: str | None = None, model: str | None = None,
+                         variant: str | None = None) -> dict[str, Any]:
+    """Light forecasts for one peer group: for every ticker, the chance that its return over the next
+    `horizon_days` sessions is above the group median. Appended to <data dir>/group_forecasts.jsonl."""
+    group = str(group).strip()
+    if not group:
+        raise DecisionLogError("GROUP_REQUIRED: a short label for the peer group, e.g. 'storage'")
+    if not isinstance(data_as_of, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", data_as_of.strip()):
+        raise DecisionLogError("DATA_AS_OF_INVALID: use the data cutoff date as YYYY-MM-DD")
+    date.fromisoformat(data_as_of.strip())
+    if horizon_days not in (20, 60, 126):
+        raise DecisionLogError("HORIZON_INVALID: 20, 60 or 126")
+    if not isinstance(forecasts, list) or len(forecasts) < 4:
+        raise DecisionLogError("FORECASTS_REQUIRED: one item per ticker in the group (at least 4): "
+                               "{ticker, probability, basis}")
+    rows, seen = [], set()
+    for item in forecasts:
+        if not isinstance(item, dict):
+            raise DecisionLogError("FORECAST_INVALID: each item is {ticker, probability, basis}")
+        ticker = str(item.get("ticker", "")).strip().upper()
+        if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", ticker) or ticker in seen:
+            raise DecisionLogError(f"TICKER_INVALID_OR_DUPLICATE: {ticker!r}")
+        seen.add(ticker)
+        try:
+            probability = Decimal(str(item.get("probability")).strip())
+        except InvalidOperation:
+            raise DecisionLogError("FORECAST_PROBABILITY_INVALID: number between 0 and 1, e.g. '0.6'") from None
+        if probability > 1:
+            probability = probability / 100
+        if not probability.is_finite() or not 0 <= probability <= 1:
+            raise DecisionLogError("FORECAST_PROBABILITY_INVALID: number between 0 and 1")
+        basis = str(item.get("basis", "")).strip()
+        if not basis:
+            raise DecisionLogError(f"FORECAST_BASIS_REQUIRED: one sentence of evidence for {ticker}")
+        rows.append({"ticker": ticker, "probability": format(probability, "f"), "basis": basis})
+    if len({r["probability"] for r in rows}) < 3:
+        raise DecisionLogError("FORECAST_NO_SPREAD: probabilities must separate the group (at least 3 distinct "
+                               "values); the group is ranked against its own median, so about half should be below 0.5")
+    record = {"schema": "group-forecast/1", "group": group, "data_as_of": data_as_of.strip(),
+              "horizon_days": horizon_days, "target": "return_above_group_median",
+              "decided_at": iso_utc(datetime.now(UTC)), "forecasts": rows,
+              "host": host, "model": model, "variant": variant, "code_version": _code_version()}
+    record["forecast_id"] = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()[:12]
+    root = settings.data_dir()
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = root / "group_forecasts.jsonl"
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    try:
+        os.write(fd, (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8"))
+    finally:
+        os.close(fd)
+    return {"saved": True, "forecast_id": record["forecast_id"], "tickers": len(rows), "log": str(path)}

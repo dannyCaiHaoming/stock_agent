@@ -448,9 +448,10 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
       revenue_growth (accelerate|decelerate|flat: YoY growth in the 2nd quarter after the latest reported one
         vs YoY growth in the latest reported quarter, ±1pp),
       operating_margin (expand|contract|flat: GAAP margin in that quarter vs the same quarter a year earlier, ±0.5pp),
-      relative_return_126d (outperform|underperform: next 126 sessions vs the sector ETF),
+      relative_return_60d and relative_return_126d (outperform|underperform: next 60 / 126 sessions vs the
+        sector ETF; probability must be above 0.5),
       optional guidance (raise|cut|maintain|not_applicable). probability = chance the stated direction happens.
-    expected_return_pct: probability-weighted expected return from the scenarios, e.g. "12.5".
+    expected_return_pct: optional; probability-weighted scenario value vs price (12-month space), e.g. "12.5".
     variant: experiment label if the task names one.
     methods: method cards used, as id@version (e.g. "trend-stage@1")."""
     return decision_log.save_decision(
@@ -458,6 +459,18 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         report_markdown, price_at_decision=price_at_decision, no_trade_reason=no_trade_reason,
         host=host, model=model, forecasts=forecasts, expected_return_pct=expected_return_pct, variant=variant,
         methods=methods)
+
+
+@server.tool(annotations=LOCAL_WRITE)
+@explain_errors
+def save_group_forecasts(group: str, data_as_of: str, forecasts: list[dict], horizon_days: int = 60,
+                         host: str | None = None, model: str | None = None, variant: str | None = None) -> dict:
+    """Persist light direction forecasts for one peer group (direction-forecast Skill; append-only).
+    forecasts: one {ticker, probability, basis} per ticker; probability = chance that the ticker's return over
+    the next horizon_days sessions is above the group median (so about half should be below 0.5).
+    data_as_of: YYYY-MM-DD. basis: one sentence of evidence."""
+    return decision_log.save_group_forecasts(group, data_as_of, forecasts, horizon_days=horizon_days,
+                                             host=host, model=model, variant=variant)
 
 
 def main() -> None:

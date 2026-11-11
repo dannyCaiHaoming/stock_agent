@@ -4,6 +4,8 @@
 # 用法：scripts/dev-research.sh <claude|codex> <TICKER> [--model MODEL] [--prompt "补充说明"] [--as-of YYYY-MM-DD]
 # --as-of：历史回放。工具固定在该日期，只有当前数据的工具与 moomoo 被禁用。
 # --tag：附加到运行目录名（对照实验区分变体，避免同一秒启动的运行共用目录）。
+# --group "T1 T2 ..."：轻量方向预测。此时 <TICKER> 位置填组名，按 direction-forecast Skill 对这组股票做组内排序，
+#   结果在运行目录的 group_forecasts.jsonl（不写研究报告）。
 # 默认模型（可用 --model 或环境变量覆盖）：
 #   claude → $STOCK_AGENT_CLAUDE_MODEL，默认 claude-haiku-5-5
 #   codex  → $STOCK_AGENT_CODEX_MODEL，默认 gpt-6-luna
@@ -16,16 +18,17 @@ set -euo pipefail
 main() {
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n '2,12p' "$0"; exit 2; }
+usage() { sed -n '2,14p' "$0"; exit 2; }
 [ $# -ge 2 ] || usage
 host="$1"; ticker="$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"; shift 2
-model=""; extra="我目前未持有。"; as_of=""; tag=""
+model=""; extra="我目前未持有。"; as_of=""; tag=""; group=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) model="$2"; shift 2 ;;
     --prompt) extra="$2"; shift 2 ;;
     --as-of) as_of="$2"; shift 2 ;;
     --tag) tag="$2"; shift 2 ;;
+    --group) group="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
@@ -43,6 +46,10 @@ prompt="研究 ${ticker}，按 stock-research Skill 的流程完成并给出建�
 if [ -n "$as_of" ]; then
   [[ "$as_of" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || usage
   prompt="研究 ${ticker}，历史回放模式：数据截至 ${as_of}，把 ${as_of} 当作今天，按 stock-research Skill 的回放规则完成并给出建议。${extra}"
+fi
+if [ -n "$group" ]; then
+  prompt="方向预测：组名 ${ticker}，股票 ${group}。按 direction-forecast Skill 完成并保存。"
+  [ -z "$as_of" ] || prompt="方向预测，历史回放模式：数据截至 ${as_of}，把 ${as_of} 当作今天。组名 ${ticker}，股票 ${group}。按 direction-forecast Skill 的回放规则完成并保存。"
 fi
 started="$(date -u +%FT%TZ)"
 cd "$repo"
@@ -106,7 +113,13 @@ try:
     decisions = [json.loads(line) for line in open(f"{run_dir}/decisions.jsonl")]
 except FileNotFoundError:
     pass
+group_forecasts = []
+try:
+    group_forecasts = [json.loads(line) for line in open(f"{run_dir}/group_forecasts.jsonl")]
+except FileNotFoundError:
+    pass
 record = {"run_id": run_id, "host": host, "model": model, "observed_model": observed, "ticker": ticker,
+          "group_forecasts": [{"forecast_id": g.get("forecast_id"), "tickers": len(g.get("forecasts", []))} for g in group_forecasts],
           "replay_as_of": as_of or None, "started_at": started,
           "finished_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "exit_code": int(status),
           "decisions": [{k: d.get(k) for k in ("decision_id", "action", "confidence", "report_path")} for d in decisions]}

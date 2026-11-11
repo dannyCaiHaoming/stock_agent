@@ -2,6 +2,14 @@
 
 前瞻验证只使用冻结版本；冻结后的修改进入下一个版本，不回头按历史回放样本调整。每条决策记录的 `code_version` 写明产生它的 git commit 与是否有未提交改动。
 
+## main 上尚未冻结的修改（截至 2026-11-11）
+
+以下修改在 research-v4 之后进入 main，没有冻结，也没有经过对照验证；决策记录的 `code_version.commit` 可以区分。
+
+- 2026-11-08～11-10：CIO 规则三次修改（转 BUY 条件按当时价格重估、方向预测必须给出倾向、NO_TRADE 三种原因写明依据）；这些是看了 31 只回放结果后改的。
+- 2026-11-11：`implied-expectations@2`、CIO 动作与方向预测一致且不再以期望回报为门槛、决策记录新增 `relative_return_60d`、moomoo 情绪与异动改为按需、新增轻量模式 `direction-forecast` 与 `save_group_forecasts`。详见 [review-2026-11-11.md](review-2026-11-11.md) 第六节。
+- 前瞻账本目前按运行时的 main 记录；下一次冻结（research-v5）之后应固定用冻结版本运行。
+
 ## research-v4（2026-10-26）
 
 相对 research-v3 的变化：

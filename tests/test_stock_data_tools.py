@@ -208,6 +208,8 @@ class DecisionLogTests(unittest.TestCase):
                     price_at_decision="10",
                     forecasts=[{"target": "revenue_growth", "direction": "accelerate", "probability": "0.6", "basis": "b"},
                                {"target": "operating_margin", "direction": "flat", "probability": "55", "basis": "b"},
+                               {"target": "relative_return_60d", "direction": "outperform", "probability": "0.55",
+                                "basis": "b"},
                                {"target": "relative_return_126d", "direction": "outperform", "probability": "0.55",
                                 "basis": "b"}])
         args.update(overrides)
@@ -239,10 +241,24 @@ class DecisionLogTests(unittest.TestCase):
     def test_relative_return_needs_a_lean(self):
         flat = [{"target": "revenue_growth", "direction": "flat", "probability": "0.6", "basis": "b"},
                 {"target": "operating_margin", "direction": "flat", "probability": "0.6", "basis": "b"},
+                {"target": "relative_return_60d", "direction": "underperform", "probability": "0.55", "basis": "b"},
                 {"target": "relative_return_126d", "direction": "underperform", "probability": "50", "basis": "b"}]
         with self.assertRaises(decision_log.DecisionLogError) as caught:
             self.save(forecasts=flat)
         self.assertIn("FORECAST_NO_LEAN", str(caught.exception))
+
+    def test_group_forecasts_need_every_field_and_a_spread(self):
+        rows = [{"ticker": t, "probability": p, "basis": "b"} for t, p in zip("ABCD", ("0.6", "45", "0.55", "0.4"))]
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_DATA_DIR": root}):
+            saved = decision_log.save_group_forecasts("storage", "2026-05-01", rows)
+            with open(os.path.join(root, "group_forecasts.jsonl")) as handle:
+                record = json.loads(handle.read().splitlines()[-1])
+            self.assertEqual(saved["tickers"], 4)
+            self.assertEqual(record["forecasts"][1]["probability"], "0.45")
+            for bad in ([dict(r, probability="0.5") for r in rows], rows[:3], rows + [rows[0]],
+                        [dict(r, basis="") for r in rows]):
+                with self.subTest(bad=bad), self.assertRaises(decision_log.DecisionLogError):
+                    decision_log.save_group_forecasts("storage", "2026-05-01", bad)
 
     def test_headings_match_ignoring_spaces(self):
         report = "\n".join(f"## {name.replace(' ', '')}\n内容" for name in decision_log.REQUIRED_SECTIONS)
@@ -329,14 +345,15 @@ class ReferenceToolsTests(unittest.TestCase):
             return {"signal": signal, "ticker": ticker, "signal_date": entry, "entry_date": entry,
                     "benchmark": "XLK", "excess": {"60": excess}, "exit_dates": {"60": exit_date}, "detail": {}}
         controls = [ev("baseline_days", f"C{i}", "2024-01-02", "2024-04-01", 0.01) for i in range(10)]
-        rows = controls + [ev("trend_stage2_entry", "AAA", "2024-01-03", "2024-04-02", 0.10),
-                           ev("trend_stage2_entry", "BBB", "2024-01-04", "2024-09-01", -0.20)]
-        with mock.patch.object(reference_tools, "_events", return_value=(rows, {})):
+        events = {"trend_stage2_entry": [ev("trend_stage2_entry", "AAA", "2024-01-03", "2024-04-02", 0.10),
+                                         ev("trend_stage2_entry", "BBB", "2024-01-04", "2024-09-01", -0.20)]}
+        with mock.patch.object(reference_tools, "_events",
+                               return_value=(events, reference_tools._controls_of(controls), {})):
             early = reference_tools.get_signal_stats("trend_stage2_entry", 60, as_of="2024-06-30")
             late = reference_tools.get_signal_stats("trend_stage2_entry", 60, as_of="2024-12-31")
         self.assertEqual(early["summary"]["n"], 1)
         self.assertEqual(early["status"], "需要验证")
-        self.assertEqual(early["summary"]["mean_vs_matched_control_pp"], 9.0)
+        self.assertEqual(early["summary"]["mean_percentile_minus_50"], 50.0)  # 10% 超额高于全部 1% 的对照
         self.assertEqual(late["summary"]["n"], 2)
 
     def test_cases_hidden_until_outcome_known(self):
