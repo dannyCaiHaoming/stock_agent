@@ -27,6 +27,7 @@ tools:
   - mcp__stock-data__get_member_track_record
   - mcp__stock-data__get_news_history
   - mcp__stock-data__get_signal_stats
+  - mcp__stock-data__get_key_moments
   - mcp__stock-data__get_market_regime
   - mcp__stock-data__get_short_interest
   - mcp__stock-data__get_attention_snapshot

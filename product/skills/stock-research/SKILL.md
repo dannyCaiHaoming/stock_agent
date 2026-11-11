@@ -33,7 +33,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 1. `get_analyst_snapshot`：公司概况、价格、市值、共识、预估、下次财报日。
 2. `get_financial_statements`：年度 5 期，再取季度 6 期（看 `ttm`、推导出的 Q4、重述）。
-3. `technical_stats`：相对 SPY。
+3. `technical_stats`：相对 SPY；`get_key_moments`：最近 20 个交易日有没有关键图形时刻，以及同类时刻之后的结果分布。
 4. `pe_history`：只适用于盈利公司。
 5. `list_filings`：近期 10-K、10-Q、8-K。最近一次财报的 8-K 要读新闻稿：先 `list_filing_documents(accession)` 找到 `EX-99.1`，再用 `get_filing_text(accession=..., document=<文件名>, query="Outlook")` 直接定位业绩指引段（找不到再试 `guidance`、`expects`）；需要正文时不带 `query` 读第一页即可，后面多是财务表格。读到的指引数字要写进报告并标注来源为该 8-K，不要再写成“未取得”。
 6. `get_filing_text`：最新 10-Q 的 `management_discussion`；不熟悉的公司加读 10-K 的 `business`；与核心问题相关时读 `risk_factors`。只读需要的部分，用 `next_offset` 分页。若某章节只返回目录或交叉引用（银行等发行人常见），改用 `section="full_text"` 并传 `query`（例如“net interest income”“Results of Operations”）直接定位内容；不要把“这次没读到正文”写成资料不存在。

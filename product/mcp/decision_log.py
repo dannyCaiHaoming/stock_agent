@@ -237,3 +237,80 @@ def save_group_forecasts(group: str, data_as_of: str, forecasts: list[dict[str, 
     finally:
         os.close(fd)
     return {"saved": True, "forecast_id": record["forecast_id"], "tickers": len(rows), "log": str(path)}
+
+
+CAUSES = ("earnings_guidance", "company_event", "rumor_report", "analyst_rating", "competitor_customer",
+          "industry_peer", "policy_regulation", "flows_technical", "macro_market", "no_matching_news")
+ITEM_KINDS = ("8k", "web", "price")
+ITEM_TIMING = ("before", "same_day", "after")
+HOLDER_ACTIONS = ("ADD", "HOLD", "REDUCE")
+# The lesson is written without the outcome; these phrases mean it describes what happened afterwards.
+HINDSIGHT = re.compile(r"事后|事後|本例之后|(之后|之後|后续|後續|此后|此後|随后|隨後).{0,12}\d+\s*(个|個)?(交易)?日"
+                       r"|\d+\s*(个|個)?(交易)?日.{0,10}[+\-]?\d+(\.\d+)?\s*%"
+                       r"|\d+\s*(个|個)?(交易)?日(的)?(表现|表現|走势|走勢|收益|回报|回報)")
+
+
+def save_moment_review(ticker: str, moment: str, moment_date: str, primary_cause: str, summary: str,
+                       items: list[dict[str, Any]], cause_public_by_close: bool, confidence: str, lesson: str,
+                       holder_action: str, other_causes: list[str] | None = None, host: str | None = None,
+                       model: str | None = None) -> dict[str, Any]:
+    """News review of one key chart moment, written without the outcome: what was public by the moment day's
+    close, the cause, what a holder should have done then (ADD/HOLD/REDUCE) and the lesson. Outcomes are joined
+    afterwards by scripts/score-moment-reviews.py. Appended to <data dir>/moment_reviews.jsonl."""
+    ticker = str(ticker).strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", ticker):
+        raise DecisionLogError("TICKER_INVALID")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(moment_date).strip()):
+        raise DecisionLogError("MOMENT_DATE_INVALID: YYYY-MM-DD")
+    date.fromisoformat(str(moment_date).strip())
+    if primary_cause not in CAUSES:
+        raise DecisionLogError(f"PRIMARY_CAUSE_INVALID: one of {CAUSES}")
+    others = [c for c in (other_causes or []) if c != primary_cause]
+    if any(c not in CAUSES for c in others):
+        raise DecisionLogError(f"OTHER_CAUSES_INVALID: each one of {CAUSES}")
+    if confidence not in CONFIDENCE:
+        raise DecisionLogError(f"CONFIDENCE_INVALID: one of {CONFIDENCE}")
+    for name, value in (("moment", moment), ("summary", summary), ("lesson", lesson)):
+        if not isinstance(value, str) or not value.strip():
+            raise DecisionLogError(f"{name.upper()}_REQUIRED")
+    if holder_action not in HOLDER_ACTIONS:
+        raise DecisionLogError(f"HOLDER_ACTION_INVALID: one of {HOLDER_ACTIONS}")
+    if HINDSIGHT.search(lesson):
+        raise DecisionLogError("LESSON_HINDSIGHT: the lesson must use only what was known by the moment day's close; "
+                               "remove any description of what happened afterwards")
+    if not isinstance(items, list):
+        raise DecisionLogError("ITEMS_REQUIRED: list of {date, kind, source, claim, timing, url?}")
+    clean = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise DecisionLogError("ITEM_INVALID: {date, kind, source, claim, timing, url?}")
+        d = str(item.get("date", "")).strip()[:10]
+        kind, timing = str(item.get("kind", "")).strip(), str(item.get("timing", "")).strip()
+        source, claim = str(item.get("source", "")).strip(), str(item.get("claim", "")).strip()
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", d) or kind not in ITEM_KINDS or timing not in ITEM_TIMING \
+                or not source or not claim:
+            raise DecisionLogError(f"ITEM_INVALID: date YYYY-MM-DD, kind {ITEM_KINDS}, timing {ITEM_TIMING}, "
+                                   "source and claim required")
+        if (d > str(moment_date).strip()) != (timing == "after"):
+            raise DecisionLogError(f"ITEM_TIMING_MISMATCH: {d} vs moment {moment_date}; timing is after exactly "
+                                   "when the item is dated after the moment day")
+        clean.append({"date": d, "kind": kind, "timing": timing, "source": source, "claim": claim,
+                      "url": str(item.get("url") or "").strip() or None})
+    if primary_cause != "no_matching_news" and not any(i["timing"] in ("before", "same_day") for i in clean):
+        raise DecisionLogError("CAUSE_WITHOUT_EVIDENCE: a cause other than no_matching_news needs at least one "
+                               "item dated before or on the moment day")
+    record = {"schema": "moment-review/2", "ticker": ticker, "moment": moment.strip(),
+              "moment_date": str(moment_date).strip(), "primary_cause": primary_cause, "other_causes": others,
+              "summary": summary.strip(), "items": clean, "cause_public_by_close": bool(cause_public_by_close),
+              "confidence": confidence, "holder_action": holder_action, "lesson": lesson.strip(),
+              "host": host, "model": model,
+              "decided_at": iso_utc(datetime.now(UTC)), "code_version": _code_version()}
+    record["review_id"] = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()[:12]
+    root = settings.data_dir()
+    path = root / "moment_reviews.jsonl"
+    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    try:
+        os.write(fd, (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8"))
+    finally:
+        os.close(fd)
+    return {"saved": True, "review_id": record["review_id"], "log": str(path)}

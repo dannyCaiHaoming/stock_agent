@@ -260,6 +260,22 @@ class DecisionLogTests(unittest.TestCase):
                 with self.subTest(bad=bad), self.assertRaises(decision_log.DecisionLogError):
                     decision_log.save_group_forecasts("storage", "2026-05-01", bad)
 
+    def test_moment_review_is_written_without_hindsight(self):
+        item = {"date": "2023-09-21", "kind": "web", "source": "Reuters", "claim": "Fed holds, signals higher",
+                "timing": "same_day"}
+        args = dict(ticker="SBUX", moment="platform_breakdown", moment_date="2023-09-21",
+                    primary_cause="macro_market", summary="Market-wide selloff.", items=[item],
+                    cause_public_by_close=True, confidence="medium", holder_action="HOLD",
+                    lesson="跟随大盘的跌破，看指数是否同步企稳再决定加减仓。")
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_DATA_DIR": root}):
+            self.assertTrue(decision_log.save_moment_review(**args)["saved"])
+            bad = [{"holder_action": "BUY"}, {"lesson": "事后20日上涨"}, {"lesson": "之后 20 日跑赢板块"},
+                   {"lesson": "这次 60 日下跌 5.9% 说明要减仓"},
+                   {"items": [{**item, "date": "2023-10-02"}]}, {"items": [{**item, "timing": "after"}]}]
+            for change in bad:
+                with self.subTest(change=change), self.assertRaises(decision_log.DecisionLogError):
+                    decision_log.save_moment_review(**{**args, **change})
+
     def test_headings_match_ignoring_spaces(self):
         report = "\n".join(f"## {name.replace(' ', '')}\n内容" for name in decision_log.REQUIRED_SECTIONS)
         with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_DATA_DIR": root}):

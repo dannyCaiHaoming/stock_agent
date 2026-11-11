@@ -6,6 +6,8 @@
 # --tag：附加到运行目录名（对照实验区分变体，避免同一秒启动的运行共用目录）。
 # --group "T1 T2 ..."：轻量方向预测。此时 <TICKER> 位置填组名，按 direction-forecast Skill 对这组股票做组内排序，
 #   结果在运行目录的 group_forecasts.jsonl（不写研究报告）。
+# --moment NAME（需同时给 --as-of 时刻日期）：消息面复盘，按 moment-review Skill 写入 moment_reviews.jsonl；
+#   Codex 开启联网检索。--prompt 可附加之后的结果等说明。
 # 默认模型（可用 --model 或环境变量覆盖）：
 #   claude → $STOCK_AGENT_CLAUDE_MODEL，默认 claude-haiku-5-5
 #   codex  → $STOCK_AGENT_CODEX_MODEL，默认 gpt-6-luna
@@ -18,10 +20,10 @@ set -euo pipefail
 main() {
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n '2,14p' "$0"; exit 2; }
+usage() { sed -n '2,16p' "$0"; exit 2; }
 [ $# -ge 2 ] || usage
 host="$1"; ticker="$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"; shift 2
-model=""; extra="我目前未持有。"; as_of=""; tag=""; group=""
+model=""; extra=""; as_of=""; tag=""; group=""; moment=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) model="$2"; shift 2 ;;
@@ -29,9 +31,11 @@ while [ $# -gt 0 ]; do
     --as-of) as_of="$2"; shift 2 ;;
     --tag) tag="$2"; shift 2 ;;
     --group) group="$2"; shift 2 ;;
+    --moment) moment="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
+[ -n "$extra" ] || [ -n "$moment" ] || extra="我目前未持有。"  # 消息面复盘按持有假设，不加这句
 case "$host" in
   claude) model="${model:-${STOCK_AGENT_CLAUDE_MODEL:-claude-haiku-5-5}}" ;;
   codex) model="${model:-${STOCK_AGENT_CODEX_MODEL:-gpt-6-luna}}" ;;
@@ -50,6 +54,10 @@ fi
 if [ -n "$group" ]; then
   prompt="方向预测：组名 ${ticker}，股票 ${group}。按 direction-forecast Skill 完成并保存。"
   [ -z "$as_of" ] || prompt="方向预测，历史回放模式：数据截至 ${as_of}，把 ${as_of} 当作今天。组名 ${ticker}，股票 ${group}。按 direction-forecast Skill 的回放规则完成并保存。"
+fi
+if [ -n "$moment" ]; then
+  [ -n "$as_of" ] || usage
+  prompt="消息面复盘：股票 ${ticker}，关键时刻 ${moment}，日期 ${as_of}。按 moment-review Skill 完成并保存。${extra}"
 fi
 started="$(date -u +%FT%TZ)"
 cd "$repo"
@@ -83,6 +91,7 @@ else
   # 回放：MCP 固定在 as_of，并关闭沙箱网络（moomoo 只有当前数据）。
   replay_args=()
   [ -z "$as_of" ] || replay_args=(-c "mcp_servers.stock_data.env.STOCK_AGENT_REPLAY_AS_OF=\"$as_of\"" -c sandbox_workspace_write.network_access=false)
+  [ -z "$moment" ] || replay_args+=(-c 'web_search="live"')
   codex exec --skip-git-repo-check -s workspace-write -m "$model" \
     -c memories.use_memories=false -c memories.generate_memories=false \
     -c "mcp_servers.stock_data.env.STOCK_AGENT_DATA_DIR=\"$run_dir\"" ${replay_args[@]+"${replay_args[@]}"} \

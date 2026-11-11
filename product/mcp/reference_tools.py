@@ -222,3 +222,70 @@ def get_reference_cases(method: str | None = None, as_of: str | None = None) -> 
                            "notes": "Cases explain mechanisms (why a method worked or failed); they are not statistics. "
                                     "Only cases whose outcome was known before as_of are returned."},
             "retrieved_at": iso_utc(__import__("datetime").datetime.now(__import__("datetime").UTC))}
+
+
+_KEY_MOMENTS: dict[str, Any] = {}
+
+
+def _key_moment_events() -> tuple[dict[str, list[dict]], dict]:
+    root = settings.cache().root / "derived" / "signals"
+    path = root / "key-moments.jsonl"
+    if not path.exists():
+        raise DataToolError("KEY_MOMENTS_NOT_BUILT: run scripts/build-key-moments.py")
+    stamp = path.stat().st_mtime
+    if _KEY_MOMENTS.get("stamp") != stamp:
+        table: dict[str, list[dict]] = {}
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    e = json.loads(line)
+                    table.setdefault(e["moment"], []).append(e)
+        meta = json.loads((root / "key-moments-meta.json").read_text(encoding="utf-8"))
+        _KEY_MOMENTS.update(stamp=stamp, table=table, meta=meta)
+    return _KEY_MOMENTS["table"], _KEY_MOMENTS["meta"]
+
+
+def get_key_moments(ticker: str, days: int = 20, as_of: str | None = None) -> dict[str, Any]:
+    from product.deterministic import key_moments as km
+    from product.mcp import data_tools
+    if not 1 <= int(days) <= 60:
+        raise DataToolError("DAYS_INVALID: 1-60 sessions")
+    cutoff = _cutoff(as_of).astimezone(NEW_YORK).date().isoformat()
+    start = str(int(cutoff[:4]) - 3) + cutoff[4:]
+    rows = data_tools.get_price_history(ticker, start=start, end=cutoff, as_of=as_of, max_rows=1200)["rows"]
+    pairs = [(r[0], float(r[5] or r[4])) for r in rows if (r[5] or r[4])]
+    dates, closes = [d for d, _ in pairs], [c for _, c in pairs]
+    if len(closes) <= km.MIN_HISTORY:
+        raise DataToolError("HISTORY_TOO_SHORT: needs about 260 sessions of prices")
+    recent = [m for m in km.detect(dates, closes) if m["index"] >= len(dates) - int(days)]
+    table, meta = _key_moment_events()
+
+    def stats(name: str) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for h in km.HORIZONS:
+            known = [e["outcome"] for e in table.get(name, [])
+                     if (e["outcome"].get(str(h)) or {}).get("exit_date", "9999") < cutoff]
+            out[f"{h}d"] = km.summarize(known, h)
+        return out
+
+    names = list(dict.fromkeys(m["moment"] for m in recent))
+    own = [{"moment": e["moment"], "date": e["date"],
+            **{f"ret_{h}d_pct": round(e["outcome"][str(h)]["ret"] * 100, 1) for h in km.HORIZONS
+               if (e["outcome"].get(str(h)) or {}).get("exit_date", "9999") < cutoff}}
+           for name in names for e in table.get(name, []) if e["ticker"] == ticker.upper() and e["date"] < cutoff]
+    return {
+        "ticker": ticker.upper(), "as_of": cutoff, "state": km.state(dates, closes),
+        "recent_moments": [{"moment": m["moment"], "date": m["date"], "definition": km.MOMENTS[m["moment"]],
+                            "detail": m["detail"]} for m in recent],
+        "what_followed": {name: stats(name) for name in names},
+        "baseline_any_day": stats(km.BASELINE),
+        "same_moments_in_this_ticker": own[-12:],
+        "provenance": {"source_id": "key-moments", "built_at": meta.get("built_at"),
+                       "notes": "Moments are detected from adjusted daily closes up to as_of. what_followed pools the "
+                                "same moment across the whole universe since " + str(meta.get("start")) + ", entered at "
+                                "the next session's close, only outcomes that ended before as_of. p_up = share of "
+                                "positive returns; expectancy_pct = p_up x avg_gain + (1 - p_up) x avg_loss; excess is "
+                                "versus the sector ETF; worst_drawdown is the lowest close on the way. Compare each "
+                                "moment with baseline_any_day, not with zero: the universe was picked with hindsight "
+                                "(survivorship), so every number including the baseline is too high. " + str(meta.get("note", ""))},
+    }

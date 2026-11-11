@@ -376,6 +376,22 @@ def get_signal_stats(signal: str, horizon_days: int = 60, as_of: str | None = No
 @server.tool(annotations=READ_ONLY)
 @explain_errors
 @point_in_time
+def get_key_moments(ticker: str, days: int = 20, as_of: str | None = None) -> dict:
+    """Key chart moments for one ticker and what followed the same moments historically (probability x payoff).
+    state: where the last close sits (is the last 40 sessions a tight platform, distance to the 40-day and 252-day
+    extremes, trend share). recent_moments: moments detected in the last `days` sessions: platform_breakdown,
+    platform_breakdown_new_low, platform_breakout, platform_breakout_new_high, failed_breakdown, failed_breakout,
+    uptrend_break, downtrend_break, sharp_reversal_up, sharp_reversal_down (volatility-normalised definitions
+    are returned). what_followed: for each detected moment, the pooled outcome distribution over 5/20/60 sessions
+    across the universe (n, p_up, avg gain / loss, expectancy, return and sector-relative quartiles, drawdown on
+    the way), next to baseline_any_day. Judge a moment by its difference from the baseline. Only outcomes known
+    before as_of."""
+    return reference_tools.get_key_moments(ticker, days=days, as_of=as_of)
+
+
+@server.tool(annotations=READ_ONLY)
+@explain_errors
+@point_in_time
 def get_reference_cases(method: str | None = None, as_of: str | None = None) -> dict:
     """Historical case cards (what was known then, the original judgement, what followed, why it worked or
     failed), optionally for one method card id, e.g. 'trend-stage'. Only cases whose outcome was known before
@@ -471,6 +487,26 @@ def save_group_forecasts(group: str, data_as_of: str, forecasts: list[dict], hor
     data_as_of: YYYY-MM-DD. basis: one sentence of evidence."""
     return decision_log.save_group_forecasts(group, data_as_of, forecasts, horizon_days=horizon_days,
                                              host=host, model=model, variant=variant)
+
+
+@server.tool(annotations=LOCAL_WRITE)
+@explain_errors
+def save_moment_review(ticker: str, moment: str, moment_date: str, primary_cause: str, summary: str,
+                       items: list[dict], cause_public_by_close: bool, confidence: str, lesson: str,
+                       holder_action: str, other_causes: list[str] | None = None, host: str | None = None,
+                       model: str | None = None) -> dict:
+    """Persist a news review of one key chart moment (moment-review Skill; append-only), written without the
+    outcome. primary_cause / other_causes: earnings_guidance | company_event | rumor_report | analyst_rating |
+    competitor_customer | industry_peer | policy_regulation | flows_technical | macro_market | no_matching_news.
+    items: list of {date YYYY-MM-DD, kind 8k|web|price, source, claim, timing
+    before|same_day|after (after exactly when dated after moment_date), url?}; a cause other than
+    no_matching_news needs an item dated before or on the moment day. cause_public_by_close: was the cause
+    public by the moment day's close. confidence: low|medium|high. holder_action: ADD|HOLD|REDUCE, what a
+    holder should have done at that close. lesson: one sentence a person could have used at the time; any
+    description of what happened afterwards is rejected."""
+    return decision_log.save_moment_review(ticker, moment, moment_date, primary_cause, summary, items,
+                                           cause_public_by_close, confidence, lesson, holder_action,
+                                           other_causes=other_causes, host=host, model=model)
 
 
 def main() -> None:
