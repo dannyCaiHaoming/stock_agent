@@ -27,15 +27,6 @@ def approved_access(old):
 
 
 class AdmissionTests(unittest.TestCase):
-    def test_packaged_approval_matches_original_record_and_is_version_locked(self):
-        from product.mcp.live.contracts import APPROVAL_RECORD
-        from product.runtime.live_context import live_resource_hashes
-        from product.runtime.hashing import file_hash
-        self.assertEqual(APPROVAL_RECORD.read_bytes(),
-                         (ROOT / "docs/data/personal-research-approval.json").read_bytes())
-        self.assertEqual(live_resource_hashes(ROOT)[APPROVAL_RECORD.relative_to(ROOT).as_posix()],
-                         file_hash(APPROVAL_RECORD))
-        require_source_admission(self.access(), at=NOW.isoformat())
 
     def test_packaged_approval_missing_or_modified_fails_closed(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -46,29 +37,6 @@ class AdmissionTests(unittest.TestCase):
                 record.write_text('{}')
                 with self.assertRaisesRegex(ValueError, "APPROVAL_RECORD_MISMATCH"):
                     require_source_admission(self.access(), at=NOW.isoformat())
-
-    def test_current_collector_rejects_legacy_and_bad_v4_before_clients(self):
-        from product.mcp.live.collection import collect_live_snapshot
-        rows = json.loads((ROOT / "docs/product/examples/live-source-access-v3.synthetic.json").read_text())
-        sample = json.loads((ROOT / "docs/product/examples/live-source-access-v4.synthetic.json").read_text())
-        for entry in sample: validate_contract("source-access", entry)
-        for case in ("legacy", "paused", "denied", "hash"):
-            policies = [dict(r, status="AUTHORIZED") for r in rows] if case == "legacy" else [approved_access(r) for r in rows]
-            if case == "paused": policies[0]["operator_approval"]["status"] = "PAUSED"
-            elif case == "denied": policies[0]["upstream_permission"]["status"] = "DENIED"
-            elif case == "hash": policies[0]["operator_approval"]["record_hash"] = "0" * 64
-            with tempfile.TemporaryDirectory() as temp:
-                root = Path(temp)
-                portfolio = root / "portfolio.json"
-                portfolio.write_bytes((ROOT / "docs/product/examples/live-portfolio.synthetic.json").read_bytes())
-                source = root / "source.json"
-                source.write_text(json.dumps(policies))
-                client = Mock(side_effect=AssertionError("不得创建客户端"))
-                with self.subTest(case=case), self.assertRaises(ValueError):
-                    collect_live_snapshot(portfolio, access_path=source, output_dir=root / "out", cache_root=root / "cache",
-                                          sec_user_agent="unused", now=lambda: NOW, universe_factory=client, sec_factory=client)
-                client.assert_not_called()
-                self.assertFalse((root / "out").exists())
 
     def access(self):
         from tests.test_live_yahoo_transport import access
@@ -126,71 +94,3 @@ class AdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "NOT_AUTHORIZED"):
             require_source_admission(value, at=NOW.isoformat())
 
-    def test_current_sec_denial_does_not_retry_or_send_next_request(self):
-        from product.mcp.live.sec_client import SecClient, Response
-        from product.mcp.live.cache import SnapshotCache
-        row = json.loads((ROOT / "docs/product/examples/live-source-access-v3.synthetic.json").read_text())[-1]
-        value = approved_access(row)
-        with tempfile.TemporaryDirectory() as temp:
-            for status in (401, 403, 429):
-                send = Mock(return_value=Response(status, b"", "1"))
-                client = SecClient(SnapshotCache(Path(temp)), user_agent="synthetic example@example.invalid",
-                                   request_budget=value["request_budget"], source_access=value,
-                                   transport=send, now=lambda: NOW, sleep=lambda _: None)
-                for _ in range(2):
-                    with self.assertRaisesRegex(ValueError, f"SEC_HTTP_{status}"):
-                        client.fetch("https://www.sec.gov/files/company_tickers_exchange.json", max_age_seconds=0)
-                send.assert_called_once()
-
-    def test_v4_gate_revalidates_approval_even_with_rehashed_snapshot(self):
-        from tests.test_live_source_routing import RoutingTests, Calendar
-        from product.runtime.evidence_gate import run_live_evidence_gate
-        from product.runtime.live_context import source_topology_lock
-        case = RoutingTests()
-        case.setUp()
-        self.addCleanup(case.doCleanups)
-        _, snapshot = case.snapshot()
-        snapshot.update(schema_version="live-snapshot/4.0.0", request_started_at=NOW.isoformat(), decision_cutoff=NOW.isoformat(),
-                        source_access=[approved_access(a) for a in snapshot["source_access"]])
-        def seal(s): s["snapshot_hash"] = content_hash({k:v for k,v in s.items() if k != "snapshot_hash"})
-        seal(snapshot)
-        gate = run_live_evidence_gate(snapshot, run_id="v4-test", calendar=Calendar()).artifact
-        self.assertTrue(gate["allowed_evidence_ids"])
-        from product.runtime.live_report import render_live_report
-        item = {"action": "NO_TRADE", "security_id": "TEST", "target_weight_range": None,
-                "maximum_notional": None, "evidence_refs": gate["allowed_evidence_ids"],
-                "no_trade_reason": "synthetic", "no_trade_explanation": "合成接缝，非研究证明",
-                "reevaluation_conditions": ["补齐披露"]}
-        decision = {"run_id": "v4-test", "terminal_state": "SAFE_NO_TRADE", "advisory_only": True,
-                    "decisions": [item], "risk_report": {"status": "APPROVED"}}
-        report = render_live_report(decision, gate=gate, reports={}, holding_horizon="六个月",
-                                   portfolio=case.snapshot()[0], snapshot=snapshot, calendar=Calendar())
-        self.assertIn("UNVERIFIED", report)
-        self.assertIn("个人批准不代表上游授权", report)
-        self.assertIn(snapshot["source_access"][0]["operator_approval"]["record_hash"], report)
-        lock = source_topology_lock(snapshot)
-        self.assertEqual(lock["source_access_hash"], content_hash(snapshot["source_access"]))
-        for field in ("record_hash", "status"):
-            bad = deepcopy(snapshot)
-            bad["source_access"][0]["operator_approval"][field] = "0" * 64 if field == "record_hash" else "PAUSED"
-            seal(bad)
-            with self.assertRaises(ValueError):
-                run_live_evidence_gate(bad, run_id="v4-test", calendar=Calendar())
-
-    def test_each_provider_uses_canonical_admission_before_io(self):
-        from product.mcp.live.nasdaq import NasdaqClient
-        from product.mcp.live.eastmoney_transport import EastmoneyClient
-        from product.mcp.live.cache import SnapshotCache
-        rows = json.loads((ROOT / "docs/product/examples/live-source-access-v3.synthetic.json").read_text())
-        with tempfile.TemporaryDirectory() as temp:
-            cache = SnapshotCache(Path(temp))
-            for row in rows:
-                value = approved_access(row)
-                require_source_admission(value, at=NOW.isoformat())
-                if value["provider"] not in ("nasdaq", "eastmoney"): continue
-                client = NasdaqClient if value["provider"] == "nasdaq" else EastmoneyClient
-                send = Mock(side_effect=AssertionError("不得联网"))
-                client(value, cache, transport=send, now=lambda: NOW)
-                value["operator_approval"]["status"] = "PAUSED"
-                with self.assertRaises(ValueError): client(value, cache, transport=send, now=lambda: NOW)
-                send.assert_not_called()

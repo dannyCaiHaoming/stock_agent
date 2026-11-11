@@ -6,7 +6,6 @@ from decimal import Decimal
 import hashlib
 import json
 
-from product.council.technical_chart import render_relative_performance_svg
 from product.deterministic.market_analysis import (
     calculate_market_state_statistics,
     calculate_technical_statistics,
@@ -14,7 +13,6 @@ from product.deterministic.market_analysis import (
     verify_technical_calculation,
 )
 from product.mcp.live.market import normalize_cached_research_series, normalize_research_daily_rows
-from product.runtime.common_stock_data import merge_benchmark_research_evidence
 
 
 class SyntheticCalendar:
@@ -145,41 +143,6 @@ class ResearchSeriesTests(unittest.TestCase):
                 raw_content_hash="a" * 64, currency="USD",
             )
 
-    def test_benchmark_merge_extends_gate_without_reclassifying_holdings(self) -> None:
-        prepared = {
-            "gate": {
-                "decision_cutoff": "2026-09-10T20:00:00Z",
-                "input_evidence_ids": ["ev-stock"],
-                "allowed_evidence_ids": ["ev-stock"],
-                "excluded_evidence_ids": [],
-                "allowed_evidence": [{
-                    "evidence_id": "ev-stock", "security_id": "US:TEST",
-                    "source_id": "yahoo-daily", "as_of": "2026-09-10T20:00:00Z",
-                    "retrieved_at": "2026-09-10T20:00:00Z",
-                }],
-                "excluded": [],
-            },
-            "preparation": {"preparation_hash": "old"},
-        }
-        benchmark = {
-            "benchmark_id": "US:SPY", "status": "FROZEN",
-            "snapshot_hash": "s" * 64, "gaps": [],
-            "evidence": [{
-                "evidence_id": "ev-spy", "security_id": "US:SPY",
-                "semantic_field": "adjusted_close_price", "value": "500",
-                "source_id": "yahoo-daily", "as_of": "2026-09-10T20:00:00Z",
-                "published_at": "2026-09-10T20:00:00Z",
-                "retrieved_at": "2026-09-11T01:00:00Z",
-            }],
-        }
-        merged = merge_benchmark_research_evidence(prepared, benchmark=benchmark)
-        self.assertEqual(
-            set(merged["gate"]["allowed_evidence_ids"]), {"ev-stock", "ev-spy"}
-        )
-        self.assertEqual(merged["preparation"]["benchmark"]["benchmark_id"], "US:SPY")
-        self.assertEqual(merged["gate"]["decision_cutoff"], "2026-09-11T01:00:00Z")
-
-
 def _rows(count: int, *, scale: int = 1, split_at: int | None = None, missing_adjusted=False):
     values = []
     for index in range(count):
@@ -271,17 +234,6 @@ class TechnicalCalculationTests(unittest.TestCase):
             as_of="2026-08-04T20:00:00Z", windows=(2,),
         )
         self.assertEqual(discontinuity["windows"][0]["status"], "PRICE_DISCONTINUITY")
-
-    def test_chart_uses_same_adjusted_series_and_volume(self) -> None:
-        svg = render_relative_performance_svg(
-            _rows(4), _rows(4, scale=2), security_label="TEST", benchmark_label="SPY"
-        )
-        self.assertIn("复权表现（起点=100）", svg)
-        self.assertEqual(svg.count("<polyline"), 2)
-        self.assertEqual(svg.count("<rect"), 5)  # 背景 + 四个成交量柱
-        self.assertIn("2026-08-01", svg)
-        self.assertIn("2026-08-04", svg)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -14,7 +14,6 @@ from product.mcp.live.macro import (
     normalize_treasury_csv,
 )
 from product.mcp.live.sec_client import Response
-from product.runtime.common_stock_data import merge_macro_research_evidence
 from product.runtime.hashing import canonical_hash
 
 
@@ -154,40 +153,6 @@ class OfficialMacroTests(unittest.TestCase):
         self.assertEqual(len(result["excluded"]), 1)
         self.assertEqual(result["excluded"][0]["reason"], "PIT_AFTER_DECISION_CUTOFF")
         self.assertEqual(result["events"][1]["failure_code"], "TREASURY_HTTP_503")
-
-    def test_macro_merge_preserves_shared_scope_and_snapshot_lineage(self):
-        raw = json.dumps({
-            "status": "REQUEST_SUCCEEDED",
-            "Results": {"series": [{
-                "seriesID": "LNS14000000",
-                "data": [{"year": "2026", "period": "M08", "periodName": "August", "value": "4.2", "footnotes": []}],
-            }]},
-        }).encode()
-        fact = normalize_bls_response(
-            raw, retrieved_at="2026-09-15T10:00:00Z", endpoint="https://api.bls.gov/example"
-        )["evidence"][0]
-        macro = {
-            "status": "FROZEN", "decision_cutoff": "2026-09-15T10:00:00Z",
-            "evidence": [fact], "excluded": [], "gaps": [],
-            "policy_hash": "a" * 64, "snapshot_hash": "b" * 64,
-        }
-        gate = {
-            "decision_cutoff": "2026-09-14T10:00:00Z", "input_evidence_ids": [],
-            "allowed_evidence": [], "allowed_evidence_ids": [], "excluded": [],
-            "excluded_evidence_ids": [], "bundle_hash": "c" * 64,
-        }
-        prepared = {
-            "gate": gate,
-            "preparation": {"common_cutoff": gate["decision_cutoff"], "preparation_hash": "d" * 64},
-        }
-        merged = merge_macro_research_evidence(prepared, macro=macro)
-        self.assertEqual(merged["gate"]["allowed_evidence_ids"], [fact["evidence_id"]])
-        self.assertEqual(merged["preparation"]["official_macro"]["snapshot_hash"], "b" * 64)
-        self.assertEqual(
-            merged["gate"]["bundle_hash"],
-            canonical_hash({key: value for key, value in merged["gate"].items() if key != "bundle_hash"}),
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

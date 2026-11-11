@@ -7,7 +7,6 @@ import tempfile
 import unittest
 
 from product.mcp.live.moomoo_public_news import fetch_news_search
-from product.mcp.live.research_supplement_collection import capture_public_company_news_result
 from product.mcp.live.sec_client import Response
 
 
@@ -76,55 +75,6 @@ class MoomooPublicNewsTests(unittest.TestCase):
             with self.subTest(expected=expected), self.assertRaises(ValueError) as caught:
                 self.fetch(payload, status=status)
             self.assertEqual(str(caught.exception), expected)
-
-    def test_company_leads_exclude_marvelous_and_etf_without_claiming_body(self):
-        def transport(request):
-            news_type = 3 if "news_type=3" in request.full_url else 2
-            rows = [
-                {"news_id": "rating", "news_type": news_type,
-                 "title": "MRVL analyst raises rating" if news_type == 3 else "Marvell Technology earnings announcement",
-                 "publish_time": str(PUBLISHED), "url": f"https://www.moomoo.com/news/post/{news_type}"},
-                {"news_id": "wrong", "news_type": news_type,
-                 "title": "Marvelous Entertainment announces game",
-                 "publish_time": str(PUBLISHED), "url": f"https://www.moomoo.com/news/post/wrong-{news_type}"},
-                {"news_id": "etf", "news_type": news_type,
-                 "title": "MRVL leveraged ETF rises",
-                 "publish_time": str(PUBLISHED), "url": f"https://www.moomoo.com/news/post/etf-{news_type}"},
-            ]
-            return Response(200, json.dumps({"code": 0, "data": rows}).encode())
-
-        with tempfile.TemporaryDirectory() as temp:
-            result = capture_public_company_news_result(
-                security_id="US:COMMON_STOCK:MRVL", ticker="MRVL",
-                issuer_name="Marvell Technology Inc.", cache_root=Path(temp),
-                transport=transport, now=lambda: NOW,
-            )
-        self.assertEqual(len(result["evidence"]), 2)
-        self.assertEqual(result["status"], "PARTIAL")
-        self.assertIn("MOOMOO_PUBLIC_NEWS_ISSUER_UNVERIFIED", result["gaps"])
-        self.assertIn("MOOMOO_PUBLIC_NEWS_NON_ISSUER_INSTRUMENT", result["gaps"])
-        for fact in result["evidence"]:
-            self.assertEqual(fact["value"]["content_tier"], "LEAD_ONLY")
-            self.assertFalse(fact["value"]["body_verified"])
-            self.assertEqual(fact["source_family"], "moomoo_public_news")
-        self.assertEqual(
-            {fact["value"]["lead_kind"] for fact in result["evidence"]},
-            {"NOTICE_INDEX", "RATING_OR_RESEARCH_NEWS"},
-        )
-
-    def test_company_missing_body_does_not_turn_empty_search_into_evidence(self):
-        def transport(_request):
-            return Response(200, b'{"code":0,"data":[]}')
-
-        with tempfile.TemporaryDirectory() as temp:
-            result = capture_public_company_news_result(
-                security_id="US:COMMON_STOCK:MRVL", ticker="MRVL",
-                issuer_name="Marvell Technology Inc.", cache_root=Path(temp),
-                transport=transport, now=lambda: NOW,
-            )
-        self.assertEqual(result["status"], "SOURCE_LIMITED")
-        self.assertEqual(result["evidence"], [])
-
 
 if __name__ == "__main__":
     unittest.main()

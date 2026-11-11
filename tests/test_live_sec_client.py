@@ -44,7 +44,10 @@ class SecClientTests(unittest.TestCase):
         self.now += timedelta(seconds=5)
         self.assertEqual(first, client.fetch(URL, max_age_seconds=100))
         self.assertEqual(client.requests, 1)
-        self.assertEqual(first, client.fetch(URL, max_age_seconds=100, refresh=True))
+        # 内容不变的重新验证：记录与首次检索时间保持不变，只多一个 checked_at。
+        revalidated = client.fetch(URL, max_age_seconds=100, refresh=True)
+        self.assertEqual(first, {k: v for k, v in revalidated.items() if k != "checked_at"})
+        self.assertGreater(revalidated["checked_at"], first["retrieved_at"])
         second = client.fetch(URL, max_age_seconds=100, refresh=True)
         self.assertNotEqual(first["record_hash"], second["record_hash"])
         self.assertEqual(self.cache.read(first), b"one")

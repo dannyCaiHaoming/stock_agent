@@ -108,7 +108,7 @@ class SecParserTests(unittest.TestCase):
                          "xslF345X06\\form4.xml", "xslF345X06//form4.xml",
                          "xslF345X06/sub/form4.xml", "other/form4.xml",
                          "xslN-PX_X01/../secret", "xslN-PX_X01/%2e%2e", "xslN-PX_X01//primary_doc.xml",
-                         "xslF345X06/form4.xml?redirect=x", ""):
+                         "xslF345X06/form4.xml?redirect=x"):  # 空 primaryDocument 现为记入 excluded 而非报错
             with self.subTest(document=document), self.assertRaisesRegex(
                 ValueError, "SEC_DOCUMENT_INVALID"
             ):

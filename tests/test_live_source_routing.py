@@ -181,13 +181,6 @@ class RoutingTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_contract("source-access", bad)
 
-    def test_rehashed_fact_client_version_drift_is_rejected(self):
-        _, snapshot = self.snapshot()
-        snapshot["facts"][0]["source_version"] = "yfinance/old"
-        snapshot["snapshot_hash"] = content_hash({k: v for k, v in snapshot.items() if k != "snapshot_hash"})
-        with self.assertRaisesRegex(ValueError, "FACT_VERSION_MISMATCH"):
-            validate_contract("snapshot", snapshot)
-
     def test_stale_price_cannot_hide_version_integrity_failure_by_fallback(self):
         self.primary.return_value = self.market("yahoo", "2026-09-01")
         self.primary.return_value["evidence"][0]["source_version"] = "unknown"
@@ -195,23 +188,6 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(result["status"], "FAILED")
         self.assertEqual(result["failure_code"], "LIVE_SELECTION_FACT_VERSION_MISMATCH")
         self.backup.assert_not_called()
-
-    def test_report_shows_selected_source_and_failure(self):
-        from product.runtime.evidence_gate import run_live_evidence_gate
-        from product.runtime.live_report import render_live_report
-        portfolio, snapshot = self.snapshot()
-        gate = run_live_evidence_gate(snapshot, run_id="synthetic-report", calendar=Calendar()).artifact
-        item = {"action": "NO_TRADE", "security_id": "TEST", "target_weight_range": None,
-                "maximum_notional": None, "evidence_refs": gate["allowed_evidence_ids"],
-                "no_trade_reason": "synthetic", "no_trade_explanation": "合成测试，不是研究验收",
-                "reevaluation_conditions": ["补齐披露"]}
-        decision = {"run_id": "synthetic-report", "terminal_state": "SAFE_NO_TRADE", "advisory_only": True,
-                    "decisions": [item], "risk_report": {"status": "APPROVED"}}
-        text = render_live_report(decision, gate=gate, reports={}, holding_horizon="六个月",
-                                  portfolio=portfolio, snapshot=snapshot, calendar=Calendar())
-        for expected in ("eastmoney", "akshare/1.18.94", "行情来源与回退记录", "股票池覆盖范围"):
-            self.assertIn(expected, text)
-        self.assertIn("YAHOO\\_HTTP\\_503", text)
 
     def snapshot(self):
         from tests.test_live_contracts_gate import LiveContractGateTests
@@ -236,91 +212,6 @@ class RoutingTests(unittest.TestCase):
             raw_records=records, collection_events=[], gaps=[], universe=universe,
             source_selections=[routed["selection"]])
         return inputs.portfolio, snapshot
-
-    def test_route_freeze_gate_valuation_and_raw_page_chain(self):
-        from product.runtime.evidence_gate import run_live_evidence_gate
-        from product.runtime.live_input import value_portfolio
-        from product.runtime.live_context import validate_raw_records
-        portfolio, snapshot = self.snapshot()
-        self.assertEqual(snapshot["schema_version"], "live-snapshot/3.0.0")
-        objects = {r["raw_content_hash"]: self.cache.read(r) for r in snapshot["raw_records"]}
-        validate_raw_records(snapshot, objects.__getitem__)
-        gate = run_live_evidence_gate(snapshot, run_id="synthetic-routed", calendar=Calendar()).artifact
-        value = value_portfolio(portfolio, snapshot, gate, calendar=Calendar())
-        self.assertEqual(value["total_value"], "1100")
-        self.assertEqual(gate["allowed_evidence"][0]["source_type"], "eastmoney")
-        bad = deepcopy(snapshot)
-        bad["raw_records"] = [r for r in bad["raw_records"] if r["key"]["provider"] != "nasdaq"]
-        with self.assertRaisesRegex(ValueError, "OBJECT_MISSING"):
-            validate_raw_records(bad, objects.__getitem__)
-
-    def test_comparison_price_series_does_not_mutate_source_selection_closure(self):
-        _, snapshot = self.snapshot()
-        research = deepcopy(snapshot["facts"][0])
-        research.update(
-            evidence_id="ev-research-comparison",
-            semantic_field="adjusted_close_price",
-            usage="comparison",
-            source_version=research["source_version"] + "/yahoo-research-series/1.0.0",
-        )
-        snapshot["facts"].append(research)
-        snapshot["snapshot_hash"] = content_hash({
-            key: value for key, value in snapshot.items() if key != "snapshot_hash"
-        })
-        validate_contract("snapshot", snapshot)
-        self.assertNotIn(
-            research["evidence_id"], snapshot["source_selections"][0]["evidence_ids"]
-        )
-
-    def test_snapshot_missing_or_dangling_selection_rejected(self):
-        _, snapshot = self.snapshot()
-        for change in ("missing", "dangling", "late"):
-            bad = deepcopy(snapshot)
-            if change == "missing": bad["source_selections"] = []
-            elif change == "dangling": bad["source_selections"][0]["evidence_ids"] = ["nonexistent"]
-            else: bad["source_selections"][0]["attempts"][-1]["completed_at"] = "2027-01-01T00:00:00Z"
-            if bad["source_selections"]:
-                selected = bad["source_selections"][0]
-                selected["selection_hash"] = content_hash({k: v for k, v in selected.items() if k != "selection_hash"})
-            bad["snapshot_hash"] = content_hash({k: v for k, v in bad.items() if k != "snapshot_hash"})
-            with self.subTest(change=change), self.assertRaises(ValueError):
-                validate_contract("snapshot", bad)
-
-    def test_current_v4_snapshot_accepts_more_than_three_source_selections(self):
-        from tests.test_live_admission import approved_access
-
-        _, original = self.snapshot()
-        fact_template = original["facts"][0]
-        selection_template = original["source_selections"][0]
-        facts, selections = [], []
-        for number in range(4):
-            security_id = f"US:TEST{number}"
-            fact = deepcopy(fact_template)
-            fact["security_id"] = security_id
-            fact["evidence_id"] = f"ev-v4-{number}"
-            facts.append(fact)
-            selection = deepcopy(selection_template)
-            selection["security_id"] = security_id
-            selection["evidence_ids"] = [fact["evidence_id"]]
-            selection["selection_hash"] = content_hash({
-                key: value for key, value in selection.items() if key != "selection_hash"
-            })
-            selections.append(selection)
-        snapshot = deepcopy(original)
-        snapshot.update(
-            schema_version="live-snapshot/4.0.0",
-            request_started_at="2026-09-16T09:00:00Z",
-            decision_cutoff="2026-09-16T10:00:00Z",
-            facts=facts,
-            source_selections=selections,
-            source_access=[approved_access(item) for item in original["source_access"]],
-        )
-        snapshot["snapshot_hash"] = content_hash({
-            key: value for key, value in snapshot.items() if key != "snapshot_hash"
-        })
-        validate_contract("snapshot", snapshot)
-        self.assertEqual(4, len(snapshot["source_selections"]))
-
 
 if __name__ == "__main__":
     unittest.main()

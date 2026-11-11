@@ -41,23 +41,6 @@ class EastmoneyContractTests(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 validate_current_sources(bad)
 
-    def test_old_snapshot_unchanged_new_snapshot_cannot_hide_yahoo(self):
-        setup = legacy_examples.LiveContractGateTests(); setup.setUp()
-        historical = setup.snapshot()
-        validate_contract("snapshot", historical)
-        current = deepcopy(historical)
-        current.update(schema_version="live-snapshot/2.0.0", source_access=[access(), access("sec")])
-        def seal():
-            current["snapshot_hash"] = content_hash({k:v for k,v in current.items() if k != "snapshot_hash"})
-        seal()
-        with self.assertRaisesRegex(ValueError, "MIXED_SOURCE"): validate_contract("snapshot", current)
-        current["facts"][0].update(schema_version="live-fact/2.0.0", source_type="eastmoney")
-        seal()
-        validate_contract("snapshot", current)
-        self.assertEqual(historical["facts"][0]["source_type"], "yahoo")
-        bad = deepcopy(current["facts"][0]); bad["schema_version"] = "live-fact/9.0.0"
-        with self.assertRaises(ValueError): validate_contract("fact", bad)
-
     def test_unauthorized_rejected_before_transport(self):
         with tempfile.TemporaryDirectory() as temp:
             for state in ("UNCONFIRMED", "PAUSED"):

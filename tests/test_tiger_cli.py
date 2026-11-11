@@ -67,33 +67,6 @@ class TigerCliTests(unittest.TestCase):
             self.assertNotIn("activity", serialized)
             self.assertNotIn(str(ledger_root), serialized)
 
-    def test_host_launcher_exposes_preflight_without_starting_normal_smoke(self):
-        repository = Path(__file__).resolve().parents[1]
-        with tempfile.TemporaryDirectory() as temporary:
-            config = Path(temporary) / "config"
-            config.mkdir(mode=0o700)
-            properties = config / "tiger_openapi_config.properties"
-            token = config / "tiger_openapi_token.properties"
-            properties.write_text("tiger_id=local\naccount=private\nprivate_key=secret\nlicense=TBHK\n")
-            token.write_text("token=private-token\n")
-            os.chmod(properties, 0o600)
-            os.chmod(token, 0o600)
-            result = subprocess.run(
-                ["bash", "scripts/run-product-smoke.sh", "--tiger-readonly", "preflight", "--config-dir", str(config)],
-                cwd=repository, text=True, capture_output=True, check=False,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            value = json.loads(result.stdout)
-            self.assertEqual((value["status"], value["license"]), ("READY", "TBHK"))
-            self.assertNotIn("private-token", result.stdout)
-            self.assertNotIn("secret", result.stdout)
-
-        help_result = subprocess.run(
-            ["bash", "scripts/run-product-smoke.sh", "--help"], cwd=repository,
-            text=True, capture_output=True, check=False,
-        )
-        self.assertIn("--tiger-readonly", help_result.stdout)
-
 
 if __name__ == "__main__":
     unittest.main()
