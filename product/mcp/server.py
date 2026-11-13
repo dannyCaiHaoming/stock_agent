@@ -493,19 +493,20 @@ def save_group_forecasts(group: str, data_as_of: str, forecasts: list[dict], hor
 @explain_errors
 def save_moment_review(ticker: str, moment: str, moment_date: str, primary_cause: str, summary: str,
                        items: list[dict], cause_public_by_close: bool, confidence: str, lesson: str,
-                       holder_action: str, other_causes: list[str] | None = None, host: str | None = None,
-                       model: str | None = None) -> dict:
+                       holder_action: str, p_outperform_60d: float, other_causes: list[str] | None = None,
+                       host: str | None = None, model: str | None = None) -> dict:
     """Persist a news review of one key chart moment (moment-review Skill; append-only), written without the
     outcome. primary_cause / other_causes: earnings_guidance | company_event | rumor_report | analyst_rating |
     competitor_customer | industry_peer | policy_regulation | flows_technical | macro_market | no_matching_news.
     items: list of {date YYYY-MM-DD, kind 8k|web|price, source, claim, timing
     before|same_day|after (after exactly when dated after moment_date), url?}; a cause other than
     no_matching_news needs an item dated before or on the moment day. cause_public_by_close: was the cause
-    public by the moment day's close. confidence: low|medium|high. holder_action: ADD|HOLD|REDUCE, what a
+    public by the moment day's close. confidence: low|medium|high. p_outperform_60d: 0.05-0.95, probability the stock beats its sector ETF over the next 60
+    sessions (0.5 = no view). holder_action: ADD|HOLD|REDUCE, what a
     holder should have done at that close. lesson: one sentence a person could have used at the time; any
     description of what happened afterwards is rejected."""
     return decision_log.save_moment_review(ticker, moment, moment_date, primary_cause, summary, items,
-                                           cause_public_by_close, confidence, lesson, holder_action,
+                                           cause_public_by_close, confidence, lesson, holder_action, p_outperform_60d,
                                            other_causes=other_causes, host=host, model=model)
 
 

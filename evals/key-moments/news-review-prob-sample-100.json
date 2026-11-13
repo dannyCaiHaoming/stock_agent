@@ -1,0 +1,702 @@
+[
+ {
+  "ticker": "VSAT",
+  "moment": "sharp_reversal_up",
+  "date": "2023-10-16",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.38
+ },
+ {
+  "ticker": "CVS",
+  "moment": "sharp_reversal_up",
+  "date": "2024-06-05",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.16
+ },
+ {
+  "ticker": "BKSY",
+  "moment": "platform_breakout",
+  "date": "2024-02-12",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 2.02
+ },
+ {
+  "ticker": "T",
+  "moment": "platform_breakdown",
+  "date": "2025-12-10",
+  "benchmark": "XLC",
+  "deviation_vs_sector": -2.01
+ },
+ {
+  "ticker": "NFLX",
+  "moment": "platform_breakout_new_high",
+  "date": "2025-01-22",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 2.81
+ },
+ {
+  "ticker": "TER",
+  "moment": "platform_breakout",
+  "date": "2021-10-28",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 3.5
+ },
+ {
+  "ticker": "LITE",
+  "moment": "uptrend_break",
+  "date": "2022-02-03",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -4.22
+ },
+ {
+  "ticker": "HON",
+  "moment": "platform_breakdown",
+  "date": "2023-08-01",
+  "benchmark": "XLI",
+  "deviation_vs_sector": -3.53
+ },
+ {
+  "ticker": "IBM",
+  "moment": "uptrend_break",
+  "date": "2021-07-02",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.24
+ },
+ {
+  "ticker": "NTAP",
+  "moment": "platform_breakdown",
+  "date": "2026-04-09",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.41
+ },
+ {
+  "ticker": "LMT",
+  "moment": "platform_breakdown",
+  "date": "2024-01-23",
+  "benchmark": "XLI",
+  "deviation_vs_sector": -2.19
+ },
+ {
+  "ticker": "QCOM",
+  "moment": "platform_breakout",
+  "date": "2025-10-27",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.16
+ },
+ {
+  "ticker": "PL",
+  "moment": "platform_breakdown",
+  "date": "2023-06-09",
+  "benchmark": "XLI",
+  "deviation_vs_sector": -3.96
+ },
+ {
+  "ticker": "ALB",
+  "moment": "downtrend_break",
+  "date": "2024-03-01",
+  "benchmark": "XLB",
+  "deviation_vs_sector": 2.28
+ },
+ {
+  "ticker": "AXP",
+  "moment": "failed_breakdown",
+  "date": "2020-11-09",
+  "benchmark": "XLF",
+  "deviation_vs_sector": 2.76
+ },
+ {
+  "ticker": "SBUX",
+  "moment": "platform_breakdown",
+  "date": "2024-07-09",
+  "benchmark": "XLY",
+  "deviation_vs_sector": -2.22
+ },
+ {
+  "ticker": "COHR",
+  "moment": "sharp_reversal_up",
+  "date": "2020-03-17",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.11
+ },
+ {
+  "ticker": "AAOI",
+  "moment": "platform_breakout_new_high",
+  "date": "2026-04-09",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.25
+ },
+ {
+  "ticker": "T",
+  "moment": "sharp_reversal_up",
+  "date": "2022-10-20",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 2.43
+ },
+ {
+  "ticker": "V",
+  "moment": "downtrend_break",
+  "date": "2022-01-28",
+  "benchmark": "XLF",
+  "deviation_vs_sector": 2.52
+ },
+ {
+  "ticker": "GILD",
+  "moment": "downtrend_break",
+  "date": "2024-06-20",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.28
+ },
+ {
+  "ticker": "UNH",
+  "moment": "sharp_reversal_up",
+  "date": "2024-04-17",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 3.05
+ },
+ {
+  "ticker": "KLAC",
+  "moment": "sharp_reversal_down",
+  "date": "2026-02-03",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.02
+ },
+ {
+  "ticker": "ALB",
+  "moment": "platform_breakdown",
+  "date": "2019-10-31",
+  "benchmark": "XLB",
+  "deviation_vs_sector": -2.59
+ },
+ {
+  "ticker": "ADBE",
+  "moment": "sharp_reversal_down",
+  "date": "2024-09-18",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.81
+ },
+ {
+  "ticker": "VSAT",
+  "moment": "platform_breakout",
+  "date": "2022-10-05",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 3.57
+ },
+ {
+  "ticker": "JNJ",
+  "moment": "platform_breakout_new_high",
+  "date": "2025-07-22",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.56
+ },
+ {
+  "ticker": "CMCSA",
+  "moment": "failed_breakout",
+  "date": "2024-02-07",
+  "benchmark": "XLC",
+  "deviation_vs_sector": -3.72
+ },
+ {
+  "ticker": "ADBE",
+  "moment": "sharp_reversal_up",
+  "date": "2026-03-05",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.16
+ },
+ {
+  "ticker": "FCX",
+  "moment": "uptrend_break",
+  "date": "2024-07-18",
+  "benchmark": "XLB",
+  "deviation_vs_sector": -2.51
+ },
+ {
+  "ticker": "UNH",
+  "moment": "sharp_reversal_up",
+  "date": "2025-08-15",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.01
+ },
+ {
+  "ticker": "INTC",
+  "moment": "platform_breakdown",
+  "date": "2019-04-26",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.66
+ },
+ {
+  "ticker": "MA",
+  "moment": "uptrend_break",
+  "date": "2021-08-12",
+  "benchmark": "XLF",
+  "deviation_vs_sector": -2.1
+ },
+ {
+  "ticker": "STX",
+  "moment": "sharp_reversal_down",
+  "date": "2024-03-14",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.03
+ },
+ {
+  "ticker": "MS",
+  "moment": "uptrend_break",
+  "date": "2020-02-24",
+  "benchmark": "XLF",
+  "deviation_vs_sector": -2.12
+ },
+ {
+  "ticker": "NKE",
+  "moment": "sharp_reversal_down",
+  "date": "2023-12-22",
+  "benchmark": "XLY",
+  "deviation_vs_sector": -3.47
+ },
+ {
+  "ticker": "DIS",
+  "moment": "platform_breakout_new_high",
+  "date": "2019-04-12",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 3.88
+ },
+ {
+  "ticker": "LLY",
+  "moment": "sharp_reversal_up",
+  "date": "2025-04-17",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 3.28
+ },
+ {
+  "ticker": "PYPL",
+  "moment": "sharp_reversal_up",
+  "date": "2022-03-18",
+  "benchmark": "XLF",
+  "deviation_vs_sector": 2.02
+ },
+ {
+  "ticker": "MSFT",
+  "moment": "downtrend_break",
+  "date": "2026-07-30",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 4.44
+ },
+ {
+  "ticker": "BKSY",
+  "moment": "sharp_reversal_up",
+  "date": "2022-05-25",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 5.76
+ },
+ {
+  "ticker": "LMT",
+  "moment": "platform_breakout",
+  "date": "2026-07-23",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 2.45
+ },
+ {
+  "ticker": "CRM",
+  "moment": "sharp_reversal_up",
+  "date": "2025-12-05",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.57
+ },
+ {
+  "ticker": "WMT",
+  "moment": "sharp_reversal_down",
+  "date": "2026-05-21",
+  "benchmark": "XLP",
+  "deviation_vs_sector": -2.41
+ },
+ {
+  "ticker": "UPS",
+  "moment": "platform_breakdown_new_low",
+  "date": "2024-07-23",
+  "benchmark": "XLI",
+  "deviation_vs_sector": -2.99
+ },
+ {
+  "ticker": "PFE",
+  "moment": "platform_breakout",
+  "date": "2025-10-01",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.16
+ },
+ {
+  "ticker": "COHR",
+  "moment": "sharp_reversal_up",
+  "date": "2023-05-26",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.28
+ },
+ {
+  "ticker": "IRDM",
+  "moment": "downtrend_break",
+  "date": "2026-02-12",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 2.48
+ },
+ {
+  "ticker": "BA",
+  "moment": "platform_breakdown",
+  "date": "2025-03-04",
+  "benchmark": "XLI",
+  "deviation_vs_sector": -2.08
+ },
+ {
+  "ticker": "V",
+  "moment": "failed_breakout",
+  "date": "2021-08-03",
+  "benchmark": "XLF",
+  "deviation_vs_sector": -2.37
+ },
+ {
+  "ticker": "AVGO",
+  "moment": "platform_breakout_new_high",
+  "date": "2024-12-13",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 3.74
+ },
+ {
+  "ticker": "MRK",
+  "moment": "platform_breakout_new_high",
+  "date": "2024-03-27",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.11
+ },
+ {
+  "ticker": "PL",
+  "moment": "platform_breakout_new_high",
+  "date": "2026-03-20",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 3.11
+ },
+ {
+  "ticker": "NFLX",
+  "moment": "sharp_reversal_up",
+  "date": "2026-02-27",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 4.97
+ },
+ {
+  "ticker": "GILD",
+  "moment": "platform_breakout",
+  "date": "2019-09-11",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.02
+ },
+ {
+  "ticker": "NKE",
+  "moment": "platform_breakout",
+  "date": "2021-06-25",
+  "benchmark": "XLY",
+  "deviation_vs_sector": 4.89
+ },
+ {
+  "ticker": "NTAP",
+  "moment": "platform_breakdown",
+  "date": "2025-02-28",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -3.99
+ },
+ {
+  "ticker": "ORCL",
+  "moment": "failed_breakdown",
+  "date": "2021-12-10",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 3.65
+ },
+ {
+  "ticker": "HON",
+  "moment": "downtrend_break",
+  "date": "2022-05-04",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 2.47
+ },
+ {
+  "ticker": "AAPL",
+  "moment": "sharp_reversal_up",
+  "date": "2025-04-09",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.56
+ },
+ {
+  "ticker": "VZ",
+  "moment": "downtrend_break",
+  "date": "2023-10-24",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 3.16
+ },
+ {
+  "ticker": "KLAC",
+  "moment": "platform_breakout",
+  "date": "2021-11-01",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.04
+ },
+ {
+  "ticker": "UPS",
+  "moment": "platform_breakdown",
+  "date": "2024-01-30",
+  "benchmark": "XLI",
+  "deviation_vs_sector": -3.5
+ },
+ {
+  "ticker": "PFE",
+  "moment": "sharp_reversal_up",
+  "date": "2023-05-23",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.81
+ },
+ {
+  "ticker": "MRK",
+  "moment": "platform_breakout",
+  "date": "2022-10-13",
+  "benchmark": "XLV",
+  "deviation_vs_sector": 2.1
+ },
+ {
+  "ticker": "NEM",
+  "moment": "failed_breakdown",
+  "date": "2023-10-11",
+  "benchmark": "XLB",
+  "deviation_vs_sector": 2.3
+ },
+ {
+  "ticker": "LOW",
+  "moment": "failed_breakdown",
+  "date": "2026-07-28",
+  "benchmark": "XLY",
+  "deviation_vs_sector": 2.34
+ },
+ {
+  "ticker": "AAOI",
+  "moment": "sharp_reversal_down",
+  "date": "2021-02-26",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.21
+ },
+ {
+  "ticker": "CSCO",
+  "moment": "platform_breakdown",
+  "date": "2023-11-16",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -5.39
+ },
+ {
+  "ticker": "RDW",
+  "moment": "platform_breakout_new_high",
+  "date": "2023-09-14",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 3.22
+ },
+ {
+  "ticker": "IRDM",
+  "moment": "sharp_reversal_up",
+  "date": "2024-04-22",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 3.16
+ },
+ {
+  "ticker": "AMZN",
+  "moment": "platform_breakdown",
+  "date": "2026-02-06",
+  "benchmark": "XLY",
+  "deviation_vs_sector": -2.26
+ },
+ {
+  "ticker": "PLD",
+  "moment": "uptrend_break",
+  "date": "2022-05-05",
+  "benchmark": "XLRE",
+  "deviation_vs_sector": -2.53
+ },
+ {
+  "ticker": "AMAT",
+  "moment": "platform_breakout_new_high",
+  "date": "2020-11-05",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.1
+ },
+ {
+  "ticker": "MU",
+  "moment": "sharp_reversal_up",
+  "date": "2019-06-28",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.65
+ },
+ {
+  "ticker": "DIS",
+  "moment": "platform_breakdown",
+  "date": "2024-05-07",
+  "benchmark": "XLC",
+  "deviation_vs_sector": -2.63
+ },
+ {
+  "ticker": "STX",
+  "moment": "sharp_reversal_down",
+  "date": "2020-01-31",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.3
+ },
+ {
+  "ticker": "LOW",
+  "moment": "platform_breakout",
+  "date": "2019-08-22",
+  "benchmark": "XLY",
+  "deviation_vs_sector": 2.92
+ },
+ {
+  "ticker": "AMT",
+  "moment": "downtrend_break",
+  "date": "2026-02-13",
+  "benchmark": "XLRE",
+  "deviation_vs_sector": 2.88
+ },
+ {
+  "ticker": "NEE",
+  "moment": "platform_breakout",
+  "date": "2025-03-10",
+  "benchmark": "XLU",
+  "deviation_vs_sector": 2.15
+ },
+ {
+  "ticker": "LITE",
+  "moment": "uptrend_break",
+  "date": "2025-01-27",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.29
+ },
+ {
+  "ticker": "INTU",
+  "moment": "failed_breakout",
+  "date": "2024-11-22",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.47
+ },
+ {
+  "ticker": "FCX",
+  "moment": "sharp_reversal_up",
+  "date": "2025-03-17",
+  "benchmark": "XLB",
+  "deviation_vs_sector": 2.51
+ },
+ {
+  "ticker": "GEV",
+  "moment": "platform_breakout",
+  "date": "2025-12-10",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 2.96
+ },
+ {
+  "ticker": "RDW",
+  "moment": "downtrend_break",
+  "date": "2023-01-12",
+  "benchmark": "XLI",
+  "deviation_vs_sector": 2.25
+ },
+ {
+  "ticker": "BA",
+  "moment": "platform_breakdown",
+  "date": "2021-11-26",
+  "benchmark": "XLI",
+  "deviation_vs_sector": -2.25
+ },
+ {
+  "ticker": "CVS",
+  "moment": "platform_breakdown",
+  "date": "2019-02-21",
+  "benchmark": "XLV",
+  "deviation_vs_sector": -2.18
+ },
+ {
+  "ticker": "CRDO",
+  "moment": "sharp_reversal_down",
+  "date": "2023-02-15",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -6.01
+ },
+ {
+  "ticker": "VZ",
+  "moment": "failed_breakdown",
+  "date": "2026-01-30",
+  "benchmark": "XLC",
+  "deviation_vs_sector": 3.86
+ },
+ {
+  "ticker": "MRVL",
+  "moment": "sharp_reversal_down",
+  "date": "2024-03-13",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -3.0
+ },
+ {
+  "ticker": "AMT",
+  "moment": "failed_breakout",
+  "date": "2025-07-29",
+  "benchmark": "XLRE",
+  "deviation_vs_sector": -2.07
+ },
+ {
+  "ticker": "CMCSA",
+  "moment": "sharp_reversal_down",
+  "date": "2020-01-29",
+  "benchmark": "XLC",
+  "deviation_vs_sector": -2.46
+ },
+ {
+  "ticker": "NEM",
+  "moment": "sharp_reversal_down",
+  "date": "2024-10-24",
+  "benchmark": "XLB",
+  "deviation_vs_sector": -2.6
+ },
+ {
+  "ticker": "QCOM",
+  "moment": "downtrend_break",
+  "date": "2019-04-16",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 5.54
+ },
+ {
+  "ticker": "TER",
+  "moment": "sharp_reversal_down",
+  "date": "2021-01-28",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -2.75
+ },
+ {
+  "ticker": "TLN",
+  "moment": "failed_breakout",
+  "date": "2025-01-27",
+  "benchmark": "XLU",
+  "deviation_vs_sector": -2.29
+ },
+ {
+  "ticker": "MCD",
+  "moment": "platform_breakout",
+  "date": "2026-02-04",
+  "benchmark": "XLY",
+  "deviation_vs_sector": 2.27
+ },
+ {
+  "ticker": "COST",
+  "moment": "platform_breakout",
+  "date": "2023-05-31",
+  "benchmark": "XLP",
+  "deviation_vs_sector": 2.57
+ },
+ {
+  "ticker": "IBM",
+  "moment": "uptrend_break",
+  "date": "2021-10-21",
+  "benchmark": "XLK",
+  "deviation_vs_sector": -5.69
+ },
+ {
+  "ticker": "CIEN",
+  "moment": "platform_breakout",
+  "date": "2021-06-03",
+  "benchmark": "XLK",
+  "deviation_vs_sector": 2.5
+ }
+]

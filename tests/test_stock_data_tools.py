@@ -265,11 +265,11 @@ class DecisionLogTests(unittest.TestCase):
                 "timing": "same_day"}
         args = dict(ticker="SBUX", moment="platform_breakdown", moment_date="2023-09-21",
                     primary_cause="macro_market", summary="Market-wide selloff.", items=[item],
-                    cause_public_by_close=True, confidence="medium", holder_action="HOLD",
+                    cause_public_by_close=True, confidence="medium", holder_action="HOLD", p_outperform_60d=0.45,
                     lesson="跟随大盘的跌破，看指数是否同步企稳再决定加减仓。")
         with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_DATA_DIR": root}):
             self.assertTrue(decision_log.save_moment_review(**args)["saved"])
-            bad = [{"holder_action": "BUY"}, {"lesson": "事后20日上涨"}, {"lesson": "之后 20 日跑赢板块"},
+            bad = [{"holder_action": "BUY"}, {"p_outperform_60d": 1.0}, {"lesson": "事后20日上涨"}, {"lesson": "之后 20 日跑赢板块"},
                    {"lesson": "这次 60 日下跌 5.9% 说明要减仓"},
                    {"items": [{**item, "date": "2023-10-02"}]}, {"items": [{**item, "timing": "after"}]}]
             for change in bad:

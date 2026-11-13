@@ -252,8 +252,8 @@ HINDSIGHT = re.compile(r"事后|事後|本例之后|(之后|之後|后续|後續
 
 def save_moment_review(ticker: str, moment: str, moment_date: str, primary_cause: str, summary: str,
                        items: list[dict[str, Any]], cause_public_by_close: bool, confidence: str, lesson: str,
-                       holder_action: str, other_causes: list[str] | None = None, host: str | None = None,
-                       model: str | None = None) -> dict[str, Any]:
+                       holder_action: str, p_outperform_60d: float, other_causes: list[str] | None = None,
+                       host: str | None = None, model: str | None = None) -> dict[str, Any]:
     """News review of one key chart moment, written without the outcome: what was public by the moment day's
     close, the cause, what a holder should have done then (ADD/HOLD/REDUCE) and the lesson. Outcomes are joined
     afterwards by scripts/score-moment-reviews.py. Appended to <data dir>/moment_reviews.jsonl."""
@@ -275,6 +275,10 @@ def save_moment_review(ticker: str, moment: str, moment_date: str, primary_cause
             raise DecisionLogError(f"{name.upper()}_REQUIRED")
     if holder_action not in HOLDER_ACTIONS:
         raise DecisionLogError(f"HOLDER_ACTION_INVALID: one of {HOLDER_ACTIONS}")
+    if isinstance(p_outperform_60d, bool) or not isinstance(p_outperform_60d, (int, float)) \
+            or not 0.05 <= p_outperform_60d <= 0.95:
+        raise DecisionLogError("P_OUTPERFORM_60D_INVALID: probability between 0.05 and 0.95 that the stock beats "
+                               "its sector ETF over the next 60 sessions")
     if HINDSIGHT.search(lesson):
         raise DecisionLogError("LESSON_HINDSIGHT: the lesson must use only what was known by the moment day's close; "
                                "remove any description of what happened afterwards")
@@ -299,10 +303,11 @@ def save_moment_review(ticker: str, moment: str, moment_date: str, primary_cause
     if primary_cause != "no_matching_news" and not any(i["timing"] in ("before", "same_day") for i in clean):
         raise DecisionLogError("CAUSE_WITHOUT_EVIDENCE: a cause other than no_matching_news needs at least one "
                                "item dated before or on the moment day")
-    record = {"schema": "moment-review/2", "ticker": ticker, "moment": moment.strip(),
+    record = {"schema": "moment-review/3", "ticker": ticker, "moment": moment.strip(),
               "moment_date": str(moment_date).strip(), "primary_cause": primary_cause, "other_causes": others,
               "summary": summary.strip(), "items": clean, "cause_public_by_close": bool(cause_public_by_close),
-              "confidence": confidence, "holder_action": holder_action, "lesson": lesson.strip(),
+              "confidence": confidence, "holder_action": holder_action,
+              "p_outperform_60d": round(float(p_outperform_60d), 2), "lesson": lesson.strip(),
               "host": host, "model": model,
               "decided_at": iso_utc(datetime.now(UTC)), "code_version": _code_version()}
     record["review_id"] = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()[:12]
