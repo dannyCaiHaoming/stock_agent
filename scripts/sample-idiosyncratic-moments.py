@@ -6,6 +6,8 @@
 
 用法：
   .venv/bin/python -I scripts/sample-idiosyncratic-moments.py --n 20 --seed 7 --out 文件.json [--exclude 已用样本.json]
+  .venv/bin/python -I scripts/sample-idiosyncratic-moments.py --recent 5
+        # 前瞻用：不读事件表，按最新价格找最近 N 个交易日内出现、且满足偏离条件的时刻，JSON 输出到标准输出
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+from product.deterministic import key_moments as km  # noqa: E402
 from product.mcp import data_tools, settings  # noqa: E402
 
 WINDOW = 5
@@ -55,14 +58,42 @@ def deviation(ticker: str, bench: str, day: str) -> float | None:
     return excess / (vol * WINDOW ** 0.5)
 
 
+def recent(days: int) -> list[dict]:
+    text = (REPO / "evals/replay/universe.txt").read_text()
+    tickers = list(dict.fromkeys(t for line in text.splitlines() if not line.startswith("#") for t in line.split()))
+    meta = settings.cache().root / "derived/signals/meta.json"
+    benchmarks = json.loads(meta.read_text()).get("benchmarks", {}) if meta.exists() else {}
+    out = []
+    for ticker in tickers:
+        try:
+            dates, p = prices(ticker)
+            bench = benchmarks.get(ticker, "SPY")
+            for m in km.detect(dates, [p[d] for d in dates]):
+                if m["index"] < len(dates) - days:
+                    continue
+                z = deviation(ticker, bench, m["date"])
+                if z is not None and abs(z) >= THRESHOLD:
+                    out.append({"ticker": ticker, "moment": m["moment"], "date": m["date"], "benchmark": bench,
+                                "deviation_vs_sector": round(z, 2)})
+        except Exception as exc:  # noqa: BLE001 - one bad ticker must not stop the scan
+            print(f"WARN {ticker}: {type(exc).__name__}: {exc}", file=sys.stderr)
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=20)
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--out", required=True)
+    parser.add_argument("--out")
+    parser.add_argument("--recent", type=int, help="前瞻：最近 N 个交易日内的偏离时刻，输出 JSON")
     parser.add_argument("--exclude", nargs="*", default=[])
     parser.add_argument("--per-ticker", type=int, default=1, help="每只股票最多几个时刻（相隔至少 90 天）")
     args = parser.parse_args()
+    if args.recent:
+        print(json.dumps(recent(args.recent), ensure_ascii=False, indent=1))
+        return
+    if not args.out:
+        parser.error("--out is required unless --recent is given")
     used = {(x["ticker"], x["date"]) for f in args.exclude for x in json.loads(Path(f).read_text())}
     events = [json.loads(l) for l in (settings.cache().root / "derived/signals/key-moments.jsonl").open()]
     events = [e for e in events if e["moment"] != "baseline_days" and e["date"] >= START

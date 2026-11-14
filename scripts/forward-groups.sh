@@ -6,7 +6,7 @@
 # 评分：scripts/score-group-forecasts.py（读运行目录）；账本用于冻结“当时的预测”，以 git 提交时间为证。
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"; cd "$repo"
-model="${STOCK_AGENT_CODEX_MODEL:-gpt-6-luna}"; only=""
+model="${STOCK_AGENT_CODEX_MODEL:-gpt-6.1-terra}"; only=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) model="$2"; shift 2 ;;

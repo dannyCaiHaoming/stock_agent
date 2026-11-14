@@ -7,7 +7,7 @@
 ## 目录
 
 - `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`skeptic-review`、`investment-decision`；评估用的轻量组内方向预测 `direction-forecast`），以及原样引入的 moomoo 官方搜索类与异动类 Skills（来源与约束见 `product/vendor/moomoo-skills.md`；OpenAPI 交易类明确不引入），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。moomoo 的方向判断、情绪与异动解读只作参考展示，不参与研究判断。
-- `product/references/`：三个角色共用的方法卡（`methods/`）、历史案例卡（`cases/`，按结果已知日期过滤）与输出格式（`templates/`）；统计证据由 `scripts/build-signal-events.py` 生成事件表，经 `get_signal_stats` 按“当时已知”统计；关键图形时刻（跌破/突破平台、趋势失败、急速反转）由 `scripts/build-key-moments.py` 建表，经 `get_key_moments` 给出同类时刻之后的概率与幅度分布。
+- `product/references/`：三个角色共用的方法卡（`methods/`）、历史案例卡（`cases/`，按结果已知日期过滤）与输出格式（`templates/`）；统计证据由 `scripts/build-signal-events.py` 生成事件表，经 `get_signal_stats` 按“当时已知”统计；关键图形时刻（跌破/突破平台、趋势失败、急速反转）由 `scripts/build-key-moments.py` 建表，经 `get_key_moments` 给出同类时刻之后的概率与幅度分布；个股偏离板块的时刻由 `moment-review` Skill 做消息面归因并给出 60 日跑赢板块的概率，前瞻记录用 `scripts/forward-moments.sh`。
 - `product/skills-pending/`：待后续阶段重写的旧 Skills（期权、所有权、研报、催化剂、持仓录入、交易日志与反思），不暴露给宿主。
 - 子 Agent：`advocate`（正向论点：业务驱动、预期差、催化剂）与 `skeptic`（先独立反向研究，再核验正向论点一轮）；定义在 `.claude/agents/` 与 `.codex/agents/`；主线程担任 CIO。
 - `product/mcp/server.py`：stock-data MCP server（`.mcp.json`、`.codex/config.toml` 的 `stock_data`），工具在 `data_tools.py`、`calc_tools.py`、`context_tools.py`（宏观、市场、同业、GDELT 历史新闻）、`ownership_tools.py`（Form 4 内部人交易、知名基金 13F）、`congress_tools.py`（众议院议员交易申报，索引由 `scripts/build-house-ptr-index.py` 建立）、`decision_log.py`；所有时点工具支持 `as_of` 历史回放；数据默认写入仓库内已忽略的 `.local/`：`.local/data/`（正式使用的报告与决策记录）、`.local/cache/`（共享原始响应缓存）、`.local/runs/<run-id>/`（每次调试运行）。
@@ -31,7 +31,7 @@
 - 券商接入永久只读：禁止下单、预览、改单、撤单、换汇、转账、交易解锁及任何账户写入。凭据与完整账户号不得进入仓库、Agent 上下文或网页。
 - 不提交凭据、私人账本（`product/.private/`）、`product/tiger.md` 或私人会话数据。
 - 只做当前任务需要的最小改动；新增机制前先说明现有能力为何不够。
-- 宿主实跑调试统一用 `scripts/dev-research.sh <claude|codex> <TICKER> [--model M]`：2026-11-10 起调试与批量回放优先用 Codex（`gpt-6-luna` 默认，`gpt-6.1-terra` 用于需要更强推理的对照），Claude Code 会话额度留给交互开发；Claude Code 默认 `claude-haiku-5-5`。可用 `--model` 或 `STOCK_AGENT_CLAUDE_MODEL` / `STOCK_AGENT_CODEX_MODEL` 覆盖。产物只写入 `.local/runs/<run-id>/`；不要写到 `/tmp` 或用户主目录。
+- 宿主实跑调试统一用 `scripts/dev-research.sh <claude|codex> <TICKER> [--model M]`：2026-11-10 起调试与批量回放优先用 Codex（2026-11-14 起默认 `gpt-6.1-terra`：登记对照中它的消息面概率有排序能力而 `gpt-6-luna` 没有，见 `evals/key-moments/news-review-prob-results-2026-11-14.md`；`gpt-6-luna` 只用于省额度的对照），Claude Code 会话额度留给交互开发；Claude Code 默认 `claude-haiku-5-5`。可用 `--model` 或 `STOCK_AGENT_CLAUDE_MODEL` / `STOCK_AGENT_CODEX_MODEL` 覆盖。产物只写入 `.local/runs/<run-id>/`；不要写到 `/tmp` 或用户主目录。
 
 <!-- handoff:learnings:begin -->
 ## Session Learnings (auto-updated by handoff)

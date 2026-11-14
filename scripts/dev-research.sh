@@ -10,7 +10,7 @@
 #   Codex 开启联网检索。--prompt 可附加之后的结果等说明。
 # 默认模型（可用 --model 或环境变量覆盖）：
 #   claude → $STOCK_AGENT_CLAUDE_MODEL，默认 claude-haiku-5-5
-#   codex  → $STOCK_AGENT_CODEX_MODEL，默认 gpt-6-luna
+#   codex  → $STOCK_AGENT_CODEX_MODEL，默认 gpt-6.1-terra
 # run.json 中 observed_model 是宿主实际报告的模型，用于核对映射。
 # 运行目录内容：run.json（参数与结果）、transcript.*（宿主输出）、reports/、decisions.jsonl。
 # 原始响应缓存共用 .local/cache/。
@@ -38,7 +38,7 @@ done
 [ -n "$extra" ] || [ -n "$moment" ] || extra="我目前未持有。"  # 消息面复盘按持有假设，不加这句
 case "$host" in
   claude) model="${model:-${STOCK_AGENT_CLAUDE_MODEL:-claude-haiku-5-5}}" ;;
-  codex) model="${model:-${STOCK_AGENT_CODEX_MODEL:-gpt-6-luna}}" ;;
+  codex) model="${model:-${STOCK_AGENT_CODEX_MODEL:-gpt-6.1-terra}}" ;;
   *) usage ;;
 esac
 

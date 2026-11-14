@@ -38,8 +38,17 @@
 
 目的：用很低的单次成本积累大量前瞻判断。完整研究每周最多 4 只，要分辨 55% 与 50% 的命中率需要约 400 个独立判断；轻量模式每周覆盖整个股票池。
 
-- `scripts/forward-groups.sh`：对 `evals/replay/universe.txt` 的 14 个组各跑一次 `direction-forecast` Skill（Codex，默认 `gpt-6-luna`），每只股票给出“之后 60 个交易日收益高于本组中位数”的概率和一句依据。不写研究报告，不启动子 Agent。
+- `scripts/forward-groups.sh`：对 `evals/replay/universe.txt` 的 14 个组各跑一次 `direction-forecast` Skill（Codex，2026-11-14 起默认 `gpt-6.1-terra`，此前为 `gpt-6-luna`；每行记录实际模型），每只股票给出“之后 60 个交易日收益高于本组中位数”的概率和一句依据。不写研究报告，不启动子 Agent。
 - `group-ledger.jsonl`：只追加，与 `ledger.jsonl` 分开。每行 `kind` 为 `group_forecast`（一组的全部预测、`data_as_of`、`code_version`、模型）或 `failure`（没有保存，或股票与名单不一致）。每组失败后重试一次。
 - 建议每周五收盘后运行一次，与 `forward-run.sh` 一样由定时任务调用，仓库内不安装 launchd/cron。
 - 评分：`scripts/score-group-forecasts.py <运行目录通配符>`。结果从 `data_as_of` 当日收盘算起，与同组中位数比较；这是排序能力的检验，不是可成交的纸面收益（收盘后做出的预测无法按当日收盘价成交）。对照为之前 60 日、126 日涨幅。
 - 同一只股票可能出现在两个组里（例如 NEE、AMD），各组分别评分。
+
+## 关键时刻消息面概率账本（2026-11-14 新增）
+
+来由：登记检验 `evals/key-moments/news-review-prob-results-2026-11-14.md` 中，`gpt-6.1-terra` 在个股偏离板块的关键时刻盲写的“之后 60 日跑赢板块概率”有排序能力（方向内秩相关 +0.28）。历史回放无法排除模型记得结果，所以用真实的未来再验一次。
+
+- `scripts/forward-moments.sh [--days 5] [--model M]`：用 `scripts/sample-idiosyncratic-moments.py --recent` 找出最近 N 个交易日内出现关键时刻、且时刻前 5 日相对板块偏离 ≥ 2 倍自身波动的股票，逐个跑 `moment-review`（Codex 联网检索），结果追加到 `moment-ledger.jsonl`。建议每周五收盘后运行。
+- `moment-ledger.jsonl`：只追加。`kind` 为 `moment_review`（时刻、偏离、主要原因、`p_outperform_60d`、持有者动作、教训、模型、`code_version`）或 `failure`。同一只股票同一天只复盘一次（同日触发多个时刻取第一个），已有记录时跳过。
+- 评分：结果满 60 个交易日后重建事件表（`scripts/build-key-moments.py`），再用 `scripts/score-moment-reviews.py <运行目录通配符> --sample <由账本导出的样本>`。判定沿用登记的 Q1（方向内秩相关 ≥ 0.15 且 90% 区间下限 > 0），累计满 100 条时算一次，之前不看。
+- 自 2026-11-14 起 `forward-run.sh` 的完整研究也随 `dev-research.sh` 的默认值改用 `gpt-6.1-terra`；账本每行有 `model`，评分时按模型分开。

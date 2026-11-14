@@ -3,7 +3,7 @@
 # 再做事后复盘（case-review Skill），复盘结果写入 evals/replay/reviews/<起始日>/<TICKER>.md。
 #
 # 用法：scripts/replay-batch.sh <起始日> [--parallel N] [--only TICKER,...]
-# 只用 Codex（模型同 dev-research.sh 默认：$STOCK_AGENT_CODEX_MODEL 或 gpt-6-luna）。
+# 只用 Codex（模型同 dev-research.sh 默认：$STOCK_AGENT_CODEX_MODEL 或 gpt-6.1-terra）。
 set -euo pipefail
 
 main() {
@@ -53,7 +53,7 @@ one() {
   run_dir=".local/runs/$run_dir"
   report="$(ls -t "$run_dir"/reports/*/*.md 2>/dev/null | head -1 || true)"
   [ -n "$report" ] || { echo "FAIL no report $ticker ($run_dir)"; return; }
-  local model="${STOCK_AGENT_CODEX_MODEL:-gpt-6-luna}"
+  local model="${STOCK_AGENT_CODEX_MODEL:-gpt-6.1-terra}"
   codex exec --skip-git-repo-check -s workspace-write -m "$model" \
     -c memories.use_memories=false -c memories.generate_memories=false \
     -c "mcp_servers.stock_data.env.STOCK_AGENT_DATA_DIR=\"$repo/$run_dir\"" \
