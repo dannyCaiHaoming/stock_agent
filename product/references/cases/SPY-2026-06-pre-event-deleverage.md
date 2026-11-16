@@ -1,12 +1,14 @@
 ---
 id: SPY-2026-06-pre-event-deleverage
 ticker: SPY
-case_date: 2026-05-23
+case_date: 2026-06-01
 outcome_known_at: 2026-08-14
 methods: [trader-labubu]
 result: mixed
 ---
 # 事件密集期之前先减杠杆，回调中买回，跌破均线再清掉
+
+案例日期取 06-01（风险清单帖，第一条有明确日期的判断）；更早的提示只知道“约 05-23”。
 
 2026-11-15 修订：登录推特后读到他当时的原帖，替换了此前靠旁证写的“后续结果”。
 
