@@ -12,7 +12,7 @@ description: 轻量方向预测：对一组同业股票（4–20 只）逐只判
 ## 输入
 
 - 组名、股票列表、`as_of`（默认现在）。
-- **历史回放模式**（任务写明“历史回放模式：数据截至 {日期}”）：把该日期当作今天；所有事实只能来自本次工具结果，**不得使用你对该日期之后事件的记忆**；不调用 `get_analyst_snapshot`、`get_peer_candidates`、`get_peer_snapshot`、moomoo Skills 与 Bash；不读取仓库的 `evals/`、`.local/`、`docs/`。
+- **历史回放模式**（任务写明“历史回放模式：数据截至 {日期}”）：把该日期当作今天；所有事实只能来自本次工具结果，**不得使用你对该日期之后事件的记忆**；不调用 `get_analyst_snapshot`、`get_peer_candidates`、`get_peer_snapshot`、moomoo Skills，不运行取数或联网的命令（读取 `product/skills/`、`product/references/` 下的说明文件不受限，Codex 可用 `cat` / `sed -n`）；不读取仓库的 `evals/`、`.local/`、`docs/`。
 
 ## 取数（每只股票 4–6 次调用，资料够用就停）
 

@@ -13,11 +13,12 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 - `as_of`：默认现在。用户要求“以某日为准”时，对所有支持 `as_of` 的工具都传入同一个日期。`get_analyst_snapshot` 只有当前快照，不能用于过去的日期。
 - **历史回放模式**（任务写明“历史回放模式：数据截至 {日期}”时）：
   - 把该日期当作今天。所有工具都在这个日期截止（服务端已强制），子 Agent 的任务里写“数据截至：{日期}（历史回放，把它当作今天）”。
-  - 不调用 moomoo Skills 与 Bash；`get_analyst_snapshot`、`get_peer_candidates`、`get_peer_snapshot` 会返回 `NOT_POINT_IN_TIME`，不要调用。这些都记为数据缺口（`SOURCE_UNSUPPORTED`：回放无当时数据），不算流程失败。
+  - 不调用 moomoo Skills，不运行任何取数或联网的命令（curl、moomoo 脚本）；`get_analyst_snapshot`、`get_peer_candidates`、`get_peer_snapshot` 会返回 `NOT_POINT_IN_TIME`，不要调用。这些都记为数据缺口（`SOURCE_UNSUPPORTED`：回放无当时数据），不算流程失败。
   - 决策价格用 `get_price_history` 在该日期或之前最后一个收盘价；股数用财报。没有分析师共识时，情景收入用公司历史增速与最近指引（8-K EX-99.1）推算，并写明。同业用你确知的代码，以 `get_financial_statements` 和 `technical_stats` 比较。
   - **不得使用你对该日期之后事件的记忆**（股价走势、财报、并购、管理层变动等）。所有事实必须来自本次工具结果；报告与审查里都不能提到该日期之后的事。
   - `save_decision` 的 `price` 用上面的收盘价，`data_as_of` 用回放日期。
-  - 不要读取仓库的 `evals/`、`.local/` 目录（其中有回放样本的分组与事后结果）。
+  - **读取本仓库的 Skill 说明、方法卡与模板不受上面的限制，而且必须读**（`product/skills/*/SKILL.md`、`product/references/`）：有 Read 或 Skill 工具的宿主用它们；Codex 没有这些工具，用 shell 的 `cat` / `sed -n` 只读这些文件。不要因为“回放不运行命令”而跳过任何 Skill。
+  - 不要读取仓库的 `evals/`、`.local/`、`docs/` 目录（其中有回放样本的分组与事后结果）。
 - ETF 没有 SEC 财报：跳过基本面那一步，改为说明 ETF 的跟踪对象、费率和持仓特征（资料不足时如实说明），然后做技术面与估值背景。
 
 ## 1. 启动独立的正向与反向研究（第一步就做，两个并行）
@@ -56,7 +57,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
        - `.venv/bin/python -I product/skills/moomoo-technical-anomaly/scripts/handle_technical_anomaly.py US.<TICKER> --time-range 7 --json`
        OpenD 未连接时记为数据缺口（`SOURCE_UNSUPPORTED`：OpenD 未运行），不重试。
    - moomoo 接口按 Skill 原样的 `curl -sG 'https://ai-news-search.moomoo.com/...'` 形式调用，结果直接输出，不加 `-o` 或重定向，不写任何临时文件。
-   - Bash 只用于上面两类命令，每次一条，不用 `for`、`ls`、`grep`、`cat` 等浏览文件（查看 Skill 说明用 Read 或 Skill 工具）。某条命令被权限拒绝时，只说明那条命令的格式不符合要求：按上面的格式改正后重试一次，其余 moomoo 步骤照常执行。
+   - Bash 只用于上面两类命令，每次一条，不用 `for`、`ls`、`grep`、`cat` 等浏览文件（查看 Skill 说明用 Read 或 Skill 工具；Codex 没有这两个工具时，可以用 `cat` / `sed -n` 只读 `product/skills/` 与 `product/references/` 下的文件）。某条命令被权限拒绝时，只说明那条命令的格式不符合要求：按上面的格式改正后重试一次，其余 moomoo 步骤照常执行。
    - 不使用 `moomoo-stock-digest` 替代自己的事件分析；如调用，其结论同样只作参考展示。
 
 9. `get_macro_snapshot` 与 `get_market_context`（各一次）；`get_peer_candidates` 与 `get_peer_snapshot`。
