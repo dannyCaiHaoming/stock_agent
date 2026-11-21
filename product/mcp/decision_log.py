@@ -72,7 +72,7 @@ def _forecasts(value: Any) -> list[dict[str, Any]]:
             raise DecisionLogError("FORECAST_PROBABILITY_INVALID: number between 0 and 1")
         if target in LEAN_TARGETS and probability <= Decimal("0.5"):
             raise DecisionLogError(f"FORECAST_NO_LEAN: {target} needs a lean above 0.5 for the chosen "
-                                   "direction (e.g. 0.55); pick the more likely side even for NO_TRADE")
+                                   "direction; pick the more likely side even for NO_TRADE")
         basis = str(item.get("basis", "")).strip()
         if not basis:
             raise DecisionLogError(f"FORECAST_BASIS_REQUIRED: one sentence of evidence for {target}")
