@@ -5,6 +5,10 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 # 个股研究流程
 
+## 先选流程
+- **默认走决策卡**：用户问的是行动（“我持有/未持有 TICKER，该怎么办”“要不要买/减仓”“该不该买/卖”），且没有要求完整研究时，改用 `decision-card` Skill，不启动子 Agent，以下步骤都不执行。
+- **完整研究**：用户明确说“完整研究”“深度研究”“写研究报告”，或任务是历史回放的完整研究时，才走下面的流程。
+
 依赖 stock-data MCP 工具、`advocate` 与 `skeptic` 子 Agent，以及以下 Skills：`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`investment-decision`。
 
 ## 0. 确认输入（不要过度提问）

@@ -6,9 +6,12 @@
   .venv/bin/python -I scripts/build-key-moments.py --scan [--days 5] [--date YYYY-MM-DD]
         # 不建表：列出最近 N 个交易日内出现关键时刻的股票（用来决定本周研究哪几只）
 
-定义见 product/deterministic/key_moments.py。入场 = 信号日的下一个交易日收盘；基准 = 所属板块 ETF
-（.local/cache/derived/signals/meta.json 的映射，缺省 SPY）。对照 = 同一批股票每 5 个交易日取一次、不加条件。
+定义见 product/deterministic/key_moments.py。每行写两套结果：
+  outcome       旧口径，入场 = 信号日的下一个交易日收盘（已登记的消息面账本评分读它，不可改）；
+  outcome_open  Decision-First 协议口径，入场 = 信号日的下一个交易日复权开盘，入场日为第 1 日，第 h 日收盘退出。
+基准 = 所属板块 ETF（.local/cache/derived/signals/meta.json 的映射，缺省 SPY）。对照 = 同一批股票每 5 个交易日取一次、不加条件。
 输出 .local/cache/derived/signals/key-moments.jsonl 与 key-moments-meta.json，供 get_key_moments 按“当时已知”统计。
+--end YYYY-MM-DD 只取该日之前的价格（用于复现某天的建表，价格响应走缓存）。
 """
 
 from __future__ import annotations
@@ -37,6 +40,13 @@ def closes(ticker: str, start: str, end: str | None = None) -> tuple[list[str], 
     return [d for d, _ in pairs], [c for _, c in pairs]
 
 
+def prices(ticker: str, start: str, end: str | None = None) -> tuple[list[str], list[float], list[float | None], list[float | None]]:
+    """(dates, legacy closes, strict adjusted opens, strict adjusted closes); see key_moments.price_series. Dates and
+    legacy closes are exactly those of `closes` (as_of None, so a rebuild with `end` reuses the cached response)."""
+    rows = data_tools.get_price_history(ticker, start=start, end=end, as_of=None, max_rows=6000)["rows"]
+    return km.price_series(rows)
+
+
 def scan(days: int, date: str | None) -> None:
     hits = []
     for ticker in universe():
@@ -55,16 +65,19 @@ def scan(days: int, date: str | None) -> None:
 
 
 def report(events: list[dict], path: Path, meta: dict) -> None:
-    lines = ["# 关键图形时刻之后的收益分布", "",
+    lines = ["# 关键图形时刻之后的收益分布（开盘口径）", "",
              f"{len(meta['tickers'])} 只股票，{meta['start']} 起，建表于 {meta['built_at']}。定义见 `product/deterministic/key_moments.py`。",
-             "入场为信号日的下一个交易日收盘。“期望”= 上涨概率 × 平均涨幅 + 下跌概率 × 平均跌幅。对照为同一批股票每 5 个交易日取一次。",
+             "**口径**：入场 = 信号日的下一个交易日**复权开盘**（open × adj_close / close），入场日为第 1 日，第 h 日收盘退出；",
+             "相对板块 = 同一窗口内板块 ETF 从同日复权开盘到同日收盘。与 Decision-First 协议 v1 §3 一致。",
+             "旧的“次日收盘入场”口径见 `distribution-close-entry-2026-11-11.md`（表中 `outcome` 字段仍保留，供已登记的评分使用）。",
+             "“期望”= 上涨概率 × 平均涨幅 + 下跌概率 × 平均跌幅。对照为同一批股票每 5 个交易日取一次。",
              "名单按 2026-10 的认知挑选，有幸存者偏差：所有数字（含对照）都偏高，应与对照行比较，而不是看绝对值。", ""]
     for h in km.HORIZONS:
         lines += [f"## 之后 {h} 个交易日", "",
                   "| 时刻 | 次数 | 上涨概率 | 平均涨幅 | 平均跌幅 | 期望 | 收益 25%/中位/75% | 相对板块 25%/中位/75% | 跑赢板块概率 | 途中最大回撤 中位/最差一成 |",
                   "|---|---|---|---|---|---|---|---|---|---|"]
         for name in [km.BASELINE, *km.MOMENTS]:
-            s = km.summarize([e["outcome"] for e in events if e["moment"] == name], h)
+            s = km.summarize([e["outcome_open"] for e in events if e["moment"] == name], h)
             if not s:
                 continue
             f = lambda v: "/".join("—" if x is None else f"{x:+.1f}" for x in v)  # noqa: E731
@@ -85,6 +98,7 @@ def main() -> None:
     parser.add_argument("--scan", action="store_true")
     parser.add_argument("--days", type=int, default=5)
     parser.add_argument("--date")
+    parser.add_argument("--end", help="只取该日（含）之前的价格，用于复现某天的建表")
     args = parser.parse_args()
     if args.scan:
         scan(args.days, args.date)
@@ -92,23 +106,30 @@ def main() -> None:
     out_dir = settings.cache().root / "derived" / "signals"
     out_dir.mkdir(parents=True, exist_ok=True)
     benchmarks = json.loads((out_dir / "meta.json").read_text()).get("benchmarks", {}) if (out_dir / "meta.json").exists() else {}
-    bench_cache: dict[str, dict[str, float]] = {}
+    bench_cache: dict[str, tuple[dict[str, float], dict[str, float | None], dict[str, float | None]]] = {}
     events, errors, tickers = [], {}, universe()
     price_start = str(int(args.start[:4]) - 2) + args.start[4:]
     for n, ticker in enumerate(tickers):
         try:
             etf = benchmarks.get(ticker, "SPY")
             if etf not in bench_cache:
-                bench_cache[etf] = dict(zip(*closes(etf, price_start)))
-            d, c = closes(ticker, price_start)
+                bd, bc, bo, bca = prices(etf, price_start, args.end)
+                bench_cache[etf] = (dict(zip(bd, bc)), dict(zip(bd, bo)), dict(zip(bd, bca)))
+            bench_close, bench_open, bench_close_adj = bench_cache[etf]
+            d, c, o, ca = prices(ticker, price_start, args.end)
+
+            def both(i: int) -> dict:
+                return {"outcome": km.outcome(d, c, bench_close, i),
+                        "outcome_open": km.outcome_open(d, o, ca, bench_open, bench_close_adj, i)}
+
             for m in km.detect(d, c):
                 if m["date"] >= args.start and m["index"] + 1 < len(d):
                     events.append({"moment": m["moment"], "ticker": ticker, "date": m["date"], "benchmark": etf,
-                                   "detail": m["detail"], "outcome": km.outcome(d, c, bench_cache[etf], m["index"])})
+                                   "detail": m["detail"], **both(m["index"])})
             for i in range(km.MIN_HISTORY, len(d) - 1, 5):
                 if d[i] >= args.start:
                     events.append({"moment": km.BASELINE, "ticker": ticker, "date": d[i], "benchmark": etf,
-                                   "detail": {}, "outcome": km.outcome(d, c, bench_cache[etf], i)})
+                                   "detail": {}, **both(i)})
         except Exception as exc:  # noqa: BLE001 - record and continue
             errors[ticker] = f"{type(exc).__name__}: {exc}"[:200]
         print(f"{n + 1}/{len(tickers)} {ticker} events={len(events)}", file=sys.stderr, flush=True)
@@ -117,6 +138,9 @@ def main() -> None:
             handle.write(json.dumps(e, ensure_ascii=False) + "\n")
     meta = {"built_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "start": args.start, "tickers": tickers,
             "errors": errors, "horizons": list(km.HORIZONS), "moments": km.MOMENTS,
+            "entry_rules": {"outcome": "next session close (legacy, used by registered news-review scoring)",
+                            "outcome_open": "next session adjusted open, entry day = day 1, exit at adj_close of day h; strict: adj_close/open missing -> None, never replaced by close"},
+            "price_end": args.end,
             "note": "股票池按 2026-10 的认知挑选，存在幸存者偏差；板块 ETF 按当前板块映射。"}
     (out_dir / "key-moments-meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2))
     print(out_dir / "key-moments.jsonl", len(events), "events;", len(errors), "errors")

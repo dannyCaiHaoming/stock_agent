@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import re
 import statistics
+from datetime import time as dtime
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -250,28 +252,33 @@ def get_key_moments(ticker: str, days: int = 20, as_of: str | None = None) -> di
     from product.mcp import data_tools
     if not 1 <= int(days) <= 60:
         raise DataToolError("DAYS_INVALID: 1-60 sessions")
-    cutoff = _cutoff(as_of).astimezone(NEW_YORK).date().isoformat()
+    cutoff_ny = _cutoff(as_of).astimezone(NEW_YORK)
+    cutoff = cutoff_ny.date().isoformat()
+    # a session's close is only known after 16:00 New York: before that, today's row is not used (same as classify_decision_event)
+    last_complete = (cutoff_ny.date() if cutoff_ny.time() >= dtime(16, 0) else cutoff_ny.date() - timedelta(days=1)).isoformat()
     start = str(int(cutoff[:4]) - 3) + cutoff[4:]
     rows = data_tools.get_price_history(ticker, start=start, end=cutoff, as_of=as_of, max_rows=1200)["rows"]
-    pairs = [(r[0], float(r[5] or r[4])) for r in rows if (r[5] or r[4])]
+    pairs = [(r[0], float(r[5] or r[4])) for r in rows if (r[5] or r[4]) and r[0] <= last_complete]
     dates, closes = [d for d, _ in pairs], [c for _, c in pairs]
     if len(closes) <= km.MIN_HISTORY:
         raise DataToolError("HISTORY_TOO_SHORT: needs about 260 sessions of prices")
     recent = [m for m in km.detect(dates, closes) if m["index"] >= len(dates) - int(days)]
     table, meta = _key_moment_events()
 
+    # Entry rule of the Decision-First protocol: next session's adjusted open (`outcome_open`), not the legacy
+    # next-close `outcome` that registered evaluations still read.
     def stats(name: str) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for h in km.HORIZONS:
-            known = [e["outcome"] for e in table.get(name, [])
-                     if (e["outcome"].get(str(h)) or {}).get("exit_date", "9999") < cutoff]
+            known = [e["outcome_open"] for e in table.get(name, [])
+                     if (e["outcome_open"].get(str(h)) or {}).get("exit_date", "9999") < cutoff]
             out[f"{h}d"] = km.summarize(known, h)
         return out
 
     names = list(dict.fromkeys(m["moment"] for m in recent))
     own = [{"moment": e["moment"], "date": e["date"],
-            **{f"ret_{h}d_pct": round(e["outcome"][str(h)]["ret"] * 100, 1) for h in km.HORIZONS
-               if (e["outcome"].get(str(h)) or {}).get("exit_date", "9999") < cutoff}}
+            **{f"ret_{h}d_pct": round(e["outcome_open"][str(h)]["ret"] * 100, 1) for h in km.HORIZONS
+               if (e["outcome_open"].get(str(h)) or {}).get("exit_date", "9999") < cutoff}}
            for name in names for e in table.get(name, []) if e["ticker"] == ticker.upper() and e["date"] < cutoff]
     return {
         "ticker": ticker.upper(), "as_of": cutoff, "state": km.state(dates, closes),
@@ -283,9 +290,11 @@ def get_key_moments(ticker: str, days: int = 20, as_of: str | None = None) -> di
         "provenance": {"source_id": "key-moments", "built_at": meta.get("built_at"),
                        "notes": "Moments are detected from adjusted daily closes up to as_of. what_followed pools the "
                                 "same moment across the whole universe since " + str(meta.get("start")) + ", entered at "
-                                "the next session's close, only outcomes that ended before as_of. p_up = share of "
+                                "the next session open (adjusted open of the first regular session after the moment's "
+                                "close, that day counts as day 1, exit at the close of day h; same rule as the "
+                                "Decision-First fill), only outcomes that ended before as_of. p_up = share of "
                                 "positive returns; expectancy_pct = p_up x avg_gain + (1 - p_up) x avg_loss; excess is "
-                                "versus the sector ETF; worst_drawdown is the lowest close on the way. Compare each "
+                                "versus the sector ETF over the same window (entry-day adjusted open to exit-day close); worst_drawdown is the lowest close on the way relative to the entry open. Compare each "
                                 "moment with baseline_any_day, not with zero: the universe was picked with hindsight "
                                 "(survivorship), so every number including the baseline is too high. " + str(meta.get("note", ""))},
     }

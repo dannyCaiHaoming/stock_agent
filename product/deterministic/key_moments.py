@@ -126,6 +126,47 @@ def outcome(dates: list[str], closes: list[float], bench: dict[str, float], inde
     return out
 
 
+def price_series(rows: list[list]) -> tuple[list[str], list[float], list[float | None], list[float | None]]:
+    """Daily price rows [date, open, high, low, close, adj_close, volume] -> (dates, closes, opens_adj, closes_adj).
+
+    `closes` is the legacy series (adj_close, else close) used by `detect` and `outcome`; its dates are the sessions
+    that have either. `opens_adj` and `closes_adj` are strict, for `outcome_open`: closes_adj is the adj_close itself
+    and opens_adj = open x adj_close / close, each None when any needed value is missing. Nothing is substituted."""
+    kept = [r for r in rows if (r[5] or r[4])]
+    opens_adj = [float(r[1]) * float(r[5]) / float(r[4]) if r[1] and r[4] and r[5] else None for r in kept]
+    closes_adj = [float(r[5]) if r[5] else None for r in kept]
+    return [r[0] for r in kept], [float(r[5] or r[4]) for r in kept], opens_adj, closes_adj
+
+
+def outcome_open(dates: list[str], opens_adj: list[float | None], closes_adj: list[float | None],
+                 bench_opens_adj: dict[str, float | None], bench_closes_adj: dict[str, float | None], index: int) -> dict:
+    """Same as `outcome`, but with the execution rule of the Decision-First protocol: enter at the adjusted OPEN of the
+    session after the moment (dates[index + 1]; adjusted open = open x adj_close / close of that day), count that day
+    as day 1 and exit at the close of day h (dates[index + h]).
+
+    Per horizon: exit_date, ret (exit close / entry open - 1), excess (ret minus the benchmark's return over the same
+    window, adjusted open of the entry day to close of the exit day), worst (lowest close from the entry day to the
+    exit day divided by the entry open, minus 1; can be positive if every close is above the open).
+    A horizon is None when the stock's entry open or exit close is missing or the window runs past the data; when only
+    the benchmark is missing the cell is kept with excess = None. Nothing is substituted for a missing price:
+    callers pass strict adjusted prices (see `price_series`), never a plain close in place of a missing adj_close."""
+    start = index + 1
+    out: dict = {"entry_date": dates[start] if start < len(dates) else None}
+    entry = opens_adj[start] if start < len(dates) else None
+    for h in HORIZONS:
+        j = index + h
+        if entry is None or j >= len(dates) or closes_adj[j] is None:
+            out[str(h)] = None
+            continue
+        ret = closes_adj[j] / entry - 1
+        b0, b1 = bench_opens_adj.get(dates[start]), bench_closes_adj.get(dates[j])
+        window = [c for c in closes_adj[start:j + 1] if c is not None]
+        out[str(h)] = {"exit_date": dates[j], "ret": round(ret, 5),
+                       "excess": round(ret - (b1 / b0 - 1), 5) if b0 and b1 else None,
+                       "worst": round(min(window) / entry - 1, 5)}
+    return out
+
+
 def state(dates: list[str], closes: list[float]) -> dict | None:
     """Where the last close sits: platform bounds if the last PLATFORM sessions form one, distance to the 40-day and
     252-day extremes, and the trend share."""

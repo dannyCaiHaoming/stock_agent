@@ -8,6 +8,8 @@
 #   结果在运行目录的 group_forecasts.jsonl（不写研究报告）。
 # --moment NAME（需同时给 --as-of 时刻日期）：消息面复盘，按 moment-review Skill 写入 moment_reviews.jsonl；
 #   Codex 开启联网检索。--prompt 可附加之后的结果等说明。
+# --decision held|not_held：决策卡（decision-card Skill），写入 trade_decisions.jsonl；Codex 开启联网检索（消息归因）。
+# --seed-decisions FILE：开始前把 FILE 复制为运行目录的 trade_decisions.jsonl（测试“有上一卡”）。
 # 默认模型（可用 --model 或环境变量覆盖）：
 #   claude → $STOCK_AGENT_CLAUDE_MODEL，默认 claude-haiku-5-5
 #   codex  → $STOCK_AGENT_CODEX_MODEL，默认 gpt-6.1-terra
@@ -20,10 +22,10 @@ set -euo pipefail
 main() {
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n '2,16p' "$0"; exit 2; }
+usage() { sed -n '2,18p' "$0"; exit 2; }
 [ $# -ge 2 ] || usage
 host="$1"; ticker="$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"; shift 2
-model=""; extra=""; as_of=""; tag=""; group=""; moment=""
+model=""; extra=""; as_of=""; tag=""; group=""; moment=""; decision=""; seed=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) model="$2"; shift 2 ;;
@@ -32,10 +34,12 @@ while [ $# -gt 0 ]; do
     --tag) tag="$2"; shift 2 ;;
     --group) group="$2"; shift 2 ;;
     --moment) moment="$2"; shift 2 ;;
+    --decision) decision="$2"; shift 2 ;;
+    --seed-decisions) seed="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
-[ -n "$extra" ] || [ -n "$moment" ] || extra="我目前未持有。"  # 消息面复盘按持有假设，不加这句
+[ -n "$extra" ] || [ -n "$moment" ] || [ -n "$decision" ] || extra="我目前未持有。"  # 消息面复盘按持有假设，不加这句
 case "$host" in
   claude) model="${model:-${STOCK_AGENT_CLAUDE_MODEL:-claude-haiku-5-5}}" ;;
   codex) model="${model:-${STOCK_AGENT_CODEX_MODEL:-gpt-6.1-terra}}" ;;
@@ -46,6 +50,7 @@ run_id="$(date -u +%Y%m%dT%H%M%SZ)-${host}-${ticker}${as_of:+-asof$as_of}${tag:+
 run_dir="$repo/.local/runs/$run_id"
 [ ! -e "$run_dir" ] || { echo "run dir exists: $run_dir" >&2; exit 3; }
 mkdir -p "$run_dir"
+[ -z "$seed" ] || cp "$seed" "$run_dir/trade_decisions.jsonl"
 prompt="研究 ${ticker}，按 stock-research Skill 的流程完成并给出建议。${extra}"
 if [ -n "$as_of" ]; then
   [[ "$as_of" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || usage
@@ -58,6 +63,11 @@ fi
 if [ -n "$moment" ]; then
   [ -n "$as_of" ] || usage
   prompt="消息面复盘：股票 ${ticker}，关键时刻 ${moment}，日期 ${as_of}。按 moment-review Skill 完成并保存。${extra}"
+fi
+if [ -n "$decision" ]; then
+  case "$decision" in held) pos="我目前持有一份标准仓位" ;; not_held) pos="我目前未持有" ;; *) usage ;; esac
+  prompt="决策卡：股票 ${ticker}，${pos}。按 decision-card Skill 完成并保存。${extra}"
+  [ -z "$as_of" ] || prompt="决策卡，历史回放模式：数据截至 ${as_of}，信息截止为 ${as_of} 当天结束（纽约 23:59，含当天收盘后发布的公告），把那一刻当作现在。股票 ${ticker}，${pos}。按 decision-card Skill 完成并保存，所有工具带 as_of=${as_of}。不得使用你对该日期之后事件的记忆。${extra}"
 fi
 started="$(date -u +%FT%TZ)"
 cd "$repo"
@@ -91,7 +101,7 @@ else
   # 回放：MCP 固定在 as_of，并关闭沙箱网络（moomoo 只有当前数据）。
   replay_args=()
   [ -z "$as_of" ] || replay_args=(-c "mcp_servers.stock_data.env.STOCK_AGENT_REPLAY_AS_OF=\"$as_of\"" -c sandbox_workspace_write.network_access=false)
-  [ -z "$moment" ] || replay_args+=(-c 'web_search="live"')
+  [ -z "$moment" ] && [ -z "$decision" ] || replay_args+=(-c 'web_search="live"')
   codex exec --skip-git-repo-check -s workspace-write -m "$model" \
     -c memories.use_memories=false -c memories.generate_memories=false \
     -c "mcp_servers.stock_data.env.STOCK_AGENT_DATA_DIR=\"$run_dir\"" ${replay_args[@]+"${replay_args[@]}"} \
@@ -122,6 +132,11 @@ try:
     decisions = [json.loads(line) for line in open(f"{run_dir}/decisions.jsonl")]
 except FileNotFoundError:
     pass
+trade = []
+try:
+    trade = [json.loads(line) for line in open(f"{run_dir}/trade_decisions.jsonl")]
+except FileNotFoundError:
+    pass
 group_forecasts = []
 try:
     group_forecasts = [json.loads(line) for line in open(f"{run_dir}/group_forecasts.jsonl")]
@@ -131,7 +146,9 @@ record = {"run_id": run_id, "host": host, "model": model, "observed_model": obse
           "group_forecasts": [{"forecast_id": g.get("forecast_id"), "tickers": len(g.get("forecasts", []))} for g in group_forecasts],
           "replay_as_of": as_of or None, "started_at": started,
           "finished_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "exit_code": int(status),
-          "decisions": [{k: d.get(k) for k in ("decision_id", "action", "confidence", "report_path")} for d in decisions]}
+          "decisions": [{k: d.get(k) for k in ("decision_id", "action", "confidence", "report_path")} for d in decisions],
+          "trade_decisions": [{k: d.get(k) for k in ("decision_id", "group", "action", "horizon_days", "report_path")}
+                              for d in trade]}
 json.dump(record, open(f"{run_dir}/run.json", "w"), ensure_ascii=False, indent=2)
 print(json.dumps(record, ensure_ascii=False, indent=2))
 PY

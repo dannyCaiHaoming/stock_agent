@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import json
 import random
-import statistics
 from datetime import date
 import sys
 from pathlib import Path
@@ -23,11 +22,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+from product.deterministic import decision_events as de  # noqa: E402
 from product.deterministic import key_moments as km  # noqa: E402
 from product.mcp import data_tools, settings  # noqa: E402
 
-WINDOW = 5
-THRESHOLD = 2.0
+WINDOW = de.WINDOW
+THRESHOLD = de.THRESHOLD
 START = "2019-01-01"
 
 _prices: dict[str, dict[str, float]] = {}
@@ -46,16 +46,7 @@ def deviation(ticker: str, bench: str, day: str) -> float | None:
     _, b = prices(bench)
     if day not in p:
         return None
-    i = dates.index(day)
-    if i < 121:
-        return None
-    rets = [p[dates[k]] / p[dates[k - 1]] - 1 for k in range(i - 120, i - WINDOW + 1)]
-    vol = statistics.pstdev(rets)
-    d0 = dates[i - WINDOW]
-    if not vol or d0 not in b or day not in b:
-        return None
-    excess = (p[day] / p[d0] - 1) - (b[day] / b[d0] - 1)
-    return excess / (vol * WINDOW ** 0.5)
+    return de.deviation_z(p, b, dates, dates.index(day))
 
 
 def recent(days: int) -> list[dict]:
