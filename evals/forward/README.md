@@ -1,5 +1,7 @@
 # 前瞻纸面预测账本（baseline CIO）
 
+> **2026-11-22 起暂停新增**：`forward-run.sh` 与 `forward-groups.sh` 不再运行，额度让给 Decision-First 新账本（协议见 [decision-protocol-v1.md](decision-protocol-v1.md)）。已有记录保留，照原规则到期评分。
+
 目的：从现在起冻结系统“当时”的预测（含 NO_TRADE），之后的结果无法被事后重新解释。这是 baseline：用现有 CIO 流程，**不新增方法卡**（earnings-reaction 方法卡处于暂停状态）。不涉及真实交易与持仓，研究提示固定为“我目前未持有。”。
 
 ## 文件

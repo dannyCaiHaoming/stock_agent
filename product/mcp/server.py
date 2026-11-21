@@ -465,7 +465,7 @@ def save_decision(ticker: str, action: str, confidence: str, horizon: str, thesi
         vs YoY growth in the latest reported quarter, ±1pp),
       operating_margin (expand|contract|flat: GAAP margin in that quarter vs the same quarter a year earlier, ±0.5pp),
       relative_return_60d and relative_return_126d (outperform|underperform: next 60 / 126 sessions vs the
-        sector ETF; probability must be above 0.5),
+        sector ETF; probability is for the stated direction, 0.5 to 1; 0.5 = no edge),
       optional guidance (raise|cut|maintain|not_applicable). probability = chance the stated direction happens.
     expected_return_pct: optional; probability-weighted scenario value vs price (12-month space), e.g. "12.5".
     variant: experiment label if the task names one.

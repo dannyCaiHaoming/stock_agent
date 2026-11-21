@@ -238,13 +238,16 @@ class DecisionLogTests(unittest.TestCase):
             with self.subTest(overrides=overrides), self.assertRaises(decision_log.DecisionLogError):
                 self.save(**overrides)
 
-    def test_relative_return_needs_a_lean(self):
-        flat = [{"target": "revenue_growth", "direction": "flat", "probability": "0.6", "basis": "b"},
-                {"target": "operating_margin", "direction": "flat", "probability": "0.6", "basis": "b"},
-                {"target": "relative_return_60d", "direction": "underperform", "probability": "0.55", "basis": "b"},
-                {"target": "relative_return_126d", "direction": "underperform", "probability": "50", "basis": "b"}]
-        with self.assertRaises(decision_log.DecisionLogError) as caught:
-            self.save(forecasts=flat)
+    def test_relative_return_allows_no_edge_but_not_below_half(self):
+        def forecasts(p126):
+            return [{"target": "revenue_growth", "direction": "flat", "probability": "0.6", "basis": "b"},
+                    {"target": "operating_margin", "direction": "flat", "probability": "0.6", "basis": "b"},
+                    {"target": "relative_return_60d", "direction": "underperform", "probability": "0.55", "basis": "b"},
+                    {"target": "relative_return_126d", "direction": "underperform", "probability": p126, "basis": "b"}]
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_DATA_DIR": root}):
+            self.save(forecasts=forecasts("50"))  # 0.5 = no edge, accepted
+            with self.assertRaises(decision_log.DecisionLogError) as caught:
+                self.save(forecasts=forecasts("0.45"))
         self.assertIn("FORECAST_NO_LEAN", str(caught.exception))
 
     def test_group_forecasts_need_every_field_and_a_spread(self):

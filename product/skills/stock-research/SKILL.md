@@ -92,7 +92,7 @@ description: 单只美股或 ETF 的端到端研究入口：用户说“研究/�
 
 1. 在对话中给出完整报告。
 2. 报告定稿后调用 `save_decision` 保存（不要先存草稿再存终稿），并告诉用户保存位置。
-   - 被校验拒绝（例如 `REPORT_SECTIONS_MISSING`、`FORECAST_NO_LEAN`）时，按错误信息改正后重试一次；
+   - 被校验拒绝（例如 `REPORT_SECTIONS_MISSING`、`FORECAST_NO_LEAN`——所选方向的概率低于 0.5 时改选另一方向）时，按错误信息改正后重试一次；
    - 仍失败才报告错误。
 
 ## 预算

@@ -8,6 +8,11 @@
 set -uo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo"
+# 2026-11-22 起暂停（Decision-First 协议 v1 §1 第 4 项）：额度让给新决策账本。恢复时设 STOCK_AGENT_FORWARD_RUN_RESUME=1。
+if [ "${STOCK_AGENT_FORWARD_RUN_RESUME:-}" != "1" ]; then
+  echo "FORWARD_PAUSED 2026-11-22 起暂停，见 evals/forward/decision-protocol-v1.md；未运行任何模型。"
+  exit 0
+fi
 mkdir -p .local/data/history
 log=".local/data/history/forward-run.log"
 say() { echo "$(date -u +%FT%TZ) $*" | tee -a "$log"; }

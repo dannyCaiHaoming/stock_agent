@@ -35,6 +35,14 @@ SECTOR_ETF = {"Technology": "XLK", "Communication Services": "XLC", "Consumer Cy
               "Energy": "XLE", "Basic Materials": "XLB", "Utilities": "XLU", "Real Estate": "XLRE"}
 
 
+
+BINARY_TARGETS = ("relative_return_60d", "relative_return_126d")
+
+
+def no_lean(x: dict) -> bool:
+    """二元目标（相对板块跑赢／跑输）写 0.5 表示无优势，不计命中；三方向目标的 0.5 仍是有效预测。"""
+    return x["target"] in BINARY_TARGETS and float(x["probability"]) == 0.5
+
 def decisions(arg: str) -> list[tuple[str, dict]]:
     path = Path(arg)
     runs = [REPO / ".local/runs" / r for r in json.loads(path.read_text()).values() if r != "FAIL"] \
@@ -153,7 +161,7 @@ def main() -> None:
                 x = f.get(t)
                 if not x:
                     return "—"
-                mark = "" if x.get("actual") is None else ("✅" if x.get("hit") else "❌")
+                mark = "" if x.get("actual") is None else ("无倾向" if no_lean(x) else "✅" if x.get("hit") else "❌")
                 return f"{x['direction']}({x['probability']})→{x.get('actual') or '未出'} {mark}"
             lines.append(f"| {r['ticker']} | {r['action']} | {r['expected_return_pct'] or '—'} | {cell('revenue_growth')} | "
                          f"{cell('operating_margin')} | {cell('relative_return_126d')} | {r['net_excess_63d_pct']} | "
@@ -162,8 +170,9 @@ def main() -> None:
         for target in ("revenue_growth", "operating_margin", "relative_return_126d"):
             items = [x for r in group for x in r["forecasts"] if x["target"] == target and x.get("actual") is not None]
             if items:
-                lines.append(f"- {target}：命中 {sum(x['hit'] for x in items)}/{len(items)}，"
-                             f"平均 Brier {round(statistics.mean(x['brier'] for x in items), 3)}")
+                lean = [x for x in items if not no_lean(x)]
+                lines.append(f"- {target}：命中 {sum(x['hit'] for x in lean)}/{len(lean)}（另有 0.5 无倾向 "
+                             f"{len(items) - len(lean)} 个），平均 Brier {round(statistics.mean(x['brier'] for x in items), 3)}")
         for action in ("BUY", "NO_TRADE"):
             values = [r["net_excess_126d_pct"] for r in group if (r["action"] in ("BUY", "ADD")) == (action == "BUY")
                       and r["net_excess_126d_pct"] is not None]

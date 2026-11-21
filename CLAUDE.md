@@ -18,7 +18,7 @@
 - Decision: never multiply LLM p by historical avg gain/loss from different conditions; card shows relative / absolute / cash-destination columns separately — Reason: different populations and variables
 - Decision: unified fill = next regular session open after decided_at; Δ=(w1−w0)(R_stock−R_alt)−cost diff, HOLD/WAIT=0 — Reason: always-hold scores exactly zero, no gaming
 - Decision: lightweight chain default, full advocate/skeptic/CIO on request only — Reason: ablation shows no gain, 5-6 min per run exhausts Codex quota
-- Decision (proposed, pending user confirmation in design doc §7): expand scan to S&P 500 stratified, pause forward-run.sh and forward-groups.sh — Reason: 100 events with ~11 reduces gives only 39-55% power; 165-255 events needed
+- Decision (confirmed 2026-11-22, protocol v1): expand scan to S&P 500 stratified, pause forward-run.sh and forward-groups.sh, primary scoring swaps into sector ETF, E2 wins overlap with E1 — Reason: 100 events with ~11 reduces gives only 39-55% power; 165-255 events needed
 - Decision: expected return from scenario table no longer gates BUY/NO_TRADE; valuation only sizes position — Reason: base scenario negative in 65/84 replay reports regardless of regime, 1-year value gap vs 60-day window mismatch
 - Decision: stop adding replay dates / tuning rules for 60-day direction — Reason: ablation, A/A'/C, plan D all at coin-flip; pre-registered rule in plan D said stop
 - Decision: moment definitions normalised by each stock's daily volatility, thresholds not tuned to results — Reason: same rule must fit KO and RKLB; avoid data dredging
