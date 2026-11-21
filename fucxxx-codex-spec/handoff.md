@@ -47,7 +47,7 @@
 ## 收口状态
 - 总设计已回写：§7 标为已确认；E1/E2 重叠规则改为 E2 优先，并指向协议。
 - 路线已回写：P0 标完成，暂停方式写明。
-- P0 改动（未提交）：
+- P0 改动：
   - 协议 `evals/forward/decision-protocol-v1.md`（新）；
   - `investment-decision` SKILL：去掉默认 BUY 与 > 0.5 强制，说明所选方向概率；
   - `decision_log.py`、`server.py`、`stock-research` SKILL：允许 0.5，拒收 < 0.5；
@@ -57,4 +57,4 @@
   - AGENTS.md / CLAUDE.md 的 learnings 标为已确认。
 - 验证：`tests.test_stock_data_tools` 26 个测试通过；`forward-run.sh` 实跑输出 FORWARD_PAUSED，退出码 0；§8 手算例由主会话与 Codex 分别复算一致。
 - 清理：测试曾向 `.local/data/` 误写一条 AAA 记录，已删除（文件与目录都是本次新建的），测试已改为在临时目录中运行。
-- commit／push：P0 改动未提交。
+- commit／push：P0 已提交并推送（021199f）。
