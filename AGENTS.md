@@ -57,7 +57,6 @@ Skill 包根：各宿主的 skills 目录（`~/.claude/skills/`、`~/.codex/skil
 
 - 换主会话时不重新设计：新主会话读 handoff、总设计、活动 plan 与 `git status`，从“下一步”继续，并在 handoff 头部改写协调负责人。
 - 同一时刻只有一个主会话；并行实现者写入的文件互不重叠，`server.py` 等共享文件指定一名实现者。
-- `.codex/agents/` 中 `dev_architect`、`dev_contracts`、`dev_eval`、`dev_reviewer` 是 2026-10 瘦身前的定义（OpenSpec、Gate、Promotion），当前流程不使用。
 
 <!-- handoff:learnings:begin -->
 ## Session Learnings (auto-updated by handoff)
