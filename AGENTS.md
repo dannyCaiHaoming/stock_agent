@@ -33,6 +33,32 @@
 - 只做当前任务需要的最小改动；新增机制前先说明现有能力为何不够。
 - 宿主实跑调试统一用 `scripts/dev-research.sh <claude|codex> <TICKER> [--model M]`：2026-11-10 起调试与批量回放优先用 Codex（2026-11-14 起默认 `gpt-6.1-terra`：登记对照中它的消息面概率有排序能力而 `gpt-6-luna` 没有，见 `evals/key-moments/news-review-prob-results-2026-11-14.md`；`gpt-6-luna` 只用于省额度的对照），Claude Code 会话额度留给交互开发；Claude Code 默认 `claude-haiku-5-5`。可用 `--model` 或 `STOCK_AGENT_CLAUDE_MODEL` / `STOCK_AGENT_CODEX_MODEL` 覆盖。产物只写入 `.local/runs/<run-id>/`；不要写到 `/tmp` 或用户主目录。
 
+## 开发协作（fucxxx-codex-spec）
+
+本项目采用 fucxxx-codex-spec。涉及设计、计划、实施、复核、恢复或收口时，即使用户未点名，也使用该 Skill 分流；小修改只核对约束并修改、验证，design／plan 按需建立。普通问答直接回答。
+Skill 入口：宿主已安装的 `fucxxx-codex-spec`（Claude Code `~/.claude/skills/fucxxx-codex-spec/SKILL.md`；Codex `~/.codex/skills/fucxxx-codex-spec/SKILL.md`）。
+Skill 包根：各宿主的 skills 目录（`~/.claude/skills/`、`~/.codex/skills/`）。
+阶段能力入口：同包根（`fucxxx-codex-spec-init`／`-design`／`-plan`）。
+项目资料根：`fucxxx-codex-spec/`（`handoff.md`、`designs/`、`plans/`、`evidence/`）；总设计沿用 `docs/design-decision-first-2026-11-21.md`，路线沿用 `docs/roadmap.md`。
+
+- 开始相关工作时读 Skill 所需内容，按任务选读 `fucxxx-codex-spec/handoff.md`、相关 design 和活动 plan；已有明确派单时直接读指定资料。执行与恢复方法以 Skill 为准。
+- 开发状态以 `fucxxx-codex-spec/handoff.md` 为准；`.handoff/`（context-handoff 插件）只是会话上下文快照，两者冲突时以前者和实际 git 状态为准。
+- 阶段、范围、基线变化或上下文压缩后，以项目文件和实际状态为准回读相关目标、约束和进度，按需选读。
+- 遵守用户当前授权：只读任务只报告；入口或资料缺失时说明缺口，继续不受影响的授权工作；关键契约不明时暂停受影响实施。
+
+模型分工（2026-11-22 用户决定）：
+
+| 角色 | 默认（Claude Code） | Claude 额度不足时（Codex CLI） |
+|---|---|---|
+| 主会话：设计、plan、关键取舍、复核、整合、回写 handoff | Opus | `codex -m gpt-6.2-astra` |
+| 实现：按 plan §0 交接执行 | Sonnet 子 session（共用 main checkout，不开分支，只写派给它的文件） | 子 Agent `dev-implementer`（`gpt-6.2-sol`，定义在 `.codex/agents/dev_implementer.toml`），或 `codex exec -m gpt-6.2-sol -s workspace-write` |
+| 独立只读复核 | `codex exec -m gpt-6.2-astra -s read-only` | Claude Code 只读复核（有额度时） |
+| 产品实跑与前瞻扫描 | `scripts/dev-research.sh codex …`（默认 `gpt-6.1-terra`） | 同左 |
+
+- 换主会话时不重新设计：新主会话读 handoff、总设计、活动 plan 与 `git status`，从“下一步”继续，并在 handoff 头部改写协调负责人。
+- 同一时刻只有一个主会话；并行实现者写入的文件互不重叠，`server.py` 等共享文件指定一名实现者。
+- `.codex/agents/` 中 `dev_architect`、`dev_contracts`、`dev_eval`、`dev_reviewer` 是 2026-10 瘦身前的定义（OpenSpec、Gate、Promotion），当前流程不使用。
+
 <!-- handoff:learnings:begin -->
 ## Session Learnings (auto-updated by handoff)
 

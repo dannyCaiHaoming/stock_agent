@@ -3,6 +3,10 @@ sandbox_mode = "danger-full-access"
 [agents]
 max_threads = 4
 
+[agents.dev_implementer]
+description = "按活动 plan §0 实现代码与测试（gpt-6.2-sol）；Claude 额度不足时的实现者。"
+config_file = "agents/dev_implementer.toml"
+
 [agents.dev_architect]
 description = "OpenSpec 一致性、能力边界和架构决策。"
 config_file = "agents/dev_architect.toml"
