@@ -255,7 +255,8 @@ class ClassifyDecisionEventTests(unittest.TestCase):
 
         with mock.patch.object(decision_tools.data_tools, "get_price_history", history), \
                 mock.patch.object(decision_tools.data_tools, "list_filings", list_filings), \
-                mock.patch.object(decision_tools, "_benchmark", lambda t: benchmark):
+                mock.patch.object(decision_tools, "_benchmark_with_source",
+                                  lambda t: (benchmark, "none" if benchmark == "no_sector" else "signals_meta")):
             return decision_tools.classify_decision_event("ABC", as_of=as_of)
 
     def test_e1_from_a_filing_accepted_after_the_close(self):
@@ -300,3 +301,30 @@ def walk_over(dates, tail):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BenchmarkFallbackTests(unittest.TestCase):
+    """A stock outside the signals universe gets its sector ETF from the Yahoo profile sector (offline: mocked)."""
+
+    def setUp(self):
+        decision_tools._PROFILE_SECTOR.clear()
+        self.addCleanup(decision_tools._PROFILE_SECTOR.clear)
+
+    def lookup(self, sector=None, fail=False):
+        from product.mcp import context_tools
+
+        def snapshot(tickers):
+            if fail:
+                raise RuntimeError("yahoo down")
+            return {"columns": ["ticker", "name", "sector"], "rows": [[tickers[0], "x", sector]] if sector else []}
+        with mock.patch.object(context_tools, "get_peer_snapshot", snapshot):
+            return decision_tools._benchmark_with_source("ZZZNOTINMETA")
+
+    def test_profile_sector_maps_to_spdr_etf(self):
+        self.assertEqual(self.lookup("Consumer Cyclical"), ("XLY", "yahoo_profile_current"))
+
+    def test_unknown_sector_or_failure_is_no_sector(self):
+        self.assertEqual(self.lookup("Something Else"), ("no_sector", "none"))
+        decision_tools._PROFILE_SECTOR.clear()
+        self.assertEqual(self.lookup(fail=True), ("no_sector", "none"))
+

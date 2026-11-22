@@ -16,11 +16,36 @@ FILINGS_LIMIT = 40  # 8-Ks, newest first; a 3-session lookback needs far fewer
 MAX_LOOKBACK = 20
 
 
-def _benchmark(ticker: str) -> str:
-    """Sector ETF from signals meta.json (same read as scripts/sample-idiosyncratic-moments.py), else no_sector."""
+# Yahoo profile sector -> SPDR sector ETF, the same table scripts/build-signal-events.py used to build meta.json.
+SECTOR_ETF = {"Technology": "XLK", "Communication Services": "XLC", "Consumer Cyclical": "XLY",
+              "Consumer Defensive": "XLP", "Healthcare": "XLV", "Financial Services": "XLF", "Industrials": "XLI",
+              "Energy": "XLE", "Basic Materials": "XLB", "Utilities": "XLU", "Real Estate": "XLRE"}
+_PROFILE_SECTOR: dict[str, tuple[str, str]] = {}
+
+
+def _benchmark_with_source(ticker: str) -> tuple[str, str]:
+    """(sector ETF, source). The signals meta.json mapping first (the universe the statistics were built on); a stock
+    outside it falls back to its current Yahoo profile sector, as meta.json itself was built. Sector labels are
+    current, not point-in-time; they rarely change. no_sector only when neither gives a mapped sector."""
     path = settings.cache().root / "derived" / "signals" / "meta.json"
     mapping = json.loads(path.read_text(encoding="utf-8")).get("benchmarks", {}) if path.exists() else {}
-    return mapping.get(ticker) or de.NO_SECTOR
+    if mapping.get(ticker):
+        return mapping[ticker], "signals_meta"
+    if ticker not in _PROFILE_SECTOR:
+        from product.mcp import context_tools
+        try:
+            snapshot = context_tools.get_peer_snapshot([ticker])
+            columns, rows = snapshot["columns"], snapshot["rows"]
+            sector = rows[0][columns.index("sector")] if rows and "sector" in columns else None
+        except Exception:  # noqa: BLE001 - no profile simply means no sector
+            sector = None
+        etf = SECTOR_ETF.get(sector or "")
+        _PROFILE_SECTOR[ticker] = (etf, "yahoo_profile_current") if etf else (de.NO_SECTOR, "none")
+    return _PROFILE_SECTOR[ticker]
+
+
+def _benchmark(ticker: str) -> str:
+    return _benchmark_with_source(ticker)[0]
 
 
 def _closes(ticker: str, start: str, end: str, as_of: str | None, last_complete: str) -> tuple[dict[str, float], dict]:
@@ -46,7 +71,7 @@ def classify_decision_event(ticker: str, as_of: str | None = None, lookback_sess
     last_day = cutoff_ny.date() if cutoff_ny.time() >= dtime(16, 0) else cutoff_ny.date() - timedelta(days=1)
     last_complete, end = last_day.isoformat(), cutoff_ny.date().isoformat()
     start = str(int(end[:4]) - 3) + end[4:]
-    benchmark = _benchmark(ticker)
+    benchmark, benchmark_source = _benchmark_with_source(ticker)
     closes, price_prov = _closes(ticker, start, end, as_of, last_complete)
     dates = sorted(closes)
     if len(dates) < 2:
@@ -65,7 +90,7 @@ def classify_decision_event(ticker: str, as_of: str | None = None, lookback_sess
                 for row in filings["rows"] if "2.02" in (row[5] or "").split(",")]
     out = de.classify(dates, closes, bench, moments, earnings, lookback_sessions=int(lookback_sessions))
     return {
-        "ticker": ticker, "as_of": dates[-1], "benchmark": benchmark, "lookback_sessions": int(lookback_sessions),
+        "ticker": ticker, "as_of": dates[-1], "benchmark": benchmark, "benchmark_source": benchmark_source, "lookback_sessions": int(lookback_sessions),
         "history_sessions": len(dates), "e2_available": e2_available,
         **out,
         "provenance": {
