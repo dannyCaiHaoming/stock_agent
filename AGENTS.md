@@ -6,7 +6,7 @@
 
 ## 目录
 
-- `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`skeptic-review`、`investment-decision`；评估用的轻量组内方向预测 `direction-forecast`；交易者心法的引用规则 `trader-playbooks`，卡片在 `product/references/methods/trader-*.md`），以及原样引入的 moomoo 官方搜索类与异动类 Skills（来源与约束见 `product/vendor/moomoo-skills.md`；OpenAPI 交易类明确不引入），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。moomoo 的方向判断、情绪与异动解读只作参考展示，不参与研究判断。
+- `product/skills/`：当前启用的研究 Skills（`stock-research` 入口、`research-standards`、`company-fundamentals`、`valuation`、`peer-comparison`、`macro-market-context`、`technical-structure`、`skeptic-review`、`investment-decision`；交易计划生命周期的 `trade-plan`（进场前冻结论点、放弃事实、失效位与预算亏损）与 `plan-review`（先论点后价格的两步复核），记录在 `trade_plans.jsonl`、结算用 `scripts/score-plans.py`；评估用的轻量组内方向预测 `direction-forecast`；交易者心法的引用规则 `trader-playbooks`，卡片在 `product/references/methods/trader-*.md`），以及原样引入的 moomoo 官方搜索类与异动类 Skills（来源与约束见 `product/vendor/moomoo-skills.md`；OpenAPI 交易类明确不引入），通过 `.claude/skills`、`.agents/skills` 符号链接暴露给两个宿主。moomoo 的方向判断、情绪与异动解读只作参考展示，不参与研究判断。
 - `product/references/`：三个角色共用的方法卡（`methods/`）、历史案例卡（`cases/`，按结果已知日期过滤）与输出格式（`templates/`）；统计证据由 `scripts/build-signal-events.py` 生成事件表，经 `get_signal_stats` 按“当时已知”统计；关键图形时刻（跌破/突破平台、趋势失败、急速反转）由 `scripts/build-key-moments.py` 建表，经 `get_key_moments` 给出同类时刻之后的概率与幅度分布；个股偏离板块的时刻由 `moment-review` Skill 做消息面归因并给出 60 日跑赢板块的概率，前瞻记录用 `scripts/forward-moments.sh`。
 - `product/skills-pending/`：待后续阶段重写的旧 Skills（期权、所有权、研报、催化剂、持仓录入、交易日志与反思），不暴露给宿主。
 - 子 Agent：`advocate`（正向论点：业务驱动、预期差、催化剂）与 `skeptic`（先独立反向研究，再核验正向论点一轮）；定义在 `.claude/agents/` 与 `.codex/agents/`；主线程担任 CIO。

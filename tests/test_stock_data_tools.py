@@ -108,6 +108,77 @@ class PriceTests(unittest.TestCase):
             data_tools.get_price_history("aa$")
 
 
+def _split_payload(day: str, ratio=(2, 1)) -> bytes:
+    stamp = int(datetime.fromisoformat(day + "T09:30:00").replace(tzinfo=ZoneInfo("America/New_York")).timestamp())
+    return json.dumps({"chart": {"result": [{"events": {"splits": {str(stamp): {
+        "date": stamp, "numerator": ratio[0], "denominator": ratio[1], "splitRatio": f"{ratio[0]}:{ratio[1]}"}}}}]}}).encode()
+
+
+def _open_100_chart() -> bytes:
+    chart = json.loads(json.dumps(CHART))
+    chart["chart"]["result"][0]["indicators"]["quote"][0]["open"] = [100, 2, 3]
+    return json.dumps(chart).encode()
+
+
+class SplitRestoreTests(unittest.TestCase):
+    """as_of reads undo only splits already baked into the cached response (those on/before its retrieval day)."""
+
+    def _read(self, retrieved_at: str, split_day: str, *, via_cache: bool) -> dict:
+        chart, splits = _open_100_chart(), _split_payload(split_day)
+
+        def fake_get(url, params, crumb=False):
+            return splits if params.get("events") == "splits" else chart
+
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_CACHE_DIR": root,
+                                                                                "STOCK_AGENT_DATA_DIR": root}):
+            data_tools.settings.cache.cache_clear()
+            try:
+                with mock.patch.object(data_tools, "_yahoo_get", side_effect=fake_get), \
+                        mock.patch.object(data_tools, "_now", return_value=retrieved_at):
+                    first = data_tools.get_price_history("AAA", start="2024-12-01", as_of="2025-01-03")
+                if not via_cache:
+                    return first
+                # Second read must come from the cache record (no price download); retrieval time is the stored one.
+                def only_splits(url, params, crumb=False):
+                    if params.get("events") != "splits":
+                        raise AssertionError("price response should come from the cache")
+                    return splits
+                with mock.patch.object(data_tools, "_yahoo_get", side_effect=only_splits), \
+                        mock.patch.object(data_tools, "_now", return_value="2026-11-28T00:00:00Z"):
+                    return data_tools.get_price_history("AAA", start="2024-12-01", as_of="2025-01-03")
+            finally:
+                data_tools.settings.cache.cache_clear()
+
+    def test_split_after_retrieval_is_not_undone_again(self):
+        for via_cache in (False, True):
+            result = self._read("2025-06-01T12:00:00Z", "2025-09-02", via_cache=via_cache)
+            self.assertEqual(result["rows"][0][1], "100", via_cache)
+
+    def test_split_before_retrieval_is_undone(self):
+        for via_cache in (False, True):
+            result = self._read("2025-06-01T12:00:00Z", "2025-05-01", via_cache=via_cache)
+            self.assertEqual(result["rows"][0][1], "200", via_cache)
+            self.assertEqual(result["rows"][0][6], "50", via_cache)
+
+    def test_split_on_retrieval_day_counts_as_adjusted(self):
+        result = self._read("2025-06-02T12:00:00Z", "2025-06-02", via_cache=True)
+        self.assertEqual(result["rows"][0][1], "200")
+
+    def test_through_day_none_keeps_old_behaviour(self):
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(os.environ, {"STOCK_AGENT_CACHE_DIR": root}), \
+                mock.patch.object(data_tools, "_yahoo_get", return_value=_split_payload("2025-09-02")):
+            data_tools.settings.cache.cache_clear()
+            try:
+                from datetime import date
+                factor, later = data_tools._later_split_factor("AAA", date(2025, 1, 3))
+                early, _ = data_tools._later_split_factor("AAA", date(2025, 1, 3), date(2025, 6, 1))
+            finally:
+                data_tools.settings.cache.cache_clear()
+        self.assertEqual(str(factor), "2")
+        self.assertEqual(later, [["2025-09-02", "2:1"]])
+        self.assertEqual(early, 1)
+
+
 class SearchTests(unittest.TestCase):
     def test_phrase_then_word_fallback_and_front_matter_last(self):
         text = "Cover: convertible preferred. " + "x" * 7000 + " The Preferred Stock will convert on the mandatory conversion date. "

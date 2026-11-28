@@ -10,6 +10,12 @@
 #   Codex 开启联网检索。--prompt 可附加之后的结果等说明。
 # --decision held|not_held：决策卡（decision-card Skill），写入 trade_decisions.jsonl；Codex 开启联网检索（消息归因）。
 # --seed-decisions FILE：开始前把 FILE 复制为运行目录的 trade_decisions.jsonl（测试“有上一卡”）。
+# --plan "想法"：交易计划（trade-plan Skill），写入 trade_plans.jsonl；Codex 开启联网检索。
+# --review PLAN_ID：计划复核（plan-review Skill）；<TICKER> 位置仍填该计划的股票代码；Codex 开启联网检索。
+#   回放复核须同时给 --as-of（晚于计划日），并用 --seed-plans 带入计划记录。
+# --seed-plans FILE：开始前把 FILE 复制为运行目录的 trade_plans.jsonl，同目录的 plan-reports/ 一并复制（复核、同股重开等用例）。
+# 脚本导出 STOCK_AGENT_RUN_MODEL=<实际 -m 参数>，计划记录的 model_recorded 取自它。
+# 任务模式 --decision / --plan / --review / --group / --moment 互斥：同时给两个或以上 → 打印本用法并以 2 退出（不建运行目录）。
 # 默认模型（可用 --model 或环境变量覆盖）：
 #   claude → $STOCK_AGENT_CLAUDE_MODEL，默认 claude-haiku-5-5
 #   codex  → $STOCK_AGENT_CODEX_MODEL，默认 gpt-6.1-terra
@@ -22,10 +28,10 @@ set -euo pipefail
 main() {
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-usage() { sed -n '2,18p' "$0"; exit 2; }
+usage() { sed -n '2,24p' "$0"; exit 2; }
 [ $# -ge 2 ] || usage
 host="$1"; ticker="$(printf '%s' "$2" | tr '[:lower:]' '[:upper:]')"; shift 2
-model=""; extra=""; as_of=""; tag=""; group=""; moment=""; decision=""; seed=""
+model=""; extra=""; as_of=""; tag=""; group=""; moment=""; decision=""; seed=""; plan=""; review=""; seed_plans=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --model) model="$2"; shift 2 ;;
@@ -36,10 +42,16 @@ while [ $# -gt 0 ]; do
     --moment) moment="$2"; shift 2 ;;
     --decision) decision="$2"; shift 2 ;;
     --seed-decisions) seed="$2"; shift 2 ;;
+    --plan) plan="$2"; shift 2 ;;
+    --review) review="$2"; shift 2 ;;
+    --seed-plans) seed_plans="$2"; shift 2 ;;
     *) usage ;;
   esac
 done
-[ -n "$extra" ] || [ -n "$moment" ] || [ -n "$decision" ] || extra="我目前未持有。"  # 消息面复盘按持有假设，不加这句
+modes=0  # 任务模式互斥：否则后面的 prompt 分支会静默覆盖前面的
+for m in "$decision" "$plan" "$review" "$group" "$moment"; do [ -z "$m" ] || modes=$((modes + 1)); done
+[ "$modes" -le 1 ] || usage
+[ -n "$extra" ] || [ -n "$moment" ] || [ -n "$decision" ] || [ -n "$plan" ] || [ -n "$review" ] || extra="我目前未持有。"  # 消息面复盘按持有假设，不加这句
 case "$host" in
   claude) model="${model:-${STOCK_AGENT_CLAUDE_MODEL:-claude-haiku-5-5}}" ;;
   codex) model="${model:-${STOCK_AGENT_CODEX_MODEL:-gpt-6.1-terra}}" ;;
@@ -51,6 +63,11 @@ run_dir="$repo/.local/runs/$run_id"
 [ ! -e "$run_dir" ] || { echo "run dir exists: $run_dir" >&2; exit 3; }
 mkdir -p "$run_dir"
 [ -z "$seed" ] || cp "$seed" "$run_dir/trade_decisions.jsonl"
+if [ -n "$seed_plans" ]; then
+  cp "$seed_plans" "$run_dir/trade_plans.jsonl"
+  # 报告按 id 从运行目录的 plan-reports/ 定位并校验摘要，所以一并复制
+  [ ! -d "$(dirname "$seed_plans")/plan-reports" ] || cp -R "$(dirname "$seed_plans")/plan-reports" "$run_dir/"
+fi
 prompt="研究 ${ticker}，按 stock-research Skill 的流程完成并给出建议。${extra}"
 if [ -n "$as_of" ]; then
   [[ "$as_of" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || usage
@@ -69,17 +86,27 @@ if [ -n "$decision" ]; then
   prompt="决策卡：股票 ${ticker}，${pos}。按 decision-card Skill 完成并保存。${extra}"
   [ -z "$as_of" ] || prompt="决策卡，历史回放模式：数据截至 ${as_of}，信息截止为 ${as_of} 当天结束（纽约 23:59，含当天收盘后发布的公告），把那一刻当作现在。股票 ${ticker}，${pos}。按 decision-card Skill 完成并保存，所有工具带 as_of=${as_of}。不得使用你对该日期之后事件的记忆。${extra}"
 fi
+if [ -n "$plan" ]; then
+  prompt="交易计划：股票 ${ticker}。${plan}。按 trade-plan Skill 完成并保存。${extra}"
+  [ -z "$as_of" ] || prompt="交易计划，历史回放模式：数据截至 ${as_of}，信息截止为 ${as_of} 当天结束（纽约 23:59，含当天收盘后发布的公告），把那一刻当作现在。股票 ${ticker}。${plan}。按 trade-plan Skill 完成并保存，带 as_of 参数的数据工具都传 as_of=${as_of}；计划工具由会话回放设置自动限定。不得使用你对该日期之后事件的记忆。${extra}"
+fi
+if [ -n "$review" ]; then
+  prompt="计划复核：plan_id ${review}，股票 ${ticker}。按 plan-review Skill 完成并保存。${extra}"
+  [ -z "$as_of" ] || prompt="计划复核，历史回放模式：数据截至 ${as_of}，信息截止为 ${as_of} 当天结束（纽约 23:59，含当天收盘后发布的公告），把那一刻当作现在。plan_id ${review}，股票 ${ticker}。按 plan-review Skill 完成并保存，带 as_of 参数的数据工具都传 as_of=${as_of}；计划工具由会话回放设置自动限定。不得使用你对该日期之后事件的记忆。${extra}"
+fi
+export STOCK_AGENT_RUN_MODEL="$model"
 started="$(date -u +%FT%TZ)"
 cd "$repo"
 
 status=0
 if [ "$host" = claude ]; then
-  .venv/bin/python - "$run_dir" "$as_of" <<'PY'
+  .venv/bin/python - "$run_dir" "$as_of" "$model" <<'PY'
 import json, sys
 run_dir = sys.argv[1]
 config = json.load(open(".mcp.json"))
 env = config["mcpServers"]["stock-data"].setdefault("env", {})
 env["STOCK_AGENT_DATA_DIR"] = run_dir
+env["STOCK_AGENT_RUN_MODEL"] = sys.argv[3]
 if sys.argv[2]:
     env["STOCK_AGENT_REPLAY_AS_OF"] = sys.argv[2]
 json.dump(config, open(f"{run_dir}/mcp.json", "w"), indent=2)
@@ -101,10 +128,10 @@ else
   # 回放：MCP 固定在 as_of，并关闭沙箱网络（moomoo 只有当前数据）。
   replay_args=()
   [ -z "$as_of" ] || replay_args=(-c "mcp_servers.stock_data.env.STOCK_AGENT_REPLAY_AS_OF=\"$as_of\"" -c sandbox_workspace_write.network_access=false)
-  [ -z "$moment" ] && [ -z "$decision" ] || replay_args+=(-c 'web_search="live"')
+  [ -z "$moment" ] && [ -z "$decision" ] && [ -z "$plan" ] && [ -z "$review" ] || replay_args+=(-c 'web_search="live"')
   codex exec --skip-git-repo-check -s workspace-write -m "$model" \
     -c memories.use_memories=false -c memories.generate_memories=false \
-    -c "mcp_servers.stock_data.env.STOCK_AGENT_DATA_DIR=\"$run_dir\"" ${replay_args[@]+"${replay_args[@]}"} \
+    -c "mcp_servers.stock_data.env.STOCK_AGENT_DATA_DIR=\"$run_dir\"" -c "mcp_servers.stock_data.env.STOCK_AGENT_RUN_MODEL=\"$model\"" ${replay_args[@]+"${replay_args[@]}"} \
     "$prompt" < /dev/null > "$run_dir/transcript.log" 2>&1 || status=$?
 fi
 
@@ -137,6 +164,11 @@ try:
     trade = [json.loads(line) for line in open(f"{run_dir}/trade_decisions.jsonl")]
 except FileNotFoundError:
     pass
+plans = []
+try:
+    plans = [json.loads(line) for line in open(f"{run_dir}/trade_plans.jsonl")]
+except FileNotFoundError:
+    pass
 group_forecasts = []
 try:
     group_forecasts = [json.loads(line) for line in open(f"{run_dir}/group_forecasts.jsonl")]
@@ -148,7 +180,11 @@ record = {"run_id": run_id, "host": host, "model": model, "observed_model": obse
           "finished_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "exit_code": int(status),
           "decisions": [{k: d.get(k) for k in ("decision_id", "action", "confidence", "report_path")} for d in decisions],
           "trade_decisions": [{k: d.get(k) for k in ("decision_id", "group", "action", "horizon_days", "report_path")}
-                              for d in trade]}
+                              for d in trade],
+          "trade_plans": [{"kind": p.get("kind"), "plan_id": p.get("plan_id"), "ticker": p.get("ticker"),
+                           **{k: p[k] for k in ("outcome", "shares_planned", "r0", "version", "thesis_verdict", "action",
+                                                "review_id", "choice", "replay") if k in p},
+                           "report_path": p.get("report_path")} for p in plans]}
 json.dump(record, open(f"{run_dir}/run.json", "w"), ensure_ascii=False, indent=2)
 print(json.dumps(record, ensure_ascii=False, indent=2))
 PY

@@ -1,6 +1,6 @@
 # Design Plan：Decision-First 单股决策顾问（2026-11-21）
 
-状态：**已确认**（2026-11-22，§7 按推荐答案定）。可执行的细则以 [决策账本协议 v1](../evals/forward/decision-protocol-v1.md) 为准；两者冲突时以协议为准。
+状态：**已确认**（2026-11-22，§7 按推荐答案定）。2026-11-28 起当前路线改为 [交易计划生命周期](design-position-lifecycle-2026-11-28.md)：本文的 P0、P1 成果保留并被复用，P2 协议保留、暂缓开跑。可执行的细则以 [决策账本协议 v1](../evals/forward/decision-protocol-v1.md) 为准；两者冲突时以协议为准。
 
 来源：用户与 ChatGPT 的分析 `研究.md`；Claude Code 核对仓库后与 Codex（`gpt-6.2-astra`，只读）进行了两轮讨论，记录在 `.local/runs/design-dialog-20261121/`（`round1-*`、`round2-*`）。本文是讨论后的定稿建议。
 

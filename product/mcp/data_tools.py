@@ -119,8 +119,12 @@ def _yahoo_get_once(url: str, params: dict, *, crumb: bool = False) -> bytes:
     return response.content
 
 
-def _later_split_factor(ticker: str, after_day: date) -> tuple[Decimal, list[list[Any]]]:
-    """Product of split ratios after `after_day` (Yahoo prices are adjusted for every later split)."""
+def _later_split_factor(ticker: str, after_day: date, through_day: date | None = None) -> tuple[Decimal, list[list[Any]]]:
+    """Product of split ratios after `after_day` (Yahoo prices are adjusted for every later split).
+
+    `through_day` is the New York date the price response was retrieved: a response only carries the
+    adjustment for splits on or before that day, so later splits are not undone (None = every split).
+    """
     period1 = int(datetime.combine(after_day + timedelta(days=1), dtime(0, 0), NEW_YORK).timestamp())
     period2 = int(datetime.now(UTC).timestamp())
     if period1 >= period2:
@@ -142,7 +146,7 @@ def _later_split_factor(ticker: str, after_day: date) -> tuple[Decimal, list[lis
     for value in events.values():
         day = datetime.fromtimestamp(int(value["date"]), NEW_YORK).date()
         numerator, denominator = Decimal(str(value.get("numerator") or 0)), Decimal(str(value.get("denominator") or 0))
-        if day > after_day and numerator > 0 and denominator > 0:
+        if day > after_day and (through_day is None or day <= through_day) and numerator > 0 and denominator > 0:
             factor *= numerator / denominator
             later.append([day.isoformat(), value.get("splitRatio")])
     return factor, sorted(later)
@@ -194,7 +198,10 @@ def get_price_history(ticker: str, start: str | None = None, end: str | None = N
     # (EPS, share counts) published at that time and do not reveal the later split.
     factor, later_splits = (Decimal(1), [])
     if as_of is not None:
-        factor, later_splits = _later_split_factor(ticker, last_day)
+        # The response was retrieved at `retrieved_at` (a cached record keeps its first retrieval time), so only
+        # splits up to that day are already baked into its prices; later ones never were and must not be undone.
+        factor, later_splits = _later_split_factor(
+            ticker, last_day, parse_timestamp(retrieved_at).astimezone(NEW_YORK).date())
     if factor != 1:
         for row in rows:
             row[1:6] = [_num(Decimal(v) * factor) if v is not None else None for v in row[1:6]]
