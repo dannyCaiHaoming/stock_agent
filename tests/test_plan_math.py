@@ -5,6 +5,7 @@
 horizon 7 天 → cap_date 3/9 → cap 交易日 idx5。成本每边 10bp。
 """
 
+import json
 import unittest
 from datetime import date, timedelta
 
@@ -40,13 +41,14 @@ def mk_plan(**kw):
     return p
 
 
-def mk_bars(opens, closes, adj=None):
+def mk_bars(opens, closes, adj=None, low=None):
     n = len(opens)
-    return Bars(DAYS[:n], list(opens), list(closes), list(closes) if adj is None else list(adj))
+    return Bars(DAYS[:n], list(opens), list(closes), list(closes) if adj is None else list(adj),
+                None if low is None else list(low))
 
 
-def run(opens=OPEN, closes=CLOSE, as_of="2026-03-11", plan=None, revisions=(), reviews=(), adj=None, **kw):
-    return settle(plan or mk_plan(), list(revisions), list(reviews), mk_bars(opens, closes, adj), as_of, **kw)
+def run(opens=OPEN, closes=CLOSE, as_of="2026-03-11", plan=None, revisions=(), reviews=(), adj=None, low=None, **kw):
+    return settle(plan or mk_plan(), list(revisions), list(reviews), mk_bars(opens, closes, adj, low), as_of, **kw)
 
 
 def rev(at, **changes):
@@ -527,6 +529,237 @@ class ReworkTests(unittest.TestCase):
         for at in ("2026-03-04T12:59:59-05:00", "2026-03-04T16:00:00-05:00"):
             r = run(opens=o, closes=c, revisions=[rev(at, price_invalidation=100)])
             self.assertNotIn("revision_same_day_check", r["lines"]["plan"]["flags"], at)
+
+
+# ---------------------------------------------------------------- rework 3: limit buy order
+
+def mu_case(with_low=False):
+    """Acceptance case A (MU, record without entry_valid_sessions): 13 shares, band 1100-1132.33, stop 1060, R0 940.29,
+    fill 06-29 open 1128.70, close 07-01 = 1032.28 <= 1060, exit 07-02 open 1041.50, cap close 10-23 = 877.55."""
+    days = [d for d in business_days("2026-06-26", 100) if d <= "2026-10-23"]
+    n = len(days)
+    idx = {d: k for k, d in enumerate(days)}
+    opens, closes = [1120.0] * n, [1110.0] * n
+    opens[idx["2026-06-29"]] = 1128.70
+    closes[idx["2026-06-30"]] = 1100.0
+    closes[idx["2026-07-01"]] = 1032.28
+    opens[idx["2026-07-02"]] = 1041.50
+    closes[idx["2026-07-02"]] = 1030.0
+    for k in range(idx["2026-07-03"], n):
+        opens[k] = closes[k] = 1000.0
+    closes[-1] = 877.55
+    plan = {"frozen_at": "2026-06-26T23:59:59-04:00", "entry_band": [1100.0, 1132.33], "price_invalidation": 1060.0,
+            "shares_planned": 13, "r0": 940.29, "horizon_cap_days": 119}
+    low = [x * 0.5 for x in opens] if with_low else None     # far below the band top: would limit-fill if consulted
+    return settle(plan, [], [], Bars(days, opens, closes, list(closes), low), "2026-10-23")
+
+
+# Settlement output of the code before rework 3 for plans WITHOUT entry_valid_sessions (generated from the old code).
+LEGACY_GOLDEN = json.loads(r'''{"base": {"as_of": "2026-03-11", "cap_date": "2026-03-09", "cap_trading_day": "2026-03-09", "cost_bps_per_side": 10.0, "fill": {"date": "2026-03-03", "entry_band": [99.0, 101.0], "index": 1, "open": 100.0, "shares": 200, "status": "filled"}, "lines": {"hold": {"costs": 41.0, "end_date": "2026-03-09", "flags": [], "gross": 1000.0, "legs": [{"date": "2026-03-03", "price": 100.0, "reason": "fill", "shares": 200, "side": "buy"}, {"date": "2026-03-09", "price": 105.0, "reason": "cap", "shares": 200, "side": "sell"}], "min_close_r": 0.2, "net": 959.0, "r": 0.959, "return_pct": 4.79, "status": "closed", "unrealized": false}, "plan": {"costs": 41.0, "end_date": "2026-03-09", "flags": [], "gross": 1000.0, "legs": [{"date": "2026-03-03", "price": 100.0, "reason": "fill", "shares": 200, "side": "buy"}, {"date": "2026-03-09", "price": 105.0, "reason": "cap", "shares": 200, "side": "sell"}], "min_close_r": 0.2, "net": 959.0, "r": 0.959, "return_pct": 4.79, "status": "closed", "unrealized": false}, "simple_exit": {"costs": 41.0, "end_date": "2026-03-09", "flags": [], "gross": 1000.0, "legs": [{"date": "2026-03-03", "price": 100.0, "reason": "fill", "shares": 200, "side": "buy"}, {"date": "2026-03-09", "price": 105.0, "reason": "cap", "shares": 200, "side": "sell"}], "min_close_r": 0.2, "net": 959.0, "r": 0.959, "return_pct": 4.79, "status": "closed", "unrealized": false}}, "pairs": {"plan_minus_hold": {"r": 0.0, "usd": 0.0}, "plan_minus_simple": {"r": 0.0, "usd": 0.0}}, "stop_versions": [{"effective_at": "2026-03-02T22:00:00+00:00", "price_invalidation": 95.0, "version": 1}]}, "gap": {"as_of": "2026-03-11", "cap_date": "2026-03-09", "cap_trading_day": "2026-03-09", "cost_bps_per_side": 10.0, "fill": {"date": "2026-03-03", "entry_band": [99.0, 101.0], "index": 1, "open": 100.0, "shares": 200, "status": "filled"}, "lines": {"hold": {"costs": 37.4, "end_date": "2026-03-09", "flags": [], "gross": -2600.0, "legs": [{"date": "2026-03-03", "price": 100.0, "reason": "fill", "shares": 200, "side": "buy"}, {"date": "2026-03-09", "price": 87.0, "reason": "cap", "shares": 200, "side": "sell"}], "min_close_r": -2.6, "net": -2637.4, "r": -2.637, "return_pct": -13.19, "status": "closed", "unrealized": false}, "plan": {"costs": 38.0, "end_date": "2026-03-05", "flags": [], "gross": -2000.0, "legs": [{"date": "2026-03-03", "price": 100.0, "reason": "fill", "shares": 200, "side": "buy"}, {"date": "2026-03-05", "price": 90.0, "reason": "stop", "shares": 200, "side": "sell", "stop": 95.0, "trigger_close": 94.0, "trigger_date": "2026-03-04"}], "min_close_r": -1.2, "net": -2038.0, "r": -2.038, "return_pct": -10.19, "status": "closed", "unrealized": false}, "simple_exit": {"costs": 38.0, "end_date": "2026-03-05", "flags": [], "gross": -2000.0, "legs": [{"date": "2026-03-03", "price": 100.0, "reason": "fill", "shares": 200, "side": "buy"}, {"date": "2026-03-05", "price": 90.0, "reason": "stop", "shares": 200, "side": "sell", "stop": 95.0, "trigger_close": 94.0, "trigger_date": "2026-03-04"}], "min_close_r": -1.2, "net": -2038.0, "r": -2.038, "return_pct": -10.19, "status": "closed", "unrealized": false}}, "pairs": {"plan_minus_hold": {"r": 0.599, "usd": 599.4}, "plan_minus_simple": {"r": 0.0, "usd": 0.0}}, "stop_versions": [{"effective_at": "2026-03-02T22:00:00+00:00", "price_invalidation": 95.0, "version": 1}]}, "mu": {"as_of": "2026-10-23", "cap_date": "2026-10-23", "cap_trading_day": "2026-10-23", "cost_bps_per_side": 10.0, "fill": {"date": "2026-06-29", "entry_band": [1100.0, 1132.33], "index": 1, "open": 1128.7, "shares": 13, "status": "filled"}, "lines": {"hold": {"costs": 26.08, "end_date": "2026-10-23", "flags": [], "gross": -3264.95, "legs": [{"date": "2026-06-29", "price": 1128.7, "reason": "fill", "shares": 13, "side": "buy"}, {"date": "2026-10-23", "price": 877.55, "reason": "cap", "shares": 13, "side": "sell"}], "min_close_r": -3.472, "net": -3291.03, "r": -3.5, "return_pct": -22.43, "status": "closed", "unrealized": false}, "plan": {"costs": 28.21, "end_date": "2026-07-02", "flags": [], "gross": -1133.6, "legs": [{"date": "2026-06-29", "price": 1128.7, "reason": "fill", "shares": 13, "side": "buy"}, {"date": "2026-07-02", "price": 1041.5, "reason": "stop", "shares": 13, "side": "sell", "stop": 1060.0, "trigger_close": 1032.28, "trigger_date": "2026-07-01"}], "min_close_r": -1.333, "net": -1161.81, "r": -1.236, "return_pct": -7.92, "status": "closed", "unrealized": false}, "simple_exit": {"costs": 28.21, "end_date": "2026-07-02", "flags": [], "gross": -1133.6, "legs": [{"date": "2026-06-29", "price": 1128.7, "reason": "fill", "shares": 13, "side": "buy"}, {"date": "2026-07-02", "price": 1041.5, "reason": "stop", "shares": 13, "side": "sell", "stop": 1060.0, "trigger_close": 1032.28, "trigger_date": "2026-07-01"}], "min_close_r": -1.333, "net": -1161.81, "r": -1.236, "return_pct": -7.92, "status": "closed", "unrealized": false}}, "pairs": {"plan_minus_hold": {"r": 2.264, "usd": 2129.22}, "plan_minus_simple": {"r": 0.0, "usd": 0.0}}, "stop_versions": [{"effective_at": "2026-06-27T03:59:59+00:00", "price_invalidation": 1060.0, "version": 1}]}, "not_fillable": {"as_of": "2026-03-11", "cap_date": "2026-03-09", "cap_trading_day": null, "cost_bps_per_side": 10.0, "fill": {"date": "2026-03-03", "entry_band": [99.0, 101.0], "index": 1, "open": null, "shares": null, "status": "not_fillable"}, "lines": {"hold": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "not_fillable", "unrealized": false}, "plan": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "not_fillable", "unrealized": false}, "simple_exit": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "not_fillable", "unrealized": false}}, "pairs": {"plan_minus_hold": null, "plan_minus_simple": null}, "stop_versions": [{"effective_at": "2026-03-02T22:00:00+00:00", "price_invalidation": 95.0, "version": 1}]}, "pending": {"as_of": "2026-03-02", "cap_date": "2026-03-09", "cap_trading_day": null, "cost_bps_per_side": 10.0, "fill": {"date": null, "entry_band": [99.0, 101.0], "index": null, "open": null, "shares": null, "status": "pending"}, "lines": {"hold": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "pending", "unrealized": false}, "plan": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "pending", "unrealized": false}, "simple_exit": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "pending", "unrealized": false}}, "pairs": {"plan_minus_hold": null, "plan_minus_simple": null}, "stop_versions": [{"effective_at": "2026-03-02T22:00:00+00:00", "price_invalidation": 95.0, "version": 1}]}, "unfilled_above": {"as_of": "2026-03-11", "cap_date": "2026-03-09", "cap_trading_day": null, "cost_bps_per_side": 10.0, "fill": {"date": "2026-03-03", "entry_band": [99.0, 101.0], "index": 1, "open": 101.5, "shares": null, "status": "unfilled"}, "lines": {"hold": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "unfilled", "unrealized": false}, "plan": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "unfilled", "unrealized": false}, "simple_exit": {"costs": null, "end_date": null, "flags": [], "gross": null, "legs": [], "min_close_r": null, "net": null, "r": null, "return_pct": null, "status": "unfilled", "unrealized": false}}, "pairs": {"plan_minus_hold": null, "plan_minus_simple": null}, "stop_versions": [{"effective_at": "2026-03-02T22:00:00+00:00", "price_invalidation": 95.0, "version": 1}]}}''')
+
+LEGACY_SCENARIOS = {
+    "base": lambda low: run(low=low),
+    "unfilled_above": lambda low: run(opens=[99, 101.5] + OPEN[2:], low=low),
+    "not_fillable": lambda low: run(opens=[99, None] + OPEN[2:], low=low),
+    "gap": lambda low: run(opens=GAP_OPEN, closes=GAP_CLOSE, low=low),
+    "pending": lambda low: run(as_of="2026-03-02", low=low),
+    "mu": lambda low: mu_case(with_low=low is not None),
+}
+
+
+def with_sessions(n, **kw):
+    return mk_plan(entry_valid_sessions=n, horizon_cap_days=kw.pop("horizon_cap_days", 30), **kw)
+
+
+class LegacyRecordTests(unittest.TestCase):
+    """A record without entry_valid_sessions is settled exactly as before rework 3: one session, open only."""
+
+    def test_output_is_identical_to_the_old_code(self):
+        for name, build in LEGACY_SCENARIOS.items():
+            with self.subTest(name=name):
+                self.assertEqual(json.loads(json.dumps(build(None))), LEGACY_GOLDEN[name])
+
+    def test_supplying_lows_changes_nothing_for_a_legacy_record(self):
+        # lows at half the open would limit-fill the "above the band" scenario if they were consulted
+        for name, build in LEGACY_SCENARIOS.items():
+            with self.subTest(name=name):
+                self.assertEqual(json.loads(json.dumps(build([0.5 * x for x in OPEN]))), LEGACY_GOLDEN[name])
+
+    def test_mu_case_numbers(self):
+        r = mu_case()
+        plan, hold, simple = (r["lines"][k] for k in ("plan", "hold", "simple_exit"))
+        self.assertEqual((plan["net"], plan["r"]), (-1161.81, -1.236))      # 13 x (1041.50 - 1128.70) - 28.21
+        self.assertEqual((hold["net"], hold["r"]), (-3291.03, -3.5))        # 13 x (877.55 - 1128.70) - 26.08
+        self.assertEqual((simple["net"], simple["r"]), (-1161.81, -1.236))
+        self.assertEqual(legs(plan), [("2026-06-29", "buy", 1128.7, 13, "fill"), ("2026-07-02", "sell", 1041.5, 13, "stop")])
+        self.assertEqual(r["fill"]["status"], "filled")
+        self.assertNotIn("method", r["fill"])                               # legacy fill dict is unchanged
+        self.assertEqual(mu_case(with_low=True)["lines"]["plan"]["net"], -1161.81)
+
+    def test_explicit_one_session_is_the_new_rule_not_the_legacy_one(self):
+        o = [99, 102, 102, 102, 103, 104, 105, 106]       # idx1 opens above the band top 101 ...
+        low = [98, 100.5, 101.5, 101.5, 102, 103, 104, 105]   # ... and traded down to 100.5
+        self.assertEqual(run(opens=o, low=low)["fill"]["status"], "unfilled")        # legacy: open only
+        explicit = run(opens=o, low=low, plan=with_sessions(1))
+        self.assertEqual((explicit["fill"]["status"], explicit["fill"]["price"], explicit["fill"]["method"]),
+                         ("filled", 101, "limit"))
+
+
+class EntryOrderTests(unittest.TestCase):
+    """Limit buy order: band [99, 101], stop 95, valid for N sessions from idx1 (3/3); cap far away unless stated."""
+
+    def entry(self, opens, low=None, sessions=5, closes=None, **kw):
+        closes = CLOSE if closes is None else closes
+        return run(opens=opens, closes=closes, low=low, plan=with_sessions(sessions, **kw.pop("plan_kw", {})), **kw)
+
+    def test_open_inside_band_fills_at_the_open(self):
+        r = self.entry([99, 100, 101, 102, 103, 104, 105, 106], low=[0.5] * 8)
+        f = r["fill"]
+        self.assertEqual((f["status"], f["index"], f["date"], f["price"], f["method"]), ("filled", 1, DAYS[1], 100, "open"))
+        self.assertEqual((f["valid_sessions"], f["sessions_scanned"]), (5, 1))
+        self.assertEqual(r["lines"]["hold"]["legs"][0]["price"], 100)
+
+    def test_open_above_band_but_low_touches_the_top_fills_at_the_top(self):
+        # buy 200 @ 101 = 20,200.00; hold to cap day idx5 close 105 -> sell 21,000.00; gross +800.00
+        # costs 20.20 + 21.00 = 41.20; net +758.80; R0 stays 1000 -> R +0.759
+        o = [99, 102, 102, 102, 103, 104, 105, 106]
+        r = self.entry(o, low=[98, 100.5, 101, 101, 102, 103, 104, 105], plan_kw={"horizon_cap_days": 7})
+        f = r["fill"]
+        self.assertEqual((f["status"], f["price"], f["method"], f["open"], f["index"]), ("filled", 101, "limit", 102, 1))
+        hold = r["lines"]["hold"]
+        self.assertEqual(legs(hold)[0], (DAYS[1], "buy", 101, 200, "fill"))
+        self.assertEqual((hold["gross"], hold["costs"], hold["net"], hold["r"]), (800.0, 41.2, 758.8, 0.759))
+        self.assertEqual(hold["min_close_r"], round((101 - 101) * 200 / 1000, 3))     # lowest close 101 vs fill 101
+
+    def test_open_below_the_band_does_not_fill_and_does_not_chase(self):
+        o = [99, 98, 98, 98, 98, 98, 98, 98]
+        r = self.entry(o, low=[97] * 8, sessions=1)
+        self.assertEqual(r["fill"]["status"], "unfilled")
+        self.assertEqual({v["status"] for v in r["lines"].values()}, {"unfilled"})
+        self.assertEqual(r["lines"]["plan"]["legs"], [])
+
+    def test_open_above_the_band_without_touching_the_top_does_not_fill(self):
+        o = [99, 102, 102, 102, 102, 102, 102, 102]
+        r = self.entry(o, low=[101.5] * 8, sessions=1)
+        self.assertEqual(r["fill"]["status"], "unfilled")
+        self.assertEqual(self.entry(o, low=None, sessions=1)["fill"]["status"], "unfilled")     # no lows: rule 2 off
+
+    def test_fills_on_the_third_session_of_the_window(self):
+        # idx1 opens below the band, idx2 above it without touching, idx3 opens inside at 100 -> filled on idx3
+        o = [99, 98, 102, 100, 103, 104, 105, 106]
+        low = [98, 97, 101.5, 99, 103, 104, 105, 106]
+        r = self.entry(o, low=low)
+        f = r["fill"]
+        self.assertEqual((f["status"], f["index"], f["date"], f["price"], f["sessions_scanned"]),
+                         ("filled", 3, DAYS[3], 100, 3))
+        hold = r["lines"]["hold"]
+        self.assertEqual(legs(hold)[0], (DAYS[3], "buy", 100, 200, "fill"))
+        self.assertEqual(r["lines"]["plan"]["legs"][0]["date"], DAYS[3])
+        self.assertEqual(r["lines"]["simple_exit"]["legs"][0]["date"], DAYS[3])
+        # idx5 is the cap day (horizon 7 days): sell 200 x 105 = 21,000; buy 20,000; costs 20 + 21; net 959
+        r7 = self.entry(o, low=low, plan_kw={"horizon_cap_days": 7})
+        self.assertEqual(r7["lines"]["hold"]["net"], 959.0)
+        self.assertEqual(r7["lines"]["hold"]["r"], 0.959)
+
+    def test_window_without_a_fill_is_unfilled_and_a_later_day_does_not_count(self):
+        o = [99, 98, 98, 98, 98, 100, 100, 100]           # would fill on idx5, the 5th session
+        r = self.entry(o, low=[97] * 8, sessions=3)
+        self.assertEqual((r["fill"]["status"], r["fill"]["sessions_scanned"]), ("unfilled", 3))
+        self.assertEqual(self.entry(o, low=[97] * 8, sessions=4)["fill"]["status"], "unfilled")
+        self.assertEqual(self.entry(o, low=[97] * 8, sessions=5)["fill"]["index"], 5)
+
+    def test_close_at_or_below_the_initial_stop_before_the_fill_cancels_the_order(self):
+        o = [99, 98, 100, 100, 100, 100, 100, 100]        # idx2 would fill, but idx1 closed at 94 <= 95
+        c = [99.5, 94, 99, 99, 99, 99, 99, 99]
+        r = self.entry(o, closes=c, low=[97] * 8)
+        self.assertEqual(r["fill"]["status"], "cancelled_stop_before_fill")
+        for ln in r["lines"].values():
+            self.assertEqual((ln["status"], ln["legs"], ln["net"], ln["costs"]), ("cancelled_stop_before_fill", [], None, None))
+        self.assertEqual(r["pairs"], {"plan_minus_hold": None, "plan_minus_simple": None})
+        c[1] = 95                                          # exactly at the stop counts
+        self.assertEqual(self.entry(o, closes=c, low=[97] * 8)["fill"]["status"], "cancelled_stop_before_fill")
+        c[1] = 95.01
+        self.assertEqual(self.entry(o, closes=c, low=[97] * 8)["fill"]["status"], "filled")
+
+    def test_stop_check_starts_at_the_close_of_the_fill_session(self):
+        o = [99, 100, 90, 89, 88, 87, 86, 85]              # fills idx1 @100, closes 94 (<= 95) the same day
+        c = [99.5, 94, 89, 88, 87, 86, 85, 84]
+        r = self.entry(o, closes=c, low=[80] * 8)
+        self.assertEqual(r["fill"]["status"], "filled")
+        plan = r["lines"]["plan"]
+        self.assertEqual(legs(plan), [(DAYS[1], "buy", 100, 200, "fill"), (DAYS[2], "sell", 90, 200, "stop")])
+        self.assertEqual(plan["legs"][1]["trigger_date"], DAYS[1])
+
+    def test_a_close_below_the_stop_on_the_fill_day_of_a_limit_fill_is_a_stop_not_a_cancel(self):
+        o = [99, 102, 90, 89, 88, 87, 86, 85]
+        c = [99.5, 94, 89, 88, 87, 86, 85, 84]
+        r = self.entry(o, closes=c, low=[93] * 8)
+        self.assertEqual(r["fill"]["status"], "filled")
+        self.assertEqual(r["fill"]["method"], "limit")
+        self.assertEqual(legs(r["lines"]["plan"])[1][4], "stop")
+
+    def test_missing_open_skips_the_session_and_is_flagged(self):
+        o = [99, None, 100, 100, 100, 100, 100, 100]
+        r = self.entry(o, low=[97] * 8, sessions=3)
+        self.assertEqual((r["fill"]["status"], r["fill"]["index"]), ("filled", 2))
+        for ln in r["lines"].values():
+            self.assertIn("missing_open", ln["flags"])
+        o2 = [99, None, 98, 98, 98, 98, 98, 98]
+        r2 = self.entry(o2, low=[97] * 8, sessions=2)
+        self.assertEqual(r2["fill"]["status"], "unfilled")
+        self.assertIn("missing_open", r2["lines"]["hold"]["flags"])
+
+    def test_every_session_of_the_window_without_an_open_is_not_fillable(self):
+        o = [99, None, None, 100, 100, 100, 100, 100]
+        r = self.entry(o, low=[97] * 8, sessions=2)
+        self.assertEqual(r["fill"]["status"], "not_fillable")
+        self.assertEqual({v["status"] for v in r["lines"].values()}, {"not_fillable"})
+        self.assertEqual(self.entry(o, low=[97] * 8, sessions=3)["fill"]["status"], "filled")
+
+    def test_missing_low_disables_the_limit_rule_only(self):
+        o = [99, 102, 100, 100, 100, 100, 100, 100]
+        low = [98, None, 99, 99, 99, 99, 99, 99]
+        self.assertEqual(self.entry(o, low=low)["fill"]["index"], 2)
+
+    def test_window_still_open_is_pending(self):
+        o = [99, 98, 98, 98, 98, 98, 98, 98]
+        r = self.entry(o, low=[97] * 8, sessions=5, as_of="2026-03-05")        # idx0..3 known, 3 of 5 scanned
+        self.assertEqual(r["fill"]["status"], "pending")
+        self.assertEqual({v["status"] for v in r["lines"].values()}, {"pending"})
+        r2 = self.entry(o, low=[97] * 8, sessions=5, as_of="2026-03-09")      # idx5: all 5 sessions scanned
+        self.assertEqual(r2["fill"]["status"], "unfilled")
+
+    def test_cap_date_inside_the_window_ends_it_as_expired(self):
+        # horizon 2 -> cap_date 3/4 (idx2); idx3 is past it, so only idx1 and idx2 can fill
+        o = [99, 98, 98, 100, 100, 100, 100, 100]
+        r = self.entry(o, low=[97] * 8, plan_kw={"horizon_cap_days": 2})
+        self.assertEqual(r["fill"]["status"], "expired_unfilled")
+        self.assertEqual(r["fill"]["sessions_scanned"], 2)
+        self.assertEqual(self.entry([99, 98, 100, 100, 100, 100, 100, 100], low=[97] * 8,
+                                    plan_kw={"horizon_cap_days": 2})["fill"]["index"], 2)
+
+    def test_exit_review_before_a_late_fill_cancels_the_plan_line_only(self):
+        # EXIT effective 3/3 23:59:59 executes at the 3/4 open (idx2); the order fills on idx3 -> plan line cancelled
+        o = [99, 98, 98, 100, 100, 100, 100, 100]
+        r = self.entry(o, low=[97] * 8, reviews=[review("r1", "2026-03-03T23:59:59-05:00", "EXIT")])
+        self.assertEqual(r["fill"]["index"], 3)
+        self.assertEqual(r["lines"]["plan"]["status"], "cancelled_before_fill")
+        self.assertEqual(r["lines"]["hold"]["status"], "open")
+
+    def test_splits_in_the_scanned_window_are_not_settleable(self):
+        o = [99, 98, 98, 100, 100, 100, 100, 100]
+        r = self.entry(o, low=[97] * 8, splits=[[DAYS[2], "2:1"]])
+        self.assertEqual(r["fill"]["status"], "not_settleable")
+        self.assertIn("split_in_window", r["lines"]["plan"]["flags"])
+
+    def test_entry_valid_sessions_validation(self):
+        for bad in (0, 11, -1, 2.5, True, "5", None):
+            with self.subTest(bad=bad):
+                with self.assertRaises(PlanMathError) as ctx:
+                    run(plan=mk_plan(entry_valid_sessions=bad))
+                self.assertTrue(str(ctx.exception).startswith("INVALID_PLAN"))
+        for ok in (1, 10, 5.0):
+            run(plan=mk_plan(entry_valid_sessions=ok))
 
 
 class InputValidationTests(unittest.TestCase):

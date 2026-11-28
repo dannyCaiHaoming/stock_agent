@@ -4,8 +4,9 @@
   --plans   默认 .local/data/trade_plans.jsonl（只读）
   --as-of   评分日（含）；默认美东当日（16:00 前取前一日）。价格只取到该日
   --out     写 Markdown 到文件；默认打印到 stdout
-成交 = 冻结时间（frozen_at，回放计划为当日美东 23:59:59）之后第一个常规交易日未复权开盘；逐日规则见
-product/deterministic/plan_math.py。行情取自 data_tools.get_price_history（Yahoo），交易日历 = SPY 的交易日；
+成交 = 冻结时间（frozen_at，回放计划为当日美东 23:59:59）之后的限价挂单：从第一个常规交易日起最多 entry_valid_sessions
+个交易日（缺字段的旧记录按 1 个交易日、只看开盘），逐日看未复权开盘与最低价，开盘在区间内按开盘价成交、
+开盘高于上限而最低价触及上限按上限成交；逐日规则见 product/deterministic/plan_math.py。行情取自 data_tools.get_price_history（Yahoo），交易日历 = SPY 的交易日；
 个股缺行的日子留在日历内、记为缺价。取价失败会写进“警告”并让该计划记为 price_error，不会当作“无数据”。
 cap 到期（as_of >= cap_date）才按 cap 收盘离场；未到期的计划按 as_of 前最后一个收盘估值（未实现）。
 只用已完成的交易日：as_of 是今天且美东未到 16:00（或取价返回 last_row_incomplete_session）时丢弃当天行，
@@ -189,7 +190,7 @@ def frozen_day(plan: dict) -> date:
     return ds.parse_utc(plan["frozen_at"]).astimezone(ds.NY).date()
 
 
-def leg_note(leg: dict) -> str:
+def leg_note(leg: dict, fill: dict | None = None) -> str:
     if leg["reason"] == "stop":
         return f"收盘 {leg['trigger_close']:g} 在 {leg['trigger_date']} ≤ 失效价 {leg['stop']:g}，次日开盘卖出"
     if leg["reason"] == "review":
@@ -198,16 +199,35 @@ def leg_note(leg: dict) -> str:
         return "cap 日收盘离场"
     if leg["reason"] == "value":
         return "按 as_of 前最后收盘估值，不计卖出成本"
+    if fill and fill.get("method") == "limit":
+        return f"开盘 {fill['open']:g} 高于区间上限，当日最低触及上限，按上限成交"
+    if fill and fill.get("method") == "open" and fill.get("index") is not None:
+        return f"{fill['date']} 开盘在区间内，按开盘价成交"
     return "下一常规开盘成交"
 
 
-def legs_table(legs: list[dict], bps: float) -> list[str]:
+def entry_text(plan: dict) -> str:
+    """The order-validity sentence for one plan record."""
+    if "entry_valid_sessions" not in plan:
+        return "挂单有效期：旧记录无该字段，按 1 个交易日处理（只看第一个常规开盘，无限价成交）"
+    return f"挂单有效期 {plan['entry_valid_sessions']} 个交易日（限价买单：开盘价或区间上限成交）"
+
+
+def fill_text(fill: dict) -> str:
+    method = {"open": "开盘价", "limit": "限价上限"}.get(fill.get("method"))
+    return (f"成交：状态 {fill['status']}；日期 {fill['date'] or '—'}；开盘 {fill['open'] if fill['open'] is not None else '—'}"
+            + (f"；成交价 {fill['price']:g}（{method}）" if method else "")
+            + (f"；已看 {fill['sessions_scanned']} / {fill['valid_sessions']} 个交易日" if "valid_sessions" in fill else "")
+            + f"；股数 {fill['shares'] if fill['shares'] else '—'}")
+
+
+def legs_table(legs: list[dict], bps: float, fill: dict | None = None) -> list[str]:
     rows = []
     for leg in legs:
         amount = leg["price"] * leg["shares"]
         cost = "—" if leg["reason"] == "value" else money(amount * bps / 10000.0)
         rows.append([leg["date"], "买入" if leg["side"] == "buy" else "卖出", f"{leg['price']:g}", leg["shares"],
-                     money(amount), cost, REASON_LABELS.get(leg["reason"], leg["reason"]), leg_note(leg)])
+                     money(amount), cost, REASON_LABELS.get(leg["reason"], leg["reason"]), leg_note(leg, fill)])
     return table(["日期", "方向", "价格", "股数", "成交额", "成本", "原因", "说明"], rows)
 
 
@@ -230,7 +250,8 @@ def score_plan(bundle: dict, book: PriceBook, calendar: list[str], as_of: str) -
     if rows is None:
         return {"status": "price_error", "result": None, "error": book.errors[plan["ticker"]]}
     prices = ds.align_prices(calendar, rows)
-    bars = plan_math.Bars(prices.dates, prices.open, prices.close, prices.adj)
+    lows = {r[0]: r[3] for r in rows}      # session low, as traded (needed only by the limit-fill rule)
+    bars = plan_math.Bars(prices.dates, prices.open, prices.close, prices.adj, low=[lows.get(d) for d in prices.dates])
     # a discarded incomplete session also ends the scoring window of this ticker
     for ticker in (plan["ticker"], REFERENCE_CALENDAR):
         if ticker in book.dropped:
@@ -254,7 +275,7 @@ def plan_section(bundle: dict, scored: dict, as_of: str) -> list[str]:
     out += [f"- 论点：{plan['thesis']}",
             f"- 冻结 frozen_at = {plan['frozen_at']}；entry_band = {plan['entry_band']}；entry_ref = {plan['entry_ref']:g}；"
             f"计划股数 {plan['shares_planned']}；R0 = {plan['r0']:g}（预算 {plan['risk_budget']:g}）；"
-            f"cost = {plan.get('cost_bps_per_side', plan_math.COST_BPS_PER_SIDE)} bp/边",
+            f"cost = {plan.get('cost_bps_per_side', plan_math.COST_BPS_PER_SIDE)} bp/边；" + entry_text(plan),
             "- 失效价版本链：" + "；".join(f"v{v['version']} = {v['price_invalidation']:g}"
                                           + (f"（{v['effective_at']} 起）" if v["version"] > 1 else "") for v in versions)]
     if scored["result"]:
@@ -272,8 +293,7 @@ def plan_section(bundle: dict, scored: dict, as_of: str) -> list[str]:
         out += ["", f"**{scored['status']}**：{scored['error']}。该计划未结算。", ""]
         return out
     fill = res["fill"]
-    out += ["", f"成交：状态 {fill['status']}；日期 {fill['date'] or '—'}；开盘 {fill['open'] if fill['open'] is not None else '—'}；"
-            f"股数 {fill['shares'] if fill['shares'] else '—'}", ""]
+    out += ["", fill_text(fill), ""]
     bps = res["cost_bps_per_side"]
     summary = []
     for name in plan_math.LINE_NAMES:
@@ -286,7 +306,7 @@ def plan_section(bundle: dict, scored: dict, as_of: str) -> list[str]:
     for name in plan_math.LINE_NAMES:
         ln = res["lines"][name]
         out += ["", f"**{LINE_LABELS[name]}成交明细**（{ln['status']}）", ""]
-        out += legs_table(ln["legs"], bps) if ln["legs"] else ["（无成交）"]
+        out += legs_table(ln["legs"], bps, fill) if ln["legs"] else ["（无成交）"]
     pairs = res["pairs"]
     out += ["", "配对差（美元 / R）：" + "；".join(
         f"{label} = {money(pairs[key]['usd'], plus=True)} / {money(pairs[key]['r'], 3, plus=True)}" if pairs[key] else f"{label} = —"
@@ -310,7 +330,8 @@ def funnel(candidates: list[dict], bundles: dict[str, dict], scored: dict[str, d
     out = ["## 漏斗", ""]
     out += block("机会（candidate.outcome；plan = 已写成计划）", cand, ["plan", "wait", "not_formed"])
     out += block("计划的结算状态（照计划线；price_error / settle_error = 未能结算）", status,
-                 ["unfilled", "expired_unfilled", "not_fillable", "pending", "cancelled_before_fill", "open", "closed",
+                 ["unfilled", "expired_unfilled", "not_fillable", "pending", "cancelled_before_fill",
+                  "cancelled_stop_before_fill", "open", "closed",
                   "not_settleable",
                   "price_error", "settle_error"])
     out += block("用户选择（choice 行）", choice, ["followed", "declined", "abandoned"])
@@ -366,7 +387,11 @@ def score(rows: list[dict], as_of: str, book: PriceBook | None = None, source: s
            + ("" if eff == as_of else f"；as_of {as_of} 的常规交易日尚未收盘，当日行情未用"),
            f"- 已排除：{later} 条在实际截止之后才生效的记录（计划、修订、复核、选择、机会），不进报告与漏斗"
            + (f"；{undatable} 条缺少可判定的生效时间" if undatable else ""),
-           "- 成交：frozen_at 之后第一个常规交易日**未复权**开盘；止损 = 收盘 ≤ 当时有效失效价、次日开盘全部卖出；"
+           "- 成交：限价挂单，从 frozen_at 之后第一个常规交易日起最多 entry_valid_sessions 个交易日（缺字段的旧记录按 1 个交易日、"
+           "只看开盘）；逐日按**未复权**价：开盘在区间内按开盘价成交（成交方式“开盘”），开盘高于上限且当日最低价 ≤ 上限按上限成交"
+           "（成交方式“限价上限”），开盘低于下限不追低、开盘高于上限未触及则当日不成交，顺延；成交前任一日收盘 ≤ 初始失效价则挂单取消"
+           "（cancelled_stop_before_fill）；有效期内未成交 = unfilled；R0 不随实际成交价改变。"
+           "成交后止损 = 收盘 ≤ 当时有效失效价（从成交日收盘起查）、次日开盘全部卖出；"
            "复核与修订按其有效时间之后的开盘/收盘生效；cap 到期（as_of >= cap_date）按 cap 日收盘离场，否则按 as_of 前最后收盘估值（未实现）；"
            "第一个可成交开盘已晚于 cap_date 的计划记 expired_unfilled",
            f"- 成本：每笔成交额 × 10 bp，买卖各算一次，估值不算卖出成本；R = 净损益 / R0",

@@ -59,7 +59,10 @@ description: 交易计划（纸面，L1 只做“催化事件”模板）：用�
    - **持有依据**：只写经营与消息事实（例如“全年指引未被下调、主要客户合同未取消”）；价格条件只写在失效位里，不要混进持有依据（复核第一步只看经营事实，混进价格会让论点判断受股价影响）；
    - **复核日**：至少一个日期（例如下次财报后的第一个交易日），晚于今天；
    - **持有期上限**：1–120 个日历日。
-7. **风险算术**：`size_trade_plan(entry_ref, price_invalidation, risk_budget)`。入场参考价用最近收盘或你认为合理的开盘价；允许成交区间 `entry_band = [lo, hi]` 须包含参考价，且失效价低于 `lo`。工具返回的股数与 R0 照抄，不要自己算。如果失效价离得太远、股数只有 1–2 股，说明这个计划风险太大，写进数据缺口或改为 `not_formed`。
+7. **风险算术**：`size_trade_plan(entry_ref, price_invalidation, risk_budget)`。入场参考价用最近收盘或你认为合理的开盘价；允许成交区间 `entry_band = [lo, hi]` 须包含参考价，且失效价低于 `lo`。
+   - 纸面成交按**限价挂单**：从下一常规交易日起最多挂 `entry_valid_sessions` 个交易日（1–10，默认 5）；开盘在区间内按开盘成交，高开但当日最低价碰到 `hi` 按 `hi` 成交，开盘低于 `lo` 当日不买；成交前收盘跌破失效位则撤单。
+   - **区间不要定得太窄**：上下各至少留出最近 20 个交易日平均隔夜跳空（|开盘 − 前收盘| / 前收盘）的两倍，用 `get_price_history` 自己算并写进卡里；`hi` 是你愿意付的最高价，不是参考价本身。
+   - 催化事件后急于确认的，有效期可短（1–3 天）；愿意等回踩的，可长（5–10 天），写明理由。工具返回的股数与 R0 照抄，不要自己算。如果失效价离得太远、股数只有 1–2 股，说明这个计划风险太大，写进数据缺口或改为 `not_formed`。
 8. **写计划卡**（模板见下），展示给用户，并请用户用自己的话复述放弃理由的事实与失效位。结果是 `wait` 时不写失效位和股数，只写“什么事实出现会让你重新考虑买入、什么事实出现就放弃”。
 9. **保存**：按“三种结果”保存。
 
@@ -68,7 +71,7 @@ description: 交易计划（纸面，L1 只做“催化事件”模板）：用�
 ```
 # {TICKER} · 交易计划（纸面）· {信息截止日期}
 把握程度：{低/中/高}——{一句原因}
-模板：催化事件｜入场参考 {entry_ref}，允许成交 {lo}–{hi}（下一常规交易日开盘）｜计划 {shares} 股｜预算亏损 {r0} 美元（1R）｜持有期上限 {N} 天
+模板：催化事件｜入场参考 {entry_ref}，允许成交 {lo}–{hi}（限价挂单，有效 {n} 个交易日）｜计划 {shares} 股｜预算亏损 {r0} 美元（1R）｜持有期上限 {N} 天
 
 ## 论点
 {一句话论点}
@@ -98,7 +101,7 @@ description: 交易计划（纸面，L1 只做“催化事件”模板）：用�
 
 ## 保存参数
 
-`save_trade_plan` 你提供：`ticker`、`template="catalyst_event"`、`thesis`（一行）、`market_misread`、`catalyst`、`abandon_facts`（`[{document, fact}]`）、`price_invalidation`、`entry_ref`、`entry_band`、`risk_budget`、`hold_basis`、`review_dates`、`horizon_cap_days`、`report_markdown`（完整计划卡）、`model`、`host`；回放时加 `replay_as_of`。
+`save_trade_plan` 你提供：`ticker`、`template="catalyst_event"`、`thesis`（一行）、`market_misread`、`catalyst`、`abandon_facts`（`[{document, fact}]`）、`price_invalidation`、`entry_ref`、`entry_band`、`entry_valid_sessions`、`risk_budget`、`hold_basis`、`review_dates`、`horizon_cap_days`、`report_markdown`（完整计划卡）、`model`、`host`；回放时加 `replay_as_of`。
 
 **不要**传 `plan_id`、`frozen_at`、`shares_planned`、`r0`、`code_version` 等生成字段，传了会被拒收。
 

@@ -95,6 +95,12 @@
 - **并发**：检查与追加在同一把文件锁内。
 - **结算**：评分取价传 `as_of`，冻结到结束之间有拆股 → `not_settleable`（`split_in_window`）；未完成交易日不用；冻结后首个开盘晚于 cap 日 → `expired_unfilled`；失效价修订生效于纽约 13:00–16:00 时标 `revision_same_day_check`（提前收市日人工核对，L1 不实现交易所日历）。
 
+### 返工 3：纸面成交改为限价挂单（历史走查发现，2026-11-28）
+- 依据：TER、GS、MRVL 三份历史计划全部 unfilled（区间 ±1–2%，只看冻结后第一个开盘）。
+- 新增 `entry_valid_sessions`（1–10，默认 5）；逐日：开盘在区间内按开盘成交；高开且最低价 ≤ hi 按 hi 成交；开盘 < lo 当日不买；成交前收盘 ≤ 初始失效价 → `cancelled_stop_before_fill`；有效期内未成交 → `unfilled`。`fill_rule = limit_band_within_entry_valid_sessions`。
+- R0 不随成交价改变；旧记录（无此字段）按原规则结算，结果逐字不变。
+- Skill：区间上下至少留出近 20 日平均隔夜跳空的两倍。
+
 ### MCP 工具（`product/mcp/server.py`，一名实现者负责注册）
 `size_trade_plan(entry_ref, price_invalidation, risk_budget=1000)`（只读）、`save_plan_candidate(ticker, outcome, reason, replay_as_of?)`（outcome 只能 wait / not_formed）、`save_trade_plan(...)`、`revise_trade_plan(plan_id, reason, sources, changes, replay_as_of?)`、`save_plan_review(...)`、`record_plan_choice(plan_id, ref_id, choice, note)`、`get_trade_plan(plan_id)`、`list_trade_plans(ticker?, active_only?)`。错误沿用 `DecisionLogError` 与 `explain_errors`。
 

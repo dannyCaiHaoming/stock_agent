@@ -411,6 +411,68 @@ class ScoreReworkCase(Base):
         self.assertRegex(text[text.index("## 漏斗"):], r"\| expired_unfilled \| 0 \| 1 \|")
 
 
+class ScoreEntryOrderCase(Base):
+    """Rework 3 end to end: score-plans on a limit-fill plan and on an old record without entry_valid_sessions.
+
+    Plan (server default entry_valid_sessions = 5): band [98, 102], entry_ref 100, stop 90, 100 shares, R0 = 1000, frozen
+    2026-03-02 23:59:59 NY. Bars: 03-03 open 105 (above the top), close 101, low = close (the fake feed) = 101 <= 102
+    -> limit fill at 102: buy 100 x 102 = 10,200.00 (cost 10.20), fill method "限价上限".
+    hold to the 04-01 cap close 106: sell 10,600.00 (cost 10.60); gross +400.00; costs 20.80; net +379.20; R +0.379;
+      lowest close 85 (03-11) -> R (85 - 102) x 100 / 1000 = -1.700
+    plan = simple_exit: close 03-10 = 89 <= 90 -> sell 03-11 open 84 = 8,400.00 (cost 8.40); gross -1,800.00;
+      costs 10.20 + 8.40 = 18.60; net -1,818.60; R -1.819
+    The same bars with the field removed from the record (an old plan): the 03-03 open 105 is above the band -> unfilled.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.script = load_script("score-plans")
+        patch = mock.patch.dict(NVDA, {"2026-03-03": (105, 101)})
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def score(self):
+        rows = self.script.read_ledger(self.root / "trade_plans.jsonl")
+        with mock.patch.object(data_tools, "get_price_history", fake_price_history()):
+            return self.script.score(rows, "2026-04-10", source="ledger")
+
+    def test_limit_fill_at_the_band_top_with_hand_numbers(self):
+        server.save_trade_plan(**server_args())
+        text, code = self.score()
+        self.assertEqual(code, 0)
+        self.assertIn("挂单有效期 5 个交易日", text)
+        self.assertIn("成交：状态 filled；日期 2026-03-03；开盘 105.0；成交价 102（限价上限）；已看 1 / 5 个交易日；股数 100", text)
+        self.assertIn("| 2026-03-03 | 买入 | 102 | 100 | 10,200.00 | 10.20 | 成交 | 开盘 105 高于区间上限，当日最低触及上限，按上限成交 |", text)
+        self.assertIn("| 持有对照 | closed | 400.00 | 20.80 | +379.20 | +0.379 | +3.72 | -1.700 |", text)
+        self.assertIn("| 照计划 | closed | -1,800.00 | 18.60 | -1,818.60 | -1.819 |", text)
+        self.assertIn("R0 = 1000", text)       # R0 unchanged by the actual fill price
+        self.assertIn("限价挂单", text)
+
+    def test_record_without_the_field_is_one_session_open_only(self):
+        server.save_trade_plan(**server_args())
+        path = self.root / "trade_plans.jsonl"
+        rows = [json.loads(x) for x in path.read_text().splitlines()]
+        for row in rows:
+            row.pop("entry_valid_sessions", None)
+        path.write_text("".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
+        text, code = self.score()
+        self.assertEqual(code, 0)
+        self.assertIn("旧记录无该字段，按 1 个交易日处理", text)
+        self.assertIn("成交：状态 unfilled；日期 2026-03-03；开盘 105.0；股数 —", text)
+        self.assertNotIn("；成交价", text)
+        self.assertIn("| 持有对照 | unfilled | — | — | — |", text)
+
+    def test_order_cancelled_by_a_close_below_the_stop_is_in_the_funnel(self):
+        # 03-03 open 85 (below the band, no fill), close 85 <= stop 90 -> order cancelled before any fill
+        with mock.patch.dict(NVDA, {"2026-03-03": (85, 85)}):
+            server.save_trade_plan(**server_args())
+            text, code = self.score()
+        self.assertEqual(code, 0)
+        self.assertIn("成交：状态 cancelled_stop_before_fill", text)
+        self.assertIn("| 照计划 | cancelled_stop_before_fill | — | — | — |", text)
+        self.assertRegex(text[text.index("## 漏斗"):], r"\| cancelled_stop_before_fill \| 0 \| 1 \|")
+
+
 class DevResearchCase(unittest.TestCase):
     script = REPO / "scripts" / "dev-research.sh"
 

@@ -7,8 +7,8 @@
 
 ## 当前焦点
 - 当前路线：**交易计划生命周期**（2026-11-28 起），总设计 [docs/design-position-lifecycle-2026-11-28.md](../docs/design-position-lifecycle-2026-11-28.md)，已确认（§8 用户已答）。
-- 当前 MVP：L1 可用性，子设计 [designs/position-lifecycle.md](designs/position-lifecycle.md)，plan [plans/position-lifecycle-impl.md](plans/position-lifecycle-impl.md)（返工 [rework1](plans/position-lifecycle-rework1.md)、[rework2](plans/position-lifecycle-rework2.md)）。
-- 状态：实现完成（Sonnet 5.5，返工 2 次）；319 个离线测试通过；三个固定用例 A/B/C 通过（Codex terra 回放，4 次模型调用）；**真实前瞻用例：NVDA，12-04（10-Q 截止）后用修订后的 trade-plan 重跑**（11-28 两次实时尝试 NVDA not_formed、PL wait；与 astra 讨论后修订 Skill）。验收记录 [evidence/position-lifecycle-acceptance.md](evidence/position-lifecycle-acceptance.md)。
+- 当前 MVP：L1 可用性，子设计 [designs/position-lifecycle.md](designs/position-lifecycle.md)，plan [plans/position-lifecycle-impl.md](plans/position-lifecycle-impl.md)（返工 [rework1](plans/position-lifecycle-rework1.md)、[rework2](plans/position-lifecycle-rework2.md)、[rework3](plans/position-lifecycle-rework3.md)）。
+- 状态：实现完成（Sonnet 5.5，返工 3 次；返工 3 为限价挂单）；348 个离线测试通过；三个固定用例 A/B/C 通过；历史走查 4 例（IBM/TER/GS/MRVL，照计划 +36.5R、持有 +35.4R，不是效果证据；用户认为不能代替真实前瞻）；plan-review 加入浮盈保护判断；**真实前瞻用例：NVDA，12-04（10-Q 截止）后用修订后的 trade-plan 重跑**（11-28 两次实时尝试 NVDA not_formed、PL wait；与 astra 讨论后修订 Skill）。验收记录 [evidence/position-lifecycle-acceptance.md](evidence/position-lifecycle-acceptance.md)。
 - 前一路线 Decision-First：P0 完成并推送（021199f）；P1 代码完成并提交（0cb36e7、5ea1d8c），第二版盲读材料在 [evidence/decision-card-blindread.md](evidence/decision-card-blindread.md)，**用户结论待记录**；P2 协议 v1 保留、暂不开跑（用户：先做完 P1）。
 - 代码基线：`main` 88a0cee（L1 已提交并推送 2026-11-28）。
 - Skill 包根与阶段能力入口：Claude Code `~/.claude/skills/`，Codex `~/.codex/skills/`；design 能力 2026-11-28 实际读取。

@@ -32,7 +32,7 @@ from product.mcp.decision_log import DecisionLogError, _code_version
 from product.mcp.provenance import iso_utc
 
 SCHEMA = "plan/v1"
-FILL_RULE = "next_regular_open_after_frozen_at"
+FILL_RULE = "limit_band_within_entry_valid_sessions"  # rework 3; old records carry next_regular_open_after_frozen_at
 STOP_RULE = "close_at_or_below_then_next_open"
 COST_BPS_PER_SIDE = 10
 TEMPLATES = ("catalyst_event",)
@@ -45,6 +45,9 @@ CHOICES = ("followed", "declined", "abandoned")
 REVISABLE = ("price_invalidation", "hold_basis", "review_dates", "abandon_facts")
 MAX_ACTIVE = 8
 MAX_HORIZON_DAYS = 120
+DEFAULT_ENTRY_VALID_SESSIONS = 5
+MAX_ENTRY_VALID_SESSIONS = 10
+LEGACY_ENTRY_VALID_SESSIONS = 1     # records written before rework 3 have no entry_valid_sessions: one session, open only
 
 PLAN_SECTIONS = ("论点", "催化剂", "放弃理由的事实", "价格失效位与预算亏损", "持有依据与复核日", "数据缺口", "来源")
 REVIEW_SECTIONS = ("论点复核", "价格与动作", "数据缺口", "来源")
@@ -125,6 +128,12 @@ def _review_dates(value: Any, after: date) -> list[str]:
 def _horizon(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_HORIZON_DAYS:
         raise DecisionLogError(f"HORIZON_CAP_DAYS_INVALID: integer 1..{MAX_HORIZON_DAYS} calendar days")
+    return value
+
+
+def _entry_valid_sessions(value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_ENTRY_VALID_SESSIONS:
+        raise DecisionLogError(f"ENTRY_VALID_SESSIONS_INVALID: integer 1..{MAX_ENTRY_VALID_SESSIONS} sessions")
     return value
 
 
@@ -426,8 +435,10 @@ def save_trade_plan(ticker: str, template: str, thesis: str, market_misread: str
                     abandon_facts: list[dict[str, str]], price_invalidation: float, entry_ref: float,
                     entry_band: list[float], hold_basis: str, review_dates: list[str], horizon_cap_days: int,
                     report_markdown: str, risk_budget: float = 1000, replay_as_of: str | None = None,
-                    host: str | None = None, model: str | None = None, **extra: Any) -> dict[str, Any]:
-    """Validate and freeze one plan/v1 record (plus its candidate row with outcome=plan). Returns the generated fields."""
+                    host: str | None = None, model: str | None = None,
+                    entry_valid_sessions: int = DEFAULT_ENTRY_VALID_SESSIONS, **extra: Any) -> dict[str, Any]:
+    """Validate and freeze one plan/v1 record (plus its candidate row with outcome=plan). Returns the generated fields.
+    entry_valid_sessions (integer 1..10, default 5): the paper order is a limit buy valid for that many sessions."""
     if extra:
         generated = sorted(set(extra) & set(GENERATED_FIELDS))
         if generated:
@@ -455,15 +466,17 @@ def save_trade_plan(ticker: str, template: str, thesis: str, market_misread: str
     if stop >= lo:
         raise DecisionLogError("PRICE_INVALIDATION_NOT_BELOW_BAND: price_invalidation must be below the whole entry band")
     cap_days = _horizon(horizon_cap_days)
+    valid_sessions = _entry_valid_sessions(entry_valid_sessions)
     report = _check_sections(report_markdown, PLAN_SECTIONS, "plan card")
     with _ledger_lock():
         return _save_trade_plan_locked(
             ticker, template, thesis, market_misread, catalyst, facts, stop, ref, budget, lo, hi, hold_basis,
-            review_dates, cap_days, report, replay_as_of, host, model)
+            review_dates, cap_days, report, replay_as_of, host, model, valid_sessions)
 
 
 def _save_trade_plan_locked(ticker, template, thesis, market_misread, catalyst, facts, stop, ref, budget, lo, hi,
-                            hold_basis, review_dates, cap_days, report, replay_as_of, host, model) -> dict[str, Any]:
+                            hold_basis, review_dates, cap_days, report, replay_as_of, host, model,
+                            valid_sessions) -> dict[str, Any]:
     decided_at, effective = _decision_times(replay_as_of)
     today = effective.astimezone(NY).date()
     dates = _review_dates(review_dates, today)
@@ -486,6 +499,7 @@ def _save_trade_plan_locked(ticker, template, thesis, market_misread, catalyst, 
         "market_misread": market_misread, "catalyst": catalyst, "abandon_facts": facts,
         "price_invalidation": stop, "entry_ref": ref, "entry_band": [lo, hi], "risk_budget": budget,
         "hold_basis": hold_basis, "review_dates": dates, "horizon_cap_days": cap_days,
+        "entry_valid_sessions": valid_sessions,
         "host": _opt_text(host), "model": _opt_text(model),
         # generated below this line
         "model_recorded": _model_recorded(model), "candidate_id": candidate_id, "decided_at": stamp,
@@ -501,7 +515,7 @@ def _save_trade_plan_locked(ticker, template, thesis, market_misread, catalyst, 
              "model": _opt_text(model)}, record)
     return {"saved": True, "plan_id": record["plan_id"], "candidate_id": candidate_id, "frozen_at": effective_stamp,
             "replay": replay, "shares_planned": record["shares_planned"], "r0": record["r0"],
-            "risk_per_share": sizing["risk_per_share"], "report_sha256": record["report_sha256"],
+            "entry_valid_sessions": valid_sessions, "risk_per_share": sizing["risk_per_share"], "report_sha256": record["report_sha256"],
             "report_path": str(report_path), "plan_log": str(_log_path())}
 
 
@@ -693,6 +707,7 @@ def list_trade_plans(ticker: str | None = None, active_only: bool = True) -> dic
                       "frozen_at": plan["frozen_at"], "replay": bool(plan.get("replay")),
                       "shares_planned": plan["shares_planned"], "r0": plan["r0"],
                       "entry_band": plan["entry_band"], "horizon_cap_days": plan["horizon_cap_days"],
+                      "entry_valid_sessions": plan.get("entry_valid_sessions", LEGACY_ENTRY_VALID_SESSIONS),
                       "cap_date": _cap_date(plan).isoformat(), "version": current["version"],
                       "price_invalidation": current["price_invalidation"], "review_count": len(bundle["reviews"]),
                       "last_review": ({"review_id": last["review_id"], "action": last["action"],

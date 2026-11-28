@@ -5,6 +5,11 @@ Rules: fucxxx-codex-spec/designs/position-lifecycle.md ("三线结算"), plan ta
 (`Bars.dates`, ascending ISO dates); a missing price is None or NaN. `adj_close` is used only for the
 corporate-action check.
 
+Entry (rework 3): a plan with `entry_valid_sessions` is a limit buy order valid for that many sessions from the first
+regular session after the freeze (see `_scan_entry`); a plan without the field (old records) is the original rule:
+only the first session's open, filled when it lies inside the band. `Bars.low` is optional; without it the
+"filled at the band top" rule cannot apply.
+
 Three lines on the same fill: `plan` (stop, reviews, revisions, cap), `hold` (cap only), `simple_exit`
 (initial stop and cap only). Money is in dollars, R = net / r0. Everything is computed from unrounded numbers and
 rounded once at the end (money 0.01, R 0.001), so a hand calculation from the legs agrees up to rounding.
@@ -28,6 +33,7 @@ EARLY_CLOSE_NY = time(13, 0)        # earliest regular early close; a revision b
 ACTIONS = ("HOLD", "REDUCE", "EXIT")
 LINE_NAMES = ("plan", "hold", "simple_exit")
 SETTLED = ("closed", "open")
+MAX_ENTRY_SESSIONS = 10
 
 
 class PlanMathError(ValueError):
@@ -67,13 +73,17 @@ class Bars:
     open: list[float | None]
     close: list[float | None]
     adj_close: list[float | None]    # corporate-action check only
+    low: list[float | None] | None = None    # session lows (optional); needed only for the limit-fill rule
 
 
-def _check_bars(bars: Bars, as_of: str) -> tuple[list[str], list[float | None], list[float | None], list[float | None]]:
-    """Validate and cut to date <= as_of; prices cleaned with decision_scoring.num (missing / NaN / <= 0 → None)."""
+def _check_bars(bars: Bars, as_of: str) -> tuple[list[str], list[float | None], list[float | None],
+                                                 list[float | None], list[float | None]]:
+    """Validate and cut to date <= as_of; prices cleaned with decision_scoring.num (missing / NaN / <= 0 → None).
+    The low list is all None when `bars.low` is not given."""
     n = len(bars.dates)
-    if not (len(bars.open) == len(bars.close) == len(bars.adj_close) == n):
-        raise PlanMathError("INVALID_BARS: dates, open, close and adj_close must have the same length")
+    if not (len(bars.open) == len(bars.close) == len(bars.adj_close) == n) or \
+            (bars.low is not None and len(bars.low) != n):
+        raise PlanMathError("INVALID_BARS: dates, open, close, adj_close (and low when given) must have the same length")
     prev = None
     for d in bars.dates:
         try:
@@ -84,8 +94,9 @@ def _check_bars(bars: Bars, as_of: str) -> tuple[list[str], list[float | None], 
             raise PlanMathError(f"INVALID_BARS: dates must be strictly ascending ({prev} then {d})")
         prev = d
     k = sum(1 for d in bars.dates if d <= as_of)
+    lows = [None] * k if bars.low is None else [num(x) for x in bars.low[:k]]
     return (list(bars.dates[:k]), [num(x) for x in bars.open[:k]], [num(x) for x in bars.close[:k]],
-            [num(x) for x in bars.adj_close[:k]])
+            [num(x) for x in bars.adj_close[:k]], lows)
 
 
 def _int_field(value: Any, name: str, lo: int, hi: int | None = None) -> int:
@@ -111,14 +122,16 @@ def _leg(day: str, side: str, price: float, shares: int, reason: str, **extra: A
 
 
 def _run_line(dates: Sequence[str], opens: Sequence[float | None], closes: Sequence[float | None], i: int,
-              shares: int, stop_at: Any, reviews: dict[int, list[tuple[str, str]]], cap_idx: int | None
-              ) -> dict[str, Any]:
+              shares: int, stop_at: Any, reviews: dict[int, list[tuple[str, str]]], cap_idx: int | None,
+              fill_price: float | None = None) -> dict[str, Any]:
     """Walk one line from the fill day. `stop_at(d)` → stop in force for the close of day d (None: no stop rule);
     `reviews` maps execution-open index (> fill index) → [(action, review_id)] (REDUCE / EXIT only); `cap_idx` is
-    the cap trading day or None when the cap has not been reached by as_of. Returns raw (unrounded) legs and
-    bookkeeping; money is computed by `_money`."""
+    the cap trading day or None when the cap has not been reached by as_of. `fill_price` defaults to the open of day i
+    (a limit fill passes the limit). The stop check starts at the close of the fill day. Returns raw (unrounded) legs
+    and bookkeeping; money is computed by `_money`."""
     n = len(dates)
-    fill_price = opens[i]
+    if fill_price is None:
+        fill_price = opens[i]
     held = shares
     legs = [_leg(dates[i], "buy", fill_price, shares, "fill")]
     flags: set[str] = set()
@@ -224,6 +237,59 @@ def _public(line: dict[str, Any], dates: Sequence[str]) -> dict[str, Any]:
             "flags": sorted(line["flags"])}
 
 
+# ---------------------------------------------------------------- entry order
+
+def _scan_entry(dates: Sequence[str], opens: Sequence[float | None], lows: Sequence[float | None],
+                closes: Sequence[float | None], i: int, valid: int, lo: float, hi: float, stop0: float,
+                cap_date: str, as_of: str) -> dict[str, Any]:
+    """Walk the limit buy order over at most `valid` completed sessions from index `i` (the first session after the
+    freeze). Per session: open in [lo, hi] → fill at the open (method "open"); open above hi and low <= hi → fill at hi
+    (method "limit"; needs a low); open below lo, or above hi without touching hi → no fill, next session; a missing open
+    skips the session (flag missing_open). After an unfilled session whose close is <= the initial stop the order is
+    cancelled (kind cancelled_stop_before_fill). Sessions after `cap_date` are not scanned.
+
+    kind: filled | cancelled_stop_before_fill | not_fillable (every session of the full window has no open) | unfilled
+    (full window scanned, nothing filled) | expired_unfilled (the cap date ended the window early) | pending (the
+    window is not complete in the calendar yet). `last` = index of the last session scanned."""
+    n = len(dates)
+    flags: set[str] = set()
+    scanned = missing = 0
+    last = i
+    truncated = False
+    result: dict[str, Any] = {}
+    for j in range(i, min(i + valid, n)):
+        if dates[j] > cap_date:
+            truncated = True
+            break
+        last, scanned = j, scanned + 1
+        o = opens[j]
+        if o is None:
+            missing += 1
+            flags.add("missing_open")
+        elif lo <= o <= hi:
+            result = {"kind": "filled", "index": j, "price": o, "method": "open"}
+            break
+        elif o > hi and lows[j] is not None and lows[j] <= hi:
+            result = {"kind": "filled", "index": j, "price": hi, "method": "limit"}
+            break
+        c = closes[j]
+        if c is not None and c <= stop0:
+            result = {"kind": "cancelled_stop_before_fill", "index": None, "price": None, "method": None}
+            break
+    if not result:
+        if scanned == valid:
+            kind = "not_fillable" if missing == valid else "unfilled"
+        elif truncated or as_of >= cap_date:
+            kind = "expired_unfilled"
+        else:
+            kind = "pending"
+        result = {"kind": kind, "index": None, "price": None, "method": None}
+    if result["kind"] == "not_fillable":
+        flags.discard("missing_open")
+    result.update(last=last, scanned=scanned, flags=flags)
+    return result
+
+
 # ---------------------------------------------------------------- settlement
 
 def _split_dates(splits: Any) -> list[str]:
@@ -254,9 +320,15 @@ def settle(plan: dict, revisions: list[dict], reviews: list[dict], bars: Bars, a
     splits whose ratio the caller could not read (so earlier bars could not be restored): one dated after the freeze
     day makes all three lines not_settleable (flag split_ratio_unparsed), whatever the window.
 
+    Entry: `plan["entry_valid_sessions"]` (integer 1..10) makes the plan a limit buy order valid that many sessions from
+    the first session after the freeze (`_scan_entry`; the fill is the open when it lies in the band, else the band top
+    when the session traded down to it; `fill` then also carries price, method, valid_sessions, sessions_scanned). A plan
+    WITHOUT the field (old records) is settled exactly as before: first session's open only, no limit fill, a missing
+    open is not_fillable. Stops, reviews and the cap work from the fill session on.
+
     Returns {"as_of", "fill", "cap_date", "cap_trading_day", "stop_versions", "lines": {plan, hold, simple_exit},
     "pairs": {plan_minus_hold, plan_minus_simple}}. Line status: closed | open | unfilled | expired_unfilled |
-    not_fillable | pending | cancelled_before_fill | not_settleable. Errors (PlanMathError): INVALID_AS_OF,
+    not_fillable | pending | cancelled_before_fill | cancelled_stop_before_fill | not_settleable. Errors (PlanMathError): INVALID_AS_OF,
     INVALID_BARS, INVALID_PLAN, INVALID_REVISION, INVALID_REVIEW, INVALID_NUMBER, INVALID_SPLITS."""
     try:
         date.fromisoformat(as_of)
@@ -276,6 +348,8 @@ def settle(plan: dict, revisions: list[dict], reviews: list[dict], bars: Bars, a
     shares = _int_field(plan.get("shares_planned"), "shares_planned", 1)
     r0 = _positive_finite(plan.get("r0"), "r0")
     horizon = _int_field(plan.get("horizon_cap_days"), "horizon_cap_days", 1, MAX_HORIZON_DAYS)
+    legacy = "entry_valid_sessions" not in plan
+    valid = 1 if legacy else _int_field(plan["entry_valid_sessions"], "entry_valid_sessions", 1, MAX_ENTRY_SESSIONS)
 
     split_days = _split_dates(splits)
     cutoff = datetime.combine(date.fromisoformat(as_of), CLOSE_NY, tzinfo=NY)   # nothing effective later is known
@@ -317,7 +391,7 @@ def settle(plan: dict, revisions: list[dict], reviews: list[dict], bars: Bars, a
         if at <= cutoff:
             exec_reviews.append((action, str(rv["review_id"]), at))
 
-    dates, opens, closes, adjs = _check_bars(bars, as_of)
+    dates, opens, closes, adjs, lows = _check_bars(bars, as_of)
     n = len(dates)
 
     cap_date = (frozen.astimezone(NY).date() + timedelta(days=horizon)).isoformat()
@@ -331,6 +405,8 @@ def settle(plan: dict, revisions: list[dict], reviews: list[dict], bars: Bars, a
         return out
 
     blank = {"index": None, "date": None, "open": None, "shares": None, "entry_band": [lo, hi]}
+    if not legacy:
+        blank.update(price=None, method=None, valid_sessions=valid, sessions_scanned=0)
     i = entry_index(plan["frozen_at"], dates)
     if i is None:
         # No session after the freeze in the calendar. Once the cap date has been reached, no open on or before it
@@ -342,18 +418,36 @@ def settle(plan: dict, revisions: list[dict], reviews: list[dict], bars: Bars, a
     fill_open = opens[i]
     fill_info = {"status": "filled", "index": i, "date": dates[i], "open": fill_open, "shares": shares,
                  "entry_band": [lo, hi]}
+    if not legacy:
+        fill_info.update(price=None, method=None, valid_sessions=valid, sessions_scanned=0)
     frozen_day = frozen.astimezone(NY).date().isoformat()
     if dates[i] > cap_date:       # the holding cap passed before any session could open the position
         return no_fill("expired_unfilled", {**fill_info, "status": "expired_unfilled", "shares": None})
+    entry_flags: set[str] = set()
+    fill_price = None
+    scan: dict[str, Any] = {"last": i, "kind": "filled"}
+    if not legacy:
+        scan = _scan_entry(dates, opens, lows, closes, i, valid, lo, hi, stop0, cap_date, as_of)
+        fill_info["sessions_scanned"] = scan["scanned"]
+        if scan["kind"] in ("pending", "expired_unfilled"):
+            return no_fill(scan["kind"], {**fill_info, "status": scan["kind"], "shares": None}, scan["flags"])
+        entry_flags = scan["flags"]
     unparsed = _split_dates([[d] for d in unparsed_splits or ()])
-    split_flags = (["split_in_window"] if any(frozen_day <= d <= dates[i] for d in split_days) else []) + \
+    split_flags = (["split_in_window"] if any(frozen_day <= d <= dates[scan["last"]] for d in split_days) else []) + \
                   (["split_ratio_unparsed"] if any(d > frozen_day for d in unparsed) else [])
     if split_flags:     # band and fill open (or later bars) on different per-share bases
         return no_fill("not_settleable", {**fill_info, "status": "not_settleable", "shares": None}, split_flags)
-    if fill_open is None:
-        return no_fill("not_fillable", {**fill_info, "status": "not_fillable", "shares": None})
-    if not (lo <= fill_open <= hi):
-        return no_fill("unfilled", {**fill_info, "status": "unfilled", "shares": None})
+    if legacy:
+        if fill_open is None:
+            return no_fill("not_fillable", {**fill_info, "status": "not_fillable", "shares": None})
+        if not (lo <= fill_open <= hi):
+            return no_fill("unfilled", {**fill_info, "status": "unfilled", "shares": None})
+    else:
+        if scan["kind"] != "filled":
+            return no_fill(scan["kind"], {**fill_info, "status": scan["kind"], "shares": None}, entry_flags)
+        i = scan["index"]
+        fill_price = scan["price"]
+        fill_info.update(index=i, date=dates[i], open=opens[i], price=fill_price, method=scan["method"])
     out["fill"] = fill_info
 
     # cap trading day: only known once as_of has reached the cap calendar date
@@ -386,10 +480,12 @@ def settle(plan: dict, revisions: list[dict], reviews: list[dict], bars: Bars, a
     if cancelled:
         runs["plan"] = _empty_line("cancelled_before_fill", plan_flags)
     else:
-        runs["plan"] = _run_line(dates, opens, closes, i, shares, stop_in_force, by_idx, cap_idx)
+        runs["plan"] = _run_line(dates, opens, closes, i, shares, stop_in_force, by_idx, cap_idx, fill_price)
         runs["plan"]["flags"] |= plan_flags
-    runs["hold"] = _run_line(dates, opens, closes, i, shares, None, {}, cap_idx)
-    runs["simple_exit"] = _run_line(dates, opens, closes, i, shares, lambda _d: stop0, {}, cap_idx)
+    runs["hold"] = _run_line(dates, opens, closes, i, shares, None, {}, cap_idx, fill_price)
+    runs["simple_exit"] = _run_line(dates, opens, closes, i, shares, lambda _d: stop0, {}, cap_idx, fill_price)
+    for ln in runs.values():
+        ln["flags"] |= entry_flags
 
     # corporate action: adj_close / close drift from the fill day to the latest line end
     ends = [ln["end_idx"] for ln in runs.values() if ln.get("end_idx") is not None]

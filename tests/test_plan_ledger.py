@@ -177,7 +177,7 @@ class SaveTests(LedgerCase):
         self.assertEqual(plan["schema"], "plan/v1")
         self.assertEqual(plan["frozen_at"], plan["decided_at"])
         self.assertEqual((plan["fill_rule"], plan["stop_rule"], plan["cost_bps_per_side"]),
-                         ("next_regular_open_after_frozen_at", "close_at_or_below_then_next_open", 10))
+                         ("limit_band_within_entry_valid_sessions", "close_at_or_below_then_next_open", 10))
         self.assertIn("commit", plan["code_version"])
         report = Path(plan["report_path"])
         self.assertEqual(report.parent.parent, self.root / "plan-reports")
@@ -1072,6 +1072,45 @@ class CandidateTests(LedgerCase):
     def test_candidate_does_not_count_as_active_plan(self):
         plan_ledger.save_plan_candidate("NVDA", "wait", "等财报")
         self.save(replay_as_of=None)  # still allowed
+
+
+class EntryValidSessionsTests(LedgerCase):
+    """Rework 3: the paper order is a limit buy valid for entry_valid_sessions sessions (1..10, default 5)."""
+
+    def test_default_is_five_and_is_frozen_in_the_record(self):
+        out = self.save()
+        self.assertEqual(out["entry_valid_sessions"], 5)
+        self.assertEqual(self.rows("plan")[0]["entry_valid_sessions"], 5)
+        self.assertEqual(self.rows("plan")[0]["fill_rule"], "limit_band_within_entry_valid_sessions")   # unchanged
+
+    def test_caller_value_is_stored(self):
+        for n, ticker in ((1, "AMD"), (10, "MU"), (3, "NVDA")):
+            out = self.save(entry_valid_sessions=n, ticker=ticker)
+            self.assertEqual(out["entry_valid_sessions"], n)
+        self.assertEqual([r["entry_valid_sessions"] for r in self.rows("plan")], [1, 10, 3])
+
+    def test_bad_values_are_refused_and_write_nothing(self):
+        for bad in (0, 11, -1, 2.5, True, "5", None):
+            with self.subTest(bad=bad):
+                self.refuse_plan("ENTRY_VALID_SESSIONS_INVALID", entry_valid_sessions=bad)
+
+    def test_it_is_not_a_generated_field(self):
+        self.assertNotIn("entry_valid_sessions", plan_ledger.GENERATED_FIELDS)
+
+    def test_list_summary_shows_it_and_a_record_without_the_field_reads_as_one_session(self):
+        new = self.save(entry_valid_sessions=7)
+        legacy_id = self.save(ticker="AMD")["plan_id"]
+        path = self.root / "trade_plans.jsonl"
+        rows = [json.loads(x) for x in path.read_text().splitlines()]
+        for row in rows:                        # make AMD an old record: no field at all
+            if row.get("plan_id") == legacy_id and row["kind"] == "plan":
+                del row["entry_valid_sessions"]
+        path.write_text("".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
+        with self.replay("2026-03-03"):
+            plans = {p["ticker"]: p for p in plan_ledger.list_trade_plans()["plans"]}
+        self.assertEqual(plans["NVDA"]["entry_valid_sessions"], 7)
+        self.assertEqual(plans["AMD"]["entry_valid_sessions"], 1)
+        self.assertEqual(new["entry_valid_sessions"], 7)
 
 
 class SizeTests(LedgerCase):

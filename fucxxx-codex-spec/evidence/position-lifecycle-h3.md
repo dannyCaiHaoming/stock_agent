@@ -114,3 +114,29 @@ bash -n scripts/dev-research.sh      OK
 - `HISTORY_WRITE_CONFLICT` 对“计划自身晚于截点冻结”的情形不适用（沿用 `EFFECTIVE_NOT_AFTER_FROZEN`，会让调用者知道该 plan_id 存在）；若要彻底不透露，需在 `_effective_for` 里把该情形也并入，会改既有错误码与 5 条用例，留给主会话决定。
 - Skill 文字（`plan-review/SKILL.md:23` 的“同日会被拒收”应限定盘中；`published_at` 只接受 `YYYY-MM-DD` 或带时区的完整时间；冻结时把经营持有依据与价格条件分开保存，复查 #10）不在本轮可写范围内，未改。
 - 未实跑 `dev-research.sh` 的任何任务模式。
+
+## 返工 3（纸面成交改为限价挂单，依据 `plans/position-lifecycle-rework3.md`）
+
+改了什么：
+- `product/deterministic/plan_math.py`：`Bars` 新增可选 `low` 列；新增 `_scan_entry`；`settle` 读 `plan["entry_valid_sessions"]`（整数 1–10，`INVALID_PLAN` 校验）。逐日（仅已完成交易日、不越过 cap_date）：开盘在 `[lo, hi]` → 按开盘价成交（method `open`）；开盘 > hi 且最低价 ≤ hi → 按 hi 成交（`limit`）；开盘 < lo 或开盘 > hi 未触及 → 当日不成交，顺延；缺开盘 → 跳过并记 `missing_open`（有效期内全部缺开盘才 `not_fillable`）；未成交的一天收盘 ≤ 初始失效价 → 三条线 `cancelled_stop_before_fill`（无成交、无成本）；有效期内无成交 → `unfilled`；窗口在日历里还没走完 → `pending`；窗口被 cap_date 截断 → `expired_unfilled`；首个可成交日已晚于 cap_date → `expired_unfilled`（不变）。成交后的止损（从成交日收盘起查）、复核（成交日或之前生效的 EXIT → `cancelled_before_fill`，REDUCE 忽略）、cap、拆股/公司行为规则不变；R0 取计划里冻结的值，不随实际成交价变化；三条线共用同一成交（`_run_line` 新增可选 `fill_price`）。拆股检查覆盖冻结日到最后扫描日。
+- `product/mcp/plan_ledger.py`：`save_trade_plan(..., entry_valid_sessions=5)`，整数 1–10（拒 bool、小数、字符串、None；错误码 `ENTRY_VALID_SESSIONS_INVALID`），写入 plan 记录并在返回值里带出；`list_trade_plans` 摘要增加 `entry_valid_sessions`，缺字段的旧记录显示 1。`fill_rule` 字符串未改（仍是 `next_regular_open_after_frozen_at`，见未完成项）。
+- `product/mcp/server.py`：只改 `save_trade_plan` 的参数（`entry_valid_sessions: int = 5`）与 docstring。
+- `scripts/score-plans.py`：取价行里的最低价对齐到日历后以 `Bars.low` 传入；报告在每个计划写“挂单有效期”，成交行写成交价、成交方式（开盘价 / 限价上限）、已看交易日数；成交腿说明区分两种方式；头部规则说明、漏斗新增 `cancelled_stop_before_fill`。
+
+接口变化：
+- `plan_math.Bars(dates, open, close, adj_close, low=None)`；`settle` 的 `fill` 在新记录里多出 `price`、`method`、`valid_sessions`、`sessions_scanned`，`index/date/open` 指成交日（未成交时指第一个交易日）；新状态 `cancelled_stop_before_fill`；新 flag `missing_open`。
+- 旧记录（没有 `entry_valid_sessions` 字段）：`settle` 走原逻辑（只看第一个交易日开盘、不用最低价、缺开盘即 `not_fillable`），输出与改前逐字一致，`fill` 里没有新字段，报告写“旧记录无该字段，按 1 个交易日处理”。注意这与显式 `entry_valid_sessions=1` 不同：显式 1 仍用新规则（高开但最低价触及上限时按上限成交）。
+- MCP 工具 `save_trade_plan` 新增可选参数 `entry_valid_sessions`（默认 5）。
+
+测试（离线、临时目录、行情 mock、未调用模型）：
+- 命令：`.venv/bin/python -m unittest tests.test_plan_math tests.test_plan_ledger tests.test_plan_integration tests.test_decision_integration tests.test_decision_ledger tests.test_decision_scoring tests.test_decision_events tests.test_stock_data_tools -v` → `Ran 348 tests ... OK`（返工 2 为 319，新增 29）。
+- `tests/test_plan_math.py`：`LegacyRecordTests`——六个场景（基准、高开未成交、缺开盘、跳空、pending、MU）的完整 `settle` 输出与改前代码生成的 JSON 逐字相等；给旧记录传入很低的最低价结果也不变；MU 用例照计划 −1,161.81 / −1.236R、持有 −3,291.03 / −3.500R、简单退出与照计划相同；显式 1 与旧记录的区别。`EntryOrderTests`——四种日内情形各一例（含无最低价时规则 2 不适用）、第 3 天成交（手算净 959.00）、窗口外的成交日不算、成交前收盘 ≤ 失效价取消（等于失效价也取消、略高则不取消）、成交日收盘跌破失效价按止损而非取消、缺开盘跳过与 flag、有效期内全部缺开盘 `not_fillable`、窗口未走完 `pending`、cap 截断 `expired_unfilled`、成交前 EXIT 复核、窗口内拆股、参数校验。
+- `tests/test_plan_ledger.py`：`EntryValidSessionsTests`——默认 5 与写入记录、1/10/3 取值、七种坏值被拒且不写账本、不属于生成字段、旧记录在摘要里读作 1。
+- `tests/test_plan_integration.py`：`ScoreEntryOrderCase`——score-plans 端到端：限价成交（买 100 × 102 = 10,200.00；持有 +379.20 / +0.379R；照计划 = 简单退出 −1,818.60 / −1.819R；R0 仍为 1000），同一数据去掉字段的旧记录 → unfilled 且报告写明旧记录规则，成交前被失效价取消进入漏斗。
+
+未完成项与限制：
+- `fill_rule` 仍是 `next_regular_open_after_frozen_at`，与新规则不一致；改它会动记录语义与 `test_plan_ledger` 的断言，留给主会话决定（建议新记录用新字符串，旧记录不动）。
+- `product/skills/trade-plan/SKILL.md` 与 `plan-review` 未写 `entry_valid_sessions`（不在可写范围内）；默认 5 已生效，Skill 需要说明如何选取。
+- 子设计 `designs/position-lifecycle.md`“三线结算”仍写旧成交规则，需主会话把返工 3 规则并入。
+- 行情最低价来自 Yahoo 日线（未复权口径经拆股还原），“最低价触及上限”不等于限价单在该价位真的排到队，是纸面近似；真实数据未实测。
+- 未 commit；未调用模型；`dev-research.sh` 未改。
