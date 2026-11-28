@@ -10,11 +10,11 @@
 - 当前 MVP：L1 可用性，子设计 [designs/position-lifecycle.md](designs/position-lifecycle.md)，plan [plans/position-lifecycle-impl.md](plans/position-lifecycle-impl.md)（返工 [rework1](plans/position-lifecycle-rework1.md)、[rework2](plans/position-lifecycle-rework2.md)）。
 - 状态：实现完成（Sonnet 5.5，返工 2 次）；319 个离线测试通过；三个固定用例 A/B/C 通过（Codex terra 回放，4 次模型调用）；**真实前瞻用例：NVDA，12-04（10-Q 截止）后用修订后的 trade-plan 重跑**（11-28 两次实时尝试 NVDA not_formed、PL wait；与 astra 讨论后修订 Skill）。验收记录 [evidence/position-lifecycle-acceptance.md](evidence/position-lifecycle-acceptance.md)。
 - 前一路线 Decision-First：P0 完成并推送（021199f）；P1 代码完成并提交（0cb36e7、5ea1d8c），第二版盲读材料在 [evidence/decision-card-blindread.md](evidence/decision-card-blindread.md)，**用户结论待记录**；P2 协议 v1 保留、暂不开跑（用户：先做完 P1）。
-- 代码基线：`main` 5ea1d8c；本轮改动全部未提交（见下）。
+- 代码基线：`main` 88a0cee（L1 已提交并推送 2026-11-28）。
 - Skill 包根与阶段能力入口：Claude Code `~/.claude/skills/`，Codex `~/.codex/skills/`；design 能力 2026-11-28 实际读取。
 - 模型分工（用户 2026-11-28 重申）：计划与复核 Opus 5.5；实现 Sonnet 5.5（一度误派 Haiku，已取消，未写入文件）；独立复核 Codex `gpt-6.2-astra`。
 
-## 本轮未提交改动
+## 本轮改动（已提交 88a0cee）
 - 新增：`product/deterministic/plan_math.py`、`product/mcp/plan_ledger.py`、`scripts/score-plans.py`、`product/skills/trade-plan/`、`product/skills/plan-review/`、`tests/test_plan_math.py`、`tests/test_plan_ledger.py`、`tests/test_plan_integration.py`、`docs/design-position-lifecycle-2026-11-28.md`、`fucxxx-codex-spec/designs/position-lifecycle.md`、`plans/position-lifecycle-*.md`、`evidence/position-lifecycle-*.md`。
 - 修改：`product/mcp/server.py`（8 个计划工具）、`product/mcp/data_tools.py`（拆股还原只算响应获取日之前的拆股）、`scripts/dev-research.sh`（`--plan`/`--review`/`--seed-plans`、模式互斥、`STOCK_AGENT_RUN_MODEL`）、`tests/test_stock_data_tools.py`、`AGENTS.md`（Skill 列表）、`docs/roadmap.md`、`docs/design-decision-first-2026-11-21.md`（状态行）、本文件。
 
@@ -47,4 +47,4 @@
 ## 下一步
 - 12-04 之后 NVDA 重跑：`trade-plan` 出计划→ 用户复述失效条件 → 下一次公开事件后 `plan-review` → `score-plans.py` 结算 → 回填验收记录，L1 收口。
 - L1 收口后：用户决定 L2（20 个候选或 8 週）与 P2 是否开跑。
-- 当前授权：实现与验收到 L1；commit 需用户同意。
+- 当前授权：实现与验收到 L1；之后的 commit 仍需用户同意。
